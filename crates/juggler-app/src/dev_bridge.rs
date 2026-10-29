@@ -18,6 +18,7 @@
 
 mod routes;
 mod server;
+pub mod walk_data;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -51,6 +52,44 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     "update://status",
     // AJ-E1529: the rail reads sessions started outside AI Juggler again.
     crate::features::conversations::EVENT_CHANGED,
+    // The 0.2 walk (F4, F19): Needs you, the bell and Home read again
+    // when the backend's count changes; without it a bridged page's
+    // counts went stale.
+    crate::features::notifications::views::EVENT_CHANGED,
+    crate::features::processes::EVENT_CHANGED,
+    crate::features::runtime::EVENT_CHANGED,
+    crate::features::tasks::EVENT_CHANGED,
+    crate::features::messages::EVENT_CHANGED,
+];
+
+/// Events the UI listens to that the bridge never forwards, each with its
+/// reason (a test holds every event the UI names to one list or the
+/// other).
+pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
+    ("terminal://output", "a terminal's output"),
+    (
+        "terminal://exit",
+        "a terminal's own lifecycle, for its view only",
+    ),
+    (
+        "terminal://windows",
+        "the native terminal windows, window-only",
+    ),
+    ("preview://frame", "screen frames"),
+    ("preview://state", "the window preview, window-only"),
+    ("fleet://switch-progress", "the progress of a write"),
+    ("backup://progress", "the progress of a write"),
+    ("app://quit-requested", "the native window's own quit"),
+    ("app://go-to", "the native menu asking the window to act"),
+    ("app://open", "the menu-bar item asking the window to act"),
+    (
+        "app://new-session",
+        "the menu-bar item asking the window to act",
+    ),
+    (
+        "notifications://open",
+        "the menu-bar item asking the window to act",
+    ),
 ];
 
 /// The per-run bearer token: 32 random bytes, hex. Its `Debug` never
@@ -114,6 +153,15 @@ pub fn start_if_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     if crate::edition::current() != crate::edition::Edition::Dev {
         eprintln!("ai-juggler: dev bridge: Dev edition only; not started");
         return;
+    }
+    // The bridge starts no vendor program (DEV-BRIDGE.md): from here on,
+    // what's installed is read from files only, the version not asked
+    // (the 0.2 walk, F19: `switch_targets` and Settings ran `--version`).
+    {
+        use tauri::Manager as _;
+        app.state::<Arc<crate::state::AppState>>()
+            .tool_programs
+            .stop();
     }
     let origin = match std::env::var(ENV_ORIGIN) {
         Ok(origin) => origin,

@@ -22,8 +22,8 @@ export function FigureheadStep({ onDone }: { onDone: (connected: boolean) => voi
         </h2>
         <p className="max-w-2xl text-body text-ink">
           You can do everything in AI Juggler without an account. A free Figurehead account adds Cloud features you
-          choose to turn on: encrypted backups you can restore on another Mac, and finding your own Macs for Fleet
-          without a pairing code. Your sign-ins to Claude, Codex and other tools never leave this Mac.
+          choose to turn on: encrypted backups you can restore on another computer, and finding your own Macs for Fleet
+          without a pairing code. Your sign-ins to Claude, Codex and other tools never leave this computer.
         </p>
       </div>
       {!connecting ? (

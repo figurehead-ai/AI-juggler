@@ -89,6 +89,22 @@ pub fn summarize(name: &str, input: &serde_json::Value) -> String {
     }
 }
 
+/// AJ-E1703: the files a tool call changed (written, edited or patched),
+/// last two path parts each as [`summarize`] names them; none for a call
+/// that changes no file (reading one isn't changing it).
+#[must_use]
+pub fn edited_files(name: &str, input: &serde_json::Value) -> Vec<String> {
+    let field = |key: &str| input.get(key).and_then(serde_json::Value::as_str);
+    match name {
+        "Write" | "Edit" | "MultiEdit" | "NotebookEdit" => field("file_path")
+            .or_else(|| field("notebook_path"))
+            .map(|path| vec![tail_of_path(path)])
+            .unwrap_or_default(),
+        "apply_patch" => patched_files(field("input").or_else(|| field("patch")).unwrap_or("")),
+        _ => Vec::new(),
+    }
+}
+
 /// What a Codex code-mode script (`exec`, codex-cli 0.163) did: the
 /// commands it ran (`tools.exec_command({cmd: …})`) and the files its
 /// patches touched (`tools.apply_patch(…)`), in a few words. Live lab 13:
@@ -219,6 +235,19 @@ fn strip_shell_wrapper(command: &str) -> &str {
         }
     }
     command
+}
+
+/// The script inside a shell wrapper given as an argument vector
+/// (`["/bin/zsh", "-lc", "npm test"]` → `npm test`), when it is one: a
+/// shell by its name, `-c` or `-lc`, then the script.
+#[must_use]
+pub(crate) fn shell_script<'a>(argv: &[&'a str]) -> Option<&'a str> {
+    let [shell, flag, script] = argv else {
+        return None;
+    };
+    let name = shell.rsplit('/').next().unwrap_or(shell);
+    (matches!(name, "sh" | "bash" | "zsh" | "dash") && matches!(*flag, "-c" | "-lc"))
+        .then_some(*script)
 }
 
 /// The files a Codex patch touches (`*** Update File: x`, `*** Add File:

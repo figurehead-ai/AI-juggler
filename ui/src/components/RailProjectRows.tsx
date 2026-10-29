@@ -53,7 +53,7 @@ export function ProjectRow({
   const accounts = projectAccounts(project, [], useConversations().all);
   const accountsId = useId();
   return (
-    <div className="group relative" {...menu.triggerProps}>
+    <div className="group relative" data-rail-row {...menu.triggerProps}>
       <button
         type="button"
         onClick={() => onSelect(project.id)}
@@ -125,7 +125,7 @@ export function RailProjectHeader({
   const accounts = projectAccounts(project, rows, useConversations().all);
   const accountsId = useId();
   return (
-    <div className="group relative flex min-w-0 flex-1 items-center" {...menu.triggerProps}>
+    <div className="group relative flex min-w-0 flex-1 items-center" data-rail-row {...menu.triggerProps}>
       <button
         type="button"
         onClick={onSelect}

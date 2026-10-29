@@ -46,6 +46,30 @@ hdi() {
   done
   return 16
 }
+# Detach a mounted image. A busy detach can still finish on its own a
+# moment later, so the next try then fails with "not mounted" (the 0.2.0
+# rehearsal's Nightly edition): once the mount point is gone, it's done.
+# The last try forces it.
+detach() {
+  local mount attempt status
+  mount="$(cd "$1" && pwd -P)"
+  for attempt in 1 2 3 4 5; do
+    status=0
+    if [ "$attempt" -lt 5 ]; then
+      hdiutil detach -quiet "$mount" || status=$?
+    else
+      hdiutil detach -quiet -force "$mount" || status=$?
+    fi
+    [ "$status" -eq 0 ] && return 0
+    mounted "$mount" || return 0
+    echo "hdiutil detach: the image is busy (try $attempt of 5, exit $status)" >&2
+    sleep $((attempt * 3))
+  done
+  return "$status"
+}
+mounted() {
+  mount | grep -qF " on $1 ("
+}
 rehearsal="${REHEARSAL:-}"
 : "${VERSION:?}" "${PREFIX:?}"
 
@@ -68,14 +92,30 @@ product="$(basename "$app" .app)"
 # (whatever umask the build ran under). Not part of the signature.
 chmod -R u+rwX,go+rX,go-w "$app"
 
-# Only the main executable is signed (no --deep): anything else that
-# could carry code must be signed explicitly, so it stops here.
+# Nothing is signed with --deep: every piece of code is named here and
+# signed on its own. The bundle holds the main executable and the helpers
+# listed in `helpers` (AJ-E1704: the agent bridge, `juggler-agent`), each
+# in Contents/MacOS; anything else that could carry code stops here.
+helpers=(juggler-agent)
+main="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
 extra="$(find "$app/Contents" -mindepth 1 -maxdepth 1 ! -name MacOS ! -name Resources ! -name Info.plist)"
-if [ -n "$extra" ] || [ "$(find "$app/Contents/MacOS" -type f | wc -l | tr -d ' ')" != 1 ]; then
-  echo "::error::the bundle has code beyond its one executable; sign it explicitly first:"
+unexpected=""
+while IFS= read -r file; do
+  name="$(basename "$file")"
+  [ "$name" = "$main" ] && continue
+  case " ${helpers[*]} " in
+    *" $name "*) ;;
+    *) unexpected="$unexpected $name" ;;
+  esac
+done < <(find "$app/Contents/MacOS" -type f)
+if [ -n "$extra" ] || [ -n "$unexpected" ] || [ ! -f "$app/Contents/MacOS/$main" ]; then
+  echo "::error::the bundle has code beyond its executable and its named helpers; sign it explicitly first:"
   find "$app/Contents" -maxdepth 2
   exit 1
 fi
+for helper in "${helpers[@]}"; do
+  [ -f "$app/Contents/MacOS/$helper" ] || { echo "::error::the bundle lacks its helper $helper"; exit 1; }
+done
 
 # --- credentials -----------------------------------------------------------
 if [ -n "$rehearsal" ]; then
@@ -140,8 +180,20 @@ staple() {
 }
 
 # --- the app ---------------------------------------------------------------
+# Inside out: each helper first (hardened runtime, no entitlements), then
+# the app, whose signature seals them.
+for helper in "${helpers[@]}"; do
+  sign "$app/Contents/MacOS/$helper"
+done
 sign "$app"
 codesign --verify --strict --verbose=2 "$app"
+for helper in "${helpers[@]}"; do
+  codesign --verify --strict --verbose=2 "$app/Contents/MacOS/$helper"
+  if [ -n "$(codesign -d --entitlements - --xml "$app/Contents/MacOS/$helper" 2>/dev/null || true)" ]; then
+    echo "::error::the helper $helper carries entitlements"
+    exit 1
+  fi
+done
 # Release builds carry no entitlements: no get-task-allow and no hardened
 # runtime exception (SECURITY-GUIDELINES C8).
 entitlements="$(codesign -d --entitlements - --xml "$app" 2>/dev/null || true)"
@@ -150,7 +202,9 @@ if printf '%s' "$entitlements" | grep -Eq 'get-task-allow|com\.apple\.security\.
   exit 1
 fi
 if [ -z "$rehearsal" ]; then
-  codesign -dvv "$app" 2>&1 | grep -q 'flags=.*runtime' || { echo "::error::no hardened runtime"; exit 1; }
+  for code in "$app" "${helpers[@]/#/$app/Contents/MacOS/}"; do
+    codesign -dvv "$code" 2>&1 | grep -q 'flags=.*runtime' || { echo "::error::no hardened runtime: $code"; exit 1; }
+  done
 fi
 ditto -c -k --keepParent "$app" "$work/notarize.zip"
 notarize "$work/notarize.zip"
@@ -180,7 +234,7 @@ if [ -n "$icon" ] && [ -x /usr/bin/SetFile ]; then
   cp "$icon" "$mount/.VolumeIcon.icns"
   chmod 644 "$mount/.VolumeIcon.icns"
   /usr/bin/SetFile -a C "$mount"
-  hdi detach -quiet "$mount"
+  detach "$mount"
 fi
 dmg="$out/${PREFIX}-${VERSION}-universal.dmg"
 hdi convert -quiet "$work/rw.dmg" -format UDZO -o "$dmg" -ov

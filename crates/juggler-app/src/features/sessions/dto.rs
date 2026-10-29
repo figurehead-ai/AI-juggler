@@ -55,9 +55,11 @@ pub struct InstanceInfo {
     /// (nothing can be running then).
     #[ts(type = "number | null")]
     pub child_count: Option<u32>,
-    /// I-08: how many subagents the session started are still running,
-    /// read from its transcript (AJ-E1520); `null` until it has been read
-    /// (not live, or no transcript yet) — never a guessed count.
+    /// I-08: how many subagents the session started (and theirs) are
+    /// still running, as its tool's adapter reads them — the same reader
+    /// as its Subagents tab (AJ-E1520, `features::subagents::count`);
+    /// `null` until they have been read (not live, its tool records none
+    /// AI Juggler reads, or not read yet) — never a guessed count.
     #[ts(type = "number | null")]
     pub subtask_count: Option<u64>,
     /// I-09: git branch of the working directory, parsed from
@@ -144,4 +146,8 @@ pub struct InstanceInfo {
     /// AJ-E1502: pinned to the top of its group in the rail.
     #[ts(optional)]
     pub pinned: Option<bool>,
+    /// AJ-E2302 (D-40): how it runs and its exact state, when its runtime
+    /// says more than its process does (`features::runtime::described`).
+    #[ts(optional)]
+    pub runtime: Option<crate::features::runtime::dto::RuntimeInfo>,
 }

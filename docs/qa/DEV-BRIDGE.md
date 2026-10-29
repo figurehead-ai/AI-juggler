@@ -48,7 +48,31 @@ The coordinator and the QA session run it against the maintainer's real home, un
 - no credential reads;
 - a before-and-after snapshot of the vendor folders.
 
+**Start from a fresh Dev data folder, filled without starting any tool.** A fresh folder otherwise opens first run in the window, and first run's scan runs each tool's `--version`. Set the old folder aside first (rename `~/Library/Application Support/AI Juggler Dev`, as walks do), then:
+
+```bash
+just dev-bridge-data
+```
+
+It refuses to run while the Dev data folder exists, and it only ever opens AI Juggler Dev's folder (never AI Juggler's or AI Juggler Nightly's). It:
+
+- finds your setups with the scan that starts no tool (files only, and the Keychain *exists* check described under [What a read still does](#what-a-read-still-does));
+- brings each in **where it is**, as first run's "Use them where they are" does: nothing is copied, marked or written in a tool's folder. A setup that can't be used where it is is left out, never copied;
+- names the accounts **Account A**, **Account B**, … so captures carry no real labels;
+- sets **`limits_probe_allowed = off`**. By default (D-39) AI Juggler runs Claude Code's `/usage` headless in every profile in use, which starts the tool; a walk starts none. On a folder you filled another way, turn it off everywhere before the first `just dev-bridge`, while the Dev app isn't running (the window only turns it off per profile, from each account's page, and the bridge can't write):
+
+  ```bash
+  sqlite3 "$HOME/Library/Application Support/AI Juggler Dev/juggler.sqlite" \
+    "INSERT OR REPLACE INTO app_settings(key, value) VALUES ('limits_probe_allowed', 'off')"
+  ```
+
+Then `just dev-bridge` as above.
+
 Start the Dev build Finder-like (`env -i HOME USER LOGNAME TMPDIR SHELL LANG PATH …`) so agent-shell variables such as `CLAUDE_CONFIG_DIR` don't skew what it sees.
+
+Put stand-in `claude`, `codex`, `opencode`, `grok` and `kimi` scripts first on that `PATH` (each logs its arguments and exits 1) as a belt-and-braces check: their log should stay empty.
+
+A bridged Dev build runs no tool's `--version`. Once `AIJ_DEV_BRIDGE=1` asks for the bridge, every tool discovery in the app (`switch_targets`'s version warm-up for the fidelity register, the Dev window's own Settings › Accounts and tool pages, the tool-update line, usage statistics and the recommendation) goes through one seam, `features::tools::discover`, which then reads files only: where the tool's program is, never running it. The screens say **"Installed; its version isn't known (this build doesn't start tools to ask)"**, and a switch pair whose register cell needs the installed version reads "not proven yet". Before the 0.2 walk's F19 fix it ran each tool's `--version` within its first minute. `tests/discovery_starts_no_tool.rs` holds it.
 
 ### On fixtures, or next to another AI Juggler Dev
 
@@ -85,7 +109,7 @@ This is how the PR that added the bridge proved it.
 - **This Mac:** `this_mac`, `machine_health`, `machine_advice`, `port_inventory`, `cleanup_inventory`, `cleanup_status`, `cleanup_tiers_get`, `recovery_summary_get`.
 - **Settings reads:** `app_setting_get` (only `go_to_hotkey` and `renewal_warn_days`), `notification_prefs_get`, `cleanup_default_get`, `redaction_policy_get`, `os_access_list`, `update_status`, `going_back_options`, `crash_info`, `usage_stats_info`, `link_status`, `editor_choices`, `session_prefs_get`.
 
-The refresh events go out over `GET /v1/events` (SSE), behind the same token: `app://ready`, `session://updated`, `session://resources`, `session://quota`, `machine://this-mac`, `update://status`, `conversations://changed`. Terminal output, preview frames and the progress of writes are never sent.
+The refresh events go out over `GET /v1/events` (SSE), behind the same token: `app://ready`, `session://updated`, `session://resources`, `session://quota`, `machine://this-mac`, `update://status`, `conversations://changed`, `notifications://changed` (so Needs you, the bell and Home stay live), `processes://changed`, `runtime://changed`, `tasks://changed` and `messages://changed`. Terminal output, preview frames, the progress of writes and the native window's own requests (the menu-bar item's and the menu's) are never sent: `NOT_FORWARDED_EVENTS` in `dev_bridge.rs` names each with its reason, and a test holds every event the UI listens to to one list or the other.
 
 ### What a read still does
 
@@ -100,6 +124,7 @@ A read changes nothing a person or a later answer would see. Some reads do, on t
 - **`transcript_search`:** brings the search index up to date first, with the same incremental pass the app runs every minute.
 - **`this_mac`, `machine_advice`:** advance the in-memory overload-alert state. Delivering an alert (`machine_alerts_take`) is a write and isn't served.
 - **`quota_display`:** may add one usage-statistics count. It records only if usage statistics are on.
+- **`quota_probe_status`:** reads only. (Before the 0.2 walk's fix it made an empty `overlays/limits-probe` folder; the probe's folder is now made only when the probe runs.)
 
 ### What the Dev build does on its own
 
@@ -128,7 +153,7 @@ These commands look like reads, but each has an effect a read must not have.
 | `figurehead_status`, `pairing_host_state` | Return a live device-link or pairing code. |
 | `expert_setup_info`, `launch_recipe_env_get` | Return Launch-settings environment values, which can hold keys. |
 | `terminal_snapshot` | Returns raw terminal output. |
-| `providers_discover`, `recommendation_for`, `environment_scan_full`, `validation_matrix`, `fleet_switch_targets` | Run (or can run) vendor CLIs with `--version`. |
+| `providers_discover`, `recommendation_for`, `environment_scan_full`, `validation_matrix`, `fleet_switch_targets` | Run vendor CLIs with `--version` in a build without the bridge. Under the bridge they read files only (above), but they stay off the route table until the coordinator says otherwise. |
 | `isolation_offer`, `git_status_refresh`, `worktree_removal_preview` | Run `git`. |
 | `instance_delete_preview`, `retention_preview` | Issue one-time confirmation tokens. |
 | `alerts_tick`, `cleanup_alerts`, `parked_offers`, `usage_stats_overview`, `switch_preflight`, `cost_csv_export`, `isolation_check` | Write settings, logs, files or overlays. |

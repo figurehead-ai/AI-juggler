@@ -32,23 +32,26 @@ workspace = true
 
 [dependencies]
 # D-26: open at login (a safe stub off macOS).
-juggler-login-item = { version = "0.1.0", path = "../juggler-login-item" }
+juggler-login-item = { version = "0.2.0", path = "../juggler-login-item" }
 base64 = "0.23"
 dirs = "7.0.0"
 flate2 = "1.1"
 # D-38: apps' icons are kept as PNGs (already in the tree through tauri).
 png = "0.18"
-juggler-adapter = { version = "0.1.0", path = "../juggler-adapter" }
-juggler-account = { version = "0.1.0", path = "../juggler-account" }
-juggler-adapters = { version = "0.1.0", path = "../juggler-adapters" }
-juggler-core = { version = "0.1.0", path = "../juggler-core" }
-juggler-handover = { version = "0.1.0", path = "../juggler-handover" }
-juggler-link = { version = "0.1.0", path = "../juggler-link" }
+juggler-adapter = { version = "0.2.0", path = "../juggler-adapter" }
+juggler-account = { version = "0.2.0", path = "../juggler-account" }
+juggler-agentbridge = { version = "0.2.0", path = "../juggler-agentbridge" }
+juggler-adapters = { version = "0.2.0", path = "../juggler-adapters" }
+juggler-core = { version = "0.2.0", path = "../juggler-core" }
+juggler-handover = { version = "0.2.0", path = "../juggler-handover" }
+juggler-link = { version = "0.2.0", path = "../juggler-link" }
+# The OS seams: owner-only folders and files, local sockets, who we are.
+juggler-platform = { version = "0.2.0", path = "../juggler-platform" }
 # AJ-E1102: opt-in usage statistics; leave it out with --no-default-features.
-juggler-stats = { version = "0.1.0", path = "../juggler-stats", optional = true }
+juggler-stats = { version = "0.2.0", path = "../juggler-stats", optional = true }
 # AJ-E1108: the usage-stats tick (and any puzzle it solves) runs at low priority.
 thread-priority = { version = "3.1.1", optional = true }
-juggler-supervisor = { version = "0.1.0", path = "../juggler-supervisor" }
+juggler-supervisor = { version = "0.2.0", path = "../juggler-supervisor" }
 getrandom = "0.4"
 prost = "0.14"
 serde = { version = "1.0.229", features = ["derive"] }
@@ -56,7 +59,8 @@ serde_json = "1.0.154"
 sha2 = "0.11"
 tar = "0.4"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
-tauri = { version = "2.12.3", features = [] }
+# AJ-E2501: the menu-bar item (Tauri's tray, the same API on every desktop).
+tauri = { version = "2.12.3", features = ["tray-icon"] }
 tauri-plugin-dialog = "2"
 # AJ-E1010: the launch alert when an older AI Juggler meets newer data
 # (before any window exists), on every desktop platform. Already in the
@@ -93,10 +97,10 @@ tauri-build = { version = "2.7.2", features = [] }
 
 [dev-dependencies]
 # The usage-stats integration tests seed the store directly.
-juggler-stats = { version = "0.1.0", path = "../juggler-stats" }
+juggler-stats = { version = "0.2.0", path = "../juggler-stats" }
 # Timing budgets measured as thread CPU time (AJ-E806 ledger).
 cpu-time = "1"
-juggler-handover = { version = "0.1.0", path = "../juggler-handover" }
+juggler-handover = { version = "0.2.0", path = "../juggler-handover" }
 tempfile = "3.27.0"
 # AJ-E1542: reads the Codex config a set-up wrote.
 toml = "1"
@@ -114,7 +118,7 @@ rusqlite = "0.40.2"
 # everywhere against a scripted capture source.
 screencapturekit = { version = "11.0.0", features = ["macos_14_0"] }
 # D-17: the audited init shim (one unsafe call, isolated crate).
-juggler-scap-init = { version = "0.1.0", path = "../juggler-scap-init" }
+juggler-scap-init = { version = "0.2.0", path = "../juggler-scap-init" }
 # D-25: the first-run OS access step — safe wrappers (their FFI stays in
 # their own crates; ours keep `unsafe_code = "forbid"`): Screen Recording
 # preflight/request, and the Accessibility check with the system prompt
@@ -150,3 +154,10 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 [[test]]
 name = "activation_real"
 harness = false
+
+# F19 (the 0.2 walk): `just dev-bridge-data` fills a fresh AI Juggler Dev
+# data folder for a walk through the bridge, starting no tool (see the
+# file and docs/qa/DEV-BRIDGE.md). Debug builds with the bridge only.
+[[example]]
+name = "dev_walk_data"
+required-features = ["dev-bridge"]

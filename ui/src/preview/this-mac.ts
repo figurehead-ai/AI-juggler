@@ -44,6 +44,14 @@ function totals(trees: ToolTreeInfo[], cores: number): ToolTotalsInfo {
   };
 }
 
+/** Another app's group in words, as the backend: the app for a desktop
+ * app ("ChatGPT"), else the tool in it ("Codex in Terminal"). The group
+ * key is `app:<app>:<tool>`. */
+function appGroupLabel(tree: ToolTreeInfo): string {
+  const app = tree.group.split(":")[1] ?? "";
+  return tree.place === "terminal" || tree.place === "editor" ? `${providerDisplayName(tree.tool ?? "")} in ${app}` : app;
+}
+
 /** The preview's This Mac, derived from the sessions on screen. */
 export function mockThisMac(
   sessions: InstanceInfo[],
@@ -91,12 +99,21 @@ export function mockThisMac(
     .sort((a, b) => b.totals.rss_bytes - a.totals.rss_bytes);
   for (const place of ["desktop", "terminal"]) {
     const groups = new Map<string, ToolTreeInfo[]>();
-    for (const tree of observed.filter((tree) => tree.place === place)) groups.set(tree.group, [...(groups.get(tree.group) ?? []), tree]);
+    for (const tree of observed.filter((tree) => tree.place === place && !tree.group.startsWith("app:"))) groups.set(tree.group, [...(groups.get(tree.group) ?? []), tree]);
     for (const [group, trees] of groups) {
       const label = trees[0]!.label ?? group;
       byTool.push({ tool: group, label, who: place === "desktop" ? `The ${label}` : label, ours: false, totals: totals(trees, machine.cores), cpu_one_core_pct: oneCore(trees) });
     }
   }
+  // As the backend (AJ-E2407): every other app's sessions, by app and tool,
+  // heaviest first.
+  const apps = new Map<string, ToolTreeInfo[]>();
+  for (const tree of observed.filter((tree) => tree.group.startsWith("app:"))) apps.set(tree.group, [...(apps.get(tree.group) ?? []), tree]);
+  byTool.push(
+    ...[...apps.entries()]
+      .map(([group, trees]) => ({ tool: group, label: appGroupLabel(trees[0]!), who: appGroupLabel(trees[0]!), ours: false, totals: totals(trees, machine.cores), cpu_one_core_pct: oneCore(trees) }))
+      .sort((a, b) => b.totals.rss_bytes - a.totals.rss_bytes),
+  );
   // As the backend's align_with_alerts: while the memory-pressure alert is
   // on, the Mac's state says the same words.
   const aligned: MachineHealthInfo = alerts.some((alert) => alert.kind === "memory_pressure")

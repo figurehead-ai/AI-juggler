@@ -43,7 +43,7 @@ for (const theme of ["dark", "light"] as const) {
       { fixture: allStatuses, theme },
     );
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await expect(page.getByTestId("user-menu-button")).toBeVisible();
     // Resolve each token to sRGB through the browser itself.
     const colours = await page.evaluate(
       (names) => {

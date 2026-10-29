@@ -5,6 +5,7 @@
  * or under pressure, and a tool AI Juggler didn't start offers nothing to
  * click (D-08).
  */
+import { needsFor } from "../test/needs-kit";
 import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RailRow } from "./WorkflowRail";
@@ -101,6 +102,8 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
   it("lists a heavy session once, with one action", () => {
     const open = vi.fn();
     const sessions = [mk("heavy-one"), mk("calm-one")];
+    const mac = info("plenty", [tree({ session_id: "heavy-one", place: null, heavy_note: "3.2 GB", rss_bytes: 3.2e9, helpers: 5 })]);
+    needsFor({ sessions, accounts, projects, thisMac: mac }); // D-49: the backend's list
     render(
       <HomeScreen
         sessions={sessions}
@@ -110,7 +113,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
         onOpenSession={open}
         onNewSession={vi.fn()}
         onAddAccounts={vi.fn()}
-        thisMac={info("plenty", [tree({ session_id: "heavy-one", place: null, heavy_note: "3.2 GB", rss_bytes: 3.2e9, helpers: 5 })])}
+        thisMac={mac}
       />,
     );
     expect((screen.getByRole("heading", { level: 1 }))!.textContent).toBe("1 thing needs you");
@@ -124,6 +127,8 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
 
   it("raises a Mac under pressure and leads to This Mac", () => {
     const openPage = vi.fn();
+    const mac = info("pressure", [tree({ session_id: "one", place: null })]);
+    needsFor({ sessions: [mk("one")], accounts, projects, thisMac: mac }); // D-49: the backend's list
     render(
       <HomeScreen
         sessions={[mk("one")]}
@@ -133,7 +138,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
         onOpenSession={vi.fn()}
         onNewSession={vi.fn()}
         onAddAccounts={vi.fn()}
-        thisMac={info("pressure", [tree({ session_id: "one", place: null })])}
+        thisMac={mac}
         onOpenThisMac={openPage}
       />,
     );
@@ -148,6 +153,7 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
   });
 
   it("stays quiet when the Mac is only getting tight", () => {
+    needsFor({ sessions: [mk("one")], accounts, projects, thisMac: info("tight", [tree({ session_id: "one", place: null })]) }); // D-49
     render(
       <HomeScreen
         sessions={[mk("one")]}
@@ -206,6 +212,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
   it("puts a sustained machine alert under Needs you, naming the biggest user", () => {
     const mac = info("tight", [tree({ session_id: "busy-one", place: null })]);
     mac.alerts = [alert({})];
+    needsFor({ sessions: [mk("busy-one")], accounts, thisMac: mac }); // D-49: the backend's list
     render(
       <HomeScreen
         sessions={[mk("busy-one")]}
@@ -255,7 +262,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     expect(alertSubject(others, () => null)).toBe("Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB");
     const words = alertWords([others, { ...others, key: "swap", kind: "swap", detail: "swap is growing — 3004 MB a minute" }], () => null)!;
     expect(words.detail).toBe(
-      "macOS reports memory pressure; swap is growing — 3004 MB a minute. Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB",
+      "macOS reports memory pressure; swap is growing — 3004 MB a minute. Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB. To make room, quit next-server or another app you aren't using. Nothing is blocked, but everything is slower until it eases",
     );
     expect(words.detail).not.toContain("Claude");
   });
@@ -268,7 +275,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     render(<NotificationRegion />);
     const notice = await screen.findByTestId("machine-alert");
     expect(notice.textContent).toContain("The processor has been flat out for minutes — 97% busy for over two minutes. The Claude app is using CPU 140%.");
-    fireEvent.click(within(notice).getByRole("button", { name: "dismiss" }));
+    fireEvent.click(within(notice).getByRole("button", { name: /^Close/ }));
     expect(screen.queryByTestId("machine-alert")).toBeNull();
     delete (window as unknown as Record<string, unknown>).__AIJ_ALERTS_FRESH__;
   });
@@ -283,7 +290,7 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     // The same notice shows once Home is left.
     view.rerender(<NotificationRegion />);
     expect((await screen.findByTestId("machine-alert")).textContent).toContain("Your Mac is under memory pressure");
-    fireEvent.click(within(screen.getByTestId("machine-alert")).getByRole("button", { name: "dismiss" }));
+    fireEvent.click(within(screen.getByTestId("machine-alert")).getByRole("button", { name: /^Close/ }));
   });
 
   it("tells a CPU-heavy session by its CPU, not its memory", async () => {

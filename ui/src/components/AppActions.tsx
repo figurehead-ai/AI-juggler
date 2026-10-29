@@ -12,7 +12,9 @@ import { desktopFocus, errorText, type InstanceInfo, type ProjectInfo } from "..
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
 import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, type ConversationInfo } from "../lib/ipc/conversations";
 import { useConversations } from "../lib/conversations";
+import { openPoolSheet } from "../lib/pools";
 import { markSeen } from "../lib/seen";
+import { focusHandoverSoon } from "../lib/handover-focus";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -29,6 +31,7 @@ export function AppActions({
   selectProject,
   selectAccount,
   selectTool,
+  selectPool,
   openAccounts,
   openHome,
   stopSession,
@@ -41,6 +44,8 @@ export function AppActions({
   selectProject: (id: string) => void;
   selectAccount: (id: string) => void;
   selectTool: (id: string) => void;
+  /** AJ-E1703: a pool's page. */
+  selectPool: (id: string) => void;
   openAccounts: () => void;
   openHome: () => void;
   stopSession: (row: InstanceInfo) => void;
@@ -50,10 +55,10 @@ export function AppActions({
 }): JSX.Element {
   const conversations = useConversations();
   const host = useMemo<ActionHost>(() => {
-    // The same as ⌘⇧H on the session: its hand-over section.
+    // The same as ⌘⇧H on the session: its switch list.
     const carry = (row: InstanceInfo) => {
       selectSession(row.id);
-      window.setTimeout(() => window.dispatchEvent(new Event("aij:focus-handover")), 0);
+      focusHandoverSoon();
     };
     return {
       openSession: (row) => selectSession(row.id),
@@ -86,6 +91,12 @@ export function AppActions({
           showToast({ id: "go-to", message: `Couldn't go to it: ${errorText(cause)}` });
         }
       },
+      // F8: another app's session too, from its row menu and ⌘K.
+      continueConversationElsewhere: (c) => {
+        markSeen(c.account_id, c.id);
+        selectConversation(c);
+        focusHandoverSoon();
+      },
       copyConversationResume: (c) => copy(conversationsResumeCommand(c.account_id, c.id), "Copied the resume command. Paste it into a terminal."),
       continueConversation: async (c) => {
         try {
@@ -98,6 +109,9 @@ export function AppActions({
         }
       },
       revealSessionProject: (row) => row.project_id && selectProject(row.project_id),
+      // AJ-E1702/E1703: pools.
+      moveSessionToPool: (row) => openPoolSheet({ mode: "move", sessionId: row.id }),
+      openPool: selectPool,
       stopSession,
       newSessionIn,
       setProjectAccount: (project) => selectProject(project.id),
@@ -106,6 +120,6 @@ export function AppActions({
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
+  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, selectPool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
   return <ActionHostProvider host={host}>{children}</ActionHostProvider>;
 }

@@ -71,8 +71,17 @@ type InstallRow = { status: string; binary?: string | null };
  * missing — it is offered like any installed tool.
  */
 export function toolFound(row: InstallRow): boolean {
-  return row.status === "installed" || row.status === "unverified" || (row.status === "probe_failed" && !!row.binary);
+  return row.status === "installed" || row.status === "unverified" || row.status === "found" || (row.status === "probe_failed" && !!row.binary);
 }
+
+/** Found from its files, its version not asked: this build starts no
+ * tool (the read-only test bridge; the 0.2 walk, F19). */
+export function versionNotAsked(row: InstallRow): boolean {
+  return row.status === "found";
+}
+
+/** The words for a tool whose version wasn't asked. */
+export const VERSION_NOT_KNOWN = "Installed; its version isn't known (this build doesn't start tools to ask)";
 
 /** Found, but its version couldn't be read. */
 export function versionUnchecked(row: InstallRow): boolean {
@@ -89,9 +98,15 @@ export function installWords(install: import("./bridge").ProviderInstallData): s
     case "installed":
       return `${install.version ? `Version ${install.version}` : "Installed"}${verified.length > 0 ? ` · tested with ${verified.join(", ")}` : ""}`;
     case "unverified":
-      return `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`;
+      // A tool no version of which was tried yet (E16's, until their
+      // live check) isn't "newer" than anything.
+      return verified.length > 0
+        ? `Version ${install.version ?? "unknown"} · newer than AI Juggler has been tested with`
+        : `Version ${install.version ?? "unknown"} · not tested with AI Juggler yet`;
     case "not_installed":
-      return "Not installed on this Mac";
+      return "Not installed on this computer";
+    case "found":
+      return VERSION_NOT_KNOWN;
     default:
       if (versionUnchecked(install)) return FOUND_UNCHECKED;
       return "Couldn't check what's installed";

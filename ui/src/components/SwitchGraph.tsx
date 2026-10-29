@@ -16,6 +16,7 @@
 import { kindWords } from "../lib/status-words";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { providerDisplayName } from "../lib/providers";
+import type { EpochTask } from "../lib/ipc/tasks";
 import { epochResume, packExport, switchGraphOverview, errorText, type EpochNodeData, type GraphEdgeData, type WorkGraphData } from "../lib/bridge";
 import { providerMark } from "./indicator";
 
@@ -28,7 +29,7 @@ function GraphNode({
   shape,
   onToggle,
 }: {
-  epoch: EpochNodeData;
+  epoch: EpochNodeData & EpochTask;
   open: boolean;
   shape: { fork: boolean; merge: boolean };
   onToggle: () => void;
@@ -60,22 +61,16 @@ function GraphNode({
         <span className="font-mono">{mark.abbrev}</span>
         <span aria-hidden="true">·</span>
         <span>{kindWords(epoch.kind)}</span>
-        {shape.fork && (
-          <span className="rounded border border-warning/50 px-1 text-warning" data-testid="node-fork-chip">
-            fork
-          </span>
-        )}
-        {shape.merge && (
-          <span className="rounded border border-accent/50 px-1 text-accent" data-testid="node-merge-chip">
-            merge
-          </span>
-        )}
+        {shape.fork && <span className="rounded border border-warning/50 px-1 text-warning" data-testid="node-fork-chip">fork</span>}
+        {shape.merge && <span className="rounded border border-accent/50 px-1 text-accent" data-testid="node-merge-chip">merge</span>}
       </span>
       <span className={`text-label ${epoch.resumable ? "text-success" : "text-muted"}`}>
         {epoch.resumable ? "resumable" : "no transcript"}
       </span>
+      {/* AJ-E1904: the task this session worked; a switch keeps it. */}
+      {epoch.task && <span className="max-w-[12rem] truncate text-label text-ink" title={epoch.task} data-testid="node-task">{epoch.task}</span>}
       <span className="sr-only">
-        {`, ${providerDisplayName(epoch.provider)}, ${kindWords(epoch.kind).toLowerCase()} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}`}
+        {`, ${providerDisplayName(epoch.provider)}, ${kindWords(epoch.kind).toLowerCase()} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}${epoch.task ? `, its task ${epoch.task}` : ""}`}
       </span>
     </button>
   );

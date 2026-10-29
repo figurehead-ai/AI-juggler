@@ -4,6 +4,7 @@
  * false countdown. The text carries the meaning (WCAG 1.4.1).
  */
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { whenWords } from "./time-words";
 
 function countdown(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
@@ -33,7 +34,7 @@ export function parkedWords(
   return {
     short: `Parked · resets in ${countdown(at - now)}`,
     chip: `Parked ${countdown(at - now)}`,
-    long: `Parked until the quota resets in ${countdown(at - now)} (at ${new Date(at).toLocaleTimeString()}).`,
+    long: `Parked until the quota resets in ${countdown(at - now)} (at ${whenWords(at, now)}).`,
     due: false,
     estimated: false,
   };

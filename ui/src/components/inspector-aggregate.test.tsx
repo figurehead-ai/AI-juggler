@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RightInspector, installWords, useToolInstall } from "./RightInspector";
+import { RightInspector, installWords } from "./RightInspector";
+import { useToolInstall } from "../lib/useToolInstall";
 import { since } from "../lib/time-words";
 import { quotaDisplay, windowDisplay } from "../lib/wire";
 import { providerDisplayName } from "../lib/providers";
@@ -211,7 +212,11 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(installWords({ ...base, status: "unverified", version: "3.0.0", verified_against: ["2.1.x"] } as never)).toBe(
       "Version 3.0.0 · newer than AI Juggler has been tested with",
     );
-    expect(installWords({ ...base, status: "not_installed", version: null, verified_against: [] } as never)).toBe("Not installed on this Mac");
+    // A tool no version of which was tried yet isn't "newer" than one.
+    expect(installWords({ ...base, status: "unverified", version: "1.19.3", verified_against: [] } as never)).toBe(
+      "Version 1.19.3 · not tested with AI Juggler yet",
+    );
+    expect(installWords({ ...base, status: "not_installed", version: null, verified_against: [] } as never)).toBe("Not installed on this computer");
     expect(installWords({ ...base, status: "error", version: null, verified_against: [] } as never)).toBe("Couldn't check what's installed");
   });
 

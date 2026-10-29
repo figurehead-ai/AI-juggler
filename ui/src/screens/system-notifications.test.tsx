@@ -23,13 +23,14 @@ const LABELS = [
   "A session looks stuck",
   "A session hits its usage limit",
   "A session finishes",
+  "A session leaves something running",
   "This Mac is getting tight",
 ];
 
 describe("AJ-E1510 — Settings › Notifications", () => {
-  it("offers five kinds, all off until chosen", async () => {
+  it("offers six kinds, all off until chosen", async () => {
     const { findByTestId } = render(<SettingsScreen focusSection="notifications" />);
-    const group = await findByTestId("system-notifications");
+    const group = await findByTestId("system-notifications", {}, { timeout: 3000 });
     for (const label of LABELS) {
       expect((within(group).getByLabelText(label) as HTMLInputElement).checked).toBe(false);
     }
@@ -38,11 +39,11 @@ describe("AJ-E1510 — Settings › Notifications", () => {
 
   it("saves each kind on its own and says what changed", async () => {
     const { findByTestId, getByTestId } = render(<SettingsScreen focusSection="notifications" />);
-    const group = await findByTestId("system-notifications");
+    const group = await findByTestId("system-notifications", {}, { timeout: 3000 });
     await act(async () => {
       fireEvent.click(within(group).getByLabelText("A session finishes"));
     });
-    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: true, this_mac: false });
+    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: true, this_mac: false, left_behind: false, quota: false, crash: false, reset: false });
     await waitFor(() =>
       expect(getByTestId("settings-notifications").textContent).toContain("You'll get a notification when a session finishes."),
     );

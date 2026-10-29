@@ -73,12 +73,6 @@ pub fn link_url(state: &Arc<AppState>, kind: &str, id: &str) -> Option<String> {
                 format!("{REPOSITORY}/blob/main/docs/guide/{page}.md{section}")
             })
         }
-        // A tool's account settings, for the switch's "how to get it"
-        // steps: the adapter's page, never one the screen names.
-        "account-settings" => state
-            .registry
-            .get(&juggler_core::model::HarnessId::new(id))?
-            .account_settings_url(),
         _ => None,
     }
 }
@@ -117,17 +111,6 @@ mod tests {
             link_url(&state, "guide", "switching#a?b=c"),
             None,
             "a plain anchor only"
-        );
-        // A tool with an account page opens the adapter's page.
-        let opened: Vec<_> = state
-            .registry
-            .ids()
-            .iter()
-            .filter_map(|id| link_url(&state, "account-settings", id.as_str()))
-            .collect();
-        assert!(
-            opened.iter().all(|url| url.starts_with("https://")),
-            "an adapter's page"
         );
     }
 

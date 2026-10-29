@@ -31,7 +31,7 @@ const TRANSPLANT: PreflightInfoData = {
   redaction: { global: null, override: null, effective: null, source: "unset", line: "" },
   redaction_items: [{ kind: "sk-key", preview: "s•••a91f", segment: 3 }],
   carry_items: [{ label: "The whole conversation", hint: "Every message from the start.", how: "moves" }],
-  move_line: "The whole conversation moves — all 12 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 12 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
   target_tool: "claude-code",
 };

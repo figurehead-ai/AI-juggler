@@ -28,12 +28,14 @@ detail: string,
 session_id: string | null, 
 /**
  * … or a tool AI Juggler didn't start: its This Mac group (an app's
- * id, `terminal:<tool>`).
+ * id, `terminal:<tool>`, or `app:<app>:<tool>` for another app's
+ * sessions the Processes view found, AJ-E2407).
  */
 place: string | null, 
 /**
  * That tool, named as the alert says it ("The Claude app",
- * `ChatGPT (Codex)`, "claude in a terminal"), from its adapter.
+ * `ChatGPT (Codex)`, "claude in a terminal", `ChatGPT`), from its
+ * adapter or the Processes graph.
  */
 subject_name: string | null, 
 /**

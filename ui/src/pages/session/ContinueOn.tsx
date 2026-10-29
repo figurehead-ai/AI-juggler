@@ -8,14 +8,15 @@
  * Juggler runs and one another app runs: that one is read, never touched,
  * and continues as a new session here while it stays open in its app.
  */
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useHandoverFocus } from "../../lib/handover-focus";
 import { AccountAvatar } from "../../components/Avatar";
 import { Button, Card } from "../../components/primitives";
-import { runwayOf } from "../../components/AccountRunway";
-import { FidelityBadge } from "../../components/SwitchTargetRows";
+import { FidelityBadge, RoomLine, SuggestedMark } from "../../components/SwitchTargetRows";
 import { switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData } from "../../lib/bridge";
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
-import { accountDisplay, accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
+import { rankTargets, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
+import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, type SessionModel } from "./model";
 import { CardTitle } from "./CardTitle";
 
@@ -29,6 +30,10 @@ export type Target = {
   badge: { words: string; validated: boolean } | null;
   /** Another tool than the session's. */
   crossTool: boolean;
+  /** Its account's room, as Home's Runway reads it (`lib/room-targets`). */
+  room: TargetRoom | null;
+  /** The one with the most room (the one order by room, `lib/room`). */
+  suggested: boolean;
 };
 
 /** The one-line check, in words. */
@@ -36,13 +41,17 @@ export function setupWords(check: SetupCheckInfo | null | undefined): string | n
   if (check === undefined) return null;
   if (check === null) return "Couldn't check its setup";
   if (check.offers.length === 0) return "Ready: same tools set up";
-  const kinds = new Set(check.offers.map((offer) => offer.kind));
+  // What this conversation didn't use doesn't count against the target
+  // (`null`: the tool doesn't say, so it counts).
+  const offers = check.offers.filter((offer) => offer.used !== false);
+  if (offers.length === 0) return "Ready: has what this conversation used";
+  const kinds = new Set(offers.map((offer) => offer.kind));
   const what =
     kinds.size === 1 && kinds.has("mcp-server")
-      ? `${check.offers.length} MCP ${check.offers.length === 1 ? "server" : "servers"}`
-      : `${check.offers.length} ${check.offers.length === 1 ? "thing" : "things"}`;
-  const yours = check.offers.some((offer) => offer.verdict !== "copy");
-  return `Needs ${what}, ${yours ? "some set up by you" : "set up as it moves"}`;
+      ? `${offers.length} MCP ${offers.length === 1 ? "server" : "servers"}`
+      : `${offers.length} ${offers.length === 1 ? "thing" : "things"}`;
+  const yours = offers.some((offer) => offer.verdict !== "copy");
+  return `Needs ${what}, ${yours ? "some set up by you" : "set up as it switches"}`;
 }
 
 /** Targets grouped by account, the session's own account apart. */
@@ -62,11 +71,14 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
 }
 
 /** The backend's rows as the page's targets: never its own profile, which
- * is where it is already. */
-export function targetsOf(rows: SwitchTargetData[], ownProfile: string): Target[] {
+ * is where it is already. Ranked rows (`rankTargets`) keep their order,
+ * room and suggestion. */
+export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile: string): Target[] {
   return rows
     .filter((row) => row.account_id !== ownProfile)
     .map((row) => ({
+      room: "room" in row ? row.room : null,
+      suggested: "room" in row ? row.suggested : false,
       profileId: row.account_id,
       label: row.account_label,
       recipeId: row.recipe_id,
@@ -111,7 +123,12 @@ export function ContinueOn({
       alive = false;
     };
   }, [source]);
-  const targets = useMemo(() => targetsOf(rows ?? [], model.profileId), [rows, model.profileId]);
+  // The one order by room, with Home's "Best for new work" as Suggested
+  // (the 0.2 walk, F1).
+  const targets = useMemo(
+    () => targetsOf(rankTargets(rows ?? [], accounts, displays, model.profileId), model.profileId),
+    [rows, accounts, displays, model.profileId],
+  );
   const { others, sameAccount } = byAccount(targets, accounts, model.profileId);
   // The one-line checks, for the first few profiles offered.
   useEffect(() => {
@@ -131,10 +148,33 @@ export function ContinueOn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, others.length]);
 
+  // ⌘⇧H, the row menu, Switch account… (F8): the Suggested target takes
+  // the keyboard, else the first that can be picked, else the card (its
+  // words say why there's none).
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  // Asked while the targets still load: the card holds the keyboard, and
+  // hands it to the best target once they're in.
+  const waiting = useRef(false);
+  const takeFocus = () => {
+    const card = cardRef.current;
+    const buttons = card?.querySelectorAll<HTMLButtonElement>("[data-testid='continue-target']:not(:disabled)");
+    const best = card?.querySelector<HTMLButtonElement>("[data-testid='continue-target'][data-suggested='true']:not(:disabled)");
+    (best ?? buttons?.[0] ?? card)?.focus();
+    return Boolean(best ?? buttons?.[0]);
+  };
+  useHandoverFocus(() => {
+    cardRef.current?.scrollIntoView?.({ block: "center" });
+    waiting.current = !takeFocus() && rows === null;
+  });
+  useEffect(() => {
+    if (rows === null || !waiting.current) return;
+    waiting.current = false;
+    if (document.activeElement === cardRef.current) requestAnimationFrame(() => void takeFocus());
+  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
   // Where the original stays, for a session another app runs.
   const app = appWords(model.places[0], model.tool);
   return (
-    <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
+    <Card ref={cardRef} tabIndex={-1} className="flex flex-col gap-3 p-5 outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="continue-on">
       <CardTitle>Continue on another account</CardTitle>
       {switchBack && onSwitchBack && (
         <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
@@ -149,14 +189,15 @@ export function ContinueOn({
       ) : (
         <ul className="flex flex-col gap-3" aria-label="Accounts to continue on">
           {others.map((group) => {
-            const display = group.account ? accountDisplay(group.account, displays) : undefined;
-            const left = runwayOf(display).left;
+            const name = group.account ? accountName(group.account) : group.targets[0]!.label;
+            const room = group.targets[0]!.room;
             return (
-              <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account">
+              <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account" data-room={room?.kind}>
                 <span className="flex items-baseline justify-between gap-2 text-meta">
-                  <span className="truncate font-medium text-ink">{group.account ? accountName(group.account) : group.targets[0]!.label}</span>
-                  <span className={"shrink-0 tabular-nums " + (left !== null && left <= 25 ? "text-warning" : "text-muted")}>{left === null ? "not measured" : `${left}% left`}</span>
+                  <span className="truncate font-medium text-ink">{name}</span>
+                  <RoomFigure room={room} />
                 </span>
+                {room && <RoomLine name={name} room={room} testId="continue-room" />}
                 {group.targets.map((target) => {
                   const words = target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
                   return (
@@ -170,10 +211,11 @@ export function ContinueOn({
                         onClick={() => onPick?.(target.recipeId, target.label)}
                         data-testid="continue-target"
                         data-cross-tool={target.crossTool ? "true" : undefined}
+                        data-suggested={target.suggested ? "true" : undefined}
                       >
                         <AccountAvatar accountId={target.profileId} label={target.label} size={14} />
                         <span className="truncate">{target.label}</span>
-                        {left !== null && <span className="ml-auto tabular-nums text-muted">{left}% left</span>}
+                        {target.suggested && <SuggestedMark className="ml-auto" />}
                       </Button>
                       {(target.blocked || words || (target.crossTool && target.badge)) && (
                         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-1 text-label text-muted" data-testid="continue-check">
@@ -216,4 +258,11 @@ export function ContinueOn({
       )}
     </Card>
   );
+}
+
+/** An account's room, short, beside its name ("75% left", "Out of room"). */
+function RoomFigure({ room }: { room: TargetRoom | null }): JSX.Element {
+  if (room === null || room.left === null) return <span className="shrink-0 text-muted">not measured</span>;
+  const tone = room.kind === "out" ? "text-danger" : room.kind === "low" ? "text-warning" : "text-muted";
+  return <span className={"shrink-0 tabular-nums " + tone}>{room.kind === "out" ? "Out of room" : `${room.left}% left`}</span>;
 }

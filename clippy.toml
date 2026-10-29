@@ -1,0 +1,3 @@
+# Product names doc comments may write as prose (`..` keeps clippy's
+# defaults, such as GitHub and macOS).
+doc-valid-idents = ["OpenCode", ".."]

@@ -11,9 +11,11 @@
 //!    writes nothing outside it.
 //! 2. **No credential copies** — bringing a setup in never copies its
 //!    sign-in (by name or by content), and never changes the original.
-//! 3. **Pinned env after overrides** — Launch-settings overrides apply,
-//!    but never over a pinned variable, never bring back a removed
-//!    credential, and never do either in the copyable shell line.
+//! 3. **Pinned env after overrides** (in every launch the tool offers: a
+//!    tool may refuse a headless run or a first message, saying so) —
+//!    Launch-settings overrides apply, but never over a pinned variable,
+//!    never bring back a removed credential, and never do either in the
+//!    copyable shell line.
 //! 4. **Refusing option-like resume ids** — an id that the tool would
 //!    read as an option is refused, never passed.
 //! 5. **Sessions found and resumed** — a session this account started in
@@ -23,6 +25,42 @@
 //! 6. **Usage labelled honestly** — usage is claimed only with a reader;
 //!    every event is keyed for de-duplication, carries its time, and
 //!    never calls a computed or estimated number measured.
+//! 7. **The agent bridge, honestly** (AJ-E1704, D-30) — an adapter that
+//!    declares `AGENT_BRIDGE` adds the bridge to every launch it offers,
+//!    and one that doesn't adds nothing. What it adds keeps the launch's
+//!    own arguments in order, names the key's variable but never a value
+//!    from the environment, writes files only by plain name into AI
+//!    Juggler's launch folder (never the account's), points at the bridge
+//!    program, and allows no tool by wildcard.
+//! 8. **Both runtimes, honestly** (AJ-E2302, D-40) — `PROTOCOL_SERVER`
+//!    is declared exactly when the adapter offers a driven runtime. No
+//!    launch of either runtime passes a flag that bypasses the tool's
+//!    permission prompts or sign-in (`--bare`, …). A driven launch runs the
+//!    terminal's own binary, piped, with the same pinned isolation and
+//!    removed credentials after hostile overrides; serves a socket only at
+//!    the path AI Juggler gave it; refuses option-like ids; and its
+//!    terminal view keeps the same rules. A Beta runtime is never a
+//!    tool's default.
+//! 9. **The tool's own option rules** (the lab of 2026-10-25) — every
+//!    launch, of either runtime and in every mode, keeps the rules the
+//!    tool states for its options (Claude Code: `--output-format
+//!    stream-json` with `-p` needs `--verbose`), so none is refused at
+//!    start.
+//! 10. **State reports, honestly** (AJ-E2306) — `STATE_REPORTS` is
+//!     declared exactly when the adapter adds them. What it adds keeps the
+//!     launch's own arguments in order (it may only fold away an AI
+//!     Juggler overlay file it replaces), writes files only by plain name
+//!     into the launch's folder, names the report program in every command
+//!     it adds, copies no value from the environment, and adds no wildcard.
+//! 11. **Subagents, honestly** (AJ-E1520, 0.2) — every adapter answers
+//!     whether its tool's subagents can be listed: supported, naming the
+//!     records it reads, or not supported, saying why (never the trait's
+//!     unanswered default). A supported one lists a session's subagents as
+//!     the tool records them — each once, the done, the failed and the
+//!     still-running one as such, a nested one under the one that started
+//!     it — and a session that started none as none; it changes no byte of
+//!     the account's folder while it reads; and a conversation it offers
+//!     is a file in that folder. One not supported reads nothing.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -72,6 +110,46 @@ pub trait Subject {
     /// Whether the tool's own default folder lives in the sandbox home
     /// (the kit then checks it runs with every pinned variable unset).
     fn sandboxed_default(&self) -> bool;
+
+    /// The tool's own rules for its options, as it states them when one is
+    /// broken: `(a, b)` means a launch holding the word `a` must hold the
+    /// word `b` too (check 9). Default: none recorded.
+    fn flag_rules(&self) -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
+
+    /// Records, as the tool does, that the user trusted `cwd` in the
+    /// account at `state_dir` (a driven runtime may run only there).
+    /// Default: nothing to record.
+    fn trust(&self, state_dir: &Path, cwd: &Path) {
+        let _ = (state_dir, cwd);
+    }
+
+    /// Writes, as the tool records them, a session in `cwd` (in an
+    /// account's folder) that started three subagents — one done, one
+    /// failed, one still running — and the running one started one more,
+    /// done (check 11). Returns the session's record as the conversations
+    /// index has it (a file, or a store's key) and its id. Default: none
+    /// (an adapter that says it doesn't support subagents).
+    fn write_subagents(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, String)> {
+        let _ = (state_dir, cwd);
+        None
+    }
+
+    /// The record of session `id` written by [`Subject::write_session`],
+    /// as the conversations index has it (check 11: it started none).
+    /// Default: none.
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        let _ = (state_dir, id);
+        None
+    }
+
+    /// How many subagents a session [`Subject::write_session`] writes
+    /// started (OpenCode's has a sub-agent's session beside it). Default:
+    /// none.
+    fn session_subagents(&self) -> usize {
+        0
+    }
 }
 
 /// How one adapter's usage is read.
@@ -222,6 +300,22 @@ pub fn paths(dir: &Path) -> BTreeSet<PathBuf> {
     out
 }
 
+/// The paths that differ between two [`tree`]s (added, removed or
+/// changed) — what a failure names.
+pub fn changed(
+    before: &BTreeMap<PathBuf, Vec<u8>>,
+    after: &BTreeMap<PathBuf, Vec<u8>>,
+) -> Vec<PathBuf> {
+    before
+        .keys()
+        .chain(after.keys())
+        .filter(|path| before.get(*path) != after.get(*path))
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
 fn contains(haystack: &[u8], needle: &str) -> bool {
     haystack
         .windows(needle.len())
@@ -300,10 +394,10 @@ pub fn isolates_each_home(subject: &dyn Subject) {
             path.display()
         );
     }
-    assert_eq!(
-        tree(&sandbox.home),
-        home_before,
-        "{name}: preparing an account touched the user's home"
+    let touched = changed(&home_before, &tree(&sandbox.home));
+    assert!(
+        touched.is_empty(),
+        "{name}: preparing an account touched the user's home: {touched:?}"
     );
     assert_eq!(
         adapter
@@ -422,11 +516,14 @@ pub fn copies_no_credentials(subject: &dyn Subject) {
         match import(adapter.as_ref(), &source, &dest) {
             Ok(_) => {
                 copied_any = true;
-                for file in subject.credential_files() {
-                    assert!(
-                        !dest.join(file).exists(),
-                        "{name}: the {kind} copied the sign-in file {file}"
-                    );
+                for (path, _) in tree(&dest) {
+                    for file in subject.credential_files() {
+                        assert!(
+                            !path.ends_with(Path::new(file).file_name().unwrap()),
+                            "{name}: the {kind} copied the sign-in file {file} to {}",
+                            path.display()
+                        );
+                    }
                 }
                 for (path, bytes) in tree(&dest) {
                     assert!(
@@ -446,10 +543,10 @@ pub fn copies_no_credentials(subject: &dyn Subject) {
         copied_any,
         "{name}: seeds a setup but brings nothing in (return None instead)"
     );
-    assert_eq!(
-        tree(&source),
-        before,
-        "{name}: bringing a setup in changed the original"
+    let touched = changed(&before, &tree(&source));
+    assert!(
+        touched.is_empty(),
+        "{name}: bringing a setup in changed the original: {touched:?}"
     );
 }
 
@@ -488,9 +585,22 @@ pub fn pins_env_after_overrides(subject: &dyn Subject) {
         let recipe = profile(&account, overrides.clone());
         let pins = expected_pins(adapter.as_ref(), folder);
         for mode in all_modes("kit-session-1") {
-            let spec = adapter
-                .launch_spec(&account, &recipe, &sandbox.project, &mode)
-                .unwrap_or_else(|error| panic!("{name}: {mode:?} launch failed: {error}"));
+            let spec = match adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+                Ok(spec) => spec,
+                // A tool may not offer a headless run or a first message
+                // (AJ-E1603: Kimi Code's plans are interactive only); it
+                // says so, and nothing launches. Every tool starts and
+                // resumes.
+                Err(AdapterError::Unsupported(_))
+                    if matches!(
+                        mode,
+                        LaunchMode::Headless { .. } | LaunchMode::Primed { .. }
+                    ) =>
+                {
+                    continue;
+                }
+                Err(error) => panic!("{name}: {mode:?} launch failed: {error}"),
+            };
             for (key, value) in &pins {
                 assert_eq!(
                     spec.env.get(*key),
@@ -503,6 +613,13 @@ pub fn pins_env_after_overrides(subject: &dyn Subject) {
                     spec.env.get(*key).map(String::as_str),
                     Some(ENV_UNSET),
                     "{name}: an override brought back {key} in a {mode:?} launch"
+                );
+            }
+            for (key, value) in adapter.launch_fixed_env() {
+                assert_eq!(
+                    spec.env.get(*key).map(String::as_str),
+                    Some(*value),
+                    "{name}: an override changed the fixed {key} in a {mode:?} launch"
                 );
             }
             assert_eq!(
@@ -716,10 +833,10 @@ pub fn labels_usage_honestly(subject: &dyn Subject) {
     usage.seed(&a);
     let before = tree(&a);
     let events = usage.read("acct-a", &a);
-    assert_eq!(
-        tree(&a),
-        before,
-        "{name}: reading usage wrote to the folder"
+    let touched = changed(&before, &tree(&a));
+    assert!(
+        touched.is_empty(),
+        "{name}: reading usage wrote to the folder: {touched:?}"
     );
 
     let keys = |events: &[UsageEvent]| -> Vec<String> {
@@ -771,6 +888,547 @@ pub fn labels_usage_honestly(subject: &dyn Subject) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 7. The agent bridge, honestly
+
+/// A value no adapter may copy into what it adds: it is only in the
+/// launch's environment, where the key lives.
+pub const KEY_CANARY: &str = "aj-e1704-key-canary";
+
+pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
+    use juggler_adapter::agent_bridge::BridgeLaunch;
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let mut env = BTreeMap::new();
+    env.insert("JUGGLER_AGENT_TOKEN".to_owned(), KEY_CANARY.to_owned());
+    let recipe = profile(&account, env);
+    let launch_dir = sandbox
+        .accounts
+        .parent()
+        .unwrap()
+        .join("overlays/agent/kit-session");
+    let bridge = BridgeLaunch {
+        program: sandbox.bin.join("juggler-agent"),
+        server: "juggler".into(),
+        tools: vec!["whoami".into(), "pool_roster".into(), "set_status".into()],
+        env_names: vec!["JUGGLER_AGENT_TOKEN".into(), "JUGGLER_AGENT_SOCKET".into()],
+        dir: launch_dir.clone(),
+    };
+    let declares = adapter.capabilities().contains(Capabilities::AGENT_BRIDGE);
+    let home = dir.to_string_lossy().into_owned();
+    for mode in all_modes("kit-session-1") {
+        // A tool may refuse a mode (it says so); the rest must hold.
+        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+            continue;
+        };
+        let injection = adapter.agent_bridge(&bridge, &spec.args);
+        assert_eq!(
+            injection.is_some(),
+            declares,
+            "{name}: AGENT_BRIDGE is declared {declares} but the injection is {injection:?} ({mode:?})"
+        );
+        let Some(injection) = injection else { continue };
+        let applied = injection.applied(&spec.args);
+        let mut rest = applied.iter();
+        assert!(
+            spec.args.iter().all(|arg| rest.any(|seen| seen == arg)),
+            "{name}: the launch's own arguments aren't kept in order: {applied:?}"
+        );
+        let mut added: Vec<String> = injection.args.clone();
+        added.extend(injection.files.iter().map(|file| file.contents.clone()));
+        let all = added.join("\n");
+        assert!(
+            !all.contains(KEY_CANARY),
+            "{name}: a value from the environment was copied: {all}"
+        );
+        assert!(
+            !all.contains(&home),
+            "{name}: it points into the account's folder: {all}"
+        );
+        assert!(
+            !all.contains('*'),
+            "{name}: a wildcard allows more than AI Juggler's tools: {all}"
+        );
+        assert!(
+            all.contains(&bridge.program.to_string_lossy().into_owned()),
+            "{name}: it doesn't start the bridge program: {all}"
+        );
+        assert!(
+            all.contains("JUGGLER_AGENT_TOKEN"),
+            "{name}: the key's variable isn't passed on: {all}"
+        );
+        for file in &injection.files {
+            assert!(
+                !file.name.is_empty()
+                    && !file.name.contains(['/', '\\'])
+                    && !file.name.starts_with('.'),
+                "{name}: a file outside the launch's folder: {:?}",
+                file.name
+            );
+        }
+        for arg in &injection.args {
+            if arg.starts_with('/') && !arg.starts_with(&*bridge.program.to_string_lossy()) {
+                assert!(
+                    Path::new(arg).starts_with(&launch_dir),
+                    "{name}: a path outside AI Juggler's launch folder: {arg}"
+                );
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Both runtimes, honestly
+
+pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
+    use juggler_adapter::runtime::{
+        DrivenLaunch, Maturity, Runtime, TerminalView, Transport, ViewOf, has_forbidden_arg,
+    };
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let recipe = profile(&account, hostile_overrides(adapter.as_ref()));
+    let pins = expected_pins(adapter.as_ref(), &dir);
+    let keeps_rules = |what: &str, spec: &juggler_adapter::LaunchSpec| {
+        assert!(
+            !has_forbidden_arg(&spec.args),
+            "{name}: {what} bypasses the tool's prompts or sign-in: {:?}",
+            spec.args
+        );
+        for (key, value) in &pins {
+            assert_eq!(
+                spec.env.get(*key),
+                Some(value),
+                "{name}: an override moved {key} in {what}"
+            );
+        }
+        for key in adapter.launch_unset_keys() {
+            assert_eq!(
+                spec.env.get(*key).map(String::as_str),
+                Some(ENV_UNSET),
+                "{name}: an override brought back {key} in {what}"
+            );
+        }
+        let all = format!("{:?}", spec.args);
+        assert!(
+            !all.contains(LEAKED),
+            "{name}: {what} carries a removed credential"
+        );
+    };
+    for mode in all_modes("kit-session-1") {
+        if let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+            keeps_rules(&format!("the terminal's {mode:?} launch"), &spec);
+        }
+    }
+    let declares = adapter
+        .capabilities()
+        .contains(Capabilities::PROTOCOL_SERVER);
+    let driven = adapter.driven();
+    assert_eq!(
+        driven.is_some(),
+        declares,
+        "{name}: PROTOCOL_SERVER is declared {declares} but driven() is {}",
+        driven.is_some()
+    );
+    let Some(driven) = driven else { return };
+    if driven.default_runtime() == Runtime::Driven {
+        assert_eq!(
+            driven.maturity(),
+            Maturity::Stable,
+            "{name}: a Beta runtime is never a tool's default"
+        );
+    }
+    subject.trust(&dir, &sandbox.project);
+    let runtime_dir = sandbox.accounts.parent().unwrap().join("runtime");
+    let socket = runtime_dir.join("kit.sock");
+    let terminal = adapter
+        .launch_spec(
+            &account,
+            &recipe,
+            &sandbox.project,
+            &LaunchMode::Interactive,
+        )
+        .unwrap();
+    for resume in [None, Some("kit-session-1".to_owned())] {
+        let launch = DrivenLaunch {
+            socket: socket.clone(),
+            resume: resume.clone(),
+            fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+        };
+        let spec = driven
+            .driven_spec(&account, &recipe, &sandbox.project, &launch)
+            .unwrap_or_else(|error| panic!("{name}: no driven launch ({resume:?}): {error}"));
+        let what = format!("the driven launch ({resume:?})");
+        keeps_rules(&what, &spec.launch);
+        assert_eq!(
+            spec.launch.program, terminal.program,
+            "{name}: {what} runs another binary than the terminal (never a bundled copy)"
+        );
+        assert!(!spec.launch.needs_pty, "{name}: {what} asks for a PTY");
+        if let Transport::Socket(path) = &spec.transport {
+            assert_eq!(path, &socket, "{name}: {what} serves a socket elsewhere");
+        }
+        for arg in &spec.launch.args {
+            if arg.contains(&*runtime_dir.to_string_lossy()) {
+                assert!(
+                    arg.contains(&*socket.to_string_lossy()),
+                    "{name}: {what} names another path in the runtime folder: {arg}"
+                );
+            }
+        }
+        if let Some(id) = &resume {
+            assert!(
+                spec.launch.args.iter().any(|arg| arg.contains(id.as_str()))
+                    || spec.native_id.as_deref() == Some(id.as_str()),
+                "{name}: {what} doesn't continue {id}"
+            );
+        }
+    }
+    for id in ["", "-", "--last", "--session=other"] {
+        let launch = DrivenLaunch {
+            socket: socket.clone(),
+            resume: Some(id.into()),
+            fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+        };
+        assert!(
+            matches!(
+                driven.driven_spec(&account, &recipe, &sandbox.project, &launch),
+                Err(AdapterError::InvalidLaunch(_))
+            ),
+            "{name}: a driven launch resumed the option-like id {id:?}"
+        );
+    }
+    let view = driven
+        .terminal_view(
+            &account,
+            &recipe,
+            &sandbox.project,
+            &ViewOf {
+                native_id: "kit-session-1".into(),
+                socket: Some(socket.clone()),
+            },
+        )
+        .unwrap_or_else(|error| panic!("{name}: no terminal view: {error}"));
+    let (TerminalView::Attach(spec) | TerminalView::AfterRelease(spec)) = &view;
+    keeps_rules("the terminal view", spec);
+    assert!(spec.needs_pty, "{name}: the terminal view has no terminal");
+}
+
+// ---------------------------------------------------------------------------
+// 9. The tool's own option rules
+
+pub fn keeps_the_tools_own_option_rules(subject: &dyn Subject) {
+    use juggler_adapter::runtime::{DrivenLaunch, TerminalView, ViewOf};
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let recipe = profile(&account, BTreeMap::new());
+    subject.trust(&dir, &sandbox.project);
+    let mut launches: Vec<(String, Vec<String>)> = Vec::new();
+    for mode in all_modes("kit-session-1") {
+        if let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) {
+            launches.push((format!("{mode:?}"), spec.args));
+        }
+    }
+    if let Some(driven) = adapter.driven() {
+        for resume in [None, Some("kit-session-1".to_owned())] {
+            let launch = DrivenLaunch {
+                socket: sandbox.accounts.join("kit.sock"),
+                resume,
+                fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+            };
+            if let Ok(spec) = driven.driven_spec(&account, &recipe, &sandbox.project, &launch) {
+                launches.push(("the driven launch".into(), spec.launch.args));
+            }
+        }
+        let of = ViewOf {
+            native_id: "kit-session-1".into(),
+            socket: None,
+        };
+        if let Ok(TerminalView::Attach(spec) | TerminalView::AfterRelease(spec)) =
+            driven.terminal_view(&account, &recipe, &sandbox.project, &of)
+        {
+            launches.push(("the terminal view".into(), spec.args));
+        }
+    }
+    assert!(!launches.is_empty(), "{name}: no launch to check");
+    for (what, args) in &launches {
+        for (needs, also) in subject.flag_rules() {
+            if args.iter().any(|arg| arg == needs) {
+                assert!(
+                    args.iter().any(|arg| arg == also),
+                    "{name}: {what} has {needs} without {also}, which the tool refuses: {args:?}"
+                );
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 10. State reports, honestly
+
+pub fn adds_state_reports_honestly(subject: &dyn Subject) {
+    use juggler_adapter::reports::ReportsLaunch;
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let account = account(adapter.as_ref(), &dir);
+    let mut env = BTreeMap::new();
+    env.insert("JUGGLER_REPORT_TOKEN".to_owned(), KEY_CANARY.to_owned());
+    let recipe = profile(&account, env);
+    let overlays = sandbox.accounts.parent().unwrap().join("overlays");
+    let launch_dir = overlays.join("runtime/kit-session");
+    let launch = ReportsLaunch {
+        program: sandbox.bin.join("juggler-agent"),
+        dir: launch_dir.clone(),
+        overlays: overlays.clone(),
+    };
+    let declares = adapter.capabilities().contains(Capabilities::STATE_REPORTS);
+    let home = dir.to_string_lossy().into_owned();
+    for mode in all_modes("kit-session-1") {
+        let Ok(spec) = adapter.launch_spec(&account, &recipe, &sandbox.project, &mode) else {
+            continue;
+        };
+        let injection = adapter.state_reports(&launch, &spec.args);
+        assert_eq!(
+            injection.is_some(),
+            declares,
+            "{name}: STATE_REPORTS is declared {declares} but the injection is {injection:?}"
+        );
+        let Some(injection) = injection else { continue };
+        let ours = |arg: &str| Path::new(arg).starts_with(&overlays);
+        let mut rest = injection.args.iter();
+        assert!(
+            spec.args
+                .iter()
+                .filter(|arg| !ours(arg))
+                .all(|arg| rest.any(|seen| seen == arg)),
+            "{name}: the launch's own arguments aren't kept in order: {:?}",
+            injection.args
+        );
+        // What it adds: the arguments the launch didn't have, and its files.
+        let added: Vec<&String> = injection
+            .args
+            .iter()
+            .filter(|arg| !spec.args.contains(arg))
+            .collect();
+        let all = format!(
+            "{added:?}\n{}",
+            injection
+                .files
+                .iter()
+                .map(|f| f.contents.as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        assert!(
+            !all.contains(KEY_CANARY),
+            "{name}: a value from the environment was copied"
+        );
+        assert!(
+            !all.contains(&home),
+            "{name}: it points into the account's folder"
+        );
+        assert!(!all.contains('*'), "{name}: a wildcard: {all}");
+        assert!(
+            all.contains(&*launch.program.to_string_lossy()),
+            "{name}: no command runs the report program"
+        );
+        for file in &injection.files {
+            assert!(
+                !file.name.is_empty()
+                    && !file.name.contains(['/', '\\'])
+                    && !file.name.starts_with('.'),
+                "{name}: a file outside the launch's folder: {:?}",
+                file.name
+            );
+        }
+        for arg in &injection.args {
+            if ours(arg) {
+                assert!(
+                    Path::new(arg).starts_with(&launch_dir),
+                    "{name}: names an overlay file it didn't write: {arg}"
+                );
+            }
+        }
+    }
+}
+
+/// Check 11: subagents, honestly (AJ-E1520).
+pub fn lists_subagents_honestly(subject: &dyn Subject) {
+    use juggler_adapter::subagents::{
+        SubagentConversations, SubagentScope, SubagentStatus, SubagentSupport,
+    };
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    let support = adapter.subagent_support();
+    match support {
+        SubagentSupport::Unanswered => {
+            panic!("{name}: it doesn't answer whether its subagents can be listed")
+        }
+        SubagentSupport::NotSupported(reason) => {
+            assert!(
+                !reason.trim().is_empty(),
+                "{name}: not supported, without saying why"
+            );
+            assert!(
+                subject.write_subagents(&dir, &sandbox.project).is_none(),
+                "{name}: a subagents fixture for a tool it says it can't read"
+            );
+            let id = subject.write_session(&dir, &sandbox.project, 1);
+            let record = subject
+                .session_record(&dir, &id)
+                .unwrap_or_else(|| dir.join("none"));
+            assert!(
+                adapter
+                    .subagent_reader(SubagentScope {
+                        path: &record,
+                        id: &id
+                    })
+                    .is_none(),
+                "{name}: not supported, yet it offers a reader"
+            );
+            return;
+        }
+        SubagentSupport::Supported { route, .. } => {
+            assert!(
+                !route.trim().is_empty(),
+                "{name}: supported, without naming the records it reads"
+            );
+        }
+    }
+    let (path, id) = subject
+        .write_subagents(&dir, &sandbox.project)
+        .unwrap_or_else(|| panic!("{name}: supported, but the kit has no subagents fixture"));
+    let before = tree(&dir);
+    let mut reader = adapter
+        .subagent_reader(SubagentScope {
+            path: &path,
+            id: &id,
+        })
+        .unwrap_or_else(|| panic!("{name}: no reader for its own session's record"));
+    let mut rounds = 0;
+    while !reader
+        .refresh()
+        .unwrap_or_else(|_| panic!("{name}: its session's record didn't read"))
+    {
+        rounds += 1;
+        assert!(
+            rounds < 100,
+            "{name}: a small session never finishes reading"
+        );
+    }
+    let list = reader.subagents();
+    // A second refresh with nothing new changes nothing.
+    reader.refresh().unwrap();
+    let again = reader.subagents();
+    assert_eq!(
+        list.len(),
+        again.len(),
+        "{name}: a refresh with nothing new changed the list"
+    );
+    assert_eq!(
+        list.len(),
+        4,
+        "{name}: the fixture's four subagents, each once"
+    );
+    let ids: BTreeSet<&str> = list.iter().map(|agent| agent.id.as_str()).collect();
+    assert_eq!(ids.len(), 4, "{name}: an id listed twice");
+    let mut top: Vec<SubagentStatus> = list
+        .iter()
+        .filter(|agent| agent.depth == 1)
+        .map(|agent| agent.status)
+        .collect();
+    top.sort_by_key(|status| format!("{status:?}"));
+    assert_eq!(
+        top,
+        [
+            SubagentStatus::Done,
+            SubagentStatus::Failed,
+            SubagentStatus::Running
+        ],
+        "{name}: the session's three don't stand as recorded"
+    );
+    let running = list
+        .iter()
+        .find(|agent| agent.depth == 1 && agent.status == SubagentStatus::Running)
+        .unwrap();
+    let nested: Vec<_> = list.iter().filter(|agent| agent.depth == 2).collect();
+    assert_eq!(nested.len(), 1, "{name}: the nested one isn't at depth 2");
+    assert_eq!(
+        nested[0].parent.as_deref(),
+        Some(running.id.as_str()),
+        "{name}: the nested one isn't under the one that started it"
+    );
+    assert_eq!(
+        nested[0].status,
+        SubagentStatus::Done,
+        "{name}: the nested one's end"
+    );
+    for agent in &list {
+        if !agent.status.is_final() {
+            assert_eq!(agent.ended_ms, None, "{name}: an end for one not ended");
+        }
+        if let (Some(start), Some(end)) = (agent.started_ms, agent.ended_ms) {
+            assert!(end >= start, "{name}: one ended before it started");
+        }
+        if agent.depth == 1 {
+            assert_eq!(agent.parent, None, "{name}: the session's own has a parent");
+        }
+    }
+    if let SubagentSupport::Supported {
+        conversations: SubagentConversations::Read,
+        ..
+    } = support
+    {
+        assert!(
+            list.iter().any(|agent| agent.transcript.is_some()),
+            "{name}: conversations are read, yet none is offered"
+        );
+    }
+    for transcript in list.iter().filter_map(|agent| agent.transcript.as_ref()) {
+        assert!(
+            transcript.starts_with(&dir) && transcript.is_file(),
+            "{name}: a conversation that isn't a file in the account's folder"
+        );
+    }
+    assert!(
+        tree(&dir) == before,
+        "{name}: reading its subagents changed the account's folder"
+    );
+    // A plain session lists only what it started.
+    let id = subject.write_session(&dir, &sandbox.other_project, 7);
+    if let Some(path) = subject.session_record(&dir, &id) {
+        let mut reader = adapter
+            .subagent_reader(SubagentScope {
+                path: &path,
+                id: &id,
+            })
+            .unwrap_or_else(|| panic!("{name}: no reader for a plain session"));
+        while !reader.refresh().unwrap() {}
+        assert_eq!(
+            reader.subagents().len(),
+            subject.session_subagents(),
+            "{name}: subagents a plain session didn't start"
+        );
+    }
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -806,6 +1464,31 @@ macro_rules! conformance {
             #[test]
             fn labels_usage_honestly() {
                 conformance::labels_usage_honestly(&$subject);
+            }
+
+            #[test]
+            fn adds_the_agent_bridge_honestly() {
+                conformance::adds_the_agent_bridge_honestly(&$subject);
+            }
+
+            #[test]
+            fn runs_both_runtimes_honestly() {
+                conformance::runs_both_runtimes_honestly(&$subject);
+            }
+
+            #[test]
+            fn keeps_the_tools_own_option_rules() {
+                conformance::keeps_the_tools_own_option_rules(&$subject);
+            }
+
+            #[test]
+            fn adds_state_reports_honestly() {
+                conformance::adds_state_reports_honestly(&$subject);
+            }
+
+            #[test]
+            fn lists_subagents_honestly() {
+                conformance::lists_subagents_honestly(&$subject);
             }
         }
     };

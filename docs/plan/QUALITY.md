@@ -22,6 +22,7 @@ A task is done only when **all** of the following are true:
 - [ ] Tests: unit tests for new logic; integration/fixture tests for new flows; parser changes extend the fixture corpus.
 - [ ] Architecture conformance: dependency direction rules (§4) respected; no layer violations "just this once".
 - [ ] Security: no new `unsafe`; `cargo-deny` clean; no secrets/log redaction regressions (guardrail tests still green).
+- [ ] Every shipped OS (D-52): the change works and is tested on every OS AI Juggler ships for (macOS today; Windows and Linux from their first releases), or is marked unsupported there with the reason, on screen and in the docs.
 - [ ] Docs updated: CHANGELOG (Unreleased), relevant spec section marked implemented, ADR if a decision was made.
 - [ ] PR: small and reviewable (guideline ≤ ~400 lines of diff), linked issue, checklist completed, self-reviewed diff before requesting review.
 
@@ -157,7 +158,7 @@ Date: YYYY-MM-DD · Commit: <sha> · Report: docs/qa/gate-MX.md
 
 ## 9. Reviewer checklist (mirrored in the PR template)
 
-Structure & naming · layering conformance · error handling · test quality (not just presence) · docs on public APIs · CHANGELOG · fixture corpus grown if parsers touched · no secrets/unsafe · bench impact for hot paths · ADR if a decision was made.
+Structure & naming · layering conformance · every shipped OS (D-52) · error handling · test quality (not just presence) · docs on public APIs · CHANGELOG · fixture corpus grown if parsers touched · no secrets/unsafe · bench impact for hot paths · ADR if a decision was made.
 
 
 ## Gate vocabulary (AJ-E806 — one green/red definition everywhere)

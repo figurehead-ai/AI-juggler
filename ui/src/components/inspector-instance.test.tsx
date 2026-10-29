@@ -159,7 +159,6 @@ describe("AJ-E407 Instance Usage (Req.2)", () => {
     expect(container.querySelector('[data-testid="instance-usage"]')).not.toBeNull();
     expect(container.textContent).toContain("12,345");
     expect(container.textContent).toContain("6,789");
-    expect(container.textContent).toContain("Measured");
   });
 
   it("without tokens says so; the over-time chart waits for a time series (D-25)", () => {
@@ -239,5 +238,21 @@ describe("AJ-E407 shortcuts (real predicates, mocked bridge)", () => {
     fireEvent.keyDown(window, { key: "h", metaKey: true, shiftKey: true });
     window.removeEventListener("keydown", onKey);
     expect(container.querySelector("#page-tab-terminal")!.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("a session that couldn't run through its runtime says why above its terminal (AJ-E2302)", () => {
+    const runtime = {
+      kind: "terminal", label: null, beta: false, state: null, asks: [], can_steer: false,
+      fell_back: "Codex 0.150.0 is older than 0.163.0, the first AI Juggler drives", error: null, limits: [], cut_off: null,
+    };
+    const { container } = shell(mk({ provider: "codex", runtime }));
+    open(container, "terminal");
+    expect(container.querySelector('[data-testid="runtime-fell-back"]')?.textContent).toBe(
+      "In its terminal: Codex 0.150.0 is older than 0.163.0, the first AI Juggler drives.",
+    );
+    cleanup();
+    const plain = shell(mk());
+    open(plain.container, "terminal");
+    expect(plain.container.querySelector('[data-testid="runtime-fell-back"]')).toBeNull();
   });
 });

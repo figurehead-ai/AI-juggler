@@ -16,6 +16,13 @@ import { PlaceMark } from "./PlaceMarks";
 import { primaryWords, type HomeNeed } from "../lib/home-needs";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
+import { focusHandoverSoon } from "../lib/handover-focus";
+import { AskBatch } from "./AskCard";
+import { MessageNeeds } from "./MessageNeeds";
+import { TaskNeeds } from "./TaskNeeds";
+import type { MessageNeedInfo } from "../lib/ipc/messages";
+import type { TaskNeedInfo } from "../lib/ipc/tasks";
+import type { ProjectInfo } from "../lib/bridge";
 import { goToWhere, type RailItem } from "../lib/rail-items";
 
 export interface NeedHandlers {
@@ -54,7 +61,7 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
           host.openConversation?.(conversation);
         } else if (session) {
           handlers.onOpenSession(session.id);
-          if (second) window.dispatchEvent(new Event("aij:focus-handover"));
+          if (second) focusHandoverSoon();
         }
         return;
       case "limit":
@@ -68,6 +75,17 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
         return;
       case "heavy":
         if (need.sessionId) handlers.onOpenSession(need.sessionId);
+        return;
+      case "quota":
+        // F16: its open session's switch list (AI Juggler's or another
+        // app's), else its account.
+        if (need.sessionId) {
+          handlers.onOpenSession(need.sessionId);
+          focusHandoverSoon();
+        } else if (need.conversation) {
+          host.openConversation?.(need.conversation);
+          focusHandoverSoon();
+        } else if (need.account) host.openAccount?.(need.account);
         return;
       case "leftovers":
         handlers.onOpenCleanup?.();
@@ -107,15 +125,35 @@ function secondWords(need: HomeNeed): string | null {
   return null;
 }
 
-export function HomeNeeds({ needs, handlers, bubble, children }: { needs: HomeNeed[]; handlers: NeedHandlers; bubble?: ReactNode; children?: ReactNode }): JSX.Element | null {
+export function HomeNeeds({
+  needs,
+  messages = [],
+  tasks = { needs: [], projects: [] },
+  handlers,
+  bubble,
+  children,
+}: {
+  needs: HomeNeed[];
+  messages?: MessageNeedInfo[];
+  /** E19: tasks that wait on you, and the projects (for a launch's place). */
+  tasks?: { needs: TaskNeedInfo[]; projects: ProjectInfo[] };
+  handlers: NeedHandlers;
+  bubble?: ReactNode;
+  children?: ReactNode;
+}): JSX.Element | null {
   const run = useRun(handlers);
   const [first, ...rest] = needs;
   // Nothing waits: the heading says so, and the card stays away.
-  if (!first && !children) return null;
+  const waiting = messages.length + tasks.needs.length;
+  if (!first && !children && waiting === 0) return null;
   return (
     <section aria-labelledby="home-needs" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
       <SectionTitle id="home-needs">Needs you</SectionTitle>
       <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
+        <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
+        {/* E18: agents' messages that wait on you. */}
+        <MessageNeeds needs={messages} />
+        <TaskNeeds needs={tasks.needs} projects={tasks.projects} />
         {first ? (
           <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind }}>
             {(goTo) => (
@@ -146,7 +184,7 @@ export function HomeNeeds({ needs, handlers, bubble, children }: { needs: HomeNe
             </>
             )}
           </NeedBox>
-        ) : (
+        ) : waiting > 0 ? null : (
           <p className="text-sm text-muted" data-testid="home-needs-none">
             Nothing waits on you. What's open is in the list and under Your apps.
           </p>

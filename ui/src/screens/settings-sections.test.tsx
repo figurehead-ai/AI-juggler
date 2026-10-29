@@ -30,7 +30,7 @@ const PEER = {
   connection_detail: null,
 };
 
-const PANES = ["General", "Desktop apps", "Accounts", "Sessions", "Switching", "Notifications", "Privacy", "Advanced"];
+const PANES = ["General", "Desktop apps", "Accounts", "Sessions", "Switching", "Agent access", "Notifications", "Privacy", "Advanced"];
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -61,12 +61,20 @@ describe("AJ-E2110 — Settings panes", () => {
     await waitFor(() => expect(getByTestId("settings-notifications").textContent).toContain("Quiet hours"));
   });
 
-  it("shows Your Macs once a Mac is paired, and never Agent access on this line", async () => {
+  it("shows Your Macs once a Mac is paired", async () => {
     w().__AIJ_FLEET_PEERS__ = [PEER];
     const { getByTestId } = render(<SettingsScreen />);
     await waitFor(() => expect(navNames(getByTestId("settings-nav"))).toContain("Your Macs"));
-    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 7), "Your Macs", "Advanced"]);
-    expect(navNames(getByTestId("settings-nav"))).not.toContain("Agent access");
+    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 8), "Your Macs", "Advanced"]);
+  });
+
+  it("Agent access (AJ-E1702): always there, every pool's level, and the rules you made", async () => {
+    const { getByTestId, findByTestId, findAllByTestId } = render(<SettingsScreen focusSection="agents" />);
+    expect(getByTestId("settings-nav").querySelector("[aria-current='page']")?.textContent).toBe("Agent access");
+    const pane = await findByTestId("settings-pane-agent-access");
+    expect(within(pane).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual(["Pools", "Agent access", "Rules you made", "Rules you made", "Agent tools in sessions"]);
+    expect((await findAllByTestId("agent-access-pool")).length).toBeGreaterThan(0);
+    expect((await findByTestId("settings-agent-rules")).textContent).toContain("None yet.");
   });
 
   it("every older link lands on its pane and section", async () => {

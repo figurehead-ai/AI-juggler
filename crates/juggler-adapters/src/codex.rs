@@ -83,6 +83,9 @@ pub struct CodexAdapter {
     /// The user's home for the shell-file scan and for recognising
     /// Codex's default `~/.codex` (tests/fixtures; `None` reads `$HOME`).
     home: Option<PathBuf>,
+    /// AJ-E2303: whether this binary and version can be driven (worked
+    /// out once: it runs the schema generator).
+    driven: crate::codex_appserver::DrivenCache,
 }
 
 impl CodexAdapter {
@@ -98,6 +101,7 @@ impl CodexAdapter {
         Self {
             bin: Some(bin.into()),
             home: None,
+            driven: crate::codex_appserver::DrivenCache::default(),
         }
     }
 
@@ -185,6 +189,11 @@ impl CodexAdapter {
     /// The user's home (`with_home` in tests, else `$HOME`).
     fn user_home(&self) -> Option<PathBuf> {
         self.home.clone().or_else(home_dir)
+    }
+
+    /// The driven-runtime check's cache (`codex_appserver`).
+    pub(crate) fn driven_cache(&self) -> &crate::codex_appserver::DrivenCache {
+        &self.driven
     }
 
     fn require_bin(&self) -> Result<PathBuf, AdapterError> {
@@ -460,10 +469,58 @@ impl HarnessAdapter for CodexAdapter {
             | Capabilities::LIMIT_WINDOWS_REPORTED
             // Its usage keys start with the thread they belong to.
             | Capabilities::USAGE_KEYS_PER_SESSION
+            | Capabilities::AGENT_BRIDGE
+            // AJ-E2303 (D-40): driven through its own app-server.
+            | Capabilities::PROTOCOL_SERVER
+            // A session process holds its thread's lock and rollout open
+            // (`held_sessions`), so its files name the process.
+            | Capabilities::SESSION_PROCESS_RECORDED
+    }
+
+    // AJ-E1520 (0.2): its subagents, from its own records.
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        crate::codex_subagents::SUPPORT
+    }
+
+    fn subagent_reader(
+        &self,
+        scope: juggler_adapter::SubagentScope<'_>,
+    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
+        crate::codex_subagents::reader(scope)
+    }
+
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
+    }
+
+    /// Lab 2: Codex's folder trust, asked by AI Juggler, passed in memory.
+    fn folder_trust(&self) -> Option<juggler_adapter::folder_trust::FolderTrust> {
+        Some(crate::codex_trust::QUESTION)
+    }
+
+    fn folder_trust_decided(&self, account: &Account, cwd: &Path) -> bool {
+        crate::codex_trust::decided(&account.state_dir, cwd)
+    }
+
+    fn apply_folder_trust(&self, args: &mut Vec<String>, cwd: &Path, trusted: bool) {
+        crate::codex_trust::apply(args, cwd, trusted);
+    }
+
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        Some(crate::codex_bridge::injection(bridge, args))
     }
 
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
+    }
+
+    fn locate(&self) -> Option<PathBuf> {
+        // Files only: never runs it (`discover` asks its version).
+        self.resolve_bin().filter(|bin| bin.is_file())
     }
 
     fn discover(&self) -> DiscoveryReport {
@@ -602,6 +659,19 @@ impl HarnessAdapter for CodexAdapter {
 
     fn login_state(&self, state_dir: &Path) -> LoginState {
         codex_login_state(state_dir)
+    }
+
+    fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
+        Some(juggler_adapter::endpoint::WireApi::Responses)
+    }
+
+    fn configure_endpoint(
+        &self,
+        state_dir: &Path,
+        endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
+        model: &str,
+    ) -> Result<(), AdapterError> {
+        crate::codex_endpoint::configure(state_dir, endpoint, model)
     }
 
     /// AJ-E1303: watches `<home>/sessions`; the native id is the thread
@@ -756,11 +826,18 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_inventory::can_set_up(item)
     }
 
+    fn used_in(
+        &self,
+        transcript: &Path,
+    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
+        crate::codex_used::used_in(transcript)
+    }
+
     fn how_to_get(
         &self,
         item: &juggler_adapter::inventory::Item,
         state_dir: &Path,
-    ) -> juggler_adapter::inventory::HowTo {
+    ) -> juggler_adapter::inventory::GetIt {
         let user_home = crate::inventory_files::user_home();
         let value = user_home.as_deref().map_or_else(
             || state_dir.to_string_lossy().into_owned(),
@@ -898,5 +975,10 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
                 .to_owned(),
             checked: "2026-10-23".to_owned(),
         }),
+        // AJ-E1611: npm's `latest` [the tool's own published package].
+        release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
+            package: "@openai/codex".to_owned(),
+        }),
+        update_command: Some("npm install -g @openai/codex@latest".to_owned()),
     }
 }

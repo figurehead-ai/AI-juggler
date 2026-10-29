@@ -25,7 +25,7 @@ const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E805");
 const ROWS = '[data-testid="instance-board"] [data-instance-id]';
 const results: { name: string; budget_ms: number; median_ms: number; runs: number[] }[] = [];
 const BASELINE = resolve(process.cwd(), "tests/visual/load-baseline.json");
-type Baseline = { medians: Record<string, number>; waivers: { name: string; task: string; expires: string; reason: string }[] };
+type Baseline = { medians: Record<string, number>; waivers: { name: string; task: string; expires: string; reason: string }[]; notes?: Record<string, string> };
 const baseline: Baseline = existsSync(BASELINE)
   ? (JSON.parse(readFileSync(BASELINE, "utf8")) as Baseline)
   : { medians: {}, waivers: [] };
@@ -50,7 +50,7 @@ async function open(page: Page, theme: "dark" | "light" = "dark") {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+  await expect(page.getByTestId("user-menu-button")).toBeVisible();
 }
 
 /** Click, then wait until `done` holds; the browser clock measures it. */
@@ -164,20 +164,23 @@ test("search filters 50 Instances in under 200 ms", async ({ page }) => {
   record("search: type to a filtered board", 200, runs);
 });
 
-test("the Cleanup inventory opens in under 300 ms", async ({ page }) => {
+// AJ-E2404: the Processes page took Cleanup's place; its first paint (the
+// tree's first rows) keeps the inventory's budget and baseline key.
+test("the Processes page paints its first rows in under 300 ms", async ({ page }) => {
   await open(page);
   const n = await boardRows(page);
   const runs: number[] = [];
-  // Cleanup sits under More until it's needed (AJ-E1533, after this
+  // Processes sits under More until it's needed (AJ-E1533, after this
   // baseline): the menu opens before the clock starts, so the timing is
-  // still the click on Cleanup to its painted inventory.
+  // the click on Processes to its painted rows.
   const main = page.getByRole("navigation", { name: "Main" });
   const cleanup = async () => {
-    if ((await main.getByRole("button", { name: "Cleanup", exact: true }).count()) > 0) {
-      return main.getByRole("button", { name: "Cleanup", exact: true }).first();
+    if ((await main.getByRole("button", { name: "Processes", exact: true }).count()) > 0) {
+      return main.getByRole("button", { name: "Processes", exact: true }).first();
     }
-    await main.getByRole("button", { name: "More", exact: true }).click();
-    return page.locator("#nav-more").getByRole("button", { name: /^Cleanup\b/ });
+    // AJ-E2507: Processes is in your menu now.
+    await page.getByTestId("user-menu-button").click();
+    return page.getByRole("menu", { name: "Your menu" }).getByRole("menuitem", { name: /^Processes\b/ });
   };
   for (let i = 0; i < 5; i++) {
     await goTo(page, "Home");
@@ -187,7 +190,7 @@ test("the Cleanup inventory opens in under 300 ms", async ({ page }) => {
       await timed(
         page,
         () => item.click(),
-        () => expect(page.getByTestId("cleanup-centre").or(page.getByRole("heading", { name: /Cleanup/ })).first()).toBeVisible(),
+        () => expect(page.locator('[data-testid^="process-row-"]').first()).toBeVisible(),
       ),
     );
   }

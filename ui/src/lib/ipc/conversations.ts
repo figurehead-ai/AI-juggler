@@ -55,6 +55,7 @@ function previewConversations(): ConversationInfo[] {
     viewed_ms: null, probably: false,
     background: false,
     inactive: false,
+    subtask_count: null,
   };
   return [
     {
@@ -141,9 +142,18 @@ export async function conversationsBringForward(appPid: number): Promise<GoToOut
  * seconds with many open sessions). */
 export type ConversationsChange = "index" | "live";
 
+/** The preview's "the list changed" (no backend sends one there). */
+export const PREVIEW_CHANGED = "aij:preview-conversations-changed";
+
 /** Called when the backend's list changed (read it again), with what changed. */
 export function onConversationsChanged(handler: (change: ConversationsChange) => void): () => void {
-  if (!hasLiveBackend()) return () => {};
+  if (!hasLiveBackend()) {
+    // The preview and the specs' seam: a changed fixture says so (states
+    // flipping under a rail that must hold still, D-47).
+    const preview = () => handler("live");
+    window.addEventListener(PREVIEW_CHANGED, preview);
+    return () => window.removeEventListener(PREVIEW_CHANGED, preview);
+  }
   let stop: (() => void) | null = null;
   let disposed = false;
   void listen<ConversationsChange | null>("conversations://changed", (event) => handler(event.payload === "live" ? "live" : "index")).then((unlisten) => {

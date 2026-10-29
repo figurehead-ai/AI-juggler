@@ -7,7 +7,7 @@
  * in this page's memory only, gone when it closes.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { conversationsLastMessages, type LastTurnInfo } from "../../lib/ipc/conversations";
+import { conversationsLastMessages, type LastMessagesAsk, type LastMessagesInfo, type LastTurnInfo } from "../../lib/ipc/conversations";
 import { errorText } from "../../lib/bridge";
 import { LAST_MESSAGES_EVENT } from "../../lib/last-messages";
 
@@ -32,6 +32,10 @@ export type Chat =
     };
 
 type Latest = { from: number | null; stamp: string | null; turns: LastTurnInfo[]; redacted: number };
+
+/** Another conversation than the session's own, read the same way (a
+ * subagent's, AJ-E1520): `key` names it, `read` asks for it. */
+export type ChatReader = { key: string; read: (ask?: LastMessagesAsk) => Promise<LastMessagesInfo> };
 type Older = { turns: LastTurnInfo[]; earlier: number | null; redacted: number };
 
 function documentHidden(): boolean {
@@ -44,6 +48,7 @@ export function useLastMessages({
   visible,
   live,
   working,
+  reader,
 }: {
   profileId: string;
   conversationId: string | null;
@@ -53,8 +58,12 @@ export function useLastMessages({
   live: boolean;
   /** Working now: followed more often. */
   working: boolean;
+  /** Read another conversation than the session's own. */
+  reader?: ChatReader;
 }): { chat: Chat; showEarlier: () => void } {
-  const key = `${profileId}\u0000${conversationId ?? ""}`;
+  const key = `${profileId}\u0000${conversationId ?? ""}\u0000${reader?.key ?? ""}`;
+  const readRef = useRef<(ask?: LastMessagesAsk) => Promise<LastMessagesInfo>>(() => Promise.reject(new Error("nothing to read")));
+  readRef.current = reader?.read ?? ((ask) => (conversationId === null ? Promise.reject(new Error("nothing to read")) : ask === undefined ? conversationsLastMessages(profileId, conversationId) : conversationsLastMessages(profileId, conversationId, ask)));
   const [status, setStatus] = useState<{ key: string; chat: Exclude<Chat, { state: "shown" }> } | null>(null);
   const [latest, setLatest] = useState<Latest | null>(null);
   const [older, setOlder] = useState<Older | null>(null);
@@ -94,7 +103,7 @@ export function useLastMessages({
     setOlder(null);
     let alive = true;
     let answered = false;
-    conversationsLastMessages(profileId, conversationId).then(
+    readRef.current().then(
       (info) => {
         answered = true;
         if (!alive) return;
@@ -127,7 +136,7 @@ export function useLastMessages({
       const now = latestRef.current;
       if (busy || !now) return;
       busy = true;
-      conversationsLastMessages(profileId, conversationId, { known: now.stamp, from: now.from }).then(
+      readRef.current({ known: now.stamp, from: now.from }).then(
         (info) => {
           busy = false;
           if (!alive || info.state === "unchanged") return;
@@ -159,7 +168,7 @@ export function useLastMessages({
     const cursor = older?.earlier;
     if (cursor == null || conversationId === null || loadingEarlier) return;
     setLoadingEarlier(true);
-    conversationsLastMessages(profileId, conversationId, { before: cursor }).then(
+    readRef.current({ before: cursor }).then(
       (info) => {
         setLoadingEarlier(false);
         if (info.state !== "shown") return;

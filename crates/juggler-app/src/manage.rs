@@ -37,10 +37,10 @@ use crate::state::AppState;
 pub const DEFAULT_ACCOUNT_KEY: &str = "accounts.default";
 
 /// Who made a change made in the app (the audit rows' actor).
-const ACTOR_USER: &str = "user";
+pub(crate) const ACTOR_USER: &str = "user";
 
 /// The longest label accepted (a label is a name, not a note).
-const LABEL_MAX: usize = 64;
+pub(crate) const LABEL_MAX: usize = 64;
 
 /// What Remove does with a copy's folder (an account used where it is
 /// always keeps its folder).
@@ -356,6 +356,9 @@ pub fn account_remove_impl(
         .record(&account.id, "remove", Some(&detail), ACTOR_USER)?;
     drop(storage);
     crate::usage_pipeline::forget_account_offsets(state, account.id.as_str());
+    // AJ-E1601 (D-34): through another service, its link goes, and with
+    // the account's last profile, the key in the Keychain.
+    crate::features::service_accounts::profile_removed(state, account.id.as_str())?;
     Ok(AccountRemovedInfo {
         id: account.id.to_string(),
         label: account.label,
@@ -844,7 +847,7 @@ pub fn project_relocate_impl(
 ) -> AppResult<()> {
     if !folder.is_dir() {
         return Err(AppError::Refused(format!(
-            "{} isn't a folder on this Mac — pick the folder the project moved to",
+            "{} isn't a folder on this computer — pick the folder the project moved to",
             folder.display()
         )));
     }

@@ -1,6 +1,6 @@
 # E2 validation gate (D-04) — beta-exit per pair
 
-Generated from `juggler_handover::validation::validation_matrix()` — regenerate with `just e2-gate`. 0 of 11 pairs validated; 11 open beta debt.
+Generated from `juggler_handover::validation::validation_matrix()` — regenerate with `just e2-gate`. 0 of 17 pairs validated; 17 open beta debt.
 
 A pair graduates out of "Beta" ONLY when its real-adapter CI row is green AND one
 live dogfood cell passed on real binaries. Fake-harness mechanism fixtures never
@@ -9,31 +9,43 @@ until fixed and re-run.
 
 | Pair | Mechanism | Researched | Advertised | CI row | Live cell | Status |
 |---|---|---|---|---|---|---|
-| claude-code→claude-code | transplant | F1 | F1 | green | PENDING | CI fixtures green · live dogfood pending — open beta debt |
-| codex→codex | transplant | F1 | F1 | green | PENDING | CI fixtures green · live dogfood pending — open beta debt transplant proven on synthetic 0.163.0 rollouts only (AJ-E1304); resuming a copied paginated rollout is unproven until a live cell |
-| zcode→zcode | transplant | F1 | F1 | not landed | PENDING | Real-adapter fixtures not landed · live dogfood pending — open beta debt BLOCKED: chat is schema-coupled (SQLite clone) — transplant stays off until a clone passes against two schema versions (Req.3) |
-| claude-code→codex | replay | F1 | F1 | green | PENDING | CI fixtures green · live dogfood pending — open beta debt replay into a primed Codex session, proven against stub binaries (AJ-E1304) |
-| codex→claude-code | replay | F1 | F1 | green | PENDING | CI fixtures green · live dogfood pending — open beta debt replay of a Codex rollout, proven against stub binaries (AJ-E1304) |
-| claude-code→zcode | replay | F0 | F0 | not landed | PENDING | Real-adapter fixtures not landed · live dogfood pending — open beta debt zcode target prime is F0 until a verified prime path exists (Req.3) |
-| zcode→claude-code | replay | F1 | F1 | not landed | PENDING | Real-adapter fixtures not landed · live dogfood pending — open beta debt zcode source adapter not landed |
-| codex→zcode | replay | F0 | F0 | not landed | PENDING | Real-adapter fixtures not landed · live dogfood pending — open beta debt zcode adapter not landed; zcode target prime F0 |
-| zcode→codex | replay | F1 | F1 | not landed | PENDING | Real-adapter fixtures not landed · live dogfood pending — open beta debt zcode adapter not landed |
-| claude-code→gemini-cli | pack-only | F0 | F0 | not landed | PENDING | Real-adapter fixtures not landed · live dogfood pending — open beta debt pack-only: no target adapter planned for beta (SPEC:140 adapter-first) |
-| claude-code→opencode | pack-only | F0 | F0 | not landed | PENDING | Real-adapter fixtures not landed · live dogfood pending — open beta debt pack-only: no target adapter planned for beta (SPEC:140 adapter-first) |
+| claude-code→claude-code | transplant | F3 | F3 | green | PENDING | Automatic tests pass with the real tools; not tried by hand yet |
+| codex→codex | transplant | F3 | F3 | green | PENDING | Automatic tests pass with the real tools; not tried by hand yet Tested on sample Codex 0.163.0 sessions only; resuming a copied long session is unproven until it's tried by hand |
+| zcode→zcode | transplant | F1 | F1 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Not available: Z Code keeps the chat in a database whose layout changes between versions, so moving it stays off until it works on two versions |
+| claude-code→codex | replay | F1 | F1 | green | PENDING | Automatic tests pass with the real tools; not tried by hand yet Replays the story into a new Codex session; tested with stand-in tools |
+| codex→claude-code | replay | F1 | F1 | green | PENDING | Automatic tests pass with the real tools; not tried by hand yet Replays a Codex session's story; tested with stand-in tools |
+| claude-code→zcode | replay | F0 | F0 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Z Code takes a briefing pack only, until starting it from a story is proven |
+| zcode→claude-code | replay | F1 | F1 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Reading Z Code sessions isn't built yet |
+| codex→zcode | replay | F0 | F0 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Z Code support isn't built yet; it takes a briefing pack only |
+| zcode→codex | replay | F1 | F1 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Reading Z Code sessions isn't built yet |
+| claude-code→gemini-cli | pack-only | F0 | F0 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Briefing pack only: starting this tool from a story isn't planned for the beta |
+| claude-code→opencode | pack-only | F0 | F0 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Briefing pack only: starting this tool from a story isn't planned for the beta |
+| claude-code→claude-code+service | transplant | F3 | F3 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta |
+| claude-code+service→claude-code | transplant | F3 | F3 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta |
+| claude-code+service→claude-code+service | transplant | F3 | F3 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta |
+| codex→codex+service | transplant | F3 | F3 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta |
+| codex+service→codex | transplant | F3 | F3 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta |
+| codex+service→codex+service | transplant | F3 | F3 | not landed | PENDING | Automatic tests with the real tools aren't in place; not tried by hand yet Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta |
 
 ## Open beta debt (never listed as passed)
 
-- claude-code→claude-code — CI fixtures green · live dogfood pending — open beta debt
-- codex→codex — CI fixtures green · live dogfood pending — open beta debt (transplant proven on synthetic 0.163.0 rollouts only (AJ-E1304); resuming a copied paginated rollout is unproven until a live cell)
-- zcode→zcode — Real-adapter fixtures not landed · live dogfood pending — open beta debt (BLOCKED: chat is schema-coupled (SQLite clone) — transplant stays off until a clone passes against two schema versions (Req.3))
-- claude-code→codex — CI fixtures green · live dogfood pending — open beta debt (replay into a primed Codex session, proven against stub binaries (AJ-E1304))
-- codex→claude-code — CI fixtures green · live dogfood pending — open beta debt (replay of a Codex rollout, proven against stub binaries (AJ-E1304))
-- claude-code→zcode — Real-adapter fixtures not landed · live dogfood pending — open beta debt (zcode target prime is F0 until a verified prime path exists (Req.3))
-- zcode→claude-code — Real-adapter fixtures not landed · live dogfood pending — open beta debt (zcode source adapter not landed)
-- codex→zcode — Real-adapter fixtures not landed · live dogfood pending — open beta debt (zcode adapter not landed; zcode target prime F0)
-- zcode→codex — Real-adapter fixtures not landed · live dogfood pending — open beta debt (zcode adapter not landed)
-- claude-code→gemini-cli — Real-adapter fixtures not landed · live dogfood pending — open beta debt (pack-only: no target adapter planned for beta (SPEC:140 adapter-first))
-- claude-code→opencode — Real-adapter fixtures not landed · live dogfood pending — open beta debt (pack-only: no target adapter planned for beta (SPEC:140 adapter-first))
+- claude-code→claude-code — Automatic tests pass with the real tools; not tried by hand yet
+- codex→codex — Automatic tests pass with the real tools; not tried by hand yet (Tested on sample Codex 0.163.0 sessions only; resuming a copied long session is unproven until it's tried by hand)
+- zcode→zcode — Automatic tests with the real tools aren't in place; not tried by hand yet (Not available: Z Code keeps the chat in a database whose layout changes between versions, so moving it stays off until it works on two versions)
+- claude-code→codex — Automatic tests pass with the real tools; not tried by hand yet (Replays the story into a new Codex session; tested with stand-in tools)
+- codex→claude-code — Automatic tests pass with the real tools; not tried by hand yet (Replays a Codex session's story; tested with stand-in tools)
+- claude-code→zcode — Automatic tests with the real tools aren't in place; not tried by hand yet (Z Code takes a briefing pack only, until starting it from a story is proven)
+- zcode→claude-code — Automatic tests with the real tools aren't in place; not tried by hand yet (Reading Z Code sessions isn't built yet)
+- codex→zcode — Automatic tests with the real tools aren't in place; not tried by hand yet (Z Code support isn't built yet; it takes a briefing pack only)
+- zcode→codex — Automatic tests with the real tools aren't in place; not tried by hand yet (Reading Z Code sessions isn't built yet)
+- claude-code→gemini-cli — Automatic tests with the real tools aren't in place; not tried by hand yet (Briefing pack only: starting this tool from a story isn't planned for the beta)
+- claude-code→opencode — Automatic tests with the real tools aren't in place; not tried by hand yet (Briefing pack only: starting this tool from a story isn't planned for the beta)
+- claude-code→claude-code+service — Automatic tests with the real tools aren't in place; not tried by hand yet (Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta)
+- claude-code+service→claude-code — Automatic tests with the real tools aren't in place; not tried by hand yet (Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta)
+- claude-code+service→claude-code+service — Automatic tests with the real tools aren't in place; not tried by hand yet (Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta)
+- codex→codex+service — Automatic tests with the real tools aren't in place; not tried by hand yet (Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta)
+- codex+service→codex — Automatic tests with the real tools aren't in place; not tried by hand yet (Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta)
+- codex+service→codex+service — Automatic tests with the real tools aren't in place; not tried by hand yet (Another service answers on one side: the model changes, and whether it takes the conversation as it is hasn't been tried, so this switch stays in beta)
 
 ## Failure-taxonomy evidence (S-F1..S-F9)
 

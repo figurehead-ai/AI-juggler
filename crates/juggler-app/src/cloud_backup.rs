@@ -201,7 +201,7 @@ pub fn cloud_backup_now_impl(
         let (client, token) = crate::figurehead::session(state)?;
         let label = format!(
             "AI Juggler · {}",
-            sysinfo::System::host_name().unwrap_or_else(|| "this Mac".to_owned())
+            sysinfo::System::host_name().unwrap_or_else(|| "this computer".to_owned())
         );
         client
             .upload_backup(
@@ -310,7 +310,7 @@ pub fn cloud_backup_prepare_restore_impl(
     let key = match recovery_code.filter(|code| !code.trim().is_empty()) {
         Some(code) => VaultKey::from_recovery_code(code).map_err(|e| refuse(e.to_string()))?,
         None => VaultKey::load(vault).ok_or_else(|| {
-            refuse("enter your recovery code — this Mac doesn't have the vault key yet")
+            refuse("enter your recovery code — this computer doesn't have the vault key yet")
         })?,
     };
     let (client, token) = crate::figurehead::session(state)?;

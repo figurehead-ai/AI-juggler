@@ -58,7 +58,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
           ))}
         </ul>
       )}
-      <div role="radiogroup" aria-label="How the work moves" className="flex flex-col gap-1.5">
+      <div role="radiogroup" aria-label="How the work goes along" className="flex flex-col gap-1.5">
         <label className={OPTION + picked(mechanism === "transplant") + (t2Possible ? "" : " opacity-70")}>
           <input type="radio" name="cross-mechanism" checked={mechanism === "transplant"} disabled={!t2Possible} onChange={() => onMechanism("transplant")} aria-describedby="cross-t2-desc" data-testid="cross-switch-t2" />
           <span>
@@ -78,7 +78,7 @@ export function CrossTarget({ target, badge, mechanism, onMechanism, t2Possible 
           </span>
         </label>
       </div>
-      <p className="text-meta text-ink">Nothing moves until you choose Switch now on the last step.</p>
+      <p className="text-meta text-ink">Nothing happens until you choose Switch now on the last step.</p>
     </div>
   );
 }
@@ -139,13 +139,13 @@ export function CrossCarried({ target, mechanism, secrets, onSecrets }: { target
       <h3 className="text-title text-ink">What goes along</h3>
       <CarryList items={carryItems(target)} target={machine} tool={tool} />
       {mechanism === "transplant" ? (
-        <p className="text-body text-ink">The conversation's files are copied to {machine}; this Mac keeps its own copy as it is.</p>
+        <p className="text-body text-ink">The conversation's files are copied to {machine}; this computer keeps its own copy as it is.</p>
       ) : (
         <fieldset className="flex flex-col gap-1.5" data-testid="cross-switch-keys">
           <legend className="mb-1 text-body font-semibold text-ink">Keys and passwords in this conversation</legend>
           {(
             [
-              ["strip", "Hide them", "They're replaced with ••• and never leave this Mac. If the other session needs a key, it asks you."],
+              ["strip", "Hide them", "They're replaced with ••• and never leave this computer. If the other session needs a key, it asks you."],
               ["keep", "Leave them in", `They go to ${machine} exactly as written. Choose this only if the work needs them.`],
             ] as const
           ).map(([value, title, body]) => (
@@ -176,7 +176,7 @@ export function CrossConfirm({ target, badge, mechanism, projectName, freeze, on
           {mechanismWords(mechanism)}: {target.account_label} on {machine} continues it, in {projectName}.
         </li>
         <li>{target.dropped.length > 0 ? `Stays behind: ${target.dropped.join(", ")}.` : "Everything goes along."}</li>
-        <li>This Mac keeps the original as it is.</li>
+        <li>This computer keeps the original as it is.</li>
       </ul>
       <SwitchFreezeChoice sourceLive value={freeze} onChange={onFreeze} />
     </div>

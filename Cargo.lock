@@ -961,7 +961,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a"
 dependencies = [
  "quote",
- "syn 3.0.9",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -2730,7 +2730,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-account"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chacha20poly1305",
  "cpu-time",
@@ -2747,11 +2747,11 @@ dependencies = [
 
 [[package]]
 name = "juggler-adapter"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitflags 2.13.2",
  "juggler-core",
- "nix 0.31.3",
+ "juggler-platform",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -2761,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-adapters"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "juggler-adapter",
  "juggler-core",
@@ -2777,8 +2777,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "juggler-agentbridge"
+version = "0.2.0"
+dependencies = [
+ "juggler-adapter",
+ "juggler-adapters",
+ "juggler-app",
+ "juggler-core",
+ "juggler-supervisor",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "juggler-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -2795,10 +2809,12 @@ dependencies = [
  "juggler-account",
  "juggler-adapter",
  "juggler-adapters",
+ "juggler-agentbridge",
  "juggler-core",
  "juggler-handover",
  "juggler-link",
  "juggler-login-item",
+ "juggler-platform",
  "juggler-scap-init",
  "juggler-stats",
  "juggler-supervisor",
@@ -2838,7 +2854,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "rusqlite",
@@ -2850,7 +2866,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-handover"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cpu-time",
  "juggler-adapter",
@@ -2865,7 +2881,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-link"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.23.1",
  "cpu-time",
@@ -2899,7 +2915,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-login-item"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "objc2",
  "objc2-foundation",
@@ -2907,15 +2923,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "juggler-platform"
+version = "0.2.0"
+dependencies = [
+ "nix 0.31.3",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "juggler-scap-init"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "screencapturekit",
 ]
 
 [[package]]
 name = "juggler-stats"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cpu-time",
  "flate2",
@@ -2930,7 +2955,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-supervisor"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "block2",
  "cpu-time",
@@ -2953,7 +2978,7 @@ dependencies = [
 
 [[package]]
 name = "juggler-vm-stats"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "libc",
 ]
@@ -4387,9 +4412,9 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.13.4"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
+checksum = "278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb"
 dependencies = [
  "bitflags 2.13.2",
  "memchr",

@@ -47,6 +47,15 @@ pub trait HarnessAdapter: Send + Sync {
     #[must_use]
     fn discover(&self) -> DiscoveryReport;
 
+    /// Where the harness's program is, found from files alone: never run,
+    /// never asked its version (the read-only test bridge's builds start no
+    /// tool; `DiscoveryReport::located` makes the report). `None`: not
+    /// found, or this adapter can't tell without running something.
+    #[must_use]
+    fn locate(&self) -> Option<PathBuf> {
+        None
+    }
+
     /// Prepares (idempotently) an isolated account state directory and
     /// returns the environment overlay that points the harness at it.
     ///
@@ -152,29 +161,32 @@ pub trait HarnessAdapter: Send + Sync {
         crate::inventory::SetUp::Impossible(format!("{} can't set up {} yet", self.id(), item.name))
     }
 
+    /// What the conversation in `transcript` used: skills, commands, MCP
+    /// servers, subagents and plugins, each by kind and name (a plugin by
+    /// its name without the marketplace). `None` when this tool's
+    /// transcripts don't say, which is never "not used"
+    /// (switch-setup-items.md §3). Reads the file only. Default: `None`.
+    #[must_use]
+    fn used_in(&self, transcript: &Path) -> Option<Vec<(crate::inventory::ItemKind, String)>> {
+        let _ = transcript;
+        None
+    }
+
     /// How the user finishes `item` on the account in `state_dir`
-    /// themselves, in this tool's own words: turning on what the account
-    /// itself provides (its plan, its features: a claude.ai skill), or
-    /// giving a server the secret that is never copied. The switch dialog
-    /// shows the steps, the command, the account's settings page when
-    /// they happen there, and Check again; none of it blocks the switch.
-    /// Default: none.
+    /// themselves, in this tool's own words, when it can be set up but
+    /// one step is theirs: giving a server the secret that is never
+    /// copied (the steps and the command, with a placeholder). What comes
+    /// with the account says how to turn it on in
+    /// [`crate::inventory::SetUp::TurnOn`] instead. None of it blocks the
+    /// switch. Default: no steps.
     #[must_use]
     fn how_to_get(
         &self,
         item: &crate::inventory::Item,
         state_dir: &Path,
-    ) -> crate::inventory::HowTo {
+    ) -> crate::inventory::GetIt {
         let _ = (item, state_dir);
-        crate::inventory::HowTo::default()
-    }
-
-    /// The web page where this tool's account turns features on, opened
-    /// in the user's browser (never signed in by AI Juggler). Default:
-    /// none.
-    #[must_use]
-    fn account_settings_url(&self) -> Option<String> {
-        None
+        crate::inventory::GetIt::default()
     }
 
     /// AJ-E1542: sets up `item` in this account (only on the user's
@@ -195,6 +207,50 @@ pub trait HarnessAdapter: Send + Sync {
             "{} can't set up {} yet",
             self.id(),
             item.name
+        )))
+    }
+
+    /// D-51: whether this tool keeps notes of its own about each project
+    /// (Claude Code's auto memory), which a switch can offer to copy. A
+    /// tool that doesn't: the switch says the notes stay with their own
+    /// account. Default: it doesn't.
+    #[must_use]
+    fn keeps_project_memory(&self) -> bool {
+        false
+    }
+
+    /// D-51: this account's notes for `project`, read through
+    /// [`crate::memory::read`] (plain note files in the account's own
+    /// folder, never a link). `None` when it has none. Reads only.
+    #[must_use]
+    fn project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+    ) -> Option<crate::memory::ProjectMemory> {
+        let _ = (state_dir, project);
+        None
+    }
+
+    /// D-51: copies the notes in `from` that this account lacks for
+    /// `project` (only on the user's approval), through
+    /// [`crate::memory::add`]: new private files, never replacing a note
+    /// that differs, the index merged, with how to undo it.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] when this tool keeps no notes, or
+    /// there's nothing to copy; the write's error.
+    fn add_project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+        from: &crate::memory::ProjectMemory,
+    ) -> Result<crate::memory::MemoryAdded, AdapterError> {
+        let _ = (state_dir, project, from);
+        Err(AdapterError::Unsupported(format!(
+            "{} doesn't keep notes for a project",
+            self.id()
         )))
     }
 
@@ -245,7 +301,10 @@ pub trait HarnessAdapter: Send + Sync {
     /// profile at `state_dir`. The tool asks its vendor with its own
     /// sign-in, which AI Juggler never sees, and keeps the answer where
     /// the tool's limit records are read. No model turn, no transcript.
-    /// `None`: the tool has no such command, or isn't installed.
+    /// `None`: the tool has no such command, or isn't installed. The
+    /// spec's `cwd` is a folder of AI Juggler's own that the run makes;
+    /// asking for the spec writes nothing (it is read to say whether the
+    /// probe is offered).
     #[must_use]
     fn limits_probe_spec(&self, state_dir: &Path) -> Option<LaunchSpec> {
         let _ = state_dir;
@@ -265,6 +324,48 @@ pub trait HarnessAdapter: Send + Sync {
         path: &Path,
     ) -> Option<crate::conversation::ConversationSummary> {
         let _ = path;
+        None
+    }
+
+    /// AJ-E1602: the conversations of a tool that keeps them all in one
+    /// store (one database) rather than a file each, read in one pass,
+    /// read-only. Each carries a key no file has (`<store>#<id>`) and when
+    /// it last changed, so the index reads again only what changed.
+    /// Default: none (the tool keeps a file per conversation, listed by
+    /// [`HarnessAdapter::conversation_files`]).
+    #[must_use]
+    fn stored_conversations(
+        &self,
+        state_dir: &Path,
+    ) -> Vec<crate::conversation::StoredConversation> {
+        let _ = state_dir;
+        Vec::new()
+    }
+
+    /// AJ-E1602 (ADR-0019 §2, the quota-source building block): usage from
+    /// a tool that keeps it in a store queried by time (a database), not in
+    /// files tailed by offset: every message changed at or after `since_ms`
+    /// (epoch ms; 0 for all), each keyed so a message read twice counts
+    /// once, and labelled as honestly as the store allows. `None`: the tool
+    /// has no such store. `Some(Err)`: the store couldn't be read this time
+    /// (a plain message, never a secret).
+    fn usage_since(
+        &self,
+        account: &Account,
+        since_ms: i64,
+    ) -> Option<Result<Vec<juggler_core::quota::UsageEvent>, String>> {
+        let _ = (account, since_ms);
+        None
+    }
+
+    /// AJ-E1603: why the account at `state_dir` may only be used by a
+    /// person at the keyboard (its vendor's terms: Kimi Code's plans are
+    /// "for interactive use only"), in words; `None` when nothing limits
+    /// it. A launch nobody clicked (a restart after a crash) is never made
+    /// for it, and the adapter refuses its headless runs.
+    #[must_use]
+    fn interactive_only(&self, state_dir: &Path) -> Option<String> {
+        let _ = state_dir;
         None
     }
 
@@ -529,6 +630,16 @@ pub trait HarnessAdapter: Send + Sync {
         &[]
     }
 
+    /// AJ-E1604: variables every launch sets to a fixed value, whatever
+    /// Launch settings say (a guardrail: Grok Build reads the user's
+    /// Claude and Cursor setups unless told not to). The copyable shell
+    /// line sets them too, and each is one of
+    /// [`HarnessAdapter::isolation_env_keys`] so no override reaches it.
+    /// Default: none.
+    fn launch_fixed_env(&self) -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
+
     /// The value of the pinned isolation keys for `state_dir`, or `None`
     /// when the folder runs with that key unset (ADR-0018: the vendor's
     /// own default folder). Default: the path.
@@ -600,6 +711,129 @@ pub trait HarnessAdapter: Send + Sync {
         let _ = conversation_id;
         None
     }
+
+    /// AJ-E1601: the protocol this tool speaks when it runs through
+    /// another service's published address (D-34); `None` when it can't.
+    #[must_use]
+    fn endpoint_wire(&self) -> Option<crate::endpoint::WireApi> {
+        None
+    }
+
+    /// AJ-E1601: points the profile in `state_dir` — a folder AI Juggler
+    /// made and marked as its own, never a user's setup — at `endpoint`
+    /// with `model`. The key is never written: AI Juggler hands it to each
+    /// session at launch, as [`crate::endpoint::ServiceEndpoint::key_env`].
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Unsupported`] when the tool can't run through
+    /// another service, or `endpoint` speaks another protocol;
+    /// [`AdapterError::AccountDir`] when the folder isn't AI Juggler's own
+    /// or can't be written.
+    fn configure_endpoint(
+        &self,
+        state_dir: &Path,
+        endpoint: &crate::endpoint::ServiceEndpoint,
+        model: &str,
+    ) -> Result<(), AdapterError> {
+        let _ = (state_dir, endpoint, model);
+        Err(AdapterError::Unsupported(
+            "this tool can't run through another service".into(),
+        ))
+    }
+    /// AJ-E1704 (D-30): how this tool takes AI Juggler's agent tools for
+    /// one launch whose arguments are `args`: options to insert and the
+    /// files they name (written by the app into `bridge.dir`, AI
+    /// Juggler's own folder), with only AI Juggler's tools pre-allowed.
+    /// Never a secret (the key is in the environment; only its name is
+    /// here) and never an edit to the user's setup. `None` (the default):
+    /// the tool can't add an MCP server through its launch options; its
+    /// sessions still get the command line through their environment.
+    /// An adapter that returns `Some` declares
+    /// [`crate::Capabilities::AGENT_BRIDGE`] (the conformance kit holds both).
+    #[must_use]
+    fn agent_bridge(
+        &self,
+        bridge: &crate::agent_bridge::BridgeLaunch,
+        args: &[String],
+    ) -> Option<crate::agent_bridge::BridgeInjection> {
+        let _ = (bridge, args);
+        None
+    }
+
+    /// AJ-E2306 (D-40): how this tool's terminal launch (arguments `args`)
+    /// reports its exact state through the tool's own hooks: the whole new
+    /// argument list and the files for `launch.dir`, AI Juggler's own
+    /// folder. Never an edit to the user's setup, never a hook that decides
+    /// anything for the user. `None` (the default): the tool has no hooks
+    /// AI Juggler uses. An adapter that returns `Some` declares
+    /// [`crate::Capabilities::STATE_REPORTS`] (the conformance kit holds both).
+    #[must_use]
+    fn state_reports(
+        &self,
+        launch: &crate::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<crate::reports::ReportsInjection> {
+        let _ = (launch, args);
+        None
+    }
+
+    /// Lab 2 (D-40): the question this tool asks before it works in a
+    /// folder, whose answer it would save to the user's own config. AI
+    /// Juggler asks it instead and passes the answer in memory
+    /// ([`Self::apply_folder_trust`]). `None` (the default): the tool asks
+    /// nothing AI Juggler needs to.
+    #[must_use]
+    fn folder_trust(&self) -> Option<crate::folder_trust::FolderTrust> {
+        None
+    }
+
+    /// Whether the tool's own setup for `account` already decides `cwd`'s
+    /// trust (the user chose in the tool): then AI Juggler passes nothing.
+    /// Only reads.
+    #[must_use]
+    fn folder_trust_decided(&self, account: &crate::model::Account, cwd: &std::path::Path) -> bool {
+        let _ = (account, cwd);
+        false
+    }
+
+    /// Passes the user's trust choice for `cwd` to a launch of this tool
+    /// (`args`, the terminal's or the driven one's), in memory only.
+    fn apply_folder_trust(&self, args: &mut Vec<String>, cwd: &std::path::Path, trusted: bool) {
+        let _ = (args, cwd, trusted);
+    }
+
+    /// AJ-E2302 (D-40, ADR-0022): the tool's own protocol, for sessions
+    /// AI Juggler drives instead of running its terminal UI. `None` (the
+    /// default): the terminal is this tool's only runtime. An adapter that
+    /// returns `Some` declares [`crate::Capabilities::PROTOCOL_SERVER`]
+    /// (the conformance kit holds both).
+    #[must_use]
+    fn driven(&self) -> Option<&dyn crate::runtime::DrivenRuntime> {
+        None
+    }
+
+    /// AJ-E1520 (0.2): whether this tool's subagents can be listed, from
+    /// which records, or why not. Every adapter answers: the default,
+    /// [`crate::subagents::SubagentSupport::Unanswered`], is refused by the
+    /// conformance kit (check 11).
+    #[must_use]
+    fn subagent_support(&self) -> crate::subagents::SubagentSupport {
+        crate::subagents::SubagentSupport::Unanswered
+    }
+
+    /// AJ-E1520 (0.2): a reader of the subagents the conversation `scope`
+    /// names started (and theirs), from the tool's own records, read-only.
+    /// `None` when [`Self::subagent_support`] isn't supported, or the
+    /// record isn't one of this tool's conversations.
+    #[must_use]
+    fn subagent_reader(
+        &self,
+        scope: crate::subagents::SubagentScope<'_>,
+    ) -> Option<Box<dyn crate::subagents::SubagentReader>> {
+        let _ = scope;
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a
@@ -629,6 +863,9 @@ pub fn shell_snippet(
             Some(dir) => parts.push(format!("{key}={}", shell_quote(&dir))),
             None => unset.push(key.to_owned()),
         }
+    }
+    for (key, value) in adapter.launch_fixed_env() {
+        parts.push(format!("{key}={}", shell_quote(value)));
     }
     unset.extend(
         adapter

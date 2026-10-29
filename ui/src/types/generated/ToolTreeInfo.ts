@@ -57,6 +57,11 @@ helpers: number,
  */
 heavy_note: string | null, 
 /**
+ * For another app's session the Processes view found (AJ-E2407): its
+ * title, else its app's name; for a whole group, the group's words.
+ */
+title?: string | null, 
+/**
  * The memory is an estimate: helper RSS summed, so memory those
  * helpers share is counted once per helper (a tool AI Juggler didn't
  * start, whose exact footprint needs an unsafe OS call). Show it as

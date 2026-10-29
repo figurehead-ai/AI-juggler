@@ -5,6 +5,7 @@ pub mod commands;
 pub mod dto;
 pub mod history;
 pub mod lifecycle;
+pub mod linking;
 pub mod restart;
 pub mod rows;
 pub mod spawn;

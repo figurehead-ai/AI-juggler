@@ -258,7 +258,7 @@ fn a_401_unlinks_locally_and_keeps_local_data() {
     assert_eq!(status.state, "signed_out");
     assert_eq!(
         status.notice.as_deref(),
-        Some("This Mac was unlinked from Figurehead.")
+        Some("This computer was unlinked from Figurehead.")
     );
     assert!(f.secrets.get("dev_1").is_none(), "the token is deleted");
     let after = figurehead::cloud_choices(&f.state);

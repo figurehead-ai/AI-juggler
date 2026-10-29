@@ -557,6 +557,150 @@
   Activity Monitor. If the kernel refuses the read, there is no memory
   reading at all (never a sum with another measure under the same name).
 
+### D-28 What agents may do: access levels per pool, rules you can revoke — SETTLED (2026-10-24)
+
+- Decision: an agent calling AI Juggler's tools from inside its own
+  session (a status, a message, a shared doc, a task row) is recorded as
+  the agent's action, not one the app executes. What it may do is set by
+  its pool's **access level**, which only the user sets, in the app:
+  **Read** (the roster, cards and tasks); **Work together** (also its
+  status, messages, shared docs, and creating, claiming and updating
+  tasks); **Full** (also delivering into other members' sessions, D-29);
+  **Custom** (per action). A project's default pool starts at **Work
+  together**. An action above the level becomes an **ask** in Needs you
+  (grouped, never a pop-up): Allow once, Always allow in this pool, or
+  Deny. On the **second** identical approval (same action, same pool),
+  the ask offers to remember it as a rule. Every level and rule is on
+  one page (Settings › Agent access, and each pool's page), revocable at
+  any time, effective on the next call; every agent action is logged.
+  The maintainer, 2026-10-24: "what we don't want to do, is get into a
+  mess where user is constantly being waited on to approve things … if
+  it sees user constantly being asked to approve certain types it can
+  offer an option to create a rule for it … all of these could be
+  revoked by user in our system at any time".
+- Hard lines no level or rule lifts: agents never change pools, levels
+  or rules; agents never start a session or choose an account (D-31);
+  agents never get credentials; AI Juggler never answers a tool's own
+  permission prompts by itself (amended by D-40, 2026-10-25: the user's
+  own click in AI Juggler is carried to the tool, and "don't ask again"
+  is the tool's own rule, picked from the options the tool offers, so
+  it is visible and revocable in the tool too).
+- Rejected: every agent write approved one by one (the approval spam
+  this ruling exists to avoid); reads only (messaging and tasks would
+  wait).
+- Consequences: one decision point, `allowed(pool, action)`, answers
+  Allow, Ask or Deny for every agent action (AJ-E1702); the bridge
+  (AJ-E1704), messaging (E18) and tasks (E19) only call it.
+
+### D-29 Delivering into a session without a click — SETTLED (2026-10-24)
+
+- Decision: AI Juggler may deliver a message into an idle session, so it
+  starts a turn without the user, only where the user allowed it: a pool
+  at **Full**, or a rule. Every delivery lands only between turns (never
+  mid-turn, over the user's typing, or at a tool's permission prompt);
+  is labelled with its sender and that it can't approve anything or
+  change settings; shows in the session as started by that message and
+  goes in the audit log; uses the vendor's own route where one exists
+  (Claude Code's messages between sessions), else is typed as the next
+  prompt, through the same checks. Caps apply on every level: a **hop
+  limit of 5** by default (one agent waking another is a hop; a person's
+  prompt, click or reply resets the count; at the limit the chain pauses
+  and asks), changeable per pool; a rate limit; duplicates dropped; a
+  stop-all switch per pool.
+- Rejected: never waking (agents couldn't hand work over while the user
+  is away); waking in every pool (one runaway pool could spend every
+  account).
+- Consequences: an amendment to SPEC §1 and ADR-0003's "sessions act
+  only when you act": the user's level or rule is the permission.
+
+### D-30 Adding AI Juggler's tools to sessions, pre-allowed — SETTLED (2026-10-24)
+
+- Decision: AI Juggler adds its agent tools to the sessions it starts,
+  through each tool's launch options (`--mcp-config` with a per-session
+  file in AI Juggler's own folder, never `--strict-mcp-config`; Codex's
+  `-c mcp_servers.*`), never by editing the user's config. It asks once,
+  the first time pools are used ("Let agents in your projects see each
+  other and work together?"); after that it's on, and can be switched
+  off per project or account. AI Juggler's own tools are **pre-allowed**
+  at launch (`--allowedTools` for them; Codex's approval setting for
+  them), so no session prompts for them: the pool level (D-28) is the
+  real check. Every other tool's prompts stay as the vendor shows them.
+- Rejected: off until enabled per project; on with no question;
+  pre-allowing read-only tools only or nothing (each new session would
+  greet the user with AI Juggler's prompts).
+- Consequences: sessions started outside AI Juggler are pool members but
+  can't call the tools until continued in AI Juggler.
+
+### D-31 Agents never start sessions; nothing picks an account by usage — SETTLED (2026-10-24)
+
+- Decision: an agent may **prepare** a launch (project, task, a draft
+  prompt), shown in Needs you; the user picks the account and starts it.
+  Nothing ranks or chooses accounts by remaining usage, for agents or
+  tasks; task assignment never reads quota.
+- Rejected: launches by rule on a fixed account (more cost running
+  unwatched; may be revisited after pools are in use); agents choosing
+  any account (rotating accounts to get past usage limits is what the
+  vendors' terms most clearly forbid; ADR-0003).
+- Consequences: a guardrail test keeps pools, assignment and the bridge
+  free of quota types.
+
+### D-32 Pools across your Macs, opt-in per pool, in 0.2 — SETTLED (2026-10-24)
+
+- Decision: a pool may include sessions on the user's paired Macs,
+  switched on per pool and off by default. Then its message, shared-doc
+  and task content travels between those Macs over juggler-link,
+  directly and encrypted, with no server. The pool's page says so when
+  it's switched on.
+- Rejected: later (the maintainer chose to build it in 0.2); never.
+- Consequences: the Privacy page's Fleet line ("It never gets your
+  sign-ins, files or prompts") and its link contract tests are rewritten
+  to say exactly when pool content travels, and only for pools switched
+  on. The two-Mac Fleet check (AJ-E710, the maintainer's) becomes part of
+  0.2's verification.
+
+### D-33 The default pool holds a project's sessions; agents see account labels — SETTLED (2026-10-24)
+
+- Decision: a project's default pool holds all its sessions, on any
+  account. Agents' context cards may show a member's **account label**
+  (the name the user gave it), never an email, plan or other account
+  detail.
+- Rejected: separate default pools per identity (Work and Personal)
+  within a project; one pool across all projects; full account details
+  on cards.
+- Consequences: a user who keeps Work and Personal apart does it with
+  their own pools or by project. A test keeps emails and plans off cards.
+
+### D-34 Keys for accounts through another service live in the Keychain — SETTLED (2026-10-24)
+
+- Decision: an account that runs Claude Code or Codex through another
+  service (OpenCode Go, Kimi: their published Claude- or
+  Codex-compatible address) keeps its key in the macOS Keychain, held
+  by AI Juggler. The user pastes it once in Add account; AI Juggler
+  hands it only to that account's sessions, as the environment variable
+  the tool expects, and never writes it to a file, a log, the search
+  index or a backup, never shows it again, and sends it nowhere else.
+  Removing the account removes the key. Kimi usage may be read from
+  Kimi's own local server (`kimi web`) only when the user switches it
+  on for that account and only while that server runs: AI Juggler reads
+  its token into memory, calls only its usage address, and keeps
+  nothing. The daily check for newer tool versions (npm's registry)
+  starts on. The maintainer chose each of these on 2026-10-24, with the
+  options set out in full. (Brand marks for OpenCode, Kimi and Grok
+  were not ruled; they stay letter marks, as every unapproved mark does.)
+- Amends: E16's law and AJ-E1601 Req.2 ("AI Juggler never reads,
+  copies or stores" the key), and the Privacy page's "no-proxy" line:
+  still no proxy, and a provider address is set only for an account
+  added "through another service", to the address that service
+  publishes. The Privacy page names the Keychain key and the opt-in
+  Kimi usage read.
+- Rejected: the key in the account's settings file (plain text; Codex
+  takes only an environment variable); in the user's shell profile
+  (plain text, every terminal); not building it.
+- Consequences: AJ-E1601 builds it, with guardrail tests (no key in
+  argv, files, logs, the index or backups); the "never read the
+  environment" rule (D-37) gains a test that AI Juggler's own key reaches
+  only the launch it starts.
+
 ### D-35 Profiles are not accounts — SETTLED (2026-10-24)
 
 - Decision: a **profile** is the setup an app runs on: a Claude Code
@@ -577,7 +721,7 @@
 - Rejected: keeping "account" for a folder (the maintainer's
   complaint).
 - Consequences: AJ-E2109; the terminology lint learns the new meaning.
-  (D-28 to D-34 were ruled for 0.2 and are recorded on release/0.2.)
+  (D-28 to D-34 are above.)
 
 ### D-36 Desktop first: the rail shows what is open, in every app — SETTLED (2026-10-24)
 
@@ -760,6 +904,341 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   this branch: no chat content, no token, read-only, named on the Privacy
   page. It is not the chat cache D-37 rejected.
 
+### D-40 How AI Juggler runs the sessions it starts: a runtime per tool — SETTLED (2026-10-25)
+
+- Decision: option A of the research (`docs/research/session-runtime.md`,
+  ADR-0022). The maintainer, 2026-10-25: "Yes to D-40 option A: Codex
+  through app-server by default, Claude terminal + hooks by default with
+  headless as a Beta choice, no bundled SDK. Also yes to amending D-28 to
+  'never by itself'."
+  - Codex: each session AI Juggler starts is driven through the user's own
+    `codex app-server` (one per session, a socket in AI Juggler's data
+    folder, owned in the spawn ledger). Approvals and questions are
+    answered in AI Juggler; state and the 5-hour and weekly limits come
+    from the protocol; "Open in terminal" attaches the real TUI with
+    `codex --remote`. The PTY with `--no-daemon` stays the fallback. The
+    protocol version is pinned and its schema regenerated each release.
+  - Claude: the real terminal stays the default, with exact state and
+    limits from Claude Code's own hooks and status line through a
+    per-launch `--settings` file in AI Juggler's folder. "Run without a
+    terminal: answer from AI Juggler" is a per-session Beta choice:
+    AI Juggler speaks Claude Code's stream-json protocol from Rust to the
+    user's own `claude`, and hands back to the terminal at a turn boundary
+    with `--resume`. It becomes the default only after four gates
+    (ADR-0022 decision 4): Anthropic's published terms, rechecked each
+    release, still allow it; `-p` keeping subscription sign-in once
+    `--bare` is its default; a month of lab use with no billing change;
+    the conversation view passing a hand walk. (Amended by the maintainer,
+    2026-10-25: no written approval is sought. The Beta never uses the
+    Agent SDK; it runs the user's own installed `claude -p`, which
+    Anthropic's Help Center of 2026-10-07 says may use subscription
+    limits, and AI Juggler never handles a sign-in.)
+  - No vendor SDK is bundled. AI Juggler speaks each tool's protocol to
+    the user's own installed binary. The terminal stays a first-class
+    runtime for every tool, and the only one for tools without a protocol.
+- Quoted terms (research §2): Anthropic does not "prevent an end user from
+  signing in to the unmodified Claude Code binary with their own Claude
+  subscription", and does not allow "third party developers to offer
+  claude.ai login or rate limits for their products, including agents
+  built on the Claude Agent SDK" unless approved. OpenAI lets "a local or
+  open-source application" use Codex app-server with ChatGPT sign-in;
+  never for commercial or hosted services.
+- Amends: D-28's hard line (above), now "never answers by itself".
+- Rejected: bundling the Agent SDK or the Codex SDK (policy, about
+  450–700 MB, a second Claude Code copy, and the Codex TS SDK can't answer
+  approvals); terminal only (turns down the protocol Codex's own TUI
+  uses); headless by default for both now (loses Claude's TUI before the
+  policy questions settle).
+- Consequences: ADR-0022 Accepted; a runtime trait in `juggler-adapter`
+  (Terminal or Driven, per launch), the conformance kit testing both
+  runtimes; a live spike on spare accounts first (the maintainer's step,
+  as AJ-E1701); `docs/research/codex.md` §9 gets an addendum (app-server's
+  rate limits are documented); the Privacy and terms pages name the
+  runtime.
+
+### D-41 Processes of sessions other apps run: remembered, and stoppable by the user — SETTLED (2026-10-25)
+
+- Decision: the maintainer, 2026-10-25: "Yes to both: (a) a local 7-day
+  names-only record of processes in sessions other apps run, and (b)
+  user-chosen, verified stop of their leftovers after the session ended,
+  never automatic, never the app or the session's own process. Build the
+  Processes view in 0.2."
+  - (a) Sightings. For a session another app runs (the Claude app, the
+    Codex app, a terminal `claude`), AI Juggler keeps a local record of
+    its processes: pid, start time, program name, the session it belongs
+    to, first and last seen, and a hash of its command line. Never the
+    environment, never the command line itself, nothing sent anywhere.
+    Kept 7 days. It lets a helper that outlives its session show as "left
+    behind by <session>".
+  - (b) User-chosen stop. A leftover of such a session may be stopped only
+    by the user's own click, only after the session's own process has
+    ended, through the same identity check (against the sighting: pid,
+    start time, program, boot), the same verify sheet and the same audit
+    (`actor = user:observed`). Never automatically, at any tier; never the
+    app itself or a session's own process.
+- Amends: D-08 (unowned processes untouchable): now "never by AI Juggler
+  on its own; the user may stop a verified leftover of another app's
+  ended session". AJ-E1402 Req.3 ("the ledger is never written for
+  them"): the ledger still isn't; sightings are their own record.
+- Why: on the maintainer's Mac every live session runs in the Claude app
+  or ChatGPT, with ~110 child processes and 16 orphans up to 3 days old
+  that AI Juggler could neither show per session nor act on (the
+  processes gap analysis, 2026-10-25).
+- Consequences: the 0.2 Processes view (app → session → process →
+  subprocess, one model for Cleanup, a session's Processes tab and This
+  Mac); a sightings store with guardrail tests (no environment, no command
+  line, 7-day expiry); the collateral suite extended to observed
+  processes; Privacy page lines.
+
+## Unresolved (in discussion order)
+
+- D-43 points 4 (a task's brief as a session's first prompt) and 6 (the
+  Claude Code plugin outside AI Juggler's launches): approved as built,
+  to be revisited with the maintainer after the messaging and tasks labs.
+  The plugin stays unpublished until then.
+- D-01..D-15 were marked Final on maintainer instruction
+  (2026-10-13); D-16 and D-17 were settled by maintainer instruction
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26, D-44..D-49 on 2026-10-27 and D-50..D-51 on 2026-10-28. All follow the same law.
+
+### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
+
+**Ruling.** The maintainer, 2026-10-26: "Approve D-42 and D-43 as built;
+revisit D-43 point 4 (task brief as first prompt) and point 6 (plugin)
+after the labs."
+
+Context: E18 (`docs/tasks/E18-agent-messaging.md`) built on D-28 and D-29.
+Six choices weren't ruled by them. Each is built as recommended here and
+covered by tests, so changing one is a small, local change.
+
+1. **Secrets in messages and shared docs follow the packs' choice (D-14).**
+   - What the user sees: a message or doc with a key in it shows "1 secret
+     withheld, as you chose for packs" and `•••` in place of the key; with
+     **Keep** chosen in Settings › Privacy, the key stays (on this Mac).
+   - Options: (a) always strip, whatever the choice; (b) the packs' choice,
+     with Ask each time and "not chosen yet" stripping (no one is there to
+     ask when an agent writes); (c) a separate setting for messages.
+   - Cost and risk: (a) overrides the user's choice, against D-14's "always
+     the user's choice"; (c) is one more setting to explain. (b) means a user
+     who chose Keep lets agents pass keys to each other, on this Mac only.
+   - Recommendation: **(b)** (built).
+2. **Reading its own messages is part of Read.** A new catalog action,
+   `read_messages` ("Read their messages and the shared docs"), in Read and
+   every level above.
+   - What the user sees: one more line in a Custom level's list; a pool at
+     Read can still hear from the user, and answers only with the user's OK.
+   - Risk: none new (reading never sends). Alternative: put it under Work
+     together, so a pool at Read can't even read what the user wrote to it.
+   - Recommendation: **in Read** (built).
+3. **No separate Inbox screen.** E18's "Inbox pane" is each pool's
+   **Messages** tab, each session's **Messages** tab (shown once it has
+   any) and Home's **Needs you** for what waits on the user, following
+   E21's desktop-first ruling (no separate pools section).
+   - Cost: no single list of every pool's threads; a user with many pools
+     goes pool by pool, while Needs you gathers what needs them.
+   - Recommendation: **keep it so for 0.2**; add an all-pools list only if
+     the lab or the maintainer's use asks for it.
+4. **Claude Code's own messages between sessions are not used in v1.**
+   D-29 says to use the vendor's route where one exists. Claude Code's
+   cross-session messages need `crossSessionInbound`, which AI Juggler must
+   not change without the user, and reach only Claude sessions. v1 delivers
+   through the driven runtime (`send_turn`) for every tool, and a Claude
+   session in a terminal reads its inbox when told by its hooks.
+   - Recommendation: **revisit after the messaging lab**
+     (`docs/qa/messaging-lab.md`), when the route's behaviour is seen live.
+5. **The turn note also comes after each tool call** (`PostToolUse`), not
+   only when a turn starts, so a busy agent hears about a message during a
+   long turn. It is said once per change and never carries a message's
+   words.
+   - Risk: a little more context per change; an agent may stop to read.
+   - Recommendation: **keep** (built); drop `PostToolUse` if the lab finds
+     it distracting.
+6. **Smaller points, built as stated:** a thread takes at most 6 agent
+   messages in a row (E18), and the pool's hop limit (5 by default, D-29)
+   counts the hops already taken before a delivery, so 5 automatic wakes
+   pass and the next pauses and asks; the user's compose has **Deliver to
+   their sessions** on by default (the user is the one writing); linking
+   two pools is the user's, on a pool's Agent access tab, both ways at
+   once; E18's guardrail "no message reaches a session's input without a UI
+   command" is read as D-29 ruled it: without the user's click, a pool at
+   Full, or the user's rule.
+   - Note: E17's **Include my paired Macs** says "Message and task content
+     will travel to your other Macs", but AJ-E1705 (pools across Macs)
+     isn't built, so nothing travels yet; a guardrail test proves messages
+     never reach the Fleet link. Recommendation: say "will travel once pools
+     across Macs ship" until AJ-E1705 lands.
+
+### D-43 Tasks shared by pools: held changes, honest states, a session for a task, issue titles, and the plugin — SETTLED (2026-10-26; points 4 and 6 revisited after the labs)
+
+**Ruling.** The maintainer, 2026-10-26: "Approve D-42 and D-43 as built;
+revisit D-43 point 4 (task brief as first prompt) and point 6 (plugin)
+after the labs."
+
+Context: E19 (`docs/tasks/E19-agent-tasks.md`) built on D-28 and D-31.
+Seven choices weren't ruled by them. Each is built as recommended here and
+covered by tests, so changing one is a small, local change.
+
+1. **An agent's task change above its pool's level is held, not refused.**
+   - What the user sees: in Needs you, "«Planner» wants to give aj-9e41 to
+     Reviewer" with Allow once, Always allow in this pool (from the second
+     time) and Deny, the same card as a held message (E18). A yes applies
+     it as the agent's own, logged on the task; a no logs "you said no".
+     The agent is told it's held and goes on with other work.
+   - Options: (a) hold it (as E18 holds a message); (b) refuse it, and the
+     agent tells the user in words.
+   - Cost and risk: (a) one more kind of card in Needs you; giving a task to
+     someone else (`assign_task`, in no named level) always asks until the
+     user makes the rule, which is D-28's design. (b) loses the agent's
+     intent and makes the user redo it by hand.
+   - Recommendation: **(a)** (built).
+2. **Honest states.** A task is claimable only when its status is
+   **Ready**, no open task blocks it and no one else has it (one SQL
+   statement: of N agents, one wins). A ready or to-do task that an open
+   task blocks shows **Blocked**, and is ready again by itself when its
+   blocker is done. **To do** means "not ready yet" (not claimable). An
+   epic is never claimed; a task "in progress" needs someone on it (epics
+   and stories may be in progress with no one).
+   - Recommendation: **keep** (built).
+3. **Roles under the level.** The level (D-28) decides whether an agent may
+   act at all; under it, the pool's **lead** plans epics and stories, gives
+   tasks to others and changes or cancels any task; a **member** makes
+   tasks, works the ones it holds (in review, done, blocked, give it back),
+   and edits the ones it made that no one holds. This is the research's
+   permission table (`pools-messaging-tasks.md` §2.3).
+   - Risk: a pool with no lead can't give tasks out through agents (the user
+     still can, on the task). Alternative: everyone may assign (then every
+     assignment asks the user anyway, by D-28).
+   - Recommendation: **keep** (built).
+   - *Changed by D-44 (2026-10-27):* the user no longer gives tasks out in
+     the app; a pool with no lead gives work out through what the user
+     tells its agents, and the user frees a task whose holder's session
+     ended.
+4. **A session for a task.** "Start a session for it…" asks for launch
+   settings (and so the account), lists them in name order, and picks
+   nothing for the user except the project's own default account when the
+   user set one; nothing ranks by usage (D-31). The session starts in the
+   pool's project with the task's brief as its first prompt: as the tool's
+   own first prompt in a terminal (so its words are in that process's
+   arguments, visible to `ps` on this Mac, like a pack's pointer prompt),
+   or as the user's first message for a session run in AI Juggler. The
+   task is then that session's, in progress, linked "started for".
+   - Options: (a) as built; (b) a pointer only ("work on aj-7f3c; read it
+     with task_get"), so no task words are in a process's arguments, at the
+     cost of needing the agent tools on.
+   - Recommendation: **(a)**, revisit after the tasks lab.
+5. **Issue titles through the user's own `gh`.** A GitHub issue or pull
+   request link's title and state are looked up only on the user's click
+   ("Look up its title"), by running the user's installed `gh api` with
+   the owner, repository and number; AI Juggler never reads `gh`'s sign-in
+   and opens no connection of its own. Linear links show their id from the
+   link. No sync.
+   - Options: (a) `gh` on click (built); (b) AI Juggler calls
+     api.github.com itself (a new network address on the Privacy page, and
+     no private repositories without a token); (c) no titles, links only.
+   - Recommendation: **(a)**.
+6. **The Claude Code plugin outside AI Juggler's launches (AJ-E1905).**
+   E1905 asks for the bridge "even outside AI Juggler's launches", but
+   ADR-0020 gives a session its identity only with a launch (a key in its
+   environment), and D-30 says sessions started elsewhere can't call the
+   tools until continued in AI Juggler. Built: the plugin (a skill for
+   working tasks, and the bridge as its server) which, in a session AI
+   Juggler started, lists no tools (the launch already added them) and,
+   anywhere else, answers each call with why it can't.
+   - What the user sees today: installing it adds the skill; outside AI
+     Juggler's sessions the tools say "This session wasn't started by AI
+     Juggler with its agent tools…".
+   - Options: (a) publish as built (the skill's value now; the tools'
+     value only inside AI Juggler's sessions, where they're already there);
+     (b) a new way in: a session started elsewhere asks AI Juggler to join
+     its pool, the user approves it once in the app, and a key reaches that
+     session without argv or a file (a new ADR: how the key gets there is
+     the hard part); (c) skill only, no server.
+   - Recommendation: **don't publish yet; decide (b) or (c) after the tasks
+     lab.** The bundle and its install test are in the repo; publishing it
+     with the app's releases is a release-workflow change for the release
+     PR once ruled.
+7. **Smaller points, built as stated:** the pool's list shows tasks (the
+   work), and epics and stories are in **Plan**, behind its own fold; a
+   card's task says **None** when its member holds none (known, not
+   "Unavailable"); messages "about" a task are the threads whose words name
+   its id (`aj-7f3c`), no extra link to keep; tasks never travel to other
+   Macs until AJ-E1705; schema **v36**, with v35 kept for D-41's sightings
+   (`e24-processes`): merge that branch first, or replace the empty `V35`
+   with its migration when it lands (a database made on `e19-tasks` alone
+   is a test's).
+
+### D-44 Tasks are the agents' to write; the user sees, tracks and has four basic actions — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, 2026-10-27: "these tasks are not really meant
+for humans to write and control, no humans do it manually any more. They
+are meant for sync and orchestration between AI Agents, and for humans to
+see and track the tasks. Humans will manage tasks indirectly through
+different communication and prompting with AI Agents. So yes we want to
+show the tasks and display them, but our tool is not meant to write or
+edit tasks. We might be able to do some basic management."
+
+Asked which basic actions stay, the maintainer kept all four:
+
+1. **Approve or send back** a task an agent marked **in review**:
+   **Approve** makes it done; **Send back…** puts it in progress again
+   with the same holder and a short note (at most 500 characters, needed),
+   which the holder gets as the user's message (E18: at its next turn when
+   it runs in AI Juggler, in its inbox when it runs in a terminal) and
+   reads in the task's history (`task_get`). A task in review that no one
+   holds goes back to ready.
+2. **Free a stuck task**: a task whose holder's sessions have all ended or
+   crashed (as the sessions' own records say: none starting, running,
+   waiting on the user or stuck) loses its holder, so another agent can
+   claim it; in progress goes back to ready, any other status stays. A
+   holder that still runs isn't freed: the user asks it to give the task
+   back.
+3. **Cancel a task**: any open task, after the user confirms.
+4. **Start a session for this task**: as built (D-31, D-43 point 4); the
+   user picks the launch settings, and so the account.
+
+**What changed (E19, AJ-E1903).**
+
+- Removed from the app: the **New task** form and its entry points;
+  changing any field of a task (title, what it asks, when it's done,
+  priority, parent, issue link); free status changes (the **Status**
+  menu); giving a task to someone (the **With** menu: a member, you or no
+  one); adding or removing links. Links stay visible, read only, and the
+  section shows only when a task has any.
+- Removed from the backend: the window's `tasks_create`, `tasks_edit`,
+  `tasks_assign` and `tasks_link` commands, `views::{create, edit, assign,
+  link}`, and their wire types (`TaskInput`, `TaskEdit`). The agents' own
+  tools are unchanged (`task_create`, `task_update`, `task_claim`,
+  `task_assign` for leads, a held change answered in Needs you, D-43
+  point 1).
+- Added: one command per action (`tasks_approve`, `tasks_send_back`,
+  `tasks_free`, `tasks_cancel`), each checked by the store against the task
+  as it is when it's done (`TasksRepo::user_action`, the rules in
+  `juggler_core::tasks::may_user`) and logged as one event in its history
+  as the user's (`approved`, `sent_back` with the note, `freed` with the
+  holder's name, `cancelled`). A task's page reads which ones it offers
+  (`TaskDetail.actions`) from the same rules. An agent reads the user's
+  actions as "the user", never "You".
+- Kept: every read (the list, ready first; the counts; **Plan**; a
+  session's **Tasks** tab; a task in full with its history), **Look up its
+  title** for an issue link, and answering the agents' held changes and
+  session requests in **Needs you** (oversight).
+
+**Why.** Agents keep the tasks to stay in step with each other; the user's
+part is to see the work and steer it by talking to the agents. Editing
+from the app would make the window a second, competing author of the
+agents' plan. The four actions are the decisions only the user makes (is
+it done; is a stuck holder gone; is the work still wanted; which account
+runs it), and each is narrow enough to be checked server-side, so the app
+has no "edit anything" path.
+
+- Risk: a user who wants a quick fix to a task's words now asks an agent
+  to make it. A task held by **You** from before (the old **With** menu)
+  can still be freed or cancelled.
+- Evidence: `crates/juggler-app/tests/tasks_oversight.rs` (each action's
+  rules, the note reaching a terminal and a driven holder),
+  `tasks_guardrails.rs::the_app_writes_no_task`, the store's
+  `the_users_actions_move_only_from_their_state_and_log_one_event`, vitest
+  `ui/src/pages/tasks/tasks.test.tsx`; the gallery's `task-review-*`.
+
 ### D-45 Your own launch and switch sheets may suggest an account by its room — SETTLED (2026-10-27)
 
 **Ruling.** The maintainer, 2026-10-27, asked whether their own launch and
@@ -786,8 +1265,334 @@ as equal buttons, nothing pre-selected, and no reminder afterwards (D-18:
 no pop-ups, banners or nagging). Everything works without an account; the
 account's home stays Settings › Figurehead & Cloud.
 
-## Unresolved (in discussion order)
+### D-47 Open now stays put: Your order, pins, drag to reorder and an order menu — SETTLED (2026-10-27)
 
-- None. D-01..D-15 were marked Final on maintainer instruction
-  (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-35..D-37 on 2026-10-24, D-38 and D-39 on 2026-10-25, and D-45 and D-46 on 2026-10-27 (D-28..D-34 and D-40..D-44 on release/0.2); all follow the same law.
+**Ruling.** The maintainer, testing 0.1.8: "the order the sessions and chat
+windows are shown … seem to be bouncing just too much … by default users
+want more stability … maybe we have PIN and re-order … some users might
+want it sorted by some latest event, but I think those will be in
+minority, and we can have a button / setting for them." Then, 2026-10-27:
+"Approved: build the stable order, pin, drag-to-reorder and the order menu
+into 0.2."
+
+**Decision.**
+
+1. **Your order is the default.** A row keeps its position. A new session
+   joins the end of its group, in the order it was first seen. A state
+   change (Working, Idle, Asks you, Done) changes only the dot and the word.
+   An ended or closed session frees its slot; the rows under it close up,
+   nothing else moves.
+2. **A session that needs you stays in its place** in Open now, its state in
+   amber; **Needs you lists it too**, as a shortcut at the top. This replaces
+   the rule "Open now: not in Needs you" (AJ-E2103 Req.4). Each list and the
+   badge count a session once; "Open now n" and Home's "n open" count every
+   open session, the ones that need you among them.
+3. **No automatic cut in Your order.** A place shows all its open rows; past
+   8, the first 8 by the user's order then "+n more", never re-picked by
+   activity. A place folds only when the user folds it (remembered).
+   Inactive sessions still wait behind "Also: n inactive". AJ-E2104 Req.4's
+   "last 3, then +n quiet" and the quiet fold stay in Latest activity only
+   (a recorded deviation there).
+4. **Pins** (AJ-E1502) lead their group in every order and work for every
+   session: an AI Juggler session's pin is the session's own (as before); a
+   session another app runs is pinned in AI Juggler's own record, never in
+   the app's files. Pin is on the row's menu and on the row's hover and
+   focus.
+5. **Drag to reorder**, rows within their place and places among places,
+   by a handle shown on hover and focus. ⌥⌘↑ / ⌥⌘↓ (Ctrl+Alt off a Mac, as
+   ⌘ is Ctrl there) is the keyboard twin, said in a polite live region
+   ("Moved to position 2 of 5"). ⌘1–9 follow the new place order.
+6. **The order menu** on Open now's header ("Your order ▾") offers Your
+   order, Latest activity (today's behaviour, held still under the pointer)
+   and Name (A to Z), then Reset my order (with Undo). Settings › General ›
+   Appearance offers the same choice.
+7. **Kept** in AI Juggler's settings (`app_settings` key `rail_order`, one
+   JSON value; no schema change), so restarts and backups keep the order,
+   pins, place order, folds and the chosen order. Rows are kept by the
+   rail's own keys (`s:<session>`, `c:<account>/<conversation>`); a key
+   unseen for 30 days is a session gone for good and is pruned.
+
+- Rejected: re-sorting by activity by default (the bounce); a new table
+  (the settings store already backs up and restores); a drag library (a
+  few pointer handlers do it, and the rail is first paint).
+- Risk: a user who liked the activity order must pick Latest activity once.
+  Ctrl+Alt+↑/↓ is a workspace switch on some Linux desktops; the platform
+  key seam can rebind it when Linux ships.
+- Evidence: vitest `ui/src/lib/rail-order.test.ts` (the order in each mode,
+  moves, reset, pruning, the record round trip),
+  `ui/src/components/rail-order.test.tsx` (the menu, the keyboard twin,
+  pins, folds, Needs you mirrored), the gallery's `95-rail-order` captures.
+
+### D-48 One Subagents view: the session's older list retired into the tab, and one source for the count — SETTLED (2026-10-27)
+
+**Ruling.** The maintainer, 2026-10-27: "Yes, fold the Overview's older
+Subagents list into the new Subagents tab and retire the old one."
+
+**What changed (AJ-E1520, 0.2).**
+
+- Removed: the "Subagents" disclosure in the session's notes
+  (`SubagentsSection`), its `subtasks_list` command (and the dev bridge's
+  route and the IPC audit's allow line), the app's `features::subtasks`
+  (its tick and its wire types `SubtasksInfo`, `SubtaskInfo`,
+  `SubtaskStateInfo`).
+- In its place, one quiet line in the session's notes when it started
+  any, "6 subagents · 2 running › Subagents", which opens the tab
+  (wireframe screen 05, approved 2026-10-13, names the count in the
+  session's inspector). The list itself is only the tab's.
+- The row's count (I-08, `subtask_count`: the rail's "+N agents", the
+  card's badge, the row's words) is now read by the same adapter readers
+  as the tab (`HarnessAdapter::subagent_reader`), so every tool that lists
+  subagents gets one: Claude Code, Codex, Kimi Code, Grok Build and
+  OpenCode, not only the first two. It counts what the tab calls running:
+  nested subagents and ones started in the background included, until
+  their records say they ended. Before, a background Claude subagent and
+  a subagent's own subagents weren't counted. Still `null` until read and
+  once the session ends (D-06). The rail no longer falls back to the
+  session's child processes when the count is `null`.
+- Kept: `juggler_adapters::subtasks`, the start-and-end log the Claude
+  Code and Codex readers are built on (one parser, not two).
+
+**Why.** Two lists of the same subagents, from two parsers, could
+disagree (a background subagent was "in the background" in one and
+"Running" in the other), and the count only knew two tools. One reader
+per session now answers the row and the tab.
+
+- Evidence: `crates/juggler-app/src/features/subagents/count.rs` (unit),
+  `crates/juggler-app/tests/subagents_count.rs`, vitest
+  `ui/src/pages/session/subagents-tab.test.tsx` and
+  `ui/src/lib/rail-model.test.ts`; the gallery's `88-subagents`.
+
+### D-49 Your menu and snoozes: My Macs with an account; a snoozed need leaves the count — SETTLED (2026-10-27)
+
+**Rulings.** The maintainer, 2026-10-27, on the notification system and
+your menu (AJ-E2501..E2507):
+
+1. "Yes: keep This Mac and Processes in the avatar menu, and show My Macs
+   only when a Figurehead account is connected." Without an account your
+   menu's second group is Settings, This Mac and Processes; with one, My
+   Macs stays in the account group, next to Cloud backup.
+2. "Yes: snoozed items leave the Needs you count until their snooze ends;
+   muted ones stay counted." This changes the approved design's note
+   ("snoozed and muted things are still counted in Needs you").
+
+**What changed (E25).**
+
+- Needs you is worked out in the backend (`features/notifications/needs.rs`)
+  on the 5 s resources tick, window or not: one list and one count for the
+  rail, Home, the bell, the app badge, the menu-bar item and the system
+  notifications. The window works nothing out any more
+  (`notifications_sync`, `NeedsSync` and the UI's computation are gone;
+  `lib/needs-you.ts` reads the backend's list; the preview runs the same
+  rules in a lazy stand-in, `preview/needs.tsx`).
+- A snooze belongs to its subject (`need_snoozes`, schema v37:
+  `s:<session>`, `c:<account>/<conversation>`, `signin:<account>`, …),
+  until a time or until woken. The tick ends a snooze whose time has come
+  and every view follows, so a snoozed need comes back into every count by
+  itself. The rail's snoozes (Snooze for an hour, Mute this session) are
+  these, no longer the window's own; the old ones move over once.
+- The snooze toast says the need is out of Needs you until it is back
+  ("Back at 9:00 tomorrow; out of Needs you until then."); a snoozed row
+  says when it is back and offers **Back into Needs you now**.
+- The rail's Needs you lists every need the bell counts (a sign-in, This
+  Mac, a cap, an agent's message or task as compact rows under the
+  sessions), so its number is the bell's.
+
+**Why.** One count only holds if one place works it out, and only the
+backend runs with no window (the badge and the menu-bar item); a snooze is
+the user saying "not now", so counting it kept the badge lit for something
+they had set aside, while a mute is about interruptions, not about whether
+the thing still needs them.
+
+- Risk: a snoozed item is out of sight in the count; the centre still
+  lists it under **Snoozed: n**, and it comes back by itself.
+- Evidence: `crates/juggler-app/tests/notification_model.rs`
+  (`needs_you_is_worked_out_in_the_backend_with_no_window`: the rail's
+  list, the bell, the badge and the menu-bar item from one tick; a snooze
+  ending brings its need back), `centre/tests.rs`
+  (`snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay`),
+  `juggler-core/tests/notices_storage.rs`, vitest
+  `src/count-agreement.test.tsx` and `components/notifications.test.tsx`.
+
+### D-50 ⌘N opens New session; New project is ⌘⇧N — SETTLED (2026-10-28)
+
+**Ruling.** The maintainer, 2026-10-28, on the 0.2 walk's finding that ⌘N
+opened New project while the screen spec (deep/11 §3, §4.8, §13) gives it
+to New session: "⌘N opens New session (as the UX spec says), and New
+project moves to ⌘⇧N."
+
+**What changed.**
+
+- ⌘N opens New session from anywhere, as the header's New session button
+  and ⌘K's "New session…" do; ⌘⇧N opens New project (AJ-E305's flow (b),
+  which had ⌘N until now). The shortcut registry (`ui/src/lib/shortcuts.ts`)
+  holds both, so the ? sheet and ⌘K show the new keys.
+- The notification centre (AJ-E2503) had ⌘⇧N. It moves to **⌥⌘N**, the
+  nearest free key that still reads as "N for notifications" (matched by
+  the key's place, since ⌥ changes the letter on a Mac); the bell's
+  tooltip, the user guide and §4.14/§13 of the screen spec say so. *This
+  consequence is the agent's, not the ruling's: the maintainer to
+  confirm.*
+- AJ-E305's text (E3) and AJ-E2503's (E25) point here.
+
+**Why.** New session is the daily action and the spec's ⌘N; a new project
+is rarer and is one Shift away. The ruling takes ⌘⇧N for New project, so
+the centre needed another key; the bell stays one click away.
+
+- Risk: muscle memory for ⌘N (New project) and ⌘⇧N (notifications) from
+  0.1.x and the 0.2 nightlies; the ? sheet lists the keys.
+- Evidence: vitest `src/app-keys.test.tsx` (the three keys open their own
+  sheet and nothing else; the typing rule holds for each),
+  `src/components/palette-commands.test.tsx`; Playwright
+  `tests/visual/keyboard-flows.spec.ts` ("launch keys — ⌘N New session,
+  ⌘⇧N New project, ⌥⌘N notifications (D-50)"), and flow (b) by ⌘⇧N in
+  `new-project.spec.ts` and `a11y.spec.ts`.
+
+### D-51 A switch offers this project's notes — SETTLED (2026-10-28)
+
+**Ruling.** The maintainer, 2026-10-28, on the switch lab's finding that
+Claude Code's auto memory doesn't travel (after A→B, account B no longer
+had the codename memory A had saved): "Yes: the switch check offers to
+copy this project's memory to the new account, the same way it offers
+missing MCP servers and skills, and copies only with my approval."
+
+**What changed.**
+
+- A tool's per-project memory is an adapter capability
+  (`HarnessAdapter::keeps_project_memory`, `project_memory`,
+  `add_project_memory`): the adapter says whether its tool keeps notes
+  for a project, and lists, reads and writes them through one shared
+  module (`juggler_adapter::memory`). Claude Code implements it
+  (`projects/<project>/memory/`: `MEMORY.md` and one file per note);
+  no other tool does yet. Nothing outside the adapters names a tool.
+- The switch's set-up check offers them as one more row of the same
+  list, only when the source has notes for this project and the target
+  lacks some: "Work Max's notes for this project (3) aren't on Personal:
+  copy them?". It is never ticked for the user; nothing is copied
+  unless they tick it.
+- A copy adds only the missing notes, as new files only the user can
+  read, and adds the index lines for what the target's index doesn't
+  list yet, never one twice. A note the target has with other words is
+  a conflict: kept as it is, and the row and the result say so. Only
+  plain note files directly in the notes folder are read or written (no
+  links, no `..`, no hidden files or subfolders).
+- The copy is recorded like any set-up and undone from the same place:
+  the undo takes out the index lines it added and the notes it made,
+  only while each note is as it was made.
+- A target whose tool keeps no notes (Codex) is offered them in the
+  handover instead, the same row, unticked: "Work Max's notes for this
+  project (2): include them in the handover?". *Built 2026-10-28 (it was
+  left for later the same day, the agent's call):* the tick travels with
+  the switch itself (`switch_execute`'s `approved`, the offer ids the
+  switch carries out; the rest of the ticks are still set up beforehand),
+  and the switch quotes each note's text in the handover file under its
+  own heading, after the conversation and the rules files. Every note
+  goes through the keys check the handover applies to quoted text; a note
+  it finds a key, token or password in is left out whole, and the row and
+  the handover say which. Nothing is written to the other tool's files,
+  so there's nothing to undo; What's carried and the last step follow the
+  tick (unticked, the notes stay with their own account).
+- AJ-E1542's text (E15) points here; the user guide's switching page has
+  **This project's notes**.
+
+**Why.** The notes are what the tool learned about the project; a new
+account that starts without them repeats questions the user already
+answered. They are the user's own files on this Mac, like a skill, so
+they are offered the same way, with the same undo.
+
+- Risk: a copied note goes stale on one account while the other is
+  edited; a later switch offers only the notes still missing, and says
+  which differ.
+- Evidence: `cargo test -p juggler-adapters --test claude_memory`
+  (capability, merge, conflict, undo, private files, confinement),
+  `cargo test -p juggler-app --test switch_memory` (offer, approval,
+  apply, undo, a tool without notes), `--test switch_notes_handover`
+  (the handover offer, the quote with the tick only, a note with a key
+  left out), the `memory` unit tests in `juggler-adapter` and
+  `juggler-app`; vitest `src/components/switch-notes.test.tsx`; live,
+  the switching lab's notes suite (`just switch-lab-notes`, lab 21 in
+  `docs/qa/evidence/AJ-E1539/lab-2026-10-28.md`): a planted note
+  answered on B after the ticked copy, gone after its undo, and answered
+  by Codex from the handover.
+
+### D-52 Windows and Linux each get a dedicated first release, then ship in every release — SETTLED (2026-10-29)
+
+**Ruling.** The maintainer, 2026-10-29: "Can you add in our global planner
+of all the features and future versions, special releases for both Windows
+and Linux separately." Earlier the same day, on why: "we have a lot of
+specialized process monitoring, special desktop capabilities that work
+separately for each OS … I am not saying we will not build them but I feel
+they are massive and require their own projects and releases." And, on the
+shape: "it is fine if its part of the same releases, but initial ones,
+because we have to actually build and setup VM and test it and build
+specialized capabilities for each, requires a dedicated release per OS."
+and "Once we make the initial release than every feature is built all the
+time for each OS."
+
+**What changed.**
+
+- **A dedicated first release per OS.** Windows and Linux each get one
+  bring-up release: set up the VM and lab, build that OS's own
+  capabilities (the OS seams), test it, and ship its first Beta. That is
+  the per-OS project: [E26 — AI Juggler for Windows](../tasks/E26-windows-release.md)
+  (AJ-E2601–E2616) and [E27 — AI Juggler for Linux](../tasks/E27-linux-release.md)
+  (AJ-E2701–E2715), grounded in the readiness audit
+  (`docs/research/cross-platform-readiness.md`). Its Beta gate is AJ-E2615
+  / AJ-E2714.
+- **Then every release.** After its first release an OS joins the same
+  releases as macOS: one version stream (D-20 stands), the same channels
+  (Nightly, Beta, Stable) and the same promotion rules (D-24). Every
+  nightly builds, signs and publishes every shipped OS; one promote moves
+  every OS's build of a version together; each channel keeps one feed with
+  an entry per OS. There is no separate release line, version stream or
+  channel position per OS, and no OS lags behind (AJ-E2616 / AJ-E2715).
+- **Every feature on every shipped OS.** From an OS's first release on, a
+  feature is built and tested for it all the time: the Definition of Done
+  (`docs/plan/QUALITY.md` §2) says a task is done only when it works on
+  every shipped OS, or is marked unsupported there with the reason, on
+  screen and in the docs.
+- Today macOS is the only OS shipped. Until an OS's first release, a macOS
+  release never waits for its work and never claims it; CI's
+  `build-windows` and `build-linux` jobs stay as compile guards for shared
+  code (Linux also runs the workspace tests in `verify`).
+- The plan's milestone table gains rows **W** and **L** beside M0–M8;
+  M7-5 ("Windows/Linux bring-up begins") now keeps only the compile guards
+  and points to E26 and E27 (`docs/plan/EPICS.md`). SPEC §1's platform
+  row, §14's table and §15's decision 7, and `docs/RELEASING.md`, say the
+  same.
+- *The agents' reading, the maintainer to confirm:* once an OS ships, a
+  `blocker` on any shipped OS stops the promotion of that version for
+  every OS (D-24 applied across OSes), because every release ships every
+  OS together.
+- Left open for the maintainer in the first task of each epic (AJ-E2601,
+  AJ-E2701): packaging (Windows: NSIS, MSI, MSIX or the Store, WinGet;
+  Linux: AppImage, deb, rpm, Flatpak, Snap, and a package repository),
+  signing, scope (architectures, Windows versions, WSL; Linux
+  distributions, desktops and display servers), the Windows data folder,
+  and which OS goes first and when (the standing plan, SPEC §15 decision
+  7, is after macOS 1.0).
+- The architecture rule is unchanged and now has a home per OS: OS code
+  lives behind the OS seams (`juggler-platform`, the audited per-OS shims,
+  the adapters), never as a per-OS branch in shared code; a seam shared by
+  both systems is built once (E26's intro names each one's owner) and the
+  platform guard lint's allowlist only shrinks.
+
+**Why.** What makes AI Juggler useful (watching and stopping process
+trees, finding and focusing desktop apps, keeping the computer awake, the
+system's credential store, notifications, packaging and updates) is
+different work on each system, and its first version needs a VM, a lab
+and its own tests: too much to fold into a macOS release. Once that
+foundation exists, one release flow keeps every OS current; separate
+lines would let an OS fall behind.
+
+- Risk: shared code drifts back to macOS-only assumptions before the
+  bring-ups. The platform guard lint and the two compile guards stay
+  required on every change, and the seams already built (the agent bridge,
+  driven sessions and hand-over on `juggler-platform`) keep their honest
+  "not on this system yet" answers.
+- Risk: after an OS ships, its failures hold every release and every task
+  costs more. That is the price of no OS lagging behind; the per-OS CI
+  jobs must stay fast, and "unsupported on this OS, because …" is allowed
+  only with its reason shown.
+- Evidence: the two epic files; `python3 scripts/check_task_counts.py`
+  (the catalog, the file map and the plan's count agree with the epic
+  files and this log).

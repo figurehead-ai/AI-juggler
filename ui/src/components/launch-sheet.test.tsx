@@ -87,7 +87,8 @@ describe("AJ-E306 flow (e) — the launch sheet", () => {
     fireEvent.click(container.querySelector("[data-testid='launch-now']")!);
     clicks += 1;
     await waitFor(() => expect(launchSpy).toHaveBeenCalled());
-    expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api");
+    // AJ-E2304: no runtime picked: as its launch settings say.
+    expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api", undefined);
     expect(clicks).toBeLessThanOrEqual(2);
   });
 
@@ -106,7 +107,7 @@ describe("AJ-E306 flow (e) — the launch sheet", () => {
       expect(container.querySelector("[data-testid='launch-preselected']")).not.toBeNull(),
     );
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
-    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api"));
+    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api", undefined));
   });
 
   it("the admission verdict renders as WORDS — Tight explains; unknown headroom is TEXT, never a fabricated %", async () => {

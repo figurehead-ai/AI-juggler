@@ -327,11 +327,10 @@ export function SwitchBackFlow({
         {phase.kind === "failed" && (
           <div className="flex flex-col gap-3" data-testid="switch-back-failed">
             <h3 className="text-sm font-semibold text-warning">Return didn’t complete</h3>
-            <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning">
+            {/* The failure's own words say what happened and what's next
+                (both sides resumable, or the original gone): said once. */}
+            <p className="rounded border border-warning/40 px-2 py-1 text-label text-warning" data-testid="switch-back-failed-words">
               {phase.message}
-            </p>
-            <p className="text-label text-muted">
-              Nothing was merged silently — both sides stay resumable exactly as they are.
             </p>
             <div className="flex justify-end">
               <button

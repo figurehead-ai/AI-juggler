@@ -5,7 +5,10 @@
 //! - MCP servers from its state file (`.claude.json`: the user's
 //!   `mcpServers`, and the project's private ones under `projects`);
 //! - skills (`skills/<name>/SKILL.md`; `skills/synced/` comes from the
-//!   claude.ai account), commands (`commands/*.md`), subagents
+//!   claude.ai account: each set's `manifest.json` says whose, by its
+//!   rows' `skillId`, `name` and `source` only, and each skill's
+//!   frontmatter `compatibility` line what it needs; never a skill's body,
+//!   and never `skills/.trash/`), commands (`commands/*.md`), subagents
 //!   (`agents/*.md`), user rules (`CLAUDE.md`, `rules/*.md`);
 //! - plugins (`settings.json` `enabledPlugins`);
 //! - the account's own settings (AJ-E1508): `settings.json` `permissions`
@@ -21,8 +24,8 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, HowTo, Item, ItemKind, JsonEntry, McpServer, McpTransport,
-    Scope, SetUp, SettingCheck, Undo, Value, secret_variable, value_of,
+    Applied, ConfigFormat, Detail, GetIt, Item, ItemKind, JsonEntry, McpServer, McpTransport,
+    Origin, Scope, SetUp, SettingCheck, Undo, Value, secret_variable, value_of,
 };
 use juggler_adapter::jsonc;
 
@@ -75,21 +78,25 @@ pub fn inventory(dir: &Path, state_file: &Path, project: Option<&Path>) -> Vec<I
     // claude.ai's skills sync into one folder per id they were synced
     // under, often with the same skills in each (QA P24): one item per
     // name, and none for a skill the account also has as its own files.
-    let mut synced = std::collections::BTreeSet::new();
+    let mut synced: BTreeMap<String, Item> = BTreeMap::new();
     let mut own = std::collections::BTreeSet::new();
     for (name, path) in children(&skills, true) {
         if name == "synced" {
             for (_, set) in children(&path, true) {
-                synced.extend(children(&set, true).into_iter().map(|(skill, _)| skill));
+                for found in synced_set(&set) {
+                    synced.entry(found.name.clone()).or_insert(found);
+                }
             }
         } else if path.join("SKILL.md").is_file() {
             own.insert(name.clone());
             items.push(item(ItemKind::Skill, &name, Detail::Files { path }));
         }
     }
-    for skill in synced.difference(&own) {
-        items.push(item(ItemKind::Skill, skill, Detail::FromTheAccount));
-    }
+    items.extend(
+        synced
+            .into_values()
+            .filter(|found| !own.contains(&found.name)),
+    );
     for (kind, folder) in [
         (ItemKind::Command, "commands"),
         (ItemKind::Subagent, "agents"),
@@ -128,15 +135,133 @@ pub fn inventory(dir: &Path, state_file: &Path, project: Option<&Path>) -> Vec<I
         if enabled.as_bool() == Some(false) {
             continue;
         }
-        let detail = if id.ends_with("@synced") {
-            Detail::FromTheAccount
+        if id.ends_with("@synced") {
+            // Turned on in claude.ai's plugin directory for this account.
+            items.push(Item {
+                origin: Origin::Account,
+                ..item(
+                    ItemKind::Plugin,
+                    id,
+                    Detail::FromTheAccount {
+                        source: None,
+                        files: None,
+                        requires: Vec::new(),
+                    },
+                )
+            });
         } else {
-            Detail::Plugin { id: id.clone() }
-        };
-        items.push(item(ItemKind::Plugin, id, detail));
+            items.push(item(
+                ItemKind::Plugin,
+                id,
+                Detail::Plugin { id: id.clone() },
+            ));
+        }
     }
     items.extend(own_settings(dir));
     items
+}
+
+/// One row of a synced set's `manifest.json`: only these keys are kept.
+#[derive(serde::Deserialize)]
+struct ManifestRow {
+    #[serde(default, rename = "skillId")]
+    skill_id: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    source: Option<String>,
+}
+
+/// A synced set's `manifest.json`, as far as it's read.
+#[derive(serde::Deserialize, Default)]
+struct Manifest {
+    #[serde(default)]
+    skills: Vec<ManifestRow>,
+}
+
+/// The skills of one synced set (`skills/synced/<org>_<account>/`), each
+/// with where it came from, by its manifest row (switch-setup-items.md
+/// §1): `source` starting `anthropic` is Anthropic's; anything else is
+/// the account's, whose exactly can't be told here; no row (or no
+/// manifest that reads) says nothing.
+fn synced_set(set: &Path) -> Vec<Item> {
+    let manifest: Manifest = std::fs::read(set.join("manifest.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default();
+    children(set, true)
+        .into_iter()
+        .map(|(name, path)| {
+            let source = manifest
+                .skills
+                .iter()
+                .find(|row| {
+                    row.skill_id.as_deref() == Some(name.as_str())
+                        || row.name.as_deref() == Some(name.as_str())
+                })
+                .map(|row| row.source.clone().unwrap_or_else(|| "custom".to_owned()));
+            let origin = match source.as_deref() {
+                Some(source) if source.starts_with("anthropic") => Origin::Provided {
+                    by: "Anthropic".to_owned(),
+                },
+                Some(_) => Origin::Account,
+                None => Origin::Unknown,
+            };
+            let skill_md = path.join("SKILL.md");
+            let files = (origin == Origin::Account && skill_md.is_file()).then_some(path);
+            Item {
+                origin,
+                ..item(
+                    ItemKind::Skill,
+                    &name,
+                    Detail::FromTheAccount {
+                        source,
+                        files,
+                        requires: frontmatter_values(&skill_md, "compatibility"),
+                    },
+                )
+            }
+        })
+        .collect()
+}
+
+/// The values of `key` in a `SKILL.md`'s frontmatter, read up to its
+/// closing `---` and never further: a skill's body is not read.
+fn frontmatter_values(skill_md: &Path, key: &str) -> Vec<String> {
+    use std::io::BufRead as _;
+    let Ok(file) = std::fs::File::open(skill_md) else {
+        return Vec::new();
+    };
+    let mut lines = std::io::BufReader::new(file).lines().map_while(Result::ok);
+    if lines.next().as_deref().map(str::trim) != Some("---") {
+        return Vec::new();
+    }
+    let prefix = format!("{key}:");
+    let mut values = Vec::new();
+    let mut inside = false;
+    for line in lines.take(60) {
+        if line.trim() == "---" {
+            break;
+        }
+        if let Some(value) = line.strip_prefix(&prefix) {
+            inside = true;
+            let value = value.trim().trim_matches(['"', '\'']);
+            if !value.is_empty() && !matches!(value, ">" | "|" | ">-" | "|-") {
+                values.push(value.to_owned());
+            }
+        } else if inside && line.starts_with([' ', '\t']) {
+            let value = line
+                .trim()
+                .trim_start_matches("- ")
+                .trim_matches(['"', '\'']);
+            if !value.is_empty() {
+                values.push(value.to_owned());
+            }
+        } else {
+            inside = false;
+        }
+    }
+    values
 }
 
 /// AJ-E1508: the account's own settings, read key by key, so nothing else
@@ -329,37 +454,22 @@ fn permissions_words(value: &str) -> (Option<String>, SettingCheck) {
     ((!parts.is_empty()).then(|| parts.join(", ")), check)
 }
 
-/// Where a claude.ai account turns its features and skills on.
-pub const ACCOUNT_SETTINGS_URL: &str = "https://claude.ai/settings";
-
-/// How the user finishes `item` on another account themselves:
-///
-/// - something that comes with the claude.ai account (it can't be copied):
-///   the generic steps on its settings page (the switch dialog names the
-///   account);
-/// - an MCP server that needs a secret: the command that sets it up for
-///   that account with the secret in its environment. Claude Code's own
-///   way (<https://code.claude.com/docs/en/mcp>, "Add MCP servers from
-///   JSON configuration" and "MCP installation scopes"): `claude mcp
-///   add-json` writes the server, with its `env` (or `headers`), into the
-///   account's `.claude.json`, which is in `CLAUDE_CONFIG_DIR` when that
-///   is set (`config_dir`, as the shell reads it; empty for the vendor's
-///   default folder). The secret is a placeholder the user replaces.
+/// How the user finishes `item` on another account themselves: for an
+/// MCP server that needs a secret, the command that sets it up for that
+/// account with the secret in its environment. Claude Code's own way
+/// (<https://code.claude.com/docs/en/mcp>, "Add MCP servers from JSON
+/// configuration" and "MCP installation scopes"): `claude mcp add-json`
+/// writes the server, with its `env` (or `headers`), into the account's
+/// `.claude.json`, which is in `CLAUDE_CONFIG_DIR` when that is set
+/// (`config_dir`, as the shell reads it; empty for the vendor's default
+/// folder). The secret is a placeholder the user replaces. What comes
+/// with the claude.ai account says how to turn it on in its verdict
+/// ([`SetUp::TurnOn`]).
 ///
 /// Empty for anything else.
 #[must_use]
-pub fn how_to_get(item: &Item, config_dir: &str) -> HowTo {
+pub fn how_to_get(item: &Item, config_dir: &str) -> GetIt {
     match &item.detail {
-        Detail::FromTheAccount => HowTo {
-            steps: vec![
-                "Open claude.ai settings in your browser, signed in as the account you're switching to."
-                    .to_owned(),
-                format!("Find {} there and turn it on.", item.name),
-                "Come back here and choose Check again.".to_owned(),
-            ],
-            command: None,
-            on_account_page: true,
-        },
         Detail::Mcp(server)
             if server.inline_secret_verdict().is_none()
                 && !server.oauth
@@ -367,12 +477,12 @@ pub fn how_to_get(item: &Item, config_dir: &str) -> HowTo {
         {
             mcp_secret_steps(&item.name, item.scope, server, config_dir)
         }
-        _ => HowTo::default(),
+        _ => GetIt::default(),
     }
 }
 
 /// The steps and the command for an MCP server that needs a secret.
-fn mcp_secret_steps(name: &str, scope: Scope, server: &McpServer, config_dir: &str) -> HowTo {
+fn mcp_secret_steps(name: &str, scope: Scope, server: &McpServer, config_dir: &str) -> GetIt {
     let secrets = secret_names(name, server);
     let placeholders: Vec<String> = secrets.iter().map(|var| format!("<your {var}>")).collect();
     let scope_word = match scope {
@@ -407,10 +517,10 @@ fn mcp_secret_steps(name: &str, scope: Scope, server: &McpServer, config_dir: &s
         ),
     ];
     steps.push("Come back here and choose Check again.".to_owned());
-    HowTo {
+    GetIt {
         steps,
         command: Some(command),
-        on_account_page: false,
+        ..GetIt::default()
     }
 }
 
@@ -419,7 +529,25 @@ fn mcp_secret_steps(name: &str, scope: Scope, server: &McpServer, config_dir: &s
 pub fn can_set_up(item: &Item) -> SetUp {
     let from_claude = item.tool == CLAUDE_CODE_ID;
     match (&item.kind, &item.detail) {
-        (_, Detail::FromTheAccount) => SetUp::Impossible(
+        // Another tool's account items are turned on in that tool.
+        (_, Detail::FromTheAccount { .. }) if !from_claude => SetUp::Impossible(
+            "it comes with {tool}'s own account, so Claude Code can't have it".to_owned(),
+        ),
+        (
+            ItemKind::Skill,
+            Detail::FromTheAccount {
+                files, requires, ..
+            },
+        ) => SetUp::TurnOn {
+            get_it: crate::claude_get_it::skill(&item.name, &item.origin, requires),
+            // Only what may be the user's own, never Anthropic's.
+            can_copy: item.origin == Origin::Account && files.is_some(),
+        },
+        (ItemKind::Plugin, Detail::FromTheAccount { .. }) => SetUp::TurnOn {
+            get_it: crate::claude_get_it::plugin(item.name.trim_end_matches("@synced")),
+            can_copy: false,
+        },
+        (_, Detail::FromTheAccount { .. }) => SetUp::Impossible(
             "it comes with the claude.ai account, so it can't be copied to another one".to_owned(),
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => mcp_verdict(&item.name, server),
@@ -449,14 +577,12 @@ pub fn can_set_up(item: &Item) -> SetUp {
             "install it in this account with `claude plugin install {id}`"
         )),
         (ItemKind::Permissions | ItemKind::StatusLine, _) => SetUp::Impossible(format!(
-            "the {} of {} work differently from Claude Code's: set them in Claude Code",
+            "the {} of {{tool}} work differently from Claude Code's: set them in Claude Code",
             item.kind.words(),
-            item.tool
         )),
         _ => SetUp::Impossible(format!(
-            "a {} from {} has no Claude Code equivalent",
+            "a {} from {{tool}} has no Claude Code equivalent",
             item.kind.words(),
-            item.tool
         )),
     }
 }
@@ -477,6 +603,9 @@ pub fn set_up(
     project: Option<&Path>,
     item: &Item,
 ) -> Result<Applied, AdapterError> {
+    if let SetUp::TurnOn { can_copy, .. } = can_set_up(item) {
+        return copy_from_the_account(dir, item, can_copy);
+    }
     match (&item.kind, &item.detail, can_set_up(item)) {
         (_, _, SetUp::Impossible(why)) => Err(AdapterError::Unsupported(why)),
         (ItemKind::McpServer, Detail::Mcp(server), _) => add_mcp(
@@ -562,6 +691,28 @@ pub fn set_up(
         }
         _ => Err(AdapterError::Unsupported(format!(
             "{} needs you to set it up",
+            item.name
+        ))),
+    }
+}
+
+/// An item that comes with the claude.ai account: copied only when it may
+/// be the user's own and the user asked; what Anthropic provides never
+/// is, whatever is asked.
+fn copy_from_the_account(dir: &Path, item: &Item, can_copy: bool) -> Result<Applied, AdapterError> {
+    match (&item.kind, &item.detail) {
+        (
+            ItemKind::Skill,
+            Detail::FromTheAccount {
+                files: Some(path), ..
+            },
+        ) if can_copy && item.origin == Origin::Account => {
+            crate::inventory_files::copy_tree(path, &dir.join("skills").join(&item.name), |text| {
+                text.to_owned()
+            })
+        }
+        _ => Err(AdapterError::Unsupported(format!(
+            "{} comes with the claude.ai account: turn it on there for this account",
             item.name
         ))),
     }
@@ -736,6 +887,17 @@ fn entry_with(
 }
 
 fn mcp_item(name: &str, entry: &serde_json::Value, scope: Scope) -> Item {
+    mcp_json_item(CLAUDE_CODE_ID, name, entry, scope)
+}
+
+/// A server in the `mcpServers` JSON form Claude Code uses, and the tools
+/// that adopted it (AJ-E1603: Kimi Code's `mcp.json`), as `tool`'s item.
+pub(crate) fn mcp_json_item(
+    tool: &str,
+    name: &str,
+    entry: &serde_json::Value,
+    scope: Scope,
+) -> Item {
     let text = |key: &str| {
         entry
             .get(key)
@@ -785,7 +947,7 @@ fn mcp_item(name: &str, entry: &serde_json::Value, scope: Scope) -> Item {
         },
     };
     Item {
-        tool: CLAUDE_CODE_ID.to_owned(),
+        tool: tool.to_owned(),
         kind: ItemKind::McpServer,
         name: name.to_owned(),
         scope,
@@ -793,6 +955,7 @@ fn mcp_item(name: &str, entry: &serde_json::Value, scope: Scope) -> Item {
             transport,
             oauth: entry.get("oauth").is_some(),
         }),
+        origin: Origin::Own,
     }
 }
 
@@ -803,6 +966,7 @@ fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
         name: name.to_owned(),
         scope: Scope::User,
         detail,
+        origin: Origin::Own,
     }
 }
 
@@ -897,15 +1061,23 @@ mod tests {
         assert!(
             matches!(can_set_up(linear), SetUp::NeedsYou(note) if note.contains("claude mcp login linear"))
         );
+        // A synced skill with no manifest row: from the account, origin
+        // unknown, turned on there and never copied.
         let synced = items.iter().find(|i| i.name == "team-style").unwrap();
-        assert!(matches!(can_set_up(synced), SetUp::Impossible(_)));
-
+        assert_eq!(synced.origin, Origin::Unknown);
+        assert!(matches!(
+            can_set_up(synced),
+            SetUp::TurnOn {
+                can_copy: false,
+                ..
+            }
+        ));
         // AJ-E1543: a server that needs its secret says how to give it
         // one on that account, with a placeholder, never the value.
         let how = how_to_get(github, "$HOME/.claude-personal");
         let command = how.command.clone().unwrap();
         assert!(!format!("{how:?}").contains("ghp_live"), "never the secret");
-        assert!(!how.on_account_page);
+        assert_eq!(how.open_url, None);
         assert!(command.starts_with(
             "CLAUDE_CONFIG_DIR=\"$HOME/.claude-personal\" claude mcp remove github --scope user\n"
         ));
@@ -928,13 +1100,13 @@ mod tests {
                 .unwrap()
                 .starts_with("claude mcp remove github --scope user")
         );
-        // A sign-in is no secret to paste; the account's own skill is
-        // turned on on its page.
+        // A sign-in is no secret to paste; the account's own skill says
+        // how to turn it on in its verdict, not here.
         assert_eq!(
             how_to_get(linear, "$HOME/.claude-personal"),
-            HowTo::default()
+            GetIt::default()
         );
-        assert!(how_to_get(synced, "").on_account_page);
+        assert_eq!(how_to_get(synced, ""), GetIt::default());
         let entry = claude_entry(
             "github",
             match &github.detail {
@@ -976,7 +1148,12 @@ mod tests {
         let skills: Vec<(&str, bool)> = items
             .iter()
             .filter(|i| i.kind == ItemKind::Skill)
-            .map(|i| (i.name.as_str(), matches!(i.detail, Detail::FromTheAccount)))
+            .map(|i| {
+                (
+                    i.name.as_str(),
+                    matches!(i.detail, Detail::FromTheAccount { .. }),
+                )
+            })
             .collect();
         assert_eq!(
             skills,

@@ -7,7 +7,7 @@
  * sheets use this one hook (the audit of 2026-10-27: the sheet lit up
  * and dropped nothing).
  */
-import { useEffect, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { onFolderDropped } from "./bridge";
 
 /** A dropped item's path, from the page's own drop (`text/uri-list`). */
@@ -55,4 +55,12 @@ export function useFolderDrop(onFolder: (path: string) => void) {
       },
     },
   };
+}
+
+/** A folder dropped on the window itself: `onFolder` takes it unless an
+ * open sheet does (`sheetOpen`; that sheet's own `useFolderDrop` has it). */
+export function useWindowFolderDrop(onFolder: (path: string) => void, sheetOpen: boolean): void {
+  const latest = useRef({ onFolder, sheetOpen });
+  latest.current = { onFolder, sheetOpen };
+  useEffect(() => onFolderDropped((path) => !latest.current.sheetOpen && latest.current.onFolder(path)), []);
 }

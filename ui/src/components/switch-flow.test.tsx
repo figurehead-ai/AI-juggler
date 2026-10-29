@@ -48,7 +48,7 @@ const ONECLICK: PreflightInfoData = {
     { label: "The whole conversation", hint: "Every message from the start.", how: "moves" },
     { label: "Project rules", hint: "The rule files in the project folder.", how: "moves" },
   ],
-  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
   target_tool: "claude-code",
 };
@@ -59,7 +59,7 @@ const WIZARD: PreflightInfoData = {
   fidelity_words: "Same conversation, new account",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
-  wizard_reasons: ["This move hasn't been proven on a real setup yet."],
+  wizard_reasons: ["This switch hasn't been proven on a real setup yet."],
   usual_account: false,
   carry: {
     carried: ["The whole conversation"],
@@ -105,6 +105,10 @@ function mount(
     />,
   );
 }
+
+
+/** A failed launch's words, as the backend sends them (`SwitchFailure::words`). */
+const LAUNCH_FAILED = "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.";
 
 describe("AJ-E206 door", () => {
   it("counts the door it shows once, from the preflight's own answer", async () => {
@@ -358,17 +362,36 @@ describe("leaving the switch", () => {
   });
 
   it("offers Retry after a failure, and Retry runs the switch again", async () => {
-    (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: string }).__AIJ_SWITCH_EXECUTE_FAIL__ = "The new session didn't start.";
+    (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__ = { code: "switch_failed", retryable: true, user_message: LAUNCH_FAILED };
     const onSwitched = vi.fn();
     const view = mountWith(ONECLICK, vi.fn(), onSwitched);
     await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
-    expect(view.getByTestId("switch-failed").textContent).toContain("Nothing was changed");
+    expect(view.getByTestId("switch-failed-words").textContent).toBe(LAUNCH_FAILED);
     await waitFor(() => expect(document.activeElement).toBe(view.getByTestId("switch-retry")));
     delete (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: string }).__AIJ_SWITCH_EXECUTE_FAIL__;
     fireEvent.click(view.getByTestId("switch-retry"));
     await waitFor(() => expect(onSwitched).toHaveBeenCalledTimes(1));
+  });
+
+  it("a failed switch says each thing once: a short title, then what happened and what to do next", async () => {
+    (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__ = { code: "switch_failed", retryable: true, user_message: LAUNCH_FAILED };
+    const view = mountWith(ONECLICK);
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
+    const text = view.getByTestId("switch-failed").textContent ?? "";
+    const times = (words: string) => text.split(words).length - 1;
+    expect(view.getByRole("heading", { name: "The switch didn't complete" })).toBeTruthy();
+    expect(times(LAUNCH_FAILED)).toBe(1);
+    // What happened and what's next, each once (the 0.1.9 dialog said
+    // "nothing moved", then "Nothing was changed … or try again").
+    expect(times("nothing moved")).toBe(1);
+    expect(text.match(/nothing (was )?changed/gi)).toBeNull();
+    expect(text.match(/try again/gi)).toHaveLength(1);
+    expect(text.match(/where you left it/gi)).toHaveLength(1);
+    delete (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__;
   });
 
   it("a double-click on Continue never starts the switch (H-5)", async () => {
@@ -387,7 +410,33 @@ describe("leaving the switch", () => {
   it("the Target step opens with what moves, and another account is no warning", async () => {
     const view = mountWith(WIZARD);
     await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
-    expect(view.getByTestId("switch-move-line").textContent).toContain("The whole conversation moves");
+    expect(view.getByTestId("switch-move-line").textContent).toContain("The whole conversation is carried over");
     expect(view.getByTestId("switch-flow").textContent).not.toContain("usual account");
   });
+});
+
+/** The 0.2 re-render: the confirm said "The original stays" twice (the
+ * move line, then the original's own line). Each step says it once. */
+describe("the original, said once", () => {
+  // What happens to the original: it stays, stops, or keeps running.
+  const times = (text: string | null | undefined) => (text ?? "").match(/The original|can't stop this session/g)?.length ?? 0;
+  const cases: Array<[string, Partial<PreflightInfoData>]> = [
+    ["at rest", { source_live: false }],
+    ["running here", { source_live: true }],
+    ["one it can't stop", { source_keeps_running: true }],
+    ["one another app runs", { source_keeps_running: true, source_outside: true, source_app: "Claude" }],
+  ];
+  for (const [name, change] of cases) {
+    it(`on the confirm: ${name}`, async () => {
+      const view = mount({ ...ONECLICK, ...change }, vi.fn());
+      await waitFor(() => expect(view.getByTestId("switch-summary")).toBeTruthy());
+      expect(times(view.getByTestId("switch-summary").textContent)).toBe(1);
+    });
+    it(`on the Target step: ${name}`, async () => {
+      (window as never as Seams).__AIJ_SWITCH_PREFLIGHT__ = { ...WIZARD, ...change };
+      const view = render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" onClose={vi.fn()} onSwitched={vi.fn()} />);
+      await waitFor(() => expect(view.getByTestId("switch-step-target")).toBeTruthy());
+      expect(times(view.getByTestId("switch-step-target").textContent)).toBe(1);
+    });
+  }
 });

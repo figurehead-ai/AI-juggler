@@ -6,7 +6,7 @@
  * measured, and never measured (which still shows the tokens used).
  */
 import type { JSX } from "react";
-import { asOfWords, limitWindows, measured, tokenWords } from "../../lib/quotaWindow";
+import { asOfWords, limitWindows, measured, tokenWords, usedTokensWords } from "../../lib/quotaWindow";
 import { useCached } from "../../lib/usage/cached";
 import { daysBetween } from "../../lib/usage/range";
 import { usageLimits } from "../../lib/ipc/usageHistory";
@@ -14,6 +14,8 @@ import type { QuotaDisplayData, WindowDisplay } from "../../lib/bridge";
 import { Gauge } from "../charts/Gauge";
 import { LimitHistory } from "../charts/LimitHistory";
 import { Sparkline } from "../charts/StatTile";
+import { READING_SHORT } from "../../lib/history-reading";
+import { resetsWords } from "../../lib/time-words";
 
 /** How long until `at`, in words ("in 40 min", "in 2 h 10 min", "in 3 days"). */
 export function inWords(at: number, now: number): string {
@@ -24,12 +26,6 @@ export function inWords(at: number, now: number): string {
   if (hours < 24) return `in ${hours} h${minutes % 60 ? ` ${minutes % 60} min` : ""}`;
   const days = Math.round(hours / 24);
   return `in ${days} ${days === 1 ? "day" : "days"}`;
-}
-
-/** A reset, short: the time today ("4:20 PM"), else the day and time ("Mon 10:40 AM"). */
-export function resetShort(at: number, now: number): string {
-  const time = new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return new Date(at).toDateString() === new Date(now).toDateString() ? time : `${new Date(at).toLocaleDateString([], { weekday: "short" })} ${time}`;
 }
 
 /** When the reading was taken, in words ("12 min ago", "13 h ago"). */
@@ -43,7 +39,7 @@ function readWords(at: number, now: number): string {
 
 /** One window's gauge, from the engine's display of it. */
 export function WindowGauge({ name, window, omitted, now }: { name: string; window: WindowDisplay | null | undefined; omitted?: string | null; now: number }): JSX.Element {
-  if (!window) return <Gauge name={name} left={null} state="unmeasured" note={omitted ?? null} testId="window-gauge" />;
+  if (!window) return <Gauge name={name} left={null} state={omitted ? "omitted" : "unmeasured"} note={omitted ?? null} testId="window-gauge" />;
   if (window.state === "learning") return <Gauge name={name} left={null} state="measuring" testId="window-gauge" />;
   if (window.state === "reset") {
     const when = window.measured_at_ms != null ? `, ${readWords(window.measured_at_ms, now)}` : "";
@@ -51,13 +47,14 @@ export function WindowGauge({ name, window, omitted, now }: { name: string; wind
     const last = used != null ? `Last read ${Math.round(used)}% used${when}; it has reset since` : "It has reset since the last reading";
     return <Gauge name={name} left={null} state="stale" note={last} testId="window-gauge" />;
   }
-  const resets = window.resets_at_ms != null ? resetShort(window.resets_at_ms, now) : null;
+  const resets = window.resets_at_ms != null ? resetsWords(window.resets_at_ms, now) : null;
   const until = window.resets_at_ms != null ? inWords(window.resets_at_ms, now) : null;
   if (window.state === "exhausted" || (measured(window) && window.percentage >= 100)) {
     return <Gauge name={name} left={0} resets={resets} resetsIn={until ? `Limit hit · back ${until}` : "Limit hit"} testId="window-gauge" />;
   }
   if (!measured(window)) {
-    const used = window.burned_tokens > 0 ? `${tokenWords(window.burned_tokens)} tokens used in it` : null;
+    const tokens = usedTokensWords([window]);
+    const used = tokens ? `Used ${tokens} in it` : null;
     return <Gauge name={name} left={null} state="unmeasured" note={used} testId="window-gauge" />;
   }
   return <Gauge name={name} left={100 - window.percentage} resets={resets} resetsIn={until} note={window.state === "stale" ? "last known" : null} testId="window-gauge" />;
@@ -73,17 +70,19 @@ function unread(window: WindowDisplay | null | undefined): boolean {
 /** Neither window read: one gauge for both, with the tokens used, so
  * "Not measured yet" is said once (the review of 0.1.5), not per window. */
 export function BothUnread({ display }: { display: QuotaDisplayData | undefined }): JSX.Element {
-  const week = display?.weekly?.burned_tokens ?? 0;
-  const five = display?.five_hour?.burned_tokens ?? 0;
+  const week = usedTokensWords([display?.weekly]);
+  const five = usedTokensWords([display?.five_hour]);
   const omitted = [display?.five_hour_omitted_reason, display?.weekly_omitted_reason].filter(Boolean);
   const note =
-    week > 0
-      ? `${tokenWords(week)} tokens used this week`
-      : five > 0
-        ? `${tokenWords(five)} tokens used in this 5-hour window`
+    week
+      ? `Used ${week} this week`
+      : five
+        ? `Used ${five} in this 5-hour window`
         : omitted.length > 0 && omitted.every((reason) => reason === omitted[0])
           ? omitted[0]!
           : null;
+  // The 0.2 walk (F6): while the first read runs, it isn't "not measured".
+  if (display?.history_reading) return <Gauge name="5-hour window and this week" left={null} state="reading" note={note} testId="window-gauge" />;
   return <Gauge name="5-hour window and this week" left={null} state="unmeasured" note={note} testId="window-gauge" />;
 }
 
@@ -130,7 +129,7 @@ export function RunwayPanel({
     return (
       <div className="flex flex-col gap-3">
         <p className="text-meta text-muted">{display.unavailable_reason}</p>
-        <UsageLine usage={usage} usageTotal={usageTotal} name={name} color={color} />
+        <UsageLine usage={usage} usageTotal={usageTotal} name={name} color={color} reading={!!display?.history_reading} />
       </div>
     );
   }
@@ -161,20 +160,22 @@ export function RunwayPanel({
           <LimitHistory week={week} windows={five} start={start} end={now} color={color} label={`${name}: the week's limit used, and each 5-hour window, over the last 7 days`} dayWords={daysBetween(start, now)} />
         </div>
       ) : null}
-      <UsageLine usage={usage} usageTotal={usageTotal} name={name} color={color} />
+      <UsageLine usage={usage} usageTotal={usageTotal} name={name} color={color} reading={!!display?.history_reading} />
     </div>
   );
 }
 
 /** The account's tokens over the last 7 days: always shown, measured
- * limits or not. */
-function UsageLine({ usage, usageTotal, name, color }: { usage: number[] | null; usageTotal: number | null; name: string; color: string }): JSX.Element {
+ * limits or not; while the first read of the history runs, a zero is
+ * "Reading your history…" (the 0.2 walk, F6). */
+function UsageLine({ usage, usageTotal, name, color, reading }: { usage: number[] | null; usageTotal: number | null; name: string; color: string; reading: boolean }): JSX.Element {
+  const pending = reading && (usageTotal ?? 0) === 0;
   return (
     <div className="flex items-end gap-3" data-testid="runway-usage">
       <span className="flex shrink-0 flex-col">
-        <span className="text-label text-muted">Last 7 days</span>
+        <span className="text-label text-muted">Last 7 days, in and out</span>
         <span className="text-section tabular-nums text-ink" title={usageTotal == null ? undefined : `${Math.round(usageTotal).toLocaleString("en-US")} tokens`}>
-          {usageTotal == null ? "—" : `${tokenWords(Math.round(usageTotal))} tokens`}
+          {pending ? READING_SHORT : usageTotal == null ? "—" : `${tokenWords(Math.round(usageTotal))} tokens`}
         </span>
       </span>
       <span className="min-w-0 flex-1">

@@ -362,3 +362,188 @@ fn stop_now_stops_the_source_before_the_copy() {
 fn finish_this_turn_stops_the_source_once_it_is_quiet() {
     freezing("finish-turn");
 }
+
+/// The live lab of 2026-10-28 (Claude Code 2.1.310): a headless Claude
+/// turn that edits a file leaves file history in the account's
+/// `file-history/<id>/`. The switch copied it, then, checking the source
+/// was untouched, looked for it beside the transcript, found nothing and
+/// failed every such Claude → Claude switch: "source changed during the
+/// switch: ~file-history/…". It now checks each file where it was read.
+#[test]
+fn a_session_with_file_history_switches_and_its_history_travels() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let project = work.path().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let cwd = project.to_string_lossy().into_owned();
+    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
+    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
+    let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
+    let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e12";
+    let a_dir = state
+        .accounts_dir()
+        .join(CLAUDE_CODE_ID)
+        .join(&account_a.id);
+    let transcript = a_dir
+        .join("projects")
+        .join(cwd.replace('/', "-"))
+        .join(format!("{native}.jsonl"));
+    seed(&transcript, native, &cwd);
+    let history = a_dir.join("file-history").join(native);
+    std::fs::create_dir_all(&history).unwrap();
+    std::fs::write(
+        history.join("6757c7b1fa2c80a2@v3"),
+        "calc.py before the edit",
+    )
+    .unwrap();
+
+    let session = SessionId::new("with-history");
+    let machine = commands::local_machine_id(&state);
+    {
+        let storage = state.storage.lock().unwrap();
+        let project_row = storage
+            .projects()
+            .touch(&juggler_core::storage::project_root(&project), None)
+            .unwrap();
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: session.clone(),
+                conversation: Some(ConversationId::new(native)),
+                profile: juggler_core::model::ProfileId::new(profile_a.id.clone()),
+                machine,
+                kind: InstanceKind::Terminal,
+                project: Some(project_row.id),
+                cwd: project.clone(),
+                status: SessionStatus::Finished,
+                started_at: Timestamp::from_millis(Timestamp::now().millis() + 60_000),
+                last_activity: None,
+                usage: Default::default(),
+                attention: None,
+                running: None,
+                window: None,
+                transcript_ref: None,
+            })
+            .unwrap();
+    }
+
+    commands::switch_execute_impl(
+        &state,
+        session.as_str(),
+        &profile_b.id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .expect("a session with file history switches");
+    let b_history = state
+        .accounts_dir()
+        .join(CLAUDE_CODE_ID)
+        .join(&account_b.id)
+        .join("file-history")
+        .join(native)
+        .join("6757c7b1fa2c80a2@v3");
+    assert_eq!(
+        std::fs::read_to_string(b_history).unwrap(),
+        "calc.py before the edit"
+    );
+    // Copied, never moved.
+    assert!(history.join("6757c7b1fa2c80a2@v3").is_file());
+}
+
+/// The measured lab of 2026-10-28: A → B → Codex → back to A. B moved the
+/// task list on (sub done); Codex, run as `codex exec`, keeps no list of
+/// its own, so the update said nothing of it and A's own list was stale.
+/// The update now gives the newest list a hop left, and whose it is. (Here
+/// the last hop is a Claude account whose copy predates B's list: a list
+/// the last hop doesn't have, as for Codex.)
+#[test]
+fn switching_back_gives_the_task_list_the_newest_hop_left() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let project = work.path().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let cwd = project.to_string_lossy().into_owned();
+    let account = |label: &str| {
+        let account = commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap();
+        let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
+        (account.id, profile.id)
+    };
+    let (a, profile_a) = account("Alpha");
+    let (b, profile_b) = account("Bravo");
+    let (_c, profile_c) = account("Charlie");
+    let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e33";
+    let file_of = |account: &str| {
+        state
+            .accounts_dir()
+            .join(CLAUDE_CODE_ID)
+            .join(account)
+            .join("projects")
+            .join(cwd.replace('/', "-"))
+            .join(format!("{native}.jsonl"))
+    };
+    seed(&file_of(&a), native, &cwd);
+    let session = SessionId::new("chain-tasks");
+    let machine = commands::local_machine_id(&state);
+    {
+        let storage = state.storage.lock().unwrap();
+        let project_row = storage
+            .projects()
+            .touch(&juggler_core::storage::project_root(&project), None)
+            .unwrap();
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: session.clone(),
+                conversation: Some(ConversationId::new(native)),
+                profile: juggler_core::model::ProfileId::new(profile_a.clone()),
+                machine,
+                kind: InstanceKind::Terminal,
+                project: Some(project_row.id),
+                cwd: project.clone(),
+                status: SessionStatus::Finished,
+                started_at: Timestamp::from_millis(Timestamp::now().millis() + 60_000),
+                last_activity: None,
+                usage: Default::default(),
+                attention: None,
+                running: None,
+                window: None,
+                transcript_ref: None,
+            })
+            .unwrap();
+    }
+    let on_b =
+        commands::switch_execute_impl(&state, session.as_str(), &profile_b, "stop-now", None, &[])
+            .unwrap();
+    let on_c =
+        commands::switch_execute_impl(&state, &on_b.session_id, &profile_c, "stop-now", None, &[])
+            .unwrap();
+    {
+        use std::io::Write as _;
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(file_of(&b))
+            .unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"assistant","uuid":"b-todo","cwd":"{cwd}","message":{{"role":"assistant","content":[{{"type":"tool_use","id":"t1","name":"TodoWrite","input":{{"todos":[{{"content":"sub","status":"completed"}},{{"content":"mul","status":"pending"}}]}}}}]}}}}"#
+        )
+        .unwrap();
+    }
+    let plan = commands::switch_back_plan_impl(&state, &on_c.session_id).unwrap();
+    let start = plan
+        .returns
+        .iter()
+        .find(|r| r.start)
+        .unwrap()
+        .epoch_id
+        .clone();
+    let back = commands::switch_back_plan_to_impl(&state, &on_c.session_id, Some(&start)).unwrap();
+    assert!(
+        back.delta_preview
+            .contains("Todos changed: [x] sub; [ ] mul (as Bravo left it)."),
+        "{}",
+        back.delta_preview
+    );
+}

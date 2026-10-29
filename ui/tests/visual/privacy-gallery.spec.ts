@@ -62,7 +62,8 @@ for (const theme of ["dark", "light"] as const) {
     // The tools' terms, at the end.
     const terms = page.getByTestId("privacy-terms");
     await terms.scrollIntoViewIfNeeded();
-    await expect(page.getByTestId("privacy-terms-row")).toHaveCount(2);
+    // 0.2: Claude Code, Codex and the new tools (OpenCode, Kimi, Gemini).
+    await expect(page.getByTestId("privacy-terms-row")).toHaveCount(5);
     // Painted where it scrolled to, not mid-scroll.
     await expect(page.getByTestId("privacy-terms-row").last()).toBeInViewport();
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));

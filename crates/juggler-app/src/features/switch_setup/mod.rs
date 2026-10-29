@@ -11,11 +11,22 @@
 //! from the same place. Matching is by kind and name, and an account's own
 //! rules are one item whatever the tool calls the file (`CLAUDE.md`,
 //! `AGENTS.md`), so a target that has its own rules is never given more.
+//!
+//! What comes with the source's account (a claude.ai skill, an `OpenAI`
+//! plugin) is never copied: the target adapter says how to turn it on
+//! for the target ([`SetUp::TurnOn`]), and a switch remembers it until
+//! the target has it ([`turn_ons`]). The source adapter says what the
+//! conversation used ([`juggler_adapter::HarnessAdapter::used_in`]), so
+//! those lead and the rest wait under one collapsed line
+//! (switch-setup-items.md).
+
+pub mod memory;
+pub mod turn_ons;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use juggler_adapter::inventory::{Applied, Item, ItemKind, SetUp, Undo};
+use juggler_adapter::inventory::{Applied, GetIt, Item, ItemKind, Origin, SetUp, Undo};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -40,28 +51,79 @@ pub struct OfferInfo {
     pub name: String,
     /// `user` or `project-private`.
     pub scope: String,
-    /// `copy`, `translate`, `needs-you`, `impossible`.
+    /// `copy`, `translate`, `needs-you`, `impossible`, `turn-on` (the
+    /// other account turns it on itself: `get_it` says how).
     pub verdict: String,
     /// What the verdict means for this one, in a sentence.
     pub note: Option<String>,
     /// What it holds, in a few words, for a setting ("2 allowed, 1
     /// denied"; AJ-E1508).
     pub about: Option<String>,
-    /// Ticked to start with: set up as it is, or translated.
+    /// Ticked to start with: set up as it is, or translated, and used in
+    /// this conversation (or nothing says).
     pub suggested: bool,
-    /// What the user does to finish it themselves (turn it on for the
-    /// account, give it its secret): the steps, from the target tool's
-    /// adapter (never written here).
+    /// Whether this conversation used it; `null` when the tool's
+    /// transcripts don't say, or it isn't something a conversation uses
+    /// (rules). Never read `null` as "not used".
+    pub used: Option<bool>,
+    /// Where it came from: `own`, `account` (synced by the account, whose
+    /// exactly can't be told), `provided`, `unknown`.
+    pub origin: String,
+    /// Who provides it, for `provided` (`Anthropic`, `OpenAI`).
+    pub provided_by: Option<String>,
+    /// How the user finishes it themselves, from the target tool's
+    /// adapter (never written here): for `turn-on`, how the target
+    /// account turns it on; for `needs-you`, how to give it the secret
+    /// that is never copied (the steps and the command, a placeholder in
+    /// place of the value). `null` when there are no steps.
+    pub get_it: Option<GetItInfo>,
+    /// For `turn-on`: whether it may be copied instead when it's the
+    /// user's own (ticking it copies it, with an undo).
+    pub can_copy: bool,
+    /// D-51: for `memory` (this project's notes), how many the target
+    /// lacks.
+    #[ts(optional = nullable)]
+    pub count: Option<u32>,
+}
+
+/// How an account gets an item it can't be given by a copy: the steps for
+/// it, by name.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct GetItInfo {
+    /// Short steps, in order.
     pub steps: Vec<String>,
     /// The one command those steps say to run, exactly as it's run (a
     /// secret in it is a placeholder, never a value).
-    pub steps_command: Option<String>,
-    /// The target tool's id when it has a page for those steps (opened
-    /// by `trust_open` kind `account-settings`).
-    pub steps_page: Option<String>,
-    /// That page's button ("Open claude.ai settings"), named from its
-    /// address.
-    pub steps_page_label: Option<String>,
+    #[serde(default)]
+    pub command: Option<String>,
+    /// The page that does it (https), opened with `switch_setup_open`.
+    pub open_url: Option<String>,
+    /// What has to be true first, a sentence each.
+    pub needs: Vec<String>,
+    /// What happens after the last step.
+    pub then: Option<String>,
+}
+
+impl GetItInfo {
+    /// `get_it`, for the account named `account`.
+    pub(crate) fn of(get_it: &GetIt, account: &str) -> Self {
+        let get_it = get_it.for_account(account);
+        if let Some(url) = &get_it.open_url {
+            turn_ons::may_open(url);
+        }
+        Self {
+            steps: get_it.steps,
+            command: get_it.command,
+            open_url: get_it.open_url,
+            needs: get_it
+                .needs
+                .iter()
+                .map(|need| need.text().to_owned())
+                .collect(),
+            then: get_it.then,
+        }
+    }
 }
 
 /// What the target lacks, for one switch.
@@ -76,6 +138,11 @@ pub struct SetupCheckInfo {
     pub offers: Vec<OfferInfo>,
     /// How many items the source has that the target already has.
     pub already_there: u32,
+    /// D-51: how many of the source's notes for this project stay with
+    /// it, because the target's tool keeps no notes like these; `null`
+    /// when none do.
+    #[ts(optional = nullable)]
+    pub notes_stay: Option<u32>,
 }
 
 /// What applying one offer did.
@@ -135,6 +202,9 @@ pub(crate) struct Sides {
     pub(crate) source: juggler_core::model::Account,
     pub(crate) target: juggler_core::model::Account,
     pub(crate) project: Option<PathBuf>,
+    /// The switching conversation's transcript, for what it used; `None`
+    /// outside a switch.
+    pub(crate) transcript: Option<PathBuf>,
 }
 
 fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> AppResult<Sides> {
@@ -164,6 +234,7 @@ fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> Ap
         source,
         target,
         project: Some(session.cwd).filter(|cwd| cwd.is_dir()),
+        transcript: session.transcript_ref.map(|reference| reference.path),
     })
 }
 
@@ -224,11 +295,11 @@ pub fn check_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<SetupCheckInfo> {
-    check_sides(
-        state,
-        &sides(state, session_id, target_profile_id)?,
-        &for_a_switch,
-    )
+    let sides = sides(state, session_id, target_profile_id)?;
+    let mut check = check_sides(state, &sides, &for_a_switch)?;
+    // D-51: this project's notes, one more thing the target may lack.
+    memory::check(state, &sides).add_to(&mut check);
+    Ok(check)
 }
 
 /// What a switch offers: everything but the account's own settings, which
@@ -250,37 +321,89 @@ pub(crate) fn check_sides(
         .registry
         .get(&sides.target.harness)
         .ok_or_else(|| AppError::UnknownHarness(sides.target.harness.to_string()))?;
-    let (offers, already_there) = offers(&sides.target, target_adapter.as_ref(), &from, &to);
+    // What the conversation used, by the source tool's own reading.
+    let used = sides.transcript.as_deref().and_then(|transcript| {
+        state
+            .registry
+            .get(&sides.source.harness)
+            .and_then(|adapter| adapter.used_in(transcript))
+    });
+    let (offers, already_there) = offers(
+        &sides.target,
+        target_adapter.as_ref(),
+        &from,
+        &to,
+        used.as_deref(),
+        &|tool| crate::features::tools::display_name(&state.registry, tool),
+    );
     Ok(SetupCheckInfo {
         from: sides.source.label.clone(),
         to: sides.target.label.clone(),
         offers,
         already_there,
+        notes_stay: None,
     })
 }
 
-/// A settings page's button, named from its address:
-/// `https://claude.ai/settings` is "Open claude.ai settings".
-fn page_label(url: &str) -> String {
-    let host = url
-        .split("://")
-        .nth(1)
-        .unwrap_or(url)
-        .split('/')
-        .next()
-        .unwrap_or_default()
-        .trim_start_matches("www.");
-    format!("Open {host} settings")
+/// Whether the conversation used `item`, by what the source tool read
+/// from it (`used`): `None` when it doesn't say, or when `item` isn't
+/// something a conversation uses (rules, settings). A plugin matches by
+/// its name without the marketplace.
+fn used_of(item: &Item, used: Option<&[(ItemKind, String)]>) -> Option<bool> {
+    let used = used?;
+    if !matches!(
+        item.kind,
+        ItemKind::Skill
+            | ItemKind::Command
+            | ItemKind::Subagent
+            | ItemKind::McpServer
+            | ItemKind::Plugin
+    ) {
+        return None;
+    }
+    let name = if item.kind == ItemKind::Plugin {
+        item.name.split('@').next().unwrap_or_default()
+    } else {
+        item.name.as_str()
+    };
+    Some(
+        used.iter()
+            .any(|(kind, used)| *kind == item.kind && used == name),
+    )
+}
+
+/// Where it came from, on the wire.
+fn origin_words(origin: &Origin) -> (&'static str, Option<String>) {
+    match origin {
+        Origin::Own => ("own", None),
+        Origin::Account => ("account", None),
+        Origin::Provided { by } => ("provided", Some(by.clone())),
+        Origin::Unknown => ("unknown", None),
+    }
+}
+
+/// How a verdict sorts: what can be set up, then what needs the user,
+/// then what the other account turns on, then the rest.
+fn verdict_rank(verdict: &str) -> u8 {
+    match verdict {
+        "copy" | "translate" => 0,
+        "needs-you" => 1,
+        "turn-on" => 2,
+        _ => 3,
+    }
 }
 
 /// What `target` (its items `to`, its tool `target_adapter`) lacks of the
-/// items `from`, each with the target tool's verdict, the ones that can be
-/// set up first; and how many of `from` it already has.
+/// items `from`, each with the target tool's verdict; and how many of
+/// `from` it already has. What the conversation `used` comes first, then
+/// what can be set up; `tool_name` names a tool in a note (`{tool}`).
 pub(crate) fn offers(
     target: &juggler_core::model::Account,
     target_adapter: &dyn juggler_adapter::HarnessAdapter,
     from: &[Item],
     to: &[Item],
+    used: Option<&[(ItemKind, String)]>,
+    tool_name: &dyn Fn(&str) -> String,
 ) -> (Vec<OfferInfo>, u32) {
     let have: std::collections::HashSet<(ItemKind, String)> = to.iter().map(key).collect();
     let mut already_there: u32 = 0;
@@ -296,20 +419,26 @@ pub(crate) fn offers(
             already_there += 1;
             continue;
         }
-        let how = target_adapter.how_to_get(item, &target.state_dir);
-        let steps = how.steps;
-        let steps_command = how.command;
-        let page = target_adapter
-            .account_settings_url()
-            .filter(|_| how.on_account_page && !steps.is_empty());
-        let steps_page = page.as_ref().map(|_| target.harness.to_string());
-        let steps_page_label = page.as_deref().map(page_label);
-        let (verdict, note) = match target_adapter.can_set_up(item) {
-            SetUp::Copy => ("copy", None),
-            SetUp::Translate(note) => ("translate", Some(note)),
-            SetUp::NeedsYou(note) => ("needs-you", Some(note)),
-            SetUp::Impossible(note) => ("impossible", Some(note)),
+        let (verdict, note, get_it, can_copy) = match target_adapter.can_set_up(item) {
+            SetUp::Copy => ("copy", None, None, false),
+            SetUp::Translate(note) => ("translate", Some(note), None, false),
+            // The user's step, in the target tool's words (AJ-E1543).
+            SetUp::NeedsYou(note) => {
+                let how = target_adapter.how_to_get(item, &target.state_dir);
+                let get_it = (!how.steps.is_empty()).then(|| GetItInfo::of(&how, &target.label));
+                ("needs-you", Some(note), get_it, false)
+            }
+            SetUp::Impossible(note) => ("impossible", Some(note), None, false),
+            SetUp::TurnOn { get_it, can_copy } => (
+                "turn-on",
+                None,
+                Some(GetItInfo::of(&get_it, &target.label)),
+                can_copy,
+            ),
         };
+        let note = note.map(|note| note.replace("{tool}", &tool_name(&item.tool)));
+        let used = used_of(item, used);
+        let (origin, provided_by) = origin_words(&item.origin);
         offers.push(OfferInfo {
             id: offer_id(item),
             kind: kebab(&item.kind),
@@ -323,18 +452,22 @@ pub(crate) fn offers(
             },
             // A project's own item that would apply to every project on
             // the target is offered, not pre-ticked (re-review of #132).
-            steps,
-            steps_command,
-            steps_page,
-            steps_page_label,
             suggested: matches!(verdict, "copy" | "translate")
+                && used != Some(false)
                 && !(item.scope == juggler_adapter::inventory::Scope::ProjectPrivate
                     && item.tool != target.harness.as_str()),
+            used,
+            origin: origin.to_owned(),
+            provided_by,
+            get_it,
+            can_copy,
+            count: None,
         });
     }
     offers.sort_by_key(|offer| {
         (
-            offer.verdict == "impossible",
+            offer.used != Some(true),
+            verdict_rank(&offer.verdict),
             offer.kind.clone(),
             offer.name.clone(),
         )
@@ -355,12 +488,15 @@ pub fn apply_impl(
     target_profile_id: &str,
     picked: &[String],
 ) -> AppResult<Vec<AppliedInfo>> {
-    apply_sides(
-        state,
-        &sides(state, session_id, target_profile_id)?,
-        picked,
-        &for_a_switch,
-    )
+    let sides = sides(state, session_id, target_profile_id)?;
+    // D-51: this project's notes are copied apart from the items.
+    let (notes, picked) = memory::apply(state, &sides, picked)?;
+    let mut applied = apply_sides(state, &sides, &picked, &for_a_switch)?;
+    applied.extend(notes);
+    // What the target turns on itself is kept as a reminder until it has
+    // it; a reminder that can't be kept never stops the switch.
+    let _ = turn_ons::remember(state, &sides, &picked);
+    Ok(applied)
 }
 
 /// Sets up the picked offers of `sides.source` on `sides.target`, of the
@@ -395,6 +531,23 @@ pub(crate) fn apply_sides(
                 offer: id.clone(),
                 record: None,
                 message: format!("{} already has {}", sides.target.label, item.name),
+                note: None,
+            });
+            continue;
+        }
+        // What comes with an account is turned on there, never copied,
+        // whatever id is sent; only what may be the user's own can be.
+        if let SetUp::TurnOn {
+            can_copy: false, ..
+        } = target_adapter.can_set_up(item)
+        {
+            out.push(AppliedInfo {
+                offer: id.clone(),
+                record: None,
+                message: format!(
+                    "{} isn't copied: turn it on for {} instead",
+                    item.name, sides.target.label
+                ),
                 note: None,
             });
             continue;
@@ -513,6 +666,8 @@ pub fn undo_impl(state: &Arc<AppState>, record_id: &str) -> AppResult<String> {
     }
     Ok(if record.what.is_empty() {
         format!("Undid: {}", record.applied.summary)
+    } else if matches!(record.applied.undo, Undo::RemoveNotes { .. }) {
+        format!("Took out the {}", record.what)
     } else if matches!(record.applied.undo, Undo::Restore { .. }) {
         format!("Put back the {} as it was", record.what)
     } else {
@@ -645,6 +800,14 @@ fn undo(how: &Undo) -> AppResult<()> {
                     file.display()
                 ))
             }),
+        Undo::RemoveNotes {
+            files,
+            dirs,
+            index,
+            lines,
+            index_created,
+        } => juggler_adapter::memory::undo(files, dirs, index.as_deref(), lines, *index_created)
+            .map_err(AppError::Refused),
     }
 }
 
@@ -845,7 +1008,12 @@ mod tests {
             kind: ItemKind::Skill,
             name: name.to_owned(),
             scope: Scope::User,
-            detail: Detail::FromTheAccount,
+            detail: Detail::FromTheAccount {
+                source: None,
+                files: None,
+                requires: Vec::new(),
+            },
+            origin: juggler_adapter::inventory::Origin::Unknown,
         };
         let target = juggler_core::model::Account {
             id: juggler_core::model::AccountId::new("codex-1"),
@@ -863,7 +1031,14 @@ mod tests {
         };
         let adapter = juggler_adapters::fake::FakeHarnessAdapter::new("/bin/true");
         let from = [skill("pdf"), skill("pdf"), skill("docs")];
-        let (offers, there) = offers(&target, &adapter, &from, &[skill("docs"), skill("docs")]);
+        let (offers, there) = offers(
+            &target,
+            &adapter,
+            &from,
+            &[skill("docs"), skill("docs")],
+            None,
+            &str::to_owned,
+        );
         assert_eq!(offers.len(), 1, "{offers:?}");
         assert_eq!(there, 1);
     }

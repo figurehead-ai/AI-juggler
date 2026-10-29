@@ -1,9 +1,49 @@
 /**
  * AJ-E2104 — the rail's own icons: its View button, Open now's window,
- * a place's Open, History, and the app kinds a place can be.
+ * a place's Open, History, and the app kinds a place can be; D-47's drag
+ * handle and the three orders.
  */
 import type { SVGProps } from "react";
 import { base } from "./icons";
+
+/** D-47: a drag handle (six dots): a row or place is dragged by it. */
+export function IconGrip(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" strokeWidth={3} />
+    </svg>
+  );
+}
+
+/** Your order: a list arranged by hand. */
+export function IconOrderYours(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10 6h10M10 12h10M10 18h10" />
+      <path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" strokeWidth={3} />
+    </svg>
+  );
+}
+
+/** Latest activity: a clock. */
+export function IconOrderLatest(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l2.5 2.5" />
+    </svg>
+  );
+}
+
+/** Name: A to Z. */
+export function IconOrderName(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.5 18 7 8l3.5 10M4.8 14.5h4.4" />
+      <path d="M14 8h6l-6 10h6" />
+    </svg>
+  );
+}
 
 /** The View: lines of three lengths (Linear's display options). */
 export function IconView(props: SVGProps<SVGSVGElement>) {

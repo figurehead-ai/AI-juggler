@@ -26,7 +26,7 @@ impl DeviceFields {
     pub fn validate(&self) -> Result<(), String> {
         let name = self.name.trim();
         if name.is_empty() || name.chars().count() > 64 {
-            return Err("Use a name of 1–64 characters for this Mac.".to_owned());
+            return Err("Use a name of 1–64 characters for this computer.".to_owned());
         }
         if self.platform.chars().count() > 32 || self.app_version.chars().count() > 32 {
             return Err("The platform or version text is too long.".to_owned());

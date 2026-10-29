@@ -45,6 +45,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
     viewed_ms: null, probably: false,
     background: false,
     inactive: false,
+    subtask_count: null,
     ...overrides,
   };
 }

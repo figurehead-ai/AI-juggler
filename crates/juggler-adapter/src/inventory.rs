@@ -146,8 +146,21 @@ pub enum Detail {
         id: String,
     },
     /// Something the tool's account syncs itself (claude.ai skills and
-    /// connectors): it can't be set up by copying.
-    FromTheAccount,
+    /// plugins): the account turns it on, not a copy. What the reader
+    /// knows about it rides along (switch-setup-items.md §1).
+    FromTheAccount {
+        /// The account's own word for where it came from, kept as text
+        /// (claude.ai's `manifest.json` `source`: `anthropic`,
+        /// `anthropic-example`, `custom`); `None` when nothing says.
+        source: Option<String>,
+        /// The synced folder, only for an item that may be the user's own
+        /// ([`Origin::Account`]): a copy, with consent, needs it. Never
+        /// set for a provided item, which is never copied.
+        files: Option<PathBuf>,
+        /// What it says it needs (its `compatibility` line), for the
+        /// plan- and feature-bound wording.
+        requires: Vec<String>,
+    },
     /// Settings in one of the tool's config files (AJ-E1508): each key and
     /// its value, as the file writes it.
     Setting {
@@ -202,6 +215,96 @@ pub struct Item {
     pub scope: Scope,
     /// What it is.
     pub detail: Detail,
+    /// Where it came from, as the tool's files say.
+    pub origin: Origin,
+}
+
+/// Where an item came from, as the source tool's files say
+/// (switch-setup-items.md, "Item classes").
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Default, serde::Serialize)]
+#[serde(tag = "origin", rename_all = "kebab-case")]
+pub enum Origin {
+    /// The user's own files on this computer: set up with consent.
+    #[default]
+    Own,
+    /// Synced from the tool's account, and whose it is can't be told
+    /// here (claude.ai's `custom`): the user's, their organization's or
+    /// shared with them. Never called "yours".
+    Account,
+    /// Provided by the tool's maker with the account or the app: never
+    /// copied, only turned on for the other account.
+    Provided {
+        /// Who provides it, in words (`Anthropic`, `OpenAI`).
+        by: String,
+    },
+    /// From the account, and nothing says where from.
+    Unknown,
+}
+
+/// What has to be true before an item can be turned on, each said in a
+/// sentence of its own.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize)]
+#[serde(tag = "need", content = "text", rename_all = "kebab-case")]
+pub enum Need {
+    /// A plan that includes it ("Needs a Pro or Max plan.").
+    Plan(String),
+    /// Someone who runs the organization has to allow it.
+    Admin(String),
+    /// Another product or setting has to be on first.
+    Feature(String),
+}
+
+impl Need {
+    /// The sentence.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        match self {
+            Self::Plan(text) | Self::Admin(text) | Self::Feature(text) => text,
+        }
+    }
+}
+
+/// How the user finishes an item themselves, in the target tool's own
+/// words (AJ-E1543: never a bare status): turning on what comes with the
+/// other account, or giving a server the secret that is never copied.
+/// The steps, in order, in the app's words. Steps may name the account
+/// they're for as `{account}`; the app fills in its name. Examples carry
+/// placeholders (`<your GITHUB_TOKEN>`), never a value.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Default, serde::Serialize)]
+pub struct GetIt {
+    /// Short steps, in order.
+    pub steps: Vec<String>,
+    /// The one command the steps say to run, exactly as it's run.
+    pub command: Option<String>,
+    /// The page that does it (https only), opened in the browser.
+    pub open_url: Option<String>,
+    /// What has to be true first.
+    pub needs: Vec<Need>,
+    /// What happens after the last step.
+    pub then: Option<String>,
+}
+
+impl GetIt {
+    /// The same steps for the account named `account`.
+    #[must_use]
+    pub fn for_account(&self, account: &str) -> Self {
+        let fill = |text: &str| text.replace("{account}", account);
+        Self {
+            steps: self.steps.iter().map(|step| fill(step)).collect(),
+            command: self.command.clone(),
+            open_url: self.open_url.clone(),
+            needs: self
+                .needs
+                .iter()
+                .map(|need| match need {
+                    Need::Plan(text) => Need::Plan(fill(text)),
+                    Need::Admin(text) => Need::Admin(fill(text)),
+                    Need::Feature(text) => Need::Feature(fill(text)),
+                })
+                .collect(),
+            then: self.then.as_deref().map(fill),
+        }
+    }
 }
 
 /// Whether a tool can set up an item that came from elsewhere.
@@ -217,21 +320,17 @@ pub enum SetUp {
     NeedsYou(String),
     /// It can't be set up here; the note says why.
     Impossible(String),
-}
-
-/// How the user finishes an item themselves, in the target tool's own
-/// words (AJ-E1543: never a bare status): numbered steps, and the one
-/// command they run, when there is one. Examples carry placeholders
-/// (`<your GITHUB_TOKEN>`), never a value.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
-pub struct HowTo {
-    /// The steps, in order.
-    pub steps: Vec<String>,
-    /// The command the steps say to run, exactly as it's run.
-    pub command: Option<String>,
-    /// Whether the steps happen on the account's settings page
-    /// ([`crate::HarnessAdapter::account_settings_url`]).
-    pub on_account_page: bool,
+    /// The other account gets it by turning it on itself (a skill that
+    /// comes with the account): how, step by step. Never set up by AI
+    /// Juggler, unless `can_copy` says the user may copy it instead.
+    TurnOn {
+        /// How to get it.
+        get_it: GetIt,
+        /// Whether it may be copied instead, on the user's say-so: only
+        /// for what may be the user's own ([`Origin::Account`]), never
+        /// for a provided item.
+        can_copy: bool,
+    },
 }
 
 /// What setting up an item did, so it can be undone from the same place.
@@ -311,6 +410,22 @@ pub enum Undo {
         /// Each key and the fingerprint of the value that was set (its
         /// formatting aside; the value itself is never recorded).
         entries: Vec<(String, String)>,
+    },
+    /// D-51: take a project's copied notes out again
+    /// ([`crate::memory::undo`]): the index lines added, each while it's
+    /// there, and the notes made, all only while each is as it was made.
+    RemoveNotes {
+        /// Each note made and its hash.
+        files: Vec<(PathBuf, String)>,
+        /// Folders made, removed when empty.
+        dirs: Vec<PathBuf>,
+        /// The index lines were added to, when any were.
+        index: Option<PathBuf>,
+        /// The exact lines added to it.
+        lines: Vec<String>,
+        /// Whether the index was made by the copy (removed again when
+        /// nothing else is in it).
+        index_created: bool,
     },
 }
 

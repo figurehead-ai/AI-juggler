@@ -7,8 +7,9 @@
  */
 import type { AccountInfo } from "./bridge";
 import type { RailItem } from "./rail-items";
+import type { ConversationInfo } from "./ipc/conversations";
 
-export type HomeNeedKind = "session" | "limit" | "failed" | "signin" | "mac" | "heavy" | "leftovers";
+export type HomeNeedKind = "session" | "limit" | "failed" | "signin" | "mac" | "heavy" | "leftovers" | "quota";
 
 export interface HomeNeed {
   key: string;
@@ -22,10 +23,12 @@ export interface HomeNeed {
   item?: RailItem;
   account?: AccountInfo;
   sessionId?: string;
+  /** An out-of-room account's open session in another app (F16). */
+  conversation?: ConversationInfo;
 }
 
 /** The order kinds come in: what blocks work first. */
-const ORDER: HomeNeedKind[] = ["session", "limit", "failed", "signin", "mac", "heavy", "leftovers"];
+const ORDER: HomeNeedKind[] = ["session", "limit", "failed", "quota", "signin", "mac", "heavy", "leftovers"];
 
 export interface NeedInputs {
   /** The rail's Needs you (sessions that ask, are stuck, failed, hit a
@@ -103,5 +106,9 @@ export function primaryWords(need: HomeNeed): string {
       return "Take a look";
     case "leftovers":
       return "Clean up";
+    // AJ-E2501: an account almost out of room (the notification model's own).
+    // F16: its open session's switch, else its account, named so.
+    case "quota":
+      return need.sessionId || need.conversation ? "Continue on another account…" : "Open its account";
   }
 }

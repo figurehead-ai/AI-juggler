@@ -54,13 +54,18 @@ fn resolve_here(
     HandoverRejection,
 > {
     let (profile, account) = crate::commands::find_profile_with_account_arc(state, recipe_id)
-        .map_err(|_| refuse("unknown_record", "No such Launch settings on this Mac."))?;
+        .map_err(|_| {
+            refuse(
+                "unknown_record",
+                "No such Launch settings on this computer.",
+            )
+        })?;
     let project = state
         .storage
         .lock()
         .ok()
         .and_then(|storage| storage.projects().get(&ProjectId::new(project_id)).ok())
-        .ok_or_else(|| refuse("unknown_record", "No such project on this Mac."))?;
+        .ok_or_else(|| refuse("unknown_record", "No such project on this computer."))?;
     Ok((profile, account, project))
 }
 
@@ -279,14 +284,14 @@ pub(crate) fn launch_here(
     let assertion = crate::identity::assert_identity(state, account)?;
     let spec = adapter.launch_spec(account, profile, &project.root, mode)?;
     let session = SessionId::new(format!("sess-{}", crate::commands::unique_suffix()));
-    // Intent before spawn (ADR-0010 §1): the row first, then the process.
-    let spawned = crate::features::sessions::spawn::spawn_tracked(
+    // The one path: the row first (ADR-0010 §1), then the bridge and the
+    // account's key in the launch, under the supervisor.
+    let started = crate::features::sessions::spawn::start_session(
         state,
         &crate::features::sessions::spawn::NewSession {
             id: &session,
             account,
             profile: &profile.id,
-            kind: InstanceKind::Terminal,
             project: Some(project.id.clone()),
             cwd: spec.cwd.clone(),
             conversation: transcript
@@ -296,13 +301,10 @@ pub(crate) fn launch_here(
             transcript_ref: transcript,
             origin: "switch",
         },
-        || {
-            let ctx = crate::commands::ledger_ctx(state, account, Some(project.id.to_string()));
-            Ok(state.supervisor.spawn(&session, &spec, &ctx)?)
-        },
+        crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
     crate::identity::record(state, &session, account, &assertion, moment);
-    Ok((session, spawned.pid))
+    Ok((session, started.spawned.pid))
 }
 
 /// Records the edge here under the console's ids: the work item, a

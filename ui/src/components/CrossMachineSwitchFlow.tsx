@@ -174,10 +174,10 @@ export function CrossMachineSwitchFlow({
                 </p>
               </>
             )}
-            <p className="text-body text-ink">The original stays safe on this Mac until the new session is running.</p>
+            <p className="text-body text-ink">The original stays safe on this computer until the new session is running.</p>
             {holding && (
               <p className="text-body font-semibold text-ink" role="status" data-testid="cross-switch-holding">
-                Still sending. Choose Stop sending to stop it; nothing changes on either Mac.
+                Still sending. Choose Stop sending to stop it; nothing changes on either computer.
               </p>
             )}
           </div>
@@ -192,13 +192,15 @@ export function CrossMachineSwitchFlow({
           </div>
         );
       case "failed":
+        // A short title, then the failure's own words: what happened and
+        // what to do next, each said once, the other computer named
+        // (crossmachine/failure.rs). Nothing is added to them here.
         return (
           <div className="flex flex-col gap-4" data-testid="cross-switch-failed" role="alert">
             <h3 className="text-title text-warning">The switch didn't complete</h3>
             <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="cross-switch-failed-words">
               {phase.message}
             </p>
-            <p className="text-body text-ink">Nothing was changed: the original stays exactly as it was on this Mac — resume it where you left it, or try again.</p>
           </div>
         );
     }

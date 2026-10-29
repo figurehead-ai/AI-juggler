@@ -318,17 +318,45 @@ fn scan_zcode_rollout(text: &str, out: &mut Vec<Detection>) {
     }
 }
 
+/// How specific a kind is: when two detections cover the same bytes, the
+/// more specific one names the secret (`API_KEY=sk-…` is an API key, not
+/// just a secret value).
+const fn specificity(kind: &str) -> u8 {
+    match kind.as_bytes() {
+        b"private-key" => 4,
+        b"sk-key" => 3,
+        b"bearer" | b"zcode-rollout" => 2,
+        _ => 1,
+    }
+}
+
 /// Scans ONE segment for all five kinds, sorted by byte start then
-/// kind (deterministic order).
+/// kind (deterministic order). Detections that overlap are one secret:
+/// they merge into one span covering both (so nothing of either is left
+/// unstripped), named by the more specific kind. One key is never
+/// counted twice (lab 2026-10-26: `API_KEY=sk-…` was "1 secret values"
+/// and "1 API keys").
 #[must_use]
 fn scan_segment(text: &str) -> Vec<Detection> {
-    let mut out = Vec::new();
-    scan_sk(text, &mut out);
-    scan_bearer(text, &mut out);
-    scan_env_value(text, &mut out);
-    scan_private_key(text, &mut out);
-    scan_zcode_rollout(text, &mut out);
-    out.sort_by(|a, b| (a.start, a.kind).cmp(&(b.start, b.kind)));
+    let mut found = Vec::new();
+    scan_sk(text, &mut found);
+    scan_bearer(text, &mut found);
+    scan_env_value(text, &mut found);
+    scan_private_key(text, &mut found);
+    scan_zcode_rollout(text, &mut found);
+    found.sort_by(|a, b| (a.start, a.kind).cmp(&(b.start, b.kind)));
+    let mut out: Vec<Detection> = Vec::with_capacity(found.len());
+    for detection in found {
+        match out.last_mut() {
+            Some(last) if detection.start < last.end => {
+                last.end = last.end.max(detection.end);
+                if specificity(detection.kind) > specificity(last.kind) {
+                    last.kind = detection.kind;
+                }
+            }
+            _ => out.push(detection),
+        }
+    }
     out
 }
 
@@ -603,6 +631,30 @@ mod tests {
         // The detected value is the part after `sk-`.
         assert!(listed[0].preview.starts_with('a'));
         assert!(listed[0].preview.ends_with("2222"));
+    }
+
+    /// Lab 2026-10-26 (messaging, finding 6): `API_KEY=sk-…` is one key.
+    /// Both the env-value and the API-key scans see it; it's counted once,
+    /// as an API key, and stripped whole.
+    #[test]
+    fn one_key_seen_by_two_scans_is_one_secret() {
+        let text = "API_KEY=sk-lab-0123456789abcdef\nGET /orders";
+        let detections = scan_segment(text);
+        assert_eq!(detections.len(), 1);
+        assert_eq!(detections[0].kind, "sk-key");
+        let (stripped, counts) = strip_segments(&[text.to_owned()], true, &BTreeSet::new());
+        assert_eq!(stripped[0], "API_KEY=•••\nGET /orders");
+        assert_eq!(
+            counts,
+            vec![RedactionCount {
+                kind: "sk-key".into(),
+                count: 1
+            }]
+        );
+        // A bearer token inside a secret value: one secret, stripped whole.
+        let text = "TOKEN=abcdefgh Bearer zzzzzzzz12345678";
+        let (stripped, _) = strip_segments(&[text.to_owned()], true, &BTreeSet::new());
+        assert!(!stripped[0].contains("zzzz"), "nothing of either is left");
     }
 
     #[test]

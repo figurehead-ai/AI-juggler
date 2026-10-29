@@ -8,7 +8,8 @@
 import { useEffect, useRef } from "react";
 import { hasLiveBackend, statsEvent } from "./bridge";
 import { matches, type AppShortcutId, type KeyLike } from "./shortcuts";
-import { undoLatest } from "../components/Toast";
+import { showToast, undoLatest } from "../components/Toast";
+import { focusHandover, NO_SESSION_OPEN } from "./handover-focus";
 
 /** AJ-E1103: one keyboard shortcut used (the schema's names). */
 export function shortcutUsed(shortcut: string): void {
@@ -19,6 +20,11 @@ export function shortcutUsed(shortcut: string): void {
 export interface AppKeyActions {
   openShortcuts: () => void;
   togglePalette: () => void;
+  /** AJ-E2503: the notification centre (⌥⌘N, D-50). */
+  toggleNotifications: () => void;
+  /** D-50: ⌘N. */
+  newSession: () => void;
+  /** D-50: ⌘⇧N. */
   newProject: () => void;
   toggleRail: () => void;
   toggleInspector: () => void;
@@ -52,9 +58,18 @@ export function useAppKeys(actions: AppKeyActions): void {
       window.dispatchEvent(new Event("aij:focus-search"));
       d.togglePalette();
     },
-    // AJ-E305 flow (b).
-    "new-project": () => {
+    notifications: () => {
+      shortcutUsed("other");
+      d.toggleNotifications();
+    },
+    // D-50: ⌘N opens New session (deep/11 §3, §4.8); New project is ⌘⇧N
+    // (AJ-E305 flow (b)).
+    "new-session": () => {
       shortcutUsed("new_session");
+      d.newSession();
+    },
+    "new-project": () => {
+      shortcutUsed("other");
       d.newProject();
     },
     // The old collapse, kept for muscle memory.
@@ -109,12 +124,12 @@ export function useAppKeys(actions: AppKeyActions): void {
       shortcutUsed("other");
       d.openSettings();
     },
-    // AJ-E506: ⌘⇧C opens the Cleanup Centre; ⌘F focuses its filter.
-    cleanup: () => {
+    // AJ-E506/E2404: ⌘⇧C opens Processes; ⌘F focuses its search.
+    processes: () => {
       shortcutUsed("other");
       d.goTo("cleanup");
     },
-    "cleanup-filter": () => {
+    "processes-search": () => {
       if (!d.onCleanup()) return false;
       shortcutUsed("search");
       d.focusCleanupFilter();
@@ -127,7 +142,8 @@ export function useAppKeys(actions: AppKeyActions): void {
     },
     handover: () => {
       shortcutUsed("switch");
-      window.dispatchEvent(new Event("aij:focus-handover"));
+      // F8: the open session's switch list, any kind; else why not.
+      if (!focusHandover()) showToast({ id: "handover", message: NO_SESSION_OPEN });
     },
   } satisfies Record<AppShortcutId, (event?: KeyLike) => boolean | void>;
       // A sheet that is open owns its plain keys (`?` typed in it).

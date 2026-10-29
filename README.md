@@ -115,7 +115,8 @@ with [What's open, and getting to it](./docs/guide/whats-open.md).
 | A switch prepared while an account runs low, so it's ready when the limit comes | Beta: new in 0.1 |
 | Crash reports, scrubbed on your Mac (off unless you choose) | Kept on your Mac; this version can't send them anywhere yet |
 | Fleet: your other Macs in one window: their sessions, starting a session on one, usage by machine | Beta: checked with two copies on one Mac, not yet across two Macs ([guide](./docs/guide/fleet.md)) |
-| More tools (OpenCode, ZCode, Kimi and others) | Planned |
+| OpenCode, Kimi Code and Grok Build | Beta: built from their source and docs, not yet checked live |
+| More tools (ZCode, Kiro and others) | Planned |
 | Windows and Linux | Not before 1.0 |
 
 ## Supported tools
@@ -124,8 +125,12 @@ with [What's open, and getting to it](./docs/guide/whats-open.md).
 | --- | --- |
 | **Claude Code** (the `claude` command) | Sessions, usage, limits, starting sessions, switching (beta) |
 | **Codex** (the `codex` command) | Sessions, usage, limits, starting sessions, switching (beta) |
+| **OpenCode** (the `opencode` command, 1.x and 2.x) | Beta, not yet checked live: sessions, usage (tokens, and its own cost estimate), starting sessions, rules and MCP servers |
+| **Grok Build** (the `grok` command) | Beta, not yet checked live: sessions, starting sessions (your Claude and Cursor setups stay out of it), rules and MCP servers; its usage isn't read yet |
+| **Kimi Code** (the `kimi` command, 2.x) | Beta, not yet checked live: sessions, starting sessions (never by itself on a Kimi plan, which is for interactive use only), rules, skills and MCP servers; its usage isn't read yet |
 | **Claude app** (desktop) | Its open sessions are shown under each of its profiles, with Go to it; This Mac measures its memory and CPU |
 | **Codex app** (desktop) | Its open threads are shown, with Go to it |
+| **Through another service**: OpenCode Go and Kimi, on Claude Code and Codex | Beta, not yet checked live: an account whose key you paste once (kept in the macOS Keychain), with a Claude Code or Codex profile pointed at the address the service publishes. Its usage is an estimate (OpenCode Go) or unknown (Kimi), and switching to it is never a proven one-click switch |
 
 AI Juggler finds each tool through your shell's `PATH`, the way your terminal
 does, even when you open the app from Finder.
@@ -136,7 +141,10 @@ does, even when you open the app from Finder.
 
 - Your tool setups: Claude Code's `~/.claude` (and other Claude folders you
   use) and Codex's `~/.codex`, to list conversations and count usage from
-  their transcripts.
+  their transcripts; OpenCode's `~/.local/share/opencode` database, read
+  without changing it, and its settings in `~/.config/opencode`; Kimi
+  Code's `~/.kimi-code` session list and settings; Grok Build's
+  `~/.grok` sessions and settings.
 - Account names and emails from those setups, so you can tell accounts
   apart and see which profiles share one.
 - Which sessions each app has open, from the apps' own session files, and
@@ -150,8 +158,11 @@ does, even when you open the app from Finder.
   changing them, for which repository each of their worktrees belongs to and
   which config folders their profiles use. Nothing else they keep.
 
-It checks only whether a sign-in exists. It never reads your passwords,
-tokens or API keys, and never opens the tools' Keychain items.
+It checks only whether a sign-in exists. It never reads the passwords,
+tokens or API keys your tools keep, and never opens the tools' Keychain
+items. The one key it holds is one you give it: for an account added
+through another service, kept in AI Juggler's own Keychain item and handed
+only to that account's sessions when they start.
 
 **Writes:**
 
@@ -186,6 +197,9 @@ tokens or API keys, and never opens the tools' Keychain items.
 **Sends:**
 
 - An update check to GitHub at launch.
+- Once a day, a question to npm's public registry for the newest version of
+  each tool you have an account on (turn it off on any tool's page). It
+  never updates a tool.
 - Nothing else unless you turn it on: usage statistics (off by default, see
   [docs/usage-stats.md](./docs/usage-stats.md)), Fleet (your own Macs talk
   directly to each other on your network, with no relay), and the optional
@@ -194,7 +208,10 @@ tokens or API keys, and never opens the tools' Keychain items.
   crash reports on, it also looks through macOS's own crash reports for AI
   Juggler's, and keeps only what failed and where.
 
-AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider.
+AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider,
+and sets no proxy for your tools. It points a tool at another address only
+for an account you add through another service, and only at the address
+that service publishes.
 
 [What AI Juggler touches](./docs/guide/trust.md) has the full list, and
 names the tests that check each line. The same list is in the app, under

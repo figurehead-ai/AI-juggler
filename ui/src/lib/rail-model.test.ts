@@ -27,7 +27,7 @@ function talk(id: string, over: Partial<ConversationInfo> = {}): ConversationInf
   return {
     id, tool: "claude-code", account_id: "a1", account_label: "Work Max", project_id: null, cwd: "/w/app", title: `Talk ${id}`, git_branch: "main",
     started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null, live: true, session_id: null, places: [place("Claude", "Work")],
-    pid: 10, state: "idle", probably: false, viewed_ms: null, background: false, inactive: false, ...over,
+    pid: 10, state: "idle", probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null, ...over,
   };
 }
 
@@ -41,6 +41,12 @@ function own(id: string, over: Partial<InstanceInfo> = {}): InstanceInfo {
 }
 
 describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
+  it("a payload without viewed_ms reads as never viewed, not NaN", () => {
+    // The 0.2.0 re-render: an older reader's rows said "viewed NaN d ago".
+    const { viewed_ms: _drop, ...older } = talk("old", { state: "working" });
+    expect(conversationItem(older as ConversationInfo, none, null).viewedMs).toBeNull();
+  });
+
   it("every app's status maps onto Asks you, Working, Idle, Done (review it), Ended", () => {
     expect(conversationItem(talk("a", { state: "asks_you" }), none, null).state).toBe("asks_you");
     expect(conversationItem(talk("w", { state: "working" }), none, null).state).toBe("working");
@@ -54,6 +60,22 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
     expect(sessionItem(own("l", { status: "quota_blocked", needs_attention: "quota_blocked" }), none, false).need).toBe("limit");
     expect(sessionItem(own("f", { status: "failed" }), none, false)).toMatchObject({ state: "ended", need: "failed" });
     expect(sessionItem(own("x", { status: "finished" }), none, false).state).toBe("ended");
+    // AJ-E2302/E2306: a runtime that says (its protocol or its hooks) is
+    // the state, exactly: idle while running, not "working".
+    const exact = (state: string) => own("r", { runtime: { kind: "driven", label: null, beta: false, state, asks: [], can_steer: false, fell_back: null, error: null, limits: [], cut_off: null } });
+    expect(sessionItem(exact("idle"), none, false)).toMatchObject({ state: "idle", probably: false });
+    expect(sessionItem(exact("working"), none, false).state).toBe("working");
+    expect(sessionItem(exact("nonsense"), none, false).state).toBe("working");
+  });
+
+  it("a row's state follows the backend's need: one word on Home, in the centre and on the rail (the 0.2 walk, F4)", () => {
+    const needOf = new Map([["c:a1/w", "review" as const], ["s:s", "asks" as const]]);
+    const items = itemsOf({ sessions: [own("s")], conversations: [talk("w", { state: "working" })], projects: [], seen: {}, needOf });
+    expect(items.find((item) => item.key === "c:a1/w")).toMatchObject({ need: "review", state: "done_review" });
+    expect(items.find((item) => item.key === "s:s")).toMatchObject({ need: "asks", state: "asks_you" });
+    // A failure keeps the state it has.
+    const failed = itemsOf({ sessions: [own("f")], conversations: [], projects: [], seen: {}, needOf: new Map([["s:f", "failed" as const]]) });
+    expect(failed[0]).toMatchObject({ need: "failed", state: "working" });
   });
 
   it("anything worked out says probably", () => {
@@ -80,7 +102,9 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
       seen: {},
     });
     expect(needsYou(items).map((item) => item.key)).toEqual(["c:a1/theirs", "s:mine", "s:lim", "c:a1/rev"]);
-    expect(items.filter(openNow).map((item) => item.key)).toEqual(["c:a1/calm"]);
+    // D-47 (it was "not in Needs you"): what needs you stays open in its
+    // place too; Needs you is a shortcut to it.
+    expect(items.filter(openNow).map((item) => item.key)).toEqual(["s:mine", "s:lim", "c:a1/theirs", "c:a1/rev", "c:a1/calm"]);
   });
 
   it("AI Juggler's own sessions are the place AI Juggler; a snoozed one waits in it", () => {
@@ -132,6 +156,20 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
     expect(groups.map((group) => [group.label, group.items.length])).toEqual([["Claude Max", 2], ["Own", 1]]);
   });
 
+  it("by pool (AJ-E1702): your pools by name, a session another app runs in no pool, last", () => {
+    const all = itemsOf({ sessions: [own("s1"), own("s2")], conversations: [talk("c1")], projects: [], seen: {} });
+    const poolOf = (item: { session: InstanceInfo | null }) =>
+      item.session === null ? null : item.session.id === "s1" ? { id: "p-team", label: "Team" } : { id: "p-default", label: "app · all sessions" };
+    const groups = groupItems(all, "pool", none, poolOf);
+    expect(groups.map((group) => [group.label, group.poolId, group.items.length])).toEqual([
+      ["app · all sessions", "p-default", 1],
+      ["Team", "p-team", 1],
+      ["Not in a pool", null, 1],
+    ]);
+    // A pool's header is the pool, never a place to bring forward.
+    expect(groups.every((group) => group.place === null)).toBe(true);
+  });
+
   it("open in two places is one row that says so", () => {
     const both = items().find((item) => item.key === "c:a1/both")!;
     expect(both.alsoIn).toEqual(["Terminal · Work"]);
@@ -152,8 +190,10 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
     const pin = sessionItem(own("pin", { status: "finished", pinned: true, last_activity_ms: NOW - 9_000_000 }), none, false);
     expect(openNow(pin)).toBe(true);
     expect(endedToday(pin, NOW)).toBe(false);
-    // Needs you still comes first: a pinned one that asks is there.
-    expect(openNow(sessionItem(own("ask", { status: "waiting_user", pinned: true }), none, false))).toBe(false);
+    // D-47: a pinned one that asks stays in its place, and Needs you lists it.
+    const asks = sessionItem(own("ask", { status: "waiting_user", pinned: true }), none, false);
+    expect(openNow(asks)).toBe(true);
+    expect(needsYou([asks])).toHaveLength(1);
     const quiet = [...Array(5)].map((_, n) => sessionItem(own(`q${n}`, { status: "stopped", last_activity_ms: NOW - n }), none, false));
     const group = groupItems([...quiet, pin], "place")[0]!;
     expect(isQuiet(group)).toBe(false);
@@ -170,10 +210,12 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
 });
 
 describe("the View and its words (AJ-E2104 Req.5)", () => {
-  it("is read guarded: junk, a wrong shape or Pool (not yet) is the defaults", () => {
+  it("is read guarded: junk or a wrong shape is the defaults; Pool is kept as picked", () => {
     expect(parseView(null)).toEqual(DEFAULT_VIEW);
     expect(parseView("{not json")).toEqual(DEFAULT_VIEW);
-    expect(parseView(JSON.stringify({ group: "pool" })).group).toBe("place");
+    expect(parseView(JSON.stringify({ group: "lanes" })).group).toBe("place");
+    // AJ-E1702: the rail shows places until a pool of yours exists.
+    expect(parseView(JSON.stringify({ group: "pool" })).group).toBe("pool");
     expect(parseView(JSON.stringify({ group: "project", show: { ended: true, quiet: "yes" }, only: { app: "Claude", mac: 3 } }))).toEqual({
       group: "project",
       show: { ...DEFAULT_VIEW.show, ended: true },
@@ -238,8 +280,39 @@ describe("the maintainer's review of 0.1.4: the way out, and folding in place", 
     const items = [conversationItem(talk("asks", { state: "asks_you" }), none, null), conversationItem(talk("busy", { state: "working" }), none, null)];
     const { lines } = buildLines({ items, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null });
     const kinds = (folded: ("needs" | "open")[]) => foldSections(lines, new Set(folded)).map((line) => line.kind);
-    expect(kinds([])).toEqual(["section", "need", "section", "header", "row", "also"]);
-    expect(kinds(["needs"])).toEqual(["section", "section", "header", "row", "also"]);
+    // D-47: the one asking is a Needs you row and a row in its place.
+    expect(kinds([])).toEqual(["section", "need", "section", "header", "row", "row", "also"]);
+    expect(kinds(["needs"])).toEqual(["section", "section", "header", "row", "row", "also"]);
     expect(kinds(["open"])).toEqual(["section", "need", "section", "also"]);
+  });
+});
+
+describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
+  it("is the subagent count its tab reads, never its child processes", () => {
+    expect(sessionItem(own("s1", { subtask_count: 3, child_count: 5 }), none, false).subagents).toBe(3);
+    expect(sessionItem(own("s2", { subtask_count: null, child_count: 2 }), none, false).subagents).toBe(0);
+  });
+
+  it("a session another app runs has its count too, whatever its tool", () => {
+    for (const tool of ["codex", "opencode", "grok-build", "kimi-code", "claude-code"]) {
+      expect(conversationItem(talk(`t-${tool}`, { tool, subtask_count: 2 }), none, null).subagents).toBe(2);
+    }
+    // Not read yet: no count, never a guessed one.
+    expect(conversationItem(talk("unread", { tool: "codex", subtask_count: null }), none, null).subagents).toBe(0);
+  });
+
+  it("AI Juggler's own session of a tool without hooks is one row once linked, carrying the count", () => {
+    for (const tool of ["opencode", "grok-build", "kimi-code"]) {
+      const session = own(`s-${tool}`, { subtask_count: 2 });
+      // Its conversation, linked to it by the backend (features/sessions/linking.rs).
+      const linked = talk(`c-${tool}`, { tool, session_id: session.id, subtask_count: null });
+      const items = itemsOf({ sessions: [session], conversations: [linked], projects: [], seen: {} });
+      expect(items).toHaveLength(1);
+      expect(items[0].session?.id).toBe(session.id);
+      expect(items[0].subagents).toBe(2);
+      // Not linked (more than one could be its own): both rows, as before.
+      const unlinked = talk(`c-${tool}`, { tool, session_id: null });
+      expect(itemsOf({ sessions: [session], conversations: [unlinked], projects: [], seen: {} })).toHaveLength(2);
+    }
   });
 });

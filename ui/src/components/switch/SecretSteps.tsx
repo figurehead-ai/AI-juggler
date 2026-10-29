@@ -7,13 +7,29 @@
  * place of the value), a Copy button and Check again.
  */
 import { useState, type JSX } from "react";
-import type { OfferInfo } from "../../lib/ipc/switchSetup";
+import type { GetItInfo } from "../../lib/ipc/switchSetup";
+import { errorText } from "../../lib/bridge";
 
 const BUTTON = "min-h-7 rounded-lg border border-hairline px-3 text-meta text-ink hover:bg-surface-2";
 
-export function SecretSteps({ offer, to, onRecheck, checking }: { offer: OfferInfo; to: string; onRecheck?: () => void; checking?: boolean }): JSX.Element {
+export function SecretSteps({
+  getIt,
+  name,
+  to,
+  onCheckAgain,
+}: {
+  getIt: GetItInfo;
+  /** What it's for ("github"), for the words and the controls' names. */
+  name: string;
+  /** The account it's for. */
+  to: string;
+  /** Reads the account again; resolves to what it found, in words. */
+  onCheckAgain?: () => Promise<string>;
+}): JSX.Element {
   const [copied, setCopied] = useState<"yes" | "no" | null>(null);
-  const command = offer.steps_command;
+  const [status, setStatus] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const command = getIt.command;
   const copy = async () => {
     if (!command) return;
     try {
@@ -23,13 +39,24 @@ export function SecretSteps({ offer, to, onRecheck, checking }: { offer: OfferIn
       setCopied("no");
     }
   };
+  const checkAgain = async () => {
+    if (!onCheckAgain) return;
+    setChecking(true);
+    try {
+      setStatus(await onCheckAgain());
+    } catch (cause) {
+      setStatus(errorText(cause));
+    } finally {
+      setChecking(false);
+    }
+  };
   return (
     <div className="flex flex-col gap-1.5" data-testid="switch-setup-secret-steps">
       <p className="text-body text-ink">
-        You can switch now; it doesn't stop the switch. Tick it to set {offer.name} up on {to} without the value, and give {to} its own copy:
+        Tick it to set {name} up on {to} without the value, and give {to} its own copy:
       </p>
       <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-meta text-ink">
-        {offer.steps.map((step) => (
+        {getIt.steps.map((step) => (
           <li key={step}>{step}</li>
         ))}
       </ol>
@@ -40,12 +67,12 @@ export function SecretSteps({ offer, to, onRecheck, checking }: { offer: OfferIn
       )}
       <div className="flex flex-wrap items-center gap-2">
         {command && (
-          <button type="button" onClick={() => void copy()} className={BUTTON} data-testid="switch-setup-copy">
+          <button type="button" onClick={() => void copy()} className={BUTTON} aria-label={`Copy the command for ${name}`} data-testid="switch-setup-copy">
             Copy
           </button>
         )}
-        {onRecheck && (
-          <button type="button" onClick={onRecheck} disabled={checking} className={BUTTON} data-testid="switch-setup-recheck">
+        {onCheckAgain && (
+          <button type="button" onClick={() => void checkAgain()} disabled={checking} className={BUTTON} aria-label={`Check again for ${name}`} data-testid="switch-setup-recheck">
             {checking ? "Checking…" : "Check again"}
           </button>
         )}
@@ -55,6 +82,11 @@ export function SecretSteps({ offer, to, onRecheck, checking }: { offer: OfferIn
           </span>
         )}
       </div>
+      {status && (
+        <p className="text-meta text-ink" role="status">
+          {status}
+        </p>
+      )}
     </div>
   );
 }

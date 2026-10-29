@@ -67,6 +67,10 @@ async function shoot(page: Page, name: string, theme: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`a session row: ⋯, right-click and Shift+F10 open the same menu — ${theme}`, gate("77-menus"), async ({ page }) => {
     await seed(page, theme);
+    // The rail's Needs you fills in from the backend's count after the
+    // first paint (F2): a menu opened before then stays where its row was
+    // (as the project menu's, bb86b07a).
+    await expect(page.getByTestId("rail-needs-you")).toHaveText(/Needs you\s*5/);
     // The row and its ⋯: the same session either way.
     const row = page.locator(".group", { has: page.locator('[data-instance-id="sess-2"]') }).first();
     await row.hover();
@@ -91,7 +95,11 @@ for (const theme of ["dark", "light"] as const) {
     const at = (await page.getByRole("menu").boundingBox())!;
     const pointer = { x: box.x + 40, y: box.y + 10 };
     expect(Math.abs(at.x - pointer.x)).toBeLessThanOrEqual(1);
-    expect(Math.min(Math.abs(at.y - pointer.y), Math.abs(at.y + at.height - pointer.y))).toBeLessThanOrEqual(1);
+    // At the pointer, flipped above it, or (a menu taller than the room on
+    // either side) moved up just enough to stay in the window.
+    const viewport = page.viewportSize()!;
+    const fits = Math.abs(at.y + at.height - (viewport.height - 4));
+    expect(Math.min(Math.abs(at.y - pointer.y), Math.abs(at.y + at.height - pointer.y), fits)).toBeLessThanOrEqual(1);
     await page.keyboard.press("Escape");
     await row.getByRole("button").first().focus();
     await page.keyboard.press("Shift+F10");

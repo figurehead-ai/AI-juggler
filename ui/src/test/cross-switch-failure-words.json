@@ -1,0 +1,126 @@
+[
+  {
+    "kind": "no-project",
+    "words": "This session isn't in a project, so nothing moved. Start the work from a project to move it to another computer."
+  },
+  {
+    "kind": "unresolved",
+    "words": "AI Juggler couldn't tell which file holds this conversation, so nothing moved. Resume it on this computer where you left it."
+  },
+  {
+    "kind": "not-ready",
+    "words": "AI Juggler couldn't get the handover ready, so nothing was sent. Try again."
+  },
+  {
+    "kind": "cant-transplant",
+    "words": "Claude Code can't move this same conversation, so nothing moved. Use “Full story, fresh start” instead."
+  },
+  {
+    "kind": "not-installed",
+    "words": "Claude Code isn't installed on Studio, so nothing moved. Install it on Studio, then try again."
+  },
+  {
+    "kind": "destination-gone",
+    "words": "That account on Studio isn't offered any more, so nothing moved. Pick another destination."
+  },
+  {
+    "kind": "link-off",
+    "words": "Link is off on this computer, so nothing was sent. Turn Link on in Fleet, then try again."
+  },
+  {
+    "kind": "offline",
+    "words": "Studio is offline, so nothing was sent. Check that Studio is on with AI Juggler open, then try again."
+  },
+  {
+    "kind": "unreachable",
+    "words": "Studio couldn't be reached, so nothing was sent. Check that Studio is on and connected, then try again."
+  },
+  {
+    "kind": "cancelled",
+    "words": "You stopped sending, so nothing changed on either computer. Switch again when you're ready."
+  },
+  {
+    "kind": "not-paired",
+    "words": "Studio doesn't recognise this computer any more, so nothing moved. Pair the two again in Fleet, then try again."
+  },
+  {
+    "kind": "view-only",
+    "words": "Studio lets this computer view only, so nothing moved. Give this computer View + control in Fleet on Studio, then try again."
+  },
+  {
+    "kind": "other-release",
+    "words": "Studio runs another release of AI Juggler, so nothing moved. Update AI Juggler on both computers, then try again."
+  },
+  {
+    "kind": "busy",
+    "words": "Studio is still taking another handover from this computer, so nothing moved. Wait for it to finish, then try again."
+  },
+  {
+    "kind": "original-running",
+    "words": "The original is still running on Studio, so nothing moved. Stop it on Studio, then try again."
+  },
+  {
+    "kind": "too-many-requests",
+    "words": "Studio got too many requests at once, so nothing moved. Wait a moment, then try again."
+  },
+  {
+    "kind": "just-connected",
+    "words": "Studio has only just connected, so nothing moved. Wait a few seconds, then try again."
+  },
+  {
+    "kind": "clocks-apart",
+    "words": "The clocks on this computer and Studio are more than 5 minutes apart, so nothing moved. Turn on automatic time on both computers, then try again."
+  },
+  {
+    "kind": "expired",
+    "words": "The request took too long to reach Studio, so nothing moved. Try again."
+  },
+  {
+    "kind": "unreadable",
+    "words": "Studio couldn't read what was sent, so nothing moved. Try again."
+  },
+  {
+    "kind": "too-large-same-conversation",
+    "words": "This conversation is too large to send to Studio, so nothing moved. Use “Full story, fresh start” instead."
+  },
+  {
+    "kind": "too-large-fresh-start",
+    "words": "This conversation is too large to send to Studio, so nothing moved. Start a new session on Studio instead."
+  },
+  {
+    "kind": "missing-there",
+    "words": "That account or project isn't on Studio any more, so nothing moved. Pick another destination."
+  },
+  {
+    "kind": "original-missing",
+    "words": "The original isn't on Studio any more, so nothing moved. Keep working here."
+  },
+  {
+    "kind": "original-unreadable",
+    "words": "The original on Studio couldn't be read, so nothing moved. Keep working here."
+  },
+  {
+    "kind": "other-tool",
+    "words": "Studio can't continue this same conversation, so nothing moved. Use “Full story, fresh start” instead."
+  },
+  {
+    "kind": "other-version",
+    "words": "Claude Code on Studio isn't the same version as on this computer, so nothing moved. Use “Full story, fresh start” instead."
+  },
+  {
+    "kind": "set-up-failed",
+    "words": "Studio couldn't set up the conversation, so nothing moved. Try again, or use “Full story, fresh start” instead."
+  },
+  {
+    "kind": "start-failed",
+    "words": "The session on Studio didn't start, so nothing moved. Check that Claude Code works on Studio, then try again."
+  },
+  {
+    "kind": "signed-in-else",
+    "words": "The account on Studio is signed in as someone else now, so nothing moved. Sign it back in on Studio, then try again."
+  },
+  {
+    "kind": "went-wrong-there",
+    "words": "Something went wrong on Studio, so nothing moved. Try again."
+  }
+]

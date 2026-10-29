@@ -183,6 +183,26 @@ fn ranking_is_suggest_only_sessions_untouched() {
     );
 }
 
+/// The 0.2 walk (F17): with no folder picked, New session said "used most
+/// here" of every account.
+#[test]
+fn no_folder_picked_never_says_used_most_here() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    seed(&state, dir.path());
+    for row in ranking_rows_inner(&state, None).unwrap() {
+        let words: Vec<&str> = row
+            .factors
+            .iter()
+            .map(|(words, _)| words.as_str())
+            .collect();
+        assert!(!words.contains(&"used most here"), "{words:?}");
+        if row.filtered_reason.is_none() {
+            assert!(words.contains(&"no folder picked yet"), "{words:?}");
+        }
+    }
+}
+
 #[test]
 fn renewal_approaching_joins_digest_once_not_the_fsm() {
     let dir = tempfile::tempdir().unwrap();

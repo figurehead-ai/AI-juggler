@@ -78,6 +78,7 @@ function outsideOne(id: string, over: Partial<ConversationInfo> = {}): Conversat
     viewed_ms: null, probably: false,
     background: false,
     inactive: false,
+    subtask_count: null,
     ...over,
   };
 }

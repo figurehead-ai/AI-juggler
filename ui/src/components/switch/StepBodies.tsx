@@ -7,9 +7,13 @@ import type { JSX } from "react";
 import type { PreflightInfoData } from "../../lib/bridge";
 import { badgeWords, stageWords } from "../../lib/switch-words";
 import { outsideWords } from "../SwitchFreezeChoice";
+import { risky, RoomNote } from "./TargetRoom";
 
-/** Step 1: where it goes, what moves, and only real risks. */
-export function TargetStep({ preflight, target }: { preflight: PreflightInfoData; target: string }): JSX.Element {
+export { risky, useTargetRoom } from "./TargetRoom";
+import type { TargetRoom } from "../../lib/room-targets";
+
+/** Step 1: where it goes, what goes along, its room, and only real risks. */
+export function TargetStep({ preflight, target, room }: { preflight: PreflightInfoData; target: string; room: TargetRoom | null }): JSX.Element {
   return (
     <div className="flex flex-col gap-3" data-testid="switch-step-target">
       <h3 className="text-title text-ink">Switch to {target}</h3>
@@ -18,7 +22,11 @@ export function TargetStep({ preflight, target }: { preflight: PreflightInfoData
       </p>
       <p className="text-body text-ink" data-testid="switch-move-line">
         {preflight.move_line}
+        {/* The move line says what goes along; where the original stays is
+            said once, here, or by the outside line below. */}
+        {!preflight.source_outside && " The original stays as it was."}
       </p>
+      <RoomNote room={room} target={target} />
       {preflight.wizard_reasons.length > 0 && (
         <ul className="flex flex-col gap-1.5" data-testid="switch-wizard-reasons">
           {preflight.wizard_reasons.map((reason) => (
@@ -33,7 +41,7 @@ export function TargetStep({ preflight, target }: { preflight: PreflightInfoData
           {outsideWords(preflight.source_app, preflight.source_live, target)}
         </p>
       )}
-      <p className="text-meta text-ink">Nothing moves until you choose Switch now on the last step.</p>
+      <p className="text-meta text-ink">Nothing happens until you choose {risky(room) ? "Switch anyway" : "Switch now"} on the last step.</p>
     </div>
   );
 }

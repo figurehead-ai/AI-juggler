@@ -108,6 +108,8 @@ fn the_handover_is_written_for_this_user_only_and_pointed_at() {
         turns_included: 2,
         turns_left_out: 0,
         rules_files: Vec::new(),
+        notes_quoted: Vec::new(),
+        notes_left_out: Vec::new(),
     };
     let file = write(dir.path(), "the brief", &state).unwrap();
     assert_eq!(file, dir.path().join("switches/edge-42/HANDOVER.md"));
@@ -142,4 +144,29 @@ fn the_handover_is_written_for_this_user_only_and_pointed_at() {
         "{prompt}"
     );
     assert!(!prompt.contains("below"), "{prompt}");
+}
+
+#[test]
+fn switching_back_names_only_the_rules_the_returning_tool_doesnt_load() {
+    let claude = spec("claude-code", "Claude Code", &["CLAUDE.md"]);
+    let codex = spec("codex", "Codex", &["AGENTS.md"]);
+    let rules = vec![
+        RulesFile {
+            name: "CLAUDE.md".into(),
+            tools: vec!["Claude Code".into()],
+        },
+        RulesFile {
+            name: "AGENTS.md".into(),
+            tools: vec!["Codex".into()],
+        },
+    ];
+    let note = rules_while_away(&rules, &codex).unwrap();
+    assert!(
+        note.starts_with(
+            "While away the work also followed rules files Codex doesn't load itself:"
+        )
+    );
+    assert!(note.contains("  CLAUDE.md (read by Claude Code)"));
+    assert!(!note.contains("AGENTS.md"));
+    assert_eq!(rules_while_away(&rules[..1], &claude), None);
 }

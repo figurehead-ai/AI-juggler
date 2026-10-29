@@ -17,6 +17,13 @@ blocker stops every promotion until it's fixed or relabelled. A rule can
 be overridden only with a written reason (Promote's `override` input),
 which is kept in the channel tag.
 
+macOS is the only OS shipped today. Windows and Linux each get one
+dedicated first release (D-52); from then on they are built, signed and
+published by this same flow, with the same version and channels: every
+nightly carries every shipped OS, and one promote moves them all. Their
+packaging and signing sections will be added here with their first
+releases (AJ-E2614, AJ-E2713).
+
 There is **one version stream**. A build is made once, by the nightly
 workflow, with the next version as Semantic Versioning has it: `MAJOR.MINOR`
 from `Cargo.toml` (raised by hand), and a patch that starts at 0 for each new
@@ -230,7 +237,22 @@ fails on one of them, re-run its failed jobs from the run page.
    `FH_SITE=<website clone> scripts/stats_schema_diff.sh` at that commit. It
    must report identical, because the server rejects anything its copy
    doesn't list.
-3. **Notes for users.** Write `docs/releases/X.Y.Z.md` on `main` (they
+3. **Tool runtimes (D-40, ADR-0022).** Two checks, each a line in the
+   release PR:
+   - **Codex's protocol.** Generate the installed Codex's app-server
+     schema offline and record its surface (the commands are at the top
+     of `scripts/codex_app_server_surface.py`). A new Codex version gets
+     its own `surface-<version>.json` fixture; the adapter's tests then
+     say whether every method AI Juggler uses is still there. A version
+     that lost one starts in the terminal by itself, with the reason.
+   - **Anthropic's terms for "Run without a terminal" (Beta).** Re-read
+     the pages ADR-0022 decision 4 names (Claude Code's legal and
+     compliance page, the Agent SDK overview, the headless page and the
+     Help Center article on `claude -p` and subscription limits) and
+     confirm they still allow a user's own installed `claude -p` on their
+     own subscription. If they no longer do, the Beta is switched off in
+     that release (its gate fails), and the notes say so.
+4. **Notes for users.** Write `docs/releases/X.Y.Z.md` on `main` (they
    replace the generated nightly notes). The website shows this text as is,
    and `scripts/release_notes_check.sh X.Y.Z` enforces the rules:
    - The first line is one plain sentence on what the release is about.
@@ -242,7 +264,7 @@ fails on one of them, re-run its failed jobs from the run page.
      features as beta, and never call switching lossless.
    - No task IDs, PR numbers, internal names or file paths. No raw HTML:
      screenshots are uploaded to the release and linked with Markdown.
-4. **The update on a real setup.** Updates are where real data and real
+5. **The update on a real setup.** Updates are where real data and real
    signing meet, and two updates in a row failed there and nowhere else
    (0.1.0: a signature without its version; 0.1.3: a project name read as
    a key by the backup before the update). On the Mac with the real setup,
@@ -256,14 +278,14 @@ fails on one of them, re-run its failed jobs from the run page.
    ```
    It must pass. The signature check (`scripts/updater_sig_check.py`, in the
    sign job) covers the other half.
-5. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
+6. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
    It checks the build, the notes and the D-24 requirements
    (`scripts/promotion_rules.py`: 3+ days since the build was published, no
    open `blocker`), runs the accessibility gate on the exact commit
    (`just a11y-gate`, AJ-E804; pull requests that change the interface
    already ran it in CI), then waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
    the release and in its feed, and tags it `beta/vX.Y.Z`.
-6. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
+7. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
    must not complain. Settings › About & updates shows the version.
 
 **Promoting a version to stable** works the same way, with channel
@@ -381,7 +403,9 @@ saved (it never risks it). So:
   an earlier version" puts back.
 - When a release changes the schema, add it to the table below and to
   `SCHEMA_RELEASES` in `crates/juggler-app/src/newer_data.rs` (it names the
-  version in "Prepare to go back to …").
+  version in "Prepare to go back to …" and "Install … from the releases
+  page", so it's the newest release on that schema: a patch release on
+  the newest schema moves that line to itself).
 
 | Version | Schema | Opens the previous version's data | The previous version opens its data |
 |---|---|---|---|
@@ -389,7 +413,8 @@ saved (it never risks it). So:
 | 0.0.8 | 28 (accounts used in place) | yes | **no** — downgrade note in 0.0.8's notes |
 | 0.0.9 | 29 (session footprints) | yes | **no** — downgrade note in 0.0.9's notes; 0.0.9 keeps a `before-v28` copy, so "Go back to an earlier version" can return to 0.0.8 |
 | 0.0.13 | 30 (account rename, remove and default; account audit) | yes | **no** — downgrade note in 0.0.13's notes; 0.0.13 keeps a `before-v29` copy, so "Go back to an earlier version" can return to 0.0.12 |
-| 0.1.x | 31 (session and project names, pins, forgotten projects; AJ-E1502) | yes | **no** — downgrade note in 0.1's notes (the version is filled in when 0.1 is cut) |
+| 0.1.0 | 32 (31: session and project names, pins, forgotten projects, AJ-E1502; 32: other managers' worktree homes, AJ-E1519) | yes | **no** — downgrade note in 0.1.0's notes; 0.1.0 keeps a `before-v30` copy, so "Go back to an earlier version" can return to 0.0.17 |
+| 0.2.x | 37 (33: pools, AJ-E1702; 34: messages between agents, E18; 35: other apps' processes, D-41; 36: tasks shared by pools, E19; 37: the notification model's history and mutes, AJ-E2501) | yes | **no** — 0.2's notes need the downgrade note ("Going back to 0.1.0 or earlier…"); 0.2 keeps a `before-v32` copy, so "Go back to an earlier version" can return to 0.1.0 |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database

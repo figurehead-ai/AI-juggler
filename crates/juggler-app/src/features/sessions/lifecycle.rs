@@ -35,6 +35,11 @@ pub fn spawn_forwarder(state: Arc<AppState>) {
 /// One lifecycle event, stored with everything that follows from it.
 pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
     let stopped_by_user = state.supervisor.was_stopped(event.session());
+    // AJ-E2405: a helper left behind shows in the Processes view at once,
+    // and the user hears of it once per session.
+    if let LifecycleEvent::HelperOrphaned { session, pid } = &event {
+        crate::features::processes::helper_orphaned(state, session, *pid);
+    }
     // AJ-E405: classify non-zero exits against the captured
     // output tail BEFORE the status mapping runs — a rate-limit
     // signature is QuotaBlocked (immediate), not a crash.

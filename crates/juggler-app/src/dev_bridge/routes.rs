@@ -193,12 +193,12 @@ read_routes! {
     "providers_capabilities" => async_result commands::providers_capabilities(state);
     "accounts_list" => async_result commands::accounts_list(state);
     "subscriptions_list" => async_result features::subscriptions::commands::subscriptions_list(state);
+    "service_accounts_catalog" => async_result features::service_accounts::commands::service_accounts_catalog(state);
     "account_audit" => async_result manage::account_audit(state; account_id: String);
     "account_storage" => async_result history::account_storage(state);
     "launch_recipes_list" => async_result commands::profiles_list(state);
     "instances_list" => async_result commands::sessions_list(state);
     "instance_quality" => async_result commands::instance_quality(state; session_id: String);
-    "instance_processes" => async_result commands::instance_processes(state; session_id: String);
     "instance_replay" => async_result history::instance_replay(state; session_id: String);
     "sessions_history" => async_result features::sessions::commands::sessions_history(state; session_id: String, page: crate::paging::PageRequest);
     "transcript_search" => async_result history::transcript_search(state; query: String);
@@ -228,7 +228,6 @@ read_routes! {
     "machine_health" => async_result machine_health::machine_health(state);
     "machine_advice" => async_result machine_health::machine_advice(state);
     "port_inventory" => async_result commands::port_inventory(state);
-    "cleanup_inventory" => async_result commands::cleanup_inventory(state; filter: String, machine_scope: Option<String>);
     "cleanup_status" => async_result commands::cleanup_status(state);
     "cleanup_tiers_get" => async_result commands::cleanup_tiers_get(state; account_id: String);
     "recovery_summary_get" => async_result commands::recovery_summary_get(state);
@@ -245,6 +244,7 @@ read_routes! {
     "link_status" => async_result link::link_status(state);
     // release/0.1's reads (AJ-E1525, E1502, E1504, E1529, E1533).
     "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
+    "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
     "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
@@ -258,6 +258,11 @@ read_routes! {
     "editor_choices" => async_result manage::editor_choices(state);
     "session_prefs_get" => async_result settings_policy::session_prefs_get(state);
     "notifications_get" => async_result features::notifications::prefs::notifications_get(state);
+    // AJ-E2501: the notification model's summary and lists (reads only).
+    "notifications_summary" => async_result features::notifications::commands::notifications_summary(state);
+    "notifications_page" => async_result features::notifications::commands::notifications_page(state; section: String, request: crate::paging::PageRequest);
+    "notifications_mutes" => async_result features::notifications::commands::notifications_mutes(state; request: crate::paging::PageRequest);
+    "notifications_snoozes" => async_result features::notifications::commands::notifications_snoozes(state; request: crate::paging::PageRequest);
     // AJ-E1507: the project's rules and servers, compared (reads only).
     "project_sync_rules" => async_result features::project_sync::commands::project_sync_rules(state; project_id: String, master: Option<String>);
     "project_sync_diff" => async_result features::project_sync::commands::project_sync_diff(state; project_id: String, master: String, file: String, how: String);
@@ -279,10 +284,41 @@ read_routes! {
     "switch_back_plan" => async_result commands::switch_back_plan(state; session_id: String, to_epoch: Option<String>);
     "switch_graph_overview" => async_result commands::switch_graph_overview(state; project_id: String);
     "staging_ready" => async_result features::staging::staging_ready(state; session_id: String);
-    "subtasks_list" => async_result features::subtasks::commands::subtasks_list(state; session_id: String);
     "app_quit_plan" => async_result quit::app_quit_plan(state);
     "fleet_launch_options" => async_result features::fleet::fleet_launch_options(state);
     "fleet_usage_by_machine" => async_result features::fleet::fleet_usage_by_machine(state);
+    // AJ-E1702/E1703: the pools, a pool's members a page at a time, and
+    // one session's place (reads only).
+    "pools_list" => async_result features::pools::commands::pools_list(state);
+    "pools_members" => async_result features::pools::commands::pools_members(state; pool_id: String, page: crate::paging::PageRequest);
+    "pools_place" => async_result features::pools::commands::pools_place(state; session_id: String);
+    // E18: messages' lists (reads only; opening a thread marks it read).
+    "messages_threads" => async_result features::messages::commands::messages_threads(state; pool_id: Option<String>, session_id: Option<String>, cursor: Option<String>);
+    "messages_needs" => async_result features::messages::commands::messages_needs(state);
+    "messages_docs" => async_result features::messages::commands::messages_docs(state; pool_id: String, cursor: Option<String>);
+    "messages_links" => async_result features::messages::commands::messages_links(state; pool_id: String);
+    // E17 and E23: the agent tools' settings, and the runtimes' reads.
+    "agent_bridge_get" => async_result features::agent_bridge::commands::agent_bridge_get(state);
+    "runtime_get" => async_result features::runtime::commands::runtime_get(state; session_id: String);
+    "runtime_asks" => async_result features::runtime::commands::runtime_asks(state; offset: Option<u32>, limit: Option<u32>);
+    "runtime_trust" => async_result features::runtime::trust::runtime_trust(state; profile_id: String, cwd: Option<String>);
+    "runtime_choices" => async_result features::runtime::commands::runtime_choices(state);
+    // AJ-E2401/E2405: the Processes view's rows, counts, history and
+    // rules (reads only; nothing is stopped or marked).
+    "processes_page" => async_result features::processes::commands::processes_page(state; input: features::processes::dto::ProcessQueryInput, page: crate::paging::PageRequest);
+    "processes_status" => async_result features::processes::commands::processes_status(state);
+    "processes_counts" => async_result features::processes::commands::processes_counts(state);
+    "processes_history" => async_result features::processes::commands::processes_history(state; session_id: Option<String>, project_id: Option<String>, page: crate::paging::PageRequest);
+    "processes_dry_run" => async_result features::processes::commands::processes_dry_run(state; account_id: String, tier: u8);
+    "processes_policy" => async_result features::processes::commands::processes_policy(state);
+    // E19: tasks' lists (reads only).
+    "tasks_list" => async_result features::tasks::commands::tasks_list(state; pool_id: String, filter: Option<String>, words: Option<String>, page: crate::paging::PageRequest);
+    "tasks_counts" => async_result features::tasks::commands::tasks_counts(state; pool_id: String);
+    "tasks_plan" => async_result features::tasks::commands::tasks_plan(state; pool_id: String, page: crate::paging::PageRequest);
+    "tasks_children" => async_result features::tasks::commands::tasks_children(state; pool_id: String, parent: String, page: crate::paging::PageRequest);
+    "tasks_session" => async_result features::tasks::commands::tasks_session(state; session_id: String, page: crate::paging::PageRequest);
+    "tasks_detail" => async_result features::tasks::commands::tasks_detail(state; task_id: String, cursor: Option<String>);
+    "tasks_needs" => async_result features::tasks::commands::tasks_needs(state);
 }
 
 /// The `Read` commands the bridge doesn't serve, and why. Every other
@@ -291,6 +327,14 @@ read_routes! {
 /// checks it).
 #[cfg(test)]
 pub const NOT_SERVED: &[(&str, &str)] = &[
+    (
+        "features::messages::commands::messages_doc",
+        "a shared document's whole text; the list of documents is served",
+    ),
+    (
+        "features::messages::commands::messages_search",
+        "searches agents' message words; the threads are served",
+    ),
     (
         "usage_stats::usage_stats_report",
         "a usage-statistics report the user reviews before it's sent",
@@ -338,6 +382,14 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
     ("commands::funnel_export", "an export the user saves"),
     ("commands::cleanup_audit_export", "an export the user saves"),
     (
+        "features::processes::commands::processes_snapshot",
+        "an export the user saves",
+    ),
+    (
+        "features::processes::commands::processes_observed_verify",
+        "the check made just before the user stops another app's process; the bridge stops nothing",
+    ),
+    (
         "commands::launch_port_warning",
         "checked just before a launch",
     ),
@@ -352,6 +404,10 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
     (
         "features::app::login_item::app_login_item_get",
         "asks macOS about the login item, not the app's data",
+    ),
+    (
+        "features::app::user::app_user_get",
+        "the user's name from the system, not the app's data",
     ),
 ];
 

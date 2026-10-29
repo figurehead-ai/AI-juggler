@@ -35,7 +35,7 @@ pub fn user_copy(situation: CopySituation) -> String {
             "Continues on {account_b} with the full conversation. Running tools and subagents stop; {account_a} stays resumable."
         ),
         CopySituation::TransplantUnproven { account_a } => format!(
-            "Beta, not proven yet: the whole session moves, with its subagents and file history. {account_a} stays resumable."
+            "Beta, not proven yet: the whole session is carried over, with its subagents and file history. {account_a} stays resumable."
         ),
         CopySituation::ReplayCrossProvider {
             provider_b,
@@ -266,16 +266,17 @@ impl SwitchFailure {
         }
     }
 
-    /// What a person reads: one plain sentence (or two), with the
-    /// accounts named — `source` is the account the work comes from,
-    /// `target` the one it was going to. The detail in brackets (an OS
-    /// string, a spawn error, an id) never shows; it stays in
+    /// What a person reads: what happened, then what to do next, each
+    /// said once (the switch dialog adds only a short title above it),
+    /// with the accounts named — `source` is the account the work comes
+    /// from, `target` the one it was going to. The detail in brackets (an
+    /// OS string, a spawn error, an id) never shows; it stays in
     /// `Display`, which goes to the error log.
     #[must_use]
     pub fn words(&self, source: &str, target: &str) -> String {
         match self {
             Self::UnresolvedSource => format!(
-                "AI Juggler couldn't tell which file holds this conversation on {source}, so nothing moved."
+                "AI Juggler couldn't tell which file holds this conversation on {source}, so nothing moved. Resume it on {source} where you left it."
             ),
             Self::TornTail => format!(
                 "The original on {source} is still writing its reply, so nothing moved. Let it finish, or stop it, and try again."
@@ -284,13 +285,15 @@ impl SwitchFailure {
                 format!("{target} already has this conversation, so it opened as a separate copy.")
             }
             Self::StagingAborted(_) => format!(
-                "Copying to {target} stopped partway, so nothing moved. What was copied has been cleaned up."
+                "Copying to {target} stopped partway, so nothing moved. What was copied has been cleaned up: try again."
             ),
             Self::LaunchFailed(_) => {
-                format!("The new session on {target} didn't start, so nothing moved.")
+                format!(
+                    "The new session on {target} didn't start, so nothing moved. Try again, or resume it on {source} where you left it."
+                )
             }
             Self::PrimeQuotaDeath(tokens) => format!(
-                "{target} ran out of usage while picking up the work, so it stopped after using about {} tokens.",
+                "{target} ran out of usage while picking up the work, so it stopped after using about {} tokens. Pick another account.",
                 thousands(*tokens)
             ),
             Self::OriginalSessionGone => format!(
@@ -307,17 +310,19 @@ impl SwitchFailure {
                 "{target} has no usage left and doesn't reset before you'd need it, so nothing moved. Pick another account."
             ),
             Self::Preflight(PreflightStop::VersionDrift) => format!(
-                "{target}'s version of its tool hasn't been checked with this kind of switch yet, so nothing moved."
+                "{target}'s version of its tool hasn't been checked with this kind of switch yet, so nothing moved. Pick another account."
             ),
             Self::Adapter(_) => {
-                format!("The switch to {target} couldn't finish, so nothing moved.")
+                format!("Something went wrong on the way to {target}, so nothing moved. Try again.")
             }
         }
     }
 }
 
-/// `12345` as `12,345`.
-fn thousands(value: u64) -> String {
+/// `12345` as `12,345`: every count the switch says (its failures here,
+/// its dialog's words in the app).
+#[must_use]
+pub fn thousands(value: u64) -> String {
     let digits = value.to_string();
     let mut out = String::with_capacity(digits.len() + digits.len() / 3);
     for (index, digit) in digits.chars().enumerate() {
@@ -561,12 +566,6 @@ pub fn execute(
             disposition: "copy".to_owned(),
         })
         .collect();
-    let source_dir = reference
-        .path
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_default();
-
     // Stage + verify (atomic, fork-aware). An adapter failure here
     // cleaned its own temp (E204); nothing partial remains.
     let install = support.install_bundle(&bundle, target)?;
@@ -594,9 +593,12 @@ pub fn execute(
     // verified stage — the caller retries from it.
     let pid = launch(&install).map_err(SwitchFailure::LaunchFailed)?;
 
-    // Copy-never-move, checked post-launch too.
+    // Copy-never-move, checked post-launch too: each file where the
+    // adapter read it (a session's file history isn't beside the
+    // transcript: found by the live lab of 2026-10-28, every such switch
+    // failed here as "the source changed").
     for row in &source_hashes {
-        let path = source_dir.join(&row.rel_path);
+        let path = support.source_file(reference, &row.rel_path);
         match std::fs::read(&path) {
             Ok(bytes) if sha256_hex(&bytes) == row.sha256 => {}
             _ => {
@@ -626,7 +628,6 @@ fn verify_installed(
     bundle: &juggler_adapter::handover::SessionBundle,
     target: &Account,
 ) -> Vec<ManifestRow> {
-    let history_area = format!("{}/", juggler_adapter::handover::FILE_HISTORY_AREA);
     let dir = install
         .reference
         .path
@@ -647,10 +648,8 @@ fn verify_installed(
             };
             // AJ-E1540: a file-history file lives in the account's own
             // `file-history/`, not beside the transcript.
-            let path = match name.strip_prefix(&history_area) {
-                Some(rest) => target.state_dir.join("file-history").join(rest),
-                None => dir.join(&name),
-            };
+            let path = juggler_adapter::handover::account_area_path(&target.state_dir, &name)
+                .unwrap_or_else(|| dir.join(&name));
             let bytes = std::fs::read(path).unwrap_or_default();
             ManifestRow {
                 rel_path: name,

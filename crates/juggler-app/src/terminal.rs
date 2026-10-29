@@ -82,6 +82,29 @@ pub fn spawn_login_terminal_impl(
     })
 }
 
+/// AJ-E2304: the real terminal UI on a driven session's conversation (its
+/// adapter's terminal view: `codex --remote …` attached live, or the
+/// tool's resume after the driver let go), in AI Juggler's terminal. An
+/// owned child like a sign-in terminal, under the session's account.
+///
+/// # Errors
+///
+/// The supervisor's spawn error.
+pub fn spawn_view_terminal(
+    app: &AppHandle,
+    state: &Arc<AppState>,
+    account: &juggler_core::model::Account,
+    spec: &juggler_adapter::LaunchSpec,
+) -> AppResult<TerminalInfo> {
+    let id = SessionId::new(format!("view-{}", unique_suffix()));
+    // Its account's key, through the one spawn path.
+    crate::features::sessions::spawn::spawn_view(state, &id, account, spec)?;
+    attach_forwarder(app, state, &id);
+    Ok(TerminalInfo {
+        id: id.as_str().to_string(),
+    })
+}
+
 /// Starts streaming a supervised session to the webview (idempotent: one
 /// forwarder per terminal regardless of how often the UI re-attaches —
 /// e.g. after a panel close/reopen).

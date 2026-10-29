@@ -881,6 +881,10 @@ pub struct ToolTreeInfo {
     pub helpers: u32,
     /// "CPU 95%", "3.2 GB" — only when the tree is heavy.
     pub heavy_note: Option<String>,
+    /// For another app's session the Processes view found (AJ-E2407): its
+    /// title, else its app's name; for a whole group, the group's words.
+    #[ts(optional = nullable)]
+    pub title: Option<String>,
     /// The memory is an estimate: helper RSS summed, so memory those
     /// helpers share is counted once per helper (a tool AI Juggler didn't
     /// start, whose exact footprint needs an unsafe OS call). Show it as
@@ -952,6 +956,12 @@ pub struct TreeInput {
     pub ring: Vec<TreeSample>,
     /// AJ-E512 hog rules that fired for it.
     pub hog_rules: Vec<String>,
+    /// For another app's session the Processes view found (AJ-E2407): the
+    /// app it runs in (`ChatGPT`, `Terminal`); `None` for the Claude tools
+    /// their own scan finds.
+    pub app: Option<String>,
+    /// That session's title, when it has one.
+    pub title: Option<String>,
 }
 
 /// An observed tree's group and words, from its adapter's shape.
@@ -1059,6 +1069,7 @@ fn tree_info(tree: &TreeInput) -> ToolTreeInfo {
         rss_bytes: tree.stats.rss_bytes,
         helpers: tree.stats.child_count,
         heavy_note: heavy_note(tree),
+        title: tree.title.clone().or_else(|| tree.app.clone()),
         memory_estimate: tree.place.is_some(),
     }
 }
@@ -1189,6 +1200,8 @@ fn tree_inputs(
                 place: None,
                 observed: None,
                 stats,
+                app: None,
+                title: None,
             });
         }
         let observed = collector.observed_snapshot();
@@ -1210,8 +1223,17 @@ fn tree_inputs(
                 stats: tree.stats,
                 ring: tree.ring.iter().copied().collect(),
                 hog_rules: Vec::new(),
+                app: None,
+                title: None,
             });
         }
+        // AJ-E2407: every other app's AI session the Processes view found
+        // (any tool, any app), unless a row above already counts its tree.
+        trees.extend(crate::machine_tools::graph_trees(
+            &state.processes.graph(),
+            &observed,
+            &collector.observed_extra_snapshot(),
+        ));
     }
     Ok(trees)
 }
@@ -1251,7 +1273,10 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
         .iter()
         .filter(|row| row.state == "orphaned" && row.role == "helper")
         .collect();
-    let leftovers = (
+    // AJ-E2401: This Mac's "Left behind" is the Processes view's count, the
+    // top bar's (ours and other apps' leftovers, didn't-stop, less what the
+    // user kept); the ledger's count only until the graph's first tick.
+    let leftovers = state.processes.leftovers().unwrap_or((
         u32::try_from(orphaned.len()).unwrap_or(u32::MAX),
         u32::try_from(
             orphaned
@@ -1260,7 +1285,7 @@ pub fn this_mac_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<ThisMacInf
                 .count(),
         )
         .unwrap_or(u32::MAX),
-    );
+    ));
     let mut info = assemble(machine, &trees, leftovers);
     // The other apps, from the table the collector already holds: copied
     // out under its lock, grouped outside it.
@@ -1385,6 +1410,8 @@ pub fn emit_this_mac(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult
     let payload = this_mac_impl(state, crate::commands::now_millis())?;
     // AJ-E1510: This Mac getting tight, as a notification when asked for.
     crate::features::notifications::this_mac_room(state, &payload.machine.summary);
+    // D-49: Needs you reads This Mac on the same tick, window or not.
+    state.notifier.set_this_mac(payload.clone());
     let emit = LAST_EMITTED.lock().map_or(true, |mut last| {
         should_emit(
             &mut last,
@@ -1738,6 +1765,8 @@ mod tests {
             },
             ring: ring(cpu, rss, seconds),
             hog_rules: Vec::new(),
+            app: None,
+            title: None,
         }
     }
 

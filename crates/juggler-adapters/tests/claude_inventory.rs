@@ -16,7 +16,7 @@
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::inventory::{
-    Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Undo, Value,
+    Detail, Item, ItemKind, McpServer, McpTransport, Origin, Scope, SetUp, Undo, Value,
 };
 use juggler_adapters::claude_inventory::{can_set_up, inventory, set_up};
 
@@ -58,6 +58,10 @@ fn account(root: &Path) -> (PathBuf, PathBuf, PathBuf) {
     // claude.ai's synced skills: the same skill under two sync ids, and
     // one the account also has as its own files.
     write(&dir.join("skills/synced/set-1/pdf/SKILL.md"), "# PDF\n");
+    write(
+        &dir.join("skills/synced/set-1/manifest.json"),
+        r#"{"lastUpdated":1,"skills":[{"skillId":"pdf","name":"pdf","description":"x","source":"anthropic"}]}"#,
+    );
     write(&dir.join("skills/synced/set-2/pdf/SKILL.md"), "# PDF\n");
     write(
         &dir.join("skills/synced/set-2/review/SKILL.md"),
@@ -149,9 +153,16 @@ fn the_inventory_lists_what_the_account_has_and_nothing_else() {
         find(&items, ItemKind::Skill, "review").detail,
         Detail::Files { .. }
     ));
+    let pdf = find(&items, ItemKind::Skill, "pdf");
+    assert!(matches!(
+        &pdf.detail,
+        Detail::FromTheAccount { files: None, .. }
+    ));
     assert_eq!(
-        find(&items, ItemKind::Skill, "pdf").detail,
-        Detail::FromTheAccount
+        pdf.origin,
+        Origin::Provided {
+            by: "Anthropic".into()
+        }
     );
     assert_eq!(items.iter().filter(|item| item.name == "pdf").count(), 1);
     assert_eq!(items.iter().filter(|item| item.name == "review").count(), 1);
@@ -175,10 +186,16 @@ fn the_inventory_lists_what_the_account_has_and_nothing_else() {
             id: "lint@market".into()
         }
     );
+    let notes = find(&items, ItemKind::Plugin, "notes@synced");
     assert_eq!(
-        find(&items, ItemKind::Plugin, "notes@synced").detail,
-        Detail::FromTheAccount
+        notes.detail,
+        Detail::FromTheAccount {
+            source: None,
+            files: None,
+            requires: Vec::new()
+        }
     );
+    assert_eq!(notes.origin, Origin::Account);
     assert!(!items.iter().any(|item| item.name == "off@market"));
 
     // Permissions in words, the rule with a secret left out of the copy.
@@ -301,9 +318,14 @@ fn each_kind_says_whether_claude_can_set_it_up() {
         "a written-in token"
     );
     assert_eq!(verdict(ItemKind::Skill, "review"), SetUp::Copy);
-    assert!(
-        matches!(verdict(ItemKind::Skill, "pdf"), SetUp::Impossible(note) if note.contains("claude.ai"))
-    );
+    assert!(matches!(
+        verdict(ItemKind::Skill, "pdf"),
+        SetUp::TurnOn { get_it, can_copy: false } if get_it.steps.iter().any(|step| step.contains("Anthropic"))
+    ));
+    assert!(matches!(
+        verdict(ItemKind::Plugin, "notes@synced"),
+        SetUp::TurnOn { get_it, can_copy: false } if get_it.steps.iter().any(|step| step.contains("Customize > Plugins"))
+    ));
     assert_eq!(verdict(ItemKind::Command, "ship"), SetUp::Copy);
     assert_eq!(verdict(ItemKind::Subagent, "tester"), SetUp::Copy);
     assert_eq!(verdict(ItemKind::Rules, "rules/style.md"), SetUp::Copy);
@@ -320,6 +342,7 @@ fn each_kind_says_whether_claude_can_set_it_up() {
         name: "x".into(),
         scope: Scope::User,
         detail,
+        origin: juggler_adapter::inventory::Origin::Own,
     };
     let files = Detail::Files {
         path: dir.join("commands/ship.md"),
@@ -445,6 +468,7 @@ fn a_codex_prompt_becomes_a_claude_command_with_its_arguments_renumbered() {
         name: "fix".into(),
         scope: Scope::User,
         detail: Detail::Files { path: prompt },
+        origin: juggler_adapter::inventory::Origin::Own,
     };
     set_up(
         &to,
@@ -544,4 +568,142 @@ fn an_mcp_server_is_added_through_claude_itself() {
     )
     .unwrap_err();
     assert!(error.to_string().contains("boom"), "{error}");
+}
+
+/// switch-setup-items.md §1: a synced set's `manifest.json` says whose
+/// each skill is. `.trash` is never read, nor a skill's body, and a
+/// manifest that doesn't read says nothing rather than failing.
+#[test]
+fn synced_skills_say_where_they_came_from() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("claude-a");
+    let set = dir.join("skills/synced/org_acct");
+    write(
+        &set.join("manifest.json"),
+        &serde_json::json!({
+            "lastUpdated": 1,
+            "skills": [
+                {"skillId": "pdf", "name": "pdf", "description": "never kept", "source": "anthropic"},
+                {"skillId": "computer-use", "name": "computer-use", "source": "anthropic-example"},
+                {"skillId": "team-notes", "name": "team-notes", "source": "custom"}
+            ]
+        })
+        .to_string(),
+    );
+    write(&set.join("pdf/SKILL.md"), "---\nname: pdf\n---\n");
+    write(
+        &set.join("computer-use/SKILL.md"),
+        "---\nname: computer-use\nlicense: Proprietary. LICENSE.txt has complete terms\ncompatibility: Cowork in the desktop app with Computer use turned on\n---\n",
+    );
+    // The body says something that looks like a key: never read.
+    write(
+        &set.join("team-notes/SKILL.md"),
+        "---\nname: team-notes\n---\ncompatibility: from the body\n",
+    );
+    write(&set.join("no-row/SKILL.md"), "---\nname: no-row\n---\n");
+    write(
+        &dir.join("skills/.trash/1-2-3/old-skill/SKILL.md"),
+        "---\nname: old-skill\n---\n",
+    );
+    // A second set whose manifest doesn't read.
+    write(
+        &dir.join("skills/synced/other_acct/manifest.json"),
+        "{not json",
+    );
+    write(
+        &dir.join("skills/synced/other_acct/stray/SKILL.md"),
+        "---\nname: stray\n---\n",
+    );
+
+    let items = inventory(&dir, &dir.join(".claude.json"), None);
+    let origin = |name: &str| find(&items, ItemKind::Skill, name).origin.clone();
+    let anthropic = Origin::Provided {
+        by: "Anthropic".into(),
+    };
+    assert_eq!(origin("pdf"), anthropic);
+    assert_eq!(origin("computer-use"), anthropic);
+    assert_eq!(origin("team-notes"), Origin::Account);
+    assert_eq!(origin("no-row"), Origin::Unknown);
+    assert_eq!(origin("stray"), Origin::Unknown);
+    assert!(
+        !items.iter().any(|item| item.name == "old-skill"),
+        ".trash is never read"
+    );
+
+    let Detail::FromTheAccount {
+        source,
+        files,
+        requires,
+    } = &find(&items, ItemKind::Skill, "computer-use").detail
+    else {
+        panic!("a synced skill")
+    };
+    assert_eq!(source.as_deref(), Some("anthropic-example"));
+    assert!(files.is_none(), "a provided skill is never copied");
+    assert_eq!(
+        requires,
+        &vec!["Cowork in the desktop app with Computer use turned on".to_owned()]
+    );
+    let Detail::FromTheAccount {
+        files, requires, ..
+    } = &find(&items, ItemKind::Skill, "team-notes").detail
+    else {
+        panic!("a synced skill")
+    };
+    assert!(files.is_some(), "the account's own may be copied");
+    assert!(requires.is_empty(), "the body is never read");
+    assert!(!format!("{items:?}").contains("never kept"));
+
+    // Provided: turned on, with its plan and feature needs; never copied.
+    let SetUp::TurnOn { get_it, can_copy } =
+        can_set_up(find(&items, ItemKind::Skill, "computer-use"))
+    else {
+        panic!("a provided skill is turned on")
+    };
+    assert!(!can_copy);
+    assert_eq!(
+        get_it.open_url.as_deref(),
+        Some("https://claude.ai/customize/skills")
+    );
+    assert!(get_it.steps.last().unwrap().contains("so it syncs"));
+    assert!(
+        get_it
+            .needs
+            .iter()
+            .any(|need| need.text().contains("Pro or Max"))
+    );
+    // The account's: turned on (or uploaded), and it may be copied.
+    assert!(matches!(
+        can_set_up(find(&items, ItemKind::Skill, "team-notes")),
+        SetUp::TurnOn { can_copy: true, .. }
+    ));
+    assert!(matches!(
+        can_set_up(find(&items, ItemKind::Skill, "no-row")),
+        SetUp::TurnOn {
+            can_copy: false,
+            ..
+        }
+    ));
+
+    // Setting up: the provided one is refused whatever is asked; the
+    // account's is copied as new files, with an undo.
+    let to = root.path().join("claude-b");
+    std::fs::create_dir_all(&to).unwrap();
+    let go = |name: &str| {
+        set_up(
+            &to,
+            Path::new("claude"),
+            "",
+            &to.join(".claude.json"),
+            None,
+            find(&items, ItemKind::Skill, name),
+        )
+    };
+    assert!(go("computer-use").is_err());
+    assert!(go("pdf").is_err());
+    assert!(go("no-row").is_err());
+    assert!(!to.join("skills").exists(), "nothing written");
+    let applied = go("team-notes").unwrap();
+    assert!(to.join("skills/team-notes/SKILL.md").is_file());
+    assert!(matches!(applied.undo, Undo::RemoveCreated { .. }));
 }

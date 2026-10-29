@@ -14,6 +14,7 @@
 
 mod account_audit;
 mod accounts;
+mod agent_access;
 mod profiles;
 mod sessions;
 
@@ -22,10 +23,15 @@ mod cleanup_settings;
 mod fleet_sync;
 mod footprints;
 mod identity;
+mod messages;
+mod notices;
+mod pools;
 mod process_ledger;
 mod projects;
 mod settings;
+mod sightings;
 mod switch_graph;
+mod tasks;
 mod transcript_index;
 mod usage;
 mod usage_history;
@@ -36,6 +42,7 @@ use rusqlite::Connection;
 
 pub use account_audit::{AccountAuditRecord, AccountAuditRepo};
 pub use accounts::AccountsRepo;
+pub use agent_access::{AgentAccessRepo, AgentRule, AuditEntry, MADE_BY_USER};
 pub use cleanup_audit::{
     ACTOR_AUTO_TIER1, ACTOR_AUTO_TIER2, ACTOR_PREFIX_USER, AuditOutcomeInfo, CleanupAuditRecord,
     CleanupAuditRepo, OUTCOME_PENDING,
@@ -46,6 +53,17 @@ pub use footprints::{
     FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo, MIN_FOOTPRINT_MS,
 };
 pub use identity::{IdentityAssertion, IdentityRepo};
+pub use messages::{
+    Doc, HeldAsk, InboxRow, Message, MessageEvent, MessagesRepo, NewMessage, Recipient,
+    RecipientState, SENDER_USER, Thread, ThreadState,
+};
+pub use notices::{
+    NOTICE_KEEP_DAYS, NOTICE_KEEP_MS, NewNotice, Notice, NoticeMute, NoticesRepo, Written,
+};
+pub use pools::{
+    MemberRef, Memberships, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole, PoolsRepo,
+    default_pool_id, default_pool_name, resolve_memberships,
+};
 pub use process_ledger::{
     EXEC_SETTLE_MS, LedgerRow, ProcessLedgerRepo, ROLE_HELPER, ROLE_LOGIN, ROLE_ROOT, STATE_EXITED,
     STATE_ORPHANED, STATE_RUNNING, STATE_STARTING, STATE_UNVERIFIABLE,
@@ -53,9 +71,17 @@ pub use process_ledger::{
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
-pub use sessions::{SessionMarks, SessionsRepo};
+pub use sessions::{SessionBrief, SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
+pub use sightings::{
+    MarkKind, ProcessMark, SIGHTING_COLUMNS, SIGHTING_DAYS, SIGHTING_KEEP_MS, Sighting,
+    SightingsRepo,
+};
 pub use switch_graph::{SwitchGraphRepo, WorkGraph};
+pub use tasks::{
+    Claim, External, NewTask, TASK_USER, Task, TaskChange, TaskEvent, TaskKey, TaskLink, TaskNeed,
+    TaskQuery, TaskSession, TasksRepo,
+};
 pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
@@ -565,9 +591,34 @@ CREATE TABLE worktree_homes (
 );
 ";
 
+/// v33 (AJ-E1702): pools. The pools module owns its tables
+/// ([`pools::MIGRATION`]); they take their place in the one sequence here.
+const V33: &str = pools::MIGRATION;
+
+/// v34 (E18): messages between agents, their recipients and threads, the
+/// append-only event log, shared docs, pool links, held asks and pool
+/// pauses. The messages module owns its tables ([`messages::MIGRATION`]).
+const V34: &str = messages::MIGRATION;
+
+/// v35 (AJ-E2402, D-41a): sightings of the processes in sessions other
+/// apps run (names, times and a hashed command line only), and the user's
+/// marks on processes (Keep, Remind me later). The sightings module owns
+/// its tables ([`sightings::MIGRATION`]).
+const V35: &str = sightings::MIGRATION;
+
+/// v36 (E19): the tasks a pool shares, their links, the sessions that
+/// worked them, the append-only event log, and what waits on the user.
+/// The tasks module owns its tables ([`tasks::MIGRATION`]).
+const V36: &str = tasks::MIGRATION;
+
+/// v37 (AJ-E2501): the one notification model's history — what needs the
+/// user and what happened, kept 30 days — and the user's mutes. The
+/// notices module owns its tables ([`notices::MIGRATION`]).
+const V37: &str = notices::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -910,6 +961,47 @@ impl Storage {
     #[must_use]
     pub fn identity(&self) -> IdentityRepo<'_> {
         IdentityRepo::new(&self.conn)
+    }
+
+    /// Repository for pools, their members and grants (schema v33,
+    /// AJ-E1702).
+    #[must_use]
+    pub fn pools(&self) -> PoolsRepo<'_> {
+        PoolsRepo::new(&self.conn)
+    }
+
+    /// Repository for what agents may do in each pool: levels, rules,
+    /// approvals and the audit (schema v33, D-28).
+    #[must_use]
+    pub fn agent_access(&self) -> AgentAccessRepo<'_> {
+        AgentAccessRepo::new(&self.conn)
+    }
+
+    /// Repository for messages between agents, their docs, links, held
+    /// asks and pauses (schema v34, E18).
+    #[must_use]
+    pub fn messages(&self) -> MessagesRepo<'_> {
+        MessagesRepo::new(&self.conn)
+    }
+
+    /// Repository for sightings of other apps' sessions' processes and the
+    /// user's marks on processes (schema v35, AJ-E2402).
+    #[must_use]
+    pub fn sightings(&self) -> SightingsRepo<'_> {
+        SightingsRepo::new(&self.conn)
+    }
+
+    /// Repository for the tasks a pool shares (schema v36, E19).
+    #[must_use]
+    pub fn tasks(&self) -> TasksRepo<'_> {
+        TasksRepo::new(&self.conn)
+    }
+
+    /// Repository for the notification model's history and the user's
+    /// mutes (schema v37, AJ-E2501).
+    #[must_use]
+    pub fn notices(&self) -> NoticesRepo<'_> {
+        NoticesRepo::new(&self.conn)
     }
 
     /// Repository for footprints (schema v29, AJ-E1406).

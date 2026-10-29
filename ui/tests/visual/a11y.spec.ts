@@ -127,8 +127,8 @@ test("rail — no row overflows its width", async ({ page }) => {
 
 // AJ-E507 quality gate: axe-core 0 critical/serious on the kill
 // sheet — the ready (interactive) state and the failed-verification
-// explanation. The suite rides the same cleanup fixture as the
-// 20-kill gallery; the sheet opens the real way (row affordance).
+// explanation. The suite rides the Processes page's made-up Mac, as the
+// 20-kill gallery does; the sheet opens the real way (the row's Stop…).
 const KILL_VERIFY_OK = {
   pid: 8123,
   session: "s-1",
@@ -169,59 +169,13 @@ const KILL_VERIFY_FAILED = {
 for (const theme of ["dark", "light"] as const) {
   for (const state of ["ready", "refused"] as const) {
     test(`kill-sheet — ${state} — axe 0 critical/serious — ${theme}`, async ({ page }) => {
-      const cleanup = {
-        groups: [
-          {
-            session: "s-1",
-            provider: "claude-code",
-            account: "Work Max",
-            project: "web",
-            machine: "machine-local",
-            healthy: false,
-            rows: [
-              {
-                pid: 8123,
-                pgid: 8100,
-                role: "helper",
-                state: "orphaned",
-                state_label: "Still running after its session closed",
-                role_guess: "python3 (guess)",
-                exe_path: "/usr/bin/python3",
-                cmdline: "python3 -m http.server 5173",
-                age_ms: 9_000_000,
-                rss_bytes: 48 * 1024 * 1024,
-                cpu_pct: 1.4,
-                ports: "5173",
-                hog: false,
-                hog_rules: [],
-                evidence: {
-                  root_pid: 8100,
-                  parent_pid: 8100,
-                  pgid: 8100,
-                  escaped_group: false,
-                  verification: {
-                    verdict: "verified",
-                    detail: "start-time and exe match the live process",
-                  },
-                  first_seen: T0,
-                  last_seen: T0 + 90_000,
-                },
-              },
-            ],
-          },
-        ],
-        clean_instances: 2,
-        ledger_degraded: false,
-      };
       await page.addInitScript(
-        ({ fixture, t0, cleanup: c, theme: t, verify }) => {
+        ({ fixture, t0, theme: t, verify }) => {
           const w = window as unknown as {
             __AIJ_FIXTURE__?: unknown;
-            __AIJ_CLEANUP__?: unknown;
             __AIJ_KILL_VERIFY__?: unknown;
           };
           w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_CLEANUP__ = c;
           w.__AIJ_KILL_VERIFY__ = () => verify;
           localStorage.setItem("aij.theme", t);
           localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -231,7 +185,6 @@ for (const theme of ["dark", "light"] as const) {
         {
           fixture: allStatuses,
           t0: T0,
-          cleanup,
           theme,
           verify: state === "ready" ? KILL_VERIFY_OK : KILL_VERIFY_FAILED,
         },
@@ -239,9 +192,9 @@ for (const theme of ["dark", "light"] as const) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto("/");
-      await goTo(page, "Cleanup");
-      await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-      await page.getByTestId("cleanup-kill-8123").click();
+      await goTo(page, "Processes");
+      await expect(page.getByTestId("processes-page")).toBeVisible();
+      await page.getByTestId("process-stop-8123").click();
       await expect(
         page.getByTestId(state === "ready" ? "kill-ready-8123" : "kill-refused-8123"),
       ).toBeVisible();
@@ -353,7 +306,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await goTo(page, "Cleanup");
+    await goTo(page, "Processes");
     await expect(page.getByTestId("cleanup-tier2-notice-8123")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -403,7 +356,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await goTo(page, "Cleanup");
+    await goTo(page, "Processes");
     const reconfirm = page.getByTestId("cleanup-resume-button");
     await reconfirm.click();
     await expect(page.getByTestId("cleanup-resume-error")).toHaveText("Couldn't resume: the supervisor isn't answering");
@@ -502,14 +455,14 @@ for (const theme of ["dark", "light"] as const) {
           alerts: [
             {
               kind: "hog",
-              text: "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
+              text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
               pid: 8123,
               session: "s-1",
             },
             {
               kind: "idle",
-              text: "python3 has been idle for 2h — review it in Cleanup.",
-              pid: 8124,
+              text: "python3 has been idle for 2h — review it in Processes.",
+              pid: 8155,
               session: "s-1",
             },
           ],
@@ -519,7 +472,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await goTo(page, "Cleanup");
+    await goTo(page, "Processes");
     await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -552,109 +505,9 @@ for (const theme of ["dark", "light"] as const) {
 }
 
 
-// AJ-E511: axe-core 0 critical/serious on the fleet machine surfaces
-// (the machine column + the widened All-machines view with its
-// display-only foreign row).
-for (const theme of ["dark", "light"] as const) {
-  test(`fleet — machine column + filter — axe 0 critical/serious — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, t0, theme: t, cleanup }) => {
-        const w = window as unknown as Record<string, unknown>;
-        w.__AIJ_FIXTURE__ = fixture;
-        w.__AIJ_CLEANUP__ = cleanup;
-        // D-25: the machine filter shows once another Mac is paired.
-        w.__AIJ_FLEET_PEERS__ = [{
-          machine_id: "machine-studio", label: "Mac Studio", fingerprint: "11AA 22BB 33CC 44DD 55EE 66FF 7788 99AA",
-          permission: "view", permission_label: "View only", ask_each_time: false, paired_via: "code",
-          paired_at_ms: t0, last_seen_ms: t0, connection: "connected", protocol: "v1.0", connection_detail: null,
-        }];
-        localStorage.setItem("aij.theme", t);
-        localStorage.setItem("aij.onboarding.dismissed", "1");
-        sessionStorage.setItem("aij.ready.skipped", "1");
-        Date.now = () => t0;
-      },
-      {
-        fixture: allStatuses,
-        t0: T0,
-        theme,
-        cleanup: {
-          groups: [
-            {
-              session: "s-local", provider: "claude-code", account: "Work Max",
-              project: "web", machine: "machine-local", healthy: false,
-              rows: [
-                {
-                  machine_id: "machine-local", pid: 8123, pgid: 8100, role: "helper",
-                  state: "orphaned", state_label: "Still running after its session closed",
-                  role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
-                  cmdline: "python3 -m http.server 5173", age_ms: 9_000_000,
-                  rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
-                  hog: false, hog_rules: [],
-                  evidence: {
-                    root_pid: 8100, parent_pid: 8100, pgid: 8100, escaped_group: false,
-                    verification: { verdict: "verified", detail: "match" },
-                    first_seen: T0, last_seen: T0 + 90_000,
-                  },
-                },
-                {
-                  machine_id: "machine-studio", pid: 9101, pgid: 9100, role: "helper",
-                  state: "orphaned", state_label: "Still running after its session closed",
-                  role_guess: "node (guess)", exe_path: "/usr/local/bin/node",
-                  cmdline: "node vite dev", age_ms: 4_000_000,
-                  rss_bytes: 220 * 1024 * 1024, cpu_pct: 0.4, ports: "5174",
-                  hog: false, hog_rules: [],
-                  evidence: {
-                    root_pid: 9100, parent_pid: 9100, pgid: 9100, escaped_group: false,
-                    verification: { verdict: "verified", detail: "match (remote record)" },
-                    first_seen: T0, last_seen: T0 + 90_000,
-                  },
-                },
-              ],
-            },
-          ],
-          local_machine: "machine-local",
-          clean_instances: 2,
-          ledger_degraded: false,
-        },
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
-    await goTo(page, "Cleanup");
-    await page
-      .getByRole("combobox", { name: "Machine filter" })
-      .selectOption("all");
-    await expect(page.getByTestId("cleanup-machine-9101")).toBeVisible();
-    const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-      .analyze();
-    let serious = results.violations.filter((v) =>
-      ["serious", "critical"].includes(v.impact ?? ""),
-    );
-    if (serious.length > 0) {
-        // AJ-E806: confirmatory re-scan — load-induced contrast false
-        // positives do not survive; real violations still fail.
-        await page.waitForTimeout(400);
-        const confirm = await new AxeBuilder({ page })
-          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-          .analyze();
-        serious = confirm.violations.filter((v) =>
-          ["serious", "critical"].includes(v.impact ?? ""),
-        );
-    }
-    if (serious.length > 0) {
-      const summary = serious
-        .map(
-          (v) =>
-            `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`,
-        )
-        .join("\n");
-      throw new Error(`axe violations on the fleet surfaces (${theme}):\n${summary}`);
-    }
-    expect(serious).toHaveLength(0);
-  });
-}
+// AJ-E511's machine column and filter retired with the Cleanup Centre
+// (AJ-E2404): a paired Mac's leftovers are the Processes page's "Paired
+// machines" section, scanned by the AJ-E707 test below.
 
 
 // AJ-E611: axe-core 0 critical/serious on the ranking + notification
@@ -668,7 +521,7 @@ for (const theme of ["dark", "light"] as const) {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = fixture;
         w.__AIJ_RANKING__ = ranked;
-        w.__AIJ_ALERTS__ = events;
+        w.__AIJ_NOTICES__ = events;
         w.__AIJ_RESET_QUEUE__ = rows;
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -700,10 +553,29 @@ for (const theme of ["dark", "light"] as const) {
             suggested: false,
           },
         ],
-        events: [
-          { kind: "actionable", account: "claude-work", text: "Work Max has 8% left in its 5-hour window, until it resets in 1 h 10 min", at_ms: T0 - 60_000, quota: { account_label: "Work Max", window: "five_hour", left_pct: 8, minutes_left: 40, resets_at_ms: T0 + 70 * 60_000 } },
-          { kind: "digest", account: "claude-personal", text: "Renews in 6 days — check your plan", at_ms: T0 - 3_600_000 },
-        ],
+        // AJ-E2501: the account almost out of room, as the model keeps it.
+        events: {
+          app: [
+            {
+              id: 41,
+              kind: "quota",
+              needs: true,
+              title: "Work Max is almost out of room",
+              detail: "8% of its 5-hour window left",
+              project_id: null,
+              project: null,
+              target: { session_id: null, conversation_id: null, account_id: "claude-work", project_id: null, page: null, task_id: null, pool_id: null },
+              facts: { window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "Work Max" },
+              action: "hand-over",
+              meter: 8,
+              created_ms: T0 - 60_000,
+              unread: true,
+              snoozed_until_ms: null,
+              muted: false,
+              dismissed: false,
+            },
+          ],
+        },
         rows: [
           { id: "rq-1", session: "sess-1", account: "claude-work", resume_at_ms: T0 + 45 * 60_000, state: "queued" },
           { id: "rq-2", session: "sess-2", account: "claude-lab", resume_at_ms: T0 - 60_000, state: "ready" },
@@ -715,7 +587,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     // The notification region renders in the work view (polite
     // live-region semantics assertable before the modal opens).
-    await expect(page.getByTestId("alert-actionable")).toBeVisible();
+    await expect(page.getByTestId("home-need-quota")).toBeVisible();
     await expect(page.getByTestId("queue-ready")).toBeVisible();
     await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
     await expect(page.getByTestId("ranked-rows")).toBeVisible();
@@ -797,7 +669,7 @@ for (const theme of ["dark", "light"] as const) {
         t0: T0,
         theme,
         preflight: DOOR_WIZARD_FIXTURE,
-        fail: "The new session on Personal didn't start, so nothing moved.",
+        fail: "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.",
       },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
@@ -1210,7 +1082,7 @@ for (const theme of ["dark", "light"] as const) {
 
 /**
  * AJ-E305 a11y gate: flow (b) completes FULLY from the keyboard
- * (⌘N → arrow keys over the tiles → Enter → Tab to Start session →
+ * (⌘⇧N, D-50 → arrow keys over the tiles → Enter → Tab to Start session →
  * Enter), and every step of flow (a) scans axe-clean
  * (0 critical/serious) — D-16, confirmatory re-scan per AJ-E806.
  */
@@ -1231,10 +1103,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     // Summon by keyboard alone.
-    // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+    // The ⌘⇧N handler mounts with the shell — wait for it (AJ-E806:
     // pressing during the first frames after load is a test race).
     await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
-    await page.keyboard.press("Meta+n");
+    await page.keyboard.press("Meta+Shift+N");
     await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
     const confirmed = await scanSeriousWithConfirm(page);
     expect(confirmed).toHaveLength(0);
@@ -1605,7 +1477,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     // Wait for the shell (its key listener) before the shortcut.
-    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await expect(page.getByTestId("user-menu-button")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Comma");
     await expect(page.getByTestId("settings-screen")).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Appearance" })).toBeVisible();
@@ -1636,7 +1508,7 @@ for (const theme of ["dark", "light"] as const) {
       };
     });
     await goTo(page, "Fleet");
-    await page.getByRole("button", { name: "Settings" }).first().click();
+    await goTo(page, "Settings");
     await expect(page.getByTestId("cloud-offline")).toBeVisible();
     await expect(page.getByTestId("cloud-upgrade")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
@@ -1792,7 +1664,7 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-/** AJ-E707 a11y (both themes): paired machines in the Cleanup Centre and
+/** AJ-E707 a11y (both themes): paired machines on the Processes page and
  * the Clean confirmation (alertdialog, Cancel focused). */
 for (const theme of ["dark", "light"] as const) {
   test(`fleet — remote cleanup — axe 0 — ${theme}`, async ({ page }) => {
@@ -1823,8 +1695,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await goTo(page, "Cleanup");
-    await page.getByLabel("Machine filter").selectOption("all");
+    await goTo(page, "Processes");
     await expect(page.getByTestId("remote-cleanup")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("remote-cleanup-clean").click();
@@ -2211,7 +2082,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("backup-restore").click();
@@ -2276,8 +2147,8 @@ for (const theme of ["dark", "light"] as const) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
-      await page.getByRole("button", { name: "Settings" }).click();
-      await expect(page.getByTestId("beta-label")).toBeVisible();
+      await goTo(page, "Settings");
+      await expect(page.getByTestId("channel-label")).toBeVisible();
       if (name === "going-back") {
         // Keyboard only: open the disclosure, choose, confirm is focused,
         // Cancel returns to the choice.
@@ -2371,7 +2242,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     await expect(page.getByTestId("recovery-code")).toBeFocused();
     await page.keyboard.press("Tab");
@@ -2409,7 +2280,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await goTo(page, "Settings");
     await settingsPane(page, "Advanced");
     await page.getByTestId("cloud-backup-restore").click();
     await expect(page.getByTestId("cloud-backup-code")).toBeVisible();
@@ -2498,7 +2369,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+    await expect(page.getByTestId("user-menu-button")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+Comma");
     await settingsPane(page, "Privacy");
     await expect(page.getByTestId("settings-privacy")).toBeVisible();

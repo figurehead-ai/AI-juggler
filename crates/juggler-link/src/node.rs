@@ -189,7 +189,7 @@ pub trait NodeHandler: Send + Sync + 'static {
     ) -> Result<HandoverAccepted, HandoverRejection> {
         Err(HandoverRejection {
             reason_code: "unsupported".to_owned(),
-            message: "This Mac can't take work over the link.".to_owned(),
+            message: "This computer can't take work over the link.".to_owned(),
             divergence: None,
         })
     }
@@ -449,10 +449,9 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
 
     /// Re-authorises a call: pinned key, finished Hello, same machine.
     fn authorize(&self, conn: &LinkConnInfo) -> Result<(PeerAccess, Session), Status> {
-        let access = self
-            .directory
-            .lookup(&conn.peer_key)
-            .ok_or_else(|| Status::permission_denied("This Mac isn't paired with that one."))?;
+        let access = self.directory.lookup(&conn.peer_key).ok_or_else(|| {
+            Status::permission_denied("This computer isn't paired with that one.")
+        })?;
         let session = self
             .sessions
             .lock()
@@ -537,7 +536,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
         if access.permission != Permission::Control {
             return fail(
                 "permission_denied",
-                "View-only pairing — change it in Fleet on this Mac.",
+                "View-only pairing — change it in Fleet on this computer.",
             );
         }
         if session.level != ServiceLevel::Full {
@@ -668,7 +667,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
                 &access,
                 sequence,
                 "busy",
-                "Another handover from that Mac is still running.",
+                "Another handover from that computer is still running.",
             );
             let _ = sender.send(Ok(refused)).await;
             return;
@@ -822,7 +821,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> LinkServi
                 access,
                 sequence,
                 "internal",
-                "The handover failed on this Mac.",
+                "The handover failed on this computer.",
             ),
         })
     }
@@ -933,7 +932,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
         let Some(mut access) = self.directory.lookup(&conn.peer_key) else {
             self.reject("unpaired", "hello_rejected", "not_paired", None);
             return Err(Status::permission_denied(
-                "This Mac isn't paired with that one.",
+                "This computer isn't paired with that one.",
             ));
         };
         // AJ-E1206: an account-discovered peer says who it is once; TLS
@@ -973,7 +972,7 @@ impl<H: NodeHandler, D: PeerDirectory, R: ReplayStore, P: PairingHost> proto::li
         if access.permission == Permission::NoAccess {
             self.reject(&access.machine_id, "hello_rejected", "no_access", None);
             return Err(Status::permission_denied(
-                "This Mac doesn't share anything with that one.",
+                "This computer doesn't share anything with that one.",
             ));
         }
         let degraded_reason = match &level {

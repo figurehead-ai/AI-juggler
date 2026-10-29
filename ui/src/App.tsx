@@ -1,25 +1,31 @@
-import { ToolChip } from "./components/ToolMark";
 import { AppActions } from "./components/AppActions";
+import { AppHeader } from "./components/AppHeader";
+import { NoticeOpeners } from "./components/NoticeOpeners";
+import { OfflineBanner } from "./components/OfflineBanner";
+import { backendAnswered, backendFailed } from "./lib/backend-health";
+import { setCentreOpen, toggleCentre } from "./lib/notices-store";
 import { useAppKeys } from "./lib/app-keys";
 import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged } from "./lib/ipc/conversations";
+import { servicesList } from "./lib/ipc/services";
 import { withMarks, withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
 import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
-import { MainNav } from "./components/MainNav";
+import { useCleanupCount } from "./lib/cleanup-count";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
 import {
-  ConversationPage, PortWarningSheet, CleanupCentre, ThisMacScreen, ShortcutSheet, History,
+  ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
-  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow,
+  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage,
 } from "./lazyParts";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { useOutsideRequests } from "./lib/outside";
-import { GLOBAL_NAV, MORE_NAV, PRIMARY_NAV, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
-import { IconJuggler, IconTerminal } from "./components/icons";
+import { GLOBAL_NAV, PRIMARY_NAV, focusPageIfLost, focusPageSoon, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
+import { SkipLink } from "./components/SkipLink";
+import { RailHeader } from "./components/RailHeader";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
 import {
@@ -41,8 +47,9 @@ import { primaryToolId } from "./lib/tools";
 import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
 import { readInspectorFolded, storeInspectorFolded } from "./lib/shortcuts";
 import { holdStop, sessionLabel } from "./lib/stop";
+import { useWindowFolderDrop } from "./lib/use-folder-drop";
 import { ToastHost } from "./components/Toast";
-import { cleanupAlerts, fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
+import { fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
  * the retired Overview aren't either — the schema keeps the name). */
@@ -74,30 +81,12 @@ import { ThisMacContext, useThisMac } from "./lib/machine";
 import { MachineStatusLine } from "./components/MachineStatusLine";
 import { useWithSelected } from "./lib/session-lookup";
 import {
-  accountsList,
-  providersDiscover,
-  type SwitchBackSuggestionData,
-  launchRecipesList,
-  onSessionsUpdated,
-  onTerminalExit,
-  projectsBackfill,
-  projectsList,
-  instancesList,
-  sessionHandover,
-  switchBackSuggestions,
-  onFolderDropped,
-  launchSession,
-  desktopFocus,
-  goToHotkeySet,
-  type LaunchRecipeInfo,
-  fetchAppInfo,
-  onAppReady,
-  type AccountInfo,
-  type AppInfo,
-  type ProjectInfo,
-  type InstanceInfo,
+  accountsList, providersDiscover, launchRecipesList, onSessionsUpdated, onTerminalExit, projectsBackfill, projectsList,
+  instancesList, sessionHandover, switchBackSuggestions, launchSession, desktopFocus, goToHotkeySet,
+  fetchAppInfo, onAppReady,
+  type SwitchBackSuggestionData, type LaunchRecipeInfo, type AccountInfo, type AppInfo, type ProjectInfo, type InstanceInfo,
 } from "./lib/bridge";
-
+import { PoolSheetHost } from "./components/PoolSheetHost";
 
 /**
  * App shell (ADR-0007, design iteration 5): a workflow navigator rail
@@ -114,6 +103,7 @@ type Selection =
   | { kind: "account"; id: string }
   | { kind: "provider"; id: string }
   | { kind: "conversation"; accountId: string; id: string; projectId: string | null } // AJ-E1529
+  | { kind: "pool"; id: string } // AJ-E1703: a pool's page
   // AJ-E705: a paired machine (instanceId null) or an Instance on it.
   | { kind: "remote"; machineId: string; instanceId: string | null };
 
@@ -152,7 +142,7 @@ export default function App() {
     storeDensity(next);
     window.dispatchEvent(new Event(DENSITY_EVENT));
   }, []);
-  // D-25: below 900 px the rail folds to its icon column by itself and
+  // D-25: below 1100 px (lib/window.ts) the rail folds to its icon column by itself and
   // comes back when the window widens. In a narrow window ⌘B, the logo,
   // the density shortcut and a double-click on the rail only open or
   // close the list for now — they never write Settings › Appearance,
@@ -210,13 +200,23 @@ export default function App() {
   }, []);
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
-  // D-25: Cleanup and Fleet surface only when they're relevant.
-  const [cleanupCount, setCleanupCount] = useState(0);
+  // F11: a page opened from something that went with the old page (not
+  // the first one: the window opens with nothing focused, the skip link first).
+  const shownPage = useRef(JSON.stringify([selection, global]));
+  useEffect(() => {
+    const page = JSON.stringify([selection, global]);
+    if (page === shownPage.current) return;
+    shownPage.current = page;
+    focusPageIfLost();
+  }, [selection, global]);
+  // D-25: Fleet surfaces only when it's relevant. AJ-E2404: the pill
+  // counts what is left to clean up, the Processes view's own count (the
+  // same as This Mac's), and hears of every change.
+  const cleanupCount = useCleanupCount();
   const [pairedCount, setPairedCount] = useState(0);
   useEffect(() => {
     let alive = true;
     const load = () => {
-      void cleanupAlerts().then((data) => alive && setCleanupCount(data.alerts.length), () => null);
       void fleetPeers().then((peers) => alive && setPairedCount(peers.length), () => null);
     };
     load();
@@ -292,11 +292,13 @@ export default function App() {
   const [chooseTool, setChooseTool] = useState(false);
   const startAddAccount = useCallback((fresh = false) => {
     setAddFresh(fresh);
-    void providersDiscover().then(
-      (rows) => {
+    void Promise.all([providersDiscover(), fresh ? [] : servicesList().catch(() => [])]).then(
+      ([rows, services]) => {
         // Found counts, even when its version couldn't be read (0.0.11).
         const ready = rows.filter(toolFound);
-        if (ready.length > 1) setChooseTool(true);
+        // AJ-E1601: the chooser's More offers a service a found tool runs through.
+        const more = services.some((row) => row.tools.some((tool) => ready.some((found) => found.provider === tool.tool)));
+        if (ready.length > 1 || more) setChooseTool(true);
         else setAddAccounts(ready[0]?.provider ?? primaryToolId() ?? "");
       },
       () => setAddAccounts(primaryToolId() ?? ""),
@@ -322,6 +324,9 @@ export default function App() {
   // hotkey (backend event) or in-app ⌘K; the binding is rebindable.
   const [goToOpen, setGoToOpen] = useState(false);
   const [goToHotkey, setGoToHotkey] = useState("");
+  // F7: ⌘K's "Search History for …" opens History searching for it.
+  const [historyQuery, setHistoryQuery] = useState("");
+  useEffect(() => void (global !== "history" && setHistoryQuery("")), [global]);
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
   const [firstRun, setFirstRun, firstRunAtAccess, setFirstRunAtAccess] = useFirstRun();
@@ -350,15 +355,13 @@ export default function App() {
   useEffect(() => {
     const openAccounts = () => setGlobal("accounts");
     const newSession = () => setNewSession(true);
-    const openScreen = (event: Event) => setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current);
-    window.addEventListener("aij:open-accounts", openAccounts);
-    window.addEventListener("aij:new-session", newSession);
-    window.addEventListener("aij:open-screen", openScreen);
-    return () => {
-      window.removeEventListener("aij:open-accounts", openAccounts);
-      window.removeEventListener("aij:new-session", newSession);
-      window.removeEventListener("aij:open-screen", openScreen);
-    };
+    const openScreen = (event: Event) => { setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current); focusPageSoon(); };
+    // AJ-E2503/E2507: a notice's Continue elsewhere; your menu's shortcuts.
+    const limit = (event: Event) => setLimitFor((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null);
+    const shortcuts = () => setShortcutsOpen(true);
+    const on: [string, EventListener][] = [["aij:open-accounts", openAccounts], ["aij:new-session", newSession], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:open-shortcuts", shortcuts]];
+    on.forEach(([name, run]) => window.addEventListener(name, run));
+    return () => on.forEach(([name, run]) => window.removeEventListener(name, run));
   }, []);
 
   const refresh = useMemo(() => singleFlight(async () => {
@@ -389,8 +392,12 @@ export default function App() {
         }
         return next;
       });
+      backendAnswered();
     } catch {
-      // preview mode may lack backend mocks for some calls — keep last data
+      // AJ-E2504 (§3, §8): never swallowed — the last data stays and the
+      // window says the service stopped answering (a preview lacking a
+      // mock is not that).
+      backendFailed();
     } finally {
       setLoaded(true);
     }
@@ -404,15 +411,7 @@ export default function App() {
   }, [refresh]);
 
   // A dropped folder → New session with it (an open New project sheet takes it).
-  const projectSheetOpen = useRef(false);
-  projectSheetOpen.current = newProjectDir !== null;
-  useEffect(() => {
-    return onFolderDropped((path) => {
-      if (projectSheetOpen.current) return;
-      setNewSessionDir(path);
-      setNewSession(true);
-    });
-  }, []);
+  useWindowFolderDrop((path) => (setNewSessionDir(path), setNewSession(true)), newProjectDir !== null);
 
   useEffect(() => {
     void refresh();
@@ -554,7 +553,8 @@ export default function App() {
   useAppKeys({
     openShortcuts: () => setShortcutsOpen(true),
     togglePalette: () => setGoToOpen((openNow) => !openNow),
-    newProject: () => setNewProjectDir((current) => current ?? ""),
+    toggleNotifications: toggleCentre,
+    newSession: () => setNewSession(true), newProject: () => setNewProjectDir((current) => current ?? ""),
     toggleRail,
     toggleInspector,
     cycleDensity,
@@ -562,12 +562,12 @@ export default function App() {
     goTo: setGlobal,
     openSettings: () => { setSettingsFocusCloud(false); setSettingsSection(undefined); setGlobal("settings"); },
     onCleanup: () => global === "cleanup",
-    focusCleanupFilter: () => void import("./screens/CleanupCentre").then((module) => module.focusCleanupFilter()),
+    focusCleanupFilter: () => document.querySelector<HTMLElement>('[data-testid="process-search"]')?.focus(),
     stopSelected: () => stopSelectedRef.current(),
   });
 
   // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
-  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.machine_id ? inspectRemote(open.machine_id, open.session_id) : open.session_id ? selectSession(open.session_id) : setGlobal("thismac")) });
+  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.machine_id ? inspectRemote(open.machine_id, open.session_id) : open.session_id ? selectSession(open.session_id) : open.page === "notifications" ? setCentreOpen(true) : setGlobal("thismac")) });
 
   // The Provider of what's selected — never a fixed label.
   const remoteInstanceProvider =
@@ -606,7 +606,7 @@ export default function App() {
             : selection.kind === "none"
               ? "Home"
               : // AJ-E1534: a session outside AI Juggler, like one of its own, by its project.
-                (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session");
+                (selection.kind === "pool" ? "Pool" : (projects.find((p) => selection.kind === "conversation" && p.id === selection.projectId)?.name ?? "Session"));
 
   return (
     <ThisMacContext.Provider value={thisMacInfo}>
@@ -617,13 +617,17 @@ export default function App() {
       selectProject={selectProject}
       selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
       selectTool={() => openToolInSettings()}
+      selectPool={(id) => { setGlobal(null); setSelection({ kind: "pool", id }); }}
       openAccounts={() => setGlobal("accounts")} openHome={() => { setGlobal(null); setSelection({ kind: "none" }); }}
       stopSession={stopSession}
       newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
       refresh={() => void refresh()}
     >
     <div className="relative flex h-screen w-screen overflow-hidden">
+      <SkipLink />
       <AttentionAnnouncer sessions={sessions} />
+      {/* AJ-E2502: the menu-bar item's asks (Needs you is the backend's, D-49). */}
+      <NoticeOpeners ready={loaded} sessions={sessions} accounts={accounts} projects={projects} thisMac={thisMacInfo} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
         density={railDensity}
@@ -648,43 +652,7 @@ export default function App() {
         }
         onSelectRemote={inspectRemote}
         loading={!loaded}
-        header={(minimal) => (
-          <div
-            className={
-              "flex h-14 shrink-0 items-center gap-2.5 overflow-hidden " +
-              (minimal ? "justify-center px-0" : "px-4")
-            }
-          >
-            <button
-              type="button"
-              title={minimal ? "Show the list (⌘B)" : "Icons only (⌘B)"}
-              aria-label={minimal ? "Show the list" : "Show icons only"}
-              aria-keyshortcuts="Meta+B"
-              onClick={toggleRail}
-              className="shrink-0 rounded-md p-1 text-accent hover:bg-surface"
-            >
-              <span className="block drop-shadow-[0_0_10px_#7c7cf466]">
-                <IconJuggler width={22} height={22} />
-              </span>
-            </button>
-            {!minimal && (
-              <span className="whitespace-nowrap text-section font-semibold tracking-tight">
-                AI Juggler
-              </span>
-            )}
-            {/* D-23: which edition this window belongs to, when it isn't
-                AI Juggler itself (Nightly and Dev run side by side). */}
-            {info && info.edition !== "main" && (
-              <span
-                className="shrink-0 rounded-full border border-accent/40 bg-accent-soft px-1.5 py-0.5 text-label font-semibold text-ink"
-                data-testid="edition-badge"
-                title={`${info.name}: its own data, separate from AI Juggler`}
-              >
-                {info.edition === "nightly" ? "Nightly" : "Dev"}
-              </span>
-            )}
-          </div>
-        )}
+        header={(minimal) => <RailHeader minimal={minimal} info={info} onToggle={toggleRail} />}
         footer={(minimal) =>
           minimal ? (
             <MachineStatusLine minimal onOpen={() => setGlobal("thismac")} />
@@ -706,68 +674,41 @@ export default function App() {
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Glass status bar: work context left, global oversight right */}
-        <header
-          data-tauri-drag-region
-          // AJ-E804 (WCAG 1.4.10): at narrow widths and 200 % zoom the
-          // menus wrap onto a second row instead of being clipped. The
-          // title has a zero basis, so it truncates first and a wide
-          // window keeps the single row.
-          className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
-        >
-          {/* Room for the title and its tool chip, so the nav beside it
-              wraps rather than covering the chip at 1024 px (0.1.5). */}
-          <div className="flex min-w-[12rem] flex-1 basis-0 items-center gap-3">
-            <h1 className="min-w-0 truncate text-body font-semibold">{contextTitle}</h1>
-            {/* The tool's own view (what's installed, its accounts and
-                their quota): one click from a session that runs on it. */}
-            {contextProvider && contextProviderId && selection.kind !== "provider" && (
-              <button
-                type="button"
-                onClick={() => openToolInSettings()}
-                aria-label={`About ${contextProvider}`}
-                title={`About ${contextProvider}`}
-                className="rounded-full outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-                data-testid="context-tool"
-              >
-                <ToolChip tool={contextProviderId} tone="accent" />
-              </button>
-            )}
-          </div>
-
-          <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 xl:gap-1.5" data-tauri-drag-region={false}>
-            <span className="mr-2 flex min-w-0 text-muted">{/* AJ-E2105: This Mac's line, in the top bar */}<MachineStatusLine minimal={false} onOpen={() => setGlobal("thismac")} /></span>
-            <MainNav
-              primary={PRIMARY_NAV}
-              more={MORE_NAV}
-              global={global}
-              page={selection.kind}
-              pairedCount={pairedCount}
-              cleanupCount={cleanupCount}
-              onPick={(id) => {
-                if (PRIMARY_NAV.some((item) => item.id === id)) {
-                  setSettingsFocusCloud(false);
-                  setSettingsSection(undefined);
-                }
-                if (id === "home") {
-                  setGlobal(null);
-                  setSelection({ kind: "none" });
-                } else setGlobal(id);
-              }}
-            />
-            <Button size="sm" variant="primary" onClick={() => setNewSession(true)}>
-              <IconTerminal width={14} height={14} />
-              New session
-            </Button>
-          </div>
-        </header>
+        <AppHeader
+          title={contextTitle}
+          tool={contextProvider && contextProviderId && selection.kind !== "provider" ? { id: contextProviderId, name: contextProvider } : null}
+          global={global}
+          page={selection.kind}
+          pairedCount={pairedCount}
+          cleanupCount={cleanupCount}
+          sessions={sessions}
+          onOpenTool={() => openToolInSettings()}
+          onOpenThisMac={() => setGlobal("thismac")}
+          onNewSession={() => setNewSession(true)}
+          onPick={(id) => {
+            if (PRIMARY_NAV.some((item) => item.id === id)) (setSettingsFocusCloud(false), setSettingsSection(undefined));
+            if (id === "home") (setGlobal(null), setSelection({ kind: "none" }));
+            else setGlobal(id);
+          }}
+        />
 
         {/* Content: detail panel (work mode) or global screen. tabIndex
          * -1: programmatic focus target when overlays (AJ-E510
          * recovery summary) dismiss and return focus to the board. */}
-        <main tabIndex={-1} className="min-h-0 flex-1 overflow-hidden p-5 outline-none">
+        <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 outline-none">
+          <OfflineBanner onRetry={() => void refresh()} />
+          <div className="min-h-0 flex-1">
           {global === "cleanup" ? (
-            <ScrollingScreen key="cleanup" screen="cleanup" label="Cleanup">
-              <CleanupCentre sessions={sessions} />
+            <ScrollingScreen key="cleanup" screen="cleanup" label="Processes">
+              <ProcessesScreen
+                onOpenSession={selectSession}
+                onOpenConversation={(accountId, id) => {
+                  setGlobal(null);
+                  setSelection({ kind: "conversation", accountId, id, projectId: null });
+                }}
+                accounts={accounts.map((account) => ({ id: account.id, label: account.label }))}
+                projects={projects.map((project) => ({ id: project.id, label: project.name }))}
+              />
             </ScrollingScreen>
           ) : global === "accounts" ? (
             <ScrollingScreen key="accounts" screen="accounts" label="Accounts">
@@ -785,7 +726,7 @@ export default function App() {
             </ScrollingScreen>
           ) : global === "history" ? (
             <ScrollingScreen key="history" screen="history" label="History">
-              <History sessions={sessions} projects={projects} accounts={accounts} onChanged={() => void refresh()} />
+              <History key={historyQuery} initialQuery={historyQuery} sessions={sessions} projects={projects} accounts={accounts} onChanged={() => void refresh()} />
             </ScrollingScreen>
           ) : global === "usage" ? (
             <ScrollingScreen key="usage" screen="usage" label="Usage">
@@ -894,12 +835,7 @@ export default function App() {
               {/* AJ-E611: the alerts (polite, plain words), reset-queue rows
                   with an explicit Resume click (nothing launches by itself). */}
               <div className="shrink-0" data-testid="notification-band">
-                <NotificationRegion
-                  onQueueResume={() => setNewSession(true)}
-                  sessions={sessions} onHandOver={setLimitFor}
-                  onOpenRemote={(machineId) => inspectRemote(machineId, null)}
-                  hideMachineAlerts={selection.kind === "none"}
-                />
+                <NotificationRegion onQueueResume={() => setNewSession(true)} onOpenRemote={(machineId) => inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} sessions={sessions} accounts={accounts} />
               </div>
               {selection.kind === "none" ? (
                 <div className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
@@ -928,6 +864,8 @@ export default function App() {
                 </div>
               ) : selection.kind === "conversation" ? (
                 <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} onSwitch={(sessionId, targetProfileId, targetLabel) => setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
+              ) : selection.kind === "pool" ? (
+                <PoolPage poolId={selection.id} sessions={railSessions} projects={projects} now={now} />
               ) : (
               <div className="min-h-0 flex-1">
               <RightInspector
@@ -1002,6 +940,7 @@ export default function App() {
               )}
             </div>
           )}
+          </div>
         </main>
       </div>
 
@@ -1057,6 +996,12 @@ export default function App() {
         hotkey={goToHotkey}
         onHotkeyChange={async (combo) => (await goToHotkeySet(combo), setGoToHotkey(combo))}
         selected={paletteSelection(selectedSession, selectedProject, selectedAccount, selectedProvider?.id ?? null)}
+        selectedConversation={selection.kind === "conversation" ? { accountId: selection.accountId, id: selection.id } : null}
+        app={{
+          openScreen: (id) => (id === "home" ? openHome() : id === "settings" ? (setSettingsFocusCloud(false), setSettingsSection(undefined), setGlobal(id)) : setGlobal(id)),
+          newSession: () => setNewSession(true), newProject: () => setNewProjectDir((current) => current ?? ""), notifications: () => setCentreOpen(true),
+          shortcuts: () => setShortcutsOpen(true), toggleRail, searchHistory: (words) => (setHistoryQuery(words), setGlobal("history")), fleet: pairedCount > 0,
+        }}
         projects={projects}
         onChanged={() => void refresh()}
       />
@@ -1082,6 +1027,7 @@ export default function App() {
             setChooseTool(false);
             setAddAccounts(provider);
           }}
+          onServiceAdded={() => (setChooseTool(false), setAccountsNonce((n) => n + 1), void refresh())}
         />
       )}
 
@@ -1158,8 +1104,9 @@ export default function App() {
       )}
       {/* AJ-E1503: the one feedback system, and the quit warning. */}
       <ToastHost />
-      {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
+      {shortcutsOpen && <ShortcutSheet fleet={pairedCount > 0} onClose={() => setShortcutsOpen(false)} />}
       <QuitSheet />
+      <PoolSheetHost sessions={railSessions} projects={projects} />
       {newSession && (
         <NewSessionModal
           projects={shownProjects}

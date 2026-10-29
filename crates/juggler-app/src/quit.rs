@@ -147,6 +147,9 @@ pub struct QuitPlanInfo {
     /// Of those, the ones that keep running (desktop sessions, sessions
     /// re-adopted after a crash).
     pub keep_running: u32,
+    /// Of those, the ones AI Juggler runs without a terminal: they end with
+    /// it and come back when it opens again (AJ-E2310).
+    pub come_back: u32,
 }
 
 /// One live session as quitting sees it.
@@ -156,20 +159,25 @@ pub struct LiveSession {
     pub kind: InstanceKind,
     /// Re-adopted after a crash: its terminal isn't ours any more.
     pub adopted: bool,
+    /// Driven by AI Juggler (AJ-E2310): it comes back at the next start.
+    pub driven: bool,
 }
 
 /// The plan for these live sessions.
 #[must_use]
 pub fn plan_of(live: &[LiveSession]) -> QuitPlanInfo {
-    let keep = live
+    let keeps = |session: &&LiveSession| session.kind == InstanceKind::Desktop || session.adopted;
+    let keep = live.iter().filter(keeps).count();
+    let back = live
         .iter()
-        .filter(|session| session.kind == InstanceKind::Desktop || session.adopted)
+        .filter(|session| !keeps(session) && session.driven)
         .count();
     let total = live.len();
     QuitPlanInfo {
         live: u32::try_from(total).unwrap_or(u32::MAX),
-        end_on_quit: u32::try_from(total - keep).unwrap_or(u32::MAX),
+        end_on_quit: u32::try_from(total - keep - back).unwrap_or(u32::MAX),
         keep_running: u32::try_from(keep).unwrap_or(u32::MAX),
+        come_back: u32::try_from(back).unwrap_or(u32::MAX),
     }
 }
 
@@ -191,6 +199,7 @@ fn live_sessions(state: &Arc<AppState>) -> Vec<(juggler_core::model::SessionId, 
             let session = LiveSession {
                 kind: record.kind,
                 adopted: adopted.contains(&id),
+                driven: state.runtime.is_driven(&id),
             };
             Some((id, session))
         })
@@ -354,6 +363,7 @@ mod tests {
     const TERMINAL: LiveSession = LiveSession {
         kind: InstanceKind::Terminal,
         adopted: false,
+        driven: false,
     };
 
     /// Each kind is pinned to what quitting does to it: a terminal
@@ -361,16 +371,24 @@ mod tests {
     /// and a re-adopted one keep running.
     #[test]
     fn each_kind_is_pinned_to_what_quitting_does() {
-        let alone = |kind, adopted| plan_of(&[LiveSession { kind, adopted }]);
+        let alone = |kind, adopted| {
+            plan_of(&[LiveSession {
+                kind,
+                adopted,
+                driven: false,
+            }])
+        };
         let ends = QuitPlanInfo {
             live: 1,
             end_on_quit: 1,
             keep_running: 0,
+            come_back: 0,
         };
         let keeps = QuitPlanInfo {
             live: 1,
             end_on_quit: 0,
             keep_running: 1,
+            come_back: 0,
         };
         assert_eq!(alone(InstanceKind::Terminal, false), ends);
         assert_eq!(alone(InstanceKind::Desktop, false), keeps);
@@ -390,6 +408,7 @@ mod tests {
         live: 1,
         end_on_quit: 1,
         keep_running: 0,
+        come_back: 0,
     };
 
     /// Fallback (a): a second ⌘Q or close while the sheet is pending
@@ -452,6 +471,7 @@ mod tests {
                 live: 1,
                 end_on_quit: 1,
                 keep_running: 0,
+                come_back: 0,
             })
         );
     }
@@ -464,10 +484,12 @@ mod tests {
             LiveSession {
                 kind: InstanceKind::Desktop,
                 adopted: false,
+                driven: false,
             },
             LiveSession {
                 kind: InstanceKind::Terminal,
                 adopted: true,
+                driven: false,
             },
         ];
         assert_eq!(
@@ -476,7 +498,28 @@ mod tests {
                 live: 4,
                 end_on_quit: 2,
                 keep_running: 2,
+                come_back: 0,
             })
+        );
+    }
+
+    /// AJ-E2310: a driven session ends with AI Juggler and comes back at
+    /// the next start; the sheet says so, apart from the ones that end.
+    #[test]
+    fn a_driven_session_comes_back_and_the_plan_says_so() {
+        let driven = LiveSession {
+            kind: InstanceKind::Terminal,
+            adopted: false,
+            driven: true,
+        };
+        assert_eq!(
+            plan_of(&[TERMINAL, driven]),
+            QuitPlanInfo {
+                live: 2,
+                end_on_quit: 1,
+                keep_running: 0,
+                come_back: 1,
+            }
         );
     }
 }

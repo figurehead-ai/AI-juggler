@@ -67,7 +67,7 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
   if (!pack.opened) {
     return (
       <div className="mb-4 flex flex-wrap items-center gap-2 text-label">
-        <button type="button" onClick={() => void pack.choose()} className="text-accent-hi underline-offset-2 hover:underline" data-testid="pack-choose">
+        <button type="button" onClick={() => void pack.choose()} className="inline-flex min-h-6 items-center text-accent-hi underline-offset-2 hover:underline" data-testid="pack-choose">
           Start from a saved handover…
         </button>
         {pack.error && (
@@ -95,7 +95,7 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
       </Row>
       <Row label="Where">
         <span className="font-mono">{info.project_root}</span> · {info.branch}
-        {!info.project_here && <span className="text-muted"> (not on this Mac: pick where to work below)</span>}
+        {!info.project_here && <span className="text-muted"> (not on this computer: pick where to work below)</span>}
       </Row>
       <Row label="Continues as">{info.fidelity}</Row>
       <Row label="Carries">{info.carries.join(", ")}</Row>

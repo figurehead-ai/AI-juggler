@@ -1,0 +1,23 @@
+# Evidence manifest — AJ-E2403
+
+Task: `docs/tasks/E24-processes.md` AJ-E2403, The user's stop of another app's leftover (D-41b). Branch `e24-processes`. Status: **IN-PROGRESS**.
+
+## What exists now
+
+`crates/juggler-app/src/features/processes/stop.rs` (the check, the sheet's data, the audited ladder) and `processes_observed_verify` / `processes_observed_stop`.
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| Req.2/3 every leg of the identity check fails closed | `cargo test -p juggler-app --lib processes::stop::tests::the_identity_check_fails_closed_on_every_leg` | 13 refusals | pass | PASS | — | 2026-10-25 | agent |
+| Req.4 a verified leftover of an ended session stops, audited as user:observed with the program's name only | `cargo test -p juggler-app --test observed_stop a_verified_leftover_of_an_ended_session_stops_and_is_audited` | exited on TERM; actor and name | pass | PASS | — | 2026-10-25 | agent |
+| Req.3 every refusal sends zero signals and audits nothing | `cargo test -p juggler-app --test observed_stop every_refusal_sends_zero_signals` | the fixtures alive | pass | PASS | — | 2026-10-25 | agent |
+| Req.1/5 no rule ever stops it (collateral) | `cargo test -p juggler-app --test observed_stop no_automatic_rule_ever_stops_another_apps_leftover` | alive after the sweep past every grace | pass | PASS | — | 2026-10-25 | agent |
+| Visual: the sheet for another app's leftover | `_gallery/90-processes/stop-theirs-1680x1000-{dark,light}.png` | looked at; axe 0 serious; no scope to widen | looked at; axe 0; "Only this process" in place of the scope | PASS | — | 2026-10-26 | agent |
+| The sheet offers no wider scope for another app's leftover | `pnpm exec vitest run src/screens/processes-page.test.tsx -t "stopped alone"` | no scope control | pass | PASS | — | 2026-10-26 | agent |
+| Live: stop a lab leftover of an ended Terminal session | `docs/qa/processes-lab.md` step 7, 2026-10-26 ([lab-1-2026-10-26.md](docs/qa/evidence/AJ-E2406/lab-1-2026-10-26.md), bug 3) | as written there | the page offered Stop (`observed`) for the lab's `python3` :8766 left by an ended Claude Code session, but `verify` and `execute` refused with "This is part of an app. Quit the app instead.": Homebrew's python runs from inside `Python.app`, and `check` refuses any executable inside a bundle (`outer_bundle`). Zero signals sent; the lab stopped its own leftover by hand | FAIL | — | 2026-10-26 | agent |
+
+## Redaction checklist (tick before commit)
+
+- [x] No credentials, tokens, or keys in any file here (secret scan ran)
+- [x] Paths hashed or generalised where they reveal private layout
+- [x] Transcript excerpts scrubbed of personal content (none: fixtures only)

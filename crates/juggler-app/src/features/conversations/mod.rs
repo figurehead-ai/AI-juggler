@@ -244,6 +244,20 @@ impl ConversationIndex {
             .map(|c| c.path.clone())
     }
 
+    /// AJ-E1520 (0.2): `account`'s conversation `id` as [`Self::path_of`]
+    /// finds it, with its tool (the Subagents tab asks that tool's
+    /// adapter).
+    #[must_use]
+    pub fn conversation_of(&self, account: &str, id: &str) -> Option<Conversation> {
+        let files = self.files.lock().ok()?;
+        files
+            .values()
+            .filter_map(|entry| entry.conversation.as_ref())
+            .filter(|c| c.account_id == account && c.summary.id == id)
+            .max_by(|a, b| (a.summary.last_ms, &a.path).cmp(&(b.summary.last_ms, &b.path)))
+            .cloned()
+    }
+
     /// 0.1.8: the title and folder of each `(account, id)` asked for, as
     /// the conversation list folds them (the newest file's folder, the
     /// newest title its files have), without copying the index: the cost
@@ -288,6 +302,16 @@ impl ConversationIndex {
         })
     }
 
+    /// Every conversation a running session is on now, `(account, tool,
+    /// id)` (the rail's subagent count follows them, AJ-E1520).
+    #[must_use]
+    pub fn live_keys(&self) -> Vec<live::Live> {
+        self.live
+            .lock()
+            .map(|live| live.keys().cloned().collect())
+            .unwrap_or_default()
+    }
+
     /// Where `account`'s `(tool, id)` is open now, and its state.
     #[must_use]
     pub fn live_entry(&self, account: &str, tool: &str, id: &str) -> Option<scan::LiveEntry> {
@@ -315,6 +339,61 @@ impl ConversationIndex {
             .lock()
             .map(|model| model.pid_dirs.clone())
             .unwrap_or_default()
+    }
+
+    /// AJ-E2401: what is open now, as the live refresher last saw it (the
+    /// Processes view's sessions other apps run).
+    #[must_use]
+    pub fn live_model(&self) -> scan::LiveModel {
+        self.model
+            .lock()
+            .map(|model| model.clone())
+            .unwrap_or_default()
+    }
+
+    /// AJ-E2401: the titles of these conversations, `(tool, id)` →
+    /// `(title, folder)`, from one pass over the index (the newest file of
+    /// each).
+    #[must_use]
+    pub fn titles_of(
+        &self,
+        wanted: &std::collections::HashSet<(String, String)>,
+    ) -> HashMap<(String, String), (Option<String>, Option<PathBuf>)> {
+        type Newest = (i64, Option<String>, Option<PathBuf>);
+        let mut out: HashMap<(String, String), Newest> = HashMap::new();
+        if wanted.is_empty() {
+            return HashMap::new();
+        }
+        let Ok(files) = self.files.lock() else {
+            return HashMap::new();
+        };
+        for conversation in files
+            .values()
+            .filter_map(|entry| entry.conversation.as_ref())
+        {
+            let key = (conversation.tool.clone(), conversation.summary.id.clone());
+            if !wanted.contains(&key) {
+                continue;
+            }
+            let last = conversation.summary.last_ms.unwrap_or_default();
+            let newer = out.get(&key).is_none_or(|(known, _, _)| last >= *known);
+            if newer {
+                out.insert(
+                    key,
+                    (
+                        last,
+                        conversation.summary.title.clone(),
+                        conversation
+                            .folder
+                            .clone()
+                            .or_else(|| conversation.summary.cwd.clone()),
+                    ),
+                );
+            }
+        }
+        out.into_iter()
+            .map(|(key, (_, title, folder))| (key, (title, folder)))
+            .collect()
     }
 }
 
@@ -655,14 +734,43 @@ fn refresh_with(
     progress: &dyn Fn(),
 ) -> AppResult<bool> {
     let mut seen: Vec<PathBuf> = Vec::new();
-    let mut changed = false;
+    let mut changed_any = false;
     // Every account's files, listed first (cheap), then read newest
     // first: a running session's file is among the newest.
     let mut found = Vec::new();
+    let mut report = Reporter::new(every, progress);
     for account in accounts {
         let Some(adapter) = state.registry.get(&account.harness) else {
             continue;
         };
+        // AJ-E1602: a tool that keeps every conversation in one store
+        // gives them in one read; each is read again only once it changed.
+        for stored in adapter.stored_conversations(&account.state_dir) {
+            seen.push(stored.key.clone());
+            let changed = u64::try_from(stored.changed_ms)
+                .ok()
+                .map(|ms| std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms));
+            let unchanged = state
+                .conversations
+                .files
+                .lock()
+                .map_err(|_| AppError::StatePoisoned)?
+                .get(&stored.key)
+                .is_some_and(|entry| entry.modified == changed);
+            if !unchanged {
+                store(
+                    state,
+                    account,
+                    &stored.key,
+                    0,
+                    changed,
+                    Some(stored.summary),
+                    true,
+                )?;
+                changed_any = true;
+                report.read();
+            }
+        }
         for path in adapter.conversation_files(&account.state_dir) {
             let Ok(meta) = std::fs::metadata(&path) else {
                 continue;
@@ -677,7 +785,6 @@ fn refresh_with(
         }
     }
     found.sort_by_key(|entry| std::cmp::Reverse(entry.4));
-    let mut report = Reporter::new(every, progress);
     // Two rounds, newest first (QA batch 10: one Mac's Codex rollouts were
     // 6.6 GB, and reading each whole kept everything from showing for over
     // a minute). First every new or changed file's quick read (its start
@@ -717,7 +824,7 @@ fn refresh_with(
             None => (adapter.read_conversation(path), true),
         };
         store(state, account, path, *len, *modified, summary, complete)?;
-        changed = true;
+        changed_any = true;
         report.read();
     }
     // What's listed and live, at once, before the long round.
@@ -726,7 +833,7 @@ fn refresh_with(
         report.maybe();
         let summary = adapter.read_conversation(path);
         store(state, account, path, *len, *modified, summary, true)?;
-        changed = true;
+        changed_any = true;
         report.read();
     }
     let mut files = state
@@ -737,7 +844,7 @@ fn refresh_with(
     let before = files.len();
     let seen: std::collections::HashSet<PathBuf> = seen.into_iter().collect();
     files.retain(|path, _| seen.contains(path));
-    Ok(changed || files.len() != before)
+    Ok(changed_any || files.len() != before)
 }
 
 /// The conversation `id` on `account_id`, from the index.
@@ -864,12 +971,18 @@ pub(crate) fn primed_conversation(
         let summary = adapter
             .read_conversation_quick(&path)
             .or_else(|| adapter.read_conversation(&path))?;
-        let opens = summary.title.as_deref().is_some_and(|title| {
-            // A title is the first line, cut at a length with "…" added.
-            let title = title.trim().trim_end_matches('…').trim_end();
-            title.chars().count() >= OPENING_MIN.min(header.chars().count())
-                && (header.starts_with(title) || title.starts_with(header))
-        });
+        // How it opens (AI Juggler's own words included): a title skips
+        // them (the 0.2 walk, F9).
+        let opens = summary
+            .opening
+            .as_deref()
+            .or(summary.title.as_deref())
+            .is_some_and(|title| {
+                // A title is the first line, cut at a length with "…" added.
+                let title = title.trim().trim_end_matches('…').trim_end();
+                title.chars().count() >= OPENING_MIN.min(header.chars().count())
+                    && (header.starts_with(title) || title.starts_with(header))
+            });
         let here = summary.cwd.as_deref() == Some(cwd);
         let after = summary.started_ms.is_some_and(|at| at >= after_ms);
         (opens && here && after).then_some(juggler_core::model::TranscriptRef {
@@ -921,7 +1034,7 @@ pub fn continue_impl(
     account_id: &str,
     id: &str,
 ) -> AppResult<crate::commands::LaunchResult> {
-    use juggler_core::model::{ConversationId, InstanceKind, SessionId};
+    use juggler_core::model::{ConversationId, SessionId};
     let conversation = find(state, account_id, id)?;
     if state
         .conversations
@@ -971,28 +1084,26 @@ pub fn continue_impl(
             delta_prompt: None,
         },
     )?;
-    // Intent before spawn (ADR-0010 §1): the row first, then the process.
-    let spawned = crate::features::sessions::spawn::spawn_tracked(
+    // The one path: the row first (ADR-0010 §1), then the bridge (AJ-E1704,
+    // D-30: continued in AI Juggler, it gets the agent tools) and the
+    // account's key in the launch, under the supervisor.
+    let started = crate::features::sessions::spawn::start_session(
         state,
         &crate::features::sessions::spawn::NewSession {
             id: &session,
             account: &account,
             profile: &profile.id,
-            kind: InstanceKind::Terminal,
             project: Some(project.id.clone()),
             cwd,
             conversation: Some(ConversationId::new(id)),
             transcript_ref: None,
             origin: "resume",
         },
-        || {
-            let ctx = crate::commands::ledger_ctx(state, &account, Some(project.id.to_string()));
-            Ok(state.supervisor.spawn(&session, &spec, &ctx)?)
-        },
+        crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
     Ok(crate::commands::LaunchResult {
         session_id: session.to_string(),
-        pid: spawned.pid,
+        pid: started.spawned.pid,
     })
 }
 
@@ -1006,6 +1117,7 @@ mod tests {
             cwd: None,
             git_branch: None,
             title: None,
+            opening: None,
             started_ms: Some(started),
             last_ms: Some(last),
             tokens: juggler_core::model::TokenCounts::default(),

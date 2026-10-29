@@ -12,7 +12,7 @@ prefetchMainScreens();
 
 export const ConversationPage = lazyNamed(() => import("./components/ConversationPage"), "ConversationPage");
 export const PortWarningSheet = lazyNamed(() => import("./components/PortMap"), "PortWarningSheet");
-export const CleanupCentre = lazyNamed(() => import("./screens/CleanupCentre"), "CleanupCentre");
+export const ProcessesScreen = lazyNamed(() => import("./screens/processes/ProcessesScreen"), "ProcessesScreen");
 export const ThisMacScreen = lazyNamed(() => import("./screens/ThisMacScreen"), "ThisMacScreen");
 export const ShortcutSheet = lazyNamed(() => import("./components/ShortcutSheet"), "ShortcutSheet");
 export const History = lazyNamed(() => import("./screens/History"), "History");
@@ -27,3 +27,4 @@ export const SettingsScreen = lazyNamed(() => import("./screens/Settings"), "Set
 export const SessionPanel = lazyNamed(() => import("./screens/WorkPanels"), "SessionPanel", true);
 export const SwitchFlow = lazyNamed(() => import("./components/SwitchFlow"), "SwitchFlow");
 export const SwitchBackFlow = lazyNamed(() => import("./components/SwitchBackFlow"), "SwitchBackFlow");
+export const PoolPage = lazyNamed(() => import("./pages/PoolPage"), "PoolPage");

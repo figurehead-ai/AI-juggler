@@ -70,3 +70,38 @@ fn jumping_to_a_window_may_send_apple_events() {
     let workflow = read("../../.github/workflows/build-macos.yml");
     assert!(workflow.contains(r#""entitlements": "entitlements.plist""#));
 }
+
+/// AJ-E1704: the agent bridge ships inside the signed, notarized bundle.
+/// The release workflow builds it for both chips, makes it Tauri's
+/// `externalBin` (so it lands in `Contents/MacOS` beside the app), and
+/// checks it is there; the sign script names it as the bundle's one
+/// helper, signs it on its own before the app (hardened runtime, no
+/// entitlements), and refuses a bundle without it.
+#[test]
+fn the_agent_bridge_ships_signed_inside_the_bundle() {
+    let program = juggler_agentbridge::wire::PROGRAM;
+    let workflow = read("../../.github/workflows/build-macos.yml");
+    assert!(workflow.contains(&format!("--bin {program} --target \"$arch\"")));
+    // Each architecture's half of a universal build wants its own copy (the
+    // 0.2.0 rehearsal: "resource path `binaries/juggler-agent-aarch64-apple-
+    // darwin` doesn't exist"), the bundler the universal one.
+    assert!(workflow.contains(&format!("binaries/{program}-$arch")));
+    assert!(workflow.contains(&format!("binaries/{program}-universal-apple-darwin")));
+    assert!(workflow.contains(&format!(r#""externalBin": ["binaries/{program}"]"#)));
+    assert!(workflow.contains(&format!("Contents/MacOS/{program}")));
+    let sign = read("../../scripts/sign_macos.sh");
+    assert!(sign.contains(&format!("helpers=({program})")));
+    let helpers_signed = sign.find(r#"sign "$app/Contents/MacOS/$helper""#).unwrap();
+    let app_signed = sign.find("\nsign \"$app\"\n").unwrap();
+    assert!(
+        helpers_signed < app_signed,
+        "inside out: the helper before the app"
+    );
+    assert!(sign.contains("the bundle lacks its helper"));
+    assert!(!sign.contains("codesign --force --deep"));
+    let ignored = read("../../.gitignore");
+    assert!(
+        ignored.contains("/crates/juggler-app/binaries/"),
+        "never committed"
+    );
+}

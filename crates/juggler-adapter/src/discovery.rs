@@ -20,6 +20,9 @@ pub enum InstallStatus {
         /// What went wrong.
         message: String,
     },
+    /// Found from its files, and its version wasn't asked: the build
+    /// starts no tool (the read-only test bridge). Not a failure.
+    NotAsked,
 }
 
 /// Whether the discovered version is covered by this adapter's verified set.
@@ -60,5 +63,26 @@ impl DiscoveryReport {
     #[must_use]
     pub fn is_found(&self) -> bool {
         self.binary.is_some() && !matches!(self.install, InstallStatus::NotFound)
+    }
+
+    /// A report from files alone (`HarnessAdapter::locate`): found with
+    /// its version not asked, or not found. Nothing was run.
+    #[must_use]
+    pub fn located(adapter: HarnessId, binary: Option<PathBuf>) -> Self {
+        Self {
+            adapter,
+            install: if binary.is_some() {
+                InstallStatus::NotAsked
+            } else {
+                InstallStatus::NotFound
+            },
+            verification: VerificationStatus::Unverified,
+            notes: if binary.is_some() {
+                vec!["found from its files; its version wasn't asked".to_owned()]
+            } else {
+                vec!["looked from files only, without running anything".to_owned()]
+            },
+            binary,
+        }
     }
 }

@@ -23,6 +23,12 @@ function HandCheckCell({ row }: { row: ValidationCellData }) {
   return <span className={pass ? "text-success" : "text-danger"}>{pass ? "Passed" : "Failed"} {row.dogfood.at}</span>;
 }
 
+/** One side of a switch: its tool, or (AJ-E1601) its tool through another
+ * service. */
+function sideName(tool: string, throughService?: boolean): string {
+  return throughService ? `${providerDisplayName(tool)} through another service` : providerDisplayName(tool);
+}
+
 /** The automatic tests' state in words. */
 function testWords(row: ValidationCellData): string {
   if (row.ci_green) return "Pass with the real tools";
@@ -34,7 +40,7 @@ export function BetaMatrix(): JSX.Element {
   // Only switches between tools AI Juggler has: a researched pair for a
   // tool it can't run yet is nothing the user can do (AJ-E1535).
   const known = new Set(useTools().map((tool) => tool.id));
-  const rows = cells?.filter((row) => known.has(row.from) && known.has(row.to)) ?? null;
+  const rows = cells?.filter((row) => known.has(row.from_tool ?? row.from) && known.has(row.to_tool ?? row.to)) ?? null;
   useEffect(() => {
     let alive = true;
     validationMatrix()
@@ -89,7 +95,7 @@ export function BetaMatrix(): JSX.Element {
                 data-validated={row.validated ? "true" : "false"}
               >
                 <th scope="row" className="py-1.5 pr-3 font-normal text-ink">
-                  {providerDisplayName(row.from)} → {providerDisplayName(row.to)}
+                  {sideName(row.from_tool ?? row.from, row.from_service)} → {sideName(row.to_tool ?? row.to, row.to_service)}
                 </th>
                 <td className="py-1.5 pr-3">
                   <span className={row.validated ? "text-success" : "text-warning"}>{row.badge}</span>

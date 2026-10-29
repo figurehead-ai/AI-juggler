@@ -724,8 +724,8 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 32,
-        "v4 → current (v32, AJ-E1519 worktree homes) exactly once, on open"
+        version, 37,
+        "v4 → current (v37, AJ-E2501 notices, after v36's tasks) exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -752,7 +752,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 32);
+    assert_eq!(version, 37);
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -1157,6 +1157,45 @@ fn process_ledger_lifecycle_roundtrip() {
         .unwrap();
     assert!(esc.escaped_group, "escape flag survives a clean re-tick");
 
+    // 3c. Processes lab 2026-10-26, bug 1: a finished session's tree keeps
+    // its last rows, and the upsert kept writing them. An orphaned row is
+    // refreshed as it is, and an ended or unverifiable process is never
+    // inserted again: one process, one row.
+    repo.mark_orphaned(5002, "boot-42", 2_500).unwrap();
+    repo.upsert_helpers("sess-ledger", &[helper(5002, Some(9_000), false)])
+        .unwrap();
+    let mine: Vec<_> = repo
+        .rows_for_session("sess-ledger")
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.pid == Some(5002))
+        .collect();
+    assert_eq!(mine.len(), 1, "an orphan isn't inserted again as running");
+    assert_eq!(mine[0].state, juggler_core::storage::STATE_ORPHANED);
+    assert_eq!(mine[0].peak_rss, Some(9_000), "it is refreshed");
+    repo.mark_exited(5002, "boot-42", "signal:15", false, 2_600)
+        .unwrap();
+    repo.mark_unverifiable(5003, "boot-42", 2_600).unwrap();
+    repo.upsert_helpers(
+        "sess-ledger",
+        &[helper(5002, None, false), helper(5003, None, false)],
+    )
+    .unwrap();
+    for pid in [5002, 5003] {
+        let rows = repo.rows_for_session("sess-ledger").unwrap();
+        assert_eq!(
+            rows.iter().filter(|r| r.pid == Some(pid)).count(),
+            1,
+            "an ended or unverifiable process isn't inserted again"
+        );
+    }
+    // A new process on a reused pid (another start time) is its own row.
+    let mut reused = helper(5002, None, false);
+    reused.started_at = Some(200_000);
+    repo.upsert_helpers("sess-ledger", &[reused]).unwrap();
+    let rows = repo.rows_for_session("sess-ledger").unwrap();
+    assert_eq!(rows.iter().filter(|r| r.pid == Some(5002)).count(), 2);
+
     // 4. Exit patch (reaped root) + candidates exclude it.
     repo.mark_exited(4242, "boot-42", "code:0", true, 3_000)
         .unwrap();
@@ -1280,8 +1319,8 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 32,
-        "v12 → current (v32, AJ-E1519) exactly once, on open"
+        version, 37,
+        "v12 → current (v37, AJ-E2501, after v36's tasks) exactly once, on open"
     );
     drop(storage);
 

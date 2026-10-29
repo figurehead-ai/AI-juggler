@@ -313,3 +313,77 @@ fn the_summaries_hold_their_budget_on_a_million_messages() {
         history.settled_stamp().unwrap()
     });
 }
+
+/// 0.1.5 → 0.2: a 0.1.5 database is schema 32 with the derived tables
+/// beside it (no migration of their own). Opened by 0.2 it migrates to
+/// pools (v33), messages (v34) and on (tasks: v36); the derived tables
+/// keep their rows and their triggers are made again. A fresh database at
+/// the latest schema has them too.
+#[test]
+fn the_derived_tables_live_on_the_latest_schema_and_survive_its_upgrade() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    {
+        let conn = Connection::open(&db).unwrap();
+        for (index, sql) in Storage::migrations().iter().enumerate().take(32) {
+            conn.execute_batch(sql).unwrap();
+            conn.pragma_update(None, "user_version", i64::try_from(index).unwrap() + 1)
+                .unwrap();
+        }
+        // What 0.1.5 left beside schema 32: a sourced reading, the
+        // history's settled stamp.
+        conn.execute_batch(
+            "CREATE TABLE quota_sample_sources (
+                 account TEXT NOT NULL, window TEXT NOT NULL, ts INTEGER NOT NULL,
+                 source TEXT NOT NULL, PRIMARY KEY (account, window, ts)) WITHOUT ROWID;
+             INSERT INTO quota_samples (account, window, ts, used_pct, resets_at, confidence)
+                 VALUES ('work', 'five_hour', 1000, 40.0, NULL, 'measured');
+             INSERT INTO quota_sample_sources VALUES ('work', 'five_hour', 1000, 'statusline');
+             CREATE TABLE usage_history_epoch (id INTEGER PRIMARY KEY CHECK (id = 1),
+                 token INTEGER NOT NULL, changed INTEGER NOT NULL DEFAULT 0);
+             INSERT INTO usage_history_epoch VALUES (1, 7, 3);",
+        )
+        .unwrap();
+    }
+    let storage = Storage::open(&db).unwrap();
+    assert!(Storage::schema_version() >= 34);
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
+    let kept = storage
+        .usage()
+        .sourced_samples_for_account("work", WindowKind::FiveHour)
+        .unwrap();
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].1, Some(UsageSource::Statusline));
+    // The settled triggers are on the upgraded file: an old message moves
+    // the stamp 0.1.5 kept.
+    assert_eq!(storage.usage_history().settled_stamp().unwrap(), (7, 3));
+    storage
+        .usage()
+        .insert_events(&[event("work", "s-old", 1_000, "opus", 10, "old-1")])
+        .unwrap();
+    assert_eq!(storage.usage_history().settled_stamp().unwrap(), (7, 4));
+    drop(storage);
+    // A fresh database at the latest schema has them from its first open.
+    let fresh = Storage::open_in_memory().unwrap();
+    assert_eq!(fresh.user_version().unwrap(), Storage::schema_version());
+    fresh
+        .usage()
+        .insert_sourced_samples(&[(
+            "work".to_owned(),
+            WindowKind::FiveHour,
+            QuotaSample {
+                ts: 2_000,
+                used_pct: 12.0,
+                resets_at: None,
+                confidence: Confidence::Measured,
+            },
+            UsageSource::ApiRetry,
+        )])
+        .unwrap();
+    let read = fresh
+        .usage()
+        .sourced_samples_for_account("work", WindowKind::FiveHour)
+        .unwrap();
+    assert_eq!(read[0].1, Some(UsageSource::ApiRetry));
+    assert!(fresh.usage_history().settled_stamp().is_ok());
+}

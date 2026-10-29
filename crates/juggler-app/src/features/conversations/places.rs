@@ -84,12 +84,21 @@ pub struct Host {
 /// The outermost `.app` bundle an executable is inside, and its folder
 /// name: `/Applications/Claude.app/Contents/Helpers/x` is
 /// `/Applications/Claude.app`, `Claude.app`.
+///
+/// An `.app` inside a `.framework` that no app holds isn't an app the
+/// user runs or quits: it is how a framework ships a program. Homebrew's
+/// `python3` runs as `…/Python.framework/Versions/3.x/Resources/
+/// Python.app/Contents/MacOS/Python`, a command-line program (processes
+/// lab 2026-10-26, bug 3). So a `.framework` before any `.app` means none.
 #[must_use]
 pub fn outer_bundle(exe: &Path) -> Option<(PathBuf, String)> {
     let mut path = PathBuf::new();
     for part in exe.components() {
         path.push(part);
         let name = part.as_os_str().to_string_lossy();
+        if name.ends_with(".framework") {
+            return None;
+        }
         if name.ends_with(".app") && name.len() > 4 {
             return Some((path, name.into_owned()));
         }
@@ -218,6 +227,24 @@ mod tests {
     use super::*;
 
     const CLAUDE_APP: &str = "/Applications/Claude.app/Contents/MacOS/Claude";
+
+    #[test]
+    fn a_frameworks_program_is_no_app_but_an_apps_framework_is_the_apps() {
+        assert_eq!(
+            outer_bundle(Path::new(CLAUDE_APP)).map(|(_, name)| name),
+            Some("Claude.app".to_owned())
+        );
+        // Homebrew's python3 (processes lab 2026-10-26, bug 3).
+        let python = "/opt/homebrew/Cellar/python@3.14/3.14.0/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python";
+        assert_eq!(outer_bundle(Path::new(python)), None);
+        // A framework inside an app is still that app's.
+        let helper = "/Applications/Claude.app/Contents/Frameworks/Electron Framework.framework/Helpers/chrome_crashpad_handler";
+        assert_eq!(
+            outer_bundle(Path::new(helper)).map(|(_, name)| name),
+            Some("Claude.app".to_owned())
+        );
+        assert_eq!(outer_bundle(Path::new("/opt/homebrew/bin/node")), None);
+    }
 
     fn proc(pid: u32, ppid: u32, exe: &str, args: &[&str]) -> (u32, Proc) {
         (

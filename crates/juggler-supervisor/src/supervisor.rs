@@ -62,6 +62,10 @@ pub struct SpawnedProcess {
     pub identity: Option<crate::tree::ProcessIdentity>,
 }
 
+#[path = "piped.rs"]
+mod piped;
+pub use piped::DriverPipes;
+
 pub use crate::live_stats::{
     CollectorWork, LiveStatsCollector, ObservedRoot, ObservedTree, ProcessBrief, ProcessFacts,
     ProcessRow, ProcessTable, TreeSample, TreeState, observed_sums, push_ring_sample,
@@ -405,6 +409,17 @@ impl Supervisor {
         spec: &LaunchSpec,
         ctx: &crate::tree::SpawnContext,
     ) -> Result<SpawnedProcess, SupervisorError> {
+        self.spawn_owned(session, spec, ctx, false)
+            .map(|(spawned, _)| spawned)
+    }
+
+    fn spawn_owned(
+        &self,
+        session: &SessionId,
+        spec: &LaunchSpec,
+        ctx: &crate::tree::SpawnContext,
+        driver: bool,
+    ) -> Result<(SpawnedProcess, Option<DriverPipes>), SupervisorError> {
         // Intent BEFORE spawn (AJ-E501 Req.3): the ownership record
         // exists even if the spawn or the app dies mid-breath. Ledger
         // failure degrades health, never the spawn.
@@ -425,10 +440,10 @@ impl Supervisor {
         if let Ok(mut contexts) = self.spawn_contexts.lock() {
             contexts.insert(session.clone(), ctx.clone());
         }
-        let spawned = if spec.needs_pty {
-            self.spawn_pty(session, spec)?
+        let (spawned, pipes) = if spec.needs_pty {
+            (self.spawn_pty(session, spec)?, None)
         } else {
-            self.spawn_piped(session, spec)?
+            self.spawn_piped(session, spec, driver)?
         };
         // The identity probe already landed inside the spawn path;
         // its fork-time start time IS the ledger's started_at (one
@@ -454,7 +469,9 @@ impl Supervisor {
         {
             self.settle_identity(session, spawned.pid, handle);
         }
-        Ok(spawned)
+        // `Started` was sent by the spawn path itself (`announce`), before
+        // the wait thread that sends the exit existed.
+        Ok((spawned, pipes))
     }
 
     /// Spawns a desktop-class harness app (AJ-E413): tracked in the
@@ -571,123 +588,6 @@ impl Supervisor {
     }
 
     #[allow(clippy::similar_names)] // pid/pgid are the kernel's own names
-    fn spawn_piped(
-        &self,
-        session: &SessionId,
-        spec: &LaunchSpec,
-    ) -> Result<SpawnedProcess, SupervisorError> {
-        use std::process::{Command, Stdio};
-
-        let mut command = Command::new(&spec.program);
-        command.env("PATH", launch_path(&spec.program));
-        apply_env(&mut command, &spec.env);
-        command
-            .args(&spec.args)
-            .current_dir(&spec.cwd)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        // AJ-E502: the piped root becomes its OWN group leader at
-        // spawn — every in-group helper is later reachable as one
-        // owned group (deterministic kill), not a ppid-walk snapshot.
-        // Where groups do not exist, spawn proceeds groupless (the
-        // honest `None`, never a pretended group).
-        if let Err(group::GroupError::UnsupportedPlatform) = group::make_group_leader(&mut command)
-        {
-            eprintln!(
-                "ai-juggler: process groups unsupported; tracking pid-only for {}",
-                session.as_str()
-            );
-        }
-        let child = command.spawn().map_err(|e| SupervisorError::Spawn {
-            program: spec.program.clone(),
-            message: e.to_string(),
-        })?;
-        let pid = child.id();
-        let pgid = group::pgid_of(pid).ok();
-        let identity = Self::spawn_identity(pid, pgid);
-        let ring = Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY)));
-        let child = Arc::new(Mutex::new(child));
-        let finished = Arc::new(AtomicBool::new(false));
-        let kill_child = Arc::clone(&child);
-        let force_kill: Arc<dyn Fn() + Send + Sync> = Arc::new(move || {
-            let _ = kill_child.lock().map(|mut c| c.kill());
-        });
-        // Register before readers start so output tracking exists from
-        // the first chunk (AJ-E405).
-        let exit_at = Arc::new(AtomicI64::new(0));
-        let handle = self.register(
-            session.clone(),
-            pid,
-            Arc::clone(&ring),
-            Arc::clone(&finished),
-            force_kill,
-            ChildExtras {
-                pty: None,
-                last_output_ms: Arc::new(std::sync::atomic::AtomicI64::new(0)),
-                pgid,
-                identity: identity.clone(),
-                exit_at_ms: Arc::clone(&exit_at),
-            },
-        );
-        let last_output = Arc::clone(&handle.last_output_ms);
-        let (out_atomic, err_atomic) = (Arc::clone(&last_output), last_output);
-        let (out_tx, err_tx) = (
-            std::sync::mpsc::SyncSender::clone(&self.activity_tx),
-            std::sync::mpsc::SyncSender::clone(&self.activity_tx),
-        );
-        let (out_session, err_session) = (session.clone(), session.clone());
-        let (drained_tx, drained) = std::sync::mpsc::channel();
-        spawn_reader(
-            child_lock(&child).stdout.take(),
-            Arc::clone(&ring),
-            out_atomic,
-            out_session,
-            out_tx,
-            drained_tx.clone(),
-        );
-        spawn_reader(
-            child_lock(&child).stderr.take(),
-            ring,
-            err_atomic,
-            err_session,
-            err_tx,
-            drained_tx,
-        );
-
-        let session_for_thread = session.clone();
-        let journal = self.journal.clone();
-        let ledger = self.ledger.clone();
-        let events = self.announce(session, pid);
-        let done = Arc::clone(&finished);
-        std::thread::spawn(move || {
-            let status = child.lock().ok().and_then(|mut c| c.wait().ok());
-            if let Some(status) = status {
-                emit_exit(
-                    &session_for_thread,
-                    pid,
-                    exit_kind_std(status),
-                    &done,
-                    &exit_at,
-                    journal.as_ref(),
-                    ledger.as_ref(),
-                    &events,
-                    Some(&drained),
-                );
-            } else {
-                wait_for_output(&drained);
-                done.store(true, Ordering::Release);
-            }
-        });
-
-        Ok(SpawnedProcess {
-            session: session.clone(),
-            pid,
-            pgid,
-            identity,
-        })
-    }
-
     #[allow(clippy::similar_names)] // pid/pgid are the kernel's own names
     fn spawn_pty(
         &self,
@@ -729,7 +629,7 @@ impl Supervisor {
             });
         };
         let reaped = Arc::new(AtomicBool::new(false));
-        let force_kill = pty_force_kill(child.clone_killer(), Arc::clone(&reaped));
+        let force_kill = pty_force_kill(child.clone_killer(), Arc::clone(&reaped), pid);
         let ring = Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY)));
         // Output tracking exists from chunk 1 without pre-registering the
         // handle: the atomic is independent of the children map.
@@ -866,7 +766,10 @@ impl Supervisor {
     ///
     /// [`SupervisorError::UnknownSession`] when the id is not supervised;
     /// [`SupervisorError::Unverifiable`] (nothing signalled) when an
-    /// adopted root no longer matches its recorded identity.
+    /// adopted root no longer matches its recorded identity;
+    /// [`SupervisorError::GroupNotStopped`] where the system can't stop a
+    /// process group yet (Windows): only the session's own process was
+    /// ended.
     pub fn stop(&self, session: &SessionId, grace: Duration) -> Result<(), SupervisorError> {
         let handle = self
             .children
@@ -912,7 +815,7 @@ impl Supervisor {
         if root_ours && !handle.finished.load(Ordering::Acquire) {
             (handle.force_kill)();
         }
-        Ok(())
+        whole_group_stopped(&crate::tree::OsProcessControl, handle.pid)
     }
 
     /// Snapshot of the retained output tail for a session.
@@ -1475,9 +1378,18 @@ fn spawn_reader(
                     }
                     // Throttle activity signals to ~1/250 ms per session —
                     // recovery latency stays <300 ms without spam.
+                    // A hint, never a wait: with no one draining the
+                    // signals (the app's drain stalled, or a harness
+                    // without it), a blocking send stopped this reader,
+                    // the terminal's output backed up, and the tool could
+                    // neither write nor exit (stuck exiting after Stop:
+                    // the tasks lab of 2026-10-28). A full channel already
+                    // says "this session has fresh output".
                     if now - last_notify >= 250 {
                         last_notify = now;
-                        if activity.send(session.clone()).is_err() {
+                        if let Err(std::sync::mpsc::TrySendError::Disconnected(_)) =
+                            activity.try_send(session.clone())
+                        {
                             break; // receiver gone
                         }
                     }
@@ -1490,14 +1402,21 @@ fn spawn_reader(
 /// The terminal path's force-kill. Its killer signals the pid itself: once
 /// the wait has reaped the process (`reaped`), the pid may be another
 /// process's, so nothing is sent.
+/// The PTY ladder's last step. portable-pty's own kill is SIGHUP on Unix,
+/// which a process may handle: a busy Claude Code outlived Stop by more
+/// than 30 s (the tasks lab of 2026-10-28). So it ends as the piped ladder
+/// does, with a kill the process can't refuse, while the child isn't
+/// reaped (its number is still its own).
 fn pty_force_kill(
     killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
     reaped: Arc<AtomicBool>,
+    pid: u32,
 ) -> Arc<dyn Fn() + Send + Sync> {
     let killer = Mutex::new(killer);
     Arc::new(move || {
         if !reaped.load(Ordering::Acquire) {
             let _ = killer.lock().map(|mut k| k.kill());
+            send_kill(pid);
         }
     })
 }
@@ -1628,12 +1547,38 @@ fn signaled_kind(_status: std::process::ExitStatus) -> ExitKind {
     ExitKind::Signaled(None)
 }
 
+/// A session stop's answer once its own process was handled: where the
+/// system can't stop the rest of its group, say so — never "stopped".
+fn whole_group_stopped(
+    control: &dyn crate::tree::ProcessControl,
+    pid: u32,
+) -> Result<(), SupervisorError> {
+    if control.stops_groups() {
+        Ok(())
+    } else {
+        Err(SupervisorError::GroupNotStopped { pid })
+    }
+}
+
 #[cfg(unix)]
 fn send_terminate(pid: u32) {
     use nix::sys::signal::{Signal, kill};
     use nix::unistd::Pid;
     let nix_pid = Pid::from_raw(i32::try_from(pid).unwrap_or_default());
     let _ = kill(nix_pid, Some(Signal::SIGTERM));
+}
+
+#[cfg(unix)]
+fn send_kill(pid: u32) {
+    use nix::sys::signal::{Signal, kill};
+    use nix::unistd::Pid;
+    let nix_pid = Pid::from_raw(i32::try_from(pid).unwrap_or_default());
+    let _ = kill(nix_pid, Some(Signal::SIGKILL));
+}
+
+#[cfg(not(unix))]
+fn send_kill(_pid: u32) {
+    // portable-pty's kill already ends the process here (TerminateProcess).
 }
 
 #[cfg(not(unix))]
@@ -2018,5 +1963,91 @@ mod stop_identity_tests {
         assert!(stranger.try_wait().unwrap().is_none(), "never signalled");
         stranger.kill().unwrap();
         stranger.wait().unwrap();
+    }
+}
+
+#[cfg(test)]
+mod reader_tests {
+    #![allow(clippy::unwrap_used)]
+
+    use std::sync::atomic::AtomicI64;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use juggler_core::model::SessionId;
+
+    use super::{DEFAULT_RING_CAPACITY, OutputRing, spawn_reader};
+
+    /// A reader slow enough that the 250 ms throttle lets several
+    /// activity hints through.
+    struct Trickle(usize);
+
+    impl std::io::Read for Trickle {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            if self.0 == 0 {
+                return Ok(0);
+            }
+            self.0 -= 1;
+            std::thread::sleep(Duration::from_millis(260));
+            buf[0] = b'x';
+            Ok(1)
+        }
+    }
+
+    /// The tasks lab of 2026-10-28: with the activity channel full and no
+    /// one draining it, the reader blocked and the terminal's output
+    /// backed up. It reads to the end however full the channel is.
+    #[test]
+    fn a_full_activity_channel_never_stops_the_reader() {
+        let (activity, _undrained) = std::sync::mpsc::sync_channel(1);
+        let (drained_tx, drained) = std::sync::mpsc::channel::<()>();
+        let ring = Arc::new(Mutex::new(OutputRing::new(DEFAULT_RING_CAPACITY)));
+        spawn_reader(
+            Some(Trickle(5)),
+            Arc::clone(&ring),
+            Arc::new(AtomicI64::new(0)),
+            SessionId::new("s"),
+            activity,
+            drained_tx,
+        );
+        // The reader ends (its sender drops) only once it read everything.
+        assert!(matches!(
+            drained.recv_timeout(Duration::from_secs(10)),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected)
+        ));
+    }
+}
+
+#[cfg(test)]
+mod group_stop_tests {
+    use super::whole_group_stopped;
+    use crate::error::SupervisorError;
+    use crate::tree::{Delivery, Liveness, ProcessControl, Signal};
+
+    /// A system that can (or can't) stop a whole process group.
+    struct Groups(bool);
+
+    impl ProcessControl for Groups {
+        fn state(&self, _pid: u32) -> Liveness {
+            Liveness::Unknown
+        }
+        fn send(&self, _pid: u32, _signal: Signal) -> Delivery {
+            Delivery::Undelivered
+        }
+        fn stops_groups(&self) -> bool {
+            self.0
+        }
+    }
+
+    /// Audit 3.3: where only the session's own process can be ended
+    /// (Windows until its Job Object lands), the stop says the group
+    /// wasn't stopped, never that it was.
+    #[test]
+    fn a_system_that_cant_stop_a_group_never_says_stopped() {
+        assert!(matches!(
+            whole_group_stopped(&Groups(false), 7),
+            Err(SupervisorError::GroupNotStopped { pid: 7 })
+        ));
+        assert!(whole_group_stopped(&Groups(true), 7).is_ok());
     }
 }

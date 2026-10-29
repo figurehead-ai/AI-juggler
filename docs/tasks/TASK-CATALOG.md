@@ -216,9 +216,10 @@
 | AJ-E1702 | Pools, the default pool, roles and permissions | E17-agent-pools.md | P0 | M | — |
 | AJ-E1703 | Context cards | E17-agent-pools.md | P1 | S | AJ-E1702 |
 | AJ-E1704 | The agent bridge, read-only | E17-agent-pools.md | P0 | M | AJ-E1701, AJ-E1702 |
+| AJ-E1705 | Pools across your Macs | E17-agent-pools.md | P1 | M | AJ-E1702, AJ-E1801, AJ-E710 |
 | AJ-E1801 | Messages and threads | E18-agent-messaging.md | P0 | M | AJ-E1704 |
 | AJ-E1802 | Your Inbox and compose | E18-agent-messaging.md | P0 | M | AJ-E1801 |
-| AJ-E1803 | Click to deliver, and the turn note | E18-agent-messaging.md | P0 | S | AJ-E1801 |
+| AJ-E1803 | Delivery (a click, or allowed by the pool), and the turn note | E18-agent-messaging.md | P0 | S | AJ-E1801 |
 | AJ-E1804 | Shared docs | E18-agent-messaging.md | P1 | S | AJ-E1801 |
 | AJ-E1805 | The messaging guardrail suite | E18-agent-messaging.md | P0 | S | AJ-E1801..AJ-E1804 |
 | AJ-E1901 | Task storage and rules | E19-agent-tasks.md | P0 | M | AJ-E1702 |
@@ -264,5 +265,60 @@
 | AJ-E2205 | A project's page, visual | E22-visual-usage.md | P0 | M | AJ-E2202, AJ-E2203 |
 | AJ-E2206 | A profile's page and the account cards | E22-visual-usage.md | P0 | M | AJ-E2202, AJ-E2203 |
 | AJ-E2207 | A session's usage | E22-visual-usage.md | P1 | S | AJ-E2202, AJ-E2203 |
-Total: 262 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2301 | The runtime lab on real tools | E23-session-runtime.md | P0 | S | — |
+| AJ-E2302 | The runtime contract | E23-session-runtime.md | P0 | M | — |
+| AJ-E2303 | Codex through app-server, by default | E23-session-runtime.md | P0 | L | AJ-E2302 |
+| AJ-E2304 | Open in terminal, and Start in terminal | E23-session-runtime.md | P0 | S | AJ-E2303 |
+| AJ-E2305 | Switching and hand-over across runtimes | E23-session-runtime.md | P0 | M | AJ-E2303 |
+| AJ-E2310 | Driven sessions come back after AI Juggler restarts | E23-session-runtime.md | P0 | M | AJ-E2303, AJ-E2308 |
+| AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
+| AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
+| AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
+| AJ-E2309 | Docs, Privacy and terms lines, evidence | E23-session-runtime.md | P0 | S | AJ-E2303, AJ-E2306, AJ-E2308 |
+| AJ-E2401 | The process graph: one model of apps, sessions and processes | E24-processes.md | P0 | L | — |
+| AJ-E2402 | Sightings of other apps' sessions' processes (D-41a) | E24-processes.md | P0 | M | AJ-E2401 |
+| AJ-E2403 | The user's stop of another app's leftover (D-41b) | E24-processes.md | P0 | M | AJ-E2402 |
+| AJ-E2404 | The Processes page | E24-processes.md | P0 | XL | AJ-E2401, AJ-E2403 |
+| AJ-E2405 | Automatic rules shown, previewed and told | E24-processes.md | P1 | M | AJ-E2401 |
+| AJ-E2407 | One source: the session tab, Cleanup and This Mac on the graph | E24-processes.md | P0 | M | AJ-E2401, AJ-E2404 |
+| AJ-E2406 | Privacy lines, guide, and the processes lab | E24-processes.md | P0 | S | AJ-E2402, AJ-E2403, AJ-E2404 |
+| AJ-E2501 | The one notification model | E25-notifications-and-user-menu.md | P0 | L | AJ-E1510, AJ-E611 |
+| AJ-E2502 | One count: the bell, the app badge, Needs you | E25-notifications-and-user-menu.md | P0 | M | AJ-E2501 |
+| AJ-E2503 | The notification centre | E25-notifications-and-user-menu.md | P0 | L | AJ-E2501 |
+| AJ-E2504 | §2 Banner, the alert banners, and the offline banner | E25-notifications-and-user-menu.md | P0 | M | AJ-E2501 |
+| AJ-E2505 | §2 Toast | E25-notifications-and-user-menu.md | P0 | S | AJ-E1503 |
+| AJ-E2506 | The menu-bar item (§4.17) | E25-notifications-and-user-menu.md | P1 | M | AJ-E2501 |
+| AJ-E2507 | Your menu (the avatar) | E25-notifications-and-user-menu.md | P0 | M | AJ-E1203 |
+| AJ-E2601 | The Windows bring-up's decisions | E26-windows-release.md | P0 | S | — |
+| AJ-E2602 | CI that runs the tests on Windows, not only compiles them | E26-windows-release.md | P0 | M | — |
+| AJ-E2603 | The Windows lab: a throwaway user, read-only, the open questions answered | E26-windows-release.md | P0 | M | — |
+| AJ-E2604 | Where things live: one home, one app-data folder, each tool's home | E26-windows-release.md | P0 | M | AJ-E2601 |
+| AJ-E2605 | Programs by name on Windows: `.exe`, `.cmd`, case and separators | E26-windows-release.md | P0 | M | AJ-E2602 |
+| AJ-E2606 | Stopping a whole tree on Windows: Job Objects | E26-windows-release.md | P0 | L | AJ-E2602 |
+| AJ-E2607 | Finding and starting tools on Windows: the environment, shims, ConPTY and git | E26-windows-release.md | P0 | M | AJ-E2603, AJ-E2605 |
+| AJ-E2608 | Private files and local connections on Windows: owner-only ACLs and named pipes | E26-windows-release.md | P0 | L | AJ-E2602 |
+| AJ-E2609 | Sign-in secrets in Windows Credential Manager | E26-windows-release.md | P0 | M | AJ-E2604 |
+| AJ-E2610 | Each tool's files on Windows | E26-windows-release.md | P0 | M | AJ-E2603, AJ-E2604, AJ-E2607 |
+| AJ-E2611 | Desktop apps, Go to it, and open or reveal on Windows | E26-windows-release.md | P1 | L | AJ-E2603, AJ-E2605 |
+| AJ-E2612 | System integration on Windows: notifications, the taskbar, open at login, keep awake, machine signals and ports | E26-windows-release.md | P1 | L | AJ-E2604; live part AJ-E2614 |
+| AJ-E2613 | Looks and reads like Windows: window chrome, icons, the Recycle Bin, words and keys | E26-windows-release.md | P0 | L | — |
+| AJ-E2614 | The Windows installer, signing and updates | E26-windows-release.md | P0 | L | AJ-E2601, AJ-E2604 |
+| AJ-E2615 | Windows' dedicated first release (its first Beta) | E26-windows-release.md | P0 | M | AJ-E2602, AJ-E2603, AJ-E2604, AJ-E2605, AJ-E2606, AJ-E2607, AJ-E2608, AJ-E2609, AJ-E2610, AJ-E2611, AJ-E2612, AJ-E2613, AJ-E2614 |
+| AJ-E2616 | Windows in every release: the shared flow and every shipped OS | E26-windows-release.md | P0 | M | AJ-E2615 |
+| AJ-E2701 | The Linux bring-up's decisions | E27-linux-release.md | P0 | S | — |
+| AJ-E2702 | CI that proves Linux as a desktop app | E27-linux-release.md | P0 | M | — |
+| AJ-E2703 | The Linux lab: a throwaway user, read-only, the open questions answered | E27-linux-release.md | P0 | M | — |
+| AJ-E2704 | Where things live on Linux: the XDG folders | E27-linux-release.md | P1 | S | AJ-E2604 |
+| AJ-E2705 | Processes on Linux: names, `/proc`, reapers and stopping escaped children | E27-linux-release.md | P0 | M | AJ-E2605 |
+| AJ-E2706 | Finding and starting tools on Linux | E27-linux-release.md | P0 | S | AJ-E2607 |
+| AJ-E2707 | Private files and local connections on Linux, packaged | E27-linux-release.md | P1 | S | AJ-E2703 |
+| AJ-E2708 | Sign-in secrets in the Secret Service | E27-linux-release.md | P0 | M | AJ-E2609 |
+| AJ-E2709 | Each tool's files on Linux | E27-linux-release.md | P0 | S | AJ-E2703, AJ-E2704 |
+| AJ-E2710 | Desktop apps, Go to it, open files and reveal on Linux | E27-linux-release.md | P1 | L | AJ-E2611, AJ-E2703 |
+| AJ-E2711 | System integration on Linux: notifications, the tray, open at login, keep awake, machine signals and ports | E27-linux-release.md | P1 | L | AJ-E2703, AJ-E2704 |
+| AJ-E2712 | Looks and reads like Linux: window chrome, icons, the Trash, words and keys | E27-linux-release.md | P0 | M | AJ-E2613 |
+| AJ-E2713 | Linux packages, signing and updates | E27-linux-release.md | P0 | L | AJ-E2701, AJ-E2614 |
+| AJ-E2714 | Linux's dedicated first release (its first Beta) | E27-linux-release.md | P0 | M | AJ-E2702, AJ-E2703, AJ-E2704, AJ-E2705, AJ-E2706, AJ-E2707, AJ-E2708, AJ-E2709, AJ-E2710, AJ-E2711, AJ-E2712, AJ-E2713 |
+| AJ-E2715 | Linux in every release: the shared flow and every shipped OS | E27-linux-release.md | P0 | M | AJ-E2714 |
+Total: 318 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

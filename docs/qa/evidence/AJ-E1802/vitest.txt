@@ -1,0 +1,21 @@
+ ✓ src/components/ask-card.test.tsx > an approval > offers the tool's own options and carries the one clicked
+ ✓ src/components/ask-card.test.tsx > an approval > answers from the keyboard
+ ✓ src/components/ask-card.test.tsx > an approval > sends nothing without a click
+ ✓ src/components/ask-card.test.tsx > an approval > from a terminal session's hooks, is answered in its terminal
+ ✓ src/components/ask-card.test.tsx > a question > takes the tool's choice or a reply, once every part has one
+ ✓ src/components/ask-card.test.tsx > the batch view > lists every open ask of the driven sessions together
+ ✓ src/components/ask-card.test.tsx > a driven session's page > says how it runs, its limits honestly, and hands over to the terminal
+ ✓ src/pages/messages/messages.test.tsx > a pool's messages > lists the threads and shows the open one as a conversation
+ ✓ src/pages/messages/messages.test.tsx > a pool's messages > opens another thread, and its unread question is marked for you
+ ✓ src/components/ask-card.test.tsx > a driven session's page > asks the folder's trust before Open in terminal, then hands over
+ ✓ src/components/ask-card.test.tsx > a driven session's page > whose turn was cut off says so, sends nothing, and offers Resume and End
+ ✓ src/pages/messages/messages.test.tsx > a pool's messages > says when the pool is paused, and why, with Resume
+ ✓ src/pages/messages/messages.test.tsx > a pool's messages > pauses and resumes a thread
+ ✓ src/pages/messages/messages.test.tsx > a pool's messages > writes to the whole pool with Deliver on, from the keyboard
+ ✓ src/pages/messages/messages.test.tsx > a pool's messages > a session's page shows its own threads only
+ ✓ src/pages/messages/messages.test.tsx > Needs you > an agent's held message is the same approval card, answered from the keyboard
+ ✓ src/pages/messages/messages.test.tsx > Needs you > offers the rule from the second time, never for the hop limit
+ ✓ src/pages/messages/messages.test.tsx > Needs you > messages waiting for a session are one Deliver
+ ✓ src/pages/messages/messages.test.tsx > shared docs > say what was withheld, as packs do, and open read-only
+ ✓ src/pages/messages/messages.test.tsx > readability > no text smaller than 12 px in the message views
+      Tests  20 passed (20)

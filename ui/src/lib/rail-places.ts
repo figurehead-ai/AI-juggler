@@ -1,13 +1,16 @@
 /**
  * AJ-E2104 — Open now's groups. By place (app + profile, the default), by
  * project, or by account (the subscription a profile is signed in to,
- * AJ-E2109; a profile no account lists stands for itself); pools once
- * they exist (a hook: none on 0.1.x).
+ * AJ-E2109; a profile no account lists stands for itself), or by pool
+ * (AJ-E1702: offered once you've made one; a session another app runs is
+ * in no pool).
  *
  * The order is stable (⌘1–9 go to places, so a place never moves because
  * a row changed): AI Juggler's own place first, then by app and profile.
- * A quiet place (nothing working) folds to one header ("Work · 4 idle");
- * a place shows its working rows and the 3 most recent others, then
+ * That is the default; in Your order the user's arrangement comes first
+ * (`rail-order.ts`, D-47). In Latest activity (`foldGroup`), a quiet
+ * place (nothing working) folds to one header ("Work · 4 idle"), and a
+ * place shows its working rows and the 3 most recent others, then
  * "+n quiet".
  */
 import { OWN_PLACE, type RailItem, type RailPlace } from "./rail-items";
@@ -22,6 +25,8 @@ export interface RailGroup {
   place: RailPlace | null;
   /** Its account (grouped by account). */
   accountId: string | null;
+  /** Its pool (grouped by pool): the header opens the pool's page. */
+  poolId: string | null;
   items: RailItem[];
 }
 
@@ -31,13 +36,22 @@ export const RECENT_SHOWN = 3;
 /** The account a profile is signed in to: its key and name. */
 export type AccountOf = (profileId: string | null) => { key: string; label: string } | null;
 
-function groupOf(item: RailItem, by: GroupBy, accountOf: AccountOf): { key: string; label: string } {
+/** The pool an item is in: its id and name (`null`: in none). */
+export type PoolOf = (item: RailItem) => { id: string; label: string } | null;
+
+/** The group of the items in no pool (sessions other apps run). */
+export const NO_POOL = "pool:none";
+
+function groupOf(item: RailItem, by: GroupBy, accountOf: AccountOf, poolOf: PoolOf): { key: string; label: string } {
   switch (by) {
     case "project":
       return { key: item.projectId ?? "none", label: item.project ?? "No project" };
     case "account":
       return accountOf(item.accountId) ?? { key: item.accountId ?? item.accountLabel, label: item.accountLabel };
-    case "pool": // Pools don't exist on 0.1.x; the lens waits for them.
+    case "pool": {
+      const pool = poolOf(item);
+      return pool ? { key: `pool:${pool.id}`, label: pool.label } : { key: NO_POOL, label: "Not in a pool" };
+    }
     case "place":
       return { key: item.place.key, label: item.place.app };
   }
@@ -45,18 +59,20 @@ function groupOf(item: RailItem, by: GroupBy, accountOf: AccountOf): { key: stri
 
 /** Groups in a stable order: AI Juggler's place first, then by label and
  * the profile under it. */
-export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf = () => null): RailGroup[] {
+export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf = () => null, poolOf: PoolOf = () => null): RailGroup[] {
   const groups = new Map<string, RailGroup>();
   for (const item of items) {
-    const { key, label } = groupOf(item, by, accountOf);
+    const { key, label } = groupOf(item, by, accountOf, poolOf);
     let group = groups.get(key);
     if (!group) {
-      group = { key, label, place: by === "place" || by === "pool" ? item.place : null, accountId: by === "account" ? item.accountId : null, items: [] };
+      const poolId = by === "pool" && key !== NO_POOL ? key.slice("pool:".length) : null;
+      group = { key, label, place: by === "place" ? item.place : null, accountId: by === "account" ? item.accountId : null, poolId, items: [] };
       groups.set(key, group);
     }
     group.items.push(item);
   }
-  const rank = (group: RailGroup) => (group.key === OWN_PLACE ? 0 : 1);
+  // AI Juggler's own place leads; the items in no pool come last.
+  const rank = (group: RailGroup) => (group.key === OWN_PLACE ? 0 : group.key === NO_POOL ? 2 : 1);
   return [...groups.values()].sort(
     (a, b) =>
       rank(a) - rank(b) ||
@@ -66,24 +82,28 @@ export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf 
   );
 }
 
-/** A session the user pinned (AJ-E1502): it leads its place and never
- * folds away. */
-function pinned(item: RailItem): boolean {
-  return item.session?.pinned === true;
+/** A session the user pinned (AJ-E1502): it leads its place in every
+ * order and never folds away. */
+export function pinned(item: RailItem): boolean {
+  return item.pinned;
 }
 
-/** Nothing in it is working, and nothing in it is pinned. */
+/** Nothing in it is working, needs you or is pinned. */
 export function isQuiet(group: RailGroup): boolean {
-  return group.items.every((item) => item.state !== "working" && !pinned(item));
+  return group.items.every((item) => item.state !== "working" && item.need === null && !pinned(item));
 }
 
-/** A folded quiet place in words: "Work · 4 idle". */
+/** A folded place in words: "Work · 4 idle", "Work · 1 working · 2 idle".
+ * What needs you is the header's amber chip, so it isn't said twice. */
 export function quietWords(group: RailGroup): string {
   const name = group.place?.profile ?? group.label;
-  const review = group.items.filter((item) => item.state === "done_review").length;
-  const idle = group.items.length - review;
-  const parts = [idle > 0 ? `${idle} idle` : null, review > 0 ? `${review} to review` : null].filter(Boolean);
-  return `${name} · ${parts.join(" · ")}`;
+  const count = (test: (item: RailItem) => boolean) => group.items.filter(test).length;
+  const working = count((item) => item.state === "working" && item.need === null);
+  const review = count((item) => item.state === "done_review");
+  const asks = count((item) => item.state === "asks_you" || (item.need !== null && item.state !== "done_review" && item.state !== "working"));
+  const idle = group.items.length - working - review - asks;
+  const parts = [working > 0 ? `${working} working` : null, idle > 0 ? `${idle} idle` : null, review > 0 ? `${review} to review` : null].filter(Boolean);
+  return parts.length > 0 ? `${name} · ${parts.join(" · ")}` : name;
 }
 
 /** What a group shows: its pinned rows, its working rows, then the most

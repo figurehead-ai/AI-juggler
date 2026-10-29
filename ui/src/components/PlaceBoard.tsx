@@ -1,28 +1,40 @@
 /**
  * AJ-E2104 — the rail by place: NEEDS YOU, OPEN NOW grouped by place (app
- * and profile; or by account), the "Also:" line, then the views turned
- * on. The lines come from `lib/rail-lines.ts`; this draws them, only the
+ * and profile; or by account, or by pool once you've made one), the
+ * "Also:" line, then the views turned on. The lines come from `lib/rail-lines.ts`; this draws them, only the
  * ones in view past about 30 rows, keeps rows still while the pointer or
  * focus is in the list, moves through them with ↑ and ↓, and takes ⌘1–9
  * to bring a place's app forward (stable: places never re-sort).
+ *
+ * D-47: Open now keeps the order picked on its header, Your order by
+ * default (nothing moves by itself; rows and places are dragged, or moved
+ * with ⌥⌘↑ and ⌥⌘↓); `lib/rail-order-store.ts` keeps it.
  */
-import { Fragment, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
-import { NeedRow, PlaceHeader, PlaceRow, edgeOf } from "./PlaceRows";
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import { NeedRow, PlaceHeader, PlaceRow, edgeOf, type Arrangeable } from "./PlaceRows";
+import { AlsoLine, Chevron, SectionHead, scrollerOf } from "./PlaceBoardParts";
+import { RailOrderMenu } from "./RailOrderMenu";
+import { useArrange } from "./rail-arrange";
 import { useActionHost } from "./ItemMenu";
 import { AccountAvatar } from "./Avatar";
-import { IconAlert } from "./icons";
-import { IconWindow } from "./icons-places";
 import { showToast } from "./Toast";
-import { useShownConversations, type HiddenApp } from "../lib/shown-apps";
+import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
-import { itemsOf, OWN_PLACE } from "../lib/rail-items";
-import { buildLines, foldSections, lineHeights, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type AlsoCounts, type Line } from "../lib/rail-lines";
+import { itemsOf, openNow, OWN_PLACE } from "../lib/rail-items";
+import { buildLines, foldSections, lineHeights, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import type { RailGroup } from "../lib/rail-places";
-import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView, type ShowKey } from "../lib/rail-view";
+import { dayOf, lensOf, LONG_GROUP, rankOf } from "../lib/rail-order";
+import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
+import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
 import { assignProfiles } from "../lib/profile-marks";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
+import { useBackendNeeds } from "../lib/needs-you";
+import { useNoticeActions } from "../lib/notice-actions";
+import { RailNoticeRow } from "./RailNoticeRow";
 import { useSeen } from "../lib/seen";
+import { moveLine, onLine, roveKey } from "../lib/roving";
 import { accountName, useSubscriptions } from "../lib/subscriptions";
+import { railPoolOf, usePools } from "../lib/pools";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 
 interface BoardProps {
@@ -39,82 +51,6 @@ interface BoardProps {
   density?: "comfortable" | "compact";
 }
 
-const SECTION: Record<"needs" | "open", { label: string; tone: string; Icon: typeof IconAlert }> = {
-  needs: { label: "Needs you", tone: "text-warning", Icon: IconAlert },
-  open: { label: "Open now", tone: "text-live", Icon: IconWindow },
-};
-
-/** A fold chevron, as the Project lens's (FoldButton). */
-function Chevron({ open }: { open: boolean }): JSX.Element {
-  return (
-    <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className={"ml-auto shrink-0 text-muted transition-transform motion-reduce:transition-none " + (open ? "rotate-90" : "")}>
-      <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** A section's head: a click folds it in place, and unfolds it. */
-function SectionHead({ id, count, open, onToggle }: { id: "needs" | "open"; count: number; open: boolean; onToggle: () => void }): JSX.Element {
-  const { label, tone, Icon } = SECTION[id];
-  return (
-    <h3 className={"flex h-[30px] items-end px-0.5 text-meta font-semibold " + tone} data-testid={id === "needs" ? "rail-needs-you" : "rail-open-now"}>
-      <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
-        <Icon width={13} height={13} aria-hidden="true" />
-        {label}
-        <span className="tabular-nums">{count}</span>
-        <Chevron open={open} />
-      </button>
-    </h3>
-  );
-}
-
-const ALSO: { key: keyof AlsoCounts; show: ShowKey; words: string }[] = [
-  { key: "ended", show: "ended", words: "ended today" },
-  { key: "inactive", show: "inactive", words: "inactive" },
-  { key: "background", show: "background", words: "background" },
-];
-
-/** "Also: n ended today · n inactive · n background · History ›": each
- * part turns its view on (and off). */
-function AlsoLine({ also, hidden }: { also: AlsoCounts; hidden: HiddenApp[] }): JSX.Element {
-  const view = useRailView();
-  // 24 px targets (WCAG 2.5.8), the line wrapping when it must.
-  const link = "inline-flex min-h-6 items-center rounded px-0.5 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
-  return (
-    <p className="flex min-h-[36px] flex-wrap items-center gap-x-1 px-2 pt-2 text-label text-muted" data-testid="rail-also">
-      <span>Also:</span>
-      {ALSO.filter((part) => also[part.key] > 0).map((part) => (
-        <Fragment key={part.key}>
-          <button type="button" aria-pressed={view.show[part.show]} data-testid={`rail-also-${part.key}`} onClick={() => showInRail(part.show, !view.show[part.show])} className={link + (view.show[part.show] ? " text-accent-hi" : "")}>
-            {also[part.key]} {part.words}
-          </button>
-          <span aria-hidden="true">·</span>
-        </Fragment>
-      ))}
-      {hidden.map((part) => (
-        <Fragment key={part.app}>
-          <button type="button" data-testid="rail-also-hidden" className={link} title="Settings › Desktop apps" onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "settings" } }))}>
-            {part.count} in {part.app} hidden · Settings
-          </button>
-          <span aria-hidden="true">·</span>
-        </Fragment>
-      ))}
-      <button type="button" data-testid="rail-also-history" className={link} onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "history" } }))}>
-        History ›
-      </button>
-    </p>
-  );
-}
-
-/** The nearest box that scrolls `element` (the list's, wherever the rail
- * puts its scrolling). */
-function scrollerOf(element: HTMLElement): HTMLElement | null {
-  for (let at = element.parentElement; at; at = at.parentElement) {
-    if (at.scrollHeight > at.clientHeight && /auto|scroll/.test(getComputedStyle(at).overflowY)) return at;
-  }
-  return null;
-}
-
 export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSelect, query, scroll, density = "comfortable" }: BoardProps): JSX.Element {
   const compact = density === "compact";
   const heights = lineHeights(compact);
@@ -122,11 +58,18 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   const { conversations: all, hidden } = useShownConversations();
   const seen = useSeen();
   const view = useRailView();
+  const order = useRailOrder();
   const parsed = useMemo(() => parseQuery(query), [query]);
+  // D-49: Needs you is the backend's: its sessions, and the rest beside.
+  const needsNow = useBackendNeeds();
+  const actions = useNoticeActions(sessions);
+  const pins = useMemo(() => new Set(order.pins), [order.pins]);
   const items = useMemo(
-    () => itemsOf({ sessions, conversations: all, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now) }),
-    [sessions, all, projects, seen, snooze, now],
+    () => itemsOf({ sessions, conversations: all, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), pins, needOf: needsNow.needOf }),
+    [sessions, all, projects, seen, snooze, now, pins, needsNow.needOf],
   );
+  const shownKeys = new Set(items.map((item) => item.key));
+  const others = needsNow.rows.filter((row) => !needsNow.needOf.has(row.subject) || !shownKeys.has(row.subject));
   assignProfiles(items.map((item) => item.place.profile ?? ""));
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
   const toggle = (key: string) =>
@@ -145,7 +88,22 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const byProfile = new Map((subscriptions ?? []).flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row) }] as const)));
     return (profileId: string | null) => (profileId === null ? null : (byProfile.get(profileId) ?? null));
   }, [subscriptions]);
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf });
+  // AJ-E1702: the Pool lens, once a pool of yours exists (places before).
+  const pools = usePools();
+  const poolOf = useMemo(() => railPoolOf(pools), [pools]);
+  const lens = view.group === "pool" && !poolOf ? "place" : view.group;
+  const orderLens = lensOf(lens);
+  const orderInputs = useMemo(
+    () => ({ mode: order.mode, rows: rankOf(order.rows), groups: order.groups[orderLens], folded: new Set(order.folded) }),
+    [order.mode, order.rows, order.groups, order.folded, orderLens],
+  );
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others });
+  const stable = order.mode !== "latest";
+  // New rows and places join the end of the record; gone ones are pruned.
+  const groupKeys = built.groups.map((group) => group.key).join("\n");
+  useEffect(() => {
+    reconcileOrder({ known: items.map((item) => item.key), open: items.filter(openNow), lens: orderLens, groups: groupKeys === "" ? [] : groupKeys.split("\n"), today: dayOf(now) });
+  }, [items, orderLens, groupKeys, now]);
   // Needs you and Open now fold in place from their heads.
   const [closed, setClosed] = useState<ReadonlySet<"needs" | "open">>(new Set());
   const lines = foldSections(built.lines, closed);
@@ -167,14 +125,23 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   };
 
   // A header's own click: its profile's page here (an account's in the
-  // Account lens); AI Juggler's own place is Home.
+  // Account lens, a pool's in the Pool lens); AI Juggler's own place is Home.
   const host = useActionHost();
   const pageOf = (group: RailGroup): (() => void) | undefined => {
-    if (view.group !== "account" && group.key === OWN_PLACE) return host.openHome;
+    if (lens === "pool") {
+      const pool = group.poolId;
+      return pool !== null && host.openPool ? () => host.openPool!(pool) : undefined;
+    }
+    if (lens !== "account" && group.key === OWN_PLACE) return host.openHome;
     const id = group.accountId ?? group.items[0]?.accountId ?? null;
     return id !== null && host.openAccountById ? () => host.openAccountById!(id) : undefined;
   };
   const openPlace = (group: RailGroup) => {
+    // A pool's header (and its ⌘ digit) opens the pool's page.
+    if (group.poolId !== null) {
+      host.openPool?.(group.poolId);
+      return;
+    }
     if (group.key === OWN_PLACE) {
       const first = group.items.find((item) => item.session);
       if (first?.session) onSelect(first.session.id);
@@ -188,6 +155,37 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       () => showToast({ id: "go-to", message: "Couldn't bring it forward" }),
     );
   };
+  // D-47: dragging and ⌥⌘↑ / ⌥⌘↓ in Your order.
+  const showAll = (key: string) => setToggled((current) => new Set(current).add(`${key}#all`));
+  const arrange = useArrange({
+    root,
+    enabled: order.mode === "yours",
+    lens: orderLens,
+    groups: built.groups,
+    arranged: built.arranged,
+    drawn: (key) => (toggled.has(`${key}#all`) ? Infinity : LONG_GROUP),
+    showAll,
+  });
+  const drag = arrange.drag;
+  /** Where a drag would land, as a line on the row or header it lands by. */
+  const dropAt = (keys: string[], self: string): Map<string, "before" | "after"> => {
+    const out = new Map<string, "before" | "after">();
+    if (!drag || drag.to === drag.from) return out;
+    const others = keys.filter((key) => key !== self);
+    if (drag.to < others.length) out.set(others[drag.to]!, "before");
+    else if (others.length > 0) out.set(others[others.length - 1]!, "after");
+    return out;
+  };
+  const rowDrop = drag?.kind === "row" && drag.group !== null ? dropAt(lines.filter((line) => line.kind === "row" && line.group.key === drag.group).map((line) => (line as { item: { key: string } }).item.key), drag.key) : new Map();
+  const headDrop = drag?.kind === "group" ? dropAt(built.groups.map((group) => group.key), drag.key) : new Map();
+  const arrangeOf = (kind: "row" | "group", group: string, key: string): Arrangeable => ({
+    group,
+    enabled: order.mode === "yours",
+    grip: (event) => (kind === "row" ? arrange.gripRow(event, group, key) : arrange.gripGroup(event, group)),
+    drop: (kind === "row" ? rowDrop : headDrop).get(key) ?? null,
+    dragging: drag?.kind === kind && drag.key === key,
+  });
+
   // ⌘1–9 (App's keys): the place in that position, in the stable order.
   // The listener reads the latest lines (a key can come before effects run).
   const latest = useRef({ groups: built.groups, openPlace });
@@ -230,60 +228,83 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     shown?.querySelector("button")?.focus({ preventScroll: true });
   }, [reveal, lines]);
 
-  // ↑ and ↓ move through rows and place headers; past the drawn ones, the
-  // list scrolls a row and moves on.
+  // ↑ and ↓ move through the lines (lib/roving: rows, place headers, the
+  // Also line); past the drawn ones, the list scrolls a row and moves on.
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    const targets = Array.from(root.current?.querySelectorAll<HTMLElement>("[data-rail-item], [data-rail-nav]") ?? []);
-    const at = targets.indexOf(document.activeElement as HTMLElement);
-    if (at < 0) return;
+    if (arrange.onKey(event)) return;
+    // The rail's list moved it already (lib/roving, on the list around).
+    if (event.defaultPrevented) return;
+    const box = root.current;
+    if (!box || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
+    if (roveKey(box, event)) {
+      event.preventDefault();
+      return;
+    }
+    // At the first or last line drawn of a long list: it scrolls a row,
+    // and on (a short list's end is the rail's to pass, lib/roving).
+    if (!win || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey || !scroll.box || !onLine(box, event.target)) return;
     event.preventDefault();
     const step = event.key === "ArrowDown" ? 1 : -1;
-    const next = targets[at + step];
-    if (next) next.focus();
-    else if (scroll.box) {
-      scroll.box.scrollTop += step * heights.row;
-      requestAnimationFrame(() => {
-        const again = Array.from(root.current?.querySelectorAll<HTMLElement>("[data-rail-item], [data-rail-nav]") ?? []);
-        again[step > 0 ? again.length - 1 : 0]?.focus();
-      });
-    }
+    scroll.box.scrollTop += step * heights.row;
+    requestAnimationFrame(() => {
+      if (root.current) moveLine(root.current, step > 0 ? "last" : "first");
+    });
   };
 
   const draw = (line: Line): ReactNode => {
     switch (line.kind) {
       case "section":
-        return <SectionHead id={line.id} count={line.count} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} />;
+        return <SectionHead id={line.id} count={line.count} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} extra={line.id === "open" ? <RailOrderMenu /> : undefined} />;
       case "need":
         return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} compact={compact} />;
+      case "notice":
+        return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} />;
       case "header": {
         const group = line.group;
         const own = group.key === OWN_PLACE;
-        const opens = view.group !== "account" && (own ? group.items.some((item) => item.session) : group.place?.appPid !== null && group.place?.appPid !== undefined);
+        const opens =
+          lens === "pool"
+            ? group.poolId !== null && host.openPool !== undefined
+            : lens !== "account" && (own ? group.items.some((item) => item.session) : group.place?.appPid !== null && group.place?.appPid !== undefined);
         return (
           <PlaceHeader
-            place={view.group === "account" ? null : group.place}
+            place={lens === "account" || lens === "pool" ? null : group.place}
             label={group.label}
             count={group.items.length}
             needs={line.needs}
             folded={line.folded}
-            onToggle={() => toggle(group.key)}
+            // Your order and Name remember a fold; Latest activity's is this visit's.
+            onToggle={() => (stable ? toggleFold(orderLens, group.key) : toggle(group.key))}
+            arrange={arrangeOf("group", group.key, group.key)}
             onOpen={opens ? () => openPlace(group) : undefined}
+            openWords={lens === "pool" ? "Open its page" : undefined}
             onPage={pageOf(group)}
             shortcut={line.digit ?? undefined}
           >
-            {view.group === "account" ? <AccountAvatar accountId={group.accountId} label={group.label} size={16} /> : undefined}
+            {lens === "account" ? <AccountAvatar accountId={group.accountId} label={group.label} size={16} /> : undefined}
           </PlaceHeader>
         );
       }
       case "row":
-        return <PlaceRow item={line.item} edge={edgeOf(line.group.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} compact={compact} />;
+        return (
+          <PlaceRow
+            item={line.item}
+            edge={edgeOf(line.group.place)}
+            selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)}
+            onSelect={onSelect}
+            now={now}
+            subagents={view.show.subagents}
+            compact={compact}
+            tools
+            arrange={arrangeOf("row", line.group.key, line.item.key)}
+          />
+        );
       case "plain":
         return <PlaceRow item={line.item} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} compact={compact} />;
       case "more":
         return (
           <button type="button" onClick={() => toggle(`${line.group.key}#all`)} data-testid="rail-more-quiet" className="ml-3 flex h-[24px] items-center rounded-md px-2.5 text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
-            +{line.quiet} quiet
+            +{line.quiet} {line.words}
           </button>
         );
       case "also":
@@ -305,7 +326,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   const win = built.rows > VIRTUALISE_AT ? windowOf(lines, Math.max(0, scroll.top - offset), scroll.height, 240, heights) : null;
   const shown = win ? lines.slice(win.start, win.end) : lines;
   const keyOf = (line: Line, index: number): string =>
-    line.kind === "need" || line.kind === "plain" ? `${line.kind}:${line.item.key}` : line.kind === "row" ? `row:${line.item.key}` : line.kind === "header" || line.kind === "more" ? `${line.kind}:${line.group.key}` : `${line.kind}:${"id" in line ? line.id : index}`;
+    line.kind === "notice" ? `notice:${line.notice.subject}` : line.kind === "need" || line.kind === "plain" ? `${line.kind}:${line.item.key}` : line.kind === "row" ? `row:${line.item.key}` : line.kind === "header" || line.kind === "more" ? `${line.kind}:${line.group.key}` : `${line.kind}:${"id" in line ? line.id : index}`;
   return (
     <div
       ref={root}
@@ -321,11 +342,15 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     >
       {win && <div style={{ height: win.before }} aria-hidden="true" />}
       {shown.map((line, index) => (
-        <div key={keyOf(line, index)} style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
+        <div key={keyOf(line, index)} data-rail-line style={{ minHeight: heights[line.kind] }} className="flex flex-col justify-center">
           {draw(line)}
         </div>
       ))}
       {win && <div style={{ height: win.after }} aria-hidden="true" />}
+      {/* D-47: each move said, politely ("Moved to position 2 of 5"). */}
+      <p role="status" aria-live="polite" className="sr-only" data-testid="rail-order-said">
+        {arrange.said}
+      </p>
       {items.length === 0 && (
         <div className="flex flex-col gap-1.5 px-3 py-6" data-testid="rail-empty">
           <p className="text-label font-medium text-ink">Nothing open yet</p>

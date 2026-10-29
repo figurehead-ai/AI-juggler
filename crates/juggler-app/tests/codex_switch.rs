@@ -469,6 +469,11 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
         format!(
             r#"{{"type":"assistant","uuid":"u2","cwd":"{cwd}","sessionId":"claude-sess-2","message":{{"role":"assistant","content":[{{"type":"tool_use","id":"t1","name":"Write","input":{{"file_path":"{cwd}/calc.py","content":"…"}}}},{{"type":"tool_use","id":"t2","name":"TodoWrite","input":{{"todos":[{{"content":"add","status":"completed"}},{{"content":"sub","status":"pending"}}]}}}}]}}}}"#
         ),
+        // The calls' results: no words of their own (the measured lab of
+        // 2026-10-28 found such messages quoted as empty turns).
+        format!(
+            r#"{{"type":"user","uuid":"r1","cwd":"{cwd}","sessionId":"claude-sess-2","message":{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"t1","content":"ok"}},{{"type":"tool_result","tool_use_id":"t2","content":"ok"}}]}}}}"#
+        ),
         format!(
             r#"{{"type":"assistant","uuid":"u3","cwd":"{cwd}","sessionId":"claude-sess-2","message":{{"role":"assistant","content":[{{"type":"text","text":"calc.py has add."}}]}}}}"#
         ),
@@ -523,6 +528,8 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
     assert_eq!(state["to"]["tool"], CODEX_ID);
     assert_eq!(state["rules_files"][0]["name"], "CLAUDE.md");
     assert_eq!(state["turns_left_out"], 0);
+    assert_eq!(state["turns_included"], 3, "no empty turn for the results");
+    assert!(!prompt.contains("[user]:\n> \n"), "{prompt}");
 }
 
 /// AJ-E1541 Req.2: older turns that don't fit are named by what was asked
@@ -905,4 +912,49 @@ fn a_pack_changed_after_the_preview_or_unsafe_starts_nothing() {
         .map(|dir| dir.count())
         .unwrap_or(0);
     assert_eq!(written, 1, "only the switch's own handover");
+}
+
+#[test]
+fn switching_back_to_another_tool_names_the_rules_it_doesnt_load() {
+    // The measured lab of 2026-10-28: the work went Codex → Claude and back.
+    // On Claude it followed CLAUDE.md, which Codex doesn't load; back on
+    // Codex nothing said so, and the rule was no longer in force. Here the
+    // other way round: Claude → Codex → back to Claude names AGENTS.md.
+    let work = tempfile::tempdir().unwrap();
+    let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
+    std::fs::write(
+        Path::new(&s.cwd).join("CLAUDE.md"),
+        "Docstrings start with LAB:.\n",
+    )
+    .unwrap();
+    std::fs::write(
+        Path::new(&s.cwd).join("AGENTS.md"),
+        "Test names end with _lab.\n",
+    )
+    .unwrap();
+    write_claude_transcript(&s.source_home, &s.cwd);
+    commands::redaction_policy_set_global_impl(&s.state, Some("strip")).unwrap();
+    let info = commands::switch_execute_impl(
+        &s.state,
+        &s.source_session,
+        &s.target_recipe,
+        "finish-turn",
+        None,
+        &[],
+    )
+    .unwrap();
+    let args = args_of(&s.target_home);
+    let at = args.iter().position(|a| a == "--").unwrap();
+    write_later_rollout(
+        &s.target_home,
+        &s.cwd,
+        "019a1b2c-0000-7000-8000-0000000000cc",
+        &args[at + 1..].join("\n"),
+        "Added test_sub_lab.",
+    );
+    let plan = commands::switch_back_plan_impl(&s.state, &info.session_id).unwrap();
+    let delta = &plan.delta_preview;
+    assert!(delta.contains("AGENTS.md (read by Codex)"), "{delta}");
+    assert!(delta.contains("Claude Code doesn't load itself"), "{delta}");
+    assert!(!delta.contains("CLAUDE.md"), "{delta}");
 }

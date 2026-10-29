@@ -4,6 +4,7 @@
  * turning its view on. Ended sessions from other apps are no longer added
  * under every project, and a session open in two places is one row.
  */
+import { needsFor } from "../test/needs-kit";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
@@ -39,7 +40,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
   return {
     id, tool: "claude-code", account_id: "a1", account_label: "Work Max", project_id: "proj-1", cwd: "/Users/dev/app",
     title: `Talk ${id}`, git_branch: "main", started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null,
-    live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false,
+    live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null,
     ...overrides,
   };
 }
@@ -51,6 +52,7 @@ const place = (label: string, pid: number) => ({ app: label.split(" · ")[0]!, a
 
 function board(rows: InstanceInfo[], conversations: ConversationInfo[]) {
   (window as unknown as { __AIJ_FIXTURE__?: unknown }).__AIJ_FIXTURE__ = { conversations };
+  needsFor({ sessions: rows, conversations }); // D-49: the backend's list
   return render(
     <ConversationsProvider>
       <InstanceBoard

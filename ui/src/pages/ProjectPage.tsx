@@ -18,6 +18,7 @@ import { ProjectDefaultAccount } from "../components/ProjectDefaultAccount";
 import { Section } from "../components/charts/ChartCard";
 import { IconGit, IconUser } from "../components/usage/controls";
 import { ProjectOverviewView } from "./project/Overview";
+import { ProjectAgentsCard } from "./project/AgentsCard";
 import { homeRelative, projectStats } from "../lib/project-words";
 import { isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
@@ -281,7 +282,13 @@ export function ProjectOverview(props: ProjectPanelProps) {
         rows={sessionRows}
         now={props.now}
         sharedBy={sharedBy}
-        accounts={accountsCard}
+        accounts={
+          <>
+            {accountsCard}
+            {/* The 0.2 walk (F10): its Tasks and Messages, one click away. */}
+            <ProjectAgentsCard projectId={project.id} />
+          </>
+        }
         checkouts={checkoutsCard}
         onOpenSession={props.onOpenSession}
         onAllSessions={() => document.getElementById("page-tab-sessions")?.click()}

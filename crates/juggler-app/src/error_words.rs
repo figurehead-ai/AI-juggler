@@ -85,7 +85,7 @@ fn supervisor_words(error: &SupervisorError) -> String {
         }
         SupervisorError::UnknownSession(_) => "That session isn't running any more.".to_owned(),
         SupervisorError::WrongMachine { .. } => {
-            "That runs on another Mac, so AI Juggler won't touch it from here.".to_owned()
+            "That runs on another computer, so AI Juggler won't touch it from here.".to_owned()
         }
         SupervisorError::Unverifiable { .. } => "Nothing was stopped: that process may not be the \
                                                  one AI Juggler started any more."
@@ -104,7 +104,8 @@ fn supervisor_words(error: &SupervisorError) -> String {
 fn adapter_words(error: &AdapterError) -> String {
     match error {
         AdapterError::NotFound(_) => {
-            "AI Juggler can't find that tool on this Mac. Install it, then try again.".to_owned()
+            "AI Juggler can't find that tool on this computer. Install it, then try again."
+                .to_owned()
         }
         AdapterError::VersionDrift { version, .. } => {
             format!("This version of the tool ({version}) hasn't been checked with AI Juggler yet.")
@@ -135,7 +136,7 @@ fn gone_words(entity: &str) -> String {
         "profile" | "launch settings" => ("Those launch settings", true),
         "session" | "instance" | "parked session" => ("That session", false),
         "project" => ("That project", false),
-        "paired machine" => ("That Mac", false),
+        "paired machine" => ("That computer", false),
         "work item" => ("That work", false),
         "switch edge" | "switch destination" | "cross-machine switch" | "divergence" => {
             ("That switch", false)
@@ -361,7 +362,7 @@ mod tests {
         );
         assert_eq!(
             error.wire().user_message,
-            "The new session on Personal didn't start, so nothing moved."
+            "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it."
         );
         assert_eq!(error.wire().code, "switch_failed");
         assert!(error.wire().retryable);

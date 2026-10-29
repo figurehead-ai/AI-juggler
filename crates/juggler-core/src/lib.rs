@@ -12,12 +12,15 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod agent_access;
 pub mod alerts;
 pub mod budget;
 pub mod cost_ledger;
 pub mod error;
 pub mod fs;
 pub mod funnel_events;
+pub mod injected;
+pub mod messaging;
 pub mod model;
 pub mod quality;
 pub mod quota;
@@ -27,6 +30,7 @@ pub mod ranking;
 pub mod recommendation;
 pub mod renewal;
 pub mod storage;
+pub mod tasks;
 pub mod time;
 
 pub use error::CoreError;

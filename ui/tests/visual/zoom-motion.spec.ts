@@ -10,7 +10,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, DOOR_WIZARD, openSwitch, expectRail } from "./fixtures";
+import { allStatuses, DOOR_WIZARD, openSwitch, expectRail, NARROW_RAIL_PX } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/zoom-motion");
@@ -56,9 +56,12 @@ async function runningAnimations(page: Page): Promise<string[]> {
 
 /** Every top-bar menu and New are on screen — not clipped away. */
 async function menusOnScreen(page: Page) {
-  for (const name of ["Home", "Accounts", "History", "Settings", "More"]) {
+  for (const name of ["Home", "Accounts", "History"]) {
     await expect(page.getByRole("button", { name, exact: true }).first(), `${name} is off screen`).toBeInViewport({ ratio: 1 });
   }
+  // AJ-E2502/E2507: the bell and your menu (Settings is in it).
+  await expect(page.getByTestId("notification-bell"), "the bell is off screen").toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId("user-menu-button"), "your menu is off screen").toBeInViewport({ ratio: 1 });
   await expect(page.getByRole("banner").getByRole("button", { name: "New session", exact: true })).toBeInViewport({ ratio: 1 });
 }
 
@@ -66,7 +69,7 @@ async function walk(page: Page, theme: string, label: string) {
   await menusOnScreen(page);
   // Rail. D-25 (AJ-E1020): at 200 % (640 px wide) it folds to its icon
   // column by itself; at full width it is the list.
-  const narrow = (page.viewportSize()?.width ?? 1280) < 900;
+  const narrow = (page.viewportSize()?.width ?? 1280) < NARROW_RAIL_PX;
   await expect(page.getByTestId("rail")).toHaveAttribute("data-density", narrow ? "minimal" : "comfortable");
   if (!narrow) await expect(page.locator("[data-instance-id]").first()).toBeVisible();
   await noHorizontalScroll(page);

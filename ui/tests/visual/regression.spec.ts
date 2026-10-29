@@ -17,7 +17,8 @@
  */
 import { type Page } from "@playwright/test";
 import { expect, GATE_NOW, settle, test } from "./axe-gallery";
-import { allStatuses, goTo, projectLens, railViewAs, settingsPane, terminalDrawn } from "./fixtures";
+import { allStatuses, expectRail, goTo, NARROW_RAIL_PX, openRailList, projectLens, railViewAs, settingsPane, terminalDrawn } from "./fixtures";
+import { placesConversations } from "../../src/preview/places";
 
 /** The instant the harness pins the clock to (axe-gallery.ts). */
 const T0 = GATE_NOW;
@@ -118,7 +119,7 @@ async function open(
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
-  if (!options.firstRun) await expect(page.getByRole("button", { name: "Settings" }).first()).toBeVisible();
+  if (!options.firstRun) await expect(page.getByTestId("user-menu-button")).toBeVisible();
   await settle(page);
 }
 
@@ -131,13 +132,18 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`home-${cell}.png`, SCREEN);
-        // AJ-E2104: the rail's search and View.
-        if (density !== "minimal") await expect.soft(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
-        await settle(page);
-        await expect.soft(page.getByRole("button", { name: "Settings" }).first()).toHaveScreenshot(
+        // AJ-E2507: Settings moved into your menu; History is a header nav button.
+        await expect.soft(page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "History", exact: true })).toHaveScreenshot(
           `chrome-nav-button-${cell}.png`,
           CHROME,
         );
+        // AJ-E2104: the rail's search and View (F14: below 1100 px they're
+        // in the list ⌘B opens).
+        if (density !== "minimal") {
+          await openRailList(page);
+          await settle(page);
+          await expect.soft(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
+        }
       });
 
       // AJ-E1021: Home's lower half — parked, pick up where you left off
@@ -157,7 +163,7 @@ for (const theme of THEMES) {
 
       test(`inspector — Instance overview — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await expect(page.getByTestId("instance-board")).toBeVisible(); // D-25: one rail, always the list
+        await expectRail(page); // F14: below 1100 px the rail folds to its icons
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         // AJ-E1533: a session's page opens on its body: its terminal, its Overview.
         await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true");
@@ -172,7 +178,7 @@ for (const theme of THEMES) {
       // so a regression there fails the gate, not only the gallery.
       test(`inspector — tool view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await expectRail(page);
         await page.getByRole("button", { name: /Work Max/ }).first().click();
         await page.getByRole("button", { name: "About Claude Code" }).click();
         // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
@@ -202,6 +208,7 @@ for (const theme of THEMES) {
         // AJ-E2104: projects' headers are the Project lens's (the default
         // groups Open now by place).
         await projectLens(page);
+        await openRailList(page); // F14: below 1100 px the list is a ⌘B away
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
         // AJ-E1533: a project's page opens on its body, its sessions.
@@ -215,6 +222,9 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_SCAN_REPORT__: EMPTY_SCAN } });
         await goTo(page, "Accounts");
         await page.getByTestId("add-account").click();
+        // AJ-E1601: with more than one tool found, Add account asks which first.
+        const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+        await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
         await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
         await page.mouse.move(0, 0);
         await settle(page);
@@ -255,7 +265,9 @@ for (const theme of THEMES) {
 
       test(`legend — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await page.getByTestId("rail").getByRole("button", { name: "Indicator legend" }).click();
+        // F14: the folded rail has no footer; Home's own ? opens the same legend.
+        const wide = vp.width >= NARROW_RAIL_PX && density !== "minimal";
+        await (wide ? page.getByTestId("rail") : page.getByTestId("home")).getByRole("button", { name: "Indicator legend" }).click();
         const legend = page.getByTestId("indicator-legend").first();
         await expect(legend).toBeVisible();
         await settle(page);
@@ -266,7 +278,7 @@ for (const theme of THEMES) {
       // loading placeholders (rail, Home, Accounts).
       test(`toast — held stop — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp, allStatuses, { seams: { __AIJ_TOAST_PAUSED__: true } });
-        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await expectRail(page);
         await page.locator('[data-instance-id="sess-2"]').first().click();
         await terminalDrawn(page);
         await page.getByTestId("inspector-stop").click();
@@ -329,7 +341,7 @@ for (const theme of THEMES) {
 
       test(`inspector folded — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await expect(page.getByTestId("instance-board")).toBeVisible();
+        await expectRail(page);
         await page.locator('[data-instance-id="sess-2"]').first().click();
         await terminalDrawn(page);
         await page.keyboard.press("Meta+Shift+I");
@@ -344,7 +356,8 @@ for (const theme of THEMES) {
 
       // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
       // AJ-E1528: This Mac, the page.
-      for (const screen of ["History", "Accounts", "Usage", "Fleet", "Cleanup", "Settings", "This Mac"] as const) {
+      // AJ-E2404: Processes took Cleanup's place.
+      for (const screen of ["History", "Accounts", "Usage", "Fleet", "Processes", "Settings", "This Mac"] as const) {
         test(`${screen.toLowerCase()} — ${cell}`, async ({ page }) => {
           await open(page, theme, density, vp);
           await goTo(page, screen); // D-25: some screens sit under More
@@ -441,11 +454,58 @@ for (const theme of THEMES) {
   test(`project menu — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], PINNED);
     await projectLens(page); // AJ-E2104: a project's row is the Project lens's
+    // The rail's Needs you fills in from the backend's count after the
+    // first paint (F2): a menu opened before then stays where its row was
+    // (the 0.2.0 re-render drew it in two places on two runs).
+    await expect(page.getByTestId("rail-needs-you")).toHaveText(/Needs you\s*5/);
     await page.getByRole("button", { name: "Project actions for ai-juggler" }).click();
     await expect(page.getByRole("menu", { name: "Actions for ai-juggler" })).toBeVisible();
     await page.mouse.move(0, 0);
     await settle(page);
     await expect.soft(page).toHaveScreenshot(`project-menu-${cell}.png`, SCREEN);
+  });
+}
+
+// D-47: Open now in Your order, the default: a pinned row (one another
+// app runs, pinned in AI Juggler's own record) leads its place; one that
+// asks stays in its place, amber, and is in Needs you too; a row's handle
+// and pin on hover; the order menu open.
+const ORDER = {
+  ...allStatuses,
+  sessions: allStatuses.sessions.filter((session) => session.id === "sess-2" || session.id === "sess-3"),
+  conversations: placesConversations(T0),
+};
+const ORDER_SEAMS = { __AIJ_APP_SETTINGS__: { rail_order: JSON.stringify({ mode: "yours", pins: ["c:claude-personal/outside-5"] }) } };
+for (const theme of THEMES) {
+  const cell = `${theme}-comfortable-1280x800`;
+  test(`rail order — ${cell}`, async ({ page }) => {
+    await open(page, theme, "comfortable", VIEWPORTS[0], ORDER, { seams: ORDER_SEAMS });
+    const rail = page.getByTestId("rail");
+    await expect(rail.getByTestId("rail-order-button")).toHaveText("Your order");
+    const personal = rail.locator('[data-order-group="Claude|Personal"][data-order-row]');
+    await expect(personal.first()).toHaveAttribute("data-order-row", "c:claude-personal/outside-5");
+    await expect(personal.first().getByTestId("pin-mark")).toBeVisible();
+    const asks = rail.locator('[data-order-row="c:claude-work/outside-3"]');
+    await expect(asks.getByTestId("state-word")).toHaveText("Asks you");
+    await expect(rail.getByTestId("rail-needs-you")).toContainText("4");
+    await page.mouse.move(0, 0);
+    await settle(page);
+    await expect.soft(rail).toHaveScreenshot(`rail-order-${cell}.png`, SCREEN);
+
+    const row = rail.locator('[data-order-row="c:claude-work/outside-1"]');
+    await row.hover();
+    await expect(row.getByTestId("row-tools")).toHaveCSS("opacity", "1");
+    await expect(row.getByTestId("order-grip")).toBeVisible();
+    await expect(row.getByTestId("row-pin")).toBeVisible();
+    await settle(page);
+    await expect.soft(rail).toHaveScreenshot(`rail-order-hover-${cell}.png`, SCREEN);
+
+    await rail.getByTestId("rail-order-button").click();
+    const menu = page.getByRole("menu", { name: "Order of Open now" });
+    await expect(menu.getByRole("menuitemradio")).toHaveCount(3);
+    await expect(menu.getByRole("menuitemradio", { checked: true })).toContainText("Your order");
+    await settle(page);
+    await expect.soft(page).toHaveScreenshot(`rail-order-menu-${cell}.png`, SCREEN);
   });
 }
 
@@ -470,6 +530,13 @@ test("status is never colour-only", async ({ page }) => {
   // Open now and Ended today: a dot in the state's colour, its word beside
   // it in words (E21's vocabulary), the row's name leading with that word.
   const vocabulary = /^(Asks you|Probably asks you|Working|Idle|Done, review it|Ended)$/;
+  // Every session drawn first: the rail's Needs you fills in from the
+  // backend's one count (F2) after the first paint, and a row list read
+  // before that changes under the checks below.
+  const twice = new Set(["waiting_user", "stuck", "quota_blocked"]);
+  for (const session of TODAY.sessions) {
+    await expect(rail.locator(`[data-instance-id="${session.id}"]`), `${session.id} (${session.status}) is drawn`).toHaveCount(twice.has(session.status) ? 2 : 1);
+  }
   const drawn = new Set<string>();
   const dots = await rail.locator("[data-state-dot]").all();
   // A row is its button (its name) under the line it draws (the dot and
@@ -492,12 +559,11 @@ test("status is never colour-only", async ({ page }) => {
     expect.soft(word, `${id}: why it needs you, in words`).not.toBe("");
     await expect.soft(row, `${id}: its name says why`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `));
   }
-  // Not vacuous: every session in the fixture is a row, and every row is
-  // one of those checked (a dot or a Needs you mark); the dots include at
-  // least the working and the ended state.
-  for (const session of TODAY.sessions) {
-    await expect.soft(rail.locator(`[data-instance-id="${session.id}"]`), `${session.id} (${session.status}) is drawn`).toHaveCount(1);
-  }
+  // Not vacuous: every session in the fixture is a row (above; D-47: one
+  // that needs you and is still open is in Needs you and in its place, so
+  // it's drawn twice), and every row is one of those checked (a dot or a
+  // Needs you mark); the dots include at least the working and the ended
+  // state.
   expect(await rail.locator("[data-rail-item]").count(), "every row shows its state").toBe(dots.length + needs.length);
   expect(needs.length, "Needs you rows").toBeGreaterThan(0);
   expect([...drawn].sort(), "states drawn as dots").toEqual(expect.arrayContaining(["ended", "working"]));

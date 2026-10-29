@@ -27,9 +27,11 @@ in the list on the left, or from More › This Mac.
   sessions AI Juggler started, then each tool's desktop app (the Claude
   app; the Codex app, which comes inside ChatGPT and is listed as
   "ChatGPT (Codex)"), then each tool you run in a terminal ("claude in a
-  terminal", "codex in a terminal"). A tool's own helpers count with it,
-  such as the command-line `codex` the Codex app runs. Sessions AI Juggler
-  didn't start are marked "not started by AI Juggler". AI
+  terminal", "codex in a terminal"), then any other app's AI sessions
+  the Processes page finds, grouped by the app they run in and each by its
+  title. A tool's own helpers count with it, such as the command-line
+  `codex` the Codex app runs. Sessions AI Juggler didn't start are marked
+  "not started by AI Juggler". AI
   Juggler itself is listed too, with its crash watchdog. Last, folded,
   **Other apps and macOS** lists the biggest apps that aren't AI tools, by
   name only (never their folders or how they were started). AI Juggler
@@ -48,18 +50,18 @@ opened yourself has none.
 
 ## Clean up what's left behind
 
-Under **Left behind**, choose **Clean up** (or press ⌘⇧C). The Cleanup
-screen lists what each session left running, what it costs, and why AI
-Juggler thinks it belongs to that session. Choose **Terminate…** on a
-process to stop it: AI Juggler checks it again and tells you what stopping
-it will do before you confirm. A process AI Juggler can't be sure of has no
-button.
+Under **Left behind**, choose **Clean up** (or press ⌘⇧C). It opens
+[Processes](processes.md), on what needs you: what each session left
+running, what it costs, and whose it is. Choose **Stop…** on a process to
+stop it: AI Juggler checks it again and tells you what stopping it will do
+before you confirm. A process AI Juggler can't be sure of has no button.
 
 Automatic cleanup is off by default: AI Juggler stops nothing by itself.
-To let it tidy left-behind dev servers, turn on **Automatically tidy
-left-behind dev servers** for a profile on the Accounts page. Settings ›
-Advanced › Cleanup sets what new profiles start with, and **Pause automatic
-cleanup** stops it for every profile until you resume it.
+To let it tidy left-behind dev servers, turn it on for a profile under
+**Automatic cleanup** on the Processes page, or on the Accounts page.
+Settings › Advanced › Cleanup sets what new profiles start with, and
+**Pause automatic cleanup** stops it for every profile until you resume
+it.
 
 ## Kept awake
 

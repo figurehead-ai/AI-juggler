@@ -8,25 +8,34 @@
 [allow]
 juggler-core = []
 juggler-account = []
+# AJ-E1704: the agent bridge program; depends on nothing of ours (it holds
+# no state and only speaks to the app over its socket).
+juggler-agentbridge = []
 juggler-stats = []
 juggler-scap-init = []
 # D-26: the audited SMAppService shim (open at login); depends on nothing of ours.
 juggler-login-item = []
 # D-27: the audited host_statistics64 shim (the compressor's pages); depends on nothing of ours.
 juggler-vm-stats = []
-juggler-adapter = ["juggler-core"]
+# The OS seams (cross-platform audit C5): who we are, owner-only files,
+# local sockets, program trust. Knows no tool and no product, so it sits
+# below everything and depends on nothing of ours.
+juggler-platform = []
+juggler-adapter = ["juggler-core", "juggler-platform"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
 juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-vm-stats"]
 juggler-handover = ["juggler-adapter", "juggler-core"]
 juggler-link = ["juggler-core"]
 juggler-app = [
   "juggler-account",
+  "juggler-agentbridge",
   "juggler-adapter",
   "juggler-adapters",
   "juggler-core",
   "juggler-handover",
   "juggler-link",
   "juggler-login-item",
+  "juggler-platform",
   "juggler-scap-init",
   "juggler-stats",
   "juggler-supervisor",
@@ -37,8 +46,8 @@ juggler-app = [
 # quota_ingest.rs, scan_signals.rs). Each tool's modules in
 # crates/juggler-adapters/src, by family:
 [adapters.families]
-claude = ["claude_code", "claude_environment", "claude_handover", "claude_live", "claude_transcript"]
-codex = ["codex", "codex_environment", "codex_handover", "codex_live", "codex_transcript"]
+claude = ["claude_bridge", "claude_code", "claude_environment", "claude_handover", "claude_live", "claude_transcript"]
+codex = ["codex", "codex_bridge", "codex_environment", "codex_handover", "codex_live", "codex_transcript"]
 fake = ["fake"]
 fake_desktop = ["fake_desktop"]
 

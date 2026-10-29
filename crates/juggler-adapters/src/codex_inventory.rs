@@ -5,7 +5,10 @@
 //! - skills (`~/.agents/skills/<name>/SKILL.md`, shared by every Codex
 //!   home, and the home's own `skills/`, `.system` left out), prompts
 //!   (`prompts/*.md`), subagents (`agents/*.toml`), rules (`AGENTS.md`);
-//! - plugins (`[plugins."name@marketplace"]`);
+//! - plugins (`[plugins."name@marketplace"]`), each with where it came
+//!   from by its marketplace (switch-setup-items.md §4): `OpenAI`'s own
+//!   (`openai-bundled`, `openai-primary-runtime`, `openai-curated`) are
+//!   turned on in Codex, never copied;
 //! - the home's own settings (AJ-E1508): its permissions (`approval_policy`
 //!   and `sandbox_mode`) and its status line (`tui.status_line`).
 //!
@@ -20,8 +23,8 @@ use std::path::Path;
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, HowTo, Item, ItemKind, McpServer, McpTransport, Scope, SetUp,
-    SettingCheck, Undo, Value, secret_variable, value_of,
+    Applied, ConfigFormat, Detail, GetIt, Item, ItemKind, McpServer, McpTransport, Need, Origin,
+    Scope, SetUp, SettingCheck, Undo, Value, secret_variable, value_of,
 };
 
 use crate::codex::CODEX_ID;
@@ -48,11 +51,10 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
     if let Some(plugins) = config.get("plugins").and_then(toml::Value::as_table) {
         for (id, entry) in plugins {
             if entry.get("enabled").and_then(toml::Value::as_bool) != Some(false) {
-                items.push(item(
-                    ItemKind::Plugin,
-                    id,
-                    Detail::Plugin { id: id.clone() },
-                ));
+                items.push(Item {
+                    origin: plugin_origin(id),
+                    ..item(ItemKind::Plugin, id, Detail::Plugin { id: id.clone() })
+                });
             }
         }
     }
@@ -94,6 +96,62 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
     }
     items.extend(own_settings(home));
     items
+}
+
+/// The marketplaces whose plugins come with the Codex app itself (local
+/// `config.toml` headers and the plugin cache; switch-setup-items.md §4).
+const WITH_THE_APP: [&str; 2] = ["openai-bundled", "openai-primary-runtime"];
+
+/// The marketplace of the plugin directory `ChatGPT` and Codex share.
+const CURATED: [&str; 2] = ["openai-curated", "openai-curated-remote"];
+
+/// The plugins a user made in their `ChatGPT` workspace.
+const MADE_IN_THE_WORKSPACE: &str = "created-by-me-remote";
+
+/// Where a plugin came from, by its marketplace (`name@marketplace`).
+fn plugin_origin(id: &str) -> Origin {
+    let marketplace = id.rsplit_once('@').map_or("", |(_, market)| market);
+    if WITH_THE_APP.contains(&marketplace) || CURATED.contains(&marketplace) {
+        Origin::Provided {
+            by: "OpenAI".to_owned(),
+        }
+    } else if marketplace == MADE_IN_THE_WORKSPACE {
+        Origin::Account
+    } else {
+        Origin::Own
+    }
+}
+
+/// How the Codex home of `{account}` gets the plugin `id`, which comes
+/// from `OpenAI` or the `ChatGPT` workspace: in Codex's own `/plugins`
+/// (learn.chatgpt.com/docs/plugins). No page address: no stable `ChatGPT`
+/// settings address is verified (switch-setup-items.md §4, NE).
+fn plugin_get_it(id: &str) -> GetIt {
+    let (name, marketplace) = id.rsplit_once('@').unwrap_or((id, ""));
+    let mut steps = Vec::new();
+    if WITH_THE_APP.contains(&marketplace) {
+        steps.push(format!(
+            "Open the Codex app signed in as {{account}}: {name} comes with the app."
+        ));
+        steps.push(format!(
+            "If it isn't on, type /plugins in Codex, find {name} and turn it on."
+        ));
+    } else {
+        steps.push(format!(
+            "In Codex on {{account}}, type /plugins, find {name} and install it."
+        ));
+        steps.push("If it connects an app, sign in to it when Codex asks.".to_owned());
+    }
+    steps.push("Start a new Codex session on {account}.".to_owned());
+    GetIt {
+        steps,
+        command: None,
+        open_url: None,
+        needs: vec![Need::Admin(
+            "On an Enterprise or Edu workspace, your admin may have to allow it first.".to_owned(),
+        )],
+        then: Some("Then choose Check again.".to_owned()),
+    }
 }
 
 /// AJ-E1508: the home's own settings, key by key; never the text of one
@@ -186,8 +244,8 @@ const EVERY_PROJECT: &str =
 pub fn can_set_up(item: &Item) -> SetUp {
     let from_codex = item.tool == CODEX_ID;
     match (&item.kind, &item.detail) {
-        (_, Detail::FromTheAccount) => SetUp::Impossible(
-            "it comes with the claude.ai account, so Codex can't have it".to_owned(),
+        (_, Detail::FromTheAccount { .. }) => SetUp::Impossible(
+            "it comes with {tool}'s own account, so Codex can't have it".to_owned(),
         ),
         (ItemKind::McpServer, Detail::Mcp(server)) => {
             let verdict = mcp_verdict(&item.name, server);
@@ -204,7 +262,7 @@ pub fn can_set_up(item: &Item) -> SetUp {
         // The shared skills folder is read by every Codex home on this Mac,
         // and an undo takes it away from all of them.
         (ItemKind::Skill, Detail::Files { .. }) if !from_codex => SetUp::Translate(
-            "into ~/.agents/skills, which every Codex home on this Mac reads".to_owned(),
+            "into ~/.agents/skills, which every Codex home on this computer reads".to_owned(),
         ),
         (ItemKind::Skill, Detail::Files { .. }) => SetUp::Copy,
         (ItemKind::Permissions | ItemKind::StatusLine, Detail::Setting { check, .. })
@@ -234,6 +292,13 @@ pub fn can_set_up(item: &Item) -> SetUp {
             "Codex reads one rules file, AGENTS.md: add what this one says to it yourself"
                 .to_owned(),
         ),
+        // OpenAI's own, or the workspace's: Codex installs it itself.
+        (ItemKind::Plugin, Detail::Plugin { id }) if from_codex && item.origin != Origin::Own => {
+            SetUp::TurnOn {
+                get_it: plugin_get_it(id),
+                can_copy: false,
+            }
+        }
         (ItemKind::Plugin, Detail::Plugin { id }) if from_codex => {
             SetUp::NeedsYou(format!("install it here with `codex plugin add {id}`"))
         }
@@ -241,14 +306,12 @@ pub fn can_set_up(item: &Item) -> SetUp {
             SetUp::Impossible("Claude Code plugins don't run in Codex".to_owned())
         }
         (ItemKind::Permissions | ItemKind::StatusLine, _) => SetUp::Impossible(format!(
-            "the {} of {} work differently from Codex's: set them in Codex",
+            "the {} of {{tool}} work differently from Codex's: set them in Codex",
             item.kind.words(),
-            item.tool
         )),
         _ => SetUp::Impossible(format!(
-            "a {} from {} has no Codex equivalent yet",
+            "a {} from {{tool}} has no Codex equivalent yet",
             item.kind.words(),
-            item.tool
         )),
     }
 }
@@ -262,6 +325,10 @@ pub fn can_set_up(item: &Item) -> SetUp {
 pub fn set_up(home: &Path, user_home: Option<&Path>, item: &Item) -> Result<Applied, AdapterError> {
     match (&item.kind, &item.detail, can_set_up(item)) {
         (_, _, SetUp::Impossible(why)) => Err(AdapterError::Unsupported(why)),
+        (_, _, SetUp::TurnOn { .. }) => Err(AdapterError::Unsupported(format!(
+            "{} comes with the account or the app: turn it on in Codex",
+            item.name
+        ))),
         (ItemKind::McpServer, Detail::Mcp(server), _) => add_mcp(home, &item.name, server),
         (ItemKind::Skill, Detail::Files { path }, _) => {
             let skills = user_home
@@ -372,9 +439,9 @@ fn mcp_verdict(name: &str, server: &McpServer) -> SetUp {
 ///
 /// AI Juggler never writes the secret; empty for anything else.
 #[must_use]
-pub fn how_to_get(item: &Item, codex_home: &str) -> HowTo {
+pub fn how_to_get(item: &Item, codex_home: &str) -> GetIt {
     let Detail::Mcp(server) = &item.detail else {
-        return HowTo::default();
+        return GetIt::default();
     };
     let name = &item.name;
     let secrets = secret_names(name, server);
@@ -382,7 +449,7 @@ pub fn how_to_get(item: &Item, codex_home: &str) -> HowTo {
         || secrets.is_empty()
         || !matches!(mcp_verdict(name, server), SetUp::NeedsYou(_))
     {
-        return HowTo::default();
+        return GetIt::default();
     }
     let values = secrets
         .iter()
@@ -408,7 +475,7 @@ fn add_with_env(
     command: &str,
     args: &[String],
     env: &[(String, Value)],
-) -> HowTo {
+) -> GetIt {
     let prefix = if codex_home.is_empty() {
         String::new()
     } else {
@@ -428,7 +495,7 @@ fn add_with_env(
         add.push(' ');
         add.push_str(&shell_word(word));
     }
-    HowTo {
+    GetIt {
         steps: vec![
             "Open Terminal.".to_owned(),
             format!(
@@ -446,12 +513,12 @@ fn add_with_env(
             "{prefix}codex mcp remove {}\n{add}",
             shell_word(name)
         )),
-        on_account_page: false,
+        ..GetIt::default()
     }
 }
 
 /// The lines for `[mcp_servers.<name>.env]` in the account's `config.toml`.
-fn env_lines(name: &str, codex_home: &str, values: &str, secrets: &[String]) -> HowTo {
+fn env_lines(name: &str, codex_home: &str, values: &str, secrets: &[String]) -> GetIt {
     let file = if codex_home.is_empty() {
         "$HOME/.codex/config.toml".to_owned()
     } else {
@@ -465,7 +532,7 @@ fn env_lines(name: &str, codex_home: &str, values: &str, secrets: &[String]) -> 
         )
         .collect::<Vec<_>>()
         .join("\n");
-    HowTo {
+    GetIt {
         steps: vec![
             format!("Open this account's Codex settings file in a text editor: {file}"),
             format!(
@@ -481,14 +548,14 @@ fn env_lines(name: &str, codex_home: &str, values: &str, secrets: &[String]) -> 
             "Come back here and choose Check again.".to_owned(),
         ],
         command: Some(lines),
-        on_account_page: false,
+        ..GetIt::default()
     }
 }
 
 /// A server over HTTP: Codex reads its token from the environment it
 /// starts in, so the line for the shell's startup file.
-fn shell_lines(values: &str, secrets: &[String]) -> HowTo {
-    HowTo {
+fn shell_lines(values: &str, secrets: &[String]) -> GetIt {
+    GetIt {
         steps: vec![
             format!(
                 "Codex reads this server's {} from the environment it starts in, so it can't be \
@@ -498,7 +565,7 @@ fn shell_lines(values: &str, secrets: &[String]) -> HowTo {
             "Open your shell's startup file (for zsh, ~/.zshrc) in a text editor.".to_owned(),
             format!(
                 "Add the line below, with your own value in place of {values}, and save the \
-                 file. Every account on this Mac gets it."
+                 file. Every account on this computer gets it."
             ),
             "Tick it here so it's set up on this account; sessions you start after that have \
              the value."
@@ -511,7 +578,7 @@ fn shell_lines(values: &str, secrets: &[String]) -> HowTo {
                 .collect::<Vec<_>>()
                 .join("\n"),
         ),
-        on_account_page: false,
+        ..GetIt::default()
     }
 }
 
@@ -659,6 +726,12 @@ pub(crate) fn codex_block(name: &str, server: &McpServer) -> String {
 }
 
 fn mcp_item(name: &str, entry: &toml::Table) -> Item {
+    toml_mcp_item(CODEX_ID, name, entry)
+}
+
+/// A server in the `[mcp_servers.<name>]` TOML form Codex uses, and the
+/// tools that adopted it (AJ-E1604: Grok Build), as `tool`'s item.
+pub(crate) fn toml_mcp_item(tool: &str, name: &str, entry: &toml::Table) -> Item {
     let text = |key: &str| {
         entry
             .get(key)
@@ -716,11 +789,12 @@ fn mcp_item(name: &str, entry: &toml::Table) -> Item {
     };
     let oauth = text("auth").as_deref() == Some("oauth") || entry.get("oauth").is_some();
     Item {
-        tool: CODEX_ID.to_owned(),
+        tool: tool.to_owned(),
         kind: ItemKind::McpServer,
         name: name.to_owned(),
         scope: Scope::User,
         detail: Detail::Mcp(McpServer { transport, oauth }),
+        origin: Origin::Own,
     }
 }
 
@@ -731,6 +805,7 @@ fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
         name: name.to_owned(),
         scope: Scope::User,
         detail,
+        origin: Origin::Own,
     }
 }
 
@@ -846,6 +921,7 @@ enabled = false
                 transport,
                 oauth: false,
             }),
+            origin: Origin::Own,
         };
         let stdio = mcp(McpTransport::Stdio {
             command: "npx".into(),
@@ -864,7 +940,7 @@ enabled = false
                  --env 'GITHUB_TOKEN=<your GITHUB_TOKEN>' --env 'LOG=info level' -- npx -y gh-mcp"
             )
         );
-        assert!(!how.on_account_page);
+        assert_eq!(how.open_url, None);
         assert_eq!(
             how.steps.last().map(String::as_str),
             Some("Come back here and choose Check again.")
@@ -897,7 +973,7 @@ enabled = false
             args: Vec::new(),
             env: Vec::new(),
         });
-        assert_eq!(how_to_get(&plain, ""), HowTo::default());
+        assert_eq!(how_to_get(&plain, ""), GetIt::default());
         assert_eq!(shell_word("it's"), "'it'\\''s'");
     }
 
@@ -915,6 +991,7 @@ enabled = false
                 },
                 oauth: false,
             }),
+            origin: juggler_adapter::inventory::Origin::Own,
         };
         assert!(matches!(can_set_up(&item), SetUp::Impossible(_)));
     }
@@ -935,6 +1012,7 @@ enabled = false
             name: name.into(),
             scope: Scope::User,
             detail: Detail::Files { path: "/x".into() },
+            origin: juggler_adapter::inventory::Origin::Own,
         };
         assert!(matches!(
             can_set_up(&rules(ItemKind::MainRules, "CLAUDE.md")),

@@ -218,6 +218,49 @@ impl CoreLedgerStore {
     ) -> Result<Vec<LedgerRow>, juggler_core::error::CoreError> {
         self.repo.rows_for_session(session.as_str())
     }
+
+    /// AJ-E2401: the rows the Processes view shows alive on `machine`
+    /// (running, left behind, won't be touched).
+    ///
+    /// # Errors
+    ///
+    /// [`juggler_core::error::CoreError`] on store failure.
+    pub fn live_rows(
+        &self,
+        machine: &MachineId,
+    ) -> Result<Vec<LedgerRow>, juggler_core::error::CoreError> {
+        self.repo.live_rows(machine.as_str())
+    }
+
+    /// AJ-E2401: one page of the processes that ended on `machine` since
+    /// `since_ms`, newest first, after `after` (`(last_seen, pid)`).
+    ///
+    /// # Errors
+    ///
+    /// [`juggler_core::error::CoreError`] on store failure.
+    pub fn ended_rows(
+        &self,
+        machine: &MachineId,
+        since_ms: i64,
+        after: Option<(i64, u32)>,
+        limit: usize,
+    ) -> Result<Vec<LedgerRow>, juggler_core::error::CoreError> {
+        self.repo
+            .ended_rows(machine.as_str(), since_ms, after, limit)
+    }
+
+    /// AJ-E2401: how many processes ended on `machine` since `since_ms`.
+    ///
+    /// # Errors
+    ///
+    /// [`juggler_core::error::CoreError`] on store failure.
+    pub fn ended_count(
+        &self,
+        machine: &MachineId,
+        since_ms: i64,
+    ) -> Result<u64, juggler_core::error::CoreError> {
+        self.repo.ended_count(machine.as_str(), since_ms)
+    }
 }
 
 use std::time::{Duration, SystemTime};
@@ -567,6 +610,10 @@ pub enum ProcessOutcome {
     /// (the caller aborted escalation; the audit row stays pending —
     /// the same "TERM'd, outcome unknown" language E509 renders).
     TermSent,
+    /// Couldn't be signalled or checked: no signal reached it (another
+    /// user's process, or a system with no signals yet), so it may well
+    /// still be running. A failure, never a stop.
+    CouldNotSignal,
 }
 
 impl ProcessOutcome {
@@ -579,6 +626,7 @@ impl ProcessOutcome {
             Self::AlreadyGone => "already gone",
             Self::Refused => "refused",
             Self::TermSent => "TERM'd — outcome unknown",
+            Self::CouldNotSignal => "couldn't signal",
         }
     }
 }
@@ -596,24 +644,110 @@ pub struct LadderOutcome {
 }
 
 impl LadderOutcome {
-    /// True when every member reached a success outcome
-    /// (`exited on TERM`, `needed KILL`, or `already gone`).
+    /// True when no member is known to have survived: none `refused`, and
+    /// none that `couldn't signal` (a member that may still be running
+    /// is never a success).
     #[must_use]
     pub fn all_succeeded(&self) -> bool {
-        self.members
-            .iter()
-            .all(|(_, outcome)| *outcome != ProcessOutcome::Refused)
+        self.members.iter().all(|(_, outcome)| {
+            !matches!(
+                outcome,
+                ProcessOutcome::Refused | ProcessOutcome::CouldNotSignal
+            )
+        })
     }
 }
 
-/// The platform's ladder shape (the Windows sheet's verbatim wording
-/// source; `TerminateProcess`-only until the M7-5 bring-up).
+/// The platform's ladder shape (the sheet's verbatim wording source).
+/// Where the system has no signals yet (Windows, until its Job Object
+/// lands) nothing is stopped, and the sheet says so.
 #[must_use]
 pub fn ladder_platform() -> &'static str {
-    if cfg!(target_os = "macos") || cfg!(target_os = "linux") {
+    if OsProcessControl.stops_groups() {
         "TERM → grace → KILL"
     } else {
-        "TerminateProcess only"
+        "stopping isn't available on this system yet"
+    }
+}
+
+/// Whether a process is there, as far as the system can tell. `Unknown`
+/// is never read as gone: a stub that can't tell can't report a stop.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Liveness {
+    /// Running.
+    Alive,
+    /// No such process, or a zombie (its image already exited).
+    Gone,
+    /// The system can't say (another user's process, or no way to ask
+    /// on this system).
+    Unknown,
+}
+
+/// What became of one signal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Delivery {
+    /// It reached the process (never, where there are no signals yet).
+    #[cfg_attr(not(unix), allow(dead_code))]
+    Delivered,
+    /// There is no such process.
+    NoProcess,
+    /// It didn't reach a process that may be there (not ours to signal,
+    /// or no signals on this system).
+    Undelivered,
+}
+
+/// Stopping processes, per platform (the cross-platform audit's C3): the
+/// ladder asks this, never the OS directly, so tests can stand in for a
+/// platform and a new one (a Windows Job Object) has one place to go.
+pub(crate) trait ProcessControl {
+    /// Whether `pid` is there (a zombie counts as gone).
+    fn state(&self, pid: u32) -> Liveness;
+    /// Sends `signal` (TERM or KILL) to `pid`.
+    fn send(&self, pid: u32, signal: Signal) -> Delivery;
+    /// Whether a whole process group can be stopped here.
+    fn stops_groups(&self) -> bool;
+}
+
+/// This system's [`ProcessControl`]: Unix signals; elsewhere every
+/// answer is "can't tell" and nothing is signalled.
+pub(crate) struct OsProcessControl;
+
+impl ProcessControl for OsProcessControl {
+    /// GONE — or a ZOMBIE: the image already died and only the parent's
+    /// unreaped slot keeps `kill(pid, 0)` succeeding. Without this, the
+    /// ladder would escalate on a corpse (SIGKILL a zombie, wait 2 s,
+    /// report `refused` for a process that died on TERM). One targeted
+    /// refresh.
+    fn state(&self, pid: u32) -> Liveness {
+        use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
+        match signal_pid(pid, Signal::Probe) {
+            Delivery::NoProcess => return Liveness::Gone,
+            Delivery::Undelivered => return Liveness::Unknown,
+            Delivery::Delivered => {}
+        }
+        let mut system = crate::new_system();
+        let target = sysinfo::Pid::from_u32(pid);
+        system.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&[target]),
+            true,
+            ProcessRefreshKind::nothing().without_tasks(),
+        );
+        if system
+            .process(target)
+            .is_none_or(|process| process.status() == sysinfo::ProcessStatus::Zombie)
+        {
+            Liveness::Gone
+        } else {
+            Liveness::Alive
+        }
+    }
+
+    fn send(&self, pid: u32, signal: Signal) -> Delivery {
+        signal_pid(pid, signal)
+    }
+
+    fn stops_groups(&self) -> bool {
+        cfg!(unix)
     }
 }
 
@@ -623,28 +757,6 @@ pub fn ladder_platform() -> &'static str {
 /// enumerates the scope (tests inject fixtures; production walks the
 /// live table for PGID membership or returns the single pid).
 ///
-/// True when the pid is GONE — or a ZOMBIE: the image already died
-/// and only the parent's unreaped slot keeps `kill(pid, 0)`
-/// succeeding. Without this, the ladder would escalate on a corpse
-/// (SIGKILL a zombie, wait 2 s, report `refused` for a process that
-/// died on TERM). One targeted refresh.
-fn member_gone(pid: u32) -> bool {
-    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
-    if !signal_pid(pid, Signal::Probe) {
-        return true;
-    }
-    let mut system = crate::new_system();
-    let target = sysinfo::Pid::from_u32(pid);
-    system.refresh_processes_specifics(
-        ProcessesToUpdate::Some(&[target]),
-        true,
-        ProcessRefreshKind::nothing().without_tasks(),
-    );
-    system
-        .process(target)
-        .is_none_or(|process| process.status() == sysinfo::ProcessStatus::Zombie)
-}
-
 /// This function SIGNALS — the caller MUST have verified identity
 /// this tick AND written the audit intent (AJ-E503/E509 gates).
 pub fn terminate_group<F, C>(grace: Duration, members_of: F, cancelled: C) -> LadderOutcome
@@ -652,6 +764,22 @@ where
     F: FnOnce() -> Vec<u32>,
     C: Fn() -> bool,
 {
+    terminate_group_with(&OsProcessControl, grace, members_of, cancelled)
+}
+
+/// [`terminate_group`] through `control`. A member the system can't
+/// check or signal is [`ProcessOutcome::CouldNotSignal`], never gone.
+pub(crate) fn terminate_group_with<F, C>(
+    control: &dyn ProcessControl,
+    grace: Duration,
+    members_of: F,
+    cancelled: C,
+) -> LadderOutcome
+where
+    F: FnOnce() -> Vec<u32>,
+    C: Fn() -> bool,
+{
+    let gone = |pid: u32| control.state(pid) == Liveness::Gone;
     let members = members_of();
     let mut outcomes: Vec<(u32, ProcessOutcome)> = Vec::new();
     if members.is_empty() {
@@ -661,15 +789,23 @@ where
         };
     }
     // Step 1: TERM every member; gone-before-TERM = AlreadyGone
-    // (zombies included — their image already exited).
+    // (zombies included — their image already exited). One the system
+    // can't check, or a TERM that didn't reach a process that may be
+    // there, is CouldNotSignal: never counted as gone.
     let mut survivors = Vec::new();
     for pid in &members {
-        if member_gone(*pid) {
-            outcomes.push((*pid, ProcessOutcome::AlreadyGone));
-        } else if signal_pid(*pid, Signal::Term) {
-            survivors.push(*pid);
-        } else {
-            outcomes.push((*pid, ProcessOutcome::AlreadyGone));
+        let outcome = match control.state(*pid) {
+            Liveness::Gone => Some(ProcessOutcome::AlreadyGone),
+            Liveness::Unknown => Some(ProcessOutcome::CouldNotSignal),
+            Liveness::Alive => match control.send(*pid, Signal::Term) {
+                Delivery::Delivered => None,
+                Delivery::NoProcess => Some(ProcessOutcome::AlreadyGone),
+                Delivery::Undelivered => Some(ProcessOutcome::CouldNotSignal),
+            },
+        };
+        match outcome {
+            Some(outcome) => outcomes.push((*pid, outcome)),
+            None => survivors.push(*pid),
         }
     }
     // Step 2: the visible grace window — cancellable at every tick.
@@ -682,7 +818,7 @@ where
         }
         let mut exited: Vec<u32> = Vec::new();
         survivors.retain(|pid| {
-            let gone = member_gone(*pid);
+            let gone = gone(*pid);
             if gone {
                 exited.push(*pid);
             }
@@ -712,14 +848,14 @@ where
     // them ("Ignored SIGTERM" in the sheet), then wait honestly.
     let mut refused = Vec::new();
     for pid in survivors.drain(..) {
-        signal_pid(pid, Signal::Kill);
+        control.send(pid, Signal::Kill);
         refused.push(pid);
     }
     let kill_deadline = std::time::Instant::now() + Duration::from_secs(2);
     while std::time::Instant::now() < kill_deadline && !refused.is_empty() {
         let mut died: Vec<u32> = Vec::new();
         refused.retain(|pid| {
-            let gone = member_gone(*pid);
+            let gone = gone(*pid);
             if gone {
                 died.push(*pid);
             }
@@ -735,7 +871,13 @@ where
         std::thread::sleep(Duration::from_millis(50));
     }
     for pid in refused {
-        outcomes.push((pid, ProcessOutcome::Refused));
+        // Alive after KILL is the honest failure; one the system can no
+        // longer check stays "couldn't signal".
+        let outcome = match control.state(pid) {
+            Liveness::Unknown => ProcessOutcome::CouldNotSignal,
+            Liveness::Alive | Liveness::Gone => ProcessOutcome::Refused,
+        };
+        outcomes.push((pid, outcome));
     }
     outcomes.sort_unstable_by_key(|(pid, _)| *pid);
     LadderOutcome {
@@ -744,7 +886,7 @@ where
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Signal {
     Term,
     Kill,
@@ -752,28 +894,35 @@ pub(crate) enum Signal {
     Probe,
 }
 
-/// Sends one signal to one pid — the ONE platform seam (unix signals
-/// vs the TerminateProcess-only ladder, M7-5).
+/// Sends one signal to one pid — the ONE place a raw signal is sent
+/// (behind [`OsProcessControl`]).
 #[cfg(unix)]
-pub(crate) fn signal_pid(pid: u32, signal: Signal) -> bool {
+pub(crate) fn signal_pid(pid: u32, signal: Signal) -> Delivery {
+    use nix::errno::Errno;
     use nix::sys::signal::{self, Signal as NixSignal};
     use nix::unistd::Pid;
+    // No process has a number past i32::MAX.
     let Ok(nix_pid) = i32::try_from(pid).map(Pid::from_raw) else {
-        return false;
+        return Delivery::NoProcess;
     };
     let result = match signal {
-        Signal::Term => signal::kill(nix_pid, Some(NixSignal::SIGTERM)).map(|()| true),
-        Signal::Kill => signal::kill(nix_pid, Some(NixSignal::SIGKILL)).map(|()| true),
-        Signal::Probe => signal::kill(nix_pid, None).map(|()| true),
+        Signal::Term => signal::kill(nix_pid, Some(NixSignal::SIGTERM)),
+        Signal::Kill => signal::kill(nix_pid, Some(NixSignal::SIGKILL)),
+        Signal::Probe => signal::kill(nix_pid, None),
     };
-    result.unwrap_or(false)
+    match result {
+        Ok(()) => Delivery::Delivered,
+        Err(Errno::ESRCH) => Delivery::NoProcess,
+        // EPERM: a process is there, but not ours to signal.
+        Err(_) => Delivery::Undelivered,
+    }
 }
 
+/// No signals on this system yet (a Windows Job Object is the plan):
+/// nothing is sent, and nothing is said to be gone.
 #[cfg(not(unix))]
-pub(crate) fn signal_pid(_pid: u32, _signal: Signal) -> bool {
-    // Non-unix: the ladder is TerminateProcess-only (M7-5); no
-    // signal surface exists to fake here — the sheet says so.
-    false
+pub(crate) fn signal_pid(_pid: u32, _signal: Signal) -> Delivery {
+    Delivery::Undelivered
 }
 
 // --- AJ-E508: the tier evaluator (pass2 §10 / ADR-0010 amendment) --
@@ -923,6 +1072,197 @@ pub fn pgid_members(pgid: u32) -> Vec<u32> {
         }
     }
     members
+}
+
+#[cfg(test)]
+mod ladder_tests {
+    //! The ladder against stand-in systems: one with no signals (Windows
+    //! today), one whose process isn't ours, and a scripted Unix-like one
+    //! (the macOS / Linux outcomes, unchanged).
+    #![allow(clippy::unwrap_used)]
+
+    use super::{
+        Delivery, LadderOutcome, Liveness, OsProcessControl, ProcessControl, ProcessOutcome,
+        Signal, ladder_platform, terminate_group_with,
+    };
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use std::time::Duration;
+
+    /// No way to check or signal a process: every answer is "can't tell".
+    #[derive(Default)]
+    struct NoSignals {
+        sent: Mutex<Vec<(u32, Signal)>>,
+    }
+
+    impl ProcessControl for NoSignals {
+        fn state(&self, _pid: u32) -> Liveness {
+            Liveness::Unknown
+        }
+        fn send(&self, pid: u32, signal: Signal) -> Delivery {
+            self.sent.lock().unwrap().push((pid, signal));
+            Delivery::Undelivered
+        }
+        fn stops_groups(&self) -> bool {
+            false
+        }
+    }
+
+    /// Running, but a signal can't reach it (another user's process).
+    struct NotOurs;
+
+    impl ProcessControl for NotOurs {
+        fn state(&self, _pid: u32) -> Liveness {
+            Liveness::Alive
+        }
+        fn send(&self, _pid: u32, _signal: Signal) -> Delivery {
+            Delivery::Undelivered
+        }
+        fn stops_groups(&self) -> bool {
+            true
+        }
+    }
+
+    /// What a scripted process does with each signal.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Script {
+        /// Already exited.
+        Gone,
+        /// Exits on TERM.
+        ExitsOnTerm,
+        /// Ignores TERM, exits on KILL.
+        NeedsKill,
+        /// Survives everything.
+        Unkillable,
+    }
+
+    /// A Unix-like system whose processes follow their scripts.
+    struct Scripted {
+        alive: Mutex<HashMap<u32, Script>>,
+    }
+
+    impl Scripted {
+        fn new(scripts: &[(u32, Script)]) -> Self {
+            Self {
+                alive: Mutex::new(
+                    scripts
+                        .iter()
+                        .filter(|(_, script)| *script != Script::Gone)
+                        .copied()
+                        .collect(),
+                ),
+            }
+        }
+    }
+
+    impl ProcessControl for Scripted {
+        fn state(&self, pid: u32) -> Liveness {
+            if self.alive.lock().unwrap().contains_key(&pid) {
+                Liveness::Alive
+            } else {
+                Liveness::Gone
+            }
+        }
+        fn send(&self, pid: u32, signal: Signal) -> Delivery {
+            let mut alive = self.alive.lock().unwrap();
+            let Some(script) = alive.get(&pid).copied() else {
+                return Delivery::NoProcess;
+            };
+            let exits = matches!(
+                (script, signal),
+                (Script::ExitsOnTerm, Signal::Term) | (Script::NeedsKill, Signal::Kill)
+            );
+            if exits {
+                alive.remove(&pid);
+            }
+            Delivery::Delivered
+        }
+        fn stops_groups(&self) -> bool {
+            true
+        }
+    }
+
+    fn ladder(control: &dyn ProcessControl, pids: Vec<u32>) -> LadderOutcome {
+        terminate_group_with(control, Duration::from_millis(100), move || pids, || false)
+    }
+
+    /// Audit 3.1-3.2: a system that can't signal (Windows today) used to
+    /// read every live process as "already gone", and the ladder reported
+    /// a stop that didn't happen.
+    #[test]
+    fn a_system_that_cant_signal_never_reports_a_stop() {
+        let control = NoSignals::default();
+        let outcome = ladder(&control, vec![41, 42]);
+        assert_eq!(
+            outcome.members,
+            vec![
+                (41, ProcessOutcome::CouldNotSignal),
+                (42, ProcessOutcome::CouldNotSignal)
+            ]
+        );
+        assert!(!outcome.all_succeeded(), "nothing was stopped");
+        assert!(!outcome.cancelled);
+        assert!(
+            control.sent.lock().unwrap().is_empty(),
+            "nothing it can't check is signalled"
+        );
+    }
+
+    #[test]
+    fn a_term_that_cant_reach_a_live_process_is_not_a_stop() {
+        let outcome = ladder(&NotOurs, vec![7]);
+        assert_eq!(outcome.members, vec![(7, ProcessOutcome::CouldNotSignal)]);
+        assert!(!outcome.all_succeeded());
+    }
+
+    /// The Unix outcomes, as before: gone, exited on TERM, needed KILL,
+    /// refused; only `refused` fails.
+    #[test]
+    fn a_unix_like_system_keeps_its_outcomes() {
+        let control = Scripted::new(&[
+            (1, Script::Gone),
+            (2, Script::ExitsOnTerm),
+            (3, Script::NeedsKill),
+        ]);
+        let outcome = ladder(&control, vec![1, 2, 3]);
+        assert_eq!(
+            outcome.members,
+            vec![
+                (1, ProcessOutcome::AlreadyGone),
+                (2, ProcessOutcome::ExitedOnTerm),
+                (3, ProcessOutcome::NeededKill),
+            ]
+        );
+        assert!(outcome.all_succeeded());
+        let stuck = Scripted::new(&[(4, Script::Unkillable)]);
+        let outcome = ladder(&stuck, vec![4]);
+        assert_eq!(outcome.members, vec![(4, ProcessOutcome::Refused)]);
+        assert!(!outcome.all_succeeded());
+    }
+
+    #[test]
+    fn a_cancelled_grace_is_still_term_sent() {
+        let control = Scripted::new(&[(5, Script::NeedsKill)]);
+        let outcome = terminate_group_with(&control, Duration::from_secs(30), || vec![5], || true);
+        assert!(outcome.cancelled);
+        assert_eq!(outcome.members, vec![(5, ProcessOutcome::TermSent)]);
+    }
+
+    /// This system's own answers: on Unix a number no process holds is
+    /// gone and this process is alive; elsewhere both are "can't tell".
+    #[test]
+    fn this_system_answers_honestly() {
+        let me = std::process::id();
+        if cfg!(unix) {
+            assert_eq!(OsProcessControl.state(me), Liveness::Alive);
+            assert_eq!(OsProcessControl.state(u32::MAX), Liveness::Gone);
+            assert_eq!(ladder_platform(), "TERM → grace → KILL");
+        } else {
+            assert_eq!(OsProcessControl.state(me), Liveness::Unknown);
+            assert_eq!(OsProcessControl.state(u32::MAX), Liveness::Unknown);
+        }
+        assert_eq!(OsProcessControl.stops_groups(), cfg!(unix));
+    }
 }
 
 #[cfg(test)]

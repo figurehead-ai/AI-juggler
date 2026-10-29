@@ -18,10 +18,12 @@ verify:
     cargo test --workspace
     cargo test -p juggler-app --features dev-bridge --lib dev_bridge
     ./scripts/leaked_fixtures.sh
+    LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology
     just tool-literals
+    just platform
     just structure
     just task-counts
     just stats-doc
@@ -29,6 +31,7 @@ verify:
     just polling-audit
     just release-selftest
     just dev-bridge-check
+    python3 scripts/capabilities.py check
 
 # D-20 / D-24: the release scripts' self-tests (versions, nightly notes,
 # channel requirements). A release only runs them for real once a night.
@@ -49,6 +52,8 @@ dogfood-report:
 # writes docs/qa/evidence/AJ-E805/ui-load.json and the load captures.
 load-gate:
     cd ui && AJ_LOAD_GATE=1 pnpm exec playwright test tests/visual/load.spec.ts
+    # AJ-E1906: 200 task rows in under 100 ms (a wall clock, so timed here only).
+    cd ui && AJ_LOAD_GATE=1 pnpm exec vitest run src/pages/tasks/tasks.test.tsx -t "200 tasks"
     cargo test -p juggler-app --test load_budgets -- --nocapture
     cargo test -p juggler-app --test load_budgets -- --ignored --test-threads=1 --nocapture
     cargo test -p juggler-handover --test pack_load -- --nocapture
@@ -85,6 +90,13 @@ terminology:
 tool-literals:
     python3 scripts/tool_literal_lint.py --selftest
     python3 scripts/tool_literal_lint.py
+
+# Cross-platform readiness (docs/research/cross-platform-readiness.md §5.1):
+# no new macOS- or Unix-only assumption outside the platform seams; the
+# allowlist of today's sites only shrinks.
+platform:
+    python3 scripts/platform_lint.py --selftest
+    python3 scripts/platform_lint.py
 
 # AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
 # the IPC rules and the size budget. Each allowlist only shrinks.
@@ -129,26 +141,60 @@ gate-signed:
 # throwaway project: it spends a little usage and adds the lab's sessions
 # to the accounts. Arguments: a new project folder, two Claude config
 # folders, a Codex home, and the report's path (keep it out of the
-# repository: it holds real paths). AIJ_LAB_PROBE=<name> also checks the
-# set-up step.
+# repository: it holds real paths). `probe` names the probe MCP server and
+# skill the set-up step is checked with (planted on A, removed after). Each
+# hop's measured fidelity is written beside the report (`<out>.fidelity.md`).
 # AJ-E1539: the live switching lab (read the test's header first).
-switch-lab project claude_a claude_b codex out:
+switch-lab project claude_a claude_b codex out probe="aij-lab-probe":
     cargo test -p juggler-app --test switch_lab_live --no-run
-    env -u CLAUDE_CONFIG_DIR -u CODEX_HOME \
+    ./scripts/qa/lab_env.sh \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
+      AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" AIJ_LAB_PROBE="{{probe}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_live --exact
+
+# D-51 in the live lab: a note planted in Claude A's notes for the throwaway
+# project travels to B (ticked, then undone) and into Codex's handover (ticked).
+switch-lab-notes project claude_a claude_b codex out:
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE=notes \
       AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
       AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
       AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
-      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_live --exact
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_notes_live --exact
 
 # AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
 # old path, on one Claude profile and the Codex home (see switch_lab_live.rs).
 switch-lab-outside root claude codex out probe="aij-lab-probe" journeys="j1,j2,j3":
     cargo test -p juggler-app --test switch_lab_live --no-run
-    env -u CLAUDE_CONFIG_DIR -u CODEX_HOME DISABLE_AUTOUPDATER=1 AIJ_LAB_SUITE=outside \
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE=outside \
       AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{root}}" \
       AIJ_LAB_CLAUDE_A="{{claude}}" AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
       AIJ_LAB_PROBE="{{probe}}" AIJ_LAB_JOURNEYS="{{journeys}}" \
       cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_outside_live --exact
+
+# AJ-E1803 / AJ-E1902: the live agent labs, messaging or tasks (read the
+# header of crates/juggler-app/tests/agent_labs_live.rs first). Real Claude
+# Code (one profile, in place) and Codex (its home, in place) in a new
+# throwaway project; `out` (a new folder, 0700) gets the report, the
+# bridge's logs and the before/after snapshots (names, sizes and times only).
+# claude_b (optional): a second lab Claude profile, for the tasks lab's
+# switch step.
+agent-lab suite project claude codex out claude_b="":
+    cargo build -p juggler-agentbridge --bin juggler-agent
+    cargo test -p juggler-app --test agent_labs_live --no-run
+    mkdir -p "{{out}}" && chmod 700 "{{out}}"
+    AJ_LAB_OUT="{{out}}" ./scripts/qa/runtime_lab_snapshot.sh take before-{{suite}} "{{claude}}" "{{codex}}" {{ if claude_b != "" { quote(claude_b) } else { "" } }}
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE="{{suite}}" \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE="{{claude}}" AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
+      {{ if claude_b != "" { "AIJ_LAB_CLAUDE_B=" + quote(claude_b) } else { "" } }} \
+      AIJ_LAB_AGENT="${CARGO_TARGET_DIR:-$(pwd)/target}/debug/juggler-agent" \
+      cargo test -p juggler-app --test agent_labs_live -- --ignored --nocapture agent_lab_live --exact; \
+      status=$?; \
+      AJ_LAB_OUT="{{out}}" ./scripts/qa/runtime_lab_snapshot.sh take after-{{suite}} "{{claude}}" "{{codex}}" {{ if claude_b != "" { quote(claude_b) } else { "" } }}; \
+      AJ_LAB_OUT="{{out}}" ./scripts/qa/runtime_lab_snapshot.sh diff before-{{suite}} after-{{suite}} > "{{out}}/snapshot-{{suite}}.txt"; \
+      exit $status
 
 # AJ-E808: render the provider-pair fidelity register (a test fails on drift).
 fidelity-register:
@@ -171,8 +217,13 @@ doc:
 # and single-instance lock: it runs next to an installed AI Juggler or AI
 # Juggler Nightly and never touches their data.
 # Run the app as AI Juggler Dev (UI hot-reload + Rust rebuild on change).
-dev: dev-icon
+dev: dev-icon agent-bridge
     cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json
+
+# AJ-E1704: the agent bridge beside the dev build's executable (where the
+# app looks for it; a release bundle carries it in Contents/MacOS).
+agent-bridge:
+    cargo build -q -p juggler-agentbridge --bin juggler-agent
 
 # AJ-E1531: the replica, a throwaway HOME shaped like a heavy real user's
 # Mac, for every walk and journey. It refuses a HOME that isn't a replica.
@@ -229,8 +280,15 @@ replica-walk: dev-icon
 # AI Juggler Dev with the read-only test bridge: the real UI in a browser
 # against this build's backend and data, for QA without Accessibility
 # (docs/qa/DEV-BRIDGE.md). Then `just dev-bridge-url` for the page.
-dev-bridge: dev-icon
+dev-bridge: dev-icon agent-bridge
     AIJ_DEV_BRIDGE=1 cargo tauri dev --config crates/juggler-app/tauri.dev.conf.json --features dev-bridge
+
+# A fresh AI Juggler Dev data folder for a walk on real data: the setups
+# found on this computer, used where they are, named "Account A–Z", with
+# limits_probe_allowed = off. Starts no tool and writes no tool's folder;
+# refuses if the Dev data folder exists (docs/qa/DEV-BRIDGE.md).
+dev-bridge-data:
+    cargo run -q -p juggler-app --features dev-bridge --example dev_walk_data
 
 # The page for the running bridge (reads its 0600 token file).
 dev-bridge-url:

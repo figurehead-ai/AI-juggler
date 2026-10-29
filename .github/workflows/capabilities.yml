@@ -1,0 +1,62 @@
+name: capabilities
+
+# The tool capabilities manifest (docs/research/capabilities/) kept fresh:
+# once a week, each entry's public version feed is asked for the newest
+# version; an entry with a newer release, or checked more than the
+# manifest's `stale_after_days` ago, goes on one open issue to re-verify.
+# Package names are all that is sent. Nothing here changes the repository.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: capabilities
+  cancel-in-progress: false
+
+jobs:
+  due:
+    name: entries to re-verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Check the manifest
+        run: python3 scripts/capabilities.py check
+      - name: Ask each version feed
+        id: due
+        run: |
+          set -euo pipefail
+          python3 scripts/capabilities.py latest --json > "$RUNNER_TEMP/due.json"
+          echo "count=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$RUNNER_TEMP/due.json")" >> "$GITHUB_OUTPUT"
+      - name: Open or update the re-verify issue
+        if: steps.due.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/due.json" > "$RUNNER_TEMP/body.md" <<'PY'
+          import json, sys
+          rows = json.load(open(sys.argv[1]))
+          print("These entries of `docs/research/capabilities/manifest.json` need re-verifying")
+          print("(research as in `docs/research/EVIDENCE-STANDARD.md`; then update the entry,")
+          print("its `checked_at`, and run `python3 scripts/capabilities.py render`):")
+          print()
+          for row in rows:
+              print(f"- **{row['product']}** (`{row['tool']}`, {row['layer']}): " + "; ".join(row["reasons"]))
+          PY
+          title="Capabilities manifest: entries to re-verify"
+          existing="$(gh issue list --repo "$REPO" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "$REPO" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh issue create --repo "$REPO" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi

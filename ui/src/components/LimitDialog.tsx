@@ -23,10 +23,10 @@ import {
   type SwitchTargetData,
 } from "../lib/bridge";
 import { stagingReady, type StagedSwitchInfo } from "../lib/ipc/staging";
-
-function clock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-}
+import { rankTargets, type RoomTarget } from "../lib/room-targets";
+import { useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { SuggestedMark } from "./SwitchTargetRows";
+import { resetsWords, whenWords } from "../lib/time-words";
 
 function inWords(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
@@ -39,10 +39,18 @@ function ago(ms: number): string {
   return ms < 60_000 ? "just now" : `${inWords(ms)} ago`;
 }
 
-/** The pick: the ranker's suggestion on another account, else its best. */
-export function pickTarget(targets: SwitchTargetData[], fromAccount: string | null): SwitchTargetData | null {
-  const usable = targets.filter((t) => t.account_id !== fromAccount && !t.filtered_reason);
-  return usable.find((t) => t.suggested) ?? usable[0] ?? null;
+/** The pick: the one order by room's suggestion (`lib/room`, as Home's
+ * "Best for new work"), else the first other account that isn't out of
+ * room. Never the same account, a held-back one, or one out of room: that
+ * would walk into another limit (the 0.2 walk, F1). */
+export function pickTarget(
+  targets: SwitchTargetData[],
+  fromAccount: string | null,
+  accounts: SubscriptionInfo[] | null = null,
+  displays: QuotaDisplayData[] = [],
+): RoomTarget | null {
+  const ranked = rankTargets(targets, accounts, displays, fromAccount);
+  return ranked.find((t) => t.suggested) ?? ranked.find((t) => t.room.kind !== "blocked" && t.room.kind !== "out") ?? null;
 }
 
 export function LimitDialog({
@@ -92,7 +100,8 @@ export function LimitDialog({
   }, [targets]);
 
   const resetAt = session.quota?.resets_at_ms ?? null;
-  const target = targets ? pickTarget(targets, session.account_id) : null;
+  const accounts = useSubscriptions();
+  const target = targets ? pickTarget(targets, session.account_id, accounts, displays) : null;
   const ready = target && staged?.target_account_id === target.account_id ? staged : null;
   const targetLines = target
     ? runwayLines(
@@ -152,7 +161,7 @@ export function LimitDialog({
           <p id="limit-what" className="text-sm leading-relaxed text-muted">
             {resetAt
               ? resetAt > now
-                ? `It resets at ${clock(resetAt)}, in ${inWords(resetAt - now)}. `
+                ? `It ${resetsWords(resetAt, now)}, in ${inWords(resetAt - now)}. `
                 : "Its window has reset. "
               : "Its reset time isn't known yet. "}
             The session is paused where it stopped; nothing is lost.
@@ -163,7 +172,7 @@ export function LimitDialog({
           <section className="flex flex-col gap-3 rounded-xl border border-hairline p-4" data-testid="limit-parked">
             <p className="text-sm">
               Parked.{" "}
-              {resetAt ? `At ${clock(resetAt)} it's offered back to you` : "When the reset is known, it's offered back to you"}; nothing restarts on
+              {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "When the reset is known, it's offered back to you"}; nothing restarts on
               its own.
             </p>
             <Button size="sm" variant="primary" data-autofocus onClick={close}>
@@ -179,9 +188,7 @@ export function LimitDialog({
                 <>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium">Continue now on {target.account_label}</span>
-                    {target.suggested && (
-                      <span className="rounded-full border border-accent/40 px-1.5 text-label font-medium text-accent-hi">Recommended</span>
-                    )}
+                    {target.suggested && <SuggestedMark />}
                   </div>
                   {ready && (
                     <p className="text-xs text-success" data-testid="limit-ready">
@@ -224,7 +231,7 @@ export function LimitDialog({
             <section className="flex flex-col gap-2 rounded-xl border border-hairline p-4" data-testid="limit-wait">
               <span className="text-sm font-medium">Wait for the reset</span>
               <p className="text-xs leading-relaxed text-muted">
-                Parks the session. {resetAt ? `At ${clock(resetAt)} it's offered back to you` : "Once the reset is known it's offered back to you"};
+                Parks the session. {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "Once the reset is known it's offered back to you"};
                 nothing restarts on its own.
               </p>
               <Button
@@ -235,7 +242,7 @@ export function LimitDialog({
                 data-autofocus={target ? undefined : true}
                 onClick={() => void park()}
               >
-                {parking === "busy" ? "Parking…" : resetAt ? `Park until ${clock(resetAt)}` : "Park until the reset"}
+                {parking === "busy" ? "Parking…" : resetAt ? `Park until ${whenWords(resetAt, now)}` : "Park until the reset"}
               </Button>
               {error && <p className="text-xs text-danger">{error}</p>}
             </section>

@@ -14,7 +14,8 @@ import { ChartBody, Legend, Section, TableToggle } from "../charts/ChartCard";
 import { Donut } from "../charts/Donut";
 import { StatTile } from "../charts/StatTile";
 import { TimeChart, timeTable } from "../charts/TimeChart";
-import { short, type Unit } from "../charts/scale";
+import { READING_SHORT, readingLine } from "../../lib/history-reading";
+import { API_PRICE, short, type Unit } from "../charts/scale";
 import type { GroupBy } from "../charts/colors";
 import { accountGroups, foldItems, foldSeries } from "./accounts";
 import { ActiveHours, SessionsPerBucket } from "./Activity";
@@ -117,31 +118,43 @@ export function UsageDashboard({
       if (account) host.openAccount?.(account);
     }
   };
-  const emptyWords = data === null ? "Reading usage…" : "No usage in this range yet";
+  // The 0.2 walk (F6): while the first read of the history runs, a zero
+  // is only "not read yet": the tiles say so, and a line says how far.
+  const reading = data?.reading ?? null;
+  const pending = reading !== null && (io ?? 0) === 0;
+  const emptyWords = data === null ? "Reading usage…" : reading !== null ? READING_SHORT : "No usage in this range yet";
 
   return (
-    <div className="@container flex flex-col gap-grid" data-testid={testId} aria-busy={view.loading || undefined}>
+    <div className="@container flex flex-col gap-grid" data-testid={testId} aria-busy={view.loading || reading !== null || undefined}>
+      {reading !== null && (
+        <p role="status" className="text-body text-muted" data-testid="usage-reading">
+          {readingLine(reading)}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4" data-testid="usage-tiles">
-        <StatTile label="Tokens in and out" icon={<IconTokens width={15} height={15} />} value={io} unit="tokens" before={data ? data.previous.tokens.input + data.previous.tokens.output : null} period={before} trend={tokensTrend} testId="tile-tokens" />
+        <StatTile label="Tokens in and out" icon={<IconTokens width={15} height={15} />} value={pending ? null : io} words={pending ? READING_SHORT : undefined} unit="tokens" before={data ? data.previous.tokens.input + data.previous.tokens.output : null} period={before} trend={tokensTrend} testId="tile-tokens" />
         <StatTile
           label="Estimated cost"
           icon={<IconMoney width={15} height={15} />}
           // §4.11: an estimate that can't be made says so — never "$0".
-          value={data?.totals.usd ?? null}
-          words={data && data.totals.usd == null ? (io ? "No list price" : "No usage yet") : undefined}
+          value={pending ? null : (data?.totals.usd ?? null)}
+          words={pending ? READING_SHORT : data && data.totals.usd == null ? (io ? "No list price" : "No usage yet") : undefined}
           atLeast={!!data?.totals.unpriced && data.totals.usd != null}
+          estimate
           unit="usd"
           before={data?.previous.usd ?? null}
           better="down"
           period={before}
           trend={usdTrend}
-          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : "Some models have no list price, so they aren't counted") : undefined}
+          // §4.11: every cost says it is the API's price, not the bill.
+          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : `${API_PRICE}. Some models have no list price, so they aren't counted`) : data?.totals.usd != null ? API_PRICE : undefined}
           testId="tile-cost"
         />
         <StatTile
           label="Sessions"
           icon={<IconPlay width={15} height={15} />}
-          value={data?.totals.sessions ?? null}
+          value={pending ? null : (data?.totals.sessions ?? null)}
+          words={pending ? READING_SHORT : undefined}
           unit="count"
           before={data?.previous.sessions ?? null}
           period={before}
@@ -149,7 +162,7 @@ export function UsageDashboard({
           note={data && data.unmeasured_sessions > 0 ? `+${data.unmeasured_sessions} not measured` : undefined}
           testId="tile-sessions"
         />
-        <StatTile label="Active hours" icon={<IconClock width={15} height={15} />} value={data?.totals.active_hours ?? null} unit="count" suffix="h" before={data?.previous.active_hours ?? null} period={before} trend={hoursTrend} testId="tile-hours" />
+        <StatTile label="Active hours" icon={<IconClock width={15} height={15} />} value={pending ? null : (data?.totals.active_hours ?? null)} words={pending ? READING_SHORT : undefined} unit="count" suffix="h" before={data?.previous.active_hours ?? null} period={before} trend={hoursTrend} testId="tile-hours" />
       </div>
       <div className={GRID}>
         <Section

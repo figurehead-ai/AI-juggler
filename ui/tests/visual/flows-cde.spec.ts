@@ -183,8 +183,8 @@ test("flow (e): launch ≤ 2 clicks; Profile never a sheet noun; verdict words n
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  // The launch sheet opens (⌘N opens New project; the header New
-  // button opens the launch sheet — flow (e)'s surface).
+  // The launch sheet opens (⌘N opens it too, D-50; the header New
+  // button is flow (e)'s surface).
   await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "New session" })).toBeVisible();
 

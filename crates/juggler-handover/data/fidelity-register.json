@@ -559,6 +559,234 @@
           "verdict": "UNVALIDATED"
         }
       ]
+    },
+    {
+      "from": "claude-code",
+      "to": "claude-code+service",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "claude-code+service",
+      "to": "claude-code",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "claude-code+service",
+      "to": "claude-code+service",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "codex",
+      "to": "codex+service",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "codex+service",
+      "to": "codex",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
+    },
+    {
+      "from": "codex+service",
+      "to": "codex+service",
+      "cells": [
+        {
+          "area": "transcript-resume",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "rules-carry",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "todos",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "subagents",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "file-history",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "mcp-references",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "cwd-worktree-edges",
+          "verdict": "UNVALIDATED"
+        },
+        {
+          "area": "switch-back",
+          "verdict": "UNVALIDATED"
+        }
+      ]
     }
   ]
 }

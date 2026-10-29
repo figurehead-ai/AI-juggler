@@ -140,7 +140,7 @@ pub fn launch_options_impl(state: &Arc<AppState>) -> AppResult<Vec<LaunchMachine
                 Some(format!("{} isn't connected right now", peer.label))
             } else if view.permission.as_deref() != Some("control") {
                 Some(format!(
-                    "View only: on {}, let this Mac control it in Fleet",
+                    "View only: on {}, let this computer control it in Fleet",
                     peer.label
                 ))
             } else if catalog.recipes.is_empty() {

@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilesScreen } from "../Profiles";
 import * as bridge from "../../lib/bridge";
 import * as subs from "../../lib/ipc/subscriptions";
-import { accountDisplay, accountName, shareAccount, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountDisplay, accountLine, accountName, shareAccount, type SubscriptionInfo } from "../../lib/subscriptions";
 import { byAccount, setupWords } from "../../pages/session/ContinueOn";
 import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
 
@@ -32,7 +32,7 @@ const profile = (id: string, label: string, extra: Partial<AccountInfo> = {}): A
   ...extra,
 });
 
-const member = (id: string, extra: Partial<SubscriptionInfo["profiles"][number]> = {}) => ({ id, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null, ...extra });
+const member = (id: string, extra: Partial<SubscriptionInfo["profiles"][number]> = {}) => ({ id, label: `Profile ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null, ...extra });
 
 const account = (key: string, ids: string[], extra: Partial<SubscriptionInfo> = {}): SubscriptionInfo => ({
   key,
@@ -85,7 +85,9 @@ describe("AJ-E2109 the Accounts screen", () => {
     ]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     const cards = await screen.findAllByTestId("account-card");
-    expect(cards.map((card) => card.querySelector("[data-testid='account-name']")?.textContent)).toEqual(["Acme", "Claude Max", "Not signed in"]);
+    expect(cards.map((card) => card.querySelector("[data-testid='account-name']")?.textContent)).toEqual(["Work, Work 2 and 1 more", "Personal and Weekend", "Not signed in"]);
+    // The team is the second line, never the title (the 0.2 walk, F3).
+    expect(cards[0]!.querySelector("[data-testid='account-line']")?.textContent).toBe("Acme · o…@work.com · Team");
     expect(within(cards[0]!).getAllByTestId("account-label").map((n) => n.textContent)).toEqual(["Work", "Work 2", "Client"]);
     expect(within(cards[0]!).getByTestId("account-profiles-count").textContent).toBe("3 profiles share this account");
     // One runway per account, none for profiles that aren't signed in.
@@ -125,10 +127,22 @@ describe("AJ-E2109 the Accounts screen", () => {
 describe("AJ-E2109 accounts in words", () => {
   const rows = [account("work", ["w1", "w2"]), account("me", ["p1"], { email: "o…@me.com", plan: null })];
 
-  it("names an account by its team, else its tool and plan", () => {
+  it("names an account by your names for its profiles, never its team's (the 0.2 walk, F3)", () => {
+    const seat = (id: string) => account(id, [id], { organisation: "Acme" });
+    // Five seats in one team: five names, the team on the second line.
+    expect(["a", "b", "c"].map((id) => accountName(seat(id)))).toEqual(["Profile a", "Profile b", "Profile c"]);
+    expect(accountLine(seat("a"))).toBe("Acme · o…@work.com · Max");
+    expect(accountName(rows[0]!)).toBe("Profile w1 and Profile w2");
+    expect(accountName(account("x", ["1", "2", "3", "4"]))).toBe("Profile 1, Profile 2 and 2 more");
+    expect(accountName(rows[1]!)).toBe("Profile p1");
+    // No name at all: its team, else its tool and plan.
     expect(accountName(account("t", [], { organisation: "Acme" }))).toBe("Acme");
-    expect(accountName(rows[0]!)).toBe("Claude Max");
-    expect(accountName(rows[1]!)).toBe("Claude account");
+    expect(accountName(account("t", []))).toBe("Claude Max");
+    expect(accountName(account("t", [], { plan: null }))).toBe("Claude account");
+  });
+
+  it("never shows a sign-in that records no email (Codex's is an id)", () => {
+    expect(accountLine(account("c", ["c"], { tool: "codex", email: null, plan: null }))).toBeNull();
   });
 
   it("two profiles on one login share one runway: the freshest measured reading", () => {
@@ -140,8 +154,8 @@ describe("AJ-E2109 accounts in words", () => {
 
   it("AJ-E2108: a profile on the session's own account gives no new room", () => {
     const targets = [
-      { profileId: "w2", label: "Work 2", recipeId: "r-w2", blocked: null, badge: null, crossTool: false },
-      { profileId: "p1", label: "Personal", recipeId: "r-p1", blocked: null, badge: null, crossTool: false },
+      { profileId: "w2", label: "Work 2", recipeId: "r-w2", blocked: null, badge: null, crossTool: false, room: null, suggested: false },
+      { profileId: "p1", label: "Personal", recipeId: "r-p1", blocked: null, badge: null, crossTool: false, room: null, suggested: false },
     ];
     const { others, sameAccount } = byAccount(targets, rows, "w1");
     expect(others.map((group) => group.targets.map((t) => t.profileId))).toEqual([["p1"]]);
@@ -150,8 +164,12 @@ describe("AJ-E2109 accounts in words", () => {
 
   it("the setup check in one line", () => {
     expect(setupWords({ from: "a", to: "b", already_there: 3, offers: [] })).toBe("Ready: same tools set up");
-    const server = (id: string, verdict: string) => ({ id, kind: "mcp-server", name: id, scope: "user", verdict, note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null });
-    expect(setupWords({ from: "a", to: "b", already_there: 0, offers: [server("x", "copy"), server("y", "copy")] })).toBe("Needs 2 MCP servers, set up as it moves");
+    const server = (id: string, verdict: string) => ({ id, kind: "mcp-server", name: id, scope: "user", verdict, note: null, suggested: true, about: null, used: null, origin: "own", provided_by: null, get_it: null, can_copy: false });
+    expect(setupWords({ from: "a", to: "b", already_there: 0, offers: [server("x", "copy"), server("y", "copy")] })).toBe("Needs 2 MCP servers, set up as it switches");
     expect(setupWords({ from: "a", to: "b", already_there: 0, offers: [server("x", "needs-you")] })).toBe("Needs 1 MCP server, some set up by you");
+    // Only what this conversation used counts.
+    expect(setupWords({ from: "a", to: "b", already_there: 0, offers: [{ ...server("x", "turn-on"), used: false }] })).toBe(
+      "Ready: has what this conversation used",
+    );
   });
 });

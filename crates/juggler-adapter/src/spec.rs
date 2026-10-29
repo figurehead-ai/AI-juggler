@@ -101,6 +101,22 @@ pub struct ToolSpec {
     pub flags: ToolFlags,
     /// Its vendor's terms, shown when an account is added (AJ-E1518).
     pub terms: Option<ToolTerms>,
+    /// AJ-E1611: where its new versions are published, for the
+    /// once-a-day check; `None` when there's no public list to ask.
+    pub release_feed: Option<ReleaseFeed>,
+    /// AJ-E1611: the command the user runs to update it themselves. AI
+    /// Juggler shows it and never runs it.
+    pub update_command: Option<String>,
+}
+
+/// AJ-E1611: a public list of a tool's released versions.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ReleaseFeed {
+    /// An npm package: its `latest` version on npm's public registry.
+    Npm {
+        /// The package's name (`@scope/name` or `name`).
+        package: String,
+    },
 }
 
 /// A tool's own terms, and what they say about one person using several
@@ -156,6 +172,8 @@ impl ToolSpec {
             default_label: None,
             flags: ToolFlags::default(),
             terms: None,
+            release_feed: None,
+            update_command: None,
         }
     }
 

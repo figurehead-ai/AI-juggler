@@ -33,10 +33,12 @@ pub struct OverloadAlertInfo {
     /// The biggest contributor, when there is one: a session id …
     pub session_id: Option<String>,
     /// … or a tool AI Juggler didn't start: its This Mac group (an app's
-    /// id, `terminal:<tool>`).
+    /// id, `terminal:<tool>`, or `app:<app>:<tool>` for another app's
+    /// sessions the Processes view found, AJ-E2407).
     pub place: Option<String>,
     /// That tool, named as the alert says it ("The Claude app",
-    /// `ChatGPT (Codex)`, "claude in a terminal"), from its adapter.
+    /// `ChatGPT (Codex)`, "claude in a terminal", `ChatGPT`), from its
+    /// adapter or the Processes graph.
     pub subject_name: Option<String>,
     /// The contributor's memory, bytes — only when memory is what's high.
     #[ts(type = "number | null")]
@@ -199,6 +201,7 @@ fn candidates(mac: &ThisMacInfo) -> Vec<ToolTreeInfo> {
             memory_estimate: group.totals.memory_estimate,
             helpers: 0,
             heavy_note: None,
+            title: None,
         }
     }));
     out
@@ -709,6 +712,7 @@ mod tests {
             memory_estimate: place.is_some(),
             helpers: 2,
             heavy_note: note.map(str::to_string),
+            title: None,
         }
     }
 

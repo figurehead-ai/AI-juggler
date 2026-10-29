@@ -30,6 +30,24 @@ pub struct ParsedTranscript {
     pub usage: TokenCounts,
     /// AJ-E1541: the task list as the last call that set one left it.
     pub tasks: Option<Vec<crate::tool_summary::TaskItem>>,
+    /// What the conversation carries besides its words: tool calls, their
+    /// results and images (the measured switch fidelity counts them).
+    pub content: ContentCounts,
+}
+
+/// What a conversation's main thread carries besides text, counted. A
+/// subagent's own (sidechain) lines are left out: they are its work, not
+/// the conversation's.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct ContentCounts {
+    /// Tool calls the model made.
+    pub tool_calls: usize,
+    /// Results that came back to it.
+    pub tool_results: usize,
+    /// Of those, results that were errors.
+    pub tool_errors: usize,
+    /// Images (and other attachments) in the conversation's messages.
+    pub images: usize,
 }
 
 /// One conversation message extracted from a transcript.
@@ -73,6 +91,7 @@ pub enum MessageRole {
 #[must_use]
 pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
     let mut parsed = ParsedTranscript::default();
+    let mut board = TaskBoard::default();
     for line in bytes.split(|b| *b == b'\n') {
         if line.iter().all(u8::is_ascii_whitespace) {
             continue;
@@ -97,6 +116,15 @@ pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
         if (kind == "user" || kind == "assistant")
             && let Some(message) = extract_message(&value, &kind)
         {
+            if !message.sidechain {
+                count_content(
+                    &mut parsed.content,
+                    value.get("message").and_then(|m| m.get("content")),
+                );
+                if board.line(&value) {
+                    parsed.tasks = Some(board.items());
+                }
+            }
             accumulate_usage(&mut parsed.usage, message.usage);
             for (name, input) in tool_uses(value.get("message").and_then(|m| m.get("content"))) {
                 if let Some(tasks) = crate::tool_summary::task_list(name, input) {
@@ -107,6 +135,145 @@ pub fn parse_transcript(bytes: &[u8]) -> ParsedTranscript {
         }
     }
     parsed
+}
+
+/// Claude Code's task tools (2.1.x), which keep the task list outside the
+/// transcript: `TaskCreate` adds an item (its result names the item's id),
+/// `TaskUpdate` changes one's status or subject, or deletes it. The list
+/// is rebuilt from the calls, each call once (a message's lines repeat
+/// it). The live lab of 2026-10-28: without this a session using them had
+/// no task list in a handover, and its switch measured none.
+#[derive(Debug, Default)]
+struct TaskBoard {
+    /// Each item with its id, once known.
+    items: Vec<(Option<String>, crate::tool_summary::TaskItem)>,
+    /// Calls already applied (by their `tool_use` id).
+    seen: std::collections::BTreeSet<String>,
+    /// A create call's `tool_use` id → its item.
+    created: BTreeMap<String, usize>,
+}
+
+impl TaskBoard {
+    /// Applies one line; whether the list changed.
+    fn line(&mut self, value: &serde_json::Value) -> bool {
+        let Some(serde_json::Value::Array(parts)) =
+            value.get("message").and_then(|m| m.get("content"))
+        else {
+            return false;
+        };
+        let mut changed = false;
+        for part in parts {
+            match part.get("type").and_then(serde_json::Value::as_str) {
+                Some("tool_use") => changed |= self.call(part),
+                Some("tool_result") => {
+                    let created = string_field(part, "tool_use_id")
+                        .and_then(|call| self.created.get(&call).copied());
+                    let id = value
+                        .get("toolUseResult")
+                        .and_then(|result| result.get("task"))
+                        .and_then(|task| string_field(task, "id"));
+                    if let (Some(index), Some(id)) = (created, id) {
+                        self.items[index].0 = Some(id);
+                    }
+                }
+                _ => {}
+            }
+        }
+        changed
+    }
+
+    fn call(&mut self, part: &serde_json::Value) -> bool {
+        let name = part.get("name").and_then(serde_json::Value::as_str);
+        if !matches!(name, Some("TaskCreate" | "TaskUpdate")) {
+            return false;
+        }
+        if let Some(call) = string_field(part, "id")
+            && !self.seen.insert(call)
+        {
+            return false;
+        }
+        let input = part.get("input").unwrap_or(&serde_json::Value::Null);
+        if name == Some("TaskCreate") {
+            let Some(text) = string_field(input, "subject") else {
+                return false;
+            };
+            if let Some(call) = string_field(part, "id") {
+                self.created.insert(call, self.items.len());
+            }
+            self.items.push((
+                None,
+                crate::tool_summary::TaskItem {
+                    text,
+                    done: false,
+                    in_progress: false,
+                },
+            ));
+            return true;
+        }
+        let Some(id) = string_field(input, "taskId") else {
+            return false;
+        };
+        // An item whose create result wasn't read is known by its place
+        // (Claude Code numbers them from 1).
+        let at = self
+            .items
+            .iter()
+            .enumerate()
+            .position(|(index, (known, _))| {
+                known
+                    .as_deref()
+                    .map_or_else(|| (index + 1).to_string() == id, |known| known == id)
+            });
+        let Some(at) = at else {
+            return false;
+        };
+        if let Some(subject) = string_field(input, "subject") {
+            self.items[at].1.text = subject;
+        }
+        match string_field(input, "status").as_deref() {
+            Some("deleted") => {
+                self.items.remove(at);
+                self.created.retain(|_, index| *index != at);
+                for index in self.created.values_mut() {
+                    if *index > at {
+                        *index -= 1;
+                    }
+                }
+            }
+            Some(status) => {
+                let item = &mut self.items[at].1;
+                item.done = status == "completed";
+                item.in_progress = status == "in_progress";
+            }
+            None => {}
+        }
+        true
+    }
+
+    fn items(&self) -> Vec<crate::tool_summary::TaskItem> {
+        self.items.iter().map(|(_, item)| item.clone()).collect()
+    }
+}
+
+/// Counts one message's tool calls, tool results (and errors among them)
+/// and images: Claude Code keeps each as a typed part of `content`.
+fn count_content(counts: &mut ContentCounts, content: Option<&serde_json::Value>) {
+    let Some(serde_json::Value::Array(parts)) = content else {
+        return;
+    };
+    for part in parts {
+        match part.get("type").and_then(serde_json::Value::as_str) {
+            Some("tool_use") => counts.tool_calls += 1,
+            Some("tool_result") => {
+                counts.tool_results += 1;
+                if part.get("is_error").and_then(serde_json::Value::as_bool) == Some(true) {
+                    counts.tool_errors += 1;
+                }
+            }
+            Some("image" | "document") => counts.images += 1,
+            _ => {}
+        }
+    }
 }
 
 fn extract_message(value: &serde_json::Value, kind: &str) -> Option<ParsedMessage> {
@@ -170,9 +337,20 @@ fn extract_text(content: Option<&serde_json::Value>) -> String {
 /// ends it, failed when it's an error. A subagent started in the
 /// background is answered at once (`toolUseResult.status`
 /// `async_launched`): this transcript doesn't say when it ends, so it's
-/// marked as in the background, not counted as running.
+/// marked as in the background, not counted as running, until the
+/// session hears how it ended: a `<task-notification>` naming the agent
+/// (`<task-id>`) and its `<status>` (`completed`, `failed`, `killed`,
+/// `stopped`), queued for the session (a `queue-operation` or a
+/// `queued_command` attachment) and then given to it (a `user` line whose
+/// `origin.kind` is `task-notification`). The first one heard counts.
 pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
     use crate::subtasks::SubtaskState;
+    if let Some(text) = notification_text(value) {
+        for (agent, state) in notifications(text) {
+            log.ended(&agent, state);
+        }
+        return;
+    }
     let content = value.get("message").and_then(|m| m.get("content"));
     let Some(serde_json::Value::Array(parts)) = content else {
         return;
@@ -235,7 +413,92 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
     }
 }
 
+/// Whether a raw line can matter to the subagent log: an Agent (or Task)
+/// call, an answer to a call the log waits on, or a task notification.
+pub(crate) fn subtask_line_matters(log: &crate::subtasks::SubtaskLog, line: &[u8]) -> bool {
+    use crate::subtasks::{holds, values_of};
+    if holds(line, b"<task-notification>") {
+        return true;
+    }
+    if holds(line, b"tool_use") && (holds(line, b"\"Agent\"") || holds(line, b"\"Task\"")) {
+        return true;
+    }
+    values_of(line, b"tool_use_id")
+        .into_iter()
+        .any(|id| std::str::from_utf8(id).is_ok_and(|id| log.wants(id)))
+}
+
+/// The words of a line that carries a task notification, from where
+/// Claude Code puts one (never a tool's description or a tool's output
+/// that only mentions the tag).
+fn notification_text(value: &serde_json::Value) -> Option<&str> {
+    const TAG: &str = "<task-notification>";
+    let text = match value.get("type").and_then(serde_json::Value::as_str)? {
+        "user" => {
+            let origin = value.get("origin")?.get("kind")?.as_str()?;
+            if origin != "task-notification" {
+                return None;
+            }
+            value.get("message")?.get("content")?.as_str()?
+        }
+        "attachment" => {
+            let attachment = value.get("attachment")?;
+            if attachment.get("type")?.as_str()? != "queued_command" {
+                return None;
+            }
+            attachment.get("prompt")?.as_str()?
+        }
+        "queue-operation" => {
+            if value.get("operation")?.as_str()? != "enqueue" {
+                return None;
+            }
+            value.get("content")?.as_str()?
+        }
+        _ => return None,
+    };
+    text.trim_start().starts_with(TAG).then_some(text)
+}
+
+/// Each notification's agent and how it ended (a status this reader
+/// doesn't know is left out: never a guess).
+fn notifications(text: &str) -> Vec<(String, crate::subtasks::SubtaskState)> {
+    use crate::subtasks::SubtaskState;
+    let tag = |block: &'_ str, name: &str| -> Option<String> {
+        let open = format!("<{name}>");
+        let close = format!("</{name}>");
+        let start = block.find(&open)? + open.len();
+        let end = block[start..].find(&close)? + start;
+        Some(block[start..end].trim().to_owned())
+    };
+    let mut out = Vec::new();
+    for block in text.split("<task-notification>").skip(1) {
+        let block = block.split("</task-notification>").next().unwrap_or(block);
+        let (Some(agent), Some(status)) = (tag(block, "task-id"), tag(block, "status")) else {
+            continue;
+        };
+        let state = match status.as_str() {
+            "completed" => SubtaskState::Done,
+            "failed" => SubtaskState::Failed,
+            "killed" | "stopped" => SubtaskState::Stopped,
+            _ => continue,
+        };
+        out.push((agent, state));
+    }
+    out
+}
+
 /// The `tool_use` parts of a message's content: (tool name, its input).
+/// AJ-E1703: one line's tool calls, for what the session is working on
+/// (the assistant's `tool_use` parts).
+pub(crate) fn activity_line(log: &mut crate::activity::ActivityLog, value: &serde_json::Value) {
+    if value.get("type").and_then(serde_json::Value::as_str) != Some("assistant") {
+        return;
+    }
+    for (name, input) in tool_uses(value.get("message").and_then(|m| m.get("content"))) {
+        log.call(name, input);
+    }
+}
+
 fn tool_uses(content: Option<&serde_json::Value>) -> Vec<(&str, &serde_json::Value)> {
     let Some(serde_json::Value::Array(parts)) = content else {
         return Vec::new();

@@ -36,17 +36,21 @@ use crate::state::AppState;
 const DB: &str = "juggler.sqlite";
 const DB_FILES: [&str; 3] = ["", "-wal", "-shm"];
 
-/// The last released version that reads each database schema (kept with
-/// `docs/RELEASING.md` § Database changes). A schema not listed is named
-/// by number.
-// 31: AJ-E1502 (session and project names, pins, forgotten projects);
-// "0.1.x" until 0.1 is cut, when the release fills in its number.
+/// The newest released version that reads each database schema (kept with
+/// `docs/RELEASING.md` § Database changes): going back offers to install
+/// it, so it names the last patch on that schema, not the first. A schema
+/// not listed is named by number.
+// 29 shipped in 0.0.9 and 30 in 0.0.13; 0.1.0 shipped 32 (31, AJ-E1502,
+// and 32, AJ-E1519, came in together, so no release stays on 31); 0.2.0
+// ships 37 (33, pools, AJ-E1702, to 37 came in together). Each patch on
+// the newest schema moves its line to that patch.
 const SCHEMA_RELEASES: &[(i64, &str)] = &[
     (27, "0.0.7"),
     (28, "0.0.8"),
-    (29, "0.0.9"),
-    (30, "0.0.13"),
-    (31, "0.1.x"),
+    (29, "0.0.12"),
+    (30, "0.0.17"),
+    (32, "0.1.9"),
+    (37, "0.2.0"),
 ];
 
 /// The released version that reads `schema`, when it is known.

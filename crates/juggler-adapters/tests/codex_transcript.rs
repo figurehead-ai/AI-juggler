@@ -360,7 +360,7 @@ fn subagents_are_read_from_spawn_wait_and_close() {
         .map(|item| {
             (
                 item.id.as_str(),
-                item.label.as_str(),
+                item.task.as_str(),
                 item.kind.as_deref(),
                 item.state,
             )
@@ -371,7 +371,7 @@ fn subagents_are_read_from_spawn_wait_and_close() {
         vec![
             (
                 "call_a",
-                "Map the parsers",
+                "Map the parsers\nand list them",
                 Some("explorer"),
                 SubtaskState::Done
             ),
@@ -399,8 +399,32 @@ fn subagents_are_read_from_spawn_wait_and_close() {
         ]
     );
     assert_eq!(
-        log.running(),
+        log.subtasks()
+            .iter()
+            .filter(|item| item.state == SubtaskState::Running)
+            .count(),
         1,
         "a shell call's output is never a subagent"
     );
+}
+
+#[test]
+fn tool_calls_their_outputs_and_images_are_counted() {
+    let parsed = parse_rollout(&fixture("codex/rollout-paginated.jsonl"));
+    assert_eq!(parsed.content.tool_calls, 1);
+    assert_eq!(parsed.content.tool_results, 1);
+    let lines = concat!(
+        r#"{"timestamp":"t","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"see"},{"type":"input_image","image_url":"data:"}]}}"#,
+        "\n",
+        r#"{"timestamp":"t","type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","input":"x","call_id":"c1"}}"#,
+        "\n",
+        r#"{"timestamp":"t","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c1","output":"ok"}}"#,
+        "\n",
+        r#"{"timestamp":"t","type":"response_item","payload":{"type":"local_shell_call","call_id":"c2"}}"#,
+        "\n"
+    );
+    let parsed = parse_rollout(lines.as_bytes());
+    assert_eq!(parsed.content.images, 1);
+    assert_eq!(parsed.content.tool_calls, 2);
+    assert_eq!(parsed.content.tool_results, 1);
 }

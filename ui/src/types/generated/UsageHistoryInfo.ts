@@ -80,4 +80,10 @@ unmeasured_sessions: number,
  * The range held more than a summary carries; the oldest hours were
  * left out.
  */
-truncated: boolean, };
+truncated: boolean, 
+/**
+ * While the first read of the tools' history runs: how many
+ * conversations it has read so far (the figures are still coming:
+ * the 0.2 walk, F6). `None` once it's done.
+ */
+reading: number | null, };

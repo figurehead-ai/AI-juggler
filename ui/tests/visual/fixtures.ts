@@ -1,5 +1,7 @@
 import type { FixtureSet, InstanceInfo } from "../../src/lib/bridge";
 import { expect } from "@playwright/test";
+import { NARROW_RAIL_PX } from "../../src/lib/window";
+export { NARROW_RAIL_PX };
 
 /**
  * Deterministic fixture sets for the visual harness (AJ-E802 Req.1):
@@ -271,83 +273,6 @@ export const atScale: FixtureSet = (() => {
   };
 })();
 
-const CLEANUP_ROW = (pid: number, state: string) => ({
-  pid,
-  pgid: 8100,
-  role: "helper",
-  state,
-  state_label:
-    state === "orphaned"
-      ? "Still running after its session closed"
-      : state === "adopted"
-        ? "Running — picked up after restart"
-        : state === "unverifiable"
-          ? "Unverifiable — will not be touched"
-          : "Running",
-  role_guess: "python3 (guess)",
-  exe_path: "/usr/bin/python3",
-  cmdline: "python3 -m http.server 5173",
-  age_ms: 9_000_000,
-  rss_bytes: 48 * 1024 * 1024,
-  cpu_pct: 1.4,
-  ports: state === "orphaned" ? "5173" : null,
-  hog: pid === 8124,
-  hog_rules: pid === 8124 ? ["tree-rss>p95(provider)"] : [],
-  evidence: {
-    root_pid: 8100,
-    parent_pid: 8100,
-    pgid: 8100,
-    escaped_group: false,
-    verification: {
-      verdict: state === "unverifiable" ? "unverifiable" : "verified",
-      detail:
-        state === "unverifiable"
-          ? "live start-time or exe differs from the record"
-          : "start-time and exe match the live process",
-    },
-    first_seen: T0,
-    last_seen: T0 + 90_000,
-  },
-});
-
-/** The Cleanup centre inventory for a gallery state (AJ-E503/E804). */
-export function cleanupFixture(state: string) {
-  if (state === "empty") {
-    return { groups: [], clean_instances: 3, ledger_degraded: false };
-  }
-  if (state === "degraded") {
-    return { groups: [], clean_instances: 0, ledger_degraded: true };
-  }
-  // The FILTER states map to row states: needs-attention shows the
-  // orphan + the hog; re-adopted shows the adopted row; unverifiable
-  // shows the flagged one; all-managed shows the mix.
-  const firstState =
-    state === "needs-attention"
-      ? "orphaned"
-      : state === "re-adopted"
-        ? "adopted"
-        : "running";
-  const rows = [
-    CLEANUP_ROW(8123, firstState),
-    CLEANUP_ROW(8124, state === "unverifiable" ? "unverifiable" : "running"),
-  ];
-  return {
-    groups: [
-      {
-        session: "s-1",
-        provider: "claude-code",
-        account: "Work Max",
-        project: "web",
-        machine: "machine-local",
-        healthy: false,
-        rows,
-      },
-    ],
-    clean_instances: 2,
-    ledger_degraded: false,
-  };
-}
-
 /** Switch preflights for the wizard and 1-click doors (AJ-E206/E804). */
 export const DOOR_WIZARD = {
   mechanism: "transplant",
@@ -380,7 +305,7 @@ export const DOOR_ONECLICK = {
 /**
  * D-25: opens a top-level screen the way a user does — Home, Accounts,
  * History and Settings sit in the header (Fleet too, once a Mac is
- * paired); Triage, Overview, Usage, Fleet and Cleanup wait under More.
+ * paired); Triage, Overview, Usage, Fleet and Processes wait under More.
  */
 export async function goTo(page: import("@playwright/test").Page, name: string): Promise<void> {
   const main = page.getByRole("navigation", { name: "Main" });
@@ -389,8 +314,23 @@ export async function goTo(page: import("@playwright/test").Page, name: string):
     await direct.first().click();
     return;
   }
-  await main.getByRole("button", { name: "More", exact: true }).click();
-  await page.locator("#nav-more").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
+  // AJ-E2507: Settings and the old More (This Mac, Processes, Privacy)
+  // are in your menu, behind the avatar. D-49: Fleet ("My Macs") is in it
+  // only with a Figurehead account; otherwise ⌘⇧F opens it, as here.
+  if (name === "Fleet") {
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "fleet" } })));
+    return;
+  }
+  await openUserMenu(page);
+  await page.getByRole("menu", { name: "Your menu" }).getByRole("menuitem", { name: new RegExp(`^${name}\\b`) }).click();
+}
+
+/** AJ-E2507: opens your menu (the avatar), once. */
+export async function openUserMenu(page: import("@playwright/test").Page): Promise<void> {
+  const menu = page.getByRole("menu", { name: "Your menu" });
+  if (await menu.isVisible()) return;
+  await page.getByTestId("user-menu-button").click();
+  await menu.waitFor();
 }
 
 /** AJ-E2110: opens one of Settings' panes from its sidebar. */
@@ -473,7 +413,7 @@ export async function openSwitch(page: import("@playwright/test").Page): Promise
 }
 
 /**
- * D-25 (AJ-E1020): at 900 px and wider the rail shows exactly the stored
+ * D-25 (AJ-E1020): at NARROW_RAIL_PX (1100 px, deep/11 §3) and wider the rail shows exactly the stored
  * density (Settings › Appearance); narrower, a non-Minimal rail folds to
  * its icon column by itself. Waits for the rail and, where it is the
  * list, for the list.
@@ -482,7 +422,7 @@ export async function expectRail(page: import("@playwright/test").Page): Promise
   const rail = page.getByTestId("rail");
   await expect(rail).toBeVisible();
   const stored = (await page.evaluate(() => localStorage.getItem("aij.density"))) ?? "comfortable";
-  const wide = (page.viewportSize()?.width ?? 1280) >= 900;
+  const wide = (page.viewportSize()?.width ?? 1280) >= NARROW_RAIL_PX;
   await expect(rail).toHaveAttribute("data-density", wide || stored === "minimal" ? stored : "minimal");
   if (wide && stored !== "minimal") await expect(page.getByTestId("instance-board")).toBeVisible();
 }

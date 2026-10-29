@@ -18,15 +18,22 @@ export const EXAMPLE_GITHUB_OFFER: OfferInfo = {
   note: "it needs your GITHUB_TOKEN, and AI Juggler never copies a secret",
   suggested: false,
   about: null,
-  steps: [
-    "Open Terminal.",
-    "Paste the command below. Put your own value in place of <your GITHUB_TOKEN> (keep the quotes around it), then press Return.",
-    "It sets github up for this account, with the value in this account's own Claude Code settings. Its first line takes away a github set up without the value; if there isn't one, it says so, and that's fine.",
-    "Come back here and choose Check again.",
-  ],
-  steps_command:
-    `CLAUDE_CONFIG_DIR="${FOLDER}" claude mcp remove github --scope user\n` +
-    `CLAUDE_CONFIG_DIR="${FOLDER}" claude mcp add-json --scope user github '{"args":["-y","@modelcontextprotocol/server-github"],"command":"npx","env":{"GITHUB_TOKEN":"<your GITHUB_TOKEN>"},"type":"stdio"}'`,
-  steps_page: null,
-  steps_page_label: null,
+  used: true,
+  origin: "own",
+  provided_by: null,
+  can_copy: false,
+  get_it: {
+    steps: [
+      "Open Terminal.",
+      "Paste the command below. Put your own value in place of <your GITHUB_TOKEN> (keep the quotes around it), then press Return.",
+      "It sets github up for this account, with the value in this account's own Claude Code settings. Its first line takes away a github set up without the value; if there isn't one, it says so, and that's fine.",
+      "Come back here and choose Check again.",
+    ],
+    command:
+      `CLAUDE_CONFIG_DIR="${FOLDER}" claude mcp remove github --scope user\n` +
+      `CLAUDE_CONFIG_DIR="${FOLDER}" claude mcp add-json --scope user github '{"args":["-y","@modelcontextprotocol/server-github"],"command":"npx","env":{"GITHUB_TOKEN":"<your GITHUB_TOKEN>"},"type":"stdio"}'`,
+    open_url: null,
+    needs: [],
+    then: null,
+  },
 };

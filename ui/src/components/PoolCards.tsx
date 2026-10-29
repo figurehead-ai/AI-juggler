@@ -1,0 +1,140 @@
+import { useState, type JSX } from "react";
+
+import type { InstanceInfo } from "../lib/bridge";
+import type { CardField, ContextCard, PoolMemberRow } from "../lib/ipc/pools";
+import type { PagedList as Paged } from "../lib/paged";
+import { roleLabel } from "../lib/pools";
+import { agoWords } from "../lib/time-words";
+import { sessionState, STATE_TONE } from "../lib/rail-items";
+import { useActionHost } from "./ItemMenu";
+import { PagedList } from "./PagedList";
+import { ProjectMark } from "./ProjectMark";
+import { ToolMark } from "./ToolMark";
+
+/**
+ * AJ-E1703: a pool's context cards, as rows like Home's — name, place
+ * (project · app · profile), state in the rail's one vocabulary (AJ-E2104),
+ * tool and last activity — with the rest behind each row's
+ * disclosure: its role, what it says it's doing (marked as its own
+ * words), its task and the files it changed. A field AI Juggler doesn't
+ * know says "Unavailable" and why (D-06).
+ *
+ * A page at a time (I6): a big project's pool holds every session it ever
+ * ran. A member the rail holds shows its live state; the rest, the state
+ * their page was read with.
+ */
+export function PoolCardRows({ list, sessions, now }: { list: Paged<PoolMemberRow>; sessions: InstanceInfo[]; now: number }): JSX.Element {
+  return (
+    <PagedList
+      list={list}
+      keyOf={(row) => row.session.id}
+      label="Sessions in this pool"
+      rowHeight={56}
+      skeletonRows={3}
+      testId="pool-cards"
+      empty={<p className="text-xs text-muted">No sessions here yet. Move one in from its menu in the list.</p>}
+      renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} />}
+    />
+  );
+}
+
+function CardRow({ card, session, now }: { card: ContextCard; session: InstanceInfo; now: number }): JSX.Element {
+  const host = useActionHost();
+  const [open, setOpen] = useState(false);
+  // The rail's words and dot (Asks you, Working, Idle, Ended).
+  const said = sessionState(session);
+  const detailId = `pool-card-${card.session_id}`;
+  return (
+    <div data-home-item data-testid="pool-card">
+      <div className="flex items-center">
+        <button
+          type="button"
+          data-home-row
+          className="flex min-w-0 flex-1 items-center gap-3.5 px-4 py-2.5 text-left outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60"
+          onClick={() => host.openSessionById?.(card.session_id)}
+        >
+          <span
+            aria-hidden="true"
+            data-state-dot={said.state}
+            className={"size-2 shrink-0 rounded-full " + STATE_TONE[said.state].dot + (said.state === "working" ? " shadow-[0_0_0_4px_var(--color-live-soft)]" : "")}
+          />
+          <ProjectMark projectId={session.project_id} size={16} />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-sm text-ink">
+              {card.name}
+              <span className="text-faint">
+                {" "}
+                · <span className={said.tone} data-testid="pool-card-state">{said.word}</span>
+              </span>
+            </span>
+            <span className="truncate text-xs text-faint">{card.place}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+            <ToolMark tool={session.provider} size={12} className="shrink-0" />
+            {/* The place line names the profile; the tool stands alone here. */}
+            <span>{card.tool}</span>
+          </span>
+          {card.role === "lead" && <span className="shrink-0 rounded-md bg-accent-soft px-1.5 text-label text-accent-hi">Lead</span>}
+          <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-xs text-faint">
+            {card.last_activity_ms === null ? "—" : agoWords(card.last_activity_ms, now)}
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={detailId}
+          aria-label={`${open ? "Hide" : "Show"} what ${card.name} is doing`}
+          onClick={() => setOpen((shown) => !shown)}
+          className="mr-2 flex size-7 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          data-testid="pool-card-more"
+        >
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <path d={open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} />
+          </svg>
+        </button>
+      </div>
+      {open && (
+        <dl id={detailId} className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 border-t border-hairline/40 px-4 py-2.5 text-label" data-testid="pool-card-detail">
+          <dt className="text-muted">Role</dt>
+          <dd className="text-ink">{roleLabel(card.role)}</dd>
+          <dt className="text-muted">It says</dt>
+          <dd data-testid="pool-card-said">
+            <Field field={card.said} said />
+          </dd>
+          <dt className="text-muted">Task</dt>
+          <dd>
+            <Field field={card.task} />
+          </dd>
+          <dt className="text-muted">Files changed</dt>
+          <dd data-testid="pool-card-files">
+            {card.files_unavailable ? (
+              <span className="text-faint">{card.files_unavailable}</span>
+            ) : card.files.length === 0 ? (
+              <span className="text-muted">None yet</span>
+            ) : (
+              <ul className="flex flex-col gap-0.5 font-mono text-label text-ink">
+                {card.files.map((file) => (
+                  <li key={file} className="truncate">
+                    {file}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </dl>
+      )}
+    </div>
+  );
+}
+
+/** One field: its value, or why it's unavailable. What the agent says is
+ * marked as its own words. */
+function Field({ field, said = false }: { field: CardField; said?: boolean }): JSX.Element {
+  if (field.value === null) return <span className="text-faint">{field.unavailable ?? "Unavailable"}</span>;
+  return (
+    <span className="text-ink">
+      {said ? `“${field.value}”` : field.value}
+      {said && <span className="ml-1.5 text-label text-faint">said by the agent</span>}
+    </span>
+  );
+}

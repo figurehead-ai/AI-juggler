@@ -33,7 +33,7 @@ afterEach(() => {
 
 describe("AJ-E1504 the ? sheet", () => {
   it("lists exactly the registered shortcuts, by area, with their keys", () => {
-    render(<ShortcutSheet onClose={() => {}} />);
+    render(<ShortcutSheet onClose={() => {}} fleet />);
     const rows = [...document.querySelectorAll<HTMLElement>("[data-shortcut]")];
     expect(rows.map((row) => row.dataset.shortcut)).toEqual(
       SHORTCUT_AREAS.flatMap((area) => SHORTCUTS.filter((entry) => entry.area === area).map((entry) => entry.id)),
@@ -45,6 +45,18 @@ describe("AJ-E1504 the ? sheet", () => {
       for (const keys of entry.keys) expect(row.textContent).toContain(keys);
     }
     for (const area of SHORTCUT_AREAS) expect(screen.getByRole("heading", { name: area })).toBeTruthy();
+  });
+
+  it("leaves Fleet's keys out while Fleet doesn't show (the 0.2 walk, F18; D-49), and names each key once per place", () => {
+    render(<ShortcutSheet onClose={() => {}} />);
+    const rows = [...document.querySelectorAll<HTMLElement>("[data-shortcut]")];
+    expect(rows.map((row) => row.dataset.shortcut)).not.toContain("go-fleet");
+    expect(rows.map((row) => row.dataset.shortcut)).not.toContain("remote-back");
+    expect(rows.some((row) => /Fleet/.test(row.textContent ?? ""))).toBe(false);
+    expect(rows).toHaveLength(SHORTCUTS.filter((entry) => !("fleet" in entry)).length);
+    // ⌘0 twice: Home, and the terminal's text size, which says where.
+    const zero = SHORTCUTS.filter((entry) => (entry.keys as readonly string[]).includes("⌘0"));
+    expect(zero.map((entry) => entry.label)).toEqual(["Home", "Terminal text as set (in the terminal)"]);
   });
 
   it("every area has a shortcut, every id is unique, and only a natively handled key has no match", () => {
@@ -87,7 +99,8 @@ describe("AJ-E1504 the typing rule", () => {
     const samples: Record<string, Partial<KeyLike>> = {
       help: { key: "?", shiftKey: true },
       palette: { key: "k" },
-      "new-project": { key: "n" },
+      "new-session": { key: "n" },
+      "new-project": { key: "N", shiftKey: true },
       "toggle-rail": { key: "b" },
       inspector: { key: "I", shiftKey: true },
       density: { key: "d" },
@@ -95,13 +108,16 @@ describe("AJ-E1504 the typing rule", () => {
       undo: { key: "z" },
       "go-place": { key: "1", code: "Digit1" },
       "rail-view": { key: "V", shiftKey: true },
+      // D-47: a row or place moved in Your order (a field's arrows are its own).
+      "rail-move": { key: "ArrowUp", altKey: true },
       "go-home": { key: "0", code: "Digit0" },
       "go-accounts": { key: "A", shiftKey: true },
       "go-usage": { key: "U", shiftKey: true },
       "go-fleet": { key: "F", shiftKey: true },
       settings: { key: "," },
-      cleanup: { key: "C", shiftKey: true },
-      "cleanup-filter": { key: "f" },
+      notifications: { key: "˜", code: "KeyN", altKey: true },
+      processes: { key: "C", shiftKey: true },
+      "processes-search": { key: "f" },
       stop: { key: "." },
       handover: { key: "H", shiftKey: true },
       "inspector-tab": { key: "¡", code: "Digit1", altKey: true },
@@ -183,6 +199,27 @@ describe("AJ-E1504 keys in the app", () => {
     expect(await view.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeTruthy();
     fireEvent.keyDown(view.getByRole("dialog", { name: "Keyboard shortcuts" }), { key: "Escape" });
     expect(view.queryByTestId("shortcut-sheet")).toBeNull();
+  });
+
+  it("D-50: ⌘N opens New session, ⌘⇧N New project, ⌥⌘N the notifications", async () => {
+    const view = await openApp();
+    press({ key: "n", metaKey: true });
+    expect(await view.findByTestId("new-session-sheet")).toBeTruthy();
+    expect(view.queryByTestId("new-project-drop")).toBeNull();
+    fireEvent.keyDown(view.getByTestId("new-session-sheet"), { key: "Escape" });
+    await waitFor(() => expect(view.queryByTestId("new-session-sheet")).toBeNull());
+    press({ key: "N", shiftKey: true, metaKey: true });
+    expect(await view.findByTestId("new-project-drop")).toBeTruthy();
+    expect(view.queryByTestId("new-session-sheet")).toBeNull();
+    expect(view.queryByTestId("notification-centre")).toBeNull();
+  });
+
+  it("D-50: ⌥⌘N opens the notifications (by the key's place)", async () => {
+    const view = await openApp();
+    press({ key: "˜", code: "KeyN", altKey: true, metaKey: true });
+    expect(await view.findByTestId("notification-centre")).toBeTruthy();
+    expect(view.queryByTestId("new-project-drop")).toBeNull();
+    expect(view.queryByTestId("new-session-sheet")).toBeNull();
   });
 
   it("⌘⇧A, ⌘⇧U and ⌘⇧F open Accounts, Usage and Fleet; ⌘0 Home", async () => {

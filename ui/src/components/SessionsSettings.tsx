@@ -20,6 +20,7 @@ import {
   type SessionPrefsInfo,
 } from "../lib/ipc/session-prefs";
 import { CardTitle } from "./CardTitle";
+import { RuntimeSettings } from "./RuntimeSettings";
 
 type BooleanPref = "restart_on_crash" | "keep_awake_on_power" | "keep_awake_on_battery" | "reopen_after_crash";
 
@@ -274,6 +275,7 @@ export function SessionsSettingsCard(): JSX.Element {
             </div>
           </details>
           <KeepGoing prefs={prefs} save={save} />
+          <RuntimeSettings />
         </>
       )}
       <Status status={status} error={error} />

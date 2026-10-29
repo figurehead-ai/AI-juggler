@@ -12,10 +12,10 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-46 (D-28..D-34 and D-40..D-44 on release/0.2). Do not re-litigate them; supersede only via a
+   decisions D-01..D-52. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E22 below).
+4. The epic file for the task you claim (E1-E27 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -39,19 +39,25 @@
 | [E14-machine-health.md](E14-machine-health.md) | Machine health and resource monitoring | AJ-E1401-E1410 |
 | [E15-spec-gaps.md](E15-spec-gaps.md) | Spec gaps: what the specs promised and no task covered | AJ-E1501-E1544 |
 | [E16-more-tools.md](E16-more-tools.md) | More tools: OpenCode, Kimi, Grok, ZCode, Kiro, Hermes, Muse, Cursor, desktop apps | AJ-E1601-E1613 |
-| [E17-agent-pools.md](E17-agent-pools.md) | Agent pools and the agent bridge | AJ-E1701-E1704 |
+| [E17-agent-pools.md](E17-agent-pools.md) | Agent pools and the agent bridge | AJ-E1701-E1705 |
 | [E18-agent-messaging.md](E18-agent-messaging.md) | Messaging between agents | AJ-E1801-E1805 |
 | [E19-agent-tasks.md](E19-agent-tasks.md) | Task management shared by pools | AJ-E1901-E1906 |
 | [E20-engineering-and-security.md](E20-engineering-and-security.md) | Engineering and security foundations | AJ-E2001-E2019 |
 | [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2110 |
 | [E22-visual-usage.md](E22-visual-usage.md) | Usage and projects you can read at a glance | AJ-E2201-E2207 |
+| [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2310 |
+| [E24-processes.md](E24-processes.md) | The Processes view: every app, session and process, one model | AJ-E2401-E2407 |
+| [E25-notifications-and-user-menu.md](E25-notifications-and-user-menu.md) | Notifications and your menu: one model, one count, every view | AJ-E2501-E2507 |
+| [E26-windows-release.md](E26-windows-release.md) | AI Juggler for Windows: a dedicated first release, then every release (D-52) | AJ-E2601-E2616 |
+| [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: a dedicated first release, then every release (D-52) | AJ-E2701-E2715 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)
 
 Each task carries: Goal; User story; numbered testable SHALL
 Requirements; UI/UX reasoning tied to a named guideline (Nielsen/NN-g,
-Apple HIG, WCAG) plus exact states/copy/shortcuts; a numeric
+Apple HIG, WCAG; for E26 Microsoft Fluent and the Windows app design
+guidelines, for E27 the GNOME HIG and the freedesktop specs) plus exact states/copy/shortcuts; a numeric
 Performance budget; Quality gates; an Evidence/validation proof with
 exact command/fixture/live step, pass threshold and storage path;
 Visual testing requirements (viewports, states, comparison, a11y);

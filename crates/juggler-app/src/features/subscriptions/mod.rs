@@ -29,6 +29,9 @@ use crate::state::AppState;
 pub struct SubscriptionProfileInfo {
     /// The profile (AI Juggler's stored account row).
     pub id: String,
+    /// Its name, as the user gave it or the import named it: what the
+    /// account is called on screen (never a vendor's id or organisation).
+    pub label: String,
     /// Its folder, `~`-relative.
     pub folder: String,
     /// Its plan, as set on it.
@@ -51,7 +54,8 @@ pub struct SubscriptionInfo {
     /// `signed_in`, `signed_out` (its profiles aren't signed in) or
     /// `unverified` (a sign-in AI Juggler can't read).
     pub state: String,
-    /// The sign-in, masked (`o…@work.com`, `ChatGPT account …9f2c`).
+    /// The sign-in's email, masked (`o…@work.com`); `None` when the
+    /// sign-in records no email (never an id or a fragment of one).
     pub email: Option<String>,
     /// The team's name, for a seat in one (never a personal one's).
     pub organisation: Option<String>,
@@ -69,6 +73,12 @@ pub struct SubscriptionInfo {
     /// Which of `plan`, `renewal` and `fee` its profiles disagree on (each
     /// then shows per profile).
     pub differs: Vec<String>,
+    /// AJ-E1601 (D-34): set for an account through another service (its
+    /// kind is then "endpoint"): the service, and how honest its usage can
+    /// be (`estimate` or `unknown`). Its profiles may run different tools;
+    /// `tool` is its first's.
+    #[ts(optional = nullable)]
+    pub service: Option<crate::features::service_accounts::AccountServiceInfo>,
 }
 
 /// What one profile's read found.
@@ -80,6 +90,8 @@ pub struct ProfileRead {
     pub tool: String,
     /// Who it's signed in as.
     pub probe: IdentityProbe,
+    /// AJ-E1601: the service it runs through, when it does.
+    pub service: Option<crate::features::service_accounts::ProfileService>,
 }
 
 /// Groups profiles into accounts: signed-in accounts first (in the order
@@ -90,23 +102,44 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
     let mut groups: Vec<(u8, String, SubscriptionInfo)> = Vec::new();
     let mut index: BTreeMap<String, usize> = BTreeMap::new();
     for row in rows {
-        let (rank, key, state, email, organisation, reason) = match &row.probe {
-            IdentityProbe::SignedIn {
-                subject,
-                label,
-                org,
-            } => {
+        // AJ-E1601: through another service, the account is the one its
+        // key belongs to, whichever tool each profile runs.
+        let found = row.service.as_ref().map(|service| {
+            (
+                0,
+                format!("svc|{}", service.account),
+                if service.key {
+                    "signed_in"
+                } else {
+                    "unverified"
+                },
+                None,
+                None,
+                (!service.key)
+                    .then(|| format!("its {} isn't in this Mac's Keychain", service.info.key_name)),
+            )
+        });
+        let (rank, key, state, email, organisation, reason) = match (found, &row.probe) {
+            (Some(found), _) => found,
+            (
+                None,
+                IdentityProbe::SignedIn {
+                    subject,
+                    label,
+                    org,
+                },
+            ) => {
                 let (email, org_name) = split_label(label);
                 (
                     0,
                     format!("in|{}|{subject}|{}", row.tool, org.as_deref().unwrap_or("")),
                     "signed_in",
-                    Some(email),
+                    email,
                     org_name,
                     None,
                 )
             }
-            IdentityProbe::Unverifiable { reason } => (
+            (None, IdentityProbe::Unverifiable { reason }) => (
                 1,
                 format!("unverified|{}", row.profile.id),
                 "unverified",
@@ -114,7 +147,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
                 None,
                 Some(reason.clone()),
             ),
-            IdentityProbe::SignedOut => (
+            (None, IdentityProbe::SignedOut) => (
                 2,
                 format!("out|{}", row.tool),
                 "signed_out",
@@ -143,6 +176,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
                 renewal_date: None,
                 fee_usd: None,
                 differs: Vec::new(),
+                service: row.service.map(|service| service.info),
             },
         ));
     }
@@ -194,7 +228,9 @@ fn one(
 
 /// The probe's masked label as its email and its organisation's name.
 /// A personal organisation (Claude names it after the email) is no team.
-fn split_label(label: &str) -> (String, Option<String>) {
+/// A label that isn't an email (Codex's account label, the
+/// tail of an id) gives no email: an id is never shown (the 0.2 walk, F3).
+fn split_label(label: &str) -> (Option<String>, Option<String>) {
     let (email, org) = label
         .split_once(" · ")
         .map_or((label, None), |(email, org)| (email, Some(org)));
@@ -203,7 +239,11 @@ fn split_label(label: &str) -> (String, Option<String>) {
             && !org.contains('@')
             && !org.to_ascii_lowercase().ends_with("'s organization")
     });
-    (email.to_owned(), org.map(str::to_owned))
+    let email = email.trim();
+    (
+        email.contains('@').then(|| email.to_owned()),
+        org.map(str::to_owned),
+    )
 }
 
 /// A key the UI can hold: a hash, never the vendor's ids.
@@ -233,9 +273,11 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             .collect();
         (accounts, fees)
     };
+    let mut services = crate::features::service_accounts::profile_services(state);
     let rows = accounts
         .iter()
         .map(|account| ProfileRead {
+            service: services.remove(account.id.as_str()),
             probe: state.registry.get(&account.harness).map_or_else(
                 || IdentityProbe::Unverifiable {
                     reason: "this tool isn't installed here".into(),
@@ -245,6 +287,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             tool: account.harness.to_string(),
             profile: SubscriptionProfileInfo {
                 id: account.id.to_string(),
+                label: account.label.clone(),
                 folder: crate::features::quota::capture::home_relative(&account.state_dir),
                 plan: account.plan.as_ref().map(|plan| plan.as_str().to_owned()),
                 renewal_date: account.renewal_date.clone(),
@@ -263,6 +306,7 @@ mod tests {
         ProfileRead {
             profile: SubscriptionProfileInfo {
                 id: id.to_owned(),
+                label: format!("Account {id}"),
                 folder: format!("~/{id}"),
                 plan: None,
                 renewal_date: None,
@@ -270,7 +314,41 @@ mod tests {
             },
             tool: tool.to_owned(),
             probe,
+            service: None,
         }
+    }
+
+    fn through(id: &str, tool: &str, account: &str, key: bool) -> ProfileRead {
+        let preset = &juggler_adapters::services::presets()[0];
+        ProfileRead {
+            service: Some(crate::features::service_accounts::ProfileService {
+                account: account.to_owned(),
+                info: crate::features::service_accounts::AccountServiceInfo::of(preset),
+                key,
+            }),
+            ..row(id, tool, IdentityProbe::SignedOut)
+        }
+    }
+
+    #[test]
+    fn profiles_on_one_service_key_are_one_account_whatever_their_tools() {
+        let accounts = group(vec![
+            row("out", "claude-code", IdentityProbe::SignedOut),
+            through("go-claude", "claude-code", "svc-1", true),
+            through("go-codex", "codex", "svc-1", true),
+            through("other", "claude-code", "svc-2", false),
+        ]);
+        assert_eq!(accounts.len(), 3);
+        assert_eq!(ids(&accounts[0]), ["go-claude", "go-codex"]);
+        assert_eq!(accounts[0].state, "signed_in");
+        let service = accounts[0].service.as_ref().unwrap();
+        assert_eq!(service.usage, "estimate");
+        // A key that isn't here is said, never guessed.
+        assert_eq!(ids(&accounts[1]), ["other"]);
+        assert_eq!(accounts[1].state, "unverified");
+        assert!(accounts[1].reason.as_deref().unwrap().contains("Keychain"));
+        assert!(accounts[2].service.is_none());
+        assert!(!accounts[0].key.contains("svc"));
     }
 
     fn signed(subject: &str, org: Option<&str>, label: &str) -> IdentityProbe {
@@ -386,6 +464,28 @@ mod tests {
         assert_eq!(accounts[0].renewal_date.as_deref(), Some("2026-11-01"));
         assert_eq!(accounts[0].fee_usd, None);
         assert_eq!(accounts[0].differs, ["fee"]);
+    }
+
+    #[test]
+    fn an_id_is_never_an_email_and_each_profile_keeps_its_own_name() {
+        // The 0.2 walk (F3): Codex's label is the tail of an account id.
+        let accounts = group(vec![
+            row(
+                "codex",
+                "codex",
+                signed("acct-123456789", None, "ChatGPT account …6789"),
+            ),
+            row(
+                "team",
+                "claude-code",
+                signed("acct-1", Some("org-acme"), "o…@work.com · Acme"),
+            ),
+        ]);
+        assert_eq!(accounts[0].email, None);
+        assert_eq!(accounts[0].profiles[0].label, "Account codex");
+        assert_eq!(accounts[1].email.as_deref(), Some("o…@work.com"));
+        assert_eq!(accounts[1].organisation.as_deref(), Some("Acme"));
+        assert_eq!(accounts[1].profiles[0].label, "Account team");
     }
 
     #[test]

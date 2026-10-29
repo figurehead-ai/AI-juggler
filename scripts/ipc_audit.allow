@@ -27,6 +27,9 @@ unbounded account_settings_apply  # bounded: one row per account, tool, launch s
 unbounded account_settings_check  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded account_storage  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded accounts_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded agent_bridge_answer  # bounded: the projects and profiles the user switched the agent tools off for
+unbounded agent_bridge_get  # bounded: the projects and profiles the user switched the agent tools off for
+unbounded agent_bridge_set  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded alerts_tick  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_diagnostics_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_prepare_uninstall  # bounded: a fixed set (settings, checks, choices or tools)
@@ -35,7 +38,6 @@ unbounded backup_restore  # bounded: a fixed set (settings, checks, choices or t
 unbounded backup_verify  # bounded: one backup's checks
 unbounded budgets_list  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded cleanup_alerts  # bounded: a fixed set (settings, checks, choices or tools)
-unbounded cleanup_inventory  # TO PAGE: every leftover process
 unbounded cleanup_pause_set  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cleanup_resume_after_crash  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cleanup_status  # bounded: a fixed set (settings, checks, choices or tools)
@@ -78,7 +80,6 @@ unbounded going_back_options  # bounded: a fixed set (settings, checks, choices 
 unbounded harnesses_list_alias  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded identity_check  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded instance_delete_preview  # bounded: a fixed set (settings, checks, choices or tools)
-unbounded instance_processes  # TO PAGE: one session's process tree
 unbounded instance_quality  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded instance_replay  # bounded: the transcript is cut at its size limit (truncated)
 unbounded instances_list  # bounded: the working set (open, pinned, the newest 200 ended this week); History and the Sessions tabs page the rest
@@ -93,6 +94,18 @@ unbounded launch_recipes_list  # bounded: one row per account, tool, launch sett
 unbounded machine_advice  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded machine_alerts_take  # bounded: drains the alert queue (capped)
 unbounded machine_health  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded messages_deliver  # bounded: a page of 30 messages (its own cursor: views::MESSAGES_PAGE)
+unbounded messages_doc  # bounded: one shared doc, read in 24 KB chunks
+unbounded messages_docs  # bounded: a page of 20 docs (its own cursor: docs::PAGE)
+unbounded messages_link  # bounded: the pools linked with one pool (one per pool)
+unbounded messages_links  # bounded: the pools linked with one pool (one per pool)
+unbounded messages_needs  # bounded: at most 20 of each kind of need (needs::EACH)
+unbounded messages_search  # bounded: at most 30 hits
+unbounded messages_send  # bounded: a page of 30 messages (its own cursor: views::MESSAGES_PAGE)
+unbounded messages_set_pool  # bounded: a page of 30 threads (its own cursor: views::THREADS_PAGE)
+unbounded messages_set_thread  # bounded: a page of 30 messages (its own cursor: views::MESSAGES_PAGE)
+unbounded messages_thread  # bounded: a page of 30 messages (its own cursor: views::MESSAGES_PAGE)
+unbounded messages_threads  # bounded: a page of 30 threads (its own cursor: views::THREADS_PAGE)
 unbounded notification_prefs_get  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded notification_prefs_set  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded os_access_list  # bounded: one row per account, tool, launch setting or paired Mac
@@ -101,8 +114,22 @@ unbounded overnight_summary  # TO PAGE: what happened while away (grows with ses
 unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
+unbounded pools_create  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_delete  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_list  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_move  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_rename  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_revoke_rule  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_access  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_delivery  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_role  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_spans_macs  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
 unbounded port_inventory  # TO PAGE: every listening port
 unbounded pricing_catalog_info  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded processes_dry_run  # bounded: one account's left-behind processes
+unbounded processes_observed_stop  # bounded: one process
+unbounded processes_observed_verify  # bounded: one process
+unbounded processes_policy  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded profiles_list_alias  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded project_sync_diff  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded project_sync_rules  # bounded: a fixed set (settings, checks, choices or tools)
@@ -117,11 +144,17 @@ unbounded ranking_rows  # bounded: one row per account, tool, launch setting or 
 unbounded recommendation_for  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded reset_queue_list  # bounded: one per queued resume
 unbounded retention_preview  # TO PAGE: what a retention cleanup would delete
+unbounded runtime_asks  # bounded: at most 100 open questions a page (ASKS_PAGE_MAX)
+unbounded runtime_beta  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded runtime_choices  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded runtime_choose  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded runtime_get  # bounded: one session's last 60 conversation items
+unbounded service_accounts_add  # bounded: the profiles one service account adds (one per tool)
+unbounded service_accounts_catalog  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded sessions_get  # bounded: the ids asked for, at most 200
 unbounded sessions_list_alias  # bounded: legacy alias of instances_list (the working set)
 unbounded source_inspect  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded subscriptions_list  # bounded: one row per account, tool, launch setting or paired Mac
-unbounded subtasks_list  # TO PAGE: a session's subtasks
 unbounded switch_back_plan  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_back_suggestions  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_graph_overview  # TO PAGE: a project's switch history
@@ -129,7 +162,16 @@ unbounded switch_preflight  # bounded: a fixed set (settings, checks, choices or
 unbounded switch_setup_apply  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_check  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_list  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded switch_setup_turn_ons  # bounded: one row per account and thing it still has to turn on; each leaves once there
 unbounded switch_targets  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded tasks_approve  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_cancel  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_detail  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_free  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_look_up  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_needs  # bounded: the oldest 40 open needs (needs::EACH)
+unbounded tasks_send_back  # bounded: one task: a page of 40 items under it (views::PAGE), 20 history events (views::HISTORY, its own cursor), its first 100 links (LINKS_READ), 50 sessions, 10 threads, 20 blockers named (BLOCKERS_SHOWN)
+unbounded tasks_start  # bounded: one task, its blockers named up to 20 (BLOCKERS_SHOWN)
 unbounded terminal_windows  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded this_mac  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded tools_catalog  # bounded: one row per account, tool, launch setting or paired Mac

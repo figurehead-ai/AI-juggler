@@ -2,12 +2,14 @@
 resolver = "2"
 members = [
     "crates/juggler-account",
+    "crates/juggler-agentbridge",
     "crates/juggler-adapter",
     "crates/juggler-adapters",
     "crates/juggler-app",
     "crates/juggler-core",
     "crates/juggler-handover",
     "crates/juggler-link",
+    "crates/juggler-platform",
     # D-17, D-26 and D-27 carve-outs: the ONLY crates not inheriting the
     # workspace lint baseline (audited unsafe calls — see each one's
     # Cargo.toml/lib.rs).
@@ -19,7 +21,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"

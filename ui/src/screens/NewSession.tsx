@@ -4,11 +4,12 @@ import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
 import { RunwayWords } from "../components/AccountRunway";
 import { RankedRows } from "../components/RankedRows";
-import { pickRecipe } from "./NewProjectSheet";
+import { launchRoom, pickLaunch } from "../lib/launch-pick";
+import { LaunchPickWhy } from "../components/LaunchPickWhy";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { MachineAdviceLine, MachineChip } from "../components/MachineAdvice";
 import { machineAdvice, type MachineAdviceInfo } from "../lib/machine";
-import { hasLiveBackend, launchSession, pickDirectory, terminalSpawnLogin, quotaDisplayAll, rankingRows, errorText, signedIn } from "../lib/bridge";
+import { launchSession, pickDirectory, terminalSpawnLogin, quotaDisplayAll, rankingRows, errorText, signedIn } from "../lib/bridge";
 import type { RankedRowData, QuotaDisplayData, AccountInfo, LaunchRecipeInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
 import { sessionTitle } from "../components/ManageWork";
@@ -16,11 +17,11 @@ import { useTwinToggle } from "../lib/use-twin-toggle";
 import { useFolderDrop } from "../lib/use-folder-drop";
 import { PackPicker, usePack } from "../components/OpenPack";
 import { MachinePicker, RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
+import { useRuntimePick } from "../components/RuntimePick";
 
 /**
  * New session — zero typing: recent projects (real history), a native
- * folder picker, or drag a folder onto the window; then an account whose
- * sign-in state is visible before you commit.
+ * folder picker, or drag a folder onto the window; then an account whose sign-in state is visible before you commit.
  */
 export function NewSessionModal({
   projects,
@@ -52,15 +53,13 @@ export function NewSessionModal({
   const { dragging, zone } = useFolderDrop(setDirectory); // wf10: a dropped folder
   const pack = usePack(setDirectory); // AJ-E1511: started from a context pack
   const where = useWhere(); // AJ-E1515: or on a paired Mac
-  // AJ-E306 flow (e): Launch settings collapsed under Customise ▸ —
-  // the recommended "Main" rides preselected; ⌘↩ launches it.
-  const customise = useTwinToggle();
+  const runtimePick = useRuntimePick(); // AJ-E2304: this session's runtime
+  const customise = useTwinToggle(); // AJ-E306 flow (e): under Customise ▸; "Main" preselected, ⌘↩ launches it
   const customiseOpen = customise.open;
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
-  // AJ-E306 a11y: the sheet traps focus and returns it on close (Esc
-  // cancels cleanly — the overlay already handles it).
+  // AJ-E306 a11y: the sheet traps focus and returns it on close (Esc cancels: the overlay).
   useEffect(() => {
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
     const onKey = (event: KeyboardEvent) => {
@@ -134,18 +133,20 @@ export function NewSessionModal({
   // own click on a recipe).
   const [ranked, setRanked] = useState<RankedRowData[]>([]);
   const [pickedAccount, setPickedAccount] = useState<string | undefined>(undefined);
+  // F17: for the folder picked ("used most here" only where it was).
+  const projectId = projects.find((row) => row.root === directory)?.id;
   useEffect(() => {
     let alive = true;
-    rankingRows().then((rows) => {
+    rankingRows(projectId).then((rows) => {
       if (alive) setRanked(rows);
     });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [projectId]);
   // AJ-E610: the account's two-clock display for the row chip (one
   // query for all rows; typed states render as copy, never 0%).
-  const [quotaByAccount, setQuotaByAccount] = useState<Record<string, QuotaDisplayData>>({});
+  const [quotaByAccount, setQuotaByAccount] = useState<Record<string, QuotaDisplayData> | undefined>(undefined);
   useEffect(() => {
     let alive = true;
     quotaDisplayAll().then((all) => {
@@ -173,11 +174,13 @@ export function NewSessionModal({
     () => projects.find((row) => row.root === directory) ?? null,
     [projects, directory],
   );
-  const preselected = useMemo(
-    () =>
-      profiles !== null ? pickRecipe(profiles, project, Object.values(quotaByAccount), accounts) : null,
-    [profiles, project, quotaByAccount, accounts],
+  // F17: a pick of yours, else the Suggested one (the one order by room);
+  // a row picked above becomes the pick.
+  const pick = useMemo(
+    () => (profiles !== null ? pickLaunch(profiles, project, Object.values(quotaByAccount ?? {}), accounts, pickedAccount ?? null, sessions) : null),
+    [profiles, project, quotaByAccount, accounts, pickedAccount, sessions],
   );
+  const preselected = pick?.recipe ?? null;
 
   const recents = useMemo(
     () =>
@@ -206,7 +209,8 @@ export function NewSessionModal({
     setBusy(true);
     setError(null);
     try {
-      const result = pack.opened ? await pack.start(recipe.id, directory) : await launchSession(recipe.id, directory);
+      if (!pack.opened && !(await runtimePick.confirm(recipe.id, directory))) return setBusy(false); // Lab 2: the folder's trust
+      const result = pack.opened ? await pack.start(recipe.id, directory) : await launchSession(recipe.id, directory, runtimePick.runtime);
       if (!result) {
         setError("Preview mode — no backend connected.");
         setBusy(false);
@@ -253,6 +257,7 @@ export function NewSessionModal({
           {...zone}
         >
           <MachinePicker where={where} />
+          {runtimePick.element}
           <PackPicker pack={pack} />
           {/* Step 1 — where */}
           <p className="text-section font-semibold text-ink">
@@ -306,16 +311,12 @@ export function NewSessionModal({
 
           {/* Step 2 — who (AJ-E306 flow (e)): the recommended Launch
               settings preselected; the full list under Customise ▸. */}
-          <p className="mt-5 text-section font-semibold text-ink">
-            {ranked.length > 0 && (
-              <RankedRows
-                rows={ranked}
-                activeAccount={pickedAccount}
-                onPick={(account) => setPickedAccount(account)}
-              />
-            )}
-            Which account?
-          </p>
+          {ranked.length > 0 && (
+            <div className="mt-5">
+              <RankedRows rows={ranked} leftOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).left} activeAccount={preselected?.account_id} onPick={setPickedAccount} />
+            </div>
+          )}
+          <p className="mt-5 text-section font-semibold text-ink">Which account?</p>
           <div className="mt-2 flex flex-col gap-1.5" data-testid="launch-sheet-accounts">
             {profiles !== null && profiles.length > 0 && preselected !== null && !customiseOpen && (
               <div
@@ -325,20 +326,14 @@ export function NewSessionModal({
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <IconTerminal width={13} height={13} />
                   <span className="font-medium">{preselected.account_label}</span>
-                  <RunwayWords display={quotaByAccount[preselected.account_id]} sessions={sessionsOf(preselected.account_id)} />
+                  <RunwayWords display={quotaByAccount?.[preselected.account_id]} sessions={sessionsOf(preselected.account_id)} loading={!quotaByAccount} />
                   <span className="text-muted">·</span>
                   <span className="text-muted">Launch settings: {preselected.name}</span>
                   {preselected.model && (
                     <span className="font-mono text-label text-muted">{preselected.model}</span>
                   )}
                   <VerdictChip verdict={verdictByAccount.get(preselected.account_id)} />
-                  {/* AJ-E1501: why this one, when the user picked it. */}
-                  {(project?.default_account_id === preselected.account_id ||
-                    accounts.find((account) => account.is_default)?.id === preselected.account_id) && (
-                    <span className="ml-auto text-label text-muted" data-testid="launch-default">
-                      {project?.default_account_id === preselected.account_id ? "this project's default" : "your default"}
-                    </span>
-                  )}
+                  {pick && <LaunchPickWhy pick={pick} quota={quotaByAccount ?? {}} onUse={setPickedAccount} />}
                 </div>
                 <MachineAdviceLine advice={advice.get(preselected.id)} nameOf={(id) => sessionNames.get(id) ?? null} />
                 <div className="flex flex-wrap gap-2">
@@ -400,7 +395,7 @@ export function NewSessionModal({
                   >
                     <IconTerminal width={13} height={13} />
                     <span className="font-medium">{recipe.account_label}</span>
-                    <RunwayWords display={quotaByAccount[recipe.account_id]} sessions={sessionsOf(recipe.account_id)} />
+                    <RunwayWords display={quotaByAccount?.[recipe.account_id]} sessions={sessionsOf(recipe.account_id)} loading={!quotaByAccount} />
                     <span className="text-muted">·</span>
                     <span className="text-muted">Launch settings: {launchSettingsName(recipe.name)}</span>
                     <VerdictChip verdict={verdictByAccount.get(recipe.account_id)} />
@@ -473,8 +468,6 @@ export function NewSessionModal({
     </div>
   );
 }
-
-void hasLiveBackend;
 
 /**
  * AJ-E306 Req.7/8: the admission verdict as words — never a bare

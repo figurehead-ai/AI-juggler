@@ -174,14 +174,35 @@ fn every_process_refresh_leaves_out_threads() {
 
 /// The files a tool keeps its sign-in secrets in (ADR-0003, SECURITY):
 /// named only in `juggler-adapters/src/sign_in.rs`.
-const SIGN_IN_FILES: &[&str] = &["\".credentials.json\"", "\"auth.json\""];
+const SIGN_IN_FILES: &[&str] = &[
+    "\".credentials.json\"",
+    "\"auth.json\"",
+    "\"mcp-auth.json\"",
+    "\"kimi-code.json\"",
+    "\"mcp_credentials.json\"",
+];
 
 /// The module that owns them, and its name constants.
 const SIGN_IN_MODULE: &str = "juggler-adapters/src/sign_in.rs";
-const SIGN_IN_CONSTANTS: &[&str] = &["CLAUDE_CREDENTIALS", "CODEX_AUTH"];
+const SIGN_IN_CONSTANTS: &[&str] = &[
+    "CLAUDE_CREDENTIALS",
+    "CODEX_AUTH",
+    "OPENCODE_AUTH",
+    "OPENCODE_MCP_AUTH",
+    "KIMI_CREDENTIALS",
+    "GROK_AUTH",
+    "GROK_MCP_AUTH",
+    "KIMI_MEMBERSHIP",
+];
 
-/// Its reads: each streams `auth.json` into a presence-only shape.
-const SIGN_IN_READS: &[&str] = &["codex_auth", "codex_account_id"];
+/// Its reads: each streams `auth.json` into a presence-only shape (for
+/// OpenCode, each entry's kind).
+const SIGN_IN_READS: &[&str] = &[
+    "codex_auth",
+    "codex_account_id",
+    "opencode_auth",
+    "grok_auth",
+];
 
 /// Claude's `settings.json` can hold an API key (`apiKey`, `primaryApiKey`,
 /// `env.ANTHROPIC_API_KEY`): read only here, each for a reason.

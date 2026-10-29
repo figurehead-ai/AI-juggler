@@ -8,9 +8,7 @@ use juggler_adapter::AdapterRegistry;
 use juggler_core::model::SessionId;
 use juggler_core::storage::Storage;
 use juggler_supervisor::tree::LedgerStore as _;
-use juggler_supervisor::{
-    HeuristicEngine, HeuristicThresholds, LiveStatsCollector, OrphanTracker, Supervisor,
-};
+use juggler_supervisor::{HeuristicEngine, HeuristicThresholds, LiveStatsCollector, Supervisor};
 
 /// Everything the commands operate on. `storage` is `Mutex`-wrapped:
 /// rusqlite connections are `Send` but not `Sync`.
@@ -37,9 +35,6 @@ pub struct AppState {
     /// held only for the cheap part of a tick (the disk work, the storage
     /// read and the running-tools scan run outside it).
     pub machine: Mutex<crate::machine_health::MachineWatch>,
-    /// Exit snapshots → confirmed orphans + stop states (AJ-E410).
-    /// Interior-mutex: safe to read without the collector lock.
-    pub orphans: OrphanTracker,
     /// The persistent spawn ledger handle (AJ-E501): queries + prune.
     pub ledger: std::sync::Arc<juggler_supervisor::tree::CoreLedgerStore>,
     /// The append-only cleanup audit (AJ-E509): intent before signal.
@@ -57,8 +52,30 @@ pub struct AppState {
     /// detection (AJ-E412): how many bytes each tail-scan has consumed,
     /// so the 2 s tick only ever parses NEW lines.
     pub model_offsets: Mutex<std::collections::HashMap<SessionId, u64>>,
-    /// AJ-E1520: each live session's subagents, read on the same tick.
-    pub subtasks: crate::features::subtasks::Subtasks,
+    /// AJ-E1520 (0.2): each session's subagent reader, shared by its
+    /// Subagents tab (the pages opened last) and the rail's count (the
+    /// live sessions), and the count each live session last read.
+    pub subagents: crate::features::subagents::Readers,
+    /// AJ-E1703: what each live session is working on (its context card),
+    /// read on the same tick.
+    pub pool_activity: crate::features::pools::cards::Activity,
+    /// AJ-E1704: the agent bridge — the sessions' keys (as hashes), the
+    /// agents' status lines, and its socket once served.
+    pub agent_bridge: crate::features::agent_bridge::Bridge,
+    /// AJ-E2302 (D-40): the runtimes of the sessions AI Juggler started —
+    /// the drivers of driven sessions, and why a session fell back to the
+    /// terminal. Held in memory only.
+    pub runtime: crate::features::runtime::Runtimes,
+    /// E18: messages between agents — the delivery worker, who is typing
+    /// where, and the last note each session got. The rest is storage.
+    pub messages: crate::features::messages::Messages,
+    /// AJ-E2401: the Processes view's one model of apps, sessions and
+    /// their processes, rebuilt on the 2 s tick. Lock ordering: its own
+    /// lock is never held while another is taken.
+    pub processes: crate::features::processes::Processes,
+    /// E19: tasks shared by pools — what tells the window. The rest is
+    /// storage.
+    pub tasks: crate::features::tasks::Tasks,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -98,10 +115,17 @@ pub struct AppState {
     /// a fidelity-register PASS recorded on other versions reads
     /// UNVALIDATED (the upgrade resets it by itself).
     pub provider_versions: Mutex<std::collections::HashMap<String, String>>,
+    /// Whether this run may start a tool to ask its version (F19 of the
+    /// 0.2 walk): off under the read-only test bridge, where discovery
+    /// reads files only. The one seam: `features::tools::discover`.
+    pub tool_programs: crate::features::tools::ToolPrograms,
     /// Sessions a switch or switch-back is running for right now: one at
     /// a time per session (re-review of #132: off the main thread, two
     /// could run at once and transplant the same source twice).
     pub switching: Mutex<std::collections::HashSet<String>>,
+    /// The first read of the tools' history, while it runs (the 0.2 walk,
+    /// F6): what the screens say instead of a zero.
+    pub usage_reading: std::sync::Arc<crate::usage_pipeline::Reading>,
     /// AJ-E1529: every account's conversations, read from the tools' own
     /// files (kept in memory; rebuilt from the files after a restart).
     pub conversations: crate::features::conversations::ConversationIndex,
@@ -124,6 +148,9 @@ pub struct AppState {
     pub watchdog: std::sync::Mutex<Option<std::process::Child>>,
     /// AJ-E1510: system notifications — what is due, and where a click goes.
     pub notifier: crate::features::notifications::Notifier,
+    /// AJ-E1601 (D-34): where the keys of accounts through another service
+    /// are kept (the Keychain, installed at startup).
+    pub service_keys: crate::features::service_accounts::ServiceKeys,
 }
 
 impl Drop for AppState {
@@ -159,6 +186,14 @@ fn reconcile_after_restart(
         }
         let mut reconciled = record;
         reconciled.last_activity = Some(juggler_core::model::Timestamp::now());
+        // AJ-E2310: a driven session comes back (or says its turn was cut
+        // off) once the app is up: `features::runtime::pickup`.
+        if crate::features::runtime::pickup::is_marked(storage, &reconciled.id) {
+            reconciled.status = SessionStatus::Starting;
+            reconciled.attention = None;
+            let _ = storage.sessions().update(&reconciled);
+            continue;
+        }
         if crashed {
             reconciled.status = SessionStatus::Failed;
             reconciled.attention = Some(juggler_core::model::AttentionReason {
@@ -290,9 +325,14 @@ impl AppState {
             storage: Mutex::new(storage),
             resources: Mutex::new(LiveStatsCollector::new()),
             machine: Mutex::new(crate::machine_health::MachineWatch::default()),
-            orphans: OrphanTracker::new(),
             model_offsets: Mutex::new(std::collections::HashMap::new()),
-            subtasks: crate::features::subtasks::Subtasks::default(),
+            subagents: crate::features::subagents::Readers::default(),
+            pool_activity: crate::features::pools::cards::Activity::default(),
+            agent_bridge: crate::features::agent_bridge::Bridge::default(),
+            runtime: crate::features::runtime::Runtimes::default(),
+            messages: crate::features::messages::Messages::default(),
+            processes: crate::features::processes::Processes::default(),
+            tasks: crate::features::tasks::Tasks::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),
@@ -306,7 +346,9 @@ impl AppState {
             link: crate::link::LinkManager::default(),
             figurehead: crate::figurehead::FigureheadManager::default(),
             provider_versions: Mutex::new(std::collections::HashMap::new()),
+            tool_programs: crate::features::tools::ToolPrograms::default(),
             switching: Mutex::default(),
+            usage_reading: std::sync::Arc::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
             outside_search: crate::features::outside_search::OutsideSearch::default(),
             project_icons: std::sync::Mutex::default(),
@@ -316,6 +358,7 @@ impl AppState {
             ended_by_crash: std::sync::Mutex::new(ended_by_crash),
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
+            service_keys: crate::features::service_accounts::ServiceKeys::default(),
             preview: Mutex::new(None),
             launch_facts,
             data_dir,
@@ -406,6 +449,17 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     let codex = std::sync::Arc::new(juggler_adapters::CodexAdapter::new());
     registry.register(codex.clone());
     registry.register_handover(codex);
+    // AJ-E1602: OpenCode (1.x and 2.x). No handover support yet: no
+    // transplant; a switch to it can only start it with a briefing.
+    registry.register(std::sync::Arc::new(juggler_adapters::OpenCodeAdapter::new()));
+    // AJ-E1603: Kimi Code (2.x). No handover support, and it takes no
+    // first message, so nothing is switched to or from it.
+    registry.register(std::sync::Arc::new(juggler_adapters::KimiCodeAdapter::new()));
+    // AJ-E1604: Grok Build. No handover support (no transplant); it takes
+    // a first message, so a switch to it starts it with a briefing.
+    registry.register(std::sync::Arc::new(
+        juggler_adapters::GrokBuildAdapter::new(),
+    ));
     registry
 }
 

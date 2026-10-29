@@ -2,9 +2,11 @@
 import { toolMarkIcon } from "./ToolMark";
 import { toolSpec } from "../lib/tools";
 import { compactCount } from "../lib/compact";
+import { resetsWords } from "../lib/time-words";
 import type { ReactNode } from "react";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
+import { subagentsRunning } from "../lib/subagents";
 import { STATE_TONE, stateWord, type RailState } from "../lib/rail-items";
 import {
   IconFork,
@@ -119,11 +121,6 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(hours / 24)}d${hours % 24}h`;
 }
 
-/** `17:00`-style wall clock for reset countdowns (local time). */
-export function formatClock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-}
-
 /**
  * I-11 age + last-activity line: `42m · active 10s ago`; just-started →
  * `starting…`; never-active → `no output yet`.
@@ -180,7 +177,7 @@ export function attentionSuffix(
     return waitingFor(session.last_activity_ms, nowMs);
   }
   if (session.needs_attention === "quota_blocked" && session.quota?.resets_at_ms != null) {
-    return `resets ${formatClock(session.quota.resets_at_ms)}`;
+    return resetsWords(session.quota.resets_at_ms, nowMs);
   }
   return null;
 }
@@ -232,7 +229,7 @@ export function rememberResourceSample(
 // --- small shared renderers ---------------------------------------------------
 
 /** I-02 initials disc with the per-Account hue. */
-/** I-08 children/subtask badges — hidden at 0/`null` (no `⑂ 0` noise). */
+/** I-08 children/running-subagent badges — hidden at 0/`null` (no `⑂ 0` noise). */
 export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
   const children = session.child_count ?? 0;
   const subtasks = session.subtask_count ?? 0;
@@ -245,7 +242,7 @@ export function ChildBadges({ session }: { session: InstanceInfo }): ReactNode {
         </span>
       )}
       {subtasks > 0 && (
-        <span className="inline-flex items-center gap-0.5" title={`${subtasks} subtasks`}>
+        <span className="inline-flex items-center gap-0.5" title={subagentsRunning(subtasks)}>
           <IconSubtasks width={10} height={10} /> {subtasks}
         </span>
       )}

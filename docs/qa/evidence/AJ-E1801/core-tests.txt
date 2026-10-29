@@ -1,0 +1,18 @@
+test messaging::tests::hops_count_agents_and_a_person_resets_them ... ok
+test messaging::tests::kinds_round_trip_and_strangers_dont ... ok
+test messaging::tests::the_breaker_trips_on_the_third_hit_in_ten_minutes ... ok
+test storage::transcript_index::tests::json_lines_index_message_text_only ... ok
+test messaging::tests::every_delivery_says_who_and_that_it_cant_approve ... ok
+test messaging::tests::the_note_is_facts_only ... ok
+test messaging::tests::the_rate_is_ten_a_minute_and_a_hundred_a_day ... ok
+test messaging::tests::ping_pong_is_two_agents_answering_each_other_without_a_person ... ok
+test messaging::tests::a_body_keeps_its_lines_and_loses_escapes ... ok
+test storage::messages::tests::messages_and_the_log_cant_be_rewritten ... ok
+test storage::messages::tests::links_are_symmetric_and_revocable_and_pauses_are_kept ... ok
+test storage::messages::tests::search_uses_the_index_and_stays_in_its_pool ... ok
+test storage::messages::tests::a_message_moves_its_thread_and_reaches_its_recipient ... ok
+test storage::messages::tests::a_thousand_messages_page_quickly ... ok
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.18s
+test upgrading_from_0_1_runs_both_and_keeps_0_1s_copy ... ok
+test upgrading_from_pools_keeps_a_copy_and_every_pool_as_it_was ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s

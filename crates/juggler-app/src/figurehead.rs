@@ -217,7 +217,7 @@ fn forget_link(state: &Arc<AppState>, notice: Option<&str>) {
 /// Maps a call's error, doing the `401` cleanup centrally.
 fn handle(state: &Arc<AppState>, error: ApiError) -> AppError {
     if error == ApiError::Unlinked {
-        forget_link(state, Some("This Mac was unlinked from Figurehead."));
+        forget_link(state, Some("This computer was unlinked from Figurehead."));
     }
     if matches!(error, ApiError::Network(_))
         && let Ok(mut offline) = state.figurehead.offline.lock()
@@ -561,7 +561,7 @@ pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<FigureheadStatusInfo> {
     let Some(token) = token(state, &device) else {
         forget_link(
             state,
-            Some("This Mac's Figurehead sign-in was missing — connect again."),
+            Some("This computer's Figurehead sign-in was missing — connect again."),
         );
         return status_impl(state);
     };
@@ -734,7 +734,7 @@ pub fn resume_if_linked(state: Arc<AppState>) {
 pub(crate) fn session(state: &Arc<AppState>) -> AppResult<(AccountClient, DeviceToken)> {
     let not_linked = || AppError::Validation {
         subject: "Figurehead account",
-        message: "this Mac isn't linked to Figurehead".to_owned(),
+        message: "this computer isn't linked to Figurehead".to_owned(),
     };
     let device = device_id(state).ok_or_else(not_linked)?;
     let token = token(state, &device).ok_or_else(not_linked)?;
@@ -756,7 +756,7 @@ pub(crate) fn set_usage_sync(state: &Arc<AppState>, on: bool) -> AppResult<()> {
     {
         return Err(AppError::Validation {
             subject: "stats sync",
-            message: "link this Mac to a Figurehead account that includes it first".to_owned(),
+            message: "link this computer to a Figurehead account that includes it first".to_owned(),
         });
     }
     let mut choices = cloud_choices(state);
@@ -786,7 +786,7 @@ pub(crate) fn stats_sync_url(state: &Arc<AppState>) -> String {
 /// other `401` does.
 #[cfg(feature = "stats")]
 pub(crate) fn unlinked_by_service(state: &Arc<AppState>) {
-    forget_link(state, Some("This Mac was unlinked from Figurehead."));
+    forget_link(state, Some("This computer was unlinked from Figurehead."));
 }
 
 /// AJ-E1205: this Mac's device id on Figurehead, when linked.

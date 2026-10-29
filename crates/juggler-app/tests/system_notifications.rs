@@ -92,6 +92,10 @@ const ALL: SystemNotificationsInfo = SystemNotificationsInfo {
     limit: true,
     finished: true,
     this_mac: true,
+    left_behind: true,
+    quota: true,
+    crash: true,
+    reset: true,
 };
 
 /// A local hour outside the default quiet hours (22–7), so nothing is
@@ -147,6 +151,37 @@ fn a_waiting_session_is_told_once_with_its_name_folder_and_account() {
     assert_eq!(
         state.notifier.target_of(list[0].id),
         Some(Target::Session(id))
+    );
+}
+
+/// AJ-E2405: a session that left processes running is told once, with how
+/// many, when its kind is on; with it off, nothing is.
+#[test]
+fn a_session_that_left_processes_running_is_told_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let list = shown(&state);
+    daytime(&state);
+    let (id, _) = session(&state, &dir.path().join("web-app"), "s-left", "Work Max");
+    // Off by default: not told.
+    notifications::left_behind(&state, &id, 2);
+    assert!(list.lock().unwrap().is_empty());
+    turn_on(
+        &state,
+        SystemNotificationsInfo {
+            left_behind: true,
+            ..Default::default()
+        },
+    );
+    let (other, _) = session(&state, &dir.path().join("api"), "s-left-2", "Personal");
+    notifications::left_behind(&state, &other, 3);
+    let told = list.lock().unwrap().clone();
+    assert_eq!(told.len(), 1, "{told:?}");
+    assert_eq!(told[0].title, "api");
+    assert_eq!(told[0].body, "Left 3 processes running · Personal");
+    assert_eq!(
+        state.notifier.target_of(told[0].id),
+        Some(Target::Session(other))
     );
 }
 

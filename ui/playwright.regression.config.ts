@@ -10,9 +10,14 @@ const GALLERY_SPECS = [
   "account-manage-gallery", "account-settings-gallery", "accounts-gallery", "budget-caps",
   "burn-down", "capture", "diagnostics", "fleet-launch", "home-gallery", "journey-first-run",
   "keep-going", "launch-advisor-gallery", "limit-ready", "marks-gallery", "menus-gallery",
-  "notifications", "open-pack", "outside-gallery", "overload-gallery", "pages-gallery",
-  "privacy-gallery", "project-manage-gallery", "project-sync-gallery", "rail-narrow",
+  "notification-centre-gallery", "notifications", "open-pack", "outside-gallery", "overload-gallery", "pages-gallery",
+  "privacy-gallery", "processes-gallery", "project-manage-gallery", "project-sync-gallery", "rail-narrow",
+  "switch-setup-gallery",
   "rail-projects", "terminal-tools", "this-mac-gallery", "this-mac-page",
+  // 0.2's own families: pools, agent tools, messages, tasks, more tools,
+  // service accounts, and the Usage dashboard.
+  "agent-tools-gallery", "messages-gallery", "more-tools-gallery", "pools-gallery",
+  "service-accounts-gallery", "tasks-gallery", "usage-gallery",
 ];
 
 // AJ-E803: the visual regression gate. Baselines are rendered in the

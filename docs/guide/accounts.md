@@ -68,12 +68,54 @@ profile already has is changed.
 Every copied setting can be undone in Settings › Switching › Handovers and keys. An undo takes out only what was copied, and only while it's
 unchanged.
 
+## Through another service
+
+Some subscriptions answer for Claude Code or Codex at an address of their
+own: **OpenCode Go** and **Kimi** publish one for each tool. Add one as an
+account from the Accounts page: **Add account**, then **More** ›
+**Through another service**, and pick the service.
+
+1. Pick its plan, and paste its key once. The key goes straight into AI
+   Juggler's own item in the macOS Keychain. It's never shown again, and
+   never written to a file, a log, the search index or a backup.
+2. Tick the tools to use it with. Each gets a profile of its own, in a
+   folder AI Juggler makes, pointed at the address the service publishes,
+   with the model you choose. The name starts as the service's short name
+   (**Go**, **Kimi**), so a session in a terminal reads "Terminal · Go".
+
+Only that account's sessions get the key, when they start, in the setting
+their tool reads (for example `ANTHROPIC_AUTH_TOKEN` for Claude Code on
+OpenCode Go). Your own `~/.claude` and `~/.codex` are never changed, and no
+other address is ever set.
+
+The account's card says how much can be known about its limits:
+
+- **OpenCode Go: estimate.** Its limits are dollars per model: every 5
+  hours allows a fifth of the month's amount, and every week half.
+  OpenCode doesn't tell other tools what's left, so the card shows what
+  this account's sessions used here, and links to OpenCode's own page.
+- **Kimi: unknown.** Kimi doesn't tell other tools what's left. Its own
+  pages show it. Kimi's membership is for interactive use only, so AI
+  Juggler never starts one of its sessions again by itself.
+
+**Replace key…** on the card takes a new key. If a Mac doesn't have the
+key (after restoring a backup on another Mac, say), its profiles say so,
+and **Add its key…** puts it back. Removing the account's last profile
+removes its key from the Keychain.
+
+Switching a conversation to or from a profile through another service is
+never a proven switch: the model behind it changes, and whether the
+service takes a conversation another provider started hasn't been tried.
+It always asks before it moves anything.
+
 ## Your default profile
 
 New sessions start on the default profile, unless a project has its own
 (set it from the project's menu). To choose the default, open a profile's
 menu and choose **Make the default**. With no default, new sessions start
-on the profile you used last.
+on the profile you used last in that folder, else the one whose account has
+the most room. A default (or the one used last) that's out of room gives way
+to the one with the most room, and New session says so.
 
 ## Launch settings
 

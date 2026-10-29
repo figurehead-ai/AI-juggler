@@ -24,8 +24,8 @@ use std::time::{Duration, Instant};
 
 use juggler_core::model::{
     AccountId, ConversationId, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId,
-    InstanceKind, InstanceRecord, MachineId, ProjectId, SessionId, SessionStatus, SwitchEdge,
-    SwitchEdgeId, SwitchMechanism, Timestamp, TranscriptRef, WorkItemId,
+    InstanceRecord, MachineId, ProjectId, SessionId, SessionStatus, SwitchEdge, SwitchEdgeId,
+    SwitchMechanism, Timestamp, TranscriptRef, WorkItemId,
 };
 use juggler_link::node::{HandoverAccepted, HandoverRejection, PeerAccess};
 use juggler_link::proto;
@@ -244,7 +244,7 @@ pub(crate) fn assess(
     }
     if view.permission.as_deref() != Some("control") {
         unavailable.push(format!(
-            "{machine_label} lets this Mac view only — switching needs View + control (change it on {machine_label})."
+            "{machine_label} lets this computer view only — switching needs View + control (change it on {machine_label})."
         ));
     }
     let versions: Vec<(String, String)> = catalog
@@ -342,7 +342,7 @@ fn readiness_of(
     match (source.version, version_there) {
         (_, None) => blockers.push(format!("{tool} isn't installed on {machine_label}.")),
         (None, Some(_)) => blockers.push(format!(
-            "This Mac's {tool} version couldn't be read — moving the same conversation needs both to match."
+            "This computer's {tool} version couldn't be read — moving the same conversation needs both to match."
         )),
         (Some(here), Some(there)) if here != there => blockers.push(format!(
             "{tool} {here} here, {there} on {machine_label} — moving the same conversation needs the same version."
@@ -374,10 +374,10 @@ fn source_of(
     String,
 )> {
     let (source, account) = crate::commands::handover_source(state, session_id)?;
-    let project = source.project.clone().ok_or_else(|| AppError::Validation {
-        subject: "switch",
-        message: "this session isn't linked to a project".to_owned(),
-    })?;
+    let project = source
+        .project
+        .clone()
+        .ok_or_else(|| CrossFailure::NoProject.error("", ""))?;
     let record = crate::commands::lock_storage_arc(state)?
         .projects()
         .get(&project)?;
@@ -516,12 +516,14 @@ fn plan(state: &Arc<AppState>, request: &FleetSwitchRequest) -> AppResult<Planne
     let target = fleet_switch_targets_impl(state, &request.session_id)?
         .into_iter()
         .find(|row| row.machine_id == request.machine_id && row.recipe_id == request.recipe_id)
-        .ok_or_else(|| AppError::NotFound {
-            entity: "switch destination",
-            id: request.recipe_id.clone(),
+        .ok_or_else(|| {
+            let label = crate::fleet::peer_label(state, &request.machine_id)
+                .unwrap_or_else(|| "the other computer".to_owned());
+            CrossFailure::DestinationGone.error(&label, "")
         })?;
     if target.readiness == "unavailable" {
-        return Err(invalid(target.blockers.join(" ")));
+        let tool = crate::features::tools::display_name(&state.registry, &target.provider);
+        return Err(why_unavailable(state, &target.machine_id).error(&target.machine_label, &tool));
     }
     let mapped = request.project_id.as_ref().filter(|id| {
         target
@@ -557,10 +559,8 @@ fn plan(state: &Arc<AppState>, request: &FleetSwitchRequest) -> AppResult<Planne
         }
         "replay" => {
             if !target.replay_available {
-                return Err(invalid(format!(
-                    "{} isn't installed on {}.",
-                    target.provider, target.machine_label
-                )));
+                let tool = crate::features::tools::display_name(&state.registry, &target.provider);
+                return Err(CrossFailure::NotInstalled.error(&target.machine_label, &tool));
             }
             SwitchMechanism::Replay
         }
@@ -586,12 +586,7 @@ fn build_bundle(
     let reference = source
         .transcript_ref
         .clone()
-        .ok_or_else(|| AppError::Validation {
-            subject: "switch",
-            message:
-                "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
-                    .to_owned(),
-        })?;
+        .ok_or_else(|| CrossFailure::Unresolved.error(&planned.target.machine_label, ""))?;
     let io = |message: String| AppError::Io {
         context: "hand over",
         message,
@@ -603,10 +598,10 @@ fn build_bundle(
         version_of(&harness_versions(state), account.harness.as_str()).unwrap_or_default();
     if planned.mechanism == SwitchMechanism::Transplant {
         let support = state.registry.handover(&account.harness).ok_or_else(|| {
-            io(format!(
-                "{} can't take over this conversation",
-                crate::features::tools::display_name(&state.registry, account.harness.as_str())
-            ))
+            CrossFailure::CantTransplant.error(
+                &planned.target.machine_label,
+                &crate::features::tools::display_name(&state.registry, account.harness.as_str()),
+            )
         })?;
         let bundle = support.bundle_session(&reference)?;
         Ok(proto::HandoverBundle {
@@ -702,16 +697,13 @@ fn stage_edge(
     native_id: &str,
 ) -> AppResult<PushIds> {
     let (source, account, _, _) = source_of(state, &request.session_id)?;
-    let project = source.project.clone().ok_or_else(|| AppError::Validation {
-        subject: "switch",
-        message: "this session isn't linked to a project".to_owned(),
-    })?;
+    let project = source
+        .project
+        .clone()
+        .ok_or_else(|| CrossFailure::NoProject.error("", ""))?;
     let storage = crate::commands::lock_storage_arc(state)?;
     let graph = storage.switch_graph();
-    let work = match graph.works_for_project(&project)?.into_iter().next_back() {
-        Some(existing) => existing.id,
-        None => graph.create_work(&project, "Work")?.id,
-    };
+    let work = graph.work_for_switch(&project, &source.id, "Work")?.id;
     let suffix = crate::commands::unique_suffix();
     let ids = PushIds {
         work,
@@ -778,11 +770,7 @@ pub async fn fleet_switch_execute_impl(
         .await
         .map_err(|e| {
             crate::error_log::record("hand_over", &e.to_string());
-            AppError::Io {
-                context: "hand over",
-                message: "AI Juggler couldn't get the handover ready, so nothing was sent"
-                    .to_owned(),
-            }
+            CrossFailure::NotReady.error("", "")
         })??
     };
     let bytes = bundle.encode_to_vec();
@@ -901,10 +889,7 @@ pub(crate) async fn push(
         .into_iter()
         .find(|(id, _)| id == machine_id)
         .and_then(|(_, view)| view.peer)
-        .ok_or_else(|| AppError::Io {
-            context: "hand over",
-            message: format!("{machine_label} went offline"),
-        })?;
+        .ok_or_else(|| CrossFailure::Offline.error(machine_label, ""))?;
     let sequence = crate::remote::next_command_sequence(state, machine_id)?;
     let own = crate::commands::local_machine_id(state).to_string();
     let (cancel, watch) = tokio::sync::watch::channel(false);
@@ -912,10 +897,7 @@ pub(crate) async fn push(
     // before it cancels these) cancels it, or it never starts.
     {
         let Some(_open) = crate::link::link_open(state, crate::link::link_run(state)) else {
-            return Err(AppError::Io {
-                context: "hand over",
-                message: crate::link::NOTHING_SENT.to_owned(),
-            });
+            return Err(CrossFailure::LinkOff.error(machine_label, ""));
         };
         if let Ok(mut map) = state.link.handover_cancel.lock() {
             map.insert(machine_id.to_owned(), cancel);
@@ -943,10 +925,7 @@ pub(crate) async fn push(
     }
     let outcome = pushed.map_err(|error| {
         crate::error_log::record("hand_over", &error.to_string());
-        AppError::Io {
-            context: "hand over",
-            message: "The other Mac couldn't be reached, so nothing was sent. Check it's on and try again".to_owned(),
-        }
+        CrossFailure::Unreachable.error(machine_label, "")
     })?;
     Ok((outcome, sequence))
 }
@@ -995,11 +974,16 @@ fn conclude(
             divergence: None,
         });
     }
-    let message = if reason == "cancelled" {
-        "Cancelled — nothing changed on either Mac.".to_owned()
-    } else {
-        result.message
-    };
+    // The other computer's words speak from its side: its reason picks
+    // the words said here (`failure.rs`).
+    let message = failure::refusal_words(
+        &reason,
+        &result.message,
+        Direction::To,
+        planned.mechanism == SwitchMechanism::Transplant,
+        &planned.target.machine_label,
+        &crate::features::tools::display_name(&state.registry, &planned.target.provider),
+    );
     mark_failed(state, ids, &message);
     Ok(FleetSwitchOutcomeInfo {
         accepted: false,
@@ -1068,8 +1052,29 @@ pub fn fleet_switch_cancel_impl(state: &Arc<AppState>, machine_id: &str) -> bool
 
 // --------------------------------------------------------------- the node
 
+mod failure;
+use failure::{CrossFailure, Direction};
 mod node;
 pub(crate) use node::{launch_here, launch_refusal, refuse, take_handover_here};
+
+/// Why a destination that was offered isn't available now: the same
+/// order the destinations list says it in (offline first, then the
+/// pairing's permission).
+fn why_unavailable(state: &Arc<AppState>, machine_id: &str) -> CrossFailure {
+    let connection = crate::fleet::fleet_peers_impl(state)
+        .ok()
+        .and_then(|peers| peers.into_iter().find(|peer| peer.machine_id == machine_id))
+        .map(|peer| peer.connection);
+    let reachable = crate::remote::target_views(&state.link.remote)
+        .into_iter()
+        .any(|(id, view)| id == machine_id && view.peer.is_some());
+    match connection.as_deref() {
+        Some("link_off") => CrossFailure::LinkOff,
+        Some("degraded") => CrossFailure::OtherRelease,
+        Some("connected") if reachable => CrossFailure::ViewOnly,
+        _ => CrossFailure::Offline,
+    }
+}
 
 // ---------------------------------------------------------- the commands
 

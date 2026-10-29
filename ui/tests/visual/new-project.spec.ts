@@ -3,7 +3,7 @@ import { allStatuses, type FixtureSet, expectRail } from "./fixtures";
 
 /**
  * AJ-E305 quality gate — flow (b) as a TESTED CONTRACT: New project
- * in ≤ 3 clicks (tile → Start session →), opened with ⌘N from
+ * in ≤ 3 clicks (tile → Start session →), opened with ⌘⇧N (D-50) from
  * anywhere, the recommended account preselected (last-used on the
  * dir), and the funnel seam complete (open → pick-dir → launch).
  * The no-Account state detours inline into the add-account flow and
@@ -29,7 +29,7 @@ const noProfiles: FixtureSet = {
 };
 
 for (const theme of ["dark", "light"] as const) {
-  test(`flow (b): ⌘N → tile → Start session in ≤3 clicks, funnel complete — ${theme}`, async ({
+  test(`flow (b): ⌘⇧N → tile → Start session in ≤3 clicks, funnel complete — ${theme}`, async ({
     page,
   }) => {
     await page.addInitScript(
@@ -53,11 +53,11 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
 
-    // ⌘N is a keyboard summon — not a click.
-    // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+    // ⌘⇧N (D-50) is a keyboard summon — not a click.
+    // The ⌘⇧N handler mounts with the shell — wait for it (AJ-E806:
     // pressing during the first frames after load is a test race).
     await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
-    await page.keyboard.press("Meta+n");
+    await page.keyboard.press("Meta+Shift+N");
     await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
 
     let clicks = 0;
@@ -110,10 +110,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+    // The ⌘⇧N handler mounts with the shell — wait for it (AJ-E806:
     // pressing during the first frames after load is a test race).
     await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
-    await page.keyboard.press("Meta+n");
+    await page.keyboard.press("Meta+Shift+N");
     await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
     await page.getByRole("button", { name: /Work in ai-juggler/ }).click();
     await expect(page.getByTestId("no-account-detour")).toBeVisible();

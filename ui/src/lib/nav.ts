@@ -13,7 +13,7 @@ export const GLOBAL_NAV = [
   { id: "fleet", label: "Fleet" },
   // AJ-E506: the Cleanup Centre is a GLOBAL surface (ADR-0007) —
   // never a rail peer of Projects/Instances/Sessions.
-  { id: "cleanup", label: "Cleanup" },
+  { id: "cleanup", label: "Processes" },
   // AJ-E1203: Appearance + the optional Account & Cloud (⌘,).
   { id: "settings", label: "Settings" },
   // AJ-E1528: what Home's This Mac panel sums up, in full.
@@ -53,21 +53,44 @@ export function useSettingsLinks(global: GlobalId | null, setGlobal: (id: Global
   };
 }
 
-/** D-25: the header's destinations; the rest are one click away
- * under More (Fleet joins the header once a Mac is paired; Cleanup shows
- * as a pill while something is left behind). */
+/** D-25: the header's destinations (Fleet joins them once a Mac is
+ * paired; Cleanup shows as a pill while something is left behind).
+ * AJ-E2507: Settings, This Mac, Processes, your other computers and
+ * Privacy are one click away in your menu, behind the avatar. */
 export const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "home", label: "Home" },
   { id: "accounts", label: "Accounts" },
   // The review of 0.1.4: the page with the most to show, out of More.
   { id: "usage", label: "Usage" },
   { id: "history", label: "History" },
-  { id: "settings", label: "Settings" },
 ];
-export const MORE_NAV: Array<{ id: GlobalId; label: string; hint: string }> = [
-  { id: "thismac", label: "This Mac", hint: "What your AI tools use on this Mac" },
-  { id: "fleet", label: "Fleet", hint: "Your other Macs" },
-  { id: "cleanup", label: "Cleanup", hint: "Processes left behind, and the audit log" },
-  // One place for Privacy: this opens Settings › Privacy.
-  { id: "privacy", label: "Privacy", hint: "In Settings: what AI Juggler reads, changes and sends" },
-];
+
+/**
+ * A screen opened from a menu, a notice or the palette puts the keyboard
+ * on that screen's page (§2.5): the app's `<main>` takes focus once the
+ * screen has rendered and the menu that opened it has given focus back.
+ */
+export function focusPageSoon(): void {
+  requestAnimationFrame(() => requestAnimationFrame(() => focusPage()));
+}
+
+/** The page's own place for the keyboard: the app's `<main>`. */
+export function focusPage(): void {
+  document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true });
+}
+
+/**
+ * A page opened however (a row on Home, the palette, a notice): when what
+ * had focus went with the old page, the keyboard lands on the new page,
+ * never on the window's body where the next Tab starts at the rail again
+ * (the 0.2 walk, F11). Focus that is still somewhere (a rail row, the
+ * terminal taking it) stays where it is.
+ */
+export function focusPageIfLost(): void {
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body || !active.isConnected) focusPage();
+    }),
+  );
+}

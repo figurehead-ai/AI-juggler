@@ -8,6 +8,8 @@
 //!   lines (Measured tokens), offset-tracked per file.
 //! - Codex: rollout `token_usage_record` lines (Measured tokens).
 //! - `ZCode`: `model_usage` via read-only SQLite (Computed credits).
+//! - A tool that keeps its usage in a store read by time (OpenCode's
+//!   `opencode.db`): through its adapter's `usage_since`, read-only.
 //! - Gemini: NO source exists at any grade (AJ-E605) — nothing to
 //!   tail; the absence is a typed decision, not an omission.
 //!
@@ -55,6 +57,47 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 ///   own (P21: one counted another thread's call again; main's 5).
 const REREAD_VERSION: u32 = 6;
 
+/// The first read of the tools' history (the 0.2 walk, F6: for about ten
+/// minutes after the first start every screen said "0 tokens" while it
+/// ran). While it runs, the screens say so, with how many conversations
+/// it has read, instead of a zero; after it, they show what it found.
+#[derive(Debug, Default)]
+pub struct Reading {
+    /// The first read is under way.
+    active: std::sync::atomic::AtomicBool,
+    /// Conversation files read so far in it.
+    files: std::sync::atomic::AtomicU64,
+}
+
+impl Reading {
+    /// A pass of the first read starts (again, after one that failed:
+    /// its count starts over with it).
+    fn begin(&self) {
+        use std::sync::atomic::Ordering;
+        self.files.store(0, Ordering::Relaxed);
+        self.active.store(true, Ordering::Relaxed);
+    }
+
+    fn end(&self) {
+        self.active
+            .store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn file_read(&self) {
+        self.files
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// While the first read runs: the conversations it has read so far.
+    #[must_use]
+    pub fn so_far(&self) -> Option<u64> {
+        use std::sync::atomic::Ordering;
+        self.active
+            .load(Ordering::Relaxed)
+            .then(|| self.files.load(Ordering::Relaxed))
+    }
+}
+
 /// Quota samples gathered in one pass, with where each came from (the
 /// all-models windows', and the weeks on one model only).
 type SampleBatch = crate::features::quota::records::SourcedBatch;
@@ -97,6 +140,10 @@ struct IngestState {
     /// read there while the folder is).
     #[serde(default)]
     app_instances: std::collections::BTreeSet<String>,
+    /// During the first read: where each file read is counted (never
+    /// saved).
+    #[serde(skip)]
+    progress: Option<Arc<Reading>>,
 }
 
 /// A Codex account's P21 check to make, with the threads whose rollouts
@@ -155,6 +202,27 @@ fn accounts_to_read(state: &Arc<AppState>) -> Option<(Vec<juggler_core::model::A
     Some((list, dirty))
 }
 
+impl IngestState {
+    /// Every file is read again from its start.
+    fn read_again(&mut self) {
+        for offsets in self.offsets.values_mut() {
+            offsets.files.values_mut().for_each(|offset| *offset = 0);
+            offsets.carries.clear();
+        }
+    }
+}
+
+/// Nothing was ever read: this pass is the first read, which the screens
+/// wait on (the 0.2 walk, F6). It says so, and counts each file it reads.
+fn start_first_read(state: &Arc<AppState>, ingest: &mut IngestState) -> bool {
+    let first = ingest.reread == 0;
+    if first {
+        state.usage_reading.begin();
+        ingest.progress = Some(Arc::clone(&state.usage_reading));
+    }
+    first
+}
+
 /// One ingest pass (public for tests): accounts → sources → store.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     if switch_in_progress(state) {
@@ -165,11 +233,9 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     };
     let mut ingest = load_state(state);
     let rereading = ingest.reread < REREAD_VERSION || dirty;
+    let first = start_first_read(state, &mut ingest);
     if rereading {
-        for offsets in ingest.offsets.values_mut() {
-            offsets.files.values_mut().for_each(|offset| *offset = 0);
-            offsets.carries.clear();
-        }
+        ingest.read_again();
     }
     let mut store_batch: Vec<juggler_core::quota::UsageEvent> = Vec::new();
     let mut sample_batch = SampleBatch::default();
@@ -216,6 +282,13 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             "zcode" if tick.is_multiple_of(ZCODE_EVERY) => {
                 ingest_zcode(&account_id, &dir, &mut ingest, &mut store_batch);
             }
+            // ADR-0019 §2: a tool whose usage sits in a store read by time
+            // (a database) reads it through its adapter.
+            _ if rereading || tick.is_multiple_of(FILE_SCAN_EVERY) => {
+                if let Some(adapter) = state.registry.get(&account.harness) {
+                    ingest_store(adapter.as_ref(), account, &mut ingest, &mut store_batch);
+                }
+            }
             _ => {}
         }
     }
@@ -245,6 +318,9 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             ingest.reread = REREAD_VERSION;
             if usage.clear_derived_dirty().is_err() {
                 return;
+            }
+            if first {
+                state.usage_reading.end();
             }
         } else {
             // AJ-E1103: Measured tokens this pass added (D-06): a new
@@ -651,6 +727,52 @@ fn forget_missing(ingest: &mut IngestState, account: &str, root: &Path, files: &
     offsets.carries.retain(|path, _| present.contains(path));
 }
 
+/// The high-water key, in an account's offsets, of a store read by time.
+const STORE_SEEN: &str = "store:updated_ms";
+
+/// How far behind the high-water mark each store read starts: a message
+/// written in the same millisecond as the last read is read again (its
+/// key absorbs the repeat).
+const STORE_OVERLAP_MS: u64 = 60_000;
+
+/// A store read by time (AJ-E1602: OpenCode's `opencode.db`): what changed
+/// since the last pass, through the account's adapter, read-only.
+fn ingest_store(
+    adapter: &dyn juggler_adapter::HarnessAdapter,
+    account: &juggler_core::model::Account,
+    ingest: &mut IngestState,
+    store: &mut Vec<juggler_core::quota::UsageEvent>,
+) {
+    let id = account.id.as_str();
+    let seen = ingest
+        .offsets
+        .get(id)
+        .and_then(|offsets| offsets.files.get(STORE_SEEN).copied())
+        .unwrap_or(0);
+    let since = i64::try_from(seen.saturating_sub(STORE_OVERLAP_MS)).unwrap_or(0);
+    let Some(read) = adapter.usage_since(account, since) else {
+        return;
+    };
+    match read {
+        Ok(events) => {
+            let latest = events.iter().map(|event| event.ts).max();
+            if let Some(latest) = latest.and_then(|ts| u64::try_from(ts).ok()) {
+                ingest
+                    .offsets
+                    .entry(id.to_owned())
+                    .or_default()
+                    .files
+                    .insert(STORE_SEEN.to_owned(), seen.max(latest));
+            }
+            store.extend(events);
+            if let Some(latest) = latest {
+                record_health(ingest, id, "store", Some(latest), 0, "");
+            }
+        }
+        Err(error) => record_health(ingest, id, "store", None, 0, &error),
+    }
+}
+
 /// Tails one file from its stored offset and carry: its events go to the
 /// store, the offset, carry and health are recorded; the rest of the
 /// outcome (samples, credits) is returned for the caller.
@@ -662,6 +784,9 @@ fn tail_one(
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
 ) -> juggler_adapters::TailOutcome {
+    if let Some(progress) = &ingest.progress {
+        progress.file_read();
+    }
     let key = path.to_string_lossy().to_string();
     let offsets = ingest.offsets.entry(account.to_owned()).or_default();
     let offset = offsets.files.get(&key).copied().unwrap_or(0);
@@ -864,6 +989,28 @@ fn is_jsonl(path: &Path) -> bool {
 }
 
 const MAX_WALK_DEPTH: u32 = 5;
+
+#[cfg(test)]
+mod reading_tests {
+    use super::Reading;
+
+    /// The 0.2 walk (F6): the first read says it runs, and how far, until
+    /// it's done; a pass that starts it again counts from zero.
+    #[test]
+    fn the_first_read_says_how_far_it_has_got_until_done() {
+        let reading = Reading::default();
+        assert_eq!(reading.so_far(), None, "nothing runs yet");
+        reading.begin();
+        assert_eq!(reading.so_far(), Some(0));
+        reading.file_read();
+        reading.file_read();
+        assert_eq!(reading.so_far(), Some(2));
+        reading.begin();
+        assert_eq!(reading.so_far(), Some(0), "a pass again counts again");
+        reading.end();
+        assert_eq!(reading.so_far(), None);
+    }
+}
 
 #[cfg(test)]
 mod chunk_tests {

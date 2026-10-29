@@ -3,8 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconJuggler } from "../components/icons";
 import { funnelStep } from "../lib/funnel";
-import { providersDiscover, type ProviderInstallData } from "../lib/bridge";
-import { FOUND_UNCHECKED, toolFound, versionUnchecked } from "../lib/providers";
+import { providersDiscover, type AccountInfo, type ProviderInstallData } from "../lib/bridge";
+import { FOUND_UNCHECKED, providerDisplayName, toolFound, versionUnchecked } from "../lib/providers";
+import { servicesList, type ServiceInfo } from "../lib/ipc/services";
+import { lazyNamed } from "../lib/lazy";
+import { LetterMark } from "../components/ToolMark";
+
+const ServiceAccountSheet = lazyNamed(() => import("./accounts/ServiceAccountSheet"), "ServiceAccountSheet");
 
 /**
  * AJ-E306 flow (c), folded into Add account (D-25 stage 4, AJ-E1023):
@@ -15,15 +20,25 @@ import { FOUND_UNCHECKED, toolFound, versionUnchecked } from "../lib/providers";
  * offer [Install →] and are never selectable (Req.1). Choosing a card
  * hands the tool to Add account (find → bring in or a fresh account →
  * sign in), which keeps flow (c) within 4 clicks.
+ *
+ * AJ-E1601: More › Through another service — a subscription that answers
+ * for Claude Code or Codex at its own published address (OpenCode Go,
+ * Kimi), added with its key.
  */
 export function AddProviderSheet({
   onClose,
   onChoose,
+  onServiceAdded,
 }: {
   onClose: () => void;
   onChoose: (provider: string) => void;
+  /** AJ-E1601: an account through another service was added (its
+   * profiles). Without it, More isn't offered. */
+  onServiceAdded?: (profiles: AccountInfo[]) => void;
 }) {
   const [installs, setInstalls] = useState<ProviderInstallData[] | null>(null);
+  const [services, setServices] = useState<ServiceInfo[]>([]);
+  const [serviceFor, setServiceFor] = useState<string | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
   // The parent passes a new onClose on every render (App re-renders on
   // its clock and on every session event): keep the latest in a ref so
@@ -66,6 +81,7 @@ export function AddProviderSheet({
   useEffect(() => {
     funnelStep("c-add-provider", "open");
     void providersDiscover().then(setInstalls);
+    void servicesList().then(setServices, () => setServices([]));
   }, []);
 
   // Found counts, even when its version couldn't be read (0.0.11).
@@ -74,6 +90,12 @@ export function AddProviderSheet({
   const sorted = [...(installs ?? [])].sort(
     (a, b) => Number(selectable(b)) - Number(selectable(a)),
   );
+
+  // AJ-E1601: a service picked under More opens its own sheet; closing it
+  // comes back here.
+  if (serviceFor && onServiceAdded) {
+    return <ServiceAccountSheet serviceId={serviceFor} onClose={() => setServiceFor(null)} onAdded={onServiceAdded} />;
+  }
 
   return (
     <div
@@ -106,6 +128,7 @@ export function AddProviderSheet({
                   key={row.provider}
                   className="flex items-center gap-3 rounded-xl border border-hairline px-4 py-3"
                   data-testid="provider-card"
+                  data-provider={row.provider}
                   data-status={row.status}
                   data-kind={row.kind ?? "terminal"}
                 >
@@ -117,7 +140,7 @@ export function AddProviderSheet({
                           what it was tested with are in the tool's own view. */}
                       {desktop && <Chip tone="accent">Desktop</Chip>}
                       <span className="text-label text-muted" data-testid="provider-state">
-                        {(row.status === "installed" || row.status === "unverified") && "Installed"}
+                        {(row.status === "installed" || row.status === "unverified" || row.status === "found") && "Installed"}
                         {row.status === "not_installed" && "Not installed"}
                         {versionUnchecked(row) && FOUND_UNCHECKED}
                         {row.status === "probe_failed" && !row.binary && "Couldn't check"}
@@ -158,6 +181,33 @@ export function AddProviderSheet({
               );
             })}
           </ul>
+          {onServiceAdded && services.length > 0 && (
+            <details className="mt-5" data-testid="add-more">
+              <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+                More
+              </summary>
+              <div className="mt-3 flex flex-col gap-2" data-testid="add-through-service">
+                <p className="text-label uppercase tracking-wider text-muted">Through another service</p>
+                <p className="text-xs leading-relaxed text-muted">
+                  A subscription that answers for your tools at the address it publishes. You paste its key once.
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {services.map((row) => (
+                    <li key={row.service.id} className="flex items-center gap-3 rounded-xl border border-hairline px-4 py-3" data-testid="service-card" data-service={row.service.id}>
+                      <LetterMark name={row.service.name} size={16} className="text-muted" />
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-xs font-medium text-ink">{row.service.name}</span>
+                        <span className="text-label text-muted">{row.tools.map((tool) => providerDisplayName(tool.tool)).join(", ")}</span>
+                      </div>
+                      <Button size="sm" variant="secondary" onClick={() => setServiceFor(row.service.id)} data-testid="service-choose">
+                        {row.service.name} →
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+          )}
         </div>
 
         <div className="flex items-center justify-end border-t border-hairline/60 px-6 py-4">

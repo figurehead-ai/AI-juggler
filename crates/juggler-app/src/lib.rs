@@ -317,6 +317,9 @@ macro_rules! app_commands {
             Write features::switch_setup::switch_setup_apply,
             Write features::switch_setup::switch_setup_undo,
             Write features::switch_setup::switch_setup_forget,
+            Write features::switch_setup::turn_ons::switch_setup_turn_ons,
+            Write features::switch_setup::turn_ons::switch_setup_turn_on_dismiss,
+            Write features::switch_setup::turn_ons::switch_setup_open,
             Read  features::account_settings::commands::account_settings_check,
             Write features::account_settings::commands::account_settings_apply,
             Write features::trust::commands::trust_open,
@@ -329,6 +332,76 @@ macro_rules! app_commands {
             Write features::budgets::commands::budgets_save,
             Write features::budgets::commands::budgets_remove,
             Write features::budgets::commands::budgets_seen,
+            Read  features::pools::commands::pools_list,
+            Read  features::pools::commands::pools_members,
+            Read  features::pools::commands::pools_place,
+            Write features::pools::commands::pools_create,
+            Write features::pools::commands::pools_rename,
+            Write features::pools::commands::pools_delete,
+            Write features::pools::commands::pools_move,
+            Write features::pools::commands::pools_set_role,
+            Write features::pools::commands::pools_set_access,
+            Write features::pools::commands::pools_set_delivery,
+            Write features::pools::commands::pools_set_spans_macs,
+            Write features::pools::commands::pools_revoke_rule,
+            Read  features::messages::commands::messages_threads,
+            Write features::messages::commands::messages_thread,
+            Write features::messages::commands::messages_send,
+            Write features::messages::commands::messages_deliver,
+            Write features::messages::commands::messages_deliver_waiting,
+            Write features::messages::commands::messages_set_thread,
+            Write features::messages::commands::messages_set_pool,
+            Read  features::messages::commands::messages_needs,
+            Write features::messages::commands::messages_answer,
+            Read  features::messages::commands::messages_docs,
+            Read  features::messages::commands::messages_doc,
+            Write features::messages::commands::messages_typing,
+            Read  features::messages::commands::messages_search,
+            Read  features::messages::commands::messages_links,
+            Write features::messages::commands::messages_link,
+            Read  features::tasks::commands::tasks_list,
+            Read  features::tasks::commands::tasks_counts,
+            Read  features::tasks::commands::tasks_plan,
+            Read  features::tasks::commands::tasks_children,
+            Read  features::tasks::commands::tasks_session,
+            Read  features::tasks::commands::tasks_detail,
+            Write features::tasks::commands::tasks_approve,
+            Write features::tasks::commands::tasks_send_back,
+            Write features::tasks::commands::tasks_free,
+            Write features::tasks::commands::tasks_cancel,
+            Read  features::tasks::commands::tasks_needs,
+            Write features::tasks::commands::tasks_answer,
+            Write features::tasks::commands::tasks_dismiss,
+            Write features::tasks::commands::tasks_start,
+            Write features::tasks::commands::tasks_look_up,
+            Read  features::agent_bridge::commands::agent_bridge_get,
+            Write features::agent_bridge::commands::agent_bridge_answer,
+            Write features::agent_bridge::commands::agent_bridge_set,
+            Read  features::runtime::commands::runtime_get,
+            Read  features::processes::commands::processes_page,
+            Read  features::processes::commands::processes_counts,
+            Read  features::processes::commands::processes_status,
+            Write features::processes::commands::processes_mark,
+            Read  features::processes::commands::processes_observed_verify,
+            Write features::processes::commands::processes_observed_stop,
+            Read  features::processes::commands::processes_history,
+            Read  features::processes::commands::processes_dry_run,
+            Read  features::processes::commands::processes_policy,
+            Read  features::processes::commands::processes_snapshot,
+            Write features::processes::commands::processes_reveal,
+            Write features::processes::commands::processes_activity_monitor,
+            Read  features::runtime::commands::runtime_asks,
+            Write features::runtime::commands::runtime_answer,
+            Write features::runtime::commands::runtime_send,
+            Write features::runtime::commands::runtime_interrupt,
+            Write features::runtime::commands::runtime_handover,
+            Write features::runtime::pickup::runtime_resume,
+            Write features::runtime::pickup::runtime_end,
+            Read  features::runtime::trust::runtime_trust,
+            Write features::runtime::trust::runtime_trust_choose,
+            Read  features::runtime::commands::runtime_choices,
+            Write features::runtime::commands::runtime_choose,
+            Write features::runtime::commands::runtime_beta,
             Read  features::outside_search::commands::outside_search_status,
             Read  features::outside_search::commands::outside_search_estimate,
             Write features::outside_search::commands::outside_search_set,
@@ -364,9 +437,6 @@ macro_rules! app_commands {
             Write features::terminal::commands::terminal_pop_in,
             Read  features::terminal::commands::terminal_windows,
             Read  commands::instance_quality,
-            Read  commands::instance_processes,
-            Read  features::subtasks::commands::subtasks_list,
-            Read  commands::cleanup_inventory,
             Read  commands::cleanup_audit_export,
             Read  commands::port_inventory,
             Read  commands::launch_port_warning,
@@ -402,7 +472,7 @@ macro_rules! app_commands {
             Write settings_policy::notification_prefs_set,
             Read  settings_policy::cleanup_default_get,
             Write settings_policy::cleanup_default_set,
-            Write commands::go_to_hotkey_set,
+            Write features::app::hotkey::app_go_to_hotkey_set,
             Write commands::open_accessibility_settings,
             Write commands::preview_start,
             Write commands::preview_stop,
@@ -416,6 +486,8 @@ macro_rules! app_commands {
             Read  settings_policy::session_prefs_get,
             Write settings_policy::session_prefs_set,
             Read  features::tools::commands::tools_catalog,
+            Read  features::tool_updates::commands::tool_updates_status,
+            Write features::tool_updates::commands::tool_updates_set_check,
             Write lifecycle::instance_unmark_reviewed,
             Read  manage::editor_choices,
             Write manage::editor_set,
@@ -432,12 +504,21 @@ macro_rules! app_commands {
             Read  features::conversations::commands::conversations_resume_command,
             // AJ-E2108: reads message text: never over the bridge.
             Write features::conversations::commands::conversations_last_messages,
+            // AJ-E1520 (0.2): the Subagents tab (a session's words: like its
+            // last messages, never served without the window).
+            Write features::subagents::commands::subagents_list,
+            Write features::subagents::commands::subagents_conversation,
             Write features::conversations::commands::conversations_go_to,
             // Brings a running app forward (never launches it).
             Write features::conversations::commands::conversations_bring_forward,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::subscriptions::commands::subscriptions_list,
+            // AJ-E1601: the services' published facts; no key, no secret.
+            Read  features::service_accounts::commands::service_accounts_catalog,
+            // Takes a key into the Keychain: never over the bridge.
+            Write features::service_accounts::commands::service_accounts_add,
+            Write features::service_accounts::commands::service_accounts_set_key,
             Read  features::sessions::commands::sessions_resume_command,
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::sessions::commands::sessions_page,
@@ -459,6 +540,21 @@ macro_rules! app_commands {
             Read  features::staging::staging_ready,
             Read  features::notifications::prefs::notifications_get,
             Write features::notifications::prefs::notifications_set,
+            // AJ-E2501: the one notification model (the centre, banners,
+            // bell); the window keeps Needs you in step with it.
+            Read  features::notifications::commands::notifications_summary,
+            Read  features::notifications::commands::notifications_page,
+            Read  features::notifications::commands::notifications_mutes,
+            Write features::notifications::commands::notifications_read,
+            Write features::notifications::commands::notifications_snooze,
+            Read  features::notifications::commands::notifications_snoozes,
+            Write features::notifications::commands::notifications_dismiss,
+            Write features::notifications::commands::notifications_mute,
+            Write features::notifications::commands::notifications_unmute,
+            // AJ-E2507: the user menu's name (the system's, never stored).
+            Read  features::app::user::app_user_get,
+            // Opens the browser: never from the read-only bridge.
+            Write features::app::user::app_help_open,
             // Reads `git status` (the 2 s cache, like a session's).
             Read  features::projects::git::projects_git_status,
             Read  features::projects::icon::projects_icon_read,
@@ -563,6 +659,11 @@ pub fn run() {
         }
     });
 
+    // AJ-E1601 (D-34): the keys of accounts through another service live
+    // in this edition's own Keychain items (tests keep them in memory).
+    app_state
+        .service_keys
+        .install(Arc::new(edition::current().service_keys()));
     // D-20: the chosen update channel, for reports built without state.
     let _ = updates::channel_of(&app_state);
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
@@ -604,6 +705,8 @@ pub fn run() {
             .is_ok_and(|storage| settings_policy::always_on(&storage).reopen_after_crash);
         features::app::crash::follow_setting(&app_state, reopen);
         features::app::crash::resume_after_crash(&app_state);
+        // AJ-E2310: the driven sessions AI Juggler stopped come back.
+        features::runtime::pickup::after_restart(&app_state);
     }
     // AJ-E1513: prepared switches a crash left for sessions now ended.
     features::staging::sweep_at_startup(&app_state);
@@ -710,8 +813,32 @@ pub fn run() {
             // 0.1.5: Go to it hands activation over on the main thread.
             let main_handle = app.handle().clone();
             activation::install_main_thread(move |job| main_handle.run_on_main_thread(job).is_ok());
-            register_go_to_hotkey(app.handle());
+            features::app::hotkey::register_go_to_hotkey(app.handle());
+            // AJ-E1704: the agent bridge's socket, only if sessions that
+            // outlived the last run still hold keys (else lazily).
+            features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));
+            // AJ-E2302: driven sessions tell the window what changed.
+            features::runtime::start_emitter(
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+                app.handle().clone(),
+            );
+            // E18: messages tell the window what changed.
+            features::messages::start_emitter(
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+                app.handle().clone(),
+            );
+            // E19: and so do tasks.
+            features::tasks::start_emitter(
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+                app.handle().clone(),
+            );
             features::notifications::connect(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+            );
+            // AJ-E2501: the badge, the menu-bar item and the bell follow
+            // the notification model from here on.
+            features::notifications::views::connect(
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
@@ -961,29 +1088,6 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
     data_dir
 }
 
-/// Registers the "Go to instance…" hotkey the user chose (AJ-E414
-/// Req.4). There is no default (AJ-E2110): `⌥Space` belongs to `ChatGPT`,
-/// so nothing is registered until the user picks a key in Settings ›
-/// Desktop apps. A conflict or a locked-down system key logs and
-/// continues — the palette stays reachable in-app (⌘K).
-fn register_go_to_hotkey(app: &tauri::AppHandle) {
-    use tauri::Manager;
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    let Some(hotkey) = app
-        .state::<std::sync::Arc<state::AppState>>()
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| storage.app_settings().get(GO_TO_HOTKEY_KEY).ok())
-        .flatten()
-    else {
-        return;
-    };
-    if let Err(error) = app.global_shortcut().register(hotkey.as_str()) {
-        eprintln!("ai-juggler: hotkey {hotkey} not registered: {error}");
-    }
-}
-
 /// Read-model ticks (AJ-E401 Req.4): `session://updated` stays event-driven
 /// (<300 ms via the lifecycle forwarder); these two add the 5 s resource
 /// and 30 s quota refreshes as separate, coalesced emissions. Each tick
@@ -1027,6 +1131,7 @@ fn spawn_read_model_ticks(
     }
     let quota_app = app.clone();
     let processes_app = app.clone();
+    let subagents_app = app.clone();
     let conversations_app = app.clone();
     let index_state = quota_state.clone();
     ticks::every("resources", std::time::Duration::from_secs(5), move || {
@@ -1035,6 +1140,9 @@ fn spawn_read_model_ticks(
         // working here, before This Mac says so.
         features::app::awake::tick(&resource_state);
         let _ = machine_health::emit_this_mac(&app, &resource_state);
+        // D-49: Needs you, worked out here (no window needed); a snooze
+        // whose time came brings its need back into every count.
+        features::notifications::needs::refresh(&resource_state);
     });
     // The 2 s per-tree sampling tick (AJ-E410): collector rings/rows,
     // orphan grace poll, and the opted-in Tier-1 auto-cleanup sweep.
@@ -1043,11 +1151,21 @@ fn spawn_read_model_ticks(
     // UI emissions stay on their own coalesced cadences above.
     ticks::every("processes", std::time::Duration::from_secs(2), move || {
         commands::processes_tick(&processes_state);
-        commands::detect_running_models(&processes_app, &processes_state, None);
-        if features::subtasks::tick(&processes_state) {
-            let _ = commands::emit_sessions(&processes_app, &processes_state);
+        // AJ-E2401: the Processes view's graph, from what the tick just
+        // read (no scan of its own); the page hears of changes.
+        if let Some(change) = features::processes::tick(&processes_state) {
+            use tauri::Emitter;
+            let _ = processes_app.emit(features::processes::EVENT_CHANGED, change);
         }
+        commands::detect_running_models(&processes_app, &processes_state, None);
+        // AJ-E1703: what each live session is working on (its card).
+        features::pools::cards::tick(&processes_state);
     });
+    // AJ-E1520 (0.2): the rail's subagent count, on its own tick.
+    features::subagents::count::start(subagents_app.clone(), quota_state.clone());
+    // 0.2: an own session of a tool without hooks learns its conversation
+    // (one rail row, carrying its count).
+    features::sessions::linking::start(subagents_app, quota_state.clone());
     ticks::every("quota", std::time::Duration::from_secs(30), move || {
         let _ = commands::emit_quota(&quota_app, &quota_state);
         // AJ-E1513: the switch prepared before the limit (never run).
@@ -1104,6 +1222,8 @@ fn spawn_read_model_ticks(
     }
     // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
     features::outside_search::spawn(index_state.clone());
+    // AJ-E1611: new tool versions, once a day, well after start.
+    features::tool_updates::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the
     // background (incremental: unchanged transcripts cost one metadata
     // read), so a search never waits for a first build.

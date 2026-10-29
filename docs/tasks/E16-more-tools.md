@@ -15,9 +15,10 @@
 > **Law for every task here:**
 > - **Pass the conformance kit (AJ-E1521)** before merging: isolation, no
 >   credential copies, pinned env, sessions, and honest usage.
-> - **Never hold vendor credentials.** Sign-in happens in the tool's own
->   flow. API keys live in that account's own tool settings, never in AI
->   Juggler (pending D-34).
+> - **Never hold vendor sign-ins.** Sign-in happens in the tool's own
+>   flow. The one exception is an account through another service
+>   (AJ-E1601): its key is kept in the macOS Keychain and handed only to
+>   that account's sessions (D-34).
 > - **Respect each tool's terms.** Where a vendor bans wrappers or
 >   automation, the tool is track-only, or the restriction is documented,
 >   with the maintainer's ruling recorded.
@@ -27,12 +28,12 @@
 > - **Detect by path and version,** never by binary name alone (`grok` is
 >   also an unofficial CLI's name).
 
-### AJ-E1601 Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | Status: TODO | Priority P0 | Effort S | Depends: AJ-E1521
+### AJ-E1601 Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | Status: DONE-EVIDENCED (live check pending, AJ-E1612) | Priority P0 | Effort S | Depends: AJ-E1521
 **Goal**: Subscriptions that speak Claude Code's or Codex's protocol run through the adapters we already have.
 **User story**: As a user with OpenCode Go and a Kimi membership, I add each as an account on Claude Code or Codex and juggle them like the rest.
 **Requirements**:
 1. An account kind, "Through another service", for Claude Code (`ANTHROPIC_BASE_URL`, plus the model) and for Codex (a `model_providers` block). Presets for OpenCode Go and Kimi follow their published guides.
-2. The key SHALL be entered into that account's own tool settings, through the tool's own mechanism. AI Juggler never reads, copies or stores it (D-34, to be ruled).
+2. The key SHALL be pasted once in Add account and kept in the macOS Keychain (D-34); AI Juggler hands it only to that account's sessions, as the environment variable the tool expects, and never writes it to argv, a file, a log, the index or a backup, never shows it again, and removes it with the account. The Privacy page's "no-proxy" line is reworded as D-34 says.
 3. Usage: OpenCode Go is labelled an estimate, from dollar shares per 5 hours and per week. Kimi reads its windows when the source allows; otherwise the usage is unknown.
 **UI/UX reasoning**: One more choice in Add account's More, with the service's mark.
 **Performance budget**: n/a.
@@ -41,9 +42,9 @@
 **Visual testing**: Add account's new choice and the account card.
 **Files to touch**: `crates/juggler-adapters/src/claude_code.rs`, `codex.rs`, `FirstRun.tsx`.
 **Research basis**: `opencode.md` §subscriptions; `kimi.md` §8.
-**Handover note**: Blocked on D-34 for the key's home.
+**Handover note**: D-34 ruled the Keychain (2026-10-24).
 
-### AJ-E1602 OpenCode CLI | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1521
+### AJ-E1602 OpenCode CLI | Status: DONE-EVIDENCED (live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
 **Goal**: OpenCode runs as a first-class tool with separate accounts.
 **User story**: As an OpenCode user with several providers, I run its sessions beside Claude and Codex.
 **Requirements**:
@@ -61,7 +62,7 @@
 **Research basis**: `opencode.md`.
 **Handover note**: The maintainer chooses v1, v2 or both; default both.
 
-### AJ-E1603 Kimi Code CLI | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1521
+### AJ-E1603 Kimi Code CLI | Status: IN-PROGRESS (Req.1, 2 and 4 evidenced; Req.3's usage source awaits the maintainer's ruling; live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
 **Goal**: Kimi Code runs with separate accounts and real quota windows.
 **User story**: As a Kimi member, I see my 5-hour, 7-day and monthly windows and juggle Kimi accounts.
 **Requirements**:
@@ -78,7 +79,7 @@
 **Research basis**: `kimi.md`.
 **Handover note**: The device quota per home is unknown; the live check finds out.
 
-### AJ-E1604 Grok Build CLI | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1521
+### AJ-E1604 Grok Build CLI | Status: IN-PROGRESS (Req.1–3 evidenced; Req.4's token reading awaits the live check of signals.json; live check pending, AJ-E1612) | Priority P1 | Effort M | Depends: AJ-E1521
 **Goal**: Grok Build runs with separate accounts and never touches the user's Claude setup.
 **User story**: As an X Subscription user, I run Grok sessions beside the rest.
 **Requirements**:
@@ -202,7 +203,7 @@
 **Research basis**: all the research files above, desktop sections.
 **Handover note**: Grok Bot runs in the cloud and is out of scope.
 
-### AJ-E1611 Tool update checks | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E1611 Tool update checks | Status: DONE-EVIDENCED (the first live request is on the maintainer's checklist) | Priority P1 | Effort S | Depends: —
 **Goal**: The user knows when a tool has a new version, and whether AI Juggler has verified it.
 **User story**: As a user, I see "Claude Code 2.x is available; not yet verified with AI Juggler".
 **Requirements**:

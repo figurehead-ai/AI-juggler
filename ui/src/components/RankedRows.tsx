@@ -10,18 +10,26 @@
  * options) with ↑/↓ roving focus between rows.
  */
 import { forecastWords } from "../lib/quotaWindow";
+import { rankByRoom, ROOM_ORDER_WORDS } from "../lib/room";
 import { useRef, useState, type JSX } from "react";
 import type { RankedRowData } from "../lib/bridge";
 
 export function RankedRows({
-  rows,
+  rows: given,
+  leftOf,
   onPick,
   activeAccount,
 }: {
   rows: RankedRowData[];
+  /** Each account's % left, as Home's Runway reads it: the rows go in the
+   * one order by room and "Suggested" is its pick (the 0.2 walk, F17). */
+  leftOf?: (account: string) => number | null;
   onPick: (account: string) => void;
   activeAccount?: string;
 }): JSX.Element {
+  const rows = leftOf
+    ? rankByRoom(given, (row) => leftOf(row.account), (row) => row.filtered_reason == null).map(({ item, suggested }) => ({ ...item, suggested }))
+    : given;
   const [whyOpen, setWhyOpen] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const onKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
@@ -48,6 +56,11 @@ export function RankedRows({
           Why this order?
         </button>
       </div>
+      {whyOpen && (
+        <p className="text-label text-muted" data-testid="why-this-order">
+          {ROOM_ORDER_WORDS}
+        </p>
+      )}
       <ul
         ref={listRef}
         onKeyDown={onKeyDown}

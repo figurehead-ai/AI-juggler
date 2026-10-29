@@ -1,6 +1,8 @@
+import { needsOfRows } from "../test/needs-kit";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { MinimalInstanceColumn, SessionRow } from "./WorkflowRail";
+import { SessionRow } from "./WorkflowRail";
+import { FoldedRail } from "./RailFolded";
 import { rememberResourceSample } from "./indicator";
 import type { InstanceInfo } from "../lib/bridge";
 import {
@@ -172,21 +174,24 @@ describe("AJ-E403 density field presence per mode", () => {
     expect(container.textContent).toContain("Asks you");
   });
 
-  it("Minimal shows disc + state glyph + ! badge and keeps the full text in its name and description", () => {
+  it("Minimal shows each session's mark, its state and ! badge, and keeps the full text in its name and description", async () => {
     const rows = [mk(), mk({ id: "sess-wait", status: "waiting_user", needs_attention: "waiting_user" })];
-    const { container } = render(
-      <MinimalInstanceColumn sessions={rows} selectedId={null} onSelect={() => {}} />,
-    );
-    const buttons = container.querySelectorAll("button");
-    expect(buttons.length).toBe(2);
+    needsOfRows(rows); // D-49: the backend's list
+    const view = render(<FoldedRail sessions={rows} selectedId={null} onSelect={() => {}} />);
+    // The backend's count first (F2: the bell's), then one icon per session.
+    const count = await view.findByTestId("rail-folded-needs-you");
+    expect(count.getAttribute("aria-label")).toBe("Needs you: 1 thing needs you. Open Home");
+    const rowsShown = view.container.querySelectorAll("button[data-rail-item]");
+    expect(rowsShown.length).toBe(2);
     // Full I-01..I-11 text reachable in every minimal row (Req.3): the
-    // name says who and how it is; the description carries the rest.
-    const described = document.getElementById(buttons[0]!.getAttribute("aria-describedby") ?? "")?.textContent ?? "";
-    expect(buttons[0]!.textContent).toContain("Work Max");
+    // name says how it is, what and where; the description carries the rest.
+    const working = [...rowsShown].find((button) => button.getAttribute("data-instance-id") === "sess-density")!;
+    const described = document.getElementById(working.getAttribute("aria-describedby") ?? "")?.textContent ?? "";
+    expect(working.querySelector(".sr-only")!.textContent).toMatch(/^Working, .*Claude Code · Work Max$/);
     expect(described).toContain("60% left");
     expect(described).toContain("opus");
-    // The ! badge count: one instance needs you.
-    expect(container.textContent).toContain("! 1");
+    // The ! badge: the one that needs you.
+    expect(view.getAllByTestId("rail-folded-needs")).toHaveLength(1);
   });
 });
 

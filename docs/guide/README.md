@@ -16,8 +16,9 @@
   left shows, places, Go to it, View, Last messages, and Settings › Desktop
   apps.
 - [Sessions and the terminal](sessions-and-the-terminal.md): your
-  sessions, starting one, and the terminal's tools: Find, links, text size,
-  Maximize and its own window.
+  sessions, starting one, the terminal's tools (Find, links, text size,
+  Maximize and its own window), how a session runs, and answering its
+  questions from AI Juggler.
 - [Accounts and profiles](accounts.md): accounts are your subscriptions,
   profiles are the setups your apps run on; adding a profile, starting it
   with your usual settings, the default profile and launch settings.
@@ -27,14 +28,19 @@
   another account or tool, what carries over, and switching back.
 - [Rules and MCP servers](rules-and-servers.md): keeping `CLAUDE.md` and
   `AGENTS.md` the same, and your accounts' MCP servers.
-- [This Mac](this-mac.md): what your AI tools use, and cleaning up what's
-  left behind.
+- [This Mac](this-mac.md): what your AI tools use, and how your Mac is
+  doing.
+- [Processes](processes.md): what each session and app runs, what it left
+  behind, stopping a process after a check, and automatic cleanup.
 - [Notifications](notifications.md): being told when a session needs you,
   while you're in another app.
 - [Keep work going](keep-work-going.md): restarting crashed sessions,
   keeping the Mac awake, reopening after a crash, opening at login.
 - [Your other Macs](fleet.md) (beta): pairing your Macs, what each one sees,
   starting a session on another Mac, and usage by machine.
+- [Pools](pools.md): grouping sessions that work together, what each
+  member is working on, what agents may do in a pool, their messages and
+  shared documents, and the pool's tasks.
 
 - [What AI Juggler touches](trust.md): what it reads, changes and sends,
   and what it never does, each line checked by tests.

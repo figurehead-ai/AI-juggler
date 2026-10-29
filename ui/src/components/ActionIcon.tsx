@@ -21,6 +21,7 @@ import {
   IconMute,
   IconPage,
   IconPlus,
+  IconPool,
   IconRemove,
   IconRename,
   IconReplay,
@@ -62,6 +63,7 @@ export const ACTION_ICONS: Record<ActionIconName, (props: SVGProps<SVGSVGElement
   remove: IconRemove,
   delete: IconTrash,
   info: IconInfo,
+  pool: IconPool,
 };
 
 export function ActionIcon({ name, size = 14, className = "" }: { name: ActionIconName; size?: number; className?: string }): JSX.Element {

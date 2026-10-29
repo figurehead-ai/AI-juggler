@@ -22,7 +22,7 @@ import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
 import { ConfirmBody } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
-import { Executing, OtherStep, TargetStep } from "./switch/StepBodies";
+import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
 import { toolSpec } from "../lib/tools";
 import {
@@ -71,6 +71,7 @@ export function SwitchFlow({
   const [holding, setHolding] = useState(false);
   // AJ-E1542: what the target lacks, and what the user picked to set up.
   const setupCheck = useSwitchSetup(sessionId, targetProfileId);
+  const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
@@ -162,7 +163,7 @@ export function SwitchFlow({
       // AJ-E1542: what the user picked is set up first, so the target
       // starts with it.
       const applied = await setupCheck.applyPicked();
-      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : []);
+      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved());
       if (oneClick && applied.length === 0) {
         // The modal closes into the undo window (App renders the
         // toast); the graph keeps the edge as the undo handle.
@@ -199,13 +200,13 @@ export function SwitchFlow({
     <ConfirmBody
       preflight={preflight}
       target={targetLabel}
+      room={room}
       freeze={freeze}
       onFreeze={setFreeze}
       setup={setup}
       picked={picked}
       onToggle={togglePicked}
-      onRecheck={setupCheck.recheck}
-      checking={setupCheck.checking}
+      onCheckAgain={setupCheck.recheck}
       // One screen: the keys question (when it applies) is asked here.
       extra={preflight.door === "one-click" && preflight.secrets.asks ? keys(preflight) : undefined}
     />
@@ -223,14 +224,13 @@ export function SwitchFlow({
       className={keysPending ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
-      Switch now
+      {risky(room) ? "Switch anyway" : "Switch now"}
     </button>
   );
   const cancelButton = <CancelButton onClick={cancel} testId="switch-cancel" />;
 
-  // The dialog is a header (the step marks and ×), a body that scrolls,
-  // and a footer with the buttons: the way on and the way out are always
-  // on screen, at any window size, on every step and in every phase.
+  // A header (step marks, ×), a body that scrolls, a footer with the
+  // buttons: the way on and out always on screen (any size, step, phase).
   const wizard = phase.kind === "confirm" && phase.preflight.door === "wizard" ? phase.preflight : null;
   const carriedPending = wizard !== null && steps[step] === "What's carried" && keysPending;
 
@@ -256,11 +256,11 @@ export function SwitchFlow({
         }
         return (
           <div className="flex flex-col gap-5" data-testid="switch-wizard">
-            {steps[step] === "Target" && <TargetStep preflight={phase.preflight} target={targetLabel} />}
+            {steps[step] === "Target" && <TargetStep preflight={phase.preflight} target={targetLabel} room={room} />}
             {steps[step] === "What's carried" && (
               <div className="flex flex-col gap-4" data-testid="switch-step-carried">
                 <h3 className="text-title text-ink">What goes along</h3>
-                <CarryList items={phase.preflight.carry_items} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} />
+                <CarryList items={phase.preflight.carry_items} target={targetLabel} tool={toolSpec(phase.preflight.target_tool).display_name} setup={setup} picked={picked} />
                 {keys(phase.preflight)}
               </div>
             )}
@@ -285,14 +285,15 @@ export function SwitchFlow({
           </div>
         );
       case "failed":
+        // A short title, then the failure's own words: what happened and
+        // what to do next, each said once (`SwitchFailure::words`; any
+        // other error's words say what to do too). Nothing is added to
+        // them here, so nothing is said twice.
         return (
           <div className="flex flex-col gap-4" data-testid="switch-failed">
             <h3 className="text-title text-warning">The switch didn't complete</h3>
             <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="switch-failed-words">
               {phase.message}
-            </p>
-            <p className="text-body text-ink">
-              {setupCheck.results.length > 0 ? "The original stays exactly as it was" : "Nothing was changed: the original stays exactly as it was"} — resume it where you left it, or try again.
             </p>
             {/* What was set up before the switch failed stays undoable. */}
             <SwitchSetupResults target={targetLabel} results={setupCheck.results} />

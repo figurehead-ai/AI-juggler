@@ -10,6 +10,9 @@
  * - A **place header**: a fold chevron, the app's icon and name, the
  *   profile's badge and name, and a count (a click opens the profile's page here), and
  *   its ↗ (Open), which brings the running app forward (never launches it).
+ * - D-47: in Your order, a row and a place show a drag handle on hover
+ *   and focus (⌥⌘↑ and ⌥⌘↓ are its twin); a row shows its pin there too.
+ *   A row that needs you stays in its place, its state in amber.
  *
  * The maintainer's review of 0.1.4: everything here is a way into AI
  * Juggler. A row's click or ↩ opens the session's page; its project's
@@ -21,18 +24,22 @@
 import type { JSX, ReactNode } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
-import { ProfileBadge } from "./ProfileBadge";
-import { AppIcon } from "./AppIcon";
 import { PinMark } from "./RailProjectRows";
-import { FoldButton } from "./rail-groups";
-import { IconUpRight } from "./icons-places";
-import { IconAlert } from "./icons";
+import { DROP, Grip, type Arrangeable } from "./RowTools";
+
+export { PlaceHeader } from "./PlaceHeader";
+export type { Arrangeable } from "./RowTools";
+import { ActionIcon } from "./ActionIcon";
 import { lowLeftWords } from "./indicator";
 import { shortHeavy, useHeavyNote } from "../lib/machine";
 import { STATE_TONE, goToWhere, needWord, stateWord, type RailItem, type RailPlace } from "../lib/rail-items";
 import { agoWords } from "../lib/time-words";
 import { markSeen } from "../lib/seen";
+import { rememberTab } from "../pages/registry";
+import { showTab } from "../pages/PageShell";
+import { markHasSubagents } from "../pages/session/useSubagents";
 import { profileColor } from "../lib/profile-marks";
+import { togglePin } from "../lib/rail-order-store";
 
 export { needWord } from "../lib/rail-items";
 
@@ -52,6 +59,35 @@ export function usePrimary(item: RailItem, onSelect: (id: string) => void): () =
       host.openConversation?.(c);
     }
   };
+}
+
+/** AJ-E1520: a row's subagent count, its own way in: the session's page
+ * on its Subagents tab. */
+function RowSubagents({ item, words, onSelect }: { item: RailItem; words: string; onSelect: (id: string) => void }): JSX.Element {
+  const primary = usePrimary(item, onSelect);
+  return (
+    <span className="flex shrink-0 items-start whitespace-pre">
+      <span aria-hidden="true"> · </span>
+      <button
+        type="button"
+        data-testid="row-subagents"
+        aria-label={`Open its subagents: ${words}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          // Its count says it has some: the tab is there from the start.
+          const account = item.session?.account_id ?? item.conversation?.account_id;
+          const conversation = item.session?.conversation_id ?? item.conversation?.id;
+          if (account && conversation) markHasSubagents(account, conversation);
+          rememberTab(item.session ? "session" : "conversation", "subagents");
+          primary();
+          showTab("subagents");
+        }}
+        className="pointer-events-auto relative z-10 -mx-0.5 -mb-2.5 min-h-6 shrink-0 rounded px-0.5 pb-2.5 text-left leading-[14px] text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+      >
+        {words}
+      </button>
+    </span>
+  );
 }
 
 /** A row's project, its own way in: the project's page here. Text only
@@ -98,31 +134,56 @@ interface RowProps {
   selected: boolean;
   onSelect: (id: string) => void;
   now: number;
-  /** "Sub-agents" is on in the View: the row says how many it runs. */
+  /** "Subagents" is on in the View: the row says how many it runs. */
   subagents?: boolean;
   /** Settings › Appearance › Density is Compact (AJ-E403): fewer lines,
    * the same words in its name. */
   compact?: boolean;
 }
 
+
 /**
  * One row: a button the size of the row (its page; ↑↓ move between
  * them), the visible line over it (pointer-free but for the project's
  * name), the ↗ and the ⋯. `shape` rounds both layers.
  */
-function RowShell({ item, selected, onSelect, label, children, className, shape, style, indent = false }: Omit<RowProps, "compact"> & { label: string; children: ReactNode; className: string; shape: string; style?: React.CSSProperties; indent?: boolean }): JSX.Element {
+function RowShell({
+  item,
+  selected,
+  onSelect,
+  label,
+  children,
+  className,
+  shape,
+  style,
+  indent = false,
+  arrange = null,
+  tools = false,
+}: Omit<RowProps, "compact"> & { label: string; children: ReactNode; className: string; shape: string; style?: React.CSSProperties; indent?: boolean; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
   const primary = usePrimary(item, onSelect);
-  // One hook either way: the session's menu, or the conversation's.
-  const menu = useItemMenu(item.session ? "session" : "conversation", (item.session ?? item.conversation) as never, item.title);
+  // One hook either way: the session's menu, or the conversation's. A
+  // session another app runs is pinned in the rail's own record (D-47).
+  const local = item.session ? undefined : { pinConversation: () => togglePin(item.key), isConversationPinned: () => item.pinned };
+  const menu = useItemMenu(item.session ? "session" : "conversation", (item.session ?? item.conversation) as never, item.title, local);
   const where = goToWhere(item);
   // Needs you: its ↗ always shows; elsewhere on hover and focus.
-  const shown = item.need !== null;
-  const goTo = where === null ? null : menu.goTo({ where, shown, className: "absolute right-1 top-1/2 -translate-y-1/2" });
+  const shown = item.need !== null && !tools;
+  const goTo = where === null ? null : menu.goTo({ where, shown, className: tools ? "" : "absolute right-1 top-1/2 -translate-y-1/2" });
+  // AJ-E1502: the pin, on hover and focus, runs the menu's own Pin.
+  const pin = tools ? menu.actions.find((action) => action.id === "pin" && !action.reason) : undefined;
+  const hover = "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none";
   return (
-    <div className={"group relative " + (indent ? "ml-3" : "")} data-rail-row {...menu.triggerProps}>
+    <div
+      className={"group relative " + (indent ? "ml-3" : "") + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
+      data-rail-row
+      data-order-row={arrange ? item.key : undefined}
+      data-order-group={arrange?.group}
+      {...menu.triggerProps}
+    >
       <button
         type="button"
         data-rail-item={item.key}
+        aria-keyshortcuts={arrange?.enabled ? "Alt+Meta+ArrowUp Alt+Meta+ArrowDown" : undefined}
         data-instance-id={item.session?.id}
         data-conversation-id={item.conversation?.id}
         aria-current={selected ? "true" : undefined}
@@ -139,7 +200,33 @@ function RowShell({ item, selected, onSelect, label, children, className, shape,
       <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center " + (goTo && shown ? "pr-9 " : "pr-2 ") + shape + " " + className}>
         {children}
       </div>
-      {goTo}
+      {tools ? (
+        <span className={"absolute right-1 top-1/2 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-md " + (arrange?.dragging ? "" : hover)} data-testid="row-tools">
+          {arrange?.enabled && <Grip arrange={arrange} label={item.title} />}
+          {pin && (
+            <button
+              type="button"
+              aria-label={`Pin ${item.title}`}
+              aria-pressed={item.pinned}
+              title={pin.label}
+              data-testid="row-pin"
+              onClick={(event) => {
+                event.stopPropagation();
+                void pin.run();
+              }}
+              className={
+                "flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface outline-none transition-colors hover:bg-surface-3 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                (item.pinned ? "text-accent-hi" : "text-muted")
+              }
+            >
+              <ActionIcon name="pin" size={13} />
+            </button>
+          )}
+          {goTo}
+        </span>
+      ) : (
+        goTo
+      )}
       {menu.button({ label: `${item.session ? "Session" : "Conversation"} actions for ${item.title}`, className: "absolute bottom-0 left-0" })}
       {menu.element}
     </div>
@@ -196,11 +283,14 @@ function whenWords(item: RailItem, now: number): string {
   return item.lastMs > 0 ? agoWords(item.lastMs, now) : "";
 }
 
-/** An Open now row under its place. */
-export function PlaceRow({ compact = false, ...props }: RowProps & { edge: string | null }): JSX.Element {
+/** An Open now row under its place. One that needs you keeps its place
+ * and says its state in amber (D-47); Needs you lists it as well, with
+ * why. One vocabulary on every row (AJ-E2104 Req.3). */
+export function PlaceRow({ compact = false, ...props }: RowProps & { edge: string | null; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
   const { item, now, edge, subagents } = props;
+  const needs = item.need !== null;
   const word = stateWord(item.state, item.probably);
-  const tone = STATE_TONE[item.state];
+  const tone = needs ? { text: "text-warning", dot: "bg-warning" } : STATE_TONE[item.state];
   const low = item.session ? lowLeftWords(item.session) : null;
   const heavyNote = useHeavyNote(item.session?.id ?? "");
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;
@@ -209,15 +299,18 @@ export function PlaceRow({ compact = false, ...props }: RowProps & { edge: strin
   const also = item.alsoIn.length > 0 ? `also open in ${item.alsoIn.join(" and ")}` : null;
   const helpers = subagents && item.subagents > 0 ? `+${item.subagents} ${item.subagents === 1 ? "agent" : "agents"}` : null;
   // AJ-E1502: a pinned row says so, as the Project lens's row does.
-  const pinned = item.session?.pinned === true;
-  const label = [word, item.title, pinned ? "pinned" : null, line, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
+  const pinned = item.pinned;
+  // AI Juggler's own session: the account it runs on too (its place is
+  // AI Juggler, which names no profile), so a screen reader hears it.
+  const on = item.session ? `on ${item.accountLabel}` : null;
+  const label = [word, item.title, pinned ? "pinned" : null, line, on, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
   if (compact) {
     // One line: the state's dot, the title, then an exception (low
     // runway, heavy load) or when, and the state word (AJ-E403: the
     // state's words never go).
     return (
       <RowShell {...props} label={label} indent shape="rounded-r-lg" className="h-[30px] gap-2 border-l-2 pl-2.5" style={{ borderLeftColor: edge ?? "var(--color-hairline)" }}>
-        <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" ? " animate-breathe" : "")} />
+        <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" && !needs ? " animate-breathe" : "")} />
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="truncate text-meta font-semibold text-ink">{item.title}</span>
           {pinned && <PinMark />}
@@ -238,7 +331,7 @@ export function PlaceRow({ compact = false, ...props }: RowProps & { edge: strin
       className="h-[44px] gap-2 border-l-2 py-1 pl-2.5"
       style={{ borderLeftColor: edge ?? "var(--color-hairline)" }}
     >
-      <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" ? " animate-breathe" : "")} />
+      <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + tone.dot + (item.state === "working" && !needs ? " animate-breathe" : "")} />
       {/* The title has its line to itself; its state ends the line under
           it, after the project and the time (the review of 0.1.4). */}
       <span className="flex min-w-0 flex-1 flex-col gap-px">
@@ -252,99 +345,14 @@ export function PlaceRow({ compact = false, ...props }: RowProps & { edge: strin
           <span className="flex min-w-0 flex-1 items-center">
             <RowProject item={item} rest={when} />
             {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
-            {helpers && <span aria-hidden="true" className="shrink-0 whitespace-pre"> · {helpers}</span>}
+            {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
           </span>
-          <span aria-hidden="true" className={"shrink-0 text-label font-medium leading-[14px] " + tone.text} data-testid="state-word">
+          <span aria-hidden="true" className={"shrink-0 text-label leading-[14px] " + (needs ? "font-semibold " : "font-medium ") + tone.text} data-testid="state-word">
             {word}
           </span>
         </span>
       </span>
     </RowShell>
-  );
-}
-
-/** A place's header: the fold chevron; app, profile, count (its page);
- * Open. Folded, it reads "Work · 4 idle". */
-export function PlaceHeader({
-  place,
-  label,
-  count,
-  needs,
-  folded,
-  onToggle,
-  onOpen,
-  onPage,
-  shortcut,
-  children,
-}: {
-  place: RailPlace | null;
-  label: string;
-  count: number;
-  needs: number;
-  folded: string | null;
-  onToggle: () => void;
-  onOpen?: () => void;
-  /** Its page here: the profile's (Home for AI Juggler's own place). */
-  onPage?: () => void;
-  /** Its ⌘ digit, when it has one. */
-  shortcut?: number;
-  /** A header of another lens (an account's avatar). */
-  children?: ReactNode;
-}): JSX.Element {
-  const name = [label, place?.profile].filter(Boolean).join(" · ");
-  return (
-    <div className="flex h-[30px] min-w-0 items-center gap-0.5 pr-1" data-testid="place-header" data-place={place?.key}>
-      <FoldButton open={folded === null} label={name} onToggle={onToggle} />
-      <button
-        type="button"
-        onClick={onPage ?? onToggle}
-        data-rail-nav
-        data-testid="place-page"
-        aria-keyshortcuts={shortcut ? `Meta+${shortcut}` : undefined}
-        title={onPage ? `Open ${name}'s page` : undefined}
-        className="flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
-      >
-        <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
-        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
-          {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
-          <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
-          {/* The profile: its dot and name, beside the icon (D-38). The
-              folded summary gives way first. */}
-          {place?.profile && (
-            <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted" data-testid="place-profile">
-              <ProfileBadge name={place.profile} size={6} />
-              <span className="truncate">{place.profile}</span>
-            </span>
-          )}
-          {/* Folded, its summary ("4 idle"), unless the amber chip needs
-              the room (the profile's name keeps it). */}
-          {folded !== null && needs === 0 && <span className="min-w-0 shrink-[8] truncate text-label text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
-          {/* What the amber count is, on the chip itself (the review of
-              0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
-          {needs > 0 && (
-            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-warning-soft px-1.5 text-label font-semibold leading-[18px] tabular-nums text-warning" data-testid="place-needs">
-              <IconAlert width={10} height={10} aria-hidden="true" />
-              {needs}
-            </span>
-          )}
-          {folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
-        </span>
-      </button>
-      {onOpen && (
-        <button
-          type="button"
-          onClick={onOpen}
-          aria-label={`Open ${name}`}
-          title={shortcut ? `Bring it forward (⌘${shortcut})` : "Bring it forward"}
-          data-testid="place-open"
-          className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-        >
-          {/* Its ↗, as a row's: the way out to the app. The words are its
-              name; the room goes to the place's app and profile. */}
-          <IconUpRight width={12} height={12} />
-        </button>
-      )}
-    </div>
   );
 }
 

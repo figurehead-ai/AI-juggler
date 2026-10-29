@@ -243,3 +243,15 @@ export function IconBroom(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** Its pool: sessions that work together, in one ring (AJ-E1702). */
+export function IconPool(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="9" cy="10" r="1.75" />
+      <circle cx="15" cy="10" r="1.75" />
+      <circle cx="12" cy="15.25" r="1.75" />
+    </svg>
+  );
+}

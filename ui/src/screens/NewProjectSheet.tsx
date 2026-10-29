@@ -14,58 +14,30 @@ import {
   signedIn,
 } from "../lib/bridge";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
+import { pickLaunch } from "../lib/launch-pick";
 
 /**
  * AJ-E305 flow (b): a new project in ≤ 3 clicks and zero typed
  * paths. Step 1 — where (recent dirs as tiles, a native folder
  * picker, or a drop). Step 2 — who: the RECOMMENDED account
- * preselected (last-used on this dir, else most headroom, else most
- * recent), one [Change] away from the full list.
+ * preselected (`lib/launch-pick`: a pick of yours, else the most
+ * room), one [Change] away from the full list.
  *
  * No Account for the Provider detours INLINE into the add-account
  * flow (d) and returns to the pending launch on completion — the
  * directory never has to be re-picked.
  */
 
-/** Headroom rank for the preselect rule: the engine's forecast
- * state, ordered from most to least headroom. */
-const HEADROOM_RANK: Record<string, number> = {
-  "wont-exhaust": 0,
-  learning: 1,
-  exhausts: 2,
-  "no-headroom": 3,
-};
-
-/**
- * The preselect rule (Req.6), pure so tests pin it directly:
- * 0. the account the user picked: this project's own default, else the
- *    global default (AJ-E1501);
- * 1. last-used on this dir (most recent use first);
- * 2. else the account with the most headroom (engine forecast);
- * 3. else the first recipe (backend order = most recent).
- */
+/** The preselect rule (Req.6, AJ-E1501): `lib/launch-pick`, the one
+ * New session uses (a pick of yours, else the most room by the one order
+ * by room). */
 export function pickRecipe(
   recipes: LaunchRecipeInfo[],
   project: ProjectInfo | null,
   quotas: QuotaDisplayData[],
   accounts: AccountInfo[] = [],
 ): LaunchRecipeInfo | null {
-  if (recipes.length === 0) return null;
-  const picked = [project?.default_account_id ?? null, accounts.find((account) => account.is_default)?.id ?? null];
-  for (const id of picked) {
-    const hit = id !== null ? recipes.find((recipe) => recipe.account_id === id) : undefined;
-    if (hit !== undefined) return hit;
-  }
-  const lastUsed = [...(project?.accounts_used ?? [])].reverse();
-  for (const label of lastUsed) {
-    const hit = recipes.find((recipe) => recipe.account_label === label);
-    if (hit !== undefined) return hit;
-  }
-  const headroom = (recipe: LaunchRecipeInfo): number => {
-    const found = quotas.find((entry) => entry.account === recipe.account_id);
-    return found !== undefined ? (HEADROOM_RANK[found.forecast.state] ?? 4) : 4;
-  };
-  return [...recipes].sort((a, b) => headroom(a) - headroom(b))[0] ?? null;
+  return pickLaunch(recipes, project, quotas, accounts)?.recipe ?? null;
 }
 
 export function NewProjectSheet({

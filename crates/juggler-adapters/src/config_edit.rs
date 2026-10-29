@@ -4,6 +4,10 @@
 //! out only while it still holds the value that was set (compared by
 //! fingerprint, so a tool re-saving the file in its own layout doesn't
 //! count as a change); anything else is the user's.
+//!
+//! A JSON key is a top-level name, or, starting with `/`, a path of nested
+//! names (a JSON Pointer, RFC 6901: `~1` is `/`, `~0` is `~`) for a value
+//! inside an object, such as OpenCode's MCP servers (`/mcp/<name>`).
 
 use std::path::Path;
 
@@ -135,10 +139,11 @@ pub fn set(file: &Path, format: ConfigFormat, entries: &[(String, String)]) -> R
         ConfigFormat::Json => {
             let mut text = text;
             for (key, value) in entries {
-                if jsonc::value_text(&text, key)?.is_some() {
+                let path = json_path(key);
+                if json_value_text(&text, &path)?.is_some() {
                     return Err(format!("it has its own {key} already"));
                 }
-                text = jsonc::set(&text, key, value)?.0;
+                text = json_set(&text, &path, value)?;
             }
             text
         }
@@ -192,10 +197,11 @@ pub fn remove(
         ConfigFormat::Json => {
             let mut out = text.clone();
             for (key, was) in entries {
-                match jsonc::value_text(&out, key)? {
+                let path = json_path(key);
+                match json_value_text(&out, &path)? {
                     None => {}
                     Some(now) if fingerprint(format, &now) == *was => {
-                        out = jsonc::unset(&out, key, &now, None)?.unwrap_or(out);
+                        out = json_unset(&out, &path, &now)?.unwrap_or(out);
                     }
                     Some(_) => return Err(format!("its {key} has changed since")),
                 }
@@ -240,13 +246,91 @@ pub fn remove(
     Ok(Removed::Done)
 }
 
+/// A JSON key's names, outermost first (see the module docs).
+fn json_path(key: &str) -> Vec<String> {
+    key.strip_prefix('/').map_or_else(
+        || vec![key.to_owned()],
+        |pointer| {
+            pointer
+                .split('/')
+                .map(|part| part.replace("~1", "/").replace("~0", "~"))
+                .collect()
+        },
+    )
+}
+
+/// The JSON key for a value nested under `names` (a JSON Pointer).
+#[must_use]
+pub fn json_pointer(names: &[&str]) -> String {
+    names.iter().fold(String::new(), |mut out, name| {
+        out.push('/');
+        out.push_str(&name.replace('~', "~0").replace('/', "~1"));
+        out
+    })
+}
+
+/// The text of the value at `path` in a JSON object's `text`, as written.
+fn json_value_text(text: &str, path: &[String]) -> Result<Option<String>, String> {
+    let Some((first, rest)) = path.split_first() else {
+        return Ok(None);
+    };
+    let Some(value) = jsonc::value_text(text, first)? else {
+        return Ok(None);
+    };
+    if rest.is_empty() {
+        return Ok(Some(value));
+    }
+    json_value_text(&value, rest)
+}
+
+/// `text` with `value` (JSON text) at `path`, the objects on the way made
+/// when missing; every other byte kept.
+fn json_set(text: &str, path: &[String], value: &str) -> Result<String, String> {
+    let Some((first, rest)) = path.split_first() else {
+        return Err("no key to set".to_owned());
+    };
+    if rest.is_empty() {
+        return jsonc::set(text, first, value).map(|(out, _)| out);
+    }
+    let inner = match jsonc::value_text(text, first)? {
+        Some(object) => json_set(&object, rest, value)?,
+        None => rest
+            .iter()
+            .rev()
+            .try_fold(value.to_owned(), |inner, name| {
+                serde_json::to_string(name)
+                    .map(|name| format!("{{{name}: {inner}}}"))
+                    .map_err(|error| error.to_string())
+            })?,
+    };
+    jsonc::set(text, first, &inner).map(|(out, _)| out)
+}
+
+/// `text` without the value at `path`, while it is still `ours`; `None`
+/// when it isn't. An object left empty stays (it may be the user's).
+fn json_unset(text: &str, path: &[String], ours: &str) -> Result<Option<String>, String> {
+    let Some((first, rest)) = path.split_first() else {
+        return Ok(None);
+    };
+    if rest.is_empty() {
+        return jsonc::unset(text, first, ours, None);
+    }
+    let Some(object) = jsonc::value_text(text, first)? else {
+        return Ok(None);
+    };
+    let Some(inner) = json_unset(&object, rest, ours)? else {
+        return Ok(None);
+    };
+    jsonc::set(text, first, &inner).map(|(out, _)| Some(out))
+}
+
 /// The text of `key`'s value in `file` (JSON's as written, TOML's without
 /// its spacing), when it's there.
 #[must_use]
 pub fn read(file: &Path, format: ConfigFormat, key: &str) -> Option<String> {
     let text = std::fs::read_to_string(file).ok()?;
     match format {
-        ConfigFormat::Json => jsonc::value_text(&text, key).ok().flatten(),
+        ConfigFormat::Json => json_value_text(&text, &json_path(key)).ok().flatten(),
         ConfigFormat::Toml => {
             let doc: toml_edit::DocumentMut = text.parse().ok()?;
             let mut item = doc.as_item();
@@ -309,6 +393,42 @@ mod tests {
             .iter()
             .map(|(key, value)| (key.clone(), fingerprint(format, value)))
             .collect()
+    }
+
+    #[test]
+    fn a_nested_json_value_is_set_inside_its_object_and_taken_out_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("opencode.jsonc");
+        let before =
+            "{\n  // mine\n  \"mcp\": {\n    \"docs\": {\"type\": \"remote\"} // keep\n  }\n}\n";
+        std::fs::write(&file, before).unwrap();
+        let key = json_pointer(&["mcp", "a/b"]);
+        assert_eq!(key, "/mcp/a~1b");
+        let set_these = entries(&[(key.as_str(), "{\"type\": \"local\"}")]);
+        set(&file, ConfigFormat::Json, &set_these).unwrap();
+        let now = std::fs::read_to_string(&file).unwrap();
+        assert!(
+            now.contains("// keep") && now.contains("\"a/b\": {\"type\": \"local\"}"),
+            "{now}"
+        );
+        assert_eq!(
+            read(&file, ConfigFormat::Json, &key).as_deref(),
+            Some("{\"type\": \"local\"}")
+        );
+        assert!(set(&file, ConfigFormat::Json, &set_these).is_err());
+        let undo = recorded(ConfigFormat::Json, &set_these);
+        assert_eq!(
+            remove(&file, ConfigFormat::Json, &undo).unwrap(),
+            Removed::Done
+        );
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), before);
+        // Where there's no object yet, it is made.
+        let fresh = dir.path().join("new.json");
+        set(&fresh, ConfigFormat::Json, &set_these).unwrap();
+        assert_eq!(
+            jsonc::parse(&std::fs::read_to_string(&fresh).unwrap()).unwrap(),
+            serde_json::json!({"mcp": {"a/b": {"type": "local"}}})
+        );
     }
 
     #[test]

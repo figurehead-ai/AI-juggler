@@ -19,6 +19,14 @@ pub enum Kind {
     Finished,
     /// This Mac is getting tight or under pressure.
     MacTight,
+    /// AJ-E2405: a session ended and left processes running.
+    LeftBehind,
+    /// AJ-E2501: an account is almost out of room.
+    Quota,
+    /// AJ-E2501: a session crashed and was started again.
+    Crashed,
+    /// AJ-E2501: an account has room again (its window reset).
+    Reset,
 }
 
 impl Kind {
@@ -39,7 +47,7 @@ impl Kind {
     /// waiting asks once, and This Mac's room as often as its own alerts.
     const fn rearm_ms(self) -> i64 {
         match self {
-            Self::MacTight => 30 * 60_000,
+            Self::MacTight | Self::Quota => 30 * 60_000,
             _ => 5 * 60_000,
         }
     }
@@ -52,6 +60,8 @@ pub enum Target {
     Session(String),
     /// The This Mac page.
     ThisMac,
+    /// AJ-E2501: an account, by id.
+    Account(String),
 }
 
 /// One notification due now.

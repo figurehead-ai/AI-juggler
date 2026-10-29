@@ -23,4 +23,20 @@ finished: boolean,
 /**
  * This Mac is getting tight or under pressure.
  */
-this_mac: boolean, };
+this_mac: boolean, 
+/**
+ * AJ-E2405: a session ended and left something running.
+ */
+left_behind: boolean, 
+/**
+ * AJ-E2501: an account is almost out of room.
+ */
+quota: boolean, 
+/**
+ * AJ-E2501: a session crashed and was started again.
+ */
+crash: boolean, 
+/**
+ * AJ-E2501: an account has room again.
+ */
+reset: boolean, };

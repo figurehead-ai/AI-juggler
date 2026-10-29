@@ -44,6 +44,7 @@ export function placesConversations(now: number, extra = 0): ConversationInfo[] 
       viewed_ms: null,
       background: false,
       inactive: false,
+      subtask_count: null,
       ...rest,
     };
   };

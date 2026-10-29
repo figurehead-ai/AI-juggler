@@ -49,7 +49,7 @@ impl Override {
         match self {
             Self::DoNotTrack => "Off because DO_NOT_TRACK is set",
             Self::EnvOff => "Off because AI_JUGGLER_STATS=off is set",
-            Self::EnvLocal => "Kept on this Mac because AI_JUGGLER_STATS=local is set",
+            Self::EnvLocal => "Kept on this computer because AI_JUGGLER_STATS=local is set",
             Self::Ci => "Never sent from CI",
             Self::DebugBuild => "Never sent from a development build",
         }

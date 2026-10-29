@@ -21,4 +21,6 @@ export function prefetchMainScreens(): void {
   if (!hasLiveBackend()) return;
   prefetchData(() => prefetchPaged(historyKey("ended", ""), (page) => sessionsPage(sessionsQuery({ which: "ended" }), page)));
   prefetchData(() => prefetchPaged(costRowsKey(null), (page) => costRowsPage(null, page)));
+  // AJ-E2404: Processes' Needs attention (its own module, loaded with it).
+  prefetchData(() => import("../screens/processes/useProcessRows").then((rows) => rows.prefetchProcessRows()));
 }

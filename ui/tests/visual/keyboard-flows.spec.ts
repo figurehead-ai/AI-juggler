@@ -10,7 +10,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, cleanupFixture, DOOR_ONECLICK, DOOR_WIZARD, honestEmpty, type FixtureSet } from "./fixtures";
+import { allStatuses, DOOR_ONECLICK, DOOR_WIZARD, honestEmpty, type FixtureSet } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/keyboard");
@@ -86,6 +86,19 @@ async function tabToEl(page: Page, stops: Stop[], selector: string, { max = 80, 
   throw new Error(`never reached ${selector} by keyboard; stops:\n${stops.map((s) => s.name).join("\n")}`);
 }
 
+/** ↓ (or ↑) inside a list until `match` holds for the focused element;
+ * every stop is recorded (F11: the rail's list is one Tab stop, its rows
+ * are reached with the arrows). */
+async function arrowTo(page: Page, stops: Stop[], match: RegExp, { max = 60, up = false } = {}): Promise<void> {
+  for (let i = 0; i < max; i++) {
+    const stop = await focused(page);
+    if (i > 0) stops.push(stop);
+    if (match.test(stop.name)) return;
+    await page.keyboard.press(up ? "ArrowUp" : "ArrowDown");
+  }
+  throw new Error(`never reached ${match} with the arrows; stops:\n${stops.map((s) => s.name).join("\n")}`);
+}
+
 /** Leaves the terminal if a selection put focus there. */
 async function leaveTerminalIfFocused(page: Page, stops: Stop[]) {
   // The terminal takes focus on the frame after it mounts.
@@ -154,6 +167,58 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
   ]);
 });
 
+test("rail — Skip to page first; the list is one stop, ↓ moves in it; a page opened puts the keyboard on it", async ({ page }) => {
+  await open(page);
+  const stops: Stop[] = [];
+  await page.locator("body").focus();
+  // deep/11 §9: the skip link is the first stop and goes to the page.
+  await page.keyboard.press("Tab");
+  stops.push(await focused(page));
+  expect(stops[0]!.name).toBe("button: Skip to page");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main")).toBeFocused();
+  stops.push(await focused(page));
+  // From the top again: into the list, then past it — a handful of
+  // Tabs, not one per row and control (the 0.2 walk, F11: 84).
+  await page.locator("body").focus();
+  await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
+  const inList = () => page.evaluate(() => !!document.querySelector("[data-testid='rail-list']")?.contains(document.activeElement));
+  const rows = await page.locator("[data-testid='rail-list'] [data-rail-item]").count();
+  expect(rows).toBeGreaterThan(5);
+  let tabs = 0;
+  while (await inList()) {
+    await page.keyboard.press("Tab");
+    stops.push(await focused(page));
+    tabs += 1;
+    expect(tabs, "Tabs to leave the list").toBeLessThanOrEqual(4);
+  }
+  // Back into the list (Shift+Tab lands on the line it left), then ↓.
+  await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]", { back: true, max: 6 });
+  const before = (await focused(page)).name;
+  await page.keyboard.press("ArrowDown");
+  const after = await focused(page);
+  stops.push(after);
+  expect(after.name).not.toBe(before);
+  expect(await inList()).toBe(true);
+  // Home's J then Enter opens a page; the row that had focus goes with
+  // Home, and the keyboard lands on the page, never the window's body.
+  await page.locator("main").focus();
+  await page.keyboard.press("Tab");
+  stops.push(await focused(page));
+  await page.keyboard.press("j");
+  stops.push(await focused(page));
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("home")).toHaveCount(0);
+  await expect.poll(async () => (await focused(page)).name).not.toBe("(body)");
+  stops.push(await focused(page));
+  record("rail", stops, [
+    "Tab 1 is Skip to page; Enter puts the keyboard on the page (`<main>`).",
+    `The list (${rows} rows) is one stop: at most 4 Tabs (its line's row and controls) leave it.`,
+    "↓ moves to the next line inside it; Shift+Tab comes back to the line last used.",
+    "Home's J then Enter opens the page and the keyboard is on it (not the window's body).",
+  ]);
+});
+
 test("launch — the sheet opens, traps focus, and Esc returns to New", async ({ page }) => {
   await open(page);
   const stops: Stop[] = [];
@@ -176,10 +241,33 @@ test("launch — the sheet opens, traps focus, and Esc returns to New", async ({
   record("launch", stops, ["15 Tabs stay inside the sheet (focus trap); Esc closes it and focus returns to New session."]);
 });
 
-/** The Work Max session in the rail → its first ranked switch row. */
+// D-50 (the maintainer, 2026-10-28): ⌘N opens New session, ⌘⇧N New
+// project, ⌥⌘N the notifications; each opens only its own sheet.
+test("launch keys — ⌘N New session, ⌘⇧N New project, ⌥⌘N notifications (D-50)", async ({ page }) => {
+  await open(page);
+  // The keys' handler mounts with the shell (AJ-E806: a test race otherwise).
+  await expect(page.getByRole("banner").getByRole("button", { name: "New session", exact: true })).toBeVisible();
+  await page.locator("body").focus();
+  await page.keyboard.press("ControlOrMeta+n");
+  await expect(page.getByTestId("new-session-sheet")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New project" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("new-session-sheet")).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+Alt+KeyN");
+  await expect(page.getByTestId("notification-centre")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New project" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("ControlOrMeta+Shift+N");
+  await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
+  await expect(page.getByTestId("new-session-sheet")).toHaveCount(0);
+});
+
+/** The Work Max session in the rail → its first ranked switch row. The
+ * rail's list is one stop on the Tab path; ↓ goes through its rows. */
 async function toSwitchRow(page: Page, stops: Stop[]) {
   await page.locator("body").focus();
-  await tabTo(page, stops, /Work Max/);
+  await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
+  await arrowTo(page, stops, /Work Max/);
   await page.keyboard.press("Enter");
   await leaveTerminalIfFocused(page, stops);
   // D-25: the ranked list is folded; ⌘⇧H opens it and focuses it.
@@ -241,17 +329,30 @@ test("switch, wizard — three steps by keyboard; Esc returns to the row", async
   ]);
 });
 
-test("cleanup — Terminate opens the confirm sheet; Esc returns to the row", async ({ page }) => {
-  await open(page, allStatuses, { __AIJ_CLEANUP__: cleanupFixture("needs-attention") });
+test("processes — Stop… opens the confirm sheet; Esc returns to the row", async ({ page }) => {
+  await open(page, allStatuses);
   const stops: Stop[] = [];
   await page.locator("body").focus();
-  // D-25: Cleanup waits under More (a pill shows while something's left).
-  await tabTo(page, stops, /^button: More$/);
+  // AJ-E2507: Processes is in your menu (a pill shows while something's
+  // left); the menu's lines are reached with the arrows.
+  await tabTo(page, stops, /^button: Your menu/);
   await page.keyboard.press("Enter");
-  await tabTo(page, stops, /^button: Cleanup/);
+  for (let i = 0; i < 12 && !/^menuitem: Processes/.test((await focused(page)).name); i++) {
+    await page.keyboard.press("ArrowDown");
+  }
+  stops.push(await focused(page));
   await page.keyboard.press("Enter");
-  await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-  await tabTo(page, stops, /^button: Terminate…$/);
+  await expect(page.getByTestId("processes-page")).toBeVisible();
+  // The tree is one Tab stop; arrows move inside it (AJ-E2404).
+  await tabToEl(page, stops, "[role='row'][data-kind]");
+  for (let i = 0; i < 10; i++) {
+    if (await page.evaluate(() => document.activeElement?.getAttribute("data-testid")?.startsWith("process-row-p:8123:") ?? false)) break;
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(50);
+  }
+  const row = await focused(page);
+  stops.push(row);
+  expect(row.name).toContain("node (vite)");
   await page.keyboard.press("Enter");
   const sheet = page.locator("[data-testid^='kill-sheet-']");
   await expect(sheet).toBeVisible();
@@ -266,11 +367,11 @@ test("cleanup — Terminate opens the confirm sheet; Esc returns to the row", as
   }
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
-  await expect.poll(async () => (await focused(page)).name).toBe("button: Terminate…");
+  await expect.poll(async () => (await focused(page)).name).toBe(row.name);
   stops.push(await focused(page));
   record("cleanup-confirm", stops, [
-    "Cleanup is reached from the top bar; the leftover's Terminate… opens the confirm sheet with focus inside.",
-    "Tab stays inside the sheet; Esc cancels and returns focus to Terminate….",
+    "Processes is reached from the top bar; Enter on a left-behind row (Stop…) opens the confirm sheet with focus inside.",
+    "Tab stays inside the sheet; Esc cancels and returns focus to the row.",
   ]);
 });
 
@@ -319,6 +420,11 @@ test("onboarding — Add account's fresh account by keyboard", async ({ page }) 
   await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Accounts", exact: true }).click();
   await tabToEl(page, stops, "[data-testid='add-account']", { max: 60 });
   await page.keyboard.press("Enter");
+  // AJ-E1601: with a service the tool runs through, the chooser comes
+  // first; Tab reaches Claude Code's Choose.
+  await expect(page.getByRole("dialog", { name: "Add an account: which tool?" })).toBeVisible();
+  await tabToEl(page, stops, "[data-testid='provider-card'][data-provider='claude-code'] [data-testid='provider-choose']", { max: 40 });
+  await page.keyboard.press("Enter");
   // Nothing new on this Mac: straight to the name, focused and filled in.
   await expect(page.getByTestId("first-run-fresh-name")).toBeFocused();
   await expect(page.getByTestId("first-run-fresh-name")).toHaveValue("Claude Code");
@@ -328,6 +434,6 @@ test("onboarding — Add account's fresh account by keyboard", async ({ page }) 
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("first-run")).toHaveCount(0);
   record("add-account", stops, [
-    "Accounts (clicked) → Add account → the name (focused, filled in) → Enter creates it → its Sign in reachable by Tab → Escape closes.",
+    "Accounts (clicked) → Add account → Claude Code's Choose in the chooser → the name (focused, filled in) → Enter creates it → its Sign in reachable by Tab → Escape closes.",
   ]);
 });

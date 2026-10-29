@@ -40,6 +40,18 @@ pub struct ToolTermsInfo {
     pub checked: String,
 }
 
+/// How a tool's sessions can run besides its terminal (D-40).
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ToolRuntimeInfo {
+    /// How it runs, in words ("Codex's app-server").
+    pub label: String,
+    /// A Beta, picked per session.
+    pub beta: bool,
+    /// How it stands under the tool's terms, in one line.
+    pub terms_note: Option<String>,
+}
+
 /// What a screen needs to know a tool can do.
 #[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own fact a screen reads
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
@@ -108,4 +120,7 @@ pub struct ToolSpecInfo {
     pub home_env: Vec<String>,
     /// What it can do that screens show.
     pub supports: ToolSupportsInfo,
+    /// AJ-E2302: its driven runtime, when it has one.
+    #[ts(optional)]
+    pub runtime: Option<ToolRuntimeInfo>,
 }

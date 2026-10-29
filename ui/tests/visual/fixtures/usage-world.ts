@@ -30,7 +30,7 @@ export const ACCOUNTS = [
   account("claude-client-b", "Client B", "claude-code", "team"),
 ];
 
-const profile = (id: string, folder: string) => ({ id, folder, plan: null, renewal_date: null, fee_usd: null });
+const profile = (id: string, folder: string) => ({ id, label: ACCOUNTS.find((row) => row.id === id)?.label ?? id, folder, plan: null, renewal_date: null, fee_usd: null });
 export const SUBSCRIPTIONS = [
   { key: "max", tool: "claude-code", state: "signed_in", email: "o…@work.com", organisation: null, reason: null, plan: "Max", renewal_date: "2026-11-02", fee_usd: 200, differs: [], profiles: [profile("claude-work", "~/Library/Application Support/ClaudeCodeProfiles/work"), profile("claude-work-2", "~/Library/Application Support/ClaudeCodeProfiles/work-2"), profile("claude-lab", "~/Library/Application Support/ClaudeCodeProfiles/lab")] },
   { key: "gpt", tool: "codex", state: "signed_in", email: "o…@work.com", organisation: null, reason: null, plan: "Pro", renewal_date: null, fee_usd: 200, differs: [], profiles: [profile("codex-main", "~/.codex")] },

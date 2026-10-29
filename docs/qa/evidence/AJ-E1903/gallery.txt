@@ -1,0 +1,32 @@
+tests/visual/tasks-gallery.spec.ts: 31 passed (2026-10-25), axe 0 critical or serious on each capture.
+Captures in docs/qa/evidence/_gallery/95-tasks/, each opened and checked by eye:
+- needs-you-1280x800-dark.png
+- needs-you-1280x800-light.png
+- needs-you-1680x1050-dark.png
+- needs-you-1680x1050-light.png
+- needs-you-2000x1250-dark.png
+- needs-you-2000x1250-light.png
+- pool-card-task-1680x1050-dark.png
+- pool-card-task-1680x1050-light.png
+- pool-plan-1280x800-dark.png
+- pool-plan-1280x800-light.png
+- pool-plan-1680x1050-dark.png
+- pool-plan-1680x1050-light.png
+- pool-plan-2000x1250-dark.png
+- pool-plan-2000x1250-light.png
+- pool-tasks-1280x800-dark.png
+- pool-tasks-1280x800-light.png
+- pool-tasks-1680x1050-dark.png
+- pool-tasks-1680x1050-light.png
+- pool-tasks-2000x1250-dark.png
+- pool-tasks-2000x1250-light.png
+- session-tasks-1680x1050-dark.png
+- session-tasks-1680x1050-light.png
+- switch-graph-tasks-1680x1050-dark.png
+- switch-graph-tasks-1680x1050-light.png
+- task-held-1680x1050-dark.png
+- task-held-1680x1050-light.png
+- task-new-1680x1050-dark.png
+- task-new-1680x1050-light.png
+- task-start-1680x1050-dark.png
+- task-start-1680x1050-light.png

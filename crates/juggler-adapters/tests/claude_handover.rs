@@ -722,3 +722,89 @@ fn a_bundle_cant_bring_in_another_conversation() {
             .is_err()
     );
 }
+
+/// The live lab of 2026-10-28: the switch checks, after the launch, that
+/// every file it copied is unchanged at the source. A file-history file
+/// was looked for beside the transcript, so every Claude → Claude switch
+/// of a session with file history failed as "the source changed". Each
+/// bundle file's source is where the bundle read it.
+#[test]
+fn every_bundle_file_is_found_where_it_was_read() {
+    let a = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/shopfront";
+    let session = "1f0e3c9a-7b5d-4c2e-9f8a-0d1e2f3a4b5e";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    let history = a.path().join("file-history").join(session);
+    std::fs::create_dir_all(&history).unwrap();
+    std::fs::write(history.join("6757c7b1fa2c80a2@v3"), "before the edit").unwrap();
+    let reference = TranscriptRef {
+        path: main,
+        native_id: Some(session.to_owned()),
+    };
+    let bundle = adapter().bundle_session(&reference).unwrap();
+    assert!(
+        bundle
+            .files
+            .iter()
+            .any(|file| file.name.starts_with("~file-history/"))
+    );
+    for file in &bundle.files {
+        let source = adapter().source_file(&reference, &file.name);
+        assert_eq!(std::fs::read(&source).unwrap(), file.bytes, "{}", file.name);
+    }
+    assert_eq!(
+        adapter().source_file(
+            &reference,
+            &format!("~file-history/{session}/6757c7b1fa2c80a2@v3")
+        ),
+        history.join("6757c7b1fa2c80a2@v3")
+    );
+}
+
+/// The live lab of 2026-10-28: Claude Code 2.1.310 keeps a session's task
+/// list in the account's `tasks/<id>/`, outside the transcript. Switched
+/// to another account, B found its task list empty ("lost when the
+/// session restarted") and rebuilt it. The task list now travels with the
+/// session, without the tool's lock file.
+#[test]
+fn a_sessions_task_list_travels_with_it() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/shopfront";
+    let session = "1f0e3c9a-7b5d-4c2e-9f8a-0d1e2f3a4b5f";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    let tasks = a.path().join("tasks").join(session);
+    std::fs::create_dir_all(&tasks).unwrap();
+    std::fs::write(
+        tasks.join("1.json"),
+        r#"{"id":"1","subject":"add","status":"completed"}"#,
+    )
+    .unwrap();
+    std::fs::write(tasks.join(".lock"), "").unwrap();
+    let reference = TranscriptRef {
+        path: main,
+        native_id: Some(session.to_owned()),
+    };
+    let bundle = adapter().bundle_session(&reference).unwrap();
+    assert!(
+        bundle
+            .files
+            .iter()
+            .any(|file| file.name == format!("~tasks/{session}/1.json"))
+    );
+    assert!(!bundle.files.iter().any(|file| file.name.ends_with(".lock")));
+    adapter()
+        .install_bundle(&bundle, &account(b.path(), "B"))
+        .unwrap();
+    assert_eq!(
+        std::fs::read_to_string(b.path().join("tasks").join(session).join("1.json")).unwrap(),
+        r#"{"id":"1","subject":"add","status":"completed"}"#
+    );
+    for file in &bundle.files {
+        assert_eq!(
+            std::fs::read(adapter().source_file(&reference, &file.name)).unwrap(),
+            file.bytes
+        );
+    }
+    assert!(tasks.join("1.json").is_file(), "copied, never moved");
+}

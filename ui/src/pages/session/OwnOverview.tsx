@@ -11,6 +11,7 @@ import { useConversations } from "../../lib/conversations";
 import { useActionHost } from "../../components/ItemMenu";
 import { SessionOverview } from "./SessionOverview";
 import { fromInstance } from "./model";
+import { focusHandover } from "../../lib/handover-focus";
 
 export function OwnSessionOverview({
   session,
@@ -37,7 +38,7 @@ export function OwnSessionOverview({
   const desktop = session.kind === "desktop";
   const goTo = useCallback(() => {
     if (desktop) void host.focusSession?.(session);
-    else window.dispatchEvent(new Event("aij:focus-handover"));
+    else focusHandover();
   }, [desktop, host, session]);
   return (
     <SessionOverview

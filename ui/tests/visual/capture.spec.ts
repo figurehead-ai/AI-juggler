@@ -16,7 +16,8 @@ import { resolve } from "node:path";
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
-import { allStatuses, cleanupFixture, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn } from "./fixtures";
+import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
+import { allStatuses, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -74,7 +75,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      if (vp.width < 900) {
+      if (vp.width < NARROW_RAIL_PX) {
         // D-25 (AJ-E1020): narrow windows fold the rail to its icon column.
         await expect(page.getByTestId("rail")).toHaveAttribute("data-density", "minimal");
         await expect(page.getByTestId("rail").getByRole("button", { name: /Work Max/ }).first()).toBeVisible();
@@ -102,8 +103,8 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      // D-25 (AJ-E1020): below 900 px the rail is its icon column.
-      await expect(page.getByTestId("rail")).toHaveAttribute("data-density", vp.width < 900 ? "minimal" : "comfortable");
+      // D-25 (AJ-E1020): below NARROW_RAIL_PX the rail is its icon column.
+      await expect(page.getByTestId("rail")).toHaveAttribute("data-density", vp.width < NARROW_RAIL_PX ? "minimal" : "comfortable");
       // The row carries its account in the aria-label (initials disc on
       // screen) — click by accessible name (AJ-E402).
       await page.getByRole("button", { name: /Work Max/ }).first().click();
@@ -187,6 +188,7 @@ for (const density of DENSITIES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       if (density !== "minimal") await expectRail(page); // D-25: the list, or its icon column when narrow
+      if (density !== "minimal") await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       if (density === "minimal") {
         await expect(page.getByTitle(/Work Max/).first()).toBeVisible();
       } else {
@@ -519,58 +521,8 @@ test("inspector — Quality tab View as table", async ({ page }) => {
   await page.screenshot({ path: resolve(GALLERY, "09-quality/as-table-1440x900.png") });
 });
 
-// AJ-E410 processes-tab captures: live tree (3 levels), what the
-// session left behind as the shared Cleanup rows (G-1), the verified
-// sheet a Stop opens, its refusal for a recycled pid, and the good
-// empty state.
-test("inspector — Processes tab live tree + left behind", gate("10-processes"), async ({ page }) => {
-  await seedInspectorPage(page, { width: 1440, height: 900 });
-  await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Processes" }).click();
-  await expect(page.getByTestId("processes-spark")).toBeVisible();
-  await expect(page.getByTestId("cleanup-row-39871")).toBeVisible();
-  await expect(page.getByTestId("leftovers-open-cleanup")).toBeVisible();
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/live-tree-1440x900.png") });
-});
-
-test("inspector — Processes tab Stop opens the verified sheet", async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __AIJ_KILL_VERIFY__: (session: string, pid: number) => unknown }).__AIJ_KILL_VERIFY__ = (session, pid) => ({
-      pid, session, verified: true, refusal: null, exe_path: "/usr/local/bin/node",
-      cmdline: "node node_modules/.bin/vite dev --port 5173", cwd: "/Users/me/code/web-app", ports: [5173],
-      pgid: 40100, escaped_group: false, members: [], tree_pids: [pid], platform: "TERM → grace → KILL",
-      grace_secs: 5, provider: "claude-code", account_id: "Work Max", project_id: "web-app",
-    });
-  });
-  await seedInspectorPage(page, { width: 1440, height: 900 });
-  await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Processes" }).click();
-  await page.getByTestId("cleanup-kill-39871").click();
-  await expect(page.getByTestId("kill-confirm-39871")).toBeVisible();
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/stop-confirm-1440x900.png") });
-});
-
-test("inspector — Processes tab refuses a recycled pid", async ({ page }) => {
-  await seedInspectorPage(page, { width: 1440, height: 900 });
-  await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
-  await page.getByRole("tab", { name: "Processes" }).click();
-  await page.getByTestId("cleanup-kill-39871").click();
-  await expect(page.getByRole("dialog")).toContainText("belongs to a different program");
-  await expect(page.getByTestId("kill-confirm-39871")).toHaveCount(0);
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/refused-1440x900.png") });
-});
-
-test("inspector — Processes tab good empty state", async ({ page }) => {
-  await seedInspectorPage(page, { width: 1440, height: 900 });
-  await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Personal/ }).first().click();
-  await page.getByRole("tab", { name: "Processes" }).click();
-  await expect(page.getByTestId("processes-empty")).toBeVisible();
-  await page.screenshot({ path: resolve(GALLERY, "10-processes/empty-1440x900.png") });
-});
+// AJ-E410's Processes-tab captures moved to processes-gallery.spec.ts
+// (AJ-E2407: a session's Processes tab is the Processes view, filtered).
 
 // AJ-E411 renewal captures: every threshold state on the Account
 // Overview, `Expiry: unknown`, the editor + helper text, and the row
@@ -698,6 +650,7 @@ test("model — not reported by Provider inspector state", async ({ page }) => {
 test("desktop — Instance panel (running app, isolation label, no terminal)", gate("13-desktop"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -725,6 +678,7 @@ test("desktop — panel at 1024x680 light", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 680 });
   await page.goto("/");
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -738,6 +692,7 @@ test("desktop — panel at 1024x680 light", async ({ page }) => {
 test("desktop — exited app state", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -751,6 +706,7 @@ test("desktop — exited app state", async ({ page }) => {
 test("desktop — crashed app state", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -764,6 +720,7 @@ test("desktop — crashed app state", async ({ page }) => {
 test("desktop — single-account warning state", async ({ page }) => {
   await seedInspectorPage(page, { width: 1280, height: 800 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -819,6 +776,7 @@ test("focus — panel outcome after focus (Focused window, dark)", gate("14-focu
     window_title: "aij-e414-a.txt",
   });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -838,6 +796,7 @@ test("focus — permission explainer on the degraded tier", async ({ page }) => 
     window_title: null,
   });
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -927,6 +886,7 @@ async function seedPreviewPage(
 
 async function openRunningDesktopPanel(page: import("@playwright/test").Page) {
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -987,6 +947,7 @@ test("preview — permission denied renders guidance, no frame", async ({ page }
 test("preview — exited instance renders no preview (status only)", async ({ page }) => {
   await seedPreviewPage(page, { width: 1280, height: 800 }, "dark", null);
   await expectRail(page); // D-25: the list, or its icon column when narrow
+  await openRailList(page); // F14: below 1100 px the list is a ⌘B away
   await page
     .getByRole("button", { name: /Fake Desk/ })
     .filter({ has: page.getByTestId("rail-app-chip") })
@@ -1118,10 +1079,10 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      // 0.1.5: the machine-wide port map lives in Cleanup › Ports, not in
-      // each session's Processes tab.
-      await goTo(page, "Cleanup");
-      await page.getByRole("radio", { name: "Ports", exact: true }).click();
+      // AJ-E2404: the machine-wide port map is the Processes page's Ports
+      // view, not each session's Processes tab.
+      await goTo(page, "Processes");
+      await page.getByRole("tab", { name: "Ports", exact: true }).click();
       await expect(page.getByTestId("port-inventory")).toBeVisible();
       await expect(page.getByTestId("port-row-5173")).toContainText("Left running");
       await expect(page.getByTestId("port-row-8000")).toContainText("Not from AI Juggler");
@@ -1173,156 +1134,16 @@ for (const theme of THEMES) {
 }
 
 
-// AJ-E506 Cleanup Centre captures: six states (needs-attention with
-// orphan+hog+collision, all-managed, re-adopted, unverifiable,
-// empty-success, ledger-degraded) × themes × sizes.
-
-for (const state of ["needs-attention", "all-managed", "re-adopted", "unverifiable", "empty", "degraded"]) {
-  for (const theme of THEMES) {
-    for (const vp of [
-      { name: "1440x900", width: 1440, height: 900 },
-      { name: "1024x700", width: 1024, height: 700 },
-    ]) {
-      test(`cleanup — ${state} — ${vp.name} — ${theme}`, gate("19-cleanup"), async ({ page }) => {
-        await page.addInitScript(
-          ({ fixture, t0, cleanup, theme }) => {
-            (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-            (window as never as { __AIJ_CLEANUP__: unknown }).__AIJ_CLEANUP__ = cleanup;
-            localStorage.setItem("aij.theme", theme);
-            localStorage.setItem("aij.onboarding.dismissed", "1");
-            sessionStorage.setItem("aij.ready.skipped", "1");
-            Date.now = () => t0;
-          },
-          { fixture: allStatuses, t0: T0, cleanup: cleanupFixture(state), theme },
-        );
-        await page.emulateMedia({ reducedMotion: "reduce" });
-        await page.setViewportSize({ width: vp.width, height: vp.height });
-        await page.goto("/");
-        // Reached from the TOP-RIGHT global menus (ADR-0007) — never
-        // a rail peer.
-        await goTo(page, "Cleanup");
-        await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-        if (state === "needs-attention") {
-          await expect(page.getByTestId("cleanup-row-8123")).toContainText(
-            "Still running after its session closed",
-          );
-          await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
-        }
-        if (state === "empty") {
-          await expect(page.getByTestId("cleanup-empty")).toContainText(
-            "Nothing left behind — 3 sessions running clean.",
-          );
-        }
-        if (state === "degraded") {
-          await expect(page.getByTestId("cleanup-degraded-banner")).toBeVisible();
-        }
-        if (state === "unverifiable") {
-          await expect(page.getByTestId("cleanup-state-8124")).toContainText(
-            "Unverifiable — will not be touched",
-          );
-        }
-        await page.screenshot({ path: resolve(GALLERY, `19-cleanup/${state}-${vp.name}-${theme}.png`) });
-      });
-    }
-  }
-}
-
-
-// AJ-E509 history captures: audit rows (manual + automatic actors,
-// outcome vocabulary incl. the crash-pending unknown) and the
-// empty-history copy — via the Cleanup Centre's History filter.
-for (const theme of THEMES) {
-  test(`cleanup — history populated — 1440x900 — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, t0, cleanup, theme }) => {
-        (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-        (window as never as { __AIJ_CLEANUP__: unknown }).__AIJ_CLEANUP__ = cleanup;
-        localStorage.setItem("aij.theme", theme);
-        localStorage.setItem("aij.onboarding.dismissed", "1");
-        sessionStorage.setItem("aij.ready.skipped", "1");
-        Date.now = () => t0;
-      },
-      {
-        fixture: allStatuses,
-        t0: T0,
-        theme,
-        cleanup: {
-          groups: [],
-          clean_instances: 0,
-          ledger_degraded: false,
-          history: {
-            rows: [
-              {
-                id: 1, at_ms: T0 - 90_000, actor: "user:orphan_stop", automatic: false,
-                pid: 8123, cmdline_trunc: "python3 -m http.server 5173", session_id: "s-1",
-                provider: "claude-code", account_id: "Work Max", machine_id: "machine-local",
-                outcome: "exited on TERM", ports_before: "5173", ports_after: "",
-              },
-              {
-                id: 2, at_ms: T0 - 200_000, actor: "auto:tier-1", automatic: true,
-                pid: 4400, cmdline_trunc: "node vite", session_id: "s-2",
-                provider: "claude-code", account_id: null, machine_id: "machine-local",
-                outcome: "TERM'd, outcome unknown", ports_before: null, ports_after: null,
-              },
-            ],
-            empty_note: null,
-          },
-        },
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
-    await goTo(page, "Cleanup");
-    await page.getByRole("radio", { name: "History (7 days)" }).click();
-    await expect(page.getByTestId("cleanup-history")).toBeVisible();
-    await expect(page.getByTestId("cleanup-history-actor-2")).toContainText("automatic");
-    await page.screenshot({ path: resolve(GALLERY, `19-cleanup/history-populated-1440x900-${theme}.png`) });
-  });
-
-  test(`cleanup — history empty — 1440x900 — ${theme}`, async ({ page }) => {
-    await page.addInitScript(
-      ({ fixture, t0, cleanup, theme }) => {
-        (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-        (window as never as { __AIJ_CLEANUP__: unknown }).__AIJ_CLEANUP__ = cleanup;
-        localStorage.setItem("aij.theme", theme);
-        localStorage.setItem("aij.onboarding.dismissed", "1");
-        sessionStorage.setItem("aij.ready.skipped", "1");
-        Date.now = () => t0;
-      },
-      {
-        fixture: allStatuses,
-        t0: T0,
-        theme,
-        cleanup: {
-          groups: [],
-          clean_instances: 0,
-          ledger_degraded: false,
-          history: {
-            rows: [],
-            empty_note: "No cleanups yet — automatic cleanup is off by default.",
-          },
-        },
-      },
-    );
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
-    await goTo(page, "Cleanup");
-    await page.getByRole("radio", { name: "History (7 days)" }).click();
-    await expect(page.getByTestId("cleanup-history-empty")).toContainText(
-      "No cleanups yet — automatic cleanup is off by default.",
-    );
-    await page.screenshot({ path: resolve(GALLERY, `19-cleanup/history-empty-1440x900-${theme}.png`) });
-  });
-}
+// AJ-E506/E509's Cleanup Centre captures (its states and its history)
+// moved to processes-gallery.spec.ts: the Cleanup Centre is the Processes
+// page's Needs attention and Cleanup history views (AJ-E2404).
 
 
 // ---------------------------------------------------------------------------
 // AJ-E507 — the verify-before-kill sheet: the three steps and every
 // state. All states ride the SAME needs-attention fixture (verified
 // orphan row holding :5173); the sheet is opened the real way — the
-// row's Terminate… affordance — never mounted out of context.
+// Processes page row's Stop… (AJ-E2404) — never mounted out of context.
 // ---------------------------------------------------------------------------
 
 const KILL_VERIFY_OK = {
@@ -1423,9 +1244,8 @@ for (const state of [
       test(`kill-sheet — ${state} — ${vp.name} — ${theme}`, gate("20-kill"), async ({ page }) => {
         const seams = killSeams(state);
         await page.addInitScript(
-          ({ fixture, t0, cleanup, theme, seams }) => {
+          ({ fixture, t0, theme, seams }) => {
             (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = fixture;
-            (window as never as { __AIJ_CLEANUP__: unknown }).__AIJ_CLEANUP__ = cleanup;
             const w = window as never as Record<string, unknown>;
             w.__AIJ_KILL_VERIFY__ = () => seams.verify;
             // The countdown state leaves execute UNSET so the pending
@@ -1443,15 +1263,15 @@ for (const state of [
             sessionStorage.setItem("aij.ready.skipped", "1");
             Date.now = () => t0;
           },
-          { fixture: allStatuses, t0: T0, cleanup: cleanupFixture("needs-attention"), theme, seams },
+          { fixture: allStatuses, t0: T0, theme, seams },
         );
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
-        await goTo(page, "Cleanup");
-        await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-        // The REAL entry: the verified orphan row's affordance.
-        await page.getByTestId("cleanup-kill-8123").click();
+        await goTo(page, "Processes");
+        await expect(page.getByTestId("processes-page")).toBeVisible();
+        // The REAL entry: the left-behind row's Stop….
+        await page.getByTestId("process-stop-8123").click();
         await expect(page.getByTestId("kill-sheet-8123")).toBeVisible();
 
         if (state === "verification-failed") {
@@ -1580,7 +1400,7 @@ for (const theme of THEMES) {
           tier2_pending: [],
         },
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-paused-banner")).toContainText(
         "Automatic cleanup is paused.",
       );
@@ -1599,9 +1419,9 @@ for (const theme of THEMES) {
           tier2_pending: [],
         },
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-suspended-banner")).toContainText(
-        "suspended for 24 h",
+        "waits for you to re-confirm it (up to 24 h)",
       );
       await page.screenshot({
         path: resolve(GALLERY, `21-tiers/suspended-${vp.name}-${theme}.png`),
@@ -1624,11 +1444,11 @@ for (const theme of THEMES) {
           ],
         },
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText(
-        "survived a crash",
+        "outlived a crash",
       );
-      await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText("in 30s");
+      await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText("in 30 s");
       await page.screenshot({
         path: resolve(GALLERY, `21-tiers/tier2-appearance-${vp.name}-${theme}.png`),
       });
@@ -1650,8 +1470,8 @@ for (const theme of THEMES) {
           ],
         },
       });
-      await goTo(page, "Cleanup");
-      await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText("in 5s");
+      await goTo(page, "Processes");
+      await expect(page.getByTestId("cleanup-tier2-notice-8123")).toContainText("in 5 s");
       await expect(page.getByTestId("cleanup-tier2-undo-8123")).toContainText("Undo");
       await page.screenshot({
         path: resolve(GALLERY, `21-tiers/tier2-5s-${vp.name}-${theme}.png`),
@@ -1677,47 +1497,6 @@ const RECOVERY_SUMMARY = {
   unverifiable: 1,
 };
 
-const RECOVERY_CLEANUP = {
-  groups: [
-    {
-      session: "s-crash",
-      provider: "claude-code",
-      account: "Work Max",
-      project: "web",
-      machine: "machine-local",
-      healthy: false,
-      rows: [
-        {
-          pid: 8402, pgid: 8400, role: "root", state: "adopted",
-          state_label: "Running — picked up after restart", down_period: false,
-          role_guess: "sh (guess)", exe_path: "/bin/sh", cmdline: "sh -c claude",
-          age_ms: 45 * 60_000, rss_bytes: 12_000_000, cpu_pct: 0.2, ports: null,
-          hog: false, hog_rules: [],
-          evidence: {
-            root_pid: 8402, parent_pid: null, pgid: 8400, escaped_group: false,
-            verification: { verdict: "verified", detail: "start-time matches the live process" },
-            first_seen: T0 - 45 * 60_000, last_seen: T0,
-          },
-        },
-        {
-          pid: 8301, pgid: 8300, role: "helper", state: "orphaned",
-          state_label: "left behind while Juggler was closed", down_period: true,
-          role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
-          cmdline: "python3 -m http.server 5173",
-          age_ms: 9_000_000, rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
-          hog: false, hog_rules: [],
-          evidence: {
-            root_pid: 8300, parent_pid: 8300, pgid: 8300, escaped_group: false,
-            verification: { verdict: "verified", detail: "start-time and exe match the live process" },
-            first_seen: T0 - 9_000_000, last_seen: T0,
-          },
-        },
-      ],
-    },
-  ],
-  clean_instances: 1,
-  ledger_degraded: false,
-};
 
 async function seedRecoveryPage(
   page: import("@playwright/test").Page,
@@ -1795,15 +1574,19 @@ for (const theme of THEMES) {
     });
   });
 
-  test(`recovery — cleanup Re-adopted filter + left-behind label — 1440x900 — ${theme}`, async ({ page }) => {
-    await seedRecoveryPage(page, theme, { __AIJ_CLEANUP__: RECOVERY_CLEANUP });
-    await goTo(page, "Cleanup");
-    await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-    await page.getByRole("radio", { name: "Picked up after restart" }).click();
-    await expect(page.getByTestId("cleanup-state-8402")).toContainText("Running — picked up after restart");
-    await expect(page.getByTestId("cleanup-state-8301")).toContainText(
-      "left behind while Juggler was closed",
-    );
+  test(`recovery — Processes filtered to picked up + left behind while closed — 1440x900 — ${theme}`, async ({ page }) => {
+    await seedRecoveryPage(page, theme, {});
+    await goTo(page, "Processes");
+    await expect(page.getByTestId("processes-page")).toBeVisible();
+    // AJ-E2404: the Cleanup Centre's Re-adopted filter is the page's state
+    // filter, in the one vocabulary (over Everything running).
+    await page.getByTestId("process-view-running").click();
+    await page.getByTestId("process-filters").click();
+    await page.getByTestId("filter-state-picked_up").check();
+    await page.getByTestId("filter-state-left_behind_closed").check();
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-testid^="process-row-p:5512:"]').getByTestId("process-state")).toHaveText("Picked up after restart");
+    await expect(page.locator('[data-testid^="process-row-p:8155:"]').getByTestId("process-state")).toHaveText("Left behind while closed");
     await page.screenshot({
       path: resolve(GALLERY, `22-recovery/cleanup-readopted-1440x900-${theme}.png`),
     });
@@ -1819,14 +1602,14 @@ for (const theme of THEMES) {
 
 const HOG_ALERT = {
   kind: "hog",
-  text: "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
+  text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
   pid: 8123,
   session: "s-1",
 };
 const IDLE_ALERT = {
   kind: "idle",
-  text: "python3 has been idle for 2h — review it in Cleanup.",
-  pid: 8124,
+  text: "python3 has been idle for 2h — review it in Processes.",
+  pid: 8155,
   session: "s-1",
 };
 
@@ -1837,7 +1620,6 @@ for (const theme of THEMES) {
   ]) {
     test(`alerts — hog alert + staged sheet — ${vp.name} — ${theme}`, async ({ page }) => {
       await seedRecoveryPage(page, theme, {
-        __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
         __AIJ_CLEANUP_ALERTS__: { alerts: [HOG_ALERT] },
         __AIJ_KILL_VERIFY__: () => ({
           pid: 8123,
@@ -1872,55 +1654,56 @@ for (const theme of THEMES) {
           reoffer_pid: null,
         }),
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-alerts")).toBeVisible();
       await expect(page.getByTestId("hog-alert-8123")).toContainText(
-        "node (vite) under Work Max holds 3.1 GiB — review it in Cleanup.",
+        "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
       );
       // A status message, not a dialog.
       await expect(
-        page.getByRole("status", { name: "Passive cleanup alerts" }),
+        page.getByRole("status", { name: "Alerts about processes" }),
       ).toHaveAttribute("aria-live", "polite");
-      await page.getByTestId("hog-stage-8123").click();
+      // "Show it" finds the row; its Stop… opens the verified sheet.
+      await page.getByTestId("alert-find-8123").click();
+      await expect(page.getByTestId("process-search")).toHaveValue("pid:8123");
+      await page.getByTestId("process-stop-8123").click();
       await expect(page.getByTestId("kill-sheet-8123")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/hog-staged-${vp.name}-${theme}.png`) });
     });
 
     test(`alerts — idle nudge (passive, no action) — ${vp.name} — ${theme}`, async ({ page }) => {
       await seedRecoveryPage(page, theme, {
-        __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
         __AIJ_CLEANUP_ALERTS__: { alerts: [IDLE_ALERT] },
       });
-      await goTo(page, "Cleanup");
-      await expect(page.getByTestId("idle-nudge-8124")).toBeVisible();
-      await expect(page.getByTestId("idle-nudge-8124")).toContainText(
+      await goTo(page, "Processes");
+      await expect(page.getByTestId("idle-nudge-8155")).toBeVisible();
+      await expect(page.getByTestId("idle-nudge-8155")).toContainText(
         "has been idle for 2h",
       );
-      await expect(page.getByTestId("idle-nudge-8124").locator("button")).toHaveCount(0);
+      // Passive: it only finds the row ("Show it"); nothing stops from here.
+      await expect(page.getByTestId("idle-nudge-8155").locator("button")).toHaveText(["Show it"]);
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/idle-nudge-${vp.name}-${theme}.png`) });
     });
 
     test(`alerts — mixed gate-day state — ${vp.name} — ${theme}`, async ({ page }) => {
       await seedRecoveryPage(page, theme, {
-        __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
         __AIJ_CLEANUP_ALERTS__: { alerts: [HOG_ALERT, IDLE_ALERT] },
       });
-      await goTo(page, "Cleanup");
+      await goTo(page, "Processes");
       await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
-      await expect(page.getByTestId("idle-nudge-8124")).toBeVisible();
-      await expect(page.getByTestId("cleanup-row-8124")).toContainText("heavy");
+      await expect(page.getByTestId("idle-nudge-8155")).toBeVisible();
+      await expect(page.locator('[data-testid^="process-row-p:8155:"]')).toContainText("Left behind while closed");
       await page.screenshot({ path: resolve(GALLERY, `23-alerts/mixed-${vp.name}-${theme}.png`) });
     });
   }
 }
 
-// The recorded keyboard-only pass (AJ-E512 visual testing): open the
-// Centre → Tab to the hog alert's stage button → Enter opens the
-// verified sheet → Esc closes it → focus RETURNS to the stage button
-// (2.4.3). No pointer input anywhere in the pass.
-test("alerts — keyboard-only pass: review hog, stage sheet, Esc returns focus", gate("23-alerts"), async ({ page }) => {
+// The recorded keyboard-only pass (AJ-E512 visual testing, AJ-E2404):
+// open Processes → Tab to the hog alert's "Show it" → Enter finds the row
+// and focus moves to it → Enter opens the verified sheet → Esc closes it →
+// focus RETURNS to the row (2.4.3). No pointer input anywhere in the pass.
+test("alerts — keyboard-only pass: find the hog, open its sheet, Esc returns focus", gate("23-alerts"), async ({ page }) => {
   await seedRecoveryPage(page, "dark", {
-    __AIJ_CLEANUP__: cleanupFixture("needs-attention"),
     __AIJ_CLEANUP_ALERTS__: { alerts: [HOG_ALERT] },
     __AIJ_KILL_VERIFY__: () => ({
       pid: 8123, session: "s-1", verified: true, refusal: null,
@@ -1934,23 +1717,29 @@ test("alerts — keyboard-only pass: review hog, stage sheet, Esc returns focus"
       provider: "claude-code", account_id: "Work Max", project_id: "web",
     }),
   });
-  await goTo(page, "Cleanup");
+  await goTo(page, "Processes");
   await expect(page.getByTestId("hog-alert-8123")).toBeVisible();
-  const stage = page.getByTestId("hog-stage-8123");
-  // Keyboard-only traversal: Tab until the stage button owns focus.
-  for (let i = 0; i < 30; i += 1) {
-    const focused = await page.evaluate(
-      () => document.activeElement?.getAttribute("data-testid") ?? "",
-    );
-    if (focused === "hog-stage-8123") break;
-    await page.keyboard.press("Tab");
-  }
-  await expect(stage).toBeFocused();
+  const tabTo = async (match: (testId: string) => boolean) => {
+    for (let i = 0; i < 40; i += 1) {
+      const focused = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? "");
+      if (match(focused)) return;
+      await page.keyboard.press("Tab");
+    }
+  };
+  // Keyboard-only traversal: Tab until "Show it" owns focus.
+  await tabTo((id) => id === "alert-find-8123");
+  await expect(page.getByTestId("alert-find-8123")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("process-search")).toHaveValue("pid:8123");
+  await expect(page.locator('[data-testid^="process-row-p:"]')).toHaveCount(1);
+  // Focus is on the found row; its Enter is Stop….
+  const row = page.locator('[data-testid^="process-row-p:8123:"]');
+  await expect(row).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("kill-sheet-8123")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("kill-sheet-8123")).toHaveCount(0);
-  await expect(stage).toBeFocused();
+  await expect(row).toBeFocused();
   await page.screenshot({ path: resolve(GALLERY, "23-alerts/keyboard-pass-1440x900-dark.png") });
 });
 
@@ -1962,60 +1751,15 @@ test("alerts — keyboard-only pass: review hog, stage sheet, Esc returns focus"
 // foreign-row state (no kill control in the DOM).
 // ---------------------------------------------------------------------------
 
-const FLEET_CLEANUP = {
-  groups: [
-    {
-      session: "s-local",
-      provider: "claude-code",
-      account: "Work Max",
-      project: "web",
-      machine: "machine-local",
-      healthy: false,
-      rows: [
-        {
-          machine_id: "machine-local",
-          pid: 8123, pgid: 8100, role: "helper", state: "orphaned",
-          state_label: "Still running after its session closed",
-          role_guess: "python3 (guess)", exe_path: "/usr/bin/python3",
-          cmdline: "python3 -m http.server 5173", age_ms: 9_000_000,
-          rss_bytes: 48 * 1024 * 1024, cpu_pct: 1.4, ports: "5173",
-          hog: false, hog_rules: [],
-          evidence: {
-            root_pid: 8100, parent_pid: 8100, pgid: 8100, escaped_group: false,
-            verification: { verdict: "verified", detail: "match" },
-            first_seen: T0, last_seen: T0 + 90_000,
-          },
-        },
-      ],
-    },
-    {
-      session: "s-local",
-      provider: "claude-code",
-      account: "Work Max",
-      project: "web",
-      machine: "machine-studio",
-      healthy: false,
-      rows: [
-        {
-          machine_id: "machine-studio",
-          pid: 9101, pgid: 9100, role: "helper", state: "orphaned",
-          state_label: "Still running after its session closed",
-          role_guess: "node (guess)", exe_path: "/usr/local/bin/node",
-          cmdline: "node vite dev", age_ms: 4_000_000,
-          rss_bytes: 220 * 1024 * 1024, cpu_pct: 0.4, ports: "5174",
-          hog: false, hog_rules: [],
-          evidence: {
-            root_pid: 9100, parent_pid: 9100, pgid: 9100, escaped_group: false,
-            verification: { verdict: "verified", detail: "match (remote record)" },
-            first_seen: T0, last_seen: T0 + 90_000,
-          },
-        },
-      ],
-    },
+/** A paired Mac's view of its leftovers (AJ-E707's seam). */
+const STUDIO_REMOTE = {
+  machine_id: "machine-studio", label: "Mac Studio", connection: "connected", freshness: "live",
+  last_heard_ms: T0, permission: "view", resources: null, instances: [], alerts: [],
+  processes: [
+    { instance_id: "s-local", provider: "claude-code", account_label: "Work Max", pid: 9101, role: "helper", state: "orphaned",
+      state_label: "Still running after its session closed", verified: true, name: "node", age_ms: 4_000_000,
+      rss_bytes: 220 * 1024 * 1024, cpu_percent: 0.4, ports: "5174", measured_at_ms: T0 },
   ],
-  local_machine: "machine-local",
-  clean_instances: 2,
-  ledger_degraded: false,
 };
 
 const STUDIO_PEER = {
@@ -2029,19 +1773,21 @@ for (const theme of THEMES) {
     { name: "1440x900", width: 1440, height: 900 },
     { name: "1024x700", width: 1024, height: 700 },
   ]) {
-    test(`fleet — machine column + filter + foreign display-only — ${vp.name} — ${theme}`, gate("24-fleet"), async ({ page }) => {
-      // D-25: the machine filter shows once another Mac is paired.
-      await seedRecoveryPage(page, theme, { __AIJ_CLEANUP__: FLEET_CLEANUP, __AIJ_FLEET_PEERS__: [STUDIO_PEER] });
-      await goTo(page, "Cleanup");
-      await expect(page.getByTestId("cleanup-centre")).toBeVisible();
-      // The default is This machine — only the local group shows.
-      await expect(page.getByTestId("cleanup-machine-8123")).toHaveText("This Mac");
-      await expect(page.getByTestId("cleanup-row-9101")).toHaveCount(0);
-      // Widen: the foreign row appears, display-only (no kill control).
-      await page.getByRole("combobox", { name: "Machine filter" }).selectOption("all");
-      await expect(page.getByTestId("cleanup-machine-9101")).toHaveText("Mac Studio");
-      await expect(page.getByTestId("cleanup-kill-9101")).toHaveCount(0);
-      await expect(page.getByTestId("cleanup-kill-8123")).toBeVisible();
+    test(`fleet — a paired Mac's leftovers, display-only — ${vp.name} — ${theme}`, gate("24-fleet"), async ({ page }) => {
+      // AJ-E2404: this Mac's processes are the page's table; a paired
+      // Mac's leftovers follow it, display-only without Control.
+      await seedRecoveryPage(page, theme, {
+        __AIJ_FLEET_PEERS__: [STUDIO_PEER],
+        __AIJ_LINK__: { enabled: true, port: 47821, error: null },
+        __AIJ_FLEET_REMOTE__: [STUDIO_REMOTE],
+      });
+      await goTo(page, "Processes");
+      await expect(page.getByTestId("process-stop-8123")).toBeVisible();
+      const remote = page.getByTestId("remote-cleanup-machine").filter({ hasText: "Mac Studio" });
+      await remote.scrollIntoViewIfNeeded();
+      await expect(remote.getByTestId("remote-cleanup-row")).toContainText("node");
+      await expect(remote.getByTestId("remote-cleanup-readonly")).toBeVisible();
+      await expect(remote.getByTestId("remote-cleanup-clean")).toBeDisabled();
       await page.screenshot({ path: resolve(GALLERY, `24-fleet/machine-filter-${vp.name}-${theme}.png`) });
     });
   }
@@ -2139,7 +1885,7 @@ for (const theme of THEMES) {
         await goTo(page, "Usage");
         await page.getByTestId("usage-prices-open").click();
         await expect(
-          page.getByText("USD is Estimated — list pricing, not your subscription fee."),
+          page.getByText("Every cost here is an estimate. What the API would charge, not your bill."),
         ).toBeVisible();
         await page.screenshot({
           path: resolve(GALLERY, `25-costs/${state}-${vp.name}-${theme}.png`),
@@ -2264,10 +2010,30 @@ const rankedRows: Record<string, unknown>[] = [
   },
 ];
 
-const notificationEvents: Record<string, unknown>[] = [
-  { kind: "actionable", account: "claude-work", text: "Work Max has 8% left in its 5-hour window, until it resets in 1 h 10 min", at_ms: T0 - 60_000, quota: { account_label: "Work Max", window: "five_hour", left_pct: 8, minutes_left: 40, resets_at_ms: T0 + 70 * 60_000 } },
-  { kind: "digest", account: "claude-personal", text: "Renews in 6 days — check your plan", at_ms: T0 - 3_600_000 },
+/** Work Max's room (82% left this week, measured): what makes it Suggested. */
+const rankedRoom = [
+  {
+    account: "claude-work",
+    five_hour: null,
+    weekly: { state: "tracking", percentage: 18, badge: "measured", resets_at_ms: T0 + 3 * 86_400_000, burned_tokens: 340_000 },
+    renewal: { state: "none", label: "", entered_by_user: false },
+    forecast: { state: "exhausts", tte_min: 210, range_min: 150, range_max: 260, badge: "measured" },
+  },
 ];
+
+/** AJ-E2501: what the alert pass told the notification model — an
+ * account almost out of room (a need), and the digest's renewal line
+ * (what happened) — in the model's own words. */
+const noticeFacts = { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null };
+const noticeTarget = { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null };
+const notificationEvents = {
+  app: [
+    { id: 41, kind: "quota", needs: true, title: "Work Max is almost out of room", detail: "8% of its 5-hour window left", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-work" }, facts: { ...noticeFacts, window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, account: "Work Max" }, action: "hand-over", meter: 8, created_ms: T0 - 60_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
+  ],
+  earlier: [
+    { id: 40, kind: "renewal", needs: false, title: "Personal: Renews in 6 days — check your plan", detail: "", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-personal" }, facts: noticeFacts, action: "open", meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
+  ],
+};
 
 const queueRows: Record<string, unknown>[] = [
   { id: "rq-1", session: "sess-1", account: "claude-work", resume_at_ms: T0 + 45 * 60_000, state: "queued" },
@@ -2278,16 +2044,19 @@ for (const theme of THEMES) {
   for (const vp of RAIL_QUOTA_VP) {
     test(`ranking — NewSession ranked list — ${vp.name} — ${theme}`, gate("27-ranking"), async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, t0, theme: themeName, ranked }) => {
+        ({ fixture, t0, theme: themeName, ranked, room }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_RANKING__ = ranked;
+          // The 0.2 walk (F1/F17): Suggested is the most room, read as
+          // Home's Runway reads it (the one order by room).
+          w.__AIJ_QUOTA_DISPLAY__ = room;
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, t0: T0, theme, ranked: rankedRows },
+        { fixture: allStatuses, t0: T0, theme, ranked: rankedRows, room: rankedRoom },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -2296,7 +2065,9 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("ranked-rows")).toBeVisible();
       // Copy conformance before capture: Suggested badge, ≥2 factors
       // without hover, TTE, and the greyed filtered row keeps its seat.
-      await expect(page.getByText("Suggested")).toBeVisible();
+      await expect(page.getByTestId("ranked-rows").getByText("Suggested", { exact: true })).toBeVisible();
+      // F17: the pick says why it's the pick.
+      await expect(page.getByTestId("launch-default")).toHaveText("Suggested: the most room");
       await expect(page.getByText(/82% headroom \(Measured\)/)).toBeVisible();
       await expect(page.getByText(/exhausts ≈210 min/)).toBeVisible();
       await expect(page.getByText("logged out — sign in from the Ready home")).toBeVisible();
@@ -2337,7 +2108,7 @@ for (const theme of THEMES) {
         ({ fixture, t0, theme: themeName, events }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_ALERTS__ = events;
+          w.__AIJ_NOTICES__ = events;
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -2348,11 +2119,12 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      // D-25 / wireframe 27: plain words, local time, its actions.
-      await expect(page.getByTestId("alert-actionable")).toContainText("Work Max has 8% left in its 5-hour window, until");
-      // The digest's renewal item is visually distinct (dashed, quiet)
-      // and never reads as a window alert.
-      await expect(page.getByTestId("alert-digest")).toContainText("Digest · Renews in 6 days");
+      // AJ-E2501: on Home the account almost out of room is a Needs you
+      // item (its banner is for the other screens); the renewal line is
+      // under Earlier in the notification centre, never a window alert.
+      await expect(page.getByTestId("home-need-quota")).toContainText("Work Max is almost out of room");
+      await page.getByTestId("notification-bell").click();
+      await expect(page.getByTestId("notices-earlier")).toContainText("Personal: Renews in 6 days — check your plan");
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/notification-${vp.name}-${theme}.png`),
       });
@@ -2374,13 +2146,11 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      // D-25: the account by name and the time, never an id.
-      await expect(page.getByTestId("queue-queued")).toContainText("picks up again at");
-      await expect(page.getByTestId("queue-queued")).not.toContainText("claude-work");
-      await expect(page.getByTestId("queue-ready")).toContainText("has reset");
+      await expect(page.getByTestId("queue-queued")).toContainText("Work Max");
+      await expect(page.getByTestId("queue-ready")).toContainText("ready to resume");
       // The Resume action is keyboard-focusable (the click is the only
       // launch path) — capture it focused.
-      await page.getByRole("button", { name: "Resume" }).focus();
+      await page.getByRole("button", { name: "Resume", exact: true }).focus();
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/queue-${vp.name}-${theme}.png`),
       });
@@ -2437,7 +2207,7 @@ const SWITCH_WIZARD_FIXTURE = {
     { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; the new session works in the same folder.", how: "moves" },
     { label: "Subagents' work", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
   ],
-  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
 };
 
 for (const theme of THEMES) {
@@ -2543,7 +2313,7 @@ for (const theme of THEMES) {
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_PREFLIGHT__ = fixture.doorFixture;
           w.__AIJ_SWITCH_EXECUTE_FAIL__ =
-            "The new session on Personal didn't start, so nothing moved.";
+            "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.";
           localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
@@ -2556,8 +2326,8 @@ for (const theme of THEMES) {
       await page.goto("/");
       await reachConfirm(page);
       await page.getByTestId("switch-confirm").click();
-      await expect(page.getByTestId("switch-failed")).toContainText("resume it where you left it");
-      await expect(page.getByTestId("switch-failed-words")).toHaveText("The new session on Personal didn't start, so nothing moved.");
+      await expect(page.getByTestId("switch-failed")).toContainText("where you left it");
+      await expect(page.getByTestId("switch-failed-words")).toHaveText("The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.");
       await expect(page.getByTestId("switch-retry")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `28-switch/failed-${vp.name}-${theme}.png`),
@@ -2647,7 +2417,7 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_ONECLICK_FIXTURE);
       await expect(page.getByTestId("switch-oneclick")).toBeVisible();
       await expect(page.getByTestId("switch-oneclick")).toContainText("Ready to switch to");
-      await expect(page.getByTestId("switch-summary")).toContainText("The whole conversation moves");
+      await expect(page.getByTestId("switch-summary")).toContainText("The whole conversation");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/oneclick-popover-${vp.name}-${theme}.png`),
       });
@@ -2667,7 +2437,10 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 1 of 3: Target");
-      await expect(page.getByTestId("switch-move-line")).toContainText("The whole conversation moves");
+      // Never "moves" (deep/11 §4.9); the original is said once, here.
+      await expect(page.getByTestId("switch-move-line")).toHaveText(
+        "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was.",
+      );
       await expect(page.getByTestId("switch-wizard-reasons")).toContainText("hasn't been proven");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-target-${vp.name}-${theme}.png`),
@@ -2749,7 +2522,8 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      // The session the first card is for (the folded rail lists by place).
+      await page.getByTestId("rail").locator('[data-instance-id="sess-1"]').first().click();
     };
 
     test(`switch-back — suggestion card (verbatim, suggest-only) — ${vp.name} — ${theme}`, gate("30-switchback"), async ({ page }) => {
@@ -2825,14 +2599,14 @@ for (const theme of THEMES) {
     test(`switch-back — S-F8 forked (refused merge) — ${vp.name} — ${theme}`, async ({ page }) => {
       await openInspector(page, {
         __AIJ_SWITCH_BACK_EXECUTE_FAIL__:
-          "files changed on both sides and need your choice — the work stays split, and both sides can still be resumed",
+          "Files changed on both Work and Personal, and they need your choice. The work stays split, and both can still be resumed.",
       });
       await page.getByTestId("switch-back-card").click();
       await expect(page.getByTestId("switch-back-review")).toBeVisible();
       await page.getByText("Keep original").click();
       await page.getByTestId("switch-back-confirm").click();
       await expect(page.getByTestId("switch-back-failed")).toContainText(
-        "both sides stay resumable",
+        "both can still be resumed",
       );
       await page.screenshot({
         path: resolve(GALLERY, `30-switchback/sf8-forked-${vp.name}-${theme}.png`),
@@ -2900,7 +2674,7 @@ for (const theme of THEMES) {
         { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
         { label: "Subagents' work", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
       ],
-      move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work. The original stays as it was.",
+      move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work.",
       secrets: { asks: true, reader: "Codex (OpenAI)" },
       target_tool: "codex",
     };
@@ -2908,7 +2682,7 @@ for (const theme of THEMES) {
     test(`keys — same tool: copied as it is, nothing asked — ${vp.name} — ${theme}`, gate("31-redaction"), async ({ page }) => {
       await openRedactionDoor(page, SWITCH_WIZARD_FIXTURE);
       await page.getByTestId("switch-continue").click();
-      await expect(page.getByTestId("switch-keys-same-tool")).toContainText("copied as it is, on this Mac");
+      await expect(page.getByTestId("switch-keys-same-tool")).toContainText("copied as it is, on this computer");
       await expect(page.getByTestId("switch-keys")).toHaveCount(0);
       await expect(page.getByTestId("switch-continue")).toBeEnabled();
       await page.screenshot({
@@ -2971,7 +2745,7 @@ for (const theme of THEMES) {
           to: "Personal",
           already_there: 3,
           offers: [
-            { id: "skill-release-notes", kind: "skill", name: "release-notes", scope: "user", verdict: "copy", note: null, suggested: true, about: null, steps: [], steps_page: null, steps_page_label: null, steps_command: null },
+            { id: "skill-release-notes", kind: "skill", name: "release-notes", scope: "user", verdict: "copy", note: null, suggested: true, about: null, used: true, origin: "own", provided_by: null, get_it: null, can_copy: false },
             EXAMPLE_GITHUB_OFFER,
           ],
         },
@@ -2980,7 +2754,7 @@ for (const theme of THEMES) {
       // A server that needs its token: what to do, never a bare status.
       const secret = page.getByTestId("switch-setup-secret-steps");
       await secret.scrollIntoViewIfNeeded();
-      await expect(secret).toContainText("it doesn't stop the switch");
+      await expect(secret).toContainText("without the value");
       await expect(page.getByTestId("switch-setup-command")).toContainText("<your GITHUB_TOKEN>");
       await page.screenshot({ path: resolve(GALLERY, `28-switch/confirm-token-steps-${vp.name}-${theme}.png`) });
     });
@@ -2998,17 +2772,27 @@ for (const theme of THEMES) {
               kind: "skill",
               name: "deep-research",
               scope: "user",
-              verdict: "impossible",
-              note: "it comes with the claude.ai account, so it can't be copied to another one",
+              verdict: "turn-on",
+              note: null,
               suggested: false,
               about: null,
-              steps: [
-                "Open claude.ai settings in your browser, signed in as the account you're switching to.",
-                "Find deep-research there and turn it on.",
-                "Come back here and choose Check again.",
-              ],
-              steps_page: "claude",
-              steps_page_label: "Open claude.ai settings", steps_command: null,
+              used: true,
+              origin: "provided",
+              provided_by: "Anthropic",
+              can_copy: false,
+              // The adapter's steps (claude_get_it::skill), as it words them.
+              get_it: {
+                steps: [
+                  "Sign in to claude.ai as Personal.",
+                  "In Settings > Capabilities, turn on Code execution and file creation (it may be called Create and edit files).",
+                  "In Customize > Skills, find deep-research under From Anthropic & Partners and turn it on.",
+                  "Start a session on Personal so it syncs.",
+                ],
+                command: null,
+                open_url: "https://claude.ai/customize/skills",
+                needs: ["Needs a paid plan (Pro, Max, Team or Enterprise).", "Needs web search turned on."],
+                then: "It arrives when that session starts, or within about 10 minutes in one that's already running. Then choose Check again.",
+              },
             },
           ],
         },
@@ -3087,9 +2871,13 @@ const GRAPH_FAILED = [
   },
 ];
 
+// Each target's words match its tool (the 0.2.0 re-render): Work Max is
+// another profile of the same Claude Code account, Codex another tool
+// (a handover), Lab a tool that takes handover notes only.
 const BADGE_SET_TARGETS = [
   {
     recipe_id: "r-validated",
+    provider: "claude-code",
     account_id: "a-1",
     account_label: "Work Max",
     badge: "Continues exactly · Proven",
@@ -3105,8 +2893,9 @@ const BADGE_SET_TARGETS = [
   },
   {
     recipe_id: "r-beta",
+    provider: "codex",
     account_id: "a-2",
-    account_label: "Personal",
+    account_label: "Codex",
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
@@ -3120,6 +2909,7 @@ const BADGE_SET_TARGETS = [
   },
   {
     recipe_id: "r-filtered",
+    provider: "gemini-cli",
     account_id: "a-3",
     account_label: "Lab",
     badge: "Handover notes · Beta",
@@ -3133,6 +2923,19 @@ const BADGE_SET_TARGETS = [
     suggested: false,
   },
 ];
+
+/** The badge set's room, as its ranking reads it (a measured target says
+ * how much is left, never "Not measured yet" beside "Measured"). */
+const BADGE_SET_ROOM = [
+  ["a-1", 80],
+  ["a-2", 35],
+].map(([account, left]) => ({
+  account,
+  weekly: { state: "ok", percentage: 100 - (left as number), resets_at_ms: T0 + 26 * 3_600_000, badge: "measured" },
+  five_hour: null,
+  forecast: { state: "learning", badge: "learning" },
+  renewal: { state: "none", label: "", entered_by_user: false },
+}));
 
 /** AJ-E1533: a project's switch graph sits on its page's Overview tab. */
 const openProjectOverview = (page: import("@playwright/test").Page) =>
@@ -3161,16 +2964,17 @@ for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
     test(`graph — ranked targets with explanations — ${vp.name} — ${theme}`, gate("32-graph"), async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, targets, t0 }) => {
+        ({ fixture, targets, room, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_TARGETS__ = targets;
+          w.__AIJ_QUOTA_DISPLAY__ = room;
           localStorage.setItem("aij.theme", theme);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, targets: BADGE_SET_TARGETS, t0: T0 },
+        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0 },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -3259,16 +3063,17 @@ for (const theme of THEMES) {
 
     test(`graph — badge set (validated vs beta) — ${vp.name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, targets, t0 }) => {
+        ({ fixture, targets, room, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_TARGETS__ = targets;
+          w.__AIJ_QUOTA_DISPLAY__ = room;
           localStorage.setItem("aij.theme", theme);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, targets: BADGE_SET_TARGETS, t0: T0 },
+        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0 },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -3359,8 +3164,10 @@ for (const theme of THEMES) {
 
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, gate("33-beta"), async ({ page }) => {
       await openProfiles(page);
+      // E16 (AJ-E1602) brings a tool more, so the fixture's matrix has a
+      // fifth switch.
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "None of the 4 switches is proven yet",
+        "None of the 5 switches is proven yet",
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
         "Beta — not proven yet",
@@ -3454,10 +3261,10 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+      // The ⌘⇧N handler mounts with the shell — wait for it (AJ-E806:
       // pressing during the first frames after load is a test race).
       await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
-      await page.keyboard.press("Meta+n");
+      await page.keyboard.press("Meta+Shift+N");
       await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
       // Step 1: the tiles.
       await page.screenshot({
@@ -3498,10 +3305,10 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      // The ⌘N handler mounts with the shell — wait for it (AJ-E806:
+      // The ⌘⇧N handler mounts with the shell — wait for it (AJ-E806:
       // pressing during the first frames after load is a test race).
       await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
-      await page.keyboard.press("Meta+n");
+      await page.keyboard.press("Meta+Shift+N");
       await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
       await page.getByRole("button", { name: /Work in ai-juggler/ }).click();
       await expect(page.getByTestId("no-account-detour")).toBeVisible();
@@ -3967,6 +3774,10 @@ for (const theme of THEMES) {
       await page.goto("/");
       await goTo(page, "Accounts");
       await page.getByTestId("add-account").click();
+      // AJ-E1601: a service the found tool runs through puts the chooser
+      // (its More) first; the tool itself opens the fresh account.
+      const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+      await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
       await expect(page.getByTestId("first-run-fresh")).toBeVisible();
       await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
       await page.screenshot({ path: resolve(GALLERY, `71-add-account/fresh-${vp.name}-${theme}.png`), fullPage: true });
@@ -4314,7 +4125,7 @@ const openSettings = async (
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings" }).first().click();
+  await goTo(page, "Settings");
   await settingsPane(page, pane);
   await expect(page.getByTestId(pane === "Advanced" ? "account-cloud" : `settings-pane-${PANE_IDS[pane]}`)).toBeVisible();
 };
@@ -4326,6 +4137,8 @@ const PANE_IDS: Record<string, string> = {
   Accounts: "accounts",
   Sessions: "sessions",
   Switching: "switching",
+  // AJ-E1702: 0.2's Agent access pane, always in the sidebar.
+  "Agent access": "agent-access",
   Notifications: "notifications",
   Privacy: "privacy",
   "Your Macs": "macs",
@@ -4380,7 +4193,7 @@ for (const theme of THEMES) {
         w.__AIJ_FIGUREHEAD__ = { ...w.__AIJ_FIGUREHEAD__, notice: "This Mac was unlinked from Figurehead." };
       });
       await goTo(page, "Fleet");
-      await page.getByRole("button", { name: "Settings" }).first().click();
+      await goTo(page, "Settings");
       await expect(page.getByTestId("cloud-notice")).toBeVisible();
       await shot44(page, "unlinked", vp, theme);
     });
@@ -4498,6 +4311,7 @@ for (const theme of THEMES) {
       // Back to the home view (the board + the alert region).
       await page.reload();
       await expectRail(page); // D-25: the list, or its icon column when narrow
+      await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       // AJ-E2104: other Macs fold after this Mac, each to its header.
       await expect(page.getByTestId("rail-other-mac")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `46-fleet-board/all-machines-${vp.name}-${theme}.png`) });
@@ -4609,8 +4423,9 @@ for (const theme of THEMES) {
   for (const vp of REMOTE_VP) {
     test(`48 remote cleanup — grouped, confirm, outcome — ${vp.name} — ${theme}`, gate("48-remote-cleanup"), async ({ page }) => {
       await openRemote(page, theme, vp, cleanupMachine());
-      await goTo(page, "Cleanup");
-      await page.getByLabel("Machine filter").selectOption("all");
+      await goTo(page, "Processes");
+      // AJ-E2404: paired Macs follow this Mac's table on the Processes page.
+      await page.getByTestId("remote-cleanup").scrollIntoViewIfNeeded();
       await expect(page.getByTestId("remote-cleanup")).toBeVisible();
       await expect(page.getByTestId("remote-cleanup-clean")).toHaveCount(1);
       await page.screenshot({ path: resolve(GALLERY, `48-remote-cleanup/grouped-${vp.name}-${theme}.png`) });
@@ -4916,6 +4731,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
+      await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       await expect(page.getByTestId("rail-identity").first()).toBeVisible();
       await page.getByRole("button", { name: /Work Max/ }).first().click();
       await expect(page.getByTestId("instance-identity")).toBeVisible();
@@ -4991,6 +4807,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
+      await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       await expect(page.getByTestId("git-badge").first()).toBeVisible();
       await page.getByRole("button", { name: /Work Max/ }).first().click();
       await expect(page.getByTestId("instance-git")).toContainText("3 uncommitted files");
@@ -5279,7 +5096,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("delete-keeps")).toContainText("transcript file");
       await page.screenshot({ path: resolve(GALLERY, `56-history/delete-${vp.name}-${theme}.png`) });
       await page.keyboard.press("Escape");
-      await page.getByRole("button", { name: "Settings" }).click();
+      await goTo(page, "Settings");
       await settingsPane(page, "Advanced");
       await page.getByTestId("settings-storage").scrollIntoViewIfNeeded();
       await page.screenshot({ path: resolve(GALLERY, `56-history/retention-${vp.name}-${theme}.png`) });
@@ -5343,7 +5160,7 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto("/");
-      await page.getByRole("button", { name: "Settings" }).click();
+      await goTo(page, "Settings");
       await settingsPane(page, "Advanced");
       await page.getByTestId("settings-backup").scrollIntoViewIfNeeded();
       if (state === "progress" || state === "done") {
@@ -5463,8 +5280,8 @@ for (const theme of THEMES) {
         await expect(prompt).toBeVisible();
         await expect(prompt.getByText("Beta", { exact: true })).toBeVisible();
       } else {
-        await page.getByRole("button", { name: "Settings" }).click();
-        await expect(page.getByTestId("beta-label")).toBeVisible();
+        await goTo(page, "Settings");
+        await expect(page.getByTestId("channel-label")).toBeVisible();
         await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
         if (name === "going-back-confirm") {
           await page.getByText("Go back to an earlier version", { exact: true }).click();
@@ -6017,3 +5834,243 @@ for (const theme of THEMES) {
     await page.screenshot({ path: resolve(GALLERY, `65-settings-sections/sessions-terminal-1280x800-${theme}.png`) });
   });
 }
+
+/**
+ * The 0.2.0 re-render's last states (no gate state: the maintainer
+ * approves baselines, so CI shows them as new):
+ * - D-51, the switch check's notes row: the copy offer, the copy offer
+ *   with a note the other account has with other words, and, for a tool
+ *   that keeps no notes (Codex), "include them in the handover" with a
+ *   note left out for what looks like a key;
+ * - F1, the switch's targets with an account out of room: "Out of room
+ *   until …", listed last, and its Confirm's "Switch anyway";
+ * - AJ-E1904, a task's history with the switch as a line, and its
+ *   sessions with the one the switch carried it to.
+ * 1280×900, both themes.
+ */
+const RERENDER_VP = { width: 1280, height: 900 } as const;
+
+/** A one-click switch: the notes row sits in its only step. */
+const NOTES_ONE_CLICK = {
+  mechanism: "transplant",
+  fidelity: "F4",
+  fidelity_words: "Continues exactly",
+  score: 1,
+  warnings: [],
+  zombies: [],
+  diff_snapshotted: false,
+  source_live: false,
+  source_keeps_running: false,
+  experimental_copy: "The source stays resumable.",
+  door: "one-click" as const,
+  wizard_steps: [],
+  wizard_reasons: [],
+  usual_account: true,
+  carry: { carried: ["chat transcript"], regenerated: [], dropped: [] },
+};
+
+async function openSwitchWith(page: import("@playwright/test").Page, theme: (typeof THEMES)[number], seams: Record<string, unknown>) {
+  await page.addInitScript(
+    ({ fixture, theme: t, seams: s, t0 }) => {
+      const w = window as unknown as Record<string, unknown>;
+      w.__AIJ_FIXTURE__ = fixture;
+      for (const [key, value] of Object.entries(s)) w[key] = value;
+      localStorage.setItem("aij.theme", t);
+      localStorage.setItem("aij.onboarding.dismissed", "1");
+      sessionStorage.setItem("aij.ready.skipped", "1");
+      Date.now = () => t0;
+    },
+    { fixture: structuredClone(allStatuses), theme, seams, t0: T0 },
+  );
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+  await page.setViewportSize(RERENDER_VP);
+  await page.goto("/");
+  await expectRail(page);
+  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await openSwitch(page);
+}
+
+/** Picks the switch target named `name` in the open switch list. */
+async function pickTarget(page: import("@playwright/test").Page, name: RegExp | null) {
+  const rows = page.getByTestId("handover-section").locator("button[data-row]:not(:disabled)");
+  await (name ? rows.filter({ hasText: name }).first() : rows.first()).click();
+  await expect(page.getByTestId("switch-flow")).toBeVisible();
+}
+
+const NOTES_COPY = {
+  ...EXAMPLE_SETUP_NOTES,
+  offers: EXAMPLE_SETUP_NOTES.offers.map((offer) => (offer.kind === "memory" ? { ...offer, note: null } : offer)),
+};
+
+for (const theme of THEMES) {
+  for (const [state, setup, question] of [
+    ["notes-copy", NOTES_COPY, "Work Max's notes for this project (3) aren't on Personal: copy them?"],
+    ["notes-conflict", EXAMPLE_SETUP_NOTES, "Work Max's notes for this project (3) aren't on Personal: copy them?"],
+    ["notes-handover", EXAMPLE_SETUP_NOTES_HANDOVER, "Work Max's notes for this project (2): include them in the handover?"],
+  ] as const) {
+    test(`28 switch — ${state} — ${theme}`, async ({ page }) => {
+      // The handover's case: a switch to Codex, the conversation replayed.
+      const codex = state === "notes-handover";
+      const preflight = codex
+        ? {
+            ...NOTES_ONE_CLICK,
+            mechanism: "replay",
+            fidelity: "F1",
+            fidelity_words: "Full story, fresh start",
+            target_tool: "codex",
+            move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work.",
+          }
+        : NOTES_ONE_CLICK;
+      await openSwitchWith(page, theme, { __AIJ_SWITCH_PREFLIGHT__: preflight, __AIJ_SWITCH_SETUP__: setup });
+      await pickTarget(page, codex ? /Codex/ : /Personal/);
+      await expect(page.getByTestId("switch-step-confirm")).toContainText(codex ? "Ready to switch to Codex" : "Ready to switch to Personal");
+      const row = page.locator("[data-kind='memory']");
+      await expect(row.getByTestId("switch-notes-question")).toHaveText(question);
+      await expect(row.getByRole("checkbox")).not.toBeChecked();
+      if (state === "notes-conflict") await expect(row.getByTestId("switch-notes-kept")).toContainText("with other words: it stays as it is");
+      if (state === "notes-handover") await expect(row.getByTestId("switch-notes-left-out")).toHaveText("deploy.md looks like it holds a key or password, so it's left out.");
+      await row.scrollIntoViewIfNeeded();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(GALLERY, `28-switch/${state}-1280x900-${theme}.png`) });
+    });
+  }
+
+  // F1: Personal out of room, Codex and Lab with room.
+  const RESET = T0 + 26 * 3_600_000;
+  const week = (account: string, left: number) => ({
+    account,
+    weekly: { state: left === 0 ? "exhausted" : "ok", percentage: 100 - left, resets_at_ms: RESET, badge: "measured" },
+    five_hour: null,
+    forecast: { state: "learning", badge: "learning" },
+    renewal: { state: "none", label: "", entered_by_user: false },
+  });
+  // Each target's words match its tool: Codex is a handover (the 0.2
+  // re-render caught it labelled "Same conversation, new account").
+  const SAME_TOOL = { provider: "claude-code", badge: "Same conversation, new account · Beta", cross_provider: false, drops: [] as string[] };
+  const CODEX = { provider: "codex", badge: "Full story, fresh start · Beta", cross_provider: true, drops: ["Subagents' work", "The task list"] };
+  const ROOM_TARGETS = [
+    { account_id: "acct-personal", account_label: "Personal", recipe_id: "recipe-personal", left: 0, ...SAME_TOOL },
+    { account_id: "acct-codex", account_label: "Codex", recipe_id: "recipe-codex", left: 62, ...CODEX },
+    { account_id: "acct-lab", account_label: "Lab", recipe_id: "recipe-lab", left: 88, ...SAME_TOOL },
+  ];
+  const roomSeams = {
+    __AIJ_SWITCH_TARGETS__: ROOM_TARGETS.map(({ left: _left, ...target }) => ({
+      ...target,
+      validated: false,
+      score: null,
+      filtered_reason: null,
+      top_factors: [],
+      factors: [],
+      confidence: "Measured",
+      tte_min: null,
+      suggested: false,
+    })),
+    __AIJ_QUOTA_DISPLAY__: ROOM_TARGETS.map((target) => week(target.account_id, target.left)),
+    __AIJ_SWITCH_PREFLIGHT__: { ...NOTES_ONE_CLICK, target_account: "acct-personal" },
+    __AIJ_SWITCH_SETUP__: { from: "Work Max", to: "Personal", already_there: 4, offers: [] },
+  };
+
+  test(`28 switch — targets with one out of room — ${theme}`, async ({ page }) => {
+    await openSwitchWith(page, theme, roomSeams);
+    const section = page.getByTestId("handover-section");
+    const rows = section.locator("button[data-row]");
+    await expect(rows.last()).toContainText("Personal");
+    await expect(section.getByTestId("target-room").last()).toContainText(/Out of room until .+You can still pick it/);
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `28-switch/targets-out-of-room-1280x900-${theme}.png`) });
+  });
+
+  test(`28 switch — Switch anyway to an account out of room — ${theme}`, async ({ page }) => {
+    await openSwitchWith(page, theme, roomSeams);
+    await pickTarget(page, /Personal/);
+    await expect(page.getByTestId("switch-summary-room")).toHaveText("Personal is out of room: see below before you switch.");
+    await expect(page.getByTestId("switch-confirm")).toHaveText("Switch anyway");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `28-switch/switch-anyway-1280x900-${theme}.png`) });
+  });
+}
+
+// AJ-E1904: a task's history with the switch as a line.
+const SWITCHED_POOL = "pool-checkout";
+const SWITCHED_TASKS = {
+  tasks: [
+    {
+      id: "aj-1a2b",
+      pool_id: SWITCHED_POOL,
+      kind: "task",
+      parent_id: null,
+      title: "Cart endpoints return an empty list, not 404",
+      status: "in_progress",
+      stored_status: null,
+      priority: "normal",
+      holder: "Planner",
+      holder_session_id: "sess-live-1",
+      blocked_by: [],
+      items: 0,
+      items_done: 0,
+      written_by: "Planner",
+      by_agent: true,
+      updated_at_ms: T0 - 4 * 60_000,
+      issue_label: null,
+    },
+  ],
+  details: {
+    "aj-1a2b": {
+      pool_name: "Checkout redesign",
+      body: "An empty cart is a normal state for the mobile client: GET /cart returns { items: [] }, never a 404.",
+      acceptance: "- GET /cart on an empty cart is 200 with no items\n- the mobile client's contract test passes",
+      sessions: [
+        { session_id: "sess-done-1", name: "A session that ended", how: "claimed", live: false, at_ms: T0 - 50 * 60_000 },
+        { session_id: "sess-live-1", name: "Planner", how: "switched", live: true, at_ms: T0 - 12 * 60_000 },
+      ],
+      history: [
+        { id: 4, at_ms: T0 - 4 * 60_000, who: "Planner", by_agent: true, what: "noted: the empty list ships; the contract test is green" },
+        { id: 3, at_ms: T0 - 12 * 60_000, who: "Planner", by_agent: true, what: "continued on Personal (from Work Max)" },
+        { id: 2, at_ms: T0 - 50 * 60_000, who: "Planner", by_agent: true, what: "took it" },
+        { id: 1, at_ms: T0 - 60 * 60_000, who: "Planner", by_agent: true, what: "added it" },
+      ],
+    },
+  },
+  needs: [],
+  sessions: { "sess-live-1": ["aj-1a2b"], "sess-done-1": ["aj-1a2b"] },
+};
+
+for (const theme of THEMES) {
+  test(`95 tasks — a task's history with a switch — ${theme}`, async ({ page }) => {
+    await page.clock.setFixedTime(T0);
+    await page.addInitScript(
+      ({ theme: t, pool, seed }) => {
+        const w = window as unknown as Record<string, unknown>;
+        w.__AIJ_POOLS__ = {
+          pools: [{ id: pool, name: "Checkout redesign" }],
+          members: [{ session_id: "sess-live-1", pool_id: pool, role: "lead" }],
+        };
+        w.__AIJ_TASKS__ = seed;
+        w.__AIJ_AGENT_BRIDGE__ = { asked: true, on: true };
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
+        sessionStorage.setItem("aij.ready.skipped", "1");
+      },
+      { theme, pool: SWITCHED_POOL, seed: SWITCHED_TASKS },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize(RERENDER_VP);
+    await page.goto("/");
+    await expect(page.getByTestId("rail")).toBeVisible();
+    await openFilters(page);
+    await page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ }).check();
+    await page.keyboard.press("Escape");
+    await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
+    await expect(page.getByTestId("pool-page")).toBeVisible();
+    await page.getByRole("tab", { name: "Tasks" }).click();
+    await expect(page.getByTestId("task-view")).toBeVisible();
+    await expect(page.getByTestId("task-sessions")).toContainText("Planner continued it after a switch");
+    const history = page.getByTestId("task-history");
+    await expect(history).toContainText("Planner continued on Personal (from Work Max)");
+    await history.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(GALLERY, `95-tasks/history-switch-1280x900-${theme}.png`) });
+  });
+}
+

@@ -1,0 +1,12 @@
+{"type":"control_response","response":{"subtype":"success","request_id":"aj-1","response":{"commands":[],"models":[]}}}
+{"type":"system","subtype":"init","session_id":"0b1c2d3e-0000-4000-8000-0000000000aa","cwd":"/kit/project","model":"claude-opus-5-5","apiKeySource":"none","tools":["Bash","Edit","AskUserQuestion"],"permissionMode":"default","claude_code_version":"2.1.302"}
+{"type":"assistant","session_id":"0b1c2d3e-0000-4000-8000-0000000000aa","message":{"role":"assistant","content":[{"type":"text","text":"I'll run the tests."},{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"npm test"}}]}}
+{"type":"control_request","request_id":"cli-1","request":{"subtype":"can_use_tool","tool_name":"Bash","input":{"command":"npm test"},"tool_use_id":"tu1","permission_suggestions":[{"type":"addRules","behavior":"allow","destination":"localSettings","rules":[{"toolName":"Bash","ruleContent":"npm test:*"}]},{"type":"addDirectories","directories":["/kit/project"],"destination":"session"}]}}
+{"type":"control_request","request_id":"cli-2","request":{"subtype":"can_use_tool","tool_name":"AskUserQuestion","input":{"questions":[{"question":"Which database?","header":"DB","options":[{"label":"Postgres","description":"server"},{"label":"SQLite","description":"file"}],"multiSelect":false}]}}}
+{"type":"control_request","request_id":"cli-3","request":{"subtype":"hook_callback","callback_id":"x","input":{}}}
+{"type":"user","session_id":"0b1c2d3e-0000-4000-8000-0000000000aa","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","content":"12 passing"}]}}
+{"type":"rate_limit_event","session_id":"0b1c2d3e-0000-4000-8000-0000000000aa","rate_limit_info":{"status":"allowed","rateLimitType":"five_hour","resetsAt":1761397200,"unifiedWindows":{"five_hour":{"utilization":0.27,"resetsAt":1761397200}},"isUsingOverage":false,"overageStatus":"rejected","overageDisabledReason":"org_level_disabled"}}
+{"type":"result","subtype":"success","is_error":false,"session_id":"0b1c2d3e-0000-4000-8000-0000000000aa","result":"All 12 pass.","num_turns":2,"total_cost_usd":0.068,"usage":{"input_tokens":1200,"cache_read_input_tokens":800,"output_tokens":300}}
+{"type":"result","subtype":"error_during_execution","is_error":true,"session_id":"0b1c2d3e-0000-4000-8000-0000000000aa","result":"","num_turns":1,"usage":{"input_tokens":10,"output_tokens":0}}
+{"type":"stream_event","event":{"type":"content_block_delta"}}
+{"type":"something_new","x":1}

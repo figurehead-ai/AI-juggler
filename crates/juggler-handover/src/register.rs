@@ -611,10 +611,11 @@ mod tests {
         // codex→codex transcript and todos. Lab 14 (2026-10-26, 0.1.8):
         // claude→codex folder and worktree edges, and subagents and file
         // history as FAILs with their drop notes; codex→claude MCP and
-        // folder and worktree edges. Every other shipped cell is open.
+        // folder and worktree edges. Every other shipped cell is open, the
+        // six through-another-service pairs' too (AJ-E1601).
         assert_eq!(
             open.len(),
-            9 * AREAS.len() - 23,
+            (9 + 6) * AREAS.len() - 23,
             "only the labs' twenty-three decided cells are closed"
         );
     }

@@ -32,7 +32,7 @@ export const GROUP_WORDS: Record<ActionGroup, string> = { go: "Getting there", w
 export const ACTION_ICON_NAMES = [
   "go-to", "page", "project", "carry-over", "carry-in", "rename", "snooze", "mute", "wake", "copy", "pin", "stop", "new",
   "editor", "finder", "mark", "compare", "account", "sign-in", "settings", "default", "replay", "archive", "relocate",
-  "remove", "delete", "info",
+  "remove", "delete", "info", "pool",
 ] as const;
 export type ActionIconName = (typeof ACTION_ICON_NAMES)[number];
 

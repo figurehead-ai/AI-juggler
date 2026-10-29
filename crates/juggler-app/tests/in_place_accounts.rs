@@ -176,6 +176,8 @@ fn a_setup_used_where_it_is_is_never_written_by_ai_juggler() {
 
     // The usage pipeline reads the folder but installs nothing into it.
     juggler_app::usage_pipeline::ingest_pass(&state, 0);
+    // Its first read is done: no screen says it's still reading (F6).
+    assert_eq!(state.usage_reading.so_far(), None);
 
     // Its checklist passes, honestly worded.
     let rows = commands::isolation_check_impl(&state, &result.account.id).unwrap();

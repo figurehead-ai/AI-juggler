@@ -45,6 +45,14 @@ impl FakeHarnessAdapter {
 }
 
 impl HarnessAdapter for FakeHarnessAdapter {
+    // AJ-E1520 (0.2): a stand-in keeps no subagents (answered, so the
+    // conformance rule holds for it too).
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        juggler_adapter::SubagentSupport::NotSupported(
+            "A test stand-in keeps no record of subagents.",
+        )
+    }
+
     fn id(&self) -> HarnessId {
         HarnessId::new(FAKE_HARNESS_ID)
     }
@@ -65,10 +73,80 @@ impl HarnessAdapter for FakeHarnessAdapter {
             | Capabilities::TRANSCRIPT_EXPORT
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::FORK
+            | Capabilities::AGENT_BRIDGE
+            | Capabilities::PROTOCOL_SERVER
+            | Capabilities::STATE_REPORTS
+    }
+
+    /// AJ-E2306: like a tool that runs hooks named in a file on its command
+    /// line (`fake-harness run --hooks-config FILE`).
+    fn state_reports(
+        &self,
+        launch: &juggler_adapter::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::reports::ReportsInjection> {
+        let file = launch.dir.join("fake-hooks.json");
+        let mut out = args.to_vec();
+        out.extend([
+            "--hooks-config".to_owned(),
+            file.to_string_lossy().into_owned(),
+        ]);
+        Some(juggler_adapter::reports::ReportsInjection {
+            args: out,
+            files: vec![juggler_adapter::BridgeFile {
+                name: "fake-hooks.json".to_owned(),
+                contents: serde_json::json!({"command": launch.program.to_string_lossy()})
+                    .to_string(),
+            }],
+        })
+    }
+
+    /// AJ-E2302: `fake-harness drive` (`fake_driven.rs`).
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
+    }
+
+    /// AJ-E1704: like a tool that reads MCP servers from a file named on
+    /// its command line (`--mcp-config`, `${NAME}` filled from its own
+    /// environment): the fake then calls them as an MCP client.
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        let env: serde_json::Map<String, serde_json::Value> = bridge
+            .env_names
+            .iter()
+            .map(|name| (name.clone(), format!("${{{name}}}").into()))
+            .collect();
+        let config = serde_json::json!({"mcpServers": {bridge.server.clone(): {
+            "command": bridge.program.to_string_lossy(),
+            "args": ["--mcp"],
+            "env": env,
+        }}});
+        Some(juggler_adapter::BridgeInjection {
+            at: args.len(),
+            args: vec![
+                "--mcp-config".to_owned(),
+                bridge
+                    .dir
+                    .join("fake-mcp.json")
+                    .to_string_lossy()
+                    .into_owned(),
+            ],
+            files: vec![juggler_adapter::BridgeFile {
+                name: "fake-mcp.json".to_owned(),
+                contents: config.to_string(),
+            }],
+        })
     }
 
     fn verified_against(&self) -> &'static [&'static str] {
         &["0.1.0"]
+    }
+
+    fn locate(&self) -> Option<PathBuf> {
+        Some(self.bin.clone()).filter(|bin| bin.is_file())
     }
 
     fn discover(&self) -> DiscoveryReport {

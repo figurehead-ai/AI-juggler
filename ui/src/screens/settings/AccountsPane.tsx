@@ -29,7 +29,7 @@ function ToolsSection({ accounts }: { accounts: AccountInfo[] }): JSX.Element | 
   const tools = useTools().filter((tool) => accounts.some((account) => account.provider === tool.id));
   if (tools.length === 0) return null;
   return (
-    <PaneSection id="tools" title="Tools on this Mac" footer="Read from each tool's install. AI Juggler updates none of them.">
+    <PaneSection id="tools" title="Tools on this computer" footer="Read from each tool's install. AI Juggler updates none of them.">
       {tools.map((tool) => {
         const install = installs?.find((row) => row.provider === tool.id);
         const count = accounts.filter((account) => account.provider === tool.id).length;

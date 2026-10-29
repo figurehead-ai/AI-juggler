@@ -1,0 +1,37 @@
+[package]
+name = "juggler-agentbridge"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The agent bridge (AJ-E1704, ADR-0020): `juggler-agent`, AI Juggler's pool tools for the agents in its sessions, over MCP stdio or the command line"
+
+# Small and safe by design: the workspace lint baseline applies
+# (`unsafe_code = "forbid"`), it depends on nothing of ours, holds no
+# state, and speaks MCP's JSON-RPC by hand (ADR-0020: no MCP SDK, so no
+# new dependency to audit; serde and serde_json are already the
+# workspace's).
+[lints]
+workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "juggler-agent"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+
+[dev-dependencies]
+# The end-to-end test: a fake tool speaks MCP to the real binary, which
+# talks to the real app core over its socket (fixtures and temp dirs only).
+juggler-adapter = { version = "0.2.0", path = "../juggler-adapter" }
+juggler-adapters = { version = "0.2.0", path = "../juggler-adapters" }
+juggler-app = { version = "0.2.0", path = "../juggler-app" }
+juggler-core = { version = "0.2.0", path = "../juggler-core" }
+juggler-supervisor = { version = "0.2.0", path = "../juggler-supervisor" }
+tempfile = "3.27.0"

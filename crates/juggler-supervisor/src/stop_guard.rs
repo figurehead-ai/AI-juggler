@@ -10,7 +10,7 @@
 //!   handed out while a group of that id exists), and never once one
 //!   does.
 
-use crate::tree::{ProcessIdentity, Signal, Verification, signal_pid, verify_start_time};
+use crate::tree::{Delivery, ProcessIdentity, Signal, Verification, signal_pid, verify_start_time};
 
 /// `(root, group)`: whether the root pid, and the group it leads, may
 /// be signalled now.
@@ -25,7 +25,10 @@ pub(crate) fn stop_targets(
     } else {
         !finished
     };
-    let group_ours = root_ours || (!adopted && !signal_pid(pid, Signal::Probe));
+    // Only a number the system says no process holds: one it can't check
+    // (another user's, or no signals on this system) is never ours.
+    let group_ours =
+        root_ours || (!adopted && signal_pid(pid, Signal::Probe) == Delivery::NoProcess);
     (root_ours, group_ours)
 }
 

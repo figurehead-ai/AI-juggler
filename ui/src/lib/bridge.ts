@@ -79,8 +79,6 @@ import type { DesktopLaunchInfo } from "../types/generated/DesktopLaunchInfo";
 import type { PreviewFrameInfo } from "../types/generated/PreviewFrameInfo";
 import type { PreviewStateInfo } from "../types/generated/PreviewStateInfo";
 import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
-import type { ProcessesInfo } from "../types/generated/ProcessesInfo";
-import { MOCK_PROCESSES, MOCK_SESSION_CLEANUP } from "./preview-processes";
 import type { LaunchResult } from "../types/generated/LaunchResult";
 import type { NeedsAttention } from "../types/generated/NeedsAttention";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -97,7 +95,6 @@ export type {
   PreviewFrameInfo,
   PreviewStateInfo,
   QualitySignalsInfo,
-  ProcessesInfo,
   AccountInfo,
   AccountRemovedInfo,
   DiscoveredInfo,
@@ -939,6 +936,8 @@ function askIsolation(offer: IsolationOfferInfo): Promise<IsolationDecision> {
 export async function launchSession(
   profileId: string,
   cwd: string | null,
+  /** AJ-E2304: this session's own runtime ("Start in terminal"), else the profile's. */
+  runtime?: "terminal" | "driven",
 ): Promise<{ session_id: string; pid: number } | null> {
   let recipe = profileId;
   for (;;) {
@@ -971,6 +970,7 @@ export async function launchSession(
   return invoke<{ session_id: string; pid: number }>("launch_session", {
     profileId: recipe,
     cwd: directory,
+    runtime: runtime ?? null,
   });
 }
 
@@ -1279,7 +1279,7 @@ export async function goToHotkeySet(hotkey: string): Promise<void> {
     seams.__AIJ_APP_SETTINGS__ = { ...(seams.__AIJ_APP_SETTINGS__ ?? {}), go_to_hotkey: hotkey.trim() };
     return;
   }
-  await invoke("go_to_hotkey_set", { hotkey });
+  await invoke("app_go_to_hotkey_set", { hotkey });
 }
 
 /** Opens the system Accessibility privacy pane (the explainer's deep
@@ -1323,17 +1323,6 @@ export async function instanceQuality(sessionId: string): Promise<QualitySignals
     return MOCK_QUALITY[sessionId] ?? null;
   }
   return invoke<QualitySignalsInfo>("instance_quality", { sessionId });
-}
-
-/**
- * AJ-E410: the Processes tab payload — live tree rows, the 2 s spark
- * ring, and the confirmed orphans for one Instance.
- */
-export async function instanceProcesses(sessionId: string): Promise<ProcessesInfo | null> {
-  if (!hasBackend) {
-    return MOCK_PROCESSES[sessionId] ?? null;
-  }
-  return invoke<ProcessesInfo>("instance_processes", { sessionId });
 }
 
 /** AJ-E505: one port-inventory row (classification is the key). */
@@ -1400,11 +1389,6 @@ export async function cleanupAuditExport(): Promise<string> {
   return invoke<string>("cleanup_audit_export");
 }
 
-/** AJ-E506: the read-only Cleanup Centre DTOs (zero kill fields). */
-export type { CleanupRowInfo, EvidenceChainInfo, VerificationBadgeInfo } from "../components/ProcessRow";
-import type { CleanupRowInfo } from "../components/ProcessRow";
-export type { CleanupGroupInfo } from "../screens/CleanupCentre";
-import type { CleanupInventoryData } from "../screens/CleanupCentre";
 
 /** AJ-E512: one passive Cleanup Centre alert (hog / idle nudge). */
 export interface CleanupAlertData {
@@ -1422,46 +1406,10 @@ export interface CleanupAlertsData {
 /** AJ-E512: reads the passive alerts (hog alerts name the top helper;
  * idle nudges fire once per orphan). Purely passive — no alert
  * carries a signal path; the hog alert routes to the staged sheet. */
-/** AJ-E609: one cost rollup row (session × model × day). */
-/** Rust `Confidence` on the wire. */
-export type ConfidenceWire = "Measured" | "Computed" | "Estimated";
 
-// IPC convention (docs/engineering/ENGINEERING-GUIDE.md › IPC): a Rust
-// `Option<T>` arrives as `null`, never as a missing key, so it is typed
-// `T | null` and checked with `!= null` — never `?:` / `!== undefined`
-// (the 0.0.12 report: Usage went blank on `null.toFixed`).
-
-/** AJ-E609: one rollup row (`cost_ledger::CostRollup`). */
-export interface CostRollupRow {
-  key: string;
-  model: string | null;
-  day: string | null;
-  tokens: { input: number; output: number; cache_read: number; cache_write: number; reasoning: number };
-  usd: { usd: number | null; label: ConfidenceWire };
-  credits: number | null;
-  confidence: ConfidenceWire;
-}
-
-/** AJ-E609: the dual subscription view ("≈$X at API prices · you pay flat"). */
-export interface SubscriptionViewData {
-  api_equivalent_usd: number | null;
-  flat_fee_usd: number | null;
-  value_ratio: number | null;
-}
-
-/** AJ-E609: the cost matrix payload (the UI and the CSV read the same rows). */
-export interface CostRollupsData {
-  rows: CostRollupRow[];
-  subscription: SubscriptionViewData;
-  pricing_stale: boolean;
-  pricing_last_synced_ms: number | null;
-  /** Every model with a list price, summed; null when none has one. */
-  total_usd: number | null;
-  /** 0.1.8: the models with no list price (null: a model not recorded),
-   * left out of the total and named beside it. */
-  unpriced_models: (string | null)[];
-  scope: string;
-}
+// AJ-E609: the cost matrix's types and calls (lib/ipc/costs.ts).
+export { costRollups, costCsvExport } from "./ipc/costs";
+export type { ConfidenceWire, CostRollupRow, SubscriptionViewData, CostRollupsData } from "./ipc/costs";
 
 /** AJ-E611: one ranked (or filtered) account row. */
 export interface RankedRowData {
@@ -1500,7 +1448,7 @@ export interface AlertEventData {
   account: string;
   text: string;
   at_ms: number;
-  /** A quota alert's numbers (lib/alert-words says them, in local time). */
+  /** A quota alert's numbers, as data (the notification model words them). */
   quota?: AlertQuotaData;
 }
 
@@ -1573,34 +1521,6 @@ export async function accountSetFee(account: string, feeUsd: number | null): Pro
   await invoke("account_set_fee", { account, feeUsd });
 }
 
-/** AJ-E609: the session cost matrix + dual subscription view. */
-export async function costRollups(account?: string): Promise<CostRollupsData> {
-  if (!hasBackend) {
-    return (
-      (window as unknown as { __AIJ_COST_ROLLUPS__?: CostRollupsData })
-        .__AIJ_COST_ROLLUPS__ ?? {
-        // Exactly what serde sends with nothing stored: nulls, not
-        // missing keys (a mismatch is now a type error).
-        rows: [],
-        subscription: { api_equivalent_usd: null, flat_fee_usd: null, value_ratio: null },
-        pricing_stale: false,
-        pricing_last_synced_ms: null,
-        total_usd: null,
-        unpriced_models: [],
-        scope: account ?? "ALL",
-      }
-    );
-  }
-  return invoke<CostRollupsData>("cost_rollups", { account });
-}
-
-/** AJ-E609: stream the CSV export; resolves to the written file path. */
-export async function costCsvExport(account?: string): Promise<string> {
-  if (!hasBackend) {
-    return (window as unknown as { __AIJ_COST_CSV__?: string }).__AIJ_COST_CSV__ ?? "";
-  }
-  return invoke<string>("cost_csv_export", { account });
-}
 
 export async function cleanupAlerts(): Promise<CleanupAlertsData> {
   if (!hasBackend) {
@@ -1736,57 +1656,6 @@ import type {
   KillScope,
   KillVerifyData,
 } from "../components/KillSheet";
-
-/** AJ-E506: the read-only inventory (Tier 0). */
-export async function cleanupInventory(
-  filter: string,
-  machineScope: "this" | "all" = "this",
-): Promise<CleanupInventoryData> {
-  if (!hasBackend) {
-    const seeded = (window as unknown as { __AIJ_CLEANUP__?: CleanupInventoryData })
-      .__AIJ_CLEANUP__;
-    if (seeded === undefined) {
-      return {
-        groups: [],
-        clean_instances: 0,
-        local_machine: "",
-        ledger_degraded: false,
-        history: null,
-      };
-    }
-    // Mirror the backend contract for the seam (AJ-E511): the
-    // default scope lists THIS machine's rows only; "all" widens.
-    if (machineScope !== "all" && seeded.local_machine !== "") {
-      const local = seeded.local_machine;
-      const groups = seeded.groups
-        .map((group) => ({
-          ...group,
-          rows: group.rows.filter(
-            (row) => row.machine_id === undefined || row.machine_id === local,
-          ),
-        }))
-        .filter((group) => group.rows.length > 0);
-      return { ...seeded, groups };
-    }
-    return seeded;
-  }
-  return invoke<CleanupInventoryData>("cleanup_inventory", { filter, machineScope });
-}
-
-/** One session's rows from the shared Cleanup inventory (the session's
- * Processes tab: the same data, rows and verified Stop as Cleanup). */
-export async function sessionCleanup(
-  sessionId: string,
-): Promise<{ rows: CleanupRowInfo[]; localMachine: string }> {
-  if (!hasBackend && (window as unknown as { __AIJ_CLEANUP__?: unknown }).__AIJ_CLEANUP__ === undefined) {
-    return { rows: MOCK_SESSION_CLEANUP[sessionId] ?? [], localMachine: "" };
-  }
-  const data = await cleanupInventory("all-managed");
-  return {
-    rows: data.groups.find((group) => group.session === sessionId)?.rows ?? [],
-    localMachine: data.local_machine,
-  };
-}
 
 /** AJ-E507: the kill sheet's step-1 verify (zero signalling). */
 export async function killVerify(sessionId: string, pid: number): Promise<KillVerifyData> {
@@ -2185,8 +2054,9 @@ export interface PreflightInfoData {
   move_line: string;
   /** Whether the keys-and-passwords question applies, and who reads. */
   secrets: SecretsData;
-  /** The target's tool id (named from the catalog). */
+  /** The target's tool id (named from the catalog), and its account (its room: the one runway). */
   target_tool: string;
+  target_account?: string;
 }
 
 /** One thing a switch moves, recreates or leaves behind. */
@@ -2194,10 +2064,10 @@ export interface CarryItemData {
   label: string;
   hint: string;
   how: "moves" | "recreated" | "stays";
+  kind?: string; // `mcp`, `skills`, …: joined with the set-up check
 }
 
-/** The keys question: whether it applies (the conversation's words go to
- * another tool), and who would read them ("Codex (OpenAI)"). */
+/** The keys question: whether it applies (the words go to another tool), and who reads ("Codex (OpenAI)"). */
 export interface SecretsData {
   asks: boolean;
   reader: string;
@@ -2248,11 +2118,11 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
   source_live: true,
   source_keeps_running: false,
   experimental_copy:
-    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
+    "Beta, not proven yet: the whole session is carried over, with its subagents and file history. The source stays resumable.",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   // D-03 amendment: another account is no reason; an unproven pair is.
-  wizard_reasons: ["This move hasn't been proven on a real setup yet."],
+  wizard_reasons: ["This switch hasn't been proven on a real setup yet."],
   usual_account: false,
   // A same-tool switch, as the fidelity table has it (AJ-E1540/E1541):
   // the whole session moves, and the task list is rebuilt from it.
@@ -2276,10 +2146,9 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
     { label: "Subagents' work", hint: "Work done by helper agents inside the session.", how: "moves" },
     { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
   ],
-  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
-  // The mock accounts' tool (no tool id written here: ADR-0019).
-  target_tool: MOCK_ACCOUNTS[0]!.provider,
+  target_tool: MOCK_ACCOUNTS[0]!.provider, // the mock accounts' tool (no tool id written here: ADR-0019)
 };
 
 /** AJ-E206 §5: the switch screen counts the door it shows (local
@@ -2320,68 +2189,7 @@ export async function switchPreflight(
   return invoke<PreflightInfoData>("switch_preflight", { sessionId, targetProfileId });
 }
 
-/** AJ-E205: executes the switch with the user's freeze choice
- * (`finish-turn` default | `stop-now`) — the pipeline stages,
- * verifies, launches, and records the edge. */
-/** AJ-E1103: why the next switch happens — set when the user picks a
- * target (the suggested one, or another), read once by
- * [`switchExecute`]. */
-let pendingSwitchTrigger: "suggestion" | "manual" | null = null;
-
-/** AJ-E1103: the user picked a switch target. */
-export function noteSwitchPick(suggested: boolean): void {
-  pendingSwitchTrigger = suggested ? "suggestion" : "manual";
-}
-
-export async function switchExecute(
-  sessionId: string,
-  targetProfileId: string,
-  freezeChoice: string,
-  redactionChoice?: string | null,
-  redactionUnredact?: number[],
-): Promise<SwitchExecutedData> {
-  if (!hasBackend) {
-    const seams = window as unknown as {
-      __AIJ_SWITCH_EXECUTE_FAIL__?: string;
-      __AIJ_SWITCH_EXECUTE_HANG__?: boolean;
-      __AIJ_SWITCH_EXECUTE_REDACTION__?: {
-        redactionChoice: string | null | undefined;
-        redactionUnredact: number[];
-      }[];
-    };
-    // The guardrail seam: the redaction payload is observable so
-    // tests can prove it fires only from the click.
-    seams.__AIJ_SWITCH_EXECUTE_REDACTION__ = [
-      ...(seams.__AIJ_SWITCH_EXECUTE_REDACTION__ ?? []),
-      {
-        redactionChoice,
-        redactionUnredact: redactionUnredact ?? [],
-      },
-    ];
-    if (seams.__AIJ_SWITCH_EXECUTE_FAIL__ !== undefined) {
-      return Promise.reject(seams.__AIJ_SWITCH_EXECUTE_FAIL__);
-    }
-    if (seams.__AIJ_SWITCH_EXECUTE_HANG__) {
-      return new Promise<SwitchExecutedData>(() => {});
-    }
-    return {
-      session_id: `sess-preview-${Date.now()}`,
-      pid: 0,
-      edge_id: `edge-preview-${Date.now()}`,
-      source_session_id: sessionId,
-    };
-  }
-  const trigger = pendingSwitchTrigger ?? "manual";
-  pendingSwitchTrigger = null;
-  return invoke<SwitchExecutedData>("switch_execute", {
-    sessionId,
-    targetProfileId,
-    freezeChoice,
-    redactionChoice: redactionChoice ?? null,
-    redactionUnredact: redactionUnredact ?? [],
-    trigger,
-  });
-}
+export { noteSwitchPick, switchExecute } from "./ipc/switchExecute";
 
 /** AJ-E206 §8.2: undoes a completed switch — stops the continuation
  * instance, resumes the source's native session, records the
@@ -2541,17 +2349,22 @@ export interface SwitchTargetData {
 /** The no-backend switch-targets default (preview mode shows a
  * realistic ranked, badged set; fixtures override wholesale). */
 const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
+  // Each row's words match its tool (the 0.2 re-render): another Claude
+  // Code account keeps the same conversation; Codex starts fresh from the
+  // story, as the backend's pair matrix says. The Claude Code rows carry
+  // the preview accounts' own ids, so their room is read as Home reads it
+  // (the limit dialog's pick said nothing of Work Max's 58% left).
   {
     recipe_id: "recipe-work-max",
-    account_id: "acct-work",
+    account_id: "claude-work",
     account_label: "Work Max",
-    badge: "Full story, fresh start · Beta",
+    badge: "Same conversation, new account · Beta",
     validated: false,
-    cross_provider: true,
-    drops: ["Subagents' work"],
+    cross_provider: false,
+    drops: [],
     score: 0.62,
     top_factors: ["80% headroom", "used most here"],
-    factors: [["80% headroom", 0.36], ["used most here", 0.2], ["starts fresh from the story", 0.04], ["≈$0.12 replay", 0.07], ["quiet", 0.1]],
+    factors: [["80% headroom", 0.36], ["used most here", 0.2], ["quiet", 0.1]],
     confidence: "Computed",
     tte_min: 262,
     filtered_reason: null,
@@ -2559,15 +2372,15 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-personal",
-    account_id: "acct-personal",
+    account_id: "claude-personal",
     account_label: "Personal",
-    badge: "Full story, fresh start · Beta",
+    badge: "Same conversation, new account · Beta",
     validated: false,
-    cross_provider: true,
-    drops: ["Subagents' work"],
+    cross_provider: false,
+    drops: [],
     score: 0.41,
     top_factors: ["35% headroom", "quiet"],
-    factors: [["35% headroom", 0.16], ["quiet", 0.1], ["starts fresh from the story", 0.04]],
+    factors: [["35% headroom", 0.16], ["quiet", 0.1]],
     confidence: "Estimate",
     tte_min: 95,
     filtered_reason: null,
@@ -2595,7 +2408,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
     account_label: "Lab",
     badge: "Same conversation, new account · Beta",
     validated: false,
-    cross_provider: true,
+    cross_provider: false,
     drops: [],
     filtered_reason: "exhausted — resets in 3h",
     top_factors: [],
@@ -2743,6 +2556,12 @@ export interface DogfoodCellSummaryData {
 export interface ValidationCellData {
   from: string;
   to: string;
+  /** The tools on each side, and (AJ-E1601) whether a side runs its tool
+   * through another service. */
+  from_tool?: string;
+  to_tool?: string;
+  from_service?: boolean;
+  to_service?: boolean;
   mechanism: string;
   researched_ceiling: string;
   advertised: string;
@@ -2903,7 +2722,7 @@ export async function usageStatsSet(mode: UsageStatsMode): Promise<UsageStatsSet
         mode === "off"
           ? "Usage stats are off. Local stats deleted."
           : mode === "local"
-            ? "Usage stats are counted on this Mac only."
+            ? "Usage stats are counted on this computer only."
             : "Usage stats are on. One small report a week will be sent.",
     };
   }
@@ -3801,7 +3620,7 @@ export interface ProviderInstallData {
   provider: string;
   display_name: string;
   install_url: string;
-  /** installed | not_installed | unverified | probe_failed */
+  /** installed | not_installed | unverified | probe_failed | found (its version not asked) */
   status: string;
   version?: string | null;
   binary?: string | null;
@@ -4271,7 +4090,7 @@ export type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 export async function appQuitPlan(): Promise<QuitPlanInfo> {
   if (!hasBackend) {
     const seam = (window as unknown as { __AIJ_QUIT_PLAN__?: QuitPlanInfo }).__AIJ_QUIT_PLAN__;
-    return seam ?? { live: 0, end_on_quit: 0, keep_running: 0 };
+    return seam ?? { live: 0, end_on_quit: 0, keep_running: 0, come_back: 0 };
   }
   return invoke<QuitPlanInfo>("app_quit_plan");
 }

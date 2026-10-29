@@ -2,6 +2,7 @@
 import type { AttentionInfo } from "./AttentionInfo";
 import type { NeedsAttention } from "./NeedsAttention";
 import type { QuotaSnapshotInfo } from "./QuotaSnapshotInfo";
+import type { RuntimeInfo } from "./RuntimeInfo";
 import type { TokenCountsInfo } from "./TokenCountsInfo";
 
 /**
@@ -80,9 +81,11 @@ rss_bytes: number | null,
  */
 child_count: number | null, 
 /**
- * I-08: how many subagents the session started are still running,
- * read from its transcript (AJ-E1520); `null` until it has been read
- * (not live, or no transcript yet) — never a guessed count.
+ * I-08: how many subagents the session started (and theirs) are
+ * still running, as its tool's adapter reads them — the same reader
+ * as its Subagents tab (AJ-E1520, `features::subagents::count`);
+ * `null` until they have been read (not live, its tool records none
+ * AI Juggler reads, or not read yet) — never a guessed count.
  */
 subtask_count: number | null, 
 /**
@@ -203,4 +206,9 @@ title?: string,
 /**
  * AJ-E1502: pinned to the top of its group in the rail.
  */
-pinned?: boolean, };
+pinned?: boolean, 
+/**
+ * AJ-E2302 (D-40): how it runs and its exact state, when its runtime
+ * says more than its process does (`features::runtime::described`).
+ */
+runtime?: RuntimeInfo, };

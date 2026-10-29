@@ -41,6 +41,14 @@ impl FakeDesktopAdapter {
 }
 
 impl HarnessAdapter for FakeDesktopAdapter {
+    // AJ-E1520 (0.2): a stand-in keeps no subagents (answered, so the
+    // conformance rule holds for it too).
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        juggler_adapter::SubagentSupport::NotSupported(
+            "A test stand-in keeps no record of subagents.",
+        )
+    }
+
     fn id(&self) -> HarnessId {
         HarnessId::new(FAKE_DESKTOP_ID)
     }
@@ -60,6 +68,10 @@ impl HarnessAdapter for FakeDesktopAdapter {
 
     fn verified_against(&self) -> &'static [&'static str] {
         &["0.1.0"]
+    }
+
+    fn locate(&self) -> Option<PathBuf> {
+        self.bin.exists().then(|| self.bin.clone())
     }
 
     fn discover(&self) -> DiscoveryReport {

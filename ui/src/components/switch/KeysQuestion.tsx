@@ -72,7 +72,7 @@ export function KeysQuestion({
   if (!preflight.secrets.asks) {
     return (
       <p className="text-body text-ink" data-testid="switch-keys-same-tool">
-        The conversation is copied as it is, on this Mac.
+        The conversation is copied as it is, on this computer.
       </p>
     );
   }
@@ -143,7 +143,7 @@ export function KeysQuestion({
         guide={GUIDE.keys}
         tips={[
           "A key or password is text that lets someone use an account: an API key, a sign-in token, a private key.",
-          `${reader} receives the conversation to continue the work. Hidden keys never leave this Mac.`,
+          `${reader} receives the conversation to continue the work. Hidden keys never leave this computer.`,
           "Hiding replaces only the secret with •••; the rest of the conversation stays as it is.",
           "If the work needs a key, the other tool asks you for it.",
         ]}

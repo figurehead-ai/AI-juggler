@@ -28,8 +28,10 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 | M4 | Handover engine (T1–T4) | ✅ Done (live fidelity cells are the maintainer's, AJ-E808) |
 | M5 | Release engineering → **v0.1.0-beta.1** | 🟡 Signed Beta and Nightly builds ship (0.0.x); 0.1 is cut as set in E15 |
 | M6 | Fleet link → **v0.2** | 🟡 Built; the two-Mac dogfood is the maintainer's (AJ-E710) |
-| M7 | Fleet control → **v0.3**; Win/Linux bring-up | 🟡 Fleet control built; Windows and Linux after 1.0 |
-| M8 | Stabilization → **1.0** | ⚪ Planned |
+| M7 | Fleet control → **v0.3**; the Windows and Linux compile guards | 🟡 Fleet control built; Windows and Linux bring-up moved to rows W and L (D-52) |
+| M8 | Stabilization → **1.0** (macOS) | ⚪ Planned |
+| W | **AI Juggler for Windows**: a dedicated first release, then in every release ([E26](../tasks/E26-windows-release.md)) | ⚪ Planned, not scheduled (D-52); packaging, signing and scope are the maintainer's decisions (AJ-E2601) |
+| L | **AI Juggler for Linux**: a dedicated first release, then in every release ([E27](../tasks/E27-linux-release.md)) | ⚪ Planned, not scheduled (D-52); formats, repository and support matrix are the maintainer's decisions (AJ-E2701) |
 
 ---
 
@@ -39,7 +41,7 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 > and the [legacy→canonical glossary in SPEC §3](../SPEC.md).
 
 The canonical task breakdown is now the **E-catalog**
-(`docs/tasks/E1..E22`, 262 tasks, evidence-gated). The M-milestones
+(`docs/tasks/E1..E27`, 318 tasks, evidence-gated). The M-milestones
 below retain their IDs for tracking continuity; their *scope text* is
 re-sequenced around the settled thesis **Switch → See → Clean**, with
 Fleet integrated at launch (D-13), not deferred:
@@ -187,7 +189,7 @@ Goal: the founding pain point solved — two Claude accounts in parallel, one cl
 | M7-2 | Remote lifecycle | Remote launch/stop/attach from console (click-executed) | Full manage workflow across 3 machines in acceptance script |
 | M7-3 | Cross-machine handover | Pack fetch on demand; T2/T3 across machines with path & binary checks surfaced honestly | Cross-machine handover demo; T2 constraints pre-validated and explained in-wizard |
 | M7-4 | Aggregated usage | Fleet-wide usage views & alerts | Cross-machine rollups correct under clock-skew fixtures |
-| M7-5 | Windows/Linux bring-up begins | CI-only ports of core+adapters (no packaging yet) | `just verify` green on Win/Linux for core crates |
+| M7-5 | Windows/Linux compile guards (the bring-up itself moved to E26/E27, D-52) | CI's `build-windows` and `build-linux` check and build every target on each change; the platform guard lint (`just platform`) keeps new macOS-only code behind the seams | Both jobs and the lint green on every change. Running the tests on Windows, packaging and the lab are [AJ-E2602](../tasks/E26-windows-release.md) and [AJ-E2702](../tasks/E27-linux-release.md) |
 | M7-6 | **Gate V7 = v0.3.0-beta** | `docs/qa/gate-M7.md` | Acceptance script across 3 machines; quality audit #8; user confirmation |
 
 ## M8 — Stabilization *(epic → 1.0)*
@@ -198,6 +200,43 @@ Goal: the founding pain point solved — two Claude accounts in parallel, one cl
 | M8-2 | Security review | Internal security review vs SECURITY.md commitments; dependency audit | Findings fixed or documented with mitigations |
 | M8-3 | Docs completeness | User guide, adapter guide (public API), troubleshooting | A new contributor can add a fake adapter from docs alone |
 | M8-4 | **Gate V8 = 1.0** | Stable channel opens; `docs/qa/gate-M8.md` | Full regression matrix; quality audit #9; user confirmation → **1.0.0** |
+
+---
+
+## W — AI Juggler for Windows *(a dedicated first release → then every release)*
+
+Decided by D-52 (the maintainer, 2026-10-29): Windows gets one dedicated
+first release, the bring-up, and from then on ships in every release with
+macOS. Its tasks, grounded in the readiness audit
+(`docs/research/cross-platform-readiness.md`), are in
+[E26](../tasks/E26-windows-release.md) (AJ-E2601–E2616): the remaining
+decisions (installer, signing, scope, the data folder, which OS first),
+CI that runs the tests on Windows, a read-only lab on a VM with a throwaway
+Windows user, then the OS seams (where things live, programs by name, Job
+Objects, the tool environment, owner-only files and named pipes, Credential
+Manager, each tool's files, desktop apps and Go to it, notifications and
+the taskbar, keep-awake, Windows words and keys) and the signed installer
+and updates. The first release ships Windows on Beta (AJ-E2615). After it
+(AJ-E2616), every nightly builds, signs and publishes Windows with macOS,
+one promote moves both, and every task's Definition of Done covers Windows.
+Until the first release, a macOS release never waits for this work and
+never claims Windows support.
+
+## L — AI Juggler for Linux *(a dedicated first release → then every release)*
+
+Decided by D-52: Linux gets one dedicated first release, then ships in
+every release. Its tasks are in [E27](../tasks/E27-linux-release.md)
+(AJ-E2701–E2715): the remaining decisions (AppImage / deb / rpm / Flatpak,
+a package repository, the distributions and desktops supported, which OS
+first), CI in a desktop session and on each promised distribution, a
+read-only lab on GNOME and KDE, then the seams Linux still lacks (XDG
+folders, process names and escaped children, the tool environment, the
+AppImage's trust rules, the Secret Service, each tool's files, desktop apps
+and open files from `/proc`, notifications, the tray, keep-awake, Linux
+words and keys) and packages and updates. The first release ships Linux on
+Beta (AJ-E2714); after it (AJ-E2715), Linux is in every nightly, beta and
+stable, and in every task's Definition of Done. Shared seams are built once
+(E26's intro lists the owners).
 
 ---
 

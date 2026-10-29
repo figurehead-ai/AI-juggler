@@ -79,7 +79,9 @@
 1. Sections SHALL be Needs you, Open now, then one line "Also: n ended today · n inactive · n background · History ›", each part turning its view on.
 2. Ended sessions from other apps SHALL no longer be added under every project.
 3. A session open in two places SHALL be one row that says so.
-**UI/UX reasoning**: The smallest change that fixes the order, before the new rail.
+4. (D-47, 2026-10-27; replaces "Open now: not in Needs you".) A session that needs you SHALL stay in its place in Open now, its state in amber, and Needs you SHALL list it as well, as a shortcut. Each list, and the badge, SHALL count a session once.
+5. (D-47.) Open now SHALL keep a stable order by default ("Your order"): a row keeps its position; a new session joins the end of its group; a state change only changes its dot and word; an ended session frees its slot and the rows under it close up. Pinned rows lead their group in every order. Rows and places SHALL be draggable, with ⌥⌘↑ / ⌥⌘↓ as the keyboard twin (said in a polite live region), and an order menu on Open now's header (and in Settings › General) SHALL offer Your order, Latest activity, Name and Reset my order. The order, pins, place order, folds and the chosen order SHALL survive restarts and backups.
+**UI/UX reasoning**: The smallest change that fixes the order, before the new rail. D-47: the maintainer found the rail bouncing too much in 0.1.8; most users want it to stay put.
 **Performance budget**: no extra reads.
 **Quality gates**: vitest for the order and folds.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2103/manifest.md`.
@@ -97,7 +99,7 @@
 1. A place header SHALL show the app icon, the profile, a count and Open (brings a running app forward only).
 2. A row SHALL show the app icon with the profile badge (monogram, 4.5:1), the title, a place line (project · app · profile · window or tab), and a state dot with its word. Runway shows on a row only when low.
 3. States SHALL be one vocabulary everywhere: Asks you, Working, Idle, Done (review it), and the folded Ended. Every tool and app status maps onto them.
-4. Quiet places SHALL fold ("Work · 4 idle"); a place shows working rows and the last 3, then "+n quiet".
+4. Quiet places SHALL fold ("Work · 4 idle"); a place shows working rows and the last 3, then "+n quiet". *Deviation (D-47, 2026-10-27):* this is now the **Latest activity** order only. In **Your order** (the default) and **Name**, a place shows all its open rows (the first 8 by the order, then "+n more", never re-picked by activity) and folds only when the user folds it, which is remembered; inactive sessions still wait behind "Also: n inactive". A place with a session that needs you is never quiet.
 5. View (⇧V, and a button with a dot when not default) SHALL offer Group by (Place, Project, Pool, Account), Show (inactive, quiet, ended, background runs, sub-agents, other Macs, archived) and Only (app, profile, account, project, pool, Mac), plus Back to the defaults. Search and ⌘K take the same words (`is:ended`, `app:` …).
 6. AI Juggler's own sessions SHALL be a place ("AI Juggler"); other Macs fold after this Mac.
 **UI/UX reasoning**: The approved canvas.

@@ -260,6 +260,11 @@ fn network_allowed() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
             "juggler-app",
             BTreeSet::from(["tauri-plugin-updater", "reqwest", "socket2"]),
         ),
+        // The OS seams' local connection (`local_ipc`): a Unix socket in a
+        // folder only this user can open. tokio's `net` (which its Unix
+        // listener needs) brings socket2 along; nothing here opens a
+        // network socket, so there is nothing new to say on the Privacy page.
+        ("juggler-platform", BTreeSet::from(["socket2"])),
     ])
 }
 
@@ -409,6 +414,11 @@ const OUR_HOSTS: &[&str] = &[
     "localhost",
     // Fleet's HTTP authority over a pinned TLS connection to a paired Mac.
     "aijuggler.node",
+    // AJ-E1611: the once-a-day check for new tool versions (the Privacy
+    // page's "tool-updates" line): npm's public registry, which lists
+    // every registered tool's versions (`tool_updates.rs` checks the
+    // specs).
+    "registry.npmjs.org",
 ];
 
 /// Every `http://…` or `https://…` in `code`, by host.
@@ -659,11 +669,60 @@ const REDIRECTS: &[&str] = &[
     "all_proxy",
 ];
 
+/// AJ-E1601 (D-34): the only shipped files that may name a redirect, and
+/// the one each may name: the adapters' writers for a profile added
+/// "through another service", each setting the one its tool reads.
+const SERVICE_WRITERS: &[(&str, &str)] = &[
+    (
+        "crates/juggler-adapters/src/claude_endpoint.rs",
+        "ANTHROPIC_BASE_URL",
+    ),
+    (
+        "crates/juggler-adapters/src/codex_endpoint.rs",
+        "model_providers",
+    ),
+];
+
+/// The only shipped files that may name a redirect to take it AWAY, and
+/// the one each may name: a launch started inside another Claude Code
+/// session drops that session's routing (`ANTHROPIC_BASE_URL`), so it
+/// never goes the host's way. Each names it once, in its list of keys to
+/// remove, and sets nothing.
+const REDIRECT_REMOVERS: &[(&str, &str, &str)] = &[(
+    "crates/juggler-adapters/src/claude_env.rs",
+    "ANTHROPIC_BASE_URL",
+    "pub const PARENT_SESSION_ROUTING_KEYS: [&str; 1] = [\"ANTHROPIC_BASE_URL\"];",
+)];
+
+/// The services' data (`services.json`), as shipped.
+fn service_presets() -> &'static [juggler_adapter::endpoint::ServicePreset] {
+    juggler_adapters::services::presets()
+}
+
+/// Every `http://` or `https://` address in `text`, as written.
+fn addresses_in(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for scheme in ["https://", "http://"] {
+        let mut rest = text;
+        while let Some(at) = rest.find(scheme) {
+            let address: String = rest[at..]
+                .chars()
+                .take_while(|c| !c.is_whitespace() && !matches!(c, '"' | '\'' | '`' | ',' | ')'))
+                .collect();
+            rest = &rest[at + scheme.len()..];
+            out.push(address);
+        }
+    }
+    out
+}
+
 #[test]
 fn ai_juggler_never_points_a_tool_at_another_address() {
     // AI Juggler's own shipped code never names one, in any file under a
-    // crate's `src/` (code, and files it includes), so it can't set one. A
-    // value the user typed into a launch setting's environment is theirs.
+    // crate's `src/` (code, and files it includes), so it can't set one —
+    // except the two writers for a profile added through another service,
+    // each naming only its tool's own setting (D-34). A value the user
+    // typed into a launch setting's environment is theirs.
     let mut found = Vec::new();
     for name in workspace_crates() {
         let mut files = Vec::new();
@@ -693,14 +752,132 @@ fn ai_juggler_never_points_a_tool_at_another_address() {
             } else {
                 text
             };
+            let rel = path
+                .strip_prefix(repo())
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/");
             for redirect in REDIRECTS {
-                if without_comments(&text).contains(redirect) {
-                    found.push(format!("{} names {redirect}", path.display()));
+                // A remover names it once, in its list of keys to remove.
+                let removes = REDIRECT_REMOVERS.iter().any(|(file, name, line)| {
+                    *file == rel
+                        && name == redirect
+                        && without_comments(&text).matches(redirect).count() == 1
+                        && text.contains(line)
+                });
+                let allowed = removes || SERVICE_WRITERS.contains(&(rel.as_str(), *redirect));
+                if !allowed && without_comments(&text).contains(redirect) {
+                    found.push(format!("{rel} names {redirect}"));
+                }
+            }
+            // The writers name no address of their own: the address is
+            // always a preset's, handed in.
+            if SERVICE_WRITERS.iter().any(|(writer, _)| *writer == rel) {
+                let code = without_comments(&text);
+                if !addresses_in(&code).is_empty() {
+                    found.push(format!("{rel} names an address of its own"));
+                }
+            }
+            // The presets are read in one place only, and an address is
+            // never built in code: `ServiceEndpoint` comes only from them.
+            if file.ends_with(".rs") {
+                let code = without_comments(&text);
+                if code.contains("services.json")
+                    && rel != "crates/juggler-adapters/src/services.rs"
+                {
+                    found.push(format!("{rel} reads the services' data"));
+                }
+                let built = code.matches("ServiceEndpoint {").count()
+                    - code.matches("struct ServiceEndpoint {").count()
+                    - code.matches("impl ServiceEndpoint {").count();
+                if built > 0 {
+                    found.push(format!("{rel} builds a ServiceEndpoint by hand"));
                 }
             }
         }
     }
     assert!(found.is_empty(), "{found:#?}");
+}
+
+#[test]
+fn a_provider_address_is_only_ever_one_a_service_publishes() {
+    // The allowed hosts come from the presets' data, never a second list:
+    // each address is https, and is written, word for word, in the
+    // research the preset was checked against (docs/research/).
+    let mut research = String::new();
+    for entry in std::fs::read_dir(repo().join("docs/research"))
+        .unwrap()
+        .flatten()
+    {
+        if entry.path().extension().is_some_and(|ext| ext == "md") {
+            research.push_str(&std::fs::read_to_string(entry.path()).unwrap());
+        }
+    }
+    let mut hosts = BTreeSet::new();
+    assert!(!service_presets().is_empty());
+    for preset in service_presets() {
+        for endpoint in &preset.endpoints {
+            let host = endpoint
+                .https_host()
+                .unwrap_or_else(|| panic!("{}: {} isn't https", preset.id, endpoint.base_url));
+            hosts.insert(host.to_owned());
+            assert!(
+                research.contains(&endpoint.base_url),
+                "{}: {} isn't in the research as published",
+                preset.id,
+                endpoint.base_url
+            );
+        }
+    }
+
+    // What the writers really write: for every preset and every tool that
+    // speaks its protocol, the profile's own folder gets that preset's
+    // address and no other.
+    let tools: Vec<std::sync::Arc<dyn juggler_adapter::HarnessAdapter>> = vec![
+        std::sync::Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
+            "/nonexistent/claude",
+        )),
+        std::sync::Arc::new(juggler_adapters::CodexAdapter::with_bin(
+            "/nonexistent/codex",
+        )),
+    ];
+    let mut written = 0;
+    for preset in service_presets() {
+        for tool in &tools {
+            let Some(endpoint) = tool.endpoint_wire().and_then(|wire| preset.endpoint(wire)) else {
+                continue;
+            };
+            let dir = tempfile::tempdir().unwrap();
+            let profile = dir.path().join("profile");
+            tool.prepare_account(&profile).unwrap();
+            tool.configure_endpoint(&profile, endpoint, "a-model")
+                .unwrap();
+            // A fresh profile folder is flat: its writer's files sit at the
+            // top.
+            for path in std::fs::read_dir(&profile)
+                .unwrap()
+                .flatten()
+                .map(|entry| entry.path())
+            {
+                let text = std::fs::read_to_string(&path).unwrap_or_default();
+                for address in addresses_in(&text) {
+                    assert_eq!(address, endpoint.base_url, "{}", path.display());
+                    written += 1;
+                }
+            }
+            // Never outside the profile's own folder.
+            let outside: Vec<_> = std::fs::read_dir(dir.path())
+                .unwrap()
+                .flatten()
+                .map(|entry| entry.file_name())
+                .collect();
+            assert_eq!(outside, ["profile"]);
+        }
+    }
+    assert!(
+        written >= hosts.len(),
+        "every published address was written"
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -711,6 +888,8 @@ fn ai_juggler_never_points_a_tool_at_another_address() {
 const MOVES: &[&str] = &[
     "session_handover_impl",
     "switch_execute_impl",
+    // switch_execute_impl with the ticks the switch carries out (D-51).
+    "switch_execute_with",
     "switch_execute_core",
     "switch_undo_impl",
     "switch_back_execute_impl",
@@ -821,11 +1000,24 @@ fn every_tool_names_its_terms_and_the_preview_matches() {
     let registry = juggler_app::state::default_registry();
     let ids = registry.ids();
     assert!(!ids.is_empty());
-    for spec in ids
-        .iter()
-        .filter_map(|id| registry.get(id))
-        .map(|adapter| adapter.spec())
-    {
+    for adapter in ids.iter().filter_map(|id| registry.get(id)) {
+        let spec = adapter.spec();
+        // D-40: how its sessions run, under the terms, the same way.
+        if let Some(note) = adapter.driven().and_then(|driven| driven.terms_note()) {
+            let entry = preview
+                .split("\n  {\n")
+                .find(|entry| entry.contains(&format!("id: \"{}\"", spec.id)))
+                .unwrap_or_else(|| panic!("the preview has no {}", spec.id));
+            assert!(
+                entry.contains(note),
+                "the preview's {} entry lacks {note:?}",
+                spec.id
+            );
+            assert!(
+                register.contains(note),
+                "the register doesn't record {note:?}"
+            );
+        }
         let terms = spec
             .terms
             .unwrap_or_else(|| panic!("{} names no terms", spec.id));

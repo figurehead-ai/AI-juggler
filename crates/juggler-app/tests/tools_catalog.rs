@@ -62,9 +62,12 @@ impl HarnessAdapter for Acme {
 
 #[test]
 fn the_catalog_serves_every_tool_as_data_the_primary_first() {
-    let catalog = tools::catalog(&juggler_app::state::default_registry());
+    let registry = juggler_app::state::default_registry();
+    let catalog = tools::catalog(&registry);
     let ids: Vec<&str> = catalog.iter().map(|tool| tool.id.as_str()).collect();
-    assert_eq!(ids.len(), 2, "{ids:?}");
+    // Every registered tool, once.
+    assert_eq!(ids.len(), registry.ids().len(), "{ids:?}");
+    assert!(ids.len() >= 3, "{ids:?}");
     let primary = &catalog[0];
     assert!(primary.flow.primary && primary.flow.first_run);
     assert_eq!(

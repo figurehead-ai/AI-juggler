@@ -308,3 +308,322 @@ shares, needs the whole gallery compared.
       holds the base/head/diff images (`index.html`).
 - [ ] Anything unexpected: ask for a fix before merging. Otherwise
       nothing else to do — routine changes need only the core check.
+
+---
+
+## Part 7 — As new tools land
+
+### 16. Live checks of new tools on spare accounts (AJ-E1612)
+
+**Why:** every new tool is built from its source and fixtures only. One
+short run on an account that doesn't matter proves what really happens,
+and the evidence records it. Use a throwaway project, and sign-ins you
+don't mind losing (a free model, or a small OpenCode Zen balance).
+
+#### OpenCode (AJ-E1602; about 30 min per version)
+
+Built from the 1.19.3 and 2.1.2 source. If you can, run it once on each
+(`brew install anomalyco/tap/opencode` gives 1.x;
+`anomalyco/tap/opencode-v2` gives 2.x — they replace each other).
+
+- [ ] **Found.** Accounts › Add account lists OpenCode with its version
+      ("not yet checked live" is expected until this step is filed).
+- [ ] **Two separate sign-ins.** Add two fresh OpenCode accounts, A and
+      B. Sign A in from AI Juggler (`opencode auth login` opens in a
+      terminal); leave B signed out. A shows signed in, B doesn't, and
+      `opencode auth list` run by hand (outside AI Juggler) doesn't
+      list A's sign-in.
+- [ ] **A session starts and resumes.** Start a session on A in the
+      throwaway project and send one message. Stop it, then resume it
+      from AI Juggler: the same conversation comes back. Resume with a
+      message that starts with "-" (for example `- go on`): it arrives
+      as text, not as an option.
+- [ ] **One-off runs.** If you use headless runs, start one with a
+      model set in Launch settings: it uses that model, and a prompt
+      starting with "-" is text (this checks `run --model=… -- <text>`,
+      which 2.x has not been seen to accept yet).
+- [ ] **Model in the terminal.** With a model in Launch settings, a
+      normal session opens on that model (set through
+      `OPENCODE_CONFIG_CONTENT`; 2.x's terminal has no `--model`).
+- [ ] **Usage is read.** Within about 10 seconds of a reply, the
+      account's Usage shows its tokens, with OpenCode's dollar figure as
+      an estimate, and the limit rings say "OpenCode doesn't report its
+      limits to AI Juggler yet".
+- [ ] **Its sessions are listed.** A session you start by hand in a
+      terminal (`opencode` in the throwaway project, on the default
+      folder) shows in the rail's sessions from outside AI Juggler within
+      a minute, with its folder, and is marked running while it runs;
+      Copy resume command gives `opencode --session <id>`.
+- [ ] **Rules and servers sync.** In the throwaway project, Sync shows
+      OpenCode's `AGENTS.md` beside the others. Copy an MCP server from a
+      Claude account to account A: it appears in A's
+      `config/opencode/opencode.json` under `mcp`, OpenCode lists it
+      (`opencode mcp list`), and Undo takes it out again.
+- [ ] **Quota exhaustion is seen.** Run a Zen balance or a Go plan to its
+      limit (or use a key with a tiny spend limit). Note the exact
+      message OpenCode shows, and whether AI Juggler shows the session
+      as needing you.
+- [ ] **The variables reach the agent's tools.** In an OpenCode session,
+      ask it to run `gh auth status` and `git config user.name`. Note
+      the answers: the account's own `XDG_CONFIG_HOME` hides `gh`'s
+      sign-in (a known trade-off of this isolation; `git` reads
+      `~/.gitconfig` and should be fine).
+- [ ] **A copy keeps no sign-in.** Bring your default OpenCode folder
+      in as a copy. The copy is signed out; `opencode session list` in
+      the copy (Accounts › the copy › the expert shell line) lists your
+      sessions; your original still works and is signed in.
+- [ ] **Used where it is, unwritten.** Bring the default folder in
+      where it is. With OpenCode closed, run
+      `ls -la ~/.local/share/opencode` before and after a few minutes of
+      AI Juggler running: no new files (no `opencode.db-wal`).
+- [ ] **2.x: beside your own OpenCode.** With your own `opencode` (or
+      OpenCode Desktop) running on the default folder, start a session on
+      managed account A (2.x): it starts (its launch carries
+      `--standalone`), and yours keeps working. Quit A's session: no
+      `opencode serve` process of A's is left (`pgrep -fl "opencode serve"`
+      shows only your own service, if any), and A has no
+      `state/opencode/service.json`. Do the same for a headless run and
+      for `opencode auth login` on a fresh account C (they also carry
+      `--standalone`, after `run` and after `auth login`).
+- [ ] **2.x: MCP servers in its form.** Copy an MCP server from a Claude
+      account to A (2.x): it appears in `config/opencode/opencode.json`
+      under `mcp.servers`, `opencode mcp list` lists it, and Undo takes it
+      out. A file you wrote by hand in the 1.x form (`mcp.<name>`) gets the
+      new one in that form, and 2.x still lists both.
+
+Save the terminal output and a screen recording per check to
+`docs/research/evidence/opencode/<version>/`, then hand them to the
+agent: it files them, sets the verified versions and flips the
+"not yet checked live" note.
+
+#### Kimi Code (AJ-E1603; about 30 min)
+
+Built from the 2.3.0 docs and source. Install it the vendor's way
+(`curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash`, or
+`npm install -g @moonshot-ai/kimi-code`). Use a spare Kimi membership
+(Plus or above) and, if you have one, a Kimi Platform API key with a small
+balance.
+
+- [ ] **Found.** Accounts › Add account lists Kimi Code with its version
+      ("not tested with AI Juggler yet" is expected until this step is
+      filed). Note `kimi --version`'s exact output.
+- [ ] **Two separate sign-ins.** Add two fresh Kimi Code accounts, A and
+      B. Sign A in from AI Juggler (`kimi login` opens in a terminal);
+      leave B signed out. A shows signed in, B doesn't. Note the files
+      `kimi login` made in A's `credentials/` (names only): the membership
+      sign-in is expected as `kimi-code.json`.
+- [ ] **Devices.** In the Kimi Code Console, note how many devices the
+      membership shows after A's sign-in (each home is expected to count
+      as one device) and whether a device cap is stated.
+- [ ] **A session starts and resumes.** Start a session on A in the
+      throwaway project and send one message. Stop it, then resume it from
+      AI Juggler: the same conversation comes back
+      (`kimi --session <id>`). Note the lines of `session_index.jsonl` and
+      the fields of that session's `state.json` (names only, no content).
+- [ ] **Its sessions are listed.** A session you start by hand
+      (`kimi` in the throwaway project) shows in the rail's sessions from
+      outside AI Juggler, with its folder and title, and is marked running
+      while it runs.
+- [ ] **Interactive use only.** With Settings › Sessions › Restart
+      crashed sessions on, end A's running `kimi` with `kill -9`: it is not
+      started again, and its history says why. A headless run on A is
+      refused with the same words.
+- [ ] **An API key may run headless.** On a third account signed in with a
+      Kimi Platform API key (`kimi login`, "Kimi Platform API key"), note
+      the file it made in `credentials/` (name only). A headless run with a
+      prompt starting with "-" works and the prompt arrives as text
+      (`kimi -p <text> --output-format stream-json`).
+- [ ] **Usage.** The account's limits say "Kimi Code doesn't report its
+      limits to AI Juggler yet". Note what `/usage` in Kimi Code shows, for
+      the ruling on its quota source.
+- [ ] **Quota exhaustion is seen.** If a 5-hour limit is reached, note the
+      exact message and whether AI Juggler shows the session as needing
+      you.
+- [ ] **A copy keeps no sign-in.** Bring `~/.kimi-code` in as a copy: the
+      copy is signed out, has your settings, skills and MCP servers, and
+      none of your sessions; your original still works and is signed in.
+- [ ] **Rules and servers sync.** Copy an MCP server from a Claude account
+      to A: it appears in A's `mcp.json` and in Kimi Code's `/mcp`, and
+      Undo takes it out again.
+- [ ] **Its state and tokens come from its event log.** With a session
+      open on A: AI Juggler marks it working while it replies, "needs you"
+      while an approval or a question waits, and idle after. Within about
+      10 seconds of a reply, A's Usage shows that reply's tokens, by model.
+      Note the first line of its `agents/main/wire.jsonl` (the
+      `protocol_version`), the field names of one `usage.record` and of
+      `locks/sessions/<id>.lock` (names only, no content), and whether a
+      subagent's approval appears in the main log or in its own.
+
+Save the output and recordings to `docs/research/evidence/kimi-code/2.x/`
+and hand them to the agent, as for OpenCode.
+
+#### Grok Build (AJ-E1604; about 30 min)
+
+Built from the 1.0.45 docs and source. Install it the vendor's way
+(`curl -fsSL https://x.ai/cli/install.sh | bash`), on a spare X
+Subscription account (or an xAI API key with a small balance).
+
+- [ ] **Found.** Add account lists Grok Build with its version. Note
+      `grok --version`'s exact output. If you also have the unofficial
+      `grok-cli` (`npm i -g grok-dev`), it isn't taken for Grok Build.
+- [ ] **Two separate sign-ins.** Two fresh accounts, A and B: sign A in
+      from AI Juggler (`grok login`), leave B signed out. A shows signed
+      in, B doesn't, and your own `~/.grok` sign-in is unchanged.
+- [ ] **Your Claude setup stays out.** With a Claude `PreToolUse` hook
+      that writes a file, run a Grok session on A that edits a file: the
+      hook doesn't fire. `grok inspect` in that session lists no rules,
+      MCP servers or skills from `~/.claude` or `~/.cursor`.
+- [ ] **A session starts and resumes.** Start one on A in the throwaway
+      project, send a message, stop it, resume it from AI Juggler
+      (`grok --resume <id>`): the same conversation. Note the fields of
+      its `summary.json` and `signals.json` (names only), and whether a
+      sub-agent's session names its parent there.
+- [ ] **Its sessions are listed.** A session started by hand shows in the
+      rail's outside sessions, with its folder and title, marked running.
+- [ ] **A model in Launch settings** reaches the session (`--model`).
+- [ ] **A first message.** Switch a Claude session to A: Grok opens in the
+      project and sends the handover pointer as its first message
+      (`grok -- "<pointer>"`), and asks before it reads the handover file.
+      Resume A's session with a message (`grok --resume <id> -- "go on"`):
+      the same conversation comes back and the message is sent in it. A
+      first message of `logout` or `- fix it` arrives as text.
+- [ ] **Usage.** Its limits say "Grok Build doesn't report its limits to
+      AI Juggler yet". Note what `/usage` shows, and the exact message
+      when the weekly pool runs out (a 402 is expected).
+- [ ] **A copy keeps no sign-in.** Bring `~/.grok` in as a copy: signed
+      out, settings, rules and sessions there; the original still works.
+
+Save the output to `docs/research/evidence/grok-build/<version>/` and
+hand it to the agent.
+
+#### Through another service: OpenCode Go and Kimi (AJ-E1601; about 30 min)
+
+Built from the services' published guides (`docs/research/opencode.md`
+§5, `docs/research/kimi.md` §9) and fixtures only. Use a spare OpenCode
+Go key and a spare Kimi membership's Kimi Code key, a throwaway project,
+and AI Juggler Dev (its Keychain items are its own).
+
+- [ ] **Added.** Accounts › Add account › More › Through another service
+      › OpenCode Go: paste the key, tick Claude Code and Codex (type a
+      model Go serves for Codex). One card, "OpenCode Go", with "Go" and
+      "Go Codex" beneath. Keychain Access shows one item under
+      `ai.figurehead.juggler.dev.service-keys`, and no access prompt
+      appeared.
+- [ ] **Claude Code through Go.** Start a session on "Go" and send a
+      message: it answers. `/status` shows the Go address. Your own
+      `~/.claude/settings.json` is unchanged. Note whether Claude Code
+      showed its login screen or any prompt.
+- [ ] **Codex through Go.** Start a session on "Go Codex": it answers.
+      Note whether Codex asked to sign in, and what it said about the
+      model (no `models.json` catalog is written).
+- [ ] **Kimi on Claude Code.** Add Kimi with Claude Code (`k3-256k`) and
+      start a session: it answers. Its guide names `ANTHROPIC_API_KEY`:
+      note whether Claude Code asked "use this API key?" and, if it did,
+      whether it then wrote part of the key into the profile's
+      `.claude.json` (`customApiKeyResponses`) — Claude Code's own doing,
+      which the guardrail tests can't see.
+- [ ] **Kimi on Codex.** Same, on Codex (`k3-256k`).
+- [ ] **The key goes nowhere else.** With sessions running, search the
+      data folder for a recognisable part of each key
+      (`grep -rl <part> ~/Library/Application\ Support/AI\ Juggler\ Dev`):
+      no file. Export a backup and search it the same way.
+- [ ] **Switching.** Switch a Claude Code session from a normal profile
+      to "Go": the switch says it's in beta and isn't the one-click move.
+      Note whether the conversation continues on Go's model.
+- [ ] **Usage.** The Go card says "estimate" and the tokens its sessions
+      used; the Kimi card says "usage unknown". Note what each service's
+      own page shows after the runs.
+- [ ] **Removed.** Remove both Go profiles: the Keychain item goes with
+      the second.
+
+Save the output to `docs/research/evidence/service-accounts/` and hand it
+to the agent.
+
+#### New tool versions (AJ-E1611; 5 min, on an installed build)
+
+- [ ] About 10 minutes after AI Juggler starts, each tool's page (More ›
+      Tools) says nothing, or "<tool> <version> is out" with its update
+      command. Note one tool's line, and compare the version with
+      `npm view <package> version` in a terminal (`@anthropic-ai/claude-code`,
+      `@openai/codex`, `opencode-ai`, `@moonshot-ai/kimi-code`): the check
+      asks `https://registry.npmjs.org/<package>/latest`, with a scoped
+      name's `/` written `%2F` (not yet seen live).
+- [ ] Untick "Look for new versions of your tools once a day", restart AI
+      Juggler, and after 15 minutes check with Little Snitch or `nettop`
+      that it made no request to registry.npmjs.org.
+
+---
+
+## Part 8 — Pools and the agent bridge
+
+### 17. The agent bridge spike on spare accounts (AJ-E1701 Req.2; about 30 min)
+
+**Why:** AJ-E1704 built the bridge to the vendors' documented behaviour,
+and its tests run on the fake tool only. Three things only a real run
+can show, and the evidence marks them **unverified** until you've done
+this. Use spare accounts, a throwaway lab project, and AI Juggler Dev
+(`just dev`, which builds `juggler-agent` beside it). Allow nothing,
+sign in to nothing new.
+
+- [ ] In AI Juggler Dev, open any pool's page and answer **Yes, let them**
+      to "Let agents in your projects see each other and work together?".
+- [ ] **Claude Code.** Start a session on a spare Claude Code account in
+      the lab project. Ask it: "Call the juggler whoami tool."
+  - [ ] Does it run **without asking you to approve** the server or the
+        tool? (`--mcp-config` + `--allowedTools`; record any prompt
+        word for word.)
+  - [ ] The answer names this session and the project's pool.
+  - [ ] `/mcp` lists `juggler` as connected, and your own MCP servers
+        are still there (no `--strict-mcp-config`).
+- [ ] **Codex.** The same on a spare Codex account: "Call the juggler
+      whoami tool."
+  - [ ] Does the key reach the server (`env_vars`)? A key that didn't
+        arrive answers "This session wasn't started by AI Juggler with
+        its agent tools, so it has no key".
+  - [ ] Does it run **without an approval prompt**
+        (`tools.<tool>.approval_mode="approve"`)? Record any prompt.
+- [ ] Both: ask each to `set_status` "spike", then open the pool's page:
+      both cards say it. Ask one for `pool_roster`: it lists the other.
+- [ ] Optional: which MCP version each sent (Claude Code's `--debug`
+      output or Codex's log names it); the bridge answers both lines.
+- [ ] Put the captures in `docs/research/evidence/` (redacted with the
+      fail-closed tool) and tick AJ-E1701 Req.2 and the three
+      "unverified" lines in `docs/qa/evidence/AJ-E1704/manifest.md`.
+
+If a prompt appears, say which: the fix is in the adapter's
+`claude_bridge.rs` or `codex_bridge.rs` only.
+
+## Part 9 — A runtime per tool (E23, D-40)
+
+### 18. The runtime lab (AJ-E2301; about 45 min)
+
+**Why:** E23 drives Codex through its app-server and adds Claude Code's
+own hooks to terminal sessions, built to the vendors' documents and
+tested on fakes. Five things only a real run can show, and the E23
+manifests mark them **unverified** until the lab has run:
+
+1. Codex: an owned app-server per session, an approval and a question
+   answered over the protocol, its limits with resets, and `codex --remote
+   … resume <thread>` with two clients on one thread (who is asked?).
+2. Claude: hooks and the status line from AI Juggler's `--settings` file
+   merging with the account's and the project's own (both run).
+3. Claude: does the TUI's permission dialog show while the
+   `PermissionRequest` hook runs?
+4. Claude headless (Beta): an approval, a question and a limit event over
+   stream-json.
+5. A hand-over at a turn boundary (headless → terminal → headless) keeps
+   one transcript.
+
+**What to do:** run `docs/qa/runtime-lab.md` as written, with AI Juggler
+Dev in a throwaway lab project. It has the exact commands, a before/after
+snapshot of the tool folders (metadata only, never contents) and the
+cleanup. Since 2026-10-25 you allow it to run on one or two of your real
+tools' accounts, by you or by the agent you ask to; nothing in an
+account's own folder is edited, and nothing is signed in to.
+
+- [ ] Run `docs/qa/runtime-lab.md` steps 0–7.
+- [ ] Tick AJ-E2301 in `docs/tasks/E23-session-runtime.md` with the
+      manifest's link.
+
+If something differs, say which line: the fix is in the adapter's
+`codex_appserver/`, `claude_hooks.rs` or `claude_stream/` only.

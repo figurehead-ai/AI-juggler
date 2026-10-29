@@ -52,11 +52,8 @@ fn append(path: &Path, code: &str, detail: &str) -> std::io::Result<()> {
         .filter(|c| *c != '\n' && *c != '\r')
         .collect();
     let line = without_keys(&line);
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)?;
-    owner_only(path);
+    // The owner's alone (the platform seam says how on each system).
+    let mut file = juggler_platform::private_fs::append_private(path)?;
     writeln!(file, "{at} {code} {line}")
 }
 
@@ -69,18 +66,6 @@ fn without_keys(line: &str) -> String {
         &std::collections::BTreeSet::new(),
     );
     clean.into_iter().next().unwrap_or_default()
-}
-
-/// Owner-only (`0600`) on Unix; elsewhere the data folder's own access
-/// applies.
-fn owner_only(path: &Path) {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
-    }
-    #[cfg(not(unix))]
-    let _ = path;
 }
 
 #[cfg(test)]

@@ -40,6 +40,7 @@ change looks like.
 | `crates/juggler-stats` | Opt-in usage statistics, counted on the Mac. |
 | `crates/juggler-scap-init` | The audited `unsafe` call the screen-capture path needs (decision D-17). |
 | `crates/juggler-login-item` | Open at login: macOS's login-item calls, `unsafe` in their bindings, behind a safe API (decision D-26). |
+| `crates/juggler-platform` | The operating-system seams: who the app runs as, owner-only folders and files, local sockets, whether a program is safe to run. One implementation per platform; where a platform has none yet it says "not available", never pretends. |
 | `crates/juggler-app` | The Tauri app: the typed commands the UI calls. |
 | `ui/` | React + TypeScript webview UI. `ui/src/lib/bridge.ts` is the only place that talks to the backend; it serves deterministic mocks in a plain browser. |
 | `docs/` | Proposal, spec, ADRs, decision log, task board, research, QA evidence. |
@@ -100,6 +101,18 @@ pnpm --dir ui exec playwright test       # visual states + a11y (for UI changes)
   [QUALITY.md](docs/plan/QUALITY.md) § Visual checks.
 - **Words:** plain words on screen. "Profile" never means an account, and
   "harness" is a code name only; `just terminology` checks both.
+- **Platforms:** Windows and Linux builds are coming, so keep what is
+  macOS- or Unix-only behind a seam: `crates/juggler-platform` (owner-only
+  files, local sockets, who we are, program trust), the supervisor's
+  `ProcessControl` (stopping processes), `system_tools.rs` (system tools by
+  path), or a per-OS module with an honest "not available here" branch.
+  `just platform` (`scripts/platform_lint.py`) fails on a new
+  `std::os::unix`, `UnixListener`/`UnixStream`, `/usr/bin/…`,
+  `/Applications`, `.app` matching, `rsplit('/')` on a path, or "macOS" /
+  "Mac" in text that reaches the screen, outside those seams. Its
+  allowlist (`scripts/platform.allow`) holds today's sites and only
+  shrinks: moving one behind a seam lowers its line. A check that can't
+  be made on a platform refuses; it never passes.
 - **Flaky gate?** Don't skip it or loosen its threshold. Open an issue with
   the failure and fix the cause (the flake log is
   `docs/qa/evidence/AJ-E806/manifest.md`).

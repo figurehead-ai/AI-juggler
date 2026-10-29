@@ -36,6 +36,12 @@
 //! holds the words, so asking there would prove nothing), and at the end
 //! undoes every set-up.
 //!
+//! With `AIJ_LAB_SUITE=notes` (`just switch-lab-notes`), the
+//! `switch_lab_notes_live` suite checks D-51 instead: a note planted in A's
+//! notes folder for the lab project travels to B when its offer is ticked
+//! (and its undo takes it out), and into Codex's handover when its "include
+//! in the handover" offer is ticked (`switch_lab/notes.rs`).
+//!
 //! It never signs in, never reads a credential, and starts nothing outside
 //! the lab project. Before and after, it records every account folder's
 //! paths, sizes and modification times (never contents); the report lists
@@ -57,8 +63,14 @@ use std::time::{Duration, Instant, SystemTime};
 
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID};
 use juggler_app::commands;
+use juggler_app::features::switch_fidelity::facts::{Fact, Kind, Score};
 use juggler_app::state::AppState;
 use serde_json::{Value, json};
+
+#[path = "switch_lab/fidelity.rs"]
+mod fidelity;
+#[path = "switch_lab/notes.rs"]
+mod notes;
 
 /// The codename the first turn is asked to remember.
 const CODENAME: &str = "BLUE-HERON";
@@ -76,6 +88,14 @@ const CLAUDE_RULE: &str =
     "Rule for this project: every Python function's docstring starts with `LAB:`.";
 const AGENTS_RULE: &str =
     "Rule for this project: every unittest test method name ends with `_lab`.";
+/// Facts the person states in A's conversation (middle and late), never
+/// written to a file.
+const TICKET: &str = "LAB-7341";
+const BUCKET: &str = "lab-bucket-ruby";
+/// The decision made only in A's conversation.
+const ROUNDING: &str = "HALF-EVEN";
+/// The decision made only in the Codex-started task's conversation.
+const CASE_RULE: &str = "lowercase";
 /// The codename a Codex-started task chooses (the forward Codex → Claude hop).
 const CODENAME_X: &str = "OSPREY";
 /// The worktree leg's codename, and the helper name decided on B.
@@ -433,6 +453,26 @@ fn new_project(project: &Path) {
     ]);
 }
 
+/// The lab runs only in a clean environment (`scripts/qa/lab_env.sh`):
+/// started from inside a Claude Code session, the tools it runs would
+/// inherit that session's markers and routing (the labs of 2026-10-28).
+/// Names only are reported, never a value.
+fn assert_clean_env() {
+    let inherited: Vec<String> = std::env::vars_os()
+        .filter_map(|(name, _)| name.into_string().ok())
+        .filter(|name| {
+            name == "CLAUDECODE"
+                || name.starts_with("CLAUDE_CODE_")
+                || name.starts_with("ANTHROPIC_")
+                || name.starts_with("OPENAI_")
+        })
+        .collect();
+    assert!(
+        inherited.is_empty(),
+        "run the lab in a clean environment (scripts/qa/lab_env.sh); inherited: {inherited:?}"
+    );
+}
+
 fn mentions(text: &str, needle: &str) -> bool {
     text.to_lowercase().contains(&needle.to_lowercase())
 }
@@ -456,6 +496,7 @@ fn switch_lab_live() {
         std::env::var_os("CLAUDE_CONFIG_DIR").is_none() && std::env::var_os("CODEX_HOME").is_none(),
         "run the lab with CLAUDE_CONFIG_DIR and CODEX_HOME unset (env -u …)"
     );
+    assert_clean_env();
     assert!(
         !data.exists() || std::fs::read_dir(&data).unwrap().next().is_none(),
         "AIJ_LAB_DATA must be a fresh, empty folder"
@@ -489,6 +530,15 @@ fn switch_lab_live() {
         probe: std::env::var("AIJ_LAB_PROBE").ok(),
         records: Vec::new(),
     };
+    // The set-up probe (AJ-E1542): A alone gets a probe MCP server and
+    // skill, through Claude Code's own `mcp add`, from a folder beside the
+    // project (never in it); removed again at the end.
+    let probe_root = project.with_extension("probe");
+    let planted = lab.probe.clone().map(|name| {
+        std::fs::create_dir_all(probe_root.join("probe")).unwrap();
+        std::fs::write(probe_root.join("probe").join("server.py"), PROBE_SERVER).unwrap();
+        plant_probe_claude(&probe_root, &claude_a, &name)
+    });
     let account_a = import(&state, CLAUDE_CODE_ID, &claude_a, "Lab A");
     let account_b = import(&state, CLAUDE_CODE_ID, &claude_b, "Lab B");
     let account_x = import(&state, CODEX_ID, &codex, "Lab Codex");
@@ -498,24 +548,41 @@ fn switch_lab_live() {
         profile_of(&state, &account_x),
     );
 
-    // 1. The task on Claude A.
+    let mut book = fidelity::Book::new(&state);
+    let claude = tool_name(&state, CLAUDE_CODE_ID);
+    let codex_tool = tool_name(&state, CODEX_ID);
+    let label_a = format!("Lab A ({claude})");
+    let label_b = format!("Lab B ({claude})");
+    let label_x = format!("Lab Codex ({codex_tool})");
+
+    // 1. The task on Claude A: a conversation long enough to mean
+    // something (nine short turns, several tool calls, one subagent),
+    // with facts planted early, in the middle and late, some said only in
+    // a reply and one decision made only in the conversation.
     let native = uuid_v4();
-    let first = claude_turn(
-        &lab,
-        &lab.claude_a.clone(),
-        Some(&native),
-        None,
-        &format!(
-            "This project's codename is {CODENAME}; remember it. Create calc.py with add(a, b), \
-             and test_calc.py with a unittest for it, then run `python3 -m unittest`. Keep a task \
-             list for this work with three items: add, sub, mul. Mark add done. Also use a \
-             subagent (the Task tool) to count the lines of README.md, and tell me the count."
-        ),
-    );
-    let step1_ok = first["is_error"] == false && tests_pass(&lab.project);
+    let mut step1_ok = true;
+    let mut said = Vec::new();
+    for (at, prompt) in source_turns(lab.probe.is_some()).iter().enumerate() {
+        let turn = claude_turn(
+            &lab,
+            &lab.claude_a.clone(),
+            (at == 0).then_some(native.as_str()),
+            (at > 0).then_some(native.as_str()),
+            prompt,
+        );
+        step1_ok &= turn["is_error"] == false;
+        said.push(turn["result"].clone());
+    }
+    let step1_ok = step1_ok && tests_pass(&lab.project);
+    let source_a = fidelity::source(&state, &account_a, &native, &lab.project, &label_a);
+    let facts_a = source_a
+        .as_ref()
+        .map(|source| planted_on_a(&source.side.history))
+        .unwrap_or_default();
     lab.steps.push(
-        json!({"step": "1 task on A", "ok": step1_ok, "result": first["result"],
-                          "session": native}),
+        json!({"step": "1 task on A", "ok": step1_ok && source_a.is_some(),
+                          "turns": said.len(), "results": said, "session": native,
+                          "facts_planted": facts_a.iter().map(|f| &f.key).collect::<Vec<_>>()}),
     );
 
     // 2. Switch A → B.
@@ -523,6 +590,7 @@ fn switch_lab_live() {
     let preflight_b = commands::switch_preflight_impl(&state, &source, &profile_b);
     let setup_b = set_up_probe(&state, &mut lab, &source, &profile_b);
     let to_b = commands::switch_execute_impl(&state, &source, &profile_b, "stop-now", None, &[]);
+    let mut b_side: Option<(PathBuf, String)> = None;
     let step2 = match &to_b {
         Ok(done) => {
             let argv = take_launch(&state, &done.session_id, done.pid);
@@ -531,17 +599,41 @@ fn switch_lab_live() {
                 .as_ref()
                 .and_then(|r| r.native_id.clone())
                 .unwrap_or_else(|| native.clone());
-            let probe = claude_turn(
+            let folder = session_cwd(&state, &done.session_id);
+            // Measured before B says anything: what the switch delivered.
+            let target = link.as_ref().map(|link| {
+                fidelity::native(
+                    &state, &account_b, &link.path, &resume_id, &folder, &label_b,
+                )
+            });
+            // Asked in a fork that isn't kept, so the probe's answers never
+            // become part of the conversation the next hop carries.
+            let probe = claude_ask(
                 &lab,
                 &lab.claude_b.clone(),
-                None,
-                Some(&resume_id),
-                "Without changing any file: what is this project's codename, and which items of \
-                 your task list are still open? Answer in one short line.",
+                &lab.project.clone(),
+                &resume_id,
+                &fidelity::facts::question(&facts_a),
             );
             let answer = probe["result"].as_str().unwrap_or_default().to_owned();
-            let carried = mentions(&answer, CODENAME);
-            let tasks_carried = mentions(&answer, "sub") && mentions(&answer, "mul");
+            let probed = fidelity::probe(&facts_a, &answer, &lab.project);
+            let score = |key: &str| {
+                probed
+                    .iter()
+                    .any(|p| p.fact.key == key && p.score == Score::Answered)
+            };
+            let grade = match (source_a.clone(), target) {
+                (Some(source), Some(target)) => {
+                    book.hop("A → B", "transplant", source, target, probed.clone())
+                }
+                _ => {
+                    book.missing(
+                        "A → B",
+                        "the source's or the target's transcript wasn't found",
+                    );
+                    "NOT MEASURED"
+                }
+            };
             // What travels beside the transcript (AJ-E1540 Req.2).
             let subagents = json!({"on_a": has_session_dir(&lab.claude_a, &native, "subagents"),
                                    "on_b": has_session_dir(&lab.claude_b, &resume_id, "subagents")});
@@ -571,18 +663,13 @@ fn switch_lab_live() {
                                       "setup": setup_b, "uses": uses}),
                 );
             }
-            let rules_probe = claude_turn(
-                &lab,
-                &lab.claude_b.clone(),
-                None,
-                Some(&resume_id),
-                "Without changing any file: what do this project's rules say about docstrings? One short line.",
-            );
-            let rules = mentions(rules_probe["result"].as_str().unwrap_or_default(), "LAB:");
-            json!({"step": "2 switch A→B", "ok": carried && tests_pass(&lab.project),
-                   "transcript_resume": carried, "tasks": tasks_carried, "rules": rules,
-                   "rules_probe": rules_probe["result"], "subagents": subagents,
-                   "file_history": file_history,
+            if let Some(link) = &link {
+                b_side = Some((link.path.clone(), resume_id.clone()));
+            }
+            let carried = score("CODENAME");
+            json!({"step": "2 switch A→B", "ok": carried && tests_pass(&lab.project) && grade != "FAIL",
+                   "transcript_resume": carried, "tasks": score("OPEN_TASKS"), "rules": score("DOCSTRING_RULE"),
+                   "fidelity": grade, "subagents": subagents, "file_history": file_history,
                    "probe": answer, "continued": cont["result"], "launch": argv,
                    "link": link.map(|r| r.path.display().to_string()), "session": done.session_id,
                    "preflight": preflight_b.as_ref().map(|p| serde_json::to_value(p).unwrap()).ok()})
@@ -592,10 +679,19 @@ fn switch_lab_live() {
     };
     let on_b = to_b.as_ref().ok().map(|done| done.session_id.clone());
     lab.steps.push(step2);
+    let mul_fact = fidelity::fact(
+        "MUL_NAME",
+        "the name decided for the multiply function",
+        &[MUL_NAME],
+        "B, its 1st turn (late)",
+        Kind::Decision,
+    );
 
     // 3. Switch B → Codex.
     let mut on_codex = None;
-    if let Some(on_b) = &on_b {
+    if let (Some(on_b), Some((b_path, b_id))) = (&on_b, &b_side) {
+        let source_b =
+            fidelity::source_at(&state, &account_b, b_id, b_path, &lab.project, &label_b);
         let preflight_x = commands::switch_preflight_impl(&state, on_b, &profile_x);
         let setup_x = set_up_probe(&state, &mut lab, on_b, &profile_x);
         let to_x =
@@ -612,18 +708,51 @@ fn switch_lab_live() {
                     .cloned()
                     .unwrap_or_default();
                 let handover = handover_of(&brief);
+                let folder = session_cwd(&state, &done.session_id);
+                let target = handover["path"].as_str().map(|file| {
+                    fidelity::handover(&state, &account_x, Path::new(file), &folder, &label_x)
+                });
+                // B finished sub: only mul is open now.
+                let mut facts_x: Vec<Fact> = facts_a
+                    .iter()
+                    .filter(|fact| fact.kind != Kind::Tasks)
+                    .cloned()
+                    .collect();
+                facts_x.push(fidelity::fact(
+                    "OPEN_TASKS",
+                    "the task list's open items",
+                    &["mul"],
+                    "A, turn 1 (its task list); sub done on B",
+                    Kind::Tasks,
+                ));
+                facts_x.push(mul_fact.clone());
                 let (thread, answer, ok) = codex_turn(
                     &lab,
                     None,
                     &format!(
-                        "{brief}\n\n---\nWithout changing any file: what is this project's \
-                         codename, what name was chosen for the multiply function, which \
-                         tasks are still open, and what do this project's rules say about \
-                         docstrings? Answer in one short line."
+                        "{brief}\n\n---\nFirst read the handover file named above. Then: {}",
+                        fidelity::facts::question(&facts_x)
                     ),
                 );
-                let carried = mentions(&answer, CODENAME) && mentions(&answer, MUL_NAME);
-                let rules = mentions(&answer, "LAB:");
+                let probed = fidelity::probe(&facts_x, &answer, &lab.project);
+                let score = |key: &str| {
+                    probed
+                        .iter()
+                        .any(|p| p.fact.key == key && p.score == Score::Answered)
+                };
+                let grade = match (source_b, target) {
+                    (Some(source), Some(target)) => {
+                        book.hop("B → Codex", "replay", source, target, probed.clone())
+                    }
+                    _ => {
+                        book.missing(
+                            "B → Codex",
+                            "the source's transcript or the handover wasn't found",
+                        );
+                        "NOT MEASURED"
+                    }
+                };
+                let carried = score("CODENAME") && score("MUL_NAME");
                 let (_, cont, _) = match &thread {
                     Some(id) => codex_turn(
                         &lab,
@@ -650,8 +779,9 @@ fn switch_lab_live() {
                                           "setup": setup_x, "uses": uses}));
                 }
                 on_codex = Some((done.session_id.clone(), thread.clone()));
-                json!({"step": "3 switch B→Codex", "ok": ok && carried && tests_pass(&lab.project),
-                       "transcript_resume": carried, "rules": rules, "probe": answer, "continued": cont,
+                json!({"step": "3 switch B→Codex", "ok": ok && carried && tests_pass(&lab.project) && grade != "FAIL",
+                       "transcript_resume": carried, "rules": score("DOCSTRING_RULE"), "fidelity": grade,
+                       "probe": answer, "continued": cont,
                        "pointer_bytes": brief.len(), "handover": handover, "thread": thread,
                        "session": done.session_id,
                        "mul_written": std::fs::read_to_string(lab.project.join("calc.py"))
@@ -667,7 +797,7 @@ fn switch_lab_live() {
     }
 
     // 4. Switch back to A.
-    if let Some((away, _thread)) = &on_codex {
+    if let Some((away, thread)) = &on_codex {
         // Back to where the work started (A), not the last hop (B).
         let plan = commands::switch_back_plan_impl(&state, away);
         let start = plan.as_ref().ok().and_then(|plan| {
@@ -687,6 +817,20 @@ fn switch_lab_live() {
                 .push(json!({"step": "4b A already has the probe", "ok": !offered,
                                   "check": offers}));
         }
+        // Every hop since A, as one source: B's conversation, then Codex's.
+        let away_chain = fidelity::chain(
+            [
+                b_side.as_ref().and_then(|(path, id)| {
+                    fidelity::source_at(&state, &account_b, id, path, &lab.project, &label_b)
+                }),
+                thread.as_ref().and_then(|thread| {
+                    fidelity::source(&state, &account_x, thread, &lab.project, &label_x)
+                }),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        );
         let back =
             commands::switch_back_execute_to_impl(&state, away, &[], false, start.as_deref());
         let step4 = match &back {
@@ -694,23 +838,53 @@ fn switch_lab_live() {
                 let argv = take_launch(&state, &done.session_id, done.pid);
                 // `claude --resume <id> "<delta>"`: the delta is the last argument.
                 let delta = argv.last().cloned().unwrap_or_default();
+                let folder = session_cwd(&state, &done.session_id);
+                let target = fidelity::back(&state, &account_a, &native, &folder, &delta, &label_a);
+                let mut facts_back: Vec<Fact> = facts_a
+                    .iter()
+                    .filter(|fact| !matches!(fact.kind, Kind::Tasks | Kind::Rule))
+                    .cloned()
+                    .collect();
+                facts_back.push(mul_fact.clone());
+                facts_back.push(fidelity::fact(
+                    "RELEASE",
+                    "the release name picked while you were away",
+                    &[RELEASE],
+                    "Codex, its 2nd turn (late)",
+                    Kind::ReplyOnly,
+                ));
                 let probe = claude_turn(
                     &lab,
                     &lab.claude_a.clone(),
                     None,
                     Some(&native),
-                    &format!(
-                        "{delta}\n\n---\nWithout changing or reading any file: what is the \
-                         codename, what release name was picked while you were away, and what was \
-                         done meanwhile? One short line."
-                    ),
+                    &format!("{delta}\n\n---\n{}", fidelity::facts::question(&facts_back)),
                 );
                 let answer = probe["result"].as_str().unwrap_or_default().to_owned();
+                let probed = fidelity::probe(&facts_back, &answer, &lab.project);
+                let score = |key: &str| {
+                    probed
+                        .iter()
+                        .any(|p| p.fact.key == key && p.score == Score::Answered)
+                };
+                let grade = match away_chain {
+                    Some(source) => book.hop(
+                        "Codex → A (back)",
+                        "switch back",
+                        source,
+                        target,
+                        probed.clone(),
+                    ),
+                    None => {
+                        book.missing("Codex → A (back)", "the away conversations weren't found");
+                        "NOT MEASURED"
+                    }
+                };
                 // Only the conversation knows the release name: it was never
                 // written to a file.
-                let carried = mentions(&answer, CODENAME) && mentions(&answer, RELEASE);
-                json!({"step": "4 switch back to A", "ok": carried && tests_pass(&lab.project),
-                       "switch_back": carried, "probe": answer, "delta": delta,
+                let carried = score("CODENAME") && score("RELEASE");
+                json!({"step": "4 switch back to A", "ok": carried && tests_pass(&lab.project) && grade != "FAIL",
+                       "switch_back": carried, "fidelity": grade, "probe": answer, "delta": delta,
                        "plan": plan.as_ref().map(|p| serde_json::to_value(p).unwrap()).ok()})
             }
             Err(error) => {
@@ -721,8 +895,17 @@ fn switch_lab_live() {
         lab.steps.push(step4);
     }
 
-    forward_codex_to_claude(&state, &mut lab, &profile_x, &profile_b);
-    worktree_leg(&state, &mut lab, &profile_a, &profile_b);
+    let accounts = Accounts {
+        b: account_b.clone(),
+        x: account_x.clone(),
+        a: account_a.clone(),
+    };
+    forward_codex_to_claude(
+        &state, &mut lab, &mut book, &accounts, &profile_x, &profile_b,
+    );
+    worktree_leg(
+        &state, &mut lab, &mut book, &accounts, &profile_a, &profile_b,
+    );
     if let Some(home_b) = lab.codex_b.clone() {
         let account_xb = import(&state, CODEX_ID, &home_b, "Lab Codex B");
         codex_to_codex(
@@ -752,6 +935,14 @@ fn switch_lab_live() {
         lab.steps
             .push(json!({"step": "5 undo every set-up", "ok": all, "undone": undone}));
     }
+    if let (Some(true), Some(name)) = (planted, lab.probe.clone()) {
+        let removed = unplant_probe_claude(&probe_root, &claude_a, &name);
+        lab.steps
+            .push(json!({"step": "5b the probe removed from A", "ok": removed}));
+    } else if planted == Some(false) {
+        lab.steps
+            .push(json!({"step": "0 the probe planted on A", "ok": false}));
+    }
 
     let after = snapshot(&roots);
     let report = json!({
@@ -760,10 +951,12 @@ fn switch_lab_live() {
             "codex": run(Command::new("codex").arg("--version"), Duration::from_secs(20)).1.trim(),
         },
         "steps": lab.steps,
+        "fidelity": book.hops,
         "snapshot": snapshot_diff(&before, &after),
     });
     std::fs::write(&out, serde_json::to_string_pretty(&report).unwrap()).unwrap();
     eprintln!("lab report: {}", out.display());
+    eprintln!("fidelity report: {}", book.write(&out).display());
     let failed: Vec<&Value> = report["steps"]
         .as_array()
         .unwrap()
@@ -775,6 +968,165 @@ fn switch_lab_live() {
         "{} lab step(s) failed; see the report",
         failed.len()
     );
+}
+
+/// D-51's suite: a project note on A travels to B and into Codex's
+/// handover, each only with the (harness's) tick (`switch_lab/notes.rs`).
+#[test]
+#[ignore = "the live switching lab's notes suite; needs AIJ_LAB_* and real, agreed accounts"]
+fn switch_lab_notes_live() {
+    notes::journey();
+}
+
+/// The three accounts the main journey brought in.
+struct Accounts {
+    a: String,
+    b: String,
+    x: String,
+}
+
+/// A's conversation, turn by turn: tiny prompts, nine turns, several
+/// tool calls and one subagent. Facts are planted early (the codename;
+/// a port said only in the reply), in the middle (a ticket; a job name
+/// said only in the reply) and late (a decision made only here; a bucket;
+/// a timeout said only in the reply). None is ever written to a file.
+fn source_turns(with_probe: bool) -> Vec<String> {
+    let fourth = if with_probe {
+        "Call the probe_word tool of the aij-lab-probe MCP server and tell me its answer. Then \
+         read README.md and tell me its title."
+    } else {
+        "Read README.md and tell me its title."
+    };
+    vec![
+        format!(
+            "This project's codename is {CODENAME}; remember it. Create calc.py with add(a, b), \
+             and test_calc.py with a unittest for it, then run `python3 -m unittest`. Keep a task \
+             list for this work with three items: add, sub, mul. Mark add done. Also use a \
+             subagent (the Task tool) to count the lines of README.md, and tell me the count."
+        ),
+        "Pick a dev-server port between 5000 and 5999 for this project. Say it only in your \
+         reply, as PORT=<number>; don't write it in any file."
+            .to_owned(),
+        "Run the tests again and tell me how many pass.".to_owned(),
+        fourth.to_owned(),
+        format!(
+            "The ticket for this work is {TICKET}; remember it, don't write it down. Also pick a \
+             one-word code name for the nightly job and say it only in your reply, as JOB=<word>."
+        ),
+        "Add a one-line module docstring to calc.py, then run the tests.".to_owned(),
+        format!(
+            "Decision: rounding in this project is {ROUNDING} (banker's rounding). Don't write \
+             it anywhere; just confirm in one line."
+        ),
+        format!("The staging bucket is {BUCKET}; remember it, don't write it down. Reply ok."),
+        "Pick a request timeout in milliseconds between 100 and 999. Say it only in your reply, \
+         as TIMEOUT=<number>."
+            .to_owned(),
+    ]
+}
+
+/// The facts A's conversation holds, with the values A chose in its
+/// replies (a value it didn't say in the asked form isn't probed).
+fn planted_on_a(conversation: &juggler_app::features::switch_fidelity::Conversation) -> Vec<Fact> {
+    use juggler_app::features::switch_fidelity::facts::said_as;
+    let mut facts = vec![fidelity::fact(
+        "CODENAME",
+        "this project's codename",
+        &[CODENAME],
+        "A, turn 1 of 9 (early)",
+        Kind::Said,
+    )];
+    let chosen = |marker: &str| said_as(conversation, marker);
+    if let Some(port) = chosen("PORT") {
+        facts.push(fidelity::fact(
+            "PORT",
+            "the dev-server port that was picked",
+            &[&port],
+            "A, turn 2 of 9 (early)",
+            Kind::ReplyOnly,
+        ));
+    }
+    facts.push(fidelity::fact(
+        "TICKET",
+        "the ticket for this work",
+        &[TICKET],
+        "A, turn 5 of 9 (middle)",
+        Kind::Said,
+    ));
+    if let Some(job) = chosen("JOB") {
+        facts.push(fidelity::fact(
+            "JOB",
+            "the nightly job's code name",
+            &[&job],
+            "A, turn 5 of 9 (middle)",
+            Kind::ReplyOnly,
+        ));
+    }
+    facts.push(fidelity::fact(
+        "ROUNDING",
+        "the rounding mode that was decided",
+        &["half", "even"],
+        "A, turn 7 of 9 (late)",
+        Kind::Decision,
+    ));
+    facts.push(fidelity::fact(
+        "BUCKET",
+        "the staging bucket",
+        &[BUCKET],
+        "A, turn 8 of 9 (late)",
+        Kind::Said,
+    ));
+    if let Some(timeout) = chosen("TIMEOUT") {
+        facts.push(fidelity::fact(
+            "TIMEOUT",
+            "the request timeout that was picked, in ms",
+            &[&timeout],
+            "A, turn 9 of 9 (late)",
+            Kind::ReplyOnly,
+        ));
+    }
+    facts.push(fidelity::fact(
+        "OPEN_TASKS",
+        "the task list's open items",
+        &["sub", "mul"],
+        "A, turn 1 (its task list)",
+        Kind::Tasks,
+    ));
+    facts.push(fidelity::fact(
+        "DOCSTRING_RULE",
+        "what this project's rules say about docstrings",
+        &["LAB:"],
+        "CLAUDE.md",
+        Kind::Rule,
+    ));
+    facts
+}
+
+/// A question to a Claude conversation asked in a fork that isn't kept,
+/// so its answer never becomes part of the conversation (the next hop
+/// carries that conversation, and the answer would repeat every fact).
+fn claude_ask(lab: &Lab, config: &Path, cwd: &Path, resume: &str, prompt: &str) -> Value {
+    let unkept = [
+        "--fork-session".to_owned(),
+        "--no-session-persistence".to_owned(),
+    ];
+    let turn = claude_turn_in(lab, config, cwd, None, Some(resume), &unkept, prompt);
+    if turn["is_error"] == false {
+        return turn;
+    }
+    claude_turn_in(lab, config, cwd, None, Some(resume), &unkept[..1], prompt)
+}
+
+/// The folder a session runs in, as AI Juggler stored it.
+fn session_cwd(state: &Arc<AppState>, session: &str) -> PathBuf {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(session))
+        .map(|record| record.cwd)
+        .unwrap_or_default()
 }
 
 /// The question that shows whether a target can use the probe server and
@@ -878,10 +1230,23 @@ fn handover_of(pointer: &str) -> Value {
     }
 }
 
-/// Step 6, the forward Codex → Claude hop: a task started on Codex, switched
-/// forward to Claude account B (a replay through the handover file), and
-/// asked what only the Codex conversation and its rules know.
-fn forward_codex_to_claude(state: &Arc<AppState>, lab: &mut Lab, profile_x: &str, profile_b: &str) {
+/// Step 6, the forward Codex → Claude hop: a task started on Codex (three
+/// short turns: a codename, a number said only in a reply, a decision
+/// made only there), switched forward to Claude account B (a replay
+/// through the handover file), and asked what only the Codex
+/// conversation and its rules know.
+fn forward_codex_to_claude(
+    state: &Arc<AppState>,
+    lab: &mut Lab,
+    book: &mut fidelity::Book,
+    accounts: &Accounts,
+    profile_x: &str,
+    profile_b: &str,
+) {
+    let (label_x, label_b) = (
+        format!("Lab Codex ({})", tool_name(state, CODEX_ID)),
+        format!("Lab B ({})", tool_name(state, CLAUDE_CODE_ID)),
+    );
     let (thread, first, ok) = codex_turn(
         lab,
         None,
@@ -896,6 +1261,61 @@ fn forward_codex_to_claude(state: &Arc<AppState>, lab: &mut Lab, profile_x: &str
             .push(json!({"step": "6 Codex task", "ok": false, "result": first}));
         return;
     };
+    let (_, lane, _) = codex_turn(
+        lab,
+        Some(&thread),
+        "Pick a lane number between 10 and 99 for this work. Say it only in your reply, as \
+         LANE=<number>; don't write it in any file.",
+    );
+    let (_, decided, _) = codex_turn(
+        lab,
+        Some(&thread),
+        &format!(
+            "Decision: error messages in this project are {CASE_RULE}. Don't write it anywhere; \
+             just confirm in one line."
+        ),
+    );
+    let source_x = fidelity::source(state, &accounts.x, &thread, &lab.project, &label_x);
+    let mut facts_x = vec![fidelity::fact(
+        "CODENAME_2",
+        "this project's second codename",
+        &[CODENAME_X],
+        "Codex, turn 1 of 3 (early)",
+        Kind::Said,
+    )];
+    if let Some(lane) = source_x
+        .as_ref()
+        .and_then(|source| fidelity_said(&source.side.history, "LANE"))
+    {
+        facts_x.push(fidelity::fact(
+            "LANE",
+            "the lane number that was picked",
+            &[&lane],
+            "Codex, turn 2 of 3 (middle)",
+            Kind::ReplyOnly,
+        ));
+    }
+    facts_x.push(fidelity::fact(
+        "ERROR_CASE",
+        "how error messages are written, as decided",
+        &[CASE_RULE],
+        "Codex, turn 3 of 3 (late)",
+        Kind::Decision,
+    ));
+    facts_x.push(fidelity::fact(
+        "OPEN_PLAN",
+        "the plan's open items",
+        &["mod"],
+        "Codex, turn 1 (its plan)",
+        Kind::Tasks,
+    ));
+    facts_x.push(fidelity::fact(
+        "TEST_RULE",
+        "what this project's rules say about test method names",
+        &["_lab"],
+        "AGENTS.md",
+        Kind::Rule,
+    ));
     let source = adopt(state, profile_x, &thread, &lab.project);
     let to_b =
         commands::switch_execute_impl(state, &source, profile_b, "stop-now", Some("strip"), &[]);
@@ -913,6 +1333,11 @@ fn forward_codex_to_claude(state: &Arc<AppState>, lab: &mut Lab, profile_x: &str
                 .and_then(|at| argv.get(at + 1))
                 .map(|dir| vec!["--add-dir".to_owned(), dir.clone()])
                 .unwrap_or_default();
+            let folder = session_cwd(state, &done.session_id);
+            let handover = handover_of(&pointer);
+            let target = handover["path"].as_str().map(|file| {
+                fidelity::handover(state, &accounts.b, Path::new(file), &folder, &label_b)
+            });
             let probe = claude_turn_in(
                 lab,
                 &lab.claude_b.clone(),
@@ -921,19 +1346,40 @@ fn forward_codex_to_claude(state: &Arc<AppState>, lab: &mut Lab, profile_x: &str
                 None,
                 &extra,
                 &format!(
-                    "{pointer}\n\n---\nWithout changing any file: what is the second codename, \
-                     which plan items are still open, and what do this project's rules say about \
-                     test method names? Answer in one short line."
+                    "{pointer}\n\n---\nFirst read the handover file named above. Then: {}",
+                    fidelity::facts::question(&facts_x)
                 ),
             );
             let answer = probe["result"].as_str().unwrap_or_default().to_owned();
-            let carried = mentions(&answer, CODENAME_X);
-            json!({"step": "6 switch Codex→B (forward)", "ok": carried && tests_pass(&lab.project),
-                   "transcript_resume": carried, "todos": mentions(&answer, "mod"),
-                   "rules": mentions(&answer, "_lab"), "probe": answer, "launch": argv,
-                   "add_dir": !extra.is_empty(), "handover": handover_of(&pointer),
+            let probed = fidelity::probe(&facts_x, &answer, &lab.project);
+            let score = |key: &str| {
+                probed
+                    .iter()
+                    .any(|p| p.fact.key == key && p.score == Score::Answered)
+            };
+            let grade = match (source_x, target) {
+                (Some(source), Some(target)) => book.hop(
+                    "Codex → B (forward)",
+                    "replay",
+                    source,
+                    target,
+                    probed.clone(),
+                ),
+                _ => {
+                    book.missing(
+                        "Codex → B (forward)",
+                        "the source's transcript or the handover wasn't found",
+                    );
+                    "NOT MEASURED"
+                }
+            };
+            let carried = score("CODENAME_2");
+            json!({"step": "6 switch Codex→B (forward)", "ok": carried && tests_pass(&lab.project) && grade != "FAIL",
+                   "transcript_resume": carried, "todos": score("OPEN_PLAN"),
+                   "rules": score("TEST_RULE"), "fidelity": grade, "probe": answer, "launch": argv,
+                   "add_dir": !extra.is_empty(), "handover": handover,
                    "probe_session": probe["session_id"],
-                   "codex_first": first})
+                   "codex_turns": [first, lane, decided]})
         }
         Err(error) => {
             json!({"step": "6 switch Codex→B (forward)", "ok": false, "error": format!("{error:?}")})
@@ -943,8 +1389,24 @@ fn forward_codex_to_claude(state: &Arc<AppState>, lab: &mut Lab, profile_x: &str
     let on_b = step["probe_session"].as_str().map(str::to_owned);
     lab.steps.push(step);
     if let (Ok(done), Some(conversation)) = (&to_b, on_b) {
-        switch_back_to_codex(state, lab, &done.session_id, &conversation, &thread);
+        switch_back_to_codex(
+            state,
+            lab,
+            book,
+            accounts,
+            &done.session_id,
+            &conversation,
+            &thread,
+        );
     }
+}
+
+/// The value a reply said as `MARKER=value`.
+fn fidelity_said(
+    conversation: &juggler_app::features::switch_fidelity::Conversation,
+    marker: &str,
+) -> Option<String> {
+    juggler_app::features::switch_fidelity::facts::said_as(conversation, marker)
 }
 
 /// Step 6b: B decides something only said, then switches straight back to
@@ -952,10 +1414,16 @@ fn forward_codex_to_claude(state: &Arc<AppState>, lab: &mut Lab, profile_x: &str
 fn switch_back_to_codex(
     state: &Arc<AppState>,
     lab: &mut Lab,
+    book: &mut fidelity::Book,
+    accounts: &Accounts,
     away: &str,
     conversation: &str,
     thread: &str,
 ) {
+    let (label_x, label_b) = (
+        format!("Lab Codex ({})", tool_name(state, CODEX_ID)),
+        format!("Lab B ({})", tool_name(state, CLAUDE_CODE_ID)),
+    );
     let said = claude_turn_in(
         lab,
         &lab.claude_b.clone(),
@@ -968,6 +1436,7 @@ fn switch_back_to_codex(
              in no file."
         ),
     );
+    let source_b = fidelity::source(state, &accounts.b, conversation, &lab.project, &label_b);
     let plan = commands::switch_back_plan_impl(state, away);
     let start = plan.as_ref().ok().and_then(|plan| {
         plan.returns
@@ -980,16 +1449,42 @@ fn switch_back_to_codex(
         Ok(back) => {
             let argv = take_launch(state, &back.session_id, back.pid);
             let delta = argv.last().cloned().unwrap_or_default();
+            let folder = session_cwd(state, &back.session_id);
+            let target = fidelity::back(state, &accounts.x, thread, &folder, &delta, &label_x);
+            let facts_back = vec![
+                fidelity::fact(
+                    "RELEASE_2",
+                    "the release name picked while you were away",
+                    &[RELEASE_X],
+                    "B, its 2nd turn (late)",
+                    Kind::ReplyOnly,
+                ),
+                fidelity::fact(
+                    "CODENAME_2",
+                    "this project's second codename",
+                    &[CODENAME_X],
+                    "Codex, turn 1 of 3 (early)",
+                    Kind::Said,
+                ),
+            ];
             let (_, answer, ok) = codex_turn(
                 lab,
                 Some(thread),
-                &format!(
-                    "{delta}\n\n---\nWithout changing or reading any file: what release name was \
-                     picked while you were away? One short line."
-                ),
+                &format!("{delta}\n\n---\n{}", fidelity::facts::question(&facts_back)),
             );
-            json!({"step": "6b switch back B→Codex", "ok": ok && mentions(&answer, RELEASE_X),
-                   "switch_back": mentions(&answer, RELEASE_X), "probe": answer, "said": said["result"],
+            let probed = fidelity::probe(&facts_back, &answer, &lab.project);
+            let carried = probed
+                .iter()
+                .any(|p| p.fact.key == "RELEASE_2" && p.score == Score::Answered);
+            let grade = match source_b {
+                Some(source) => book.hop("B → Codex (back)", "switch back", source, target, probed),
+                None => {
+                    book.missing("B → Codex (back)", "B's conversation wasn't found");
+                    "NOT MEASURED"
+                }
+            };
+            json!({"step": "6b switch back B→Codex", "ok": ok && carried && grade != "FAIL",
+                   "switch_back": carried, "fidelity": grade, "probe": answer, "said": said["result"],
                    "launch": argv,
                    "plan": plan.as_ref().map(|p| serde_json::to_value(p).unwrap()).ok()})
         }
@@ -1006,7 +1501,16 @@ fn switch_back_to_codex(
 /// worktree of the project, switches to B (which must continue in the
 /// worktree, not the project's root), B decides something only said, and
 /// switching back resumes A there with what B decided.
-fn worktree_leg(state: &Arc<AppState>, lab: &mut Lab, profile_a: &str, profile_b: &str) {
+fn worktree_leg(
+    state: &Arc<AppState>,
+    lab: &mut Lab,
+    book: &mut fidelity::Book,
+    accounts: &Accounts,
+    profile_a: &str,
+    profile_b: &str,
+) {
+    let claude = tool_name(state, CLAUDE_CODE_ID);
+    let (label_a, label_b) = (format!("Lab A ({claude})"), format!("Lab B ({claude})"));
     let wt = lab.project.join(".wt").join("egret");
     let added = Command::new("git")
         .args(["worktree", "add", "-q"])
@@ -1034,6 +1538,7 @@ fn worktree_leg(state: &Arc<AppState>, lab: &mut Lab, profile_a: &str, profile_b
              test, and run `python3 -m unittest`."
         ),
     );
+    let source_a = fidelity::source(state, &accounts.a, &native, &wt, &label_a);
     let source = adopt(state, profile_a, &native, &wt);
     let to_b = commands::switch_execute_impl(state, &source, profile_b, "stop-now", None, &[]);
     let Ok(done) = to_b else {
@@ -1044,20 +1549,23 @@ fn worktree_leg(state: &Arc<AppState>, lab: &mut Lab, profile_a: &str, profile_b
         return;
     };
     let argv = take_launch(state, &done.session_id, done.pid);
-    let cwd = state
-        .storage
-        .lock()
-        .unwrap()
-        .sessions()
-        .get(&juggler_core::model::SessionId::new(
-            done.session_id.as_str(),
-        ))
-        .map(|record| record.cwd)
-        .ok();
-    let in_worktree = cwd.as_deref() == Some(wt.as_path());
-    let resume_id = transcript_of(state, &done.session_id)
-        .and_then(|r| r.native_id)
+    let cwd = session_cwd(state, &done.session_id);
+    let in_worktree = cwd == wt;
+    let link = transcript_of(state, &done.session_id);
+    let resume_id = link
+        .as_ref()
+        .and_then(|r| r.native_id.clone())
         .unwrap_or_else(|| native.clone());
+    let target = link
+        .as_ref()
+        .map(|link| fidelity::native(state, &accounts.b, &link.path, &resume_id, &cwd, &label_b));
+    let codename = [fidelity::fact(
+        "CODENAME_WT",
+        "this worktree's codename",
+        &[CODENAME_WT],
+        "A, turn 1 of 1 (early)",
+        Kind::Said,
+    )];
     let probe = claude_turn_in(
         lab,
         &lab.claude_b.clone(),
@@ -1066,21 +1574,40 @@ fn worktree_leg(state: &Arc<AppState>, lab: &mut Lab, profile_a: &str, profile_b
         Some(&resume_id),
         &[],
         &format!(
-            "Without changing any file: what is this worktree's codename? Then decide that the \
-             next helper will be named `{HELPER}`; remember that, but don't write it. One short line."
+            "{} Then decide that the next helper will be named `{HELPER}`; remember that, but \
+             don't write it.",
+            fidelity::facts::question(&codename)
         ),
     );
     let answer = probe["result"].as_str().unwrap_or_default().to_owned();
-    let carried = mentions(&answer, CODENAME_WT);
+    let probed = fidelity::probe(&codename, &answer, &wt);
+    let carried = probed.iter().all(|p| p.score == Score::Answered);
+    let grade = match (source_a, target) {
+        (Some(source), Some(target)) => {
+            book.hop("A → B (worktree)", "transplant", source, target, probed)
+        }
+        _ => {
+            book.missing(
+                "A → B (worktree)",
+                "the source's or the target's transcript wasn't found",
+            );
+            "NOT MEASURED"
+        }
+    };
     let neg_in_wt =
         std::fs::read_to_string(wt.join("calc.py")).is_ok_and(|s| s.contains("def neg("));
     let neg_in_root =
         std::fs::read_to_string(lab.project.join("calc.py")).is_ok_and(|s| s.contains("def neg("));
-    lab.steps.push(json!({"step": "7 worktree A→B", "ok": carried && in_worktree && neg_in_wt && !neg_in_root,
-                          "cwd_worktree": in_worktree, "transcript_resume": carried, "probe": answer,
-                          "neg_in_worktree": neg_in_wt, "neg_in_root": neg_in_root, "launch": argv}));
+    lab.steps.push(json!({"step": "7 worktree A→B",
+                          "ok": carried && in_worktree && neg_in_wt && !neg_in_root && grade != "FAIL",
+                          "cwd_worktree": in_worktree, "transcript_resume": carried, "fidelity": grade,
+                          "probe": answer, "neg_in_worktree": neg_in_wt, "neg_in_root": neg_in_root,
+                          "launch": argv}));
 
     // Straight back to A (the direct return, same tool).
+    let source_b = link.as_ref().and_then(|link| {
+        fidelity::source_at(state, &accounts.b, &resume_id, &link.path, &wt, &label_b)
+    });
     let plan = commands::switch_back_plan_impl(state, &done.session_id);
     let start = plan.as_ref().ok().and_then(|plan| {
         plan.returns
@@ -1099,6 +1626,18 @@ fn worktree_leg(state: &Arc<AppState>, lab: &mut Lab, profile_a: &str, profile_b
         Ok(back) => {
             let argv = take_launch(state, &back.session_id, back.pid);
             let delta = argv.last().cloned().unwrap_or_default();
+            let folder = session_cwd(state, &back.session_id);
+            let target = fidelity::back(state, &accounts.a, &native, &folder, &delta, &label_a);
+            let facts_back = [
+                fidelity::fact(
+                    "HELPER",
+                    "the next helper's name, decided while you were away",
+                    &[HELPER],
+                    "B, its 1st turn (late)",
+                    Kind::Decision,
+                ),
+                codename[0].clone(),
+            ];
             let probe = claude_turn_in(
                 lab,
                 &lab.claude_a.clone(),
@@ -1106,14 +1645,28 @@ fn worktree_leg(state: &Arc<AppState>, lab: &mut Lab, profile_a: &str, profile_b
                 None,
                 Some(&native),
                 &[],
-                &format!(
-                    "{delta}\n\n---\nWithout changing or reading any file: what helper name was \
-                     decided while you were away? One short line."
-                ),
+                &format!("{delta}\n\n---\n{}", fidelity::facts::question(&facts_back)),
             );
             let answer = probe["result"].as_str().unwrap_or_default().to_owned();
-            json!({"step": "7b switch back B→A in the worktree", "ok": mentions(&answer, HELPER),
-                   "switch_back": mentions(&answer, HELPER), "probe": answer, "delta": delta})
+            let probed = fidelity::probe(&facts_back, &answer, &wt);
+            let carried = probed
+                .iter()
+                .any(|p| p.fact.key == "HELPER" && p.score == Score::Answered);
+            let grade = match source_b {
+                Some(source) => book.hop(
+                    "B → A (worktree, back)",
+                    "switch back",
+                    source,
+                    target,
+                    probed,
+                ),
+                None => {
+                    book.missing("B → A (worktree, back)", "B's conversation wasn't found");
+                    "NOT MEASURED"
+                }
+            };
+            json!({"step": "7b switch back B→A in the worktree", "ok": carried && grade != "FAIL",
+                   "switch_back": carried, "fidelity": grade, "probe": answer, "delta": delta})
         }
         Err(error) => json!({"step": "7b switch back B→A in the worktree", "ok": false,
                              "error": format!("{error:?}")}),
@@ -2504,6 +3057,7 @@ fn switch_lab_outside_live() {
         std::env::var_os("CLAUDE_CONFIG_DIR").is_none() && std::env::var_os("CODEX_HOME").is_none(),
         "run the lab with CLAUDE_CONFIG_DIR and CODEX_HOME unset (env -u …)"
     );
+    assert_clean_env();
     assert!(
         !data.exists() || std::fs::read_dir(&data).unwrap().next().is_none(),
         "AIJ_LAB_DATA must be a fresh, empty folder"

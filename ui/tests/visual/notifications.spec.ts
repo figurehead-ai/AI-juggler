@@ -72,6 +72,11 @@ for (const theme of ["dark", "light"] as const) {
       limit: false,
       finished: false,
       this_mac: true,
+      left_behind: false,
+      // AJ-E2501: the model's own kinds, off until chosen too.
+      quota: false,
+      crash: false,
+      reset: false,
     });
     await expect(card.getByTestId("quiet-hours")).toContainText("The digest and notifications wait until the quiet hours end");
     await page.mouse.move(0, 0);

@@ -10,7 +10,7 @@ import {
 } from "../lib/bridge";
 
 /**
- * AJ-E707 — paired machines' processes in the Cleanup Centre, grouped
+ * AJ-E707 — paired machines' processes on the Processes page, grouped
  * Machine → Instance. Each row shows its verification state BEFORE any
  * action; only a process its own machine verified as owned can be
  * cleaned, and only with View + control and an explicit confirmation.
@@ -62,7 +62,10 @@ export function RemoteCleanup(): JSX.Element | null {
   };
 
   return (
-    <section className="mt-4 flex flex-col gap-3" aria-label="Paired machines" data-testid="remote-cleanup">
+    <section className="mt-4 flex flex-col gap-3" aria-labelledby="remote-cleanup-title" data-testid="remote-cleanup">
+      <h2 id="remote-cleanup-title" className="text-section font-semibold text-ink">
+        Your other Macs
+      </h2>
       {withProcesses.map((machine) => {
         const canClean = machine.permission === "control" && machine.connection === "connected";
         const byInstance = groupBy(machine.processes, (row) => row.instance_id);

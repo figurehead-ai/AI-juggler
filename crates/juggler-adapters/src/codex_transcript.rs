@@ -94,6 +94,8 @@ pub struct RolloutParser {
     /// conversation's summary needs no more).
     keep_messages: bool,
     first_ask: Option<String>,
+    /// The first message the user's side sent, AI Juggler's included.
+    first_message: Option<String>,
 }
 
 impl RolloutParser {
@@ -135,6 +137,9 @@ impl RolloutParser {
                 .entry(format!("{kind}/{subtype}"))
                 .or_default() += 1;
         }
+        if kind == "response_item" {
+            count_content(&mut parsed.content, payload);
+        }
         match kind.as_str() {
             "session_meta" => self.session_id = text(payload, "id").or(self.session_id.take()),
             "turn_context" => self.model = text(payload, "model").or(self.model.take()),
@@ -159,7 +164,16 @@ impl RolloutParser {
                 {
                     return;
                 }
-                if role == MessageRole::User && self.first_ask.is_none() && !is_injected(&body) {
+                if role == MessageRole::User && self.first_message.is_none() && !is_injected(&body)
+                {
+                    self.first_message = Some(body.clone());
+                }
+                // The first ask that can title the thread: never an
+                // injected block, nor AI Juggler's own words (F9).
+                if role == MessageRole::User
+                    && self.first_ask.is_none()
+                    && crate::codex_titles::title(&body).is_some()
+                {
                     self.first_ask = Some(body.clone());
                 }
                 if !self.keep_messages {
@@ -215,6 +229,14 @@ impl RolloutParser {
         }
     }
 
+    /// The first message the user's side sent (AI Juggler's own prompt
+    /// included; never a block Codex injects): how a switch's thread is
+    /// found again.
+    #[must_use]
+    pub fn first_message(&self) -> Option<&str> {
+        self.first_message.as_deref()
+    }
+
     /// The first thing the user asked (not a block Codex, its app or a
     /// harness injects: [`is_injected`]).
     #[must_use]
@@ -241,6 +263,42 @@ impl RolloutParser {
     }
 }
 
+/// Counts one `response_item`'s part in what the conversation carries
+/// besides text: a tool call (`function_call`, `custom_tool_call`,
+/// `local_shell_call`, … — every item type ending in `_call`), its result
+/// (`…_call_output`, an error when it says it failed) and the images in
+/// a message (`input_image`).
+fn count_content(
+    counts: &mut crate::claude_transcript::ContentCounts,
+    payload: &serde_json::Value,
+) {
+    let Some(item) = payload.get("type").and_then(serde_json::Value::as_str) else {
+        return;
+    };
+    if item.ends_with("_call") {
+        counts.tool_calls += 1;
+    } else if item.ends_with("_call_output") {
+        counts.tool_results += 1;
+        let failed = payload
+            .get("output")
+            .and_then(|output| output.get("success"))
+            .and_then(serde_json::Value::as_bool)
+            == Some(false);
+        if failed {
+            counts.tool_errors += 1;
+        }
+    } else if item == "message"
+        && let Some(serde_json::Value::Array(parts)) = payload.get("content")
+    {
+        counts.images += parts
+            .iter()
+            .filter(|part| {
+                part.get("type").and_then(serde_json::Value::as_str) == Some("input_image")
+            })
+            .count();
+    }
+}
+
 /// AJ-E1541: a rollout's tool call (`function_call`, or a custom call
 /// such as `apply_patch`): one line saying what it did, kept for the next
 /// thing Codex says, and the plan it set, if it set one.
@@ -249,18 +307,39 @@ fn tool_call(
     pending: &mut Vec<String>,
     payload: &serde_json::Value,
 ) {
-    let Some(name) = text(payload, "name") else {
+    let Some((name, input)) = call_of(payload) else {
         return;
-    };
-    // `function_call` carries JSON in a string; a custom call its raw input.
-    let input = match text(payload, "arguments") {
-        Some(arguments) => serde_json::from_str(&arguments).unwrap_or_default(),
-        None => serde_json::json!({ "input": text(payload, "input").unwrap_or_default() }),
     };
     if let Some(tasks) = crate::tool_summary::task_list(&name, &input) {
         parsed.tasks = Some(tasks);
     }
     pending.push(crate::tool_summary::summarize(&name, &input));
+}
+
+/// A tool call item's name and input: `function_call` carries JSON in a
+/// string, a custom call (`apply_patch`) its raw input.
+fn call_of(payload: &serde_json::Value) -> Option<(String, serde_json::Value)> {
+    let name = text(payload, "name")?;
+    let input = match text(payload, "arguments") {
+        Some(arguments) => serde_json::from_str(&arguments).unwrap_or_default(),
+        None => serde_json::json!({ "input": text(payload, "input").unwrap_or_default() }),
+    };
+    Some((name, input))
+}
+
+/// AJ-E1703: one line's tool call, for what the session is working on.
+pub(crate) fn activity_line(log: &mut crate::activity::ActivityLog, value: &serde_json::Value) {
+    let null = serde_json::Value::Null;
+    let payload = value.get("payload").unwrap_or(&null);
+    if text(value, "type").as_deref() == Some("response_item")
+        && matches!(
+            text(payload, "type").as_deref(),
+            Some("function_call" | "custom_tool_call")
+        )
+        && let Some((name, input)) = call_of(payload)
+    {
+        log.call(&name, &input);
+    }
 }
 
 /// Tool calls nothing was said after (the turn ended on them, or the user
@@ -331,13 +410,24 @@ pub fn rollout_cwd(bytes: &[u8]) -> Option<String> {
 }
 
 /// AJ-E1520: a rollout line's part in the session's subagents
-/// (codex-rs `core/src/tools/handlers/multi_agents/`). `spawn_agent` starts
-/// one, and its output names it (`{"agent_id", "nickname"}`); a
-/// `wait`/`wait_agent` output says how each named agent stands
-/// (`{"status": {id: status}}`), a `close_agent` output that the agent it
-/// targeted is shut down, and a `sub_agent_activity` event that one
-/// completed. The `collab_*` events never reach a rollout (`rollout/src/
-/// policy.rs` keeps them out).
+/// (codex-rs `core/src/tools/handlers/multi_agents/`). Two shapes:
+///
+/// - the first: `spawn_agent`'s output names the new agent
+///   (`{"agent_id", "nickname"}`); a `wait`/`wait_agent` output says how
+///   each named agent stands (`{"status": {id: status}}`), a
+///   `close_agent` output that the agent it targeted is shut down, and a
+///   `sub_agent_activity` event that one completed;
+/// - the second (multi-agent v2, seen in 2026-10 rollouts): `spawn_agent`
+///   takes `{message, agent_type, task_name}` and answers the agent's
+///   path (`{"task_name": "/root/…"}`); an `item_completed` event whose
+///   item is a `SubAgentActivity` links that path to the child's thread
+///   (`agent_path`, `agent_thread_id`) and says when it `completed` or was
+///   `interrupted`; `list_agents` answers each agent's status by path
+///   (`{"agents": [{agent_name, agent_status}]}`, `{"errored": …}` for a
+///   failed one), and `interrupt_agent` stops one.
+///
+/// The `collab_*` events never reach a rollout (`rollout/src/policy.rs`
+/// keeps them out).
 pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
     use crate::subtasks::SubtaskState;
     let null = serde_json::Value::Null;
@@ -350,7 +440,12 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
             };
             if !matches!(
                 name.as_str(),
-                "spawn_agent" | "close_agent" | "wait" | "wait_agent"
+                "spawn_agent"
+                    | "close_agent"
+                    | "interrupt_agent"
+                    | "wait"
+                    | "wait_agent"
+                    | "list_agents"
             ) {
                 return;
             }
@@ -363,40 +458,20 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                         .unwrap_or_else(|| message_text(arguments.get("items")));
                     log.started(&call, &task, text(&arguments, "agent_type").as_deref());
                 }
-                "close_agent" => {
+                "close_agent" | "interrupt_agent" => {
                     if let Some(target) =
                         text(&arguments, "target").or_else(|| text(&arguments, "id"))
                     {
                         log.awaits(&call, &target);
+                        if name == "interrupt_agent" {
+                            log.stops(&call);
+                        }
                     }
                 }
                 _ => log.polls(&call),
             }
         }
-        (Some("response_item"), Some("function_call_output")) => {
-            // Other calls' outputs (a shell's, often large) aren't read.
-            let Some(call) = text(payload, "call_id").filter(|call| log.wants(call)) else {
-                return;
-            };
-            let output: serde_json::Value =
-                serde_json::from_str(&message_text(payload.get("output"))).unwrap_or_default();
-            if let Some(agent) = text(&output, "agent_id") {
-                log.named(&call, &agent);
-            } else if let Some(previous) = output.get("previous_status") {
-                // Closed: as it last stood when it had ended, else done.
-                log.answered(&call, agent_state(previous).unwrap_or(SubtaskState::Done));
-            } else if let Some(serde_json::Value::Object(statuses)) = output.get("status") {
-                log.heard(&call);
-                for (agent, status) in statuses {
-                    if let Some(state) = agent_state(status) {
-                        log.ended(agent, state);
-                    }
-                }
-            } else {
-                // Nothing usable: a spawn that named no agent never started.
-                log.not_started(&call);
-            }
-        }
+        (Some("response_item"), Some("function_call_output")) => subtask_output(log, payload),
         (Some("event_msg"), Some("sub_agent_activity"))
             if text(payload, "kind").as_deref() == Some("completed") =>
         {
@@ -404,12 +479,103 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                 log.ended(&agent, SubtaskState::Done);
             }
         }
+        (Some("event_msg"), Some("item_completed")) => {
+            let activity = payload.get("item").unwrap_or(&null);
+            if text(activity, "type").as_deref() != Some("SubAgentActivity") {
+                return;
+            }
+            let thread = text(activity, "agent_thread_id");
+            if let (Some(path), Some(thread)) = (text(activity, "agent_path"), thread.as_deref()) {
+                log.alias(&path, thread);
+            }
+            let state = match text(activity, "kind").as_deref() {
+                Some("completed") => SubtaskState::Done,
+                Some("interrupted") => SubtaskState::Stopped,
+                _ => return,
+            };
+            if let Some(agent) = thread.or_else(|| text(activity, "agent_path")) {
+                log.ended(&agent, state);
+            }
+        }
         _ => {}
     }
 }
 
+/// A call's output, when it is one the subagent log waits on: it names
+/// the agent a spawn started, or says how agents stand.
+fn subtask_output(log: &mut crate::subtasks::SubtaskLog, payload: &serde_json::Value) {
+    use crate::subtasks::SubtaskState;
+    // Other calls' outputs (a shell's, often large) aren't read.
+    let Some(call) = text(payload, "call_id").filter(|call| log.wants(call)) else {
+        return;
+    };
+    let output: serde_json::Value =
+        serde_json::from_str(&message_text(payload.get("output"))).unwrap_or_default();
+    if let Some(agent) = text(&output, "agent_id") {
+        log.named(&call, &agent);
+    } else if let Some(path) = text(&output, "task_name").filter(|_| log.is_start(&call)) {
+        log.named(&call, &path);
+    } else if let Some(previous) = output.get("previous_status") {
+        // Closed: as it last stood when it had ended, else done;
+        // interrupted: else stopped.
+        let otherwise = if log.is_stop(&call) {
+            SubtaskState::Stopped
+        } else {
+            SubtaskState::Done
+        };
+        log.answered(&call, agent_state(previous).unwrap_or(otherwise));
+    } else if let Some(serde_json::Value::Object(statuses)) = output.get("status") {
+        log.heard(&call);
+        for (agent, status) in statuses {
+            if let Some(state) = agent_state(status) {
+                log.ended(agent, state);
+            }
+        }
+    } else if let Some(serde_json::Value::Array(agents)) = output.get("agents") {
+        log.heard(&call);
+        for agent in agents {
+            let (Some(name), Some(status)) = (text(agent, "agent_name"), agent.get("agent_status"))
+            else {
+                continue;
+            };
+            if let Some(state) = agent_state(status) {
+                log.ended(&name, state);
+            }
+        }
+    } else {
+        // Nothing usable: a spawn that named no agent never started.
+        log.not_started(&call);
+    }
+}
+
+/// Whether a raw rollout line can matter to the subagent log: a call to
+/// one of the agent tools, an answer to a call the log waits on, or an
+/// agent's activity.
+pub(crate) fn subtask_line_matters(log: &crate::subtasks::SubtaskLog, line: &[u8]) -> bool {
+    use crate::subtasks::{holds, values_of};
+    if holds(line, b"SubAgentActivity") || holds(line, b"sub_agent_activity") {
+        return true;
+    }
+    if holds(line, b"function_call_output") {
+        return values_of(line, b"call_id")
+            .into_iter()
+            .any(|call| std::str::from_utf8(call).is_ok_and(|call| log.wants(call)));
+    }
+    holds(line, b"function_call")
+        && [
+            &b"spawn_agent"[..],
+            b"close_agent",
+            b"interrupt_agent",
+            b"wait",
+            b"list_agents",
+        ]
+        .iter()
+        .any(|name| holds(line, name))
+}
+
 /// An agent's status (`"running"`, `{"completed": …}`, `{"errored": …}`,
-/// `"shutdown"`, `"not_found"`) as an ending, or `None` while it runs.
+/// `"interrupted"`, `"shutdown"`, `"not_found"`) as an ending, or `None`
+/// while it runs (`"running"`, `"pending_init"`).
 fn agent_state(status: &serde_json::Value) -> Option<crate::subtasks::SubtaskState> {
     use crate::subtasks::SubtaskState;
     let name = match status {
@@ -420,6 +586,7 @@ fn agent_state(status: &serde_json::Value) -> Option<crate::subtasks::SubtaskSta
     match name {
         "completed" | "shutdown" | "not_found" => Some(SubtaskState::Done),
         "errored" => Some(SubtaskState::Failed),
+        "interrupted" => Some(SubtaskState::Stopped),
         _ => None,
     }
 }
@@ -505,6 +672,9 @@ pub(crate) mod reference {
                     .subtypes
                     .entry(format!("{kind}/{subtype}"))
                     .or_default() += 1;
+            }
+            if kind == "response_item" {
+                count_content(&mut parsed.content, &payload);
             }
             match kind.as_str() {
                 "session_meta" => session_id = text(&payload, "id").or(session_id),

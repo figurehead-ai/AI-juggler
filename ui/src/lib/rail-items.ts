@@ -23,6 +23,8 @@ export type Need = "asks" | "limit" | "stuck" | "failed" | "review";
 /** The place AI Juggler's own sessions are in. */
 export const OWN_PLACE = "ai-juggler";
 export const OWN_APP = "AI Juggler";
+/** A place whose app isn't named (a session no app shows now). */
+export const SOME_APP = "An app";
 
 export interface RailPlace {
   /** App and profile (or the app's instance): one place. */
@@ -63,8 +65,15 @@ export interface RailItem {
   background: boolean;
   inactive: boolean;
   archived: boolean;
-  /** Helpers it runs (sub-agents), when known. */
+  /** Sub-agents it runs now, when read (AJ-E1520: its tool's subagent
+   * reader, the one its Subagents tab reads, for AI Juggler's sessions
+   * and the ones other apps run alike; never its child processes). */
   subagents: number;
+  /** AJ-E1502: the user pinned it (an AI Juggler session's own pin, or
+   * the rail's pin of one another app runs). Pinned rows lead their group. */
+  pinned: boolean;
+  /** When it started: the order it was first seen in (Your order, D-47). */
+  startMs: number;
 }
 
 const WORDS: Record<RailState, string> = {
@@ -124,7 +133,10 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
   const need: Need | null =
     attention === "waiting_user" ? "asks" : attention === "quota_blocked" ? "limit" : attention === "stuck" ? "stuck" : attention === "failed" ? "failed" : null;
   const ended = ENDED.has(row.status);
-  const state: RailState = need === "asks" || need === "stuck" || need === "limit" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
+  const guessed: RailState = need === "asks" || need === "stuck" || need === "limit" ? "asks_you" : ended ? "ended" : ACTIVE.has(row.status) ? "working" : "idle";
+  // AJ-E2302/E2306: the tool's own word (its protocol or its hooks), never a guess.
+  const exact = row.runtime?.state as RailState | null | undefined;
+  const state: RailState = !snoozed && exact && exact in WORDS ? exact : guessed;
   return {
     key: `s:${row.id}`,
     session: row,
@@ -147,7 +159,9 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     background: false,
     inactive: false,
     archived: row.lifecycle === "archived",
-    subagents: row.subtask_count ?? row.child_count ?? 0,
+    subagents: row.subtask_count ?? 0,
+    pinned: row.pinned === true,
+    startMs: row.started_at_ms,
   };
 }
 
@@ -175,8 +189,9 @@ function placeKey(app: string, instance: string | null, profile: string | null):
 
 /** A session another app runs. "Done, review it" clears once the user has
  * looked: AI Juggler's seen mark, or the app's own last view, after its
- * last activity (AJ-E2107). */
-export function conversationItem(c: ConversationInfo, projectName: (id: string | null) => string | null, seenMs: number | null): RailItem {
+ * last activity (AJ-E2107). `pinned`: the rail's pin (AI Juggler's own
+ * record; the app's files are never written). */
+export function conversationItem(c: ConversationInfo, projectName: (id: string | null) => string | null, seenMs: number | null, pinned = false): RailItem {
   const places = c.places ?? [];
   const first = places[0];
   const last = c.last_activity_ms ?? 0;
@@ -191,7 +206,7 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
         : raw === "done_review" && looked < last
           ? "done_review"
           : "idle";
-  const app = first?.app || "An app";
+  const app = first?.app || SOME_APP;
   return {
     key: `c:${c.account_id}/${c.id}`,
     session: null,
@@ -210,12 +225,16 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     probably: state === "asks_you" && c.probably === true,
     need: state === "asks_you" ? "asks" : state === "done_review" ? "review" : null,
     lastMs: last,
-    viewedMs: c.viewed_ms,
+    // A payload without the field (an older reader's) reads as never
+    // viewed: "viewed NaN d ago" in the 0.2.0 re-render's replica rows.
+    viewedMs: c.viewed_ms ?? null,
     live: c.live,
     background: c.live && c.background,
     inactive: !c.live && c.inactive,
     archived: false,
-    subagents: 0,
+    subagents: c.subtask_count ?? 0,
+    pinned,
+    startMs: c.started_ms ?? last,
   };
 }
 
@@ -235,21 +254,42 @@ export interface ItemInputs {
   projects: ProjectInfo[];
   seen: Record<string, number>;
   snoozed?: (row: InstanceInfo) => boolean;
+  /** The rail's pins of sessions other apps run, by key (`lib/rail-order`). */
+  pins?: ReadonlySet<string>;
+  /** D-49: the backend's Needs you, by item key (its word decides). */
+  needOf?: ReadonlyMap<string, Need>;
 }
 
 /** Every item: AI Juggler's sessions, then the sessions it didn't start. */
-export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false }: ItemInputs): RailItem[] {
+export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false, pins, needOf }: ItemInputs): RailItem[] {
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const projectName = (id: string | null) => (id === null ? null : (names.get(id) ?? null));
-  return [
+  const items = [
     ...sessions.map((row) => sessionItem(row, projectName, snoozed(row))),
     ...conversations
       .filter((c) => c.session_id === null)
-      .map((c) => conversationItem(c, projectName, seen[`c:${c.account_id}/${c.id}`] ?? null)),
+      .map((c) => {
+        const key = `c:${c.account_id}/${c.id}`;
+        return conversationItem(c, projectName, seen[key] ?? null, pins?.has(key) === true);
+      }),
   ];
+  // D-49: what is in Needs you is the backend's (one list, one count).
+  if (!needOf) return items;
+  return items.map((item) => {
+    const need = needOf.get(item.key) ?? null;
+    if (need === item.need) return item;
+    // The row's word follows the need (the 0.2 walk, F4: "Done, review it"
+    // on Home and in the centre, "Working" on its rail row).
+    const state: RailState = need === null ? item.state : (NEED_STATE[need] ?? item.state);
+    return { ...item, need, state, probably: item.session ? need === "stuck" : item.probably, live: item.live || (item.session !== null && need !== null) };
+  });
 }
 
 const NEED_ORDER: Need[] = ["asks", "limit", "failed", "stuck", "review"];
+
+/** The state a need says, as `sessionItem` reads a session's (a failure
+ * keeps the state it has). */
+const NEED_STATE: Partial<Record<Need, RailState>> = { asks: "asks_you", stuck: "asks_you", limit: "asks_you", review: "done_review" };
 
 /** Needs you: what asks first, then limits, failures, stuck, things to
  * review; the longest waiting first within each. */
@@ -259,12 +299,13 @@ export function needsYou(items: RailItem[]): RailItem[] {
     .sort((a, b) => NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || a.lastMs - b.lastMs || a.key.localeCompare(b.key));
 }
 
-/** Open now: open, interactive, not in Needs you. A pinned session stays
- * where the user put it, under its place, once it has ended too (AJ-E1502;
- * Ended today leaves it out, so it is never in neither). */
+/** Open now: open and interactive. A session that needs you stays in its
+ * place here too, its state in amber; Needs you lists it as well, as a
+ * shortcut (D-47, which replaced "not in Needs you"). A pinned session
+ * stays where the user put it, under its place, once it has ended too
+ * (AJ-E1502; Ended today leaves it out, so it is never in neither). */
 export function openNow(item: RailItem): boolean {
-  if (item.need !== null) return false;
-  if (item.session?.pinned) return true;
+  if (item.pinned) return true;
   return item.live && !item.background && item.state !== "ended";
 }
 
@@ -279,6 +320,6 @@ export function startOfDay(now: number): number {
 export function endedToday(item: RailItem, now: number, archived = false): boolean {
   if (item.need !== null || item.inactive) return false;
   if (item.archived && !archived) return false;
-  if (item.session?.pinned) return false;
+  if (item.pinned) return false;
   return item.state === "ended" && item.lastMs >= startOfDay(now);
 }

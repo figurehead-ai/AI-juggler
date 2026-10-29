@@ -30,7 +30,7 @@ fn candidate(account: &str, headroom: Option<f64>, confidence: Confidence) -> Ca
         exhausted_no_reset: false,
         headroom_pct: headroom,
         headroom_confidence: confidence,
-        affinity: 0.5,
+        affinity: Some(0.5),
         fidelity: None,
         projected_usd: Some(1.0),
         active_sessions: 0,
@@ -77,7 +77,7 @@ fn hard_filters_are_greyed_with_reason_not_dropped() {
         logged
             .filtered_reason
             .as_deref()
-            .is_some_and(|reason| reason.contains("logged out"))
+            .is_some_and(|reason| reason.contains("Signed out"))
     );
     assert!(
         rows.iter()
@@ -92,7 +92,7 @@ fn hard_filters_are_greyed_with_reason_not_dropped() {
             .unwrap()
             .filtered_reason
             .as_deref()
-            .is_some_and(|r| r.contains("exhausted")),
+            .is_some_and(|r| r.contains("Out of room")),
         "exhausted with no reset before need-by is filtered with its reason"
     );
     // The survivor ranks first; every row explains itself.
@@ -129,7 +129,7 @@ fn unknown_headroom_ranks_by_remaining_inputs_and_says_so() {
         unknown
             .top_factors
             .iter()
-            .any(|words| words.contains("headroom unknown")),
+            .any(|words| words.contains("room left unknown")),
         "the copy says it ranked without quota"
     );
     assert!(
@@ -147,7 +147,7 @@ fn unknown_headroom_ranks_by_remaining_inputs_and_says_so() {
 #[test]
 fn affinity_words_carry_the_wrong_billing_guard() {
     let rows = ranking::rank(&[Candidate {
-        affinity: 0.9,
+        affinity: Some(0.9),
         ..candidate("usual", Some(50.0), Confidence::Measured)
     }]);
     let usual = &rows[0];
@@ -398,4 +398,42 @@ fn ranking_and_alerts_are_pure_no_launch_capability() {
         0,
     );
     assert!(matches!(emission, AlertEmission::Actionable { .. }));
+}
+
+/// The 0.2 walk (F17): New session said "used most here" on every account.
+/// Only the one account with the biggest share of the project says it;
+/// with no project (no folder picked) none does, and a tie is no habit.
+#[test]
+fn used_most_here_is_said_of_the_one_account_that_is() {
+    let with = |share: Option<f64>, name: &str| Candidate {
+        affinity: share,
+        ..candidate(name, Some(60.0), Confidence::Measured)
+    };
+    let words = |rows: &[ranking::RankedRow], name: &str| {
+        rows.iter()
+            .find(|row| row.account == name)
+            .unwrap()
+            .factors
+            .iter()
+            .map(|(words, _)| words.clone())
+            .collect::<Vec<_>>()
+            .join(" · ")
+    };
+    let rows = ranking::rank(&[
+        with(Some(0.7), "usual"),
+        with(Some(0.3), "other"),
+        with(Some(0.0), "never"),
+    ]);
+    assert!(words(&rows, "usual").contains("used most here"));
+    assert!(!words(&rows, "other").contains("used most here"));
+    assert!(words(&rows, "other").contains("30% of the sessions here"));
+    assert!(words(&rows, "never").contains("not used here yet"));
+
+    let none = ranking::rank(&[with(None, "a"), with(None, "b")]);
+    for name in ["a", "b"] {
+        assert!(!words(&none, name).contains("used most here"));
+        assert!(words(&none, name).contains("no folder picked yet"));
+    }
+    let tie = ranking::rank(&[with(Some(0.5), "a"), with(Some(0.5), "b")]);
+    assert!(!words(&tie, "a").contains("used most here"));
 }

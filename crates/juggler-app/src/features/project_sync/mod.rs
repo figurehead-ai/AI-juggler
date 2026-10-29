@@ -58,7 +58,7 @@ fn project(state: &Arc<AppState>, project_id: &str) -> AppResult<Project> {
         .map_err(|_| AppError::Refused("that project isn't there any more".to_owned()))?;
     if !record.root.is_dir() {
         return Err(AppError::Refused(format!(
-            "{} isn't on this Mac any more",
+            "{} isn't on this computer any more",
             record.root.display()
         )));
     }
@@ -646,6 +646,8 @@ pub fn servers_impl(state: &Arc<AppState>, project_id: &str) -> AppResult<Server
                 target.adapter.as_ref(),
                 &source.servers,
                 &target.servers,
+                None,
+                &|tool| crate::features::tools::display_name(&state.registry, tool),
             );
             for offer in offers {
                 if copies
@@ -703,6 +705,7 @@ pub fn servers_apply_impl(
         source: account(from)?,
         target: account(to)?,
         project: Some(project.root),
+        transcript: None,
     };
     switch_setup::apply_sides(state, &sides, &[offer.to_owned()], &|kind| {
         kind == ItemKind::McpServer

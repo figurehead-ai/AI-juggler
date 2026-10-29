@@ -104,3 +104,145 @@ fn inherited_credentials_never_reach_a_launch() {
         );
     }
 }
+
+/// The lab of 2026-10-28: started from inside a Claude Code session, AI
+/// Juggler passed that session's markers on, and the sessions it launched
+/// ran as its children with transcript saving off. Launches and sign-ins
+/// remove them, as they remove inherited credentials.
+#[test]
+fn a_parent_sessions_markers_never_reach_a_launch() {
+    use juggler_adapter::{HarnessAdapter, LaunchMode};
+    use juggler_adapters::ClaudeCodeAdapter;
+    use juggler_adapters::claude_code::INHERITED_SESSION_MARKERS;
+    use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
+    let dir = tempfile::tempdir().unwrap();
+    let account = Account {
+        id: AccountId::new("a"),
+        harness: HarnessId::new("claude-code"),
+        label: "A".into(),
+        plan: None,
+        state_dir: dir.path().to_path_buf(),
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+    };
+    let profile = Profile {
+        id: ProfileId::new("p"),
+        name: "Main".into(),
+        account: AccountId::new("a"),
+        settings_overlay: SettingsOverlay::default(),
+        default_cwd: None,
+    };
+    let adapter = ClaudeCodeAdapter::with_bin("/bin/true");
+    let spec = adapter
+        .launch_spec(&account, &profile, dir.path(), &LaunchMode::Interactive)
+        .unwrap();
+    let headless = adapter
+        .launch_spec(
+            &account,
+            &profile,
+            dir.path(),
+            &LaunchMode::Resume {
+                session_id: "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e44".into(),
+                delta_prompt: None,
+            },
+        )
+        .unwrap();
+    let login = adapter.login_spec(dir.path()).unwrap();
+    assert!(INHERITED_SESSION_MARKERS.contains(&"CLAUDE_CODE_CHILD_SESSION"));
+    for key in INHERITED_SESSION_MARKERS {
+        for (what, env) in [
+            ("launch", &spec.env),
+            ("resume", &headless.env),
+            ("sign-in", &login.env),
+        ] {
+            assert_eq!(
+                env.get(key).map(String::as_str),
+                Some(ENV_UNSET),
+                "{what}: {key}"
+            );
+        }
+    }
+}
+
+/// Started from a terminal inside a Claude Code session, AI Juggler also
+/// inherited where that session routes its requests (`ANTHROPIC_BASE_URL`),
+/// and every session it started went the host's way. With a parent
+/// session's markers, launches remove it; without them it is the user's own
+/// gateway and stays; a profile's own value is never touched. The inherited
+/// environments here are the test's own maps, never a real one (D-37).
+#[test]
+fn a_parent_sessions_base_url_never_reaches_a_launch() {
+    use juggler_adapter::EnvMap;
+    use juggler_adapters::claude_code::{
+        INHERITED_CREDENTIAL_KEYS, PARENT_SESSION_ROUTING_KEYS, has_parent_session,
+        launch_unset_keys, unset_inherited_in,
+    };
+    use std::collections::BTreeMap;
+    let shell: BTreeMap<&str, &str> = [
+        ("ANTHROPIC_BASE_URL", "https://gateway.example.test"),
+        ("PATH", "/usr/bin"),
+    ]
+    .into_iter()
+    .collect();
+    let mut nested = shell.clone();
+    nested.insert("CLAUDECODE", "1");
+    let mut child = shell.clone();
+    child.insert("CLAUDE_CODE_CHILD_SESSION", "1");
+
+    // A shell of the user's own: their gateway stays.
+    assert!(!has_parent_session(|key| shell.contains_key(key)));
+    let mut env = EnvMap::new();
+    unset_inherited_in(&mut env, |key| shell.contains_key(key));
+    assert_eq!(
+        env.get("ANTHROPIC_BASE_URL"),
+        None,
+        "the user's own gateway"
+    );
+    assert_eq!(
+        env.get("ANTHROPIC_API_KEY").map(String::as_str),
+        Some(ENV_UNSET)
+    );
+
+    // Inside a Claude Code session (either marker): the host's routing goes.
+    for parent in [&nested, &child] {
+        assert!(has_parent_session(|key| parent.contains_key(key)));
+        let mut env = EnvMap::new();
+        unset_inherited_in(&mut env, |key| parent.contains_key(key));
+        for key in PARENT_SESSION_ROUTING_KEYS {
+            assert_eq!(env.get(key).map(String::as_str), Some(ENV_UNSET), "{key}");
+        }
+        // A profile's own Launch settings value is never touched.
+        let mut own = EnvMap::new();
+        own.insert("ANTHROPIC_BASE_URL".into(), "http://127.0.0.1:8080".into());
+        unset_inherited_in(&mut own, |key| parent.contains_key(key));
+        assert_eq!(
+            own.get("ANTHROPIC_BASE_URL").map(String::as_str),
+            Some("http://127.0.0.1:8080")
+        );
+    }
+
+    // The list isn't kept by hand: credentials and markers always, the
+    // routing only with a parent, each once.
+    let without: Vec<_> = launch_unset_keys(false).collect();
+    let with: Vec<_> = launch_unset_keys(true).collect();
+    assert!(!without.contains(&"ANTHROPIC_BASE_URL"));
+    assert!(with.contains(&"ANTHROPIC_BASE_URL"));
+    assert_eq!(
+        with.len(),
+        without.len() + PARENT_SESSION_ROUTING_KEYS.len()
+    );
+    let mut unique = with.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    assert_eq!(unique.len(), with.len());
+
+    // The copyable shell line still removes the credentials only (fa21ce10).
+    use juggler_adapter::HarnessAdapter;
+    let adapter = juggler_adapters::ClaudeCodeAdapter::with_bin("/bin/true");
+    assert_eq!(adapter.launch_unset_keys(), &INHERITED_CREDENTIAL_KEYS);
+}

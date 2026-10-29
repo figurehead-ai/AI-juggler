@@ -1,5 +1,9 @@
-//! AJ-E1520: the subagents a session started (I-08), and what became of
-//! each, read from its transcript.
+//! AJ-E1520: the subagents a transcript started, and what became of each
+//! — the start-and-end log the Claude Code and Codex subagent readers
+//! (`claude_subagents`, `codex_subagents`) build their lists on, and the
+//! helpers every reader shares (`fill_depths`, `holds`). The app reads
+//! subagents only through those readers (`HarnessAdapter::subagent_reader`):
+//! the Subagents tab and the rail's count alike.
 //!
 //! Claude Code starts one with its Task (now Agent) tool and answers that
 //! call when the subagent is done; Codex starts one with `spawn_agent`,
@@ -7,40 +11,38 @@
 //! `wait`/`close_agent` outputs. Each tool's parser reads its own lines
 //! (`claude_transcript::subtask_line`, `codex_transcript::subtask_line`);
 //! this module keeps the tool-neutral record, and reads a growing file a
-//! piece at a time, so a tick only reads what was appended.
+//! piece at a time, so a refresh only reads what was appended.
 
 use std::collections::{HashMap, HashSet};
-use std::io::{Read as _, Seek as _, SeekFrom};
-use std::path::Path;
 
 use crate::transcript::{TranscriptFormat, line_format};
 
-/// The most characters of a subagent's task kept as its label.
-const LABEL_CHARS: usize = 80;
-
-/// The most bytes one [`SubtaskTail::read`] takes in, so a first read of
-/// a long transcript is spread over a few ticks.
-const READ_PER_CALL: u64 = 16 * 1024 * 1024;
+/// The most characters of a subagent's task kept whole (the Subagents
+/// tab's tooltip).
+const TASK_CHARS: usize = 2_000;
 
 /// Where a subagent stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubtaskState {
     /// Started, and nothing in the transcript says it has ended.
     Running,
-    /// Started in the background: this transcript doesn't say when it
-    /// ends, so it isn't counted as running.
+    /// Started in the background (its start's answer came at once): it
+    /// runs until a later line says how it ended (Claude Code's task
+    /// notification); the readers list it as running until then.
     Background,
     /// Ended (finished, or closed by the session).
     Done,
     /// Ended with an error, or never started.
     Failed,
+    /// Stopped before it finished (Claude Code's `killed`/`stopped`).
+    Stopped,
 }
 
 impl SubtaskState {
-    /// Done or failed: nothing later changes it.
+    /// Done, failed or stopped: nothing later changes it.
     #[must_use]
     pub fn is_final(self) -> bool {
-        matches!(self, Self::Done | Self::Failed)
+        matches!(self, Self::Done | Self::Failed | Self::Stopped)
     }
 }
 
@@ -49,12 +51,21 @@ impl SubtaskState {
 pub struct Subtask {
     /// The call that started it (stable within the transcript).
     pub id: String,
-    /// What it was asked to do, on one line.
-    pub label: String,
     /// The kind of agent, when the call named one (`Explore`, `worker`).
     pub kind: Option<String>,
     /// Where it stands.
     pub state: SubtaskState,
+    /// The agent's own id, once the tool named it (Claude Code's
+    /// `agentId`, Codex's thread id).
+    pub agent: Option<String>,
+    /// What it was asked to do, whole (at most 2,000 characters).
+    pub task: String,
+    /// Started in the background (its start's answer came at once).
+    pub background: bool,
+    /// When the call that started it was written, epoch ms.
+    pub started_ms: Option<i64>,
+    /// When the line that ended it was written, epoch ms (final only).
+    pub ended_ms: Option<i64>,
 }
 
 /// The subagents read so far from one transcript.
@@ -69,8 +80,12 @@ pub struct SubtaskLog {
     awaited: HashMap<String, String>,
     /// A call whose answer says how named agents stand (Codex's `wait`).
     waits: HashSet<String>,
+    /// A call that stops the agent it awaits (Codex's `interrupt_agent`).
+    stopping: HashSet<String>,
     /// Decided by the first parsable line.
     format: Option<TranscriptFormat>,
+    /// When the line being read was written (its `timestamp`).
+    at: Option<i64>,
 }
 
 impl SubtaskLog {
@@ -80,10 +95,28 @@ impl SubtaskLog {
             if line.iter().all(u8::is_ascii_whitespace) {
                 continue;
             }
+            // Once the format is known, a line that can't matter isn't
+            // parsed (most of a long transcript: tool output, messages).
+            let matters = match self.format {
+                None => true,
+                Some(TranscriptFormat::ClaudeCode) => {
+                    crate::claude_transcript::subtask_line_matters(self, line)
+                }
+                Some(TranscriptFormat::CodexRollout) => {
+                    crate::codex_transcript::subtask_line_matters(self, line)
+                }
+            };
+            if !matters {
+                continue;
+            }
             let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
                 continue;
             };
             let format = *self.format.get_or_insert_with(|| line_format(&value));
+            self.at = value
+                .get("timestamp")
+                .and_then(serde_json::Value::as_str)
+                .and_then(juggler_core::time::timestamp_ms);
             match format {
                 TranscriptFormat::ClaudeCode => {
                     crate::claude_transcript::subtask_line(self, &value);
@@ -101,15 +134,6 @@ impl SubtaskLog {
         &self.items
     }
 
-    /// How many are still running (the status row's count, I-08).
-    #[must_use]
-    pub fn running(&self) -> usize {
-        self.items
-            .iter()
-            .filter(|item| item.state == SubtaskState::Running)
-            .count()
-    }
-
     /// A call started a subagent.
     pub(crate) fn started(&mut self, call: &str, task: &str, kind: Option<&str>) {
         if self.calls.contains_key(call) {
@@ -118,9 +142,13 @@ impl SubtaskLog {
         self.calls.insert(call.to_owned(), self.items.len());
         self.items.push(Subtask {
             id: call.to_owned(),
-            label: one_line(task),
             kind: kind.filter(|kind| !kind.is_empty()).map(str::to_owned),
             state: SubtaskState::Running,
+            agent: None,
+            task: whole(task),
+            background: false,
+            started_ms: self.at,
+            ended_ms: None,
         });
     }
 
@@ -128,12 +156,44 @@ impl SubtaskLog {
     pub(crate) fn named(&mut self, call: &str, agent: &str) {
         if let Some(&index) = self.calls.get(call) {
             self.agents.insert(agent.to_owned(), index);
+            if let Some(item) = self.items.get_mut(index) {
+                item.agent = Some(agent.to_owned());
+            }
         }
     }
 
     /// A later call's answer will end this agent.
     pub(crate) fn awaits(&mut self, call: &str, agent: &str) {
         self.awaited.insert(call.to_owned(), agent.to_owned());
+    }
+
+    /// The call awaited stops its agent (an answer that doesn't say how
+    /// it last stood means stopped).
+    pub(crate) fn stops(&mut self, call: &str) {
+        self.stopping.insert(call.to_owned());
+    }
+
+    /// Whether `call` stops the agent it awaits.
+    pub(crate) fn is_stop(&self, call: &str) -> bool {
+        self.stopping.contains(call)
+    }
+
+    /// Whether `call` started a subagent.
+    pub(crate) fn is_start(&self, call: &str) -> bool {
+        self.calls.contains_key(call)
+    }
+
+    /// The tool named an agent it already knows by another name (Codex's
+    /// path and its thread id): both now name it, and the thread id is its
+    /// own id.
+    pub(crate) fn alias(&mut self, known: &str, id: &str) {
+        let Some(&index) = self.agents.get(known) else {
+            return;
+        };
+        self.agents.insert(id.to_owned(), index);
+        if let Some(item) = self.items.get_mut(index) {
+            item.agent = Some(id.to_owned());
+        }
     }
 
     /// A later call's answer says how named agents stand.
@@ -153,6 +213,7 @@ impl SubtaskLog {
     /// waiting on, now stands at `state`.
     pub(crate) fn answered(&mut self, call: &str, state: SubtaskState) {
         self.waits.remove(call);
+        self.stopping.remove(call);
         if let Some(&index) = self.calls.get(call) {
             self.set(index, state);
         } else if let Some(agent) = self.awaited.remove(call) {
@@ -169,6 +230,7 @@ impl SubtaskLog {
     /// failed; a close or a wait changes nothing.
     pub(crate) fn not_started(&mut self, call: &str) {
         self.waits.remove(call);
+        self.stopping.remove(call);
         self.awaited.remove(call);
         if let Some(&index) = self.calls.get(call) {
             self.set(index, SubtaskState::Failed);
@@ -182,12 +244,20 @@ impl SubtaskLog {
         }
     }
 
-    /// Done and failed are final: a later close says nothing new.
+    /// Done, failed and stopped are final: a later close says nothing
+    /// new. A final state takes the line's time as its end.
     fn set(&mut self, index: usize, state: SubtaskState) {
+        let at = self.at;
         if let Some(item) = self.items.get_mut(index)
             && !item.state.is_final()
         {
             item.state = state;
+            if state == SubtaskState::Background {
+                item.background = true;
+            }
+            if state.is_final() {
+                item.ended_ms = at;
+            }
         }
     }
 }
@@ -200,93 +270,89 @@ pub fn subtasks_of(bytes: &[u8]) -> SubtaskLog {
     log
 }
 
-/// Reads a transcript as it grows: each [`SubtaskTail::read`] takes in only
-/// the bytes appended since the last one, and a line still being written
-/// waits for the next read.
-#[derive(Debug, Clone, Default)]
-pub struct SubtaskTail {
-    log: SubtaskLog,
-    offset: u64,
-    partial: Vec<u8>,
-    /// The file read so far (inode), to tell a replaced file.
-    file: Option<u64>,
-}
+/// Reads a transcript as it grows, into a [`SubtaskLog`] (only what was
+/// appended since the last read).
+pub type SubtaskTail = crate::transcript_tail::TranscriptTail<SubtaskLog>;
 
-impl SubtaskTail {
-    /// Reads what was appended to `path` (at most 16 MiB a call). A file
-    /// that was replaced (another file, or a shorter one) is read again
-    /// from the start. Returns whether anything was read.
-    ///
-    /// # Errors
-    ///
-    /// The file can't be opened or read.
-    pub fn read(&mut self, path: &Path) -> std::io::Result<bool> {
-        let mut file = std::fs::File::open(path)?;
-        let metadata = file.metadata()?;
-        let identity = Some(file_identity(&metadata));
-        if metadata.len() < self.offset || (self.file.is_some() && self.file != identity) {
-            *self = Self::default();
-        }
-        self.file = identity;
-        if metadata.len() == self.offset {
-            return Ok(false);
-        }
-        file.seek(SeekFrom::Start(self.offset))?;
-        let mut chunk = Vec::new();
-        file.take(READ_PER_CALL).read_to_end(&mut chunk)?;
-        self.offset += chunk.len() as u64;
-        // Only the new bytes are searched for a line's end.
-        let line_end = chunk.iter().rposition(|b| *b == b'\n');
-        let kept = self.partial.len();
-        self.partial.extend_from_slice(&chunk);
-        if let Some(end) = line_end {
-            let rest = self.partial.split_off(kept + end + 1);
-            let whole = std::mem::replace(&mut self.partial, rest);
-            self.log.feed(&whole);
-        }
-        Ok(!chunk.is_empty())
-    }
-
-    /// Reads all of `path`, 16 MiB at a time (memory stays bounded by what
-    /// the log keeps, not by the file's size).
-    ///
-    /// # Errors
-    ///
-    /// As [`SubtaskTail::read`].
-    pub fn read_all(&mut self, path: &Path) -> std::io::Result<()> {
-        while self.read(path)? {}
-        Ok(())
-    }
-
-    /// What has been read so far.
-    #[must_use]
-    pub fn log(&self) -> &SubtaskLog {
-        &self.log
+impl crate::transcript_tail::TailLog for SubtaskLog {
+    fn feed(&mut self, bytes: &[u8]) {
+        Self::feed(self, bytes);
     }
 }
 
-/// A file's identity (its inode), to tell it from another at the same
-/// path. Elsewhere 0: only a shorter file is told apart there.
-#[cfg(unix)]
-fn file_identity(metadata: &std::fs::Metadata) -> u64 {
-    use std::os::unix::fs::MetadataExt as _;
-    metadata.ino()
+/// AJ-E1520 (0.2): each subagent's depth that its tool didn't record
+/// (left 0 by its reader): one more than its parent's, 1 when the session
+/// started it.
+pub(crate) fn fill_depths(out: &mut [juggler_adapter::subagents::Subagent]) {
+    /// Deeper than this, a loop in the records is assumed and the walk
+    /// stops.
+    const DEEPEST: u32 = 32;
+    let parents: HashMap<String, Option<String>> = out
+        .iter()
+        .map(|agent| (agent.id.clone(), agent.parent.clone()))
+        .collect();
+    for agent in out.iter_mut().filter(|agent| agent.depth == 0) {
+        let mut depth = 1;
+        let mut at = agent.parent.clone();
+        while let Some(parent) = at {
+            depth += 1;
+            if depth > DEEPEST {
+                break;
+            }
+            at = parents.get(&parent).cloned().flatten();
+        }
+        agent.depth = depth;
+    }
 }
 
-#[cfg(not(unix))]
-fn file_identity(_metadata: &std::fs::Metadata) -> u64 {
-    0
+/// Whether `line` holds `needle`.
+pub(crate) fn holds(line: &[u8], needle: &[u8]) -> bool {
+    line.windows(needle.len()).any(|window| window == needle)
 }
 
-/// The first line of a task, cut to [`LABEL_CHARS`].
-fn one_line(text: &str) -> String {
-    let first = text
-        .lines()
-        .find(|line| !line.trim().is_empty())
-        .unwrap_or("")
-        .trim();
-    let mut cut: String = first.chars().take(LABEL_CHARS).collect();
-    if first.chars().count() > LABEL_CHARS {
+/// Each string value of `key` in a raw JSON line (`"key":"value"`, with
+/// or without spaces), for a cheap look before a parse.
+pub(crate) fn values_of<'a>(line: &'a [u8], key: &[u8]) -> Vec<&'a [u8]> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    while let Some(found) = line[at..]
+        .windows(key.len())
+        .position(|window| window == key)
+    {
+        let mut index = at + found + key.len();
+        at = index;
+        // `"key"` then `:` then `"`, spaces allowed between.
+        if line.get(index) != Some(&b'"') {
+            continue;
+        }
+        index += 1;
+        while line.get(index).is_some_and(u8::is_ascii_whitespace) {
+            index += 1;
+        }
+        if line.get(index) != Some(&b':') {
+            continue;
+        }
+        index += 1;
+        while line.get(index).is_some_and(u8::is_ascii_whitespace) {
+            index += 1;
+        }
+        if line.get(index) != Some(&b'"') {
+            continue;
+        }
+        index += 1;
+        if let Some(end) = line[index..].iter().position(|b| *b == b'"') {
+            out.push(&line[index..index + end]);
+            at = index + end;
+        }
+    }
+    out
+}
+
+/// A task trimmed, cut to [`TASK_CHARS`].
+fn whole(text: &str) -> String {
+    let text = text.trim();
+    let mut cut: String = text.chars().take(TASK_CHARS).collect();
+    if text.chars().count() > TASK_CHARS {
         cut.push('…');
     }
     cut
@@ -296,7 +362,15 @@ fn one_line(text: &str) -> String {
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-    use super::{SubtaskState, SubtaskTail, subtasks_of};
+    use super::{SubtaskLog, SubtaskState, SubtaskTail, subtasks_of};
+
+    /// How many the log says are still running.
+    fn running(log: &SubtaskLog) -> usize {
+        log.subtasks()
+            .iter()
+            .filter(|item| item.state == SubtaskState::Running)
+            .count()
+    }
 
     const CLAUDE_START: &str = r#"{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Task","input":{"description":"Find the parser","prompt":"Look for it","subagent_type":"Explore"}}]}}"#;
     const CLAUDE_DONE: &str = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"found it"}]},"toolUseResult":{"status":"completed","agentId":"a1"}}"#;
@@ -309,14 +383,10 @@ mod tests {
         std::fs::write(&path, format!("{CLAUDE_START}\n{head}")).unwrap();
         let mut reader = SubtaskTail::default();
         reader.read(&path).unwrap();
-        assert_eq!(
-            reader.log().running(),
-            1,
-            "started, its answer half-written"
-        );
+        assert_eq!(running(reader.log()), 1, "started, its answer half-written");
         std::fs::write(&path, format!("{CLAUDE_START}\n{head}{tail}\n")).unwrap();
         reader.read(&path).unwrap();
-        assert_eq!(reader.log().running(), 0);
+        assert_eq!(running(reader.log()), 0);
         assert_eq!(reader.log().subtasks()[0].state, SubtaskState::Done);
     }
 
@@ -330,7 +400,7 @@ mod tests {
         std::fs::write(&path, format!("{CLAUDE_START}\n")).unwrap();
         reader.read(&path).unwrap();
         assert_eq!(reader.log().subtasks().len(), 1);
-        assert_eq!(reader.log().running(), 1);
+        assert_eq!(running(reader.log()), 1);
     }
 
     #[test]
@@ -340,7 +410,7 @@ mod tests {
         std::fs::write(&path, format!("{CLAUDE_START}\n{CLAUDE_DONE}\n")).unwrap();
         let mut reader = SubtaskTail::default();
         reader.read(&path).unwrap();
-        assert_eq!(reader.log().running(), 0);
+        assert_eq!(running(reader.log()), 0);
         // Another file of the same length, moved into place: the start
         // only, padded.
         let other = dir.path().join("other.jsonl");
@@ -353,7 +423,7 @@ mod tests {
         reader.read(&path).unwrap();
         assert_eq!(reader.log().subtasks().len(), 1);
         assert_eq!(
-            reader.log().running(),
+            running(reader.log()),
             1,
             "read from the start, not the old offset"
         );
@@ -388,15 +458,15 @@ mod tests {
     }
 
     #[test]
-    fn a_label_is_the_first_line_cut_short() {
-        let long = "x".repeat(200);
+    fn a_task_is_kept_trimmed_and_cut_long() {
+        let long = "x".repeat(2_100);
         let line = format!(
             r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","id":"t","name":"Agent","input":{{"prompt":"\n{long}\nmore"}}}}]}}}}"#
         );
         let log = subtasks_of(line.as_bytes());
-        let label = &log.subtasks()[0].label;
-        assert_eq!(label.chars().count(), 81, "{label}");
-        assert!(label.ends_with('…'));
+        let task = &log.subtasks()[0].task;
+        assert_eq!(task.chars().count(), 2_001, "cut to 2,000 and marked");
+        assert!(task.starts_with('x') && task.ends_with('…'));
         assert_eq!(log.subtasks()[0].kind, None);
     }
 }

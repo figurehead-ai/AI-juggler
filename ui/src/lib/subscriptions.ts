@@ -51,19 +51,49 @@ export function shareAccount(rows: SubscriptionInfo[], a: string, b: string): bo
   return account !== undefined && account.state === "signed_in" && account.profiles.some((profile) => profile.id === b);
 }
 
-/** An account's name: its team's, else its tool and plan ("Claude Max"). */
+/** An account's name: the names you gave its profiles (the 0.2 walk, F3:
+ * five seats in one team all read the team's name), the one the rail,
+ * tiles and filters use. One profile is its name; two are "A and B";
+ * more are "A, B and 2 more". A group of profiles not signed in is "Not
+ * signed in"; with no name at all, its tool and plan ("Claude Max"). */
 export function accountName(row: SubscriptionInfo): string {
   if (row.state === "signed_out") return "Not signed in";
+  const labels = [...new Set(row.profiles.map((profile) => profile.label?.trim()).filter((label): label is string => !!label))];
+  if (labels.length === 1) return labels[0]!;
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  if (labels.length > 2) return `${labels[0]}, ${labels[1]} and ${labels.length - 2} more`;
+  // AJ-E1601: an account through another service is named for it.
+  if (row.service) return row.service.name;
   if (row.organisation) return row.organisation;
   const tool = toolSpec(row.tool).short_name || toolSpec(row.tool).display_name;
   return row.plan ? `${tool} ${row.plan}` : `${tool} account`;
 }
 
-/** Its sign-in and plan, in one line ("o…@work.com · Max"). */
+/** The account with its profiles' names as they are now (a name changed
+ * since the accounts were read shows at once). */
+export function withLiveLabels(row: SubscriptionInfo, accounts: readonly { id: string; label: string }[]): SubscriptionInfo {
+  return { ...row, profiles: row.profiles.map((p) => ({ ...p, label: accounts.find((a) => a.id === p.id)?.label ?? p.label })) };
+}
+
+/** Its team, sign-in and plan, in one line ("Acme · o…@work.com · Max"):
+ * the team is the second line, never the title. */
 export function accountLine(row: SubscriptionInfo): string | null {
-  const parts = [row.email, row.organisation && row.plan ? row.plan : null].filter(Boolean);
+  if (row.service) return [row.service.name, serviceLine(row)].filter(Boolean).join(" · ");
+  const parts = [row.organisation, row.email, row.plan].filter(Boolean);
   if (row.state === "unverified") parts.push(row.reason ?? "its sign-in can't be read");
   return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** AJ-E1601: an account through another service in one line — its plan
+ * and how honest its usage is ("Go Plus · estimate"), or why its key
+ * can't be used. */
+export function serviceLine(row: SubscriptionInfo): string {
+  if (row.state === "unverified") {
+    const reason = row.reason ?? "its key isn't here";
+    return reason.charAt(0).toUpperCase() + reason.slice(1);
+  }
+  const usage = row.service?.usage === "estimate" ? "estimate" : "usage unknown";
+  return [row.plan, usage].filter(Boolean).join(" · ");
 }
 
 /** The account's runway: one for all its profiles, from whichever of

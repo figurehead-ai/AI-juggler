@@ -7,12 +7,14 @@
  * leaving their count, ⌘1–9 to places, ↑↓ between rows, and 40 sessions
  * drawn virtualised within a frame.
  */
+import { needsFor } from "../test/needs-kit";
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstanceBoard } from "./WorkflowRail";
 import { ConversationsProvider } from "../lib/conversations";
 import { DEFAULT_VIEW, railView, resetRailViewCache, setRailView } from "../lib/rail-view";
 import { resetSeen } from "../lib/seen";
+import { resetRailOrderCache, setOrderMode } from "../lib/rail-order-store";
 import { placesConversations } from "../preview/places";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
@@ -24,6 +26,7 @@ const seams = () => window as unknown as Seams;
 
 beforeEach(() => {
   resetRailViewCache();
+  resetRailOrderCache();
   setRailView(DEFAULT_VIEW);
   resetSeen();
 });
@@ -33,6 +36,7 @@ afterEach(() => {
   delete seams().__AIJ_FIXTURE__;
   delete seams().__AIJ_APP_SETTINGS__;
   resetRailViewCache();
+  resetRailOrderCache();
   vi.restoreAllMocks();
 });
 
@@ -49,11 +53,22 @@ function own(id: string, over: Partial<InstanceInfo> = {}): InstanceInfo {
 
 function board(sessions: InstanceInfo[], conversations: ConversationInfo[] = placesConversations(NOW)) {
   seams().__AIJ_FIXTURE__ = { conversations };
+  needsFor({ sessions, conversations, projects }); // D-49: the backend's list
   return render(
     <ConversationsProvider>
       <InstanceBoard sessions={sessions} loginTerminals={[]} selectedId={null} onSelect={() => {}} density="comfortable" freshness={{}} now={NOW} projects={projects} snooze={{}} onSnooze={() => {}} />
     </ConversationsProvider>,
   );
+}
+
+/** A session another app runs, open in a terminal, on `tool`. */
+function elsewhere(id: string, tool: string, over: Partial<ConversationInfo> = {}): ConversationInfo {
+  return {
+    id, tool, account_id: "acc-1", account_label: "Work Max", project_id: "proj-payments", cwd: "/Users/you/Dev/payments-api", title: `Talk ${id}`,
+    git_branch: "main", started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null, live: true, session_id: null,
+    places: [{ app: "Terminal", app_id: "terminal", profile: "Work Max", instance: null, pid: 77, kind: "terminal", app_pid: 70, label: "Terminal" }],
+    pid: 77, state: "working", probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null, ...over,
+  };
 }
 
 const headers = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>("[data-testid='place-header']")];
@@ -81,16 +96,20 @@ describe("the rail by place", () => {
     expect(working.textContent).toContain("viewed 2 min ago");
   });
 
-  it("a quiet place folds to its header with its count, and opens on its chevron", async () => {
+  it("Latest activity: a quiet place folds to its header with its count, and opens on its chevron", async () => {
+    setOrderMode("latest");
     const view = board([]);
     await view.findByTestId("rail-open-now");
+    // D-47: a place with one to review isn't quiet (that row stays in its place).
     const personal = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "Claude|Personal")!;
-    const toggle = within(personal).getByTestId("rail-fold");
+    expect(within(personal).getByTestId("rail-fold").getAttribute("aria-expanded")).toBe("true");
+    const codex = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "ChatGPT|Codex")!;
+    const toggle = within(codex).getByTestId("rail-fold");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(toggle.getAttribute("aria-label")).toBe("Unfold Claude · Personal");
-    expect(within(personal).getByTestId("place-page").textContent).toContain("Personal · 1 idle");
+    expect(toggle.getAttribute("aria-label")).toBe("Unfold ChatGPT · Codex");
+    expect(within(codex).getByTestId("place-page").textContent).toContain("Codex · 1 idle");
     fireEvent.click(toggle);
-    await waitFor(() => expect(view.getByTestId("place-board").querySelector("[data-conversation-id='outside-4']")).not.toBeNull());
+    await waitFor(() => expect(view.getByTestId("place-board").querySelector("[data-conversation-id='outside-10']")).not.toBeNull());
   });
 
   it("Open brings the running app forward by its process and says so; AI Juggler's opens its first session", async () => {
@@ -165,5 +184,22 @@ describe("the rail by place", () => {
     expect(drawn).toBeLessThan(40);
     expect(drawn).toBeGreaterThan(5);
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe("a row's sub-agents (AJ-E1520, 0.2)", () => {
+  it("every tool's session says how many it runs: AI Juggler's own and the ones other apps run", async () => {
+    setRailView({ ...DEFAULT_VIEW, show: { ...DEFAULT_VIEW.show, subagents: true } });
+    const view = board(
+      [own("aj", { subtask_count: 1 })],
+      [elsewhere("codex-1", "codex", { subtask_count: 3 }), elsewhere("kimi-1", "kimi-code", { subtask_count: 1, pid: 78 }), elsewhere("grok-1", "grok-build", { pid: 79 })],
+    );
+    await view.findByTestId("rail-open-now");
+    const line = (selector: string) => view.getByTestId("place-board").querySelector<HTMLElement>(selector)?.closest("[data-rail-row]")?.querySelector("[data-testid='row-subagents']")?.textContent ?? null;
+    expect(line("[data-instance-id='aj']")).toBe("+1 agent");
+    expect(line("[data-conversation-id='codex-1']")).toBe("+3 agents");
+    expect(line("[data-conversation-id='kimi-1']")).toBe("+1 agent");
+    // Not read yet: no line, never a guessed 0.
+    expect(line("[data-conversation-id='grok-1']")).toBeNull();
   });
 });

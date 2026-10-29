@@ -32,6 +32,22 @@ Labs 1–8 on 2026-10-22, labs 9–11 on 2026-10-23; all on Claude Code 2.1.302 
 | 10 | 1–4, 6, 6b, 7 (2026-10-23) | PASS | Lab 9's journey again, all PASS, plus 6b: B said a release name only in its reply, and switching back to the Codex task gave "Silver Finch". |
 | 11 | 1–4, 6, 6b, 7, 8 (2026-10-23) | PASS | Lab 10's journey again, all PASS, plus step 8, Codex → Codex: a task begun in the Mac's Codex home switched to a second Codex home the maintainer signed in for the lab (`AIJ_LAB_CODEX_B`; its own sign-in, no `auth.json` copied, read beyond the product's field-name check, or moved; the snapshot shows neither home's `auth.json` changed). The rollout was installed there and resumed by id: "The third codename is PLOVER; power is the only open plan item". |
 
+### Labs 15–20 (0.2, 2026-10-28): the measured fidelity
+
+Claude Code 2.1.310, codex-cli 0.163.0. Each hop now gets a measured table (`features::switch_fidelity`): source counts against what the target received, planted facts scored, a one-line verdict. Record: [lab-2026-10-28.md](docs/qa/evidence/AJ-E1539/lab-2026-10-28.md); the final run's tables: [fidelity-2026-10-28.md](docs/qa/evidence/AJ-E1539/fidelity-2026-10-28.md).
+
+| Lab | Steps | Result | What it found or proved |
+|---|---|---|---|
+| 15 | 1–4, 6, 6b, 7 with the probe | 2 of 13 FAIL, then fixed | Every Claude → Claude switch of a session with file history failed after the launch ("source changed": the check looked beside the transcript). Back on Codex, a rule only `CLAUDE.md` states was no longer in force (the update now names the rules files the returning tool doesn't load) |
+| 16 | the same | then fixed | A transplant lost Claude Code 2.1.310's task list (kept in `tasks/<id>/`), and the reader didn't know `TaskCreate`/`TaskUpdate` (both fixed) |
+| 17 | the same | PASS; one hop PARTIAL, then fixed | Back on A, the task list was stale (the update now gives the newest list a hop left, and whose) |
+| 18 | the same | PASS, every hop PASS | A handover quoted 27 empty turns for tool results (fixed) |
+| 19 | the same, clean environment | PASS, every hop PASS | The final run: 9/9, 10/10, 9/9, 5/5, 2/2, 1/1 and 2/2 facts answered; nothing lost; reductions by design only (tool results summarised, a subagent another tool can't take over, older turns as one-liners on the way back) |
+| 21 | notes suite (D-51), clean environment | PASS, every step and hop | A note planted in `<claude-a>`'s notes for the lab project only travelled A → B when its offer was ticked (B: "NOTE_CODENAME=MARSH-WREN"), its undo took the note and its index line out of B, and with "include in the handover" ticked Codex answered "NOTE_CODENAME=MARSH-WREN" from the handover; the fidelity tables' new **Project notes** row is 1/1 on both hops ([lab-2026-10-28.md](lab-2026-10-28.md#lab-21-the-notes-suite-d-51)) |
+| 20 | outside suite j1–j3, clean environment | PASS, every step | As lab 14: MAGPIE, TERN, WREN, Amber Lantern, Quiet Harbor, Velvet Comet answered; keys REDACTED; KESTREL PEREGRINE on both sides; every set-up undone |
+
+Step 8 (Codex → Codex) not run: its second Codex home is gone and a new one needs a sign-in. Labs 15–18 ran with a Claude Code session's variables inherited (see the record); labs 19 and 20 in the clean environment the labs now require.
+
 ## Proof
 
 | Requirement | Proof | Result |

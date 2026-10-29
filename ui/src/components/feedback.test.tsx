@@ -8,6 +8,7 @@ import { HomeScreen } from "../screens/Home";
 import { holdStop, STOP_HOLD_SECONDS } from "../lib/stop";
 import type { InstanceInfo, QuitPlanInfo } from "../lib/bridge";
 import { useProjectLens } from "./project-lens.test-kit";
+import { notificationsSnoozes } from "../lib/ipc/notices";
 
 // AJ-E2104: these read the project board, the rail's Project lens.
 useProjectLens();
@@ -180,6 +181,18 @@ describe("AJ-E1503 toasts and screen readers", () => {
     expect(document.activeElement).toBe(elsewhere);
   });
 
+  it("takes the focus resting on the page itself, as on nothing (a page just opened, F11)", () => {
+    render(
+      <>
+        <main tabIndex={-1}>Page</main>
+        <ToastHost />
+      </>,
+    );
+    screen.getByRole("main").focus();
+    act(() => void showToast({ message: "Switched.", focusWhenFree: true, undo: { onUndo: () => {} } }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: /Undo/ }));
+  });
+
   it("a failed undo says so and stays until closed", async () => {
     vi.useFakeTimers();
     render(<ToastHost />);
@@ -207,7 +220,7 @@ describe("AJ-E1503 toasts and screen readers", () => {
 });
 
 describe("AJ-E1503 quit warning", () => {
-  const plan = (live: number, end_on_quit: number, keep_running: number): QuitPlanInfo => ({ live, end_on_quit, keep_running });
+  const plan = (live: number, end_on_quit: number, keep_running: number, come_back = 0): QuitPlanInfo => ({ live, end_on_quit, keep_running, come_back });
 
   it("says how many are running and what quitting does", () => {
     expect(runningWords(plan(1, 1, 0))).toBe("1 session is running.");
@@ -230,6 +243,15 @@ describe("AJ-E1503 quit warning", () => {
     expect(quitEffectWords(desktopOrAdopted)).not.toMatch(/ends/);
     expect(quitEffectWords(plan(2, 0, 2))).toBe("They keep running after AI Juggler quits.");
     expect(quitEffectWords(plan(2, 1, 1))).toBe("1 ends when AI Juggler quits; 1 keeps running.");
+  });
+
+  // AJ-E2310 (quit.rs `a_driven_session_comes_back_and_the_plan_says_so`):
+  // a session AI Juggler runs without a terminal comes back.
+  it("says a driven session comes back when AI Juggler opens again", () => {
+    expect(quitEffectWords(plan(1, 0, 0, 1))).toBe("It comes back when AI Juggler opens again.");
+    expect(quitEffectWords(plan(2, 0, 0, 2))).toBe("They come back when AI Juggler opens again.");
+    expect(quitEffectWords(plan(2, 1, 0, 1))).toBe("1 ends when AI Juggler quits; 1 comes back when it opens again.");
+    expect(quitEffectWords(plan(3, 1, 1, 1))).toBe("1 ends when AI Juggler quits; 1 keeps running; 1 comes back when it opens again.");
   });
 
   it("shows only when asked, and quits only from a click", async () => {
@@ -336,10 +358,12 @@ describe("AJ-E1503 snooze with Undo", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /^Session actions for / })[0]!);
     fireEvent.click(screen.getByRole("menuitem", { name: "Snooze for an hour" }));
     expect(screen.getByTestId("toast").textContent).toContain("Snoozed Work Max for 1 h.");
-    expect(JSON.parse(localStorage.getItem("aij.snooze") ?? "{}")["sess-1"]).toBeTruthy();
+    // D-49: the snooze is the backend's (here its stand-in), by subject.
+    const snoozed = async () => (await notificationsSnoozes({ cursor: null, limit: 50 })).items.map((row) => row.subject);
+    await waitFor(async () => expect(await snoozed()).toContain("s:sess-1"));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
     });
-    expect(JSON.parse(localStorage.getItem("aij.snooze") ?? "{}")["sess-1"]).toBeUndefined();
+    await waitFor(async () => expect(await snoozed()).not.toContain("s:sess-1"));
   });
 });

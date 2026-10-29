@@ -20,7 +20,7 @@ import { ToolMark } from "../components/ToolMark";
 import { AwakeLine, MachineState, OwnLine, TreeRow, cpuWords } from "../components/this-mac-parts";
 import { FoldChevron, MemoryMeter, OtherAppsGroup } from "../components/this-mac-memory";
 import { RowPlaceholders } from "../components/Placeholder";
-import { alertSubject, bytesWords, ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { alertNextStep, alertSubject, bytesWords, ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
 
 /** A group's trees, as the backend grouped them: our sessions of that
@@ -40,6 +40,17 @@ function Section({ id, title, bare = false, children }: { id: string; title: str
       {bare ? children : <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface px-4 py-3.5">{children}</div>}
     </section>
   );
+}
+
+/** An alert's "See what's using it": the page's own list, its heading
+ * focused so the keyboard lands there too. */
+function seeWhatsUsingIt(): void {
+  const heading = document.getElementById("this-mac-using-title");
+  heading?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  if (heading) {
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }
 }
 
 /** One of the Mac's figures as a card: its name, then its content. */
@@ -86,6 +97,8 @@ function ToolGroup({
   // Another tool's windows: its trees say which tool they are.
   const mark = group.ours ? group.tool : trees.find((tree) => tree.tool)?.tool;
   const memory = `${group.totals.memory_estimate ? "about " : ""}${bytesWords(group.totals.rss_bytes)}`;
+  // Ours and another app's (AJ-E2407) are sessions; the Claude tools' are windows.
+  const sessions = group.ours || trees.some((tree) => !!tree.title);
   return (
     <details className="group border-t border-hairline/60 first:border-t-0" data-testid="this-mac-group" data-ours={group.ours ? "true" : "false"} open={group.ours}>
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
@@ -94,7 +107,7 @@ function ToolGroup({
           {mark && <ToolMark tool={mark} size={14} className="text-muted" />}
           <span className="shrink-0">{group.label}</span>
           <span className="min-w-0 truncate text-meta font-normal text-muted">
-            {trees.length === 1 ? "1" : trees.length} {group.ours ? (trees.length === 1 ? "session" : "sessions") : trees.length === 1 ? "window" : "windows"}
+            {trees.length === 1 ? "1" : trees.length} {sessions ? (trees.length === 1 ? "session" : "sessions") : trees.length === 1 ? "window" : "windows"}
             {group.ours ? "" : " · not started by AI Juggler"}
           </span>
         </span>
@@ -202,9 +215,16 @@ export function ThisMacScreen({
               {info.alerts.length > 0 && (
                 <ul className="flex flex-col gap-2" aria-label="Recent alerts">
                   {info.alerts.map((alert) => (
-                    <li key={alert.key} className="flex flex-col gap-0.5" data-testid="this-mac-alert">
+                    <li key={alert.key} className="flex flex-col gap-1" data-testid="this-mac-alert">
                       <span className="text-body font-medium text-ink">{alert.title}</span>
                       <span className="text-meta text-muted">{[alert.detail, alertSubject(alert, nameOf)].filter(Boolean).join(". ")}</span>
+                      {/* The 0.2 walk (F13): every alert says what to do. */}
+                      <span className="text-meta text-ink" data-testid="this-mac-alert-next">{alertNextStep(alert, nameOf)}.</span>
+                      {alert.kind !== "disk" && (
+                        <Button size="sm" variant="secondary" className="w-fit" onClick={() => seeWhatsUsingIt()} data-testid="this-mac-alert-using">
+                          See what's using it
+                        </Button>
+                      )}
                     </li>
                   ))}
                 </ul>

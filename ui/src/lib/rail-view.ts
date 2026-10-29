@@ -38,9 +38,18 @@ export const SHOW_LABELS: Record<ShowKey, string> = {
   quiet: "Quiet ones",
   ended: "Ended today",
   background: "Background runs",
-  subagents: "Sub-agents",
+  subagents: "Subagents",
   otherMacs: "Other Macs",
   archived: "Archived",
+};
+
+/** What each one is, beside it (the 0.2 walk, F18: "Quiet ones" and
+ * "Inactive" said nothing of the difference). */
+export const SHOW_NOTES: Partial<Record<ShowKey, string>> = {
+  inactive: "in an app's list, not running",
+  quiet: "idle rows a place folds away",
+  background: "headless runs, from scripts",
+  subagents: "how many each session runs",
 };
 
 const KEY = "aij.rail.view.v1";
@@ -51,7 +60,8 @@ export function parseView(raw: string | null): RailView {
   if (!raw) return DEFAULT_VIEW;
   try {
     const value = JSON.parse(raw) as Partial<RailView>;
-    const group = GROUPS.includes(value.group as GroupBy) && value.group !== "pool" ? (value.group as GroupBy) : "place";
+    // Pool is kept as picked; with no pool of yours, the rail shows places.
+    const group = GROUPS.includes(value.group as GroupBy) ? (value.group as GroupBy) : "place";
     const show = { ...DEFAULT_VIEW.show };
     for (const key of SHOW_KEYS) if (value.show?.[key] === true) show[key] = true;
     const only: RailView["only"] = {};

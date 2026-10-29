@@ -10,7 +10,6 @@
 //! existence only; login itself always runs through the vendor's own
 //! interactive `claude` flow launched in a guided terminal.
 
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use crate::claude_environment;
@@ -19,9 +18,15 @@ use juggler_adapter::environment::{
 };
 use juggler_adapter::{
     AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
-    LaunchSpec, SessionEvent, SessionWatcher, VerificationStatus,
+    LaunchSpec, SessionWatcher, VerificationStatus,
 };
 use juggler_core::model::{Account, HarnessId, Profile};
+
+use crate::claude_env::unset_inherited_credentials;
+pub use crate::claude_env::{
+    INHERITED_CREDENTIAL_KEYS, INHERITED_SESSION_MARKERS, PARENT_SESSION_ROUTING_KEYS,
+    has_parent_session, launch_unset_keys, unset_inherited_in,
+};
 
 /// Harness id: `claude-code`.
 pub const CLAUDE_CODE_ID: &str = "claude-code";
@@ -133,10 +138,54 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             | Capabilities::USAGE_TOKENS
             | Capabilities::USAGE_QUOTA_FEED
             | Capabilities::FORK
+            | Capabilities::AGENT_BRIDGE
+            // AJ-E2306: its terminal sessions report through its own hooks.
+            | Capabilities::STATE_REPORTS
+            // AJ-E2308: without a terminal, a per-session Beta.
+            | Capabilities::PROTOCOL_SERVER
+            // Its `sessions/<pid>.json` name each session's process.
+            | Capabilities::SESSION_PROCESS_RECORDED
+    }
+
+    // AJ-E1520 (0.2): its subagents, from its own records.
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        crate::claude_subagents::SUPPORT
+    }
+
+    fn subagent_reader(
+        &self,
+        scope: juggler_adapter::SubagentScope<'_>,
+    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
+        crate::claude_subagents::reader(scope)
+    }
+
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
+    }
+
+    fn state_reports(
+        &self,
+        launch: &juggler_adapter::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::reports::ReportsInjection> {
+        crate::claude_hooks::injection(launch, args)
+    }
+
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        Some(crate::claude_bridge::injection(bridge, args))
     }
 
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
+    }
+
+    fn locate(&self) -> Option<PathBuf> {
+        // Files only: never runs it (`discover` asks its version).
+        self.resolve_bin().filter(|bin| bin.is_file())
     }
 
     fn discover(&self) -> DiscoveryReport {
@@ -389,6 +438,9 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         &[ENV_CONFIG_DIR, ENV_BIN_OVERRIDE]
     }
 
+    // The credentials only: the copyable shell line names what it removes,
+    // and a parent session's markers matter only inside AI Juggler's own
+    // launches (which remove them: `unset_inherited_credentials`).
     fn launch_unset_keys(&self) -> &'static [&'static str] {
         &INHERITED_CREDENTIAL_KEYS
     }
@@ -417,11 +469,40 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_inventory::can_set_up(item)
     }
 
+    fn used_in(
+        &self,
+        transcript: &Path,
+    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
+        crate::claude_used::used_in(transcript)
+    }
+
+    // D-51: its auto memory, `projects/<project>/memory/`.
+    fn keeps_project_memory(&self) -> bool {
+        true
+    }
+
+    fn project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+    ) -> Option<juggler_adapter::memory::ProjectMemory> {
+        crate::claude_memory::project_memory(state_dir, project)
+    }
+
+    fn add_project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+        from: &juggler_adapter::memory::ProjectMemory,
+    ) -> Result<juggler_adapter::memory::MemoryAdded, AdapterError> {
+        crate::claude_memory::add(state_dir, project, from)
+    }
+
     fn how_to_get(
         &self,
         item: &juggler_adapter::inventory::Item,
         state_dir: &Path,
-    ) -> juggler_adapter::inventory::HowTo {
+    ) -> juggler_adapter::inventory::GetIt {
         // The folder as the user's shell reads it: `$HOME/…`, quoted.
         let env = config_dir_value(state_dir);
         let shown = if env == juggler_adapter::launch::ENV_UNSET {
@@ -437,10 +518,6 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 .unwrap_or(env)
         };
         crate::claude_inventory::how_to_get(item, &shown)
-    }
-
-    fn account_settings_url(&self) -> Option<String> {
-        Some(crate::claude_inventory::ACCOUNT_SETTINGS_URL.to_owned())
     }
 
     fn set_up(
@@ -519,11 +596,9 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         unset_inherited_credentials(&mut env);
         // An empty folder of AI Juggler's own: run in the profile, Claude
         // would treat it as a project (a trust prompt, a projects/ entry).
-        let cwd = self
-            .overlays_root
-            .as_ref()
-            .map(|root| root.join("limits-probe"))
-            .filter(|dir| std::fs::create_dir_all(dir).is_ok())?;
+        // Named here, made only when the probe runs: reading the spec (to
+        // say whether it is offered) creates nothing.
+        let cwd = self.overlays_root.as_ref()?.join("limits-probe");
         Some(LaunchSpec {
             program: bin,
             args: crate::claude_limits::usage_probe_args(),
@@ -572,6 +647,19 @@ impl HarnessAdapter for ClaudeCodeAdapter {
 
     fn resolved_binary(&self) -> Option<PathBuf> {
         self.resolve_bin()
+    }
+
+    fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
+        Some(juggler_adapter::endpoint::WireApi::Anthropic)
+    }
+
+    fn configure_endpoint(
+        &self,
+        state_dir: &Path,
+        endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
+        model: &str,
+    ) -> Result<(), AdapterError> {
+        crate::claude_endpoint::configure(state_dir, endpoint, model)
     }
 
     fn launch_spec(
@@ -624,12 +712,16 @@ impl HarnessAdapter for ClaudeCodeAdapter {
                 }
                 (args, true)
             }
+            // With `-p`, stream-json needs `--verbose`: without it Claude
+            // Code 2.1.302 refuses to start ("--output-format=stream-json
+            // requires --verbose"; the lab of 2026-10-25).
             LaunchMode::Headless { prompt } => (
                 vec![
                     "-p".into(),
                     prompt.clone(),
                     "--output-format".into(),
                     "stream-json".into(),
+                    "--verbose".into(),
                 ],
                 false,
             ),
@@ -897,120 +989,8 @@ pub(crate) fn prepare_managed_dir_for(
     })
 }
 
-/// notify-based watcher over the account's transcript tree
-/// (`<config>/projects/…`). Filesystem events trigger a line-count diff per
-/// `.jsonl` file; new files emit [`SessionEvent::Discovered`], growth emits
-/// [`SessionEvent::MessageAppended`]. Content is never parsed here — the
-/// transcript parser runs downstream on demand (spec §4.1).
-pub(crate) struct ClaudeTranscriptWatcher {
-    root: PathBuf,
-    /// The vendor session id of a transcript file (Claude: the stem;
-    /// Codex: the thread UUID inside the rollout name).
-    id_of: fn(&Path) -> String,
-    _watcher: notify::RecommendedWatcher,
-    events: std::sync::mpsc::Receiver<notify::Result<notify::Event>>,
-    seen: BTreeMap<PathBuf, usize>,
-    /// (size, mtime) at the last read: an unchanged file is not read
-    /// again (Codex keeps every past rollout under `sessions/`).
-    stamps: BTreeMap<PathBuf, (u64, Option<std::time::SystemTime>)>,
-    /// How far each file's lines are counted (bytes, lines): a file that
-    /// grew is counted from there, never read whole again.
-    counted: BTreeMap<PathBuf, (u64, usize)>,
-    pending: std::collections::VecDeque<SessionEvent>,
-}
-
-impl ClaudeTranscriptWatcher {
-    fn new(root: &Path) -> Result<Self, AdapterError> {
-        Self::with_ids(root, file_stem)
-    }
-
-    /// A watcher whose native ids come from `id_of` (shared by Codex).
-    pub(crate) fn with_ids(root: &Path, id_of: fn(&Path) -> String) -> Result<Self, AdapterError> {
-        use notify::Watcher;
-        let (tx, events) = std::sync::mpsc::channel();
-        let mut watcher = notify::recommended_watcher(tx)
-            .map_err(|error| AdapterError::Watch(format!("cannot create fs watcher: {error}")))?;
-        watcher
-            .watch(root, notify::RecursiveMode::Recursive)
-            .map_err(|error| {
-                AdapterError::Watch(format!("cannot watch {}: {error}", root.display()))
-            })?;
-        Ok(Self {
-            root: root.to_path_buf(),
-            id_of,
-            _watcher: watcher,
-            events,
-            seen: BTreeMap::new(),
-            stamps: BTreeMap::new(),
-            counted: BTreeMap::new(),
-            pending: std::collections::VecDeque::new(),
-        })
-    }
-
-    /// Waits up to `timeout` for a filesystem event (returning early when
-    /// one arrives), then rescans. The scan is unconditional: fs backends
-    /// can drop or delay events (sleep/wake, coalescing), so the bounded
-    /// walk is the self-healing source of truth and notify is the wake-up
-    /// signal (spec §5: watching degrades gracefully).
-    fn wait_and_rescan(&mut self, timeout: std::time::Duration) {
-        if !timeout.is_zero() {
-            let _ = self.events.recv_timeout(timeout);
-            // Coalesce bursts before scanning once.
-            while self.events.try_recv().is_ok() {}
-        }
-        self.scan();
-    }
-
-    /// Walks the watched tree and queues Discovered/MessageAppended diffs.
-    fn scan(&mut self) {
-        let mut files = Vec::new();
-        collect_jsonl(&self.root, &mut files, 0);
-        files.sort();
-        for path in files {
-            let stamp = std::fs::metadata(&path)
-                .map(|meta| (meta.len(), meta.modified().ok()))
-                .unwrap_or_default();
-            if self.stamps.get(&path) == Some(&stamp) {
-                continue;
-            }
-            self.stamps.insert(path.clone(), stamp);
-            // Only what was appended since the last count; a file that
-            // shrank (rewritten) is counted again from its start.
-            let (before, base) = self
-                .counted
-                .get(&path)
-                .copied()
-                .filter(|(at, _)| *at <= stamp.0)
-                .unwrap_or((0, 0));
-            let lines = newlines_from(&path, before).map_or(0, |(end, more)| {
-                self.counted.insert(path.clone(), (end, base + more));
-                base + more
-            });
-            let known = self.seen.entry(path.clone()).or_insert(0);
-            if *known == 0 && lines > 0 {
-                self.pending.push_back(SessionEvent::Discovered {
-                    native_id: (self.id_of)(&path),
-                    transcript_path: path.clone(),
-                });
-            } else if lines > *known {
-                self.pending.push_back(SessionEvent::MessageAppended {
-                    native_id: (self.id_of)(&path),
-                    transcript_path: path.clone(),
-                });
-            }
-            *known = lines;
-        }
-    }
-}
-
-impl SessionWatcher for ClaudeTranscriptWatcher {
-    fn poll(&mut self, timeout: std::time::Duration) -> Result<Option<SessionEvent>, AdapterError> {
-        if self.pending.is_empty() {
-            self.wait_and_rescan(timeout);
-        }
-        Ok(self.pending.pop_front())
-    }
-}
+/// The shared transcript-tree watcher (its own module, by feature).
+pub(crate) use crate::transcript_watcher::ClaudeTranscriptWatcher;
 
 /// Bounded recursive collection of `.jsonl` files (depth cap guards against
 /// pathological symlink loops).
@@ -1140,27 +1120,6 @@ pub fn is_vendor_default_dir(dir: &Path) -> bool {
 pub fn is_vendor_default_dir_in(dir: &Path, home: &Path) -> bool {
     let trimmed = PathBuf::from(dir.to_string_lossy().trim_end_matches('/'));
     trimmed == home.join(".claude")
-}
-
-/// Credentials Claude Code takes from the environment ahead of the
-/// folder's own sign-in. Started from a terminal that exports one, AI
-/// Juggler would otherwise run EVERY account on that one key.
-pub const INHERITED_CREDENTIAL_KEYS: [&str; 3] = [
-    "ANTHROPIC_API_KEY",
-    "ANTHROPIC_AUTH_TOKEN",
-    "CLAUDE_CODE_OAUTH_TOKEN",
-];
-
-/// Each account signs in as itself: remove [`INHERITED_CREDENTIAL_KEYS`]
-/// from what the launch inherits (an account set up with a key keeps it
-/// in its own settings, which this doesn't touch).
-fn unset_inherited_credentials(env: &mut EnvMap) {
-    for key in INHERITED_CREDENTIAL_KEYS {
-        env.insert(
-            key.to_owned(),
-            juggler_adapter::launch::ENV_UNSET.to_owned(),
-        );
-    }
 }
 
 /// The `CLAUDE_CONFIG_DIR` value for a folder: its exact path (Claude's
@@ -1399,6 +1358,11 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
                 .to_owned(),
             checked: "2026-10-23".to_owned(),
         }),
+        // AJ-E1611: npm's `latest` [the tool's own published package].
+        release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
+            package: "@anthropic-ai/claude-code".to_owned(),
+        }),
+        update_command: Some("claude update".to_owned()),
     }
 }
 

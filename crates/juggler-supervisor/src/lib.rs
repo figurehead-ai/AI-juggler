@@ -18,6 +18,7 @@ pub mod group;
 pub mod heuristics;
 pub mod journal;
 pub mod lifecycle;
+mod listing;
 pub mod live_stats;
 pub mod machine;
 pub mod orphans;
@@ -27,6 +28,7 @@ pub mod stats;
 mod stop_guard;
 pub mod supervisor;
 pub mod tree;
+pub mod zombies;
 
 pub use error::SupervisorError;
 pub use heuristics::{
@@ -53,8 +55,8 @@ pub use ports::{
 };
 pub use ring::OutputRing;
 pub use supervisor::{
-    CollectorWork, LiveProcessStats, LiveStatsCollector, ObservedRoot, ObservedTree, ProcessBrief,
-    ProcessFacts, ProcessRow, ProcessTable, SpawnedProcess, Supervisor, TreeSample,
+    CollectorWork, DriverPipes, LiveProcessStats, LiveStatsCollector, ObservedRoot, ObservedTree,
+    ProcessBrief, ProcessFacts, ProcessRow, ProcessTable, SpawnedProcess, Supervisor, TreeSample,
 };
 pub use tree::{
     LadderOutcome, LadderScope, ProcessOutcome, ladder_platform, live_details, pgid_members,

@@ -1,15 +1,24 @@
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
-import { setupSummary } from "./SwitchSetupList";
-import { EXAMPLE_SETUP } from "../lib/ipc/switchSetup";
+import { SwitchSetupList, setupSummary } from "./SwitchSetupList";
+import {
+  EXAMPLE_SETUP,
+  EXAMPLE_SETUP_UNUSED,
+  SWITCHING_GUIDE_URL,
+  switchSetupTurnOns,
+  type OfferInfo,
+  type SetupCheckInfo,
+} from "../lib/ipc/switchSetup";
 import type { PreflightInfoData } from "../lib/bridge";
 
 /**
  * AJ-E1542/AJ-E1543: the switch shows what the target lacks and sets up
  * only what the user leaves ticked. Safe items start ticked; one that
- * needs the user starts unticked with what to do; one that can't be set
- * up has no box at all. Nothing is set up until the switch runs.
+ * needs the user starts unticked with what to do; one that comes with the
+ * other account has no box, and says how to turn it on there. What this
+ * conversation used leads; the rest waits under one collapsed line.
+ * Nothing is set up until the switch runs.
  */
 
 const PREFLIGHT: PreflightInfoData = {
@@ -37,7 +46,7 @@ const PREFLIGHT: PreflightInfoData = {
   },
   redaction_items: [],
   carry_items: [{ label: "The whole conversation", hint: "Every message from the start.", how: "moves" }],
-  move_line: "The whole conversation moves — all 12 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 12 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
   target_tool: "claude-code",
 };
@@ -46,6 +55,7 @@ type Seams = {
   __AIJ_SWITCH_PREFLIGHT__?: PreflightInfoData;
   __AIJ_SWITCH_SETUP__?: typeof EXAMPLE_SETUP;
   __AIJ_SWITCH_EXECUTE_FAIL__?: string;
+  __AIJ_OPENED__?: string[];
 };
 
 beforeEach(() => {
@@ -57,6 +67,7 @@ afterEach(() => {
   delete (window as never as Seams).__AIJ_SWITCH_PREFLIGHT__;
   delete (window as never as Seams).__AIJ_SWITCH_SETUP__;
   delete (window as never as Seams).__AIJ_SWITCH_EXECUTE_FAIL__;
+  delete (window as never as Seams).__AIJ_OPENED__;
 });
 
 function mount(onSwitched = vi.fn()) {
@@ -76,38 +87,81 @@ describe("what the target lacks", () => {
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
     expect(view.getByTestId("switch-setup-summary").textContent).toBe(
-      "Personal doesn't have 3 things Work Max has. 1 will be set up.",
+      "Personal doesn't have 3 things this conversation used. 1 will be set up, 1 you turn on yourself.",
     );
-    const skill = view.getByLabelText(/release-notes/) as HTMLInputElement;
+    const skill = view.getByRole("checkbox", { name: /release-notes/ }) as HTMLInputElement;
     expect(skill.checked).toBe(true);
-    const server = view.getByLabelText(/github/) as HTMLInputElement;
+    const server = view.getByRole("checkbox", { name: /github/ }) as HTMLInputElement;
     expect(server.checked).toBe(false);
-    expect(view.getByText("Needs you: it needs your GITHUB_TOKEN, and AI Juggler never copies a secret.")).toBeTruthy();
+    expect(view.getByText("You can switch now, then finish it: it needs your GITHUB_TOKEN, and AI Juggler never copies a secret.")).toBeTruthy();
     // A server that needs its token: never a bare status — it doesn't
     // stop the switch, it can be set up without the value, and the
     // adapter's steps give the account its own copy (a placeholder).
     const secret = view.getByTestId("switch-setup-secret-steps");
-    expect(secret.textContent).toContain("You can switch now; it doesn't stop the switch. Tick it to set github up on Personal without the value");
+    expect(secret.textContent).toContain("Tick it to set github up on Personal without the value");
     expect(secret.querySelectorAll("ol li").length).toBe(4);
     const command = view.getByTestId("switch-setup-command").textContent ?? "";
-    expect(command).toContain('claude mcp add-json --scope user github');
+    expect(command).toContain("claude mcp add-json --scope user github");
     expect(command).toContain('"GITHUB_TOKEN":"<your GITHUB_TOKEN>"');
     expect(within(secret).getByTestId("switch-setup-recheck").textContent).toBe("Check again");
-    // Something the account turns on itself: no box to tick, but the
-    // adapter's steps, its page and Check again — and it never blocks.
-    expect(view.queryByLabelText(/team-style/)).toBeNull();
-    const steps = view.getByTestId("switch-setup-steps");
-    expect(steps.textContent).toContain("You can switch now. Personal won't have team-style until you turn it on");
-    expect(steps.querySelectorAll("ol li").length).toBe(3);
-    expect(view.getByTestId("switch-setup-open-page").textContent).toContain("Open claude.ai settings");
     expect((view.getByTestId("switch-confirm") as HTMLButtonElement).disabled).toBe(false);
     expect(view.getByTestId("switch-summary-needs").textContent).toBe("2 things need you below; none of them stops the switch.");
+    // Comes with the account: no box, says it doesn't hold up the switch.
+    expect(view.queryByRole("checkbox", { name: /computer-use/ })).toBeNull();
+    expect(
+      view.getByText("You can switch now. Personal won't have computer-use until you turn it on."),
+    ).toBeTruthy();
+    const computer = view.getByText("computer-use").closest("li") as HTMLElement;
+    expect(within(computer).getByText("From Anthropic, with Work Max's account")).toBeTruthy();
+    expect(within(computer).getByText(/Needs a Pro or Max plan/)).toBeTruthy();
+    expect(view.queryByText(/Can't be set up: it comes with the claude.ai account/)).toBeNull();
+  });
+
+  it("puts what wasn't used here under one closed line", async () => {
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
+    const unused = view.getByTestId("switch-setup-unused") as HTMLDetailsElement;
+    expect(unused.open).toBe(false);
+    expect(unused.querySelector("summary")?.textContent).toBe(
+      "Also on Work Max, not on Personal (2, not used in this conversation)",
+    );
+    expect(unused.textContent).toContain("deep-research");
+    expect(unused.textContent).not.toContain("computer-use");
+  });
+
+  it("says how to turn it on, opens its page and checks again", async () => {
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
+    expect(view.queryByTestId("turn-on-steps")).toBeNull();
+    fireEvent.click(view.getByRole("button", { name: "Show me how to turn on computer-use" }));
+    const steps = view.getByTestId("turn-on-steps");
+    expect(steps.querySelectorAll("li")).toHaveLength(4);
+    expect(steps.textContent).toContain("Sign in to claude.ai as Personal.");
+    expect(steps.textContent).toContain("Start a session on Personal so it syncs.");
+    const row = view.getByText("computer-use").closest("li") as HTMLElement;
+    fireEvent.click(within(row).getByRole("button", { name: /^Open claude\.ai settings/ }));
+    await waitFor(() =>
+      expect((window as never as Seams).__AIJ_OPENED__).toEqual(["https://claude.ai/customize/skills"]),
+    );
+    fireEvent.click(view.getByRole("button", { name: "Check again for computer-use" }));
+    await waitFor(() => expect(view.getByRole("status").textContent).toContain("Personal doesn't have it yet"));
+  });
+
+  it("leads with nothing when the conversation used nothing missing", async () => {
+    (window as never as Seams).__AIJ_SWITCH_SETUP__ = EXAMPLE_SETUP_UNUSED;
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
+    expect(view.getByTestId("switch-setup-summary").textContent).toBe(
+      "Personal has everything this conversation used.",
+    );
+    expect(view.getAllByTestId("switch-setup-row")).toHaveLength(5);
+    expect((view.getByTestId("switch-setup-unused") as HTMLDetailsElement).open).toBe(false);
   });
 
   it("says one thing in the singular", async () => {
     (window as never as Seams).__AIJ_SWITCH_SETUP__ = {
       ...EXAMPLE_SETUP,
-      offers: EXAMPLE_SETUP.offers.filter((offer) => offer.id !== "skill-team-style"),
+      offers: EXAMPLE_SETUP.offers.filter((offer) => offer.id !== "skill-computer-use"),
     };
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-summary-needs")).toBeTruthy());
@@ -117,15 +171,19 @@ describe("what the target lacks", () => {
   it("sets up what's ticked when the switch runs, and says what it did", async () => {
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
-    fireEvent.click(view.getByLabelText(/github/));
-    expect(view.getByTestId("switch-setup-summary").textContent).toContain("2 will be set up.");
+    fireEvent.click(view.getByRole("checkbox", { name: /github/ }));
+    expect(view.getByTestId("switch-setup-summary").textContent).toContain("2 will be set up,");
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(view.getByTestId("switch-setup-results")).toBeTruthy());
     const results = view.getByTestId("switch-setup-results").textContent ?? "";
     expect(results).toContain("Set up on Personal");
     expect(results).toContain("Set up the skill release-notes");
     expect(results).toContain("Set up the MCP server github");
-    expect(results).not.toContain("team-style");
+    expect(results).not.toContain("computer-use");
+    // The switch kept a reminder for what Personal turns on itself.
+    const reminders = await switchSetupTurnOns();
+    expect(reminders.map((reminder) => reminder.name)).toContain("computer-use");
+    expect(reminders.map((reminder) => reminder.name)).not.toContain("deep-research");
   });
 
   it("can undo each set-up afterwards", async () => {
@@ -167,14 +225,82 @@ describe("what the target lacks", () => {
   });
 });
 
+describe("each row's words", () => {
+  const base: OfferInfo = {
+    id: "o",
+    kind: "skill",
+    name: "x",
+    scope: "user",
+    verdict: "copy",
+    note: null,
+    about: null,
+    suggested: false,
+    used: null,
+    origin: "own",
+    provided_by: null,
+    get_it: null,
+    can_copy: false,
+  };
+  const check = (offers: OfferInfo[]): SetupCheckInfo => ({ from: "Work Max", to: "Personal", already_there: 0, offers });
+  const cases: [Partial<OfferInfo>, string][] = [
+    [{ verdict: "copy" }, "Set up as it is when you switch. You can undo it after."],
+    [{ verdict: "translate", note: "as a Claude command" }, "Set up as a Claude command when you switch."],
+    [{ verdict: "needs-you", note: "sign it in afterwards" }, "You can switch now, then finish it: sign it in afterwards."],
+    [{ verdict: "turn-on", origin: "unknown", get_it: { steps: ["a"], command: null, open_url: null, needs: [], then: null } }, "You can switch now. Personal won't have x until you turn it on."],
+    [{ verdict: "impossible", note: "it has no place here" }, "You can switch now. Personal won't have it: it has no place here."],
+  ];
+  for (const [offer, words] of cases) {
+    it(`says what happens for ${offer.verdict}, with what it means and the guide`, () => {
+      const view = render(<SwitchSetupList check={check([{ ...base, ...offer }])} picked={new Set()} onToggle={() => {}} />);
+      expect(view.getByTestId("switch-setup-consequence").textContent).toBe(words);
+      const meaning = view.getByTestId("setup-meaning");
+      expect(meaning.querySelector("summary")?.textContent).toBe("What does this mean?");
+      expect(meaning.textContent).toContain("For example:");
+      fireEvent.click(view.getByRole("button", { name: /switching guide/ }));
+      expect((window as never as Seams).__AIJ_OPENED__).toContain(SWITCHING_GUIDE_URL);
+      const all = view.container.textContent ?? "";
+      expect(all).not.toMatch(/[{}]|provider|target|\bpack\b/i);
+    });
+  }
+
+  it("lets the account's own content be copied instead, never a provided one", () => {
+    const toggle = vi.fn();
+    const turnOn: Partial<OfferInfo> = { verdict: "turn-on", get_it: { steps: ["a"], command: null, open_url: null, needs: [], then: null } };
+    const view = render(
+      <SwitchSetupList
+        check={check([
+          { ...base, ...turnOn, id: "mine", name: "team-notes", origin: "account", can_copy: true },
+          { ...base, ...turnOn, id: "theirs", name: "pdf", origin: "provided", provided_by: "Anthropic" },
+        ])}
+        picked={new Set()}
+        onToggle={toggle}
+      />,
+    );
+    expect(view.getByText("From Work Max's account: yours, your organization's or shared with you")).toBeTruthy();
+    fireEvent.click(view.getByRole("checkbox", { name: "Copy team-notes to Personal now instead (only if you made it)" }));
+    expect(toggle).toHaveBeenCalledWith("mine");
+    expect(view.queryByRole("checkbox", { name: /pdf/ })).toBeNull();
+  });
+
+  it("never reads an unknown use as not used", () => {
+    const view = render(
+      <SwitchSetupList check={check([{ ...base, used: null }])} picked={new Set()} onToggle={() => {}} />,
+    );
+    expect(view.queryByTestId("switch-setup-unused")).toBeNull();
+    expect(view.getByTestId("switch-setup-summary").textContent).toBe(
+      "Personal doesn't have 1 thing Work Max has. 0 will be set up.",
+    );
+  });
+});
+
 describe("Check again", () => {
   it("reads the target again, and what was turned on leaves the list", async () => {
     const view = mount();
-    await waitFor(() => expect(view.getByTestId("switch-setup-steps")).toBeTruthy());
+    await waitFor(() => expect(view.getByRole("button", { name: "Check again for computer-use" })).toBeTruthy());
     // The user turned it on in the account: the next read hasn't it.
-    (window as never as Seams).__AIJ_SWITCH_SETUP__ = { ...EXAMPLE_SETUP, offers: EXAMPLE_SETUP.offers.filter((offer) => offer.steps.length === 0) };
-    fireEvent.click(within(view.getByTestId("switch-setup-steps")).getByTestId("switch-setup-recheck"));
-    await waitFor(() => expect(view.queryByTestId("switch-setup-steps")).toBeNull());
+    (window as never as Seams).__AIJ_SWITCH_SETUP__ = { ...EXAMPLE_SETUP, offers: EXAMPLE_SETUP.offers.filter((offer) => offer.id !== "skill-computer-use") };
+    fireEvent.click(view.getByRole("button", { name: "Check again for computer-use" }));
+    await waitFor(() => expect(view.queryByRole("button", { name: "Check again for computer-use" })).toBeNull());
     // What was ticked stays ticked.
     expect((view.getByLabelText(/release-notes/) as HTMLInputElement).checked).toBe(true);
   });
@@ -186,17 +312,8 @@ describe("Check again", () => {
     await waitFor(() => expect(view.getByTestId("switch-setup-copy")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-setup-copy"));
     await waitFor(() => expect(view.getByText(/^Copied\./)).toBeTruthy());
-    expect(writeText).toHaveBeenCalledWith(EXAMPLE_SETUP.offers.find((offer) => offer.id === "mcp-github")?.steps_command);
+    expect(writeText).toHaveBeenCalledWith(EXAMPLE_SETUP.offers.find((offer) => offer.id === "mcp-github")?.get_it?.command);
     // Ticking the row never ticks through the buttons beside it.
-    expect((view.getByLabelText(/github/) as HTMLInputElement).checked).toBe(false);
-  });
-
-  it("opens the account's page through the app, never as a link the screen holds", async () => {
-    const opened: Array<{ kind: string; id: string }> = [];
-    (window as never as { __AIJ_OPENED__?: typeof opened }).__AIJ_OPENED__ = opened;
-    const view = mount();
-    await waitFor(() => expect(view.getByTestId("switch-setup-open-page")).toBeTruthy());
-    fireEvent.click(view.getByTestId("switch-setup-open-page"));
-    expect(opened[0]?.kind).toBe("account-settings");
+    expect((view.getByRole("checkbox", { name: /github/ }) as HTMLInputElement).checked).toBe(false);
   });
 });

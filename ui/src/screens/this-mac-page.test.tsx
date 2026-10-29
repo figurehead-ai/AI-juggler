@@ -134,6 +134,41 @@ describe("the This Mac page", () => {
     expect(within(groups[3]!).getByTestId("this-mac-tree").textContent).toContain("claude in a terminal");
   });
 
+  // AJ-E2407: the groups come from the Processes view's graph, so another
+  // app's AI sessions (any tool) are listed by app and session title.
+  it("lists another app's AI sessions by app, each by its title, and names it in an alert", () => {
+    const chatgpt = tree({ root_pid: 7300, place: "desktop", tool: "codex", group: "app:ChatGPT:codex", label: "ChatGPT", title: "Landing page", rss_bytes: 195_000_000 });
+    const value = info([ours("a"), chatgpt], {
+      by_tool: [
+        { tool: "claude-code", label: "Claude Code", who: null, ours: true, totals: totals([ours("a")]), cpu_one_core_pct: 30 },
+        { tool: "app:ChatGPT:codex", label: "ChatGPT", who: "ChatGPT", ours: false, totals: totals([chatgpt]), cpu_one_core_pct: 1 },
+      ],
+    });
+    renderPage(value);
+    const groups = screen.getAllByTestId("this-mac-group");
+    expect(groups[1]!.textContent).toContain("ChatGPT");
+    expect(groups[1]!.textContent).toContain("1 session · not started by AI Juggler");
+    expect(within(groups[1]!).getByTestId("this-mac-tree").textContent).toContain("Landing page");
+    cleanup();
+    const alert = {
+      key: "cpu",
+      kind: "cpu",
+      title: "The processor has been flat out for minutes",
+      detail: "97% busy for over two minutes",
+      session_id: null,
+      place: "app:ChatGPT:codex",
+      subject_name: "ChatGPT",
+      subject_bytes: null,
+      subject_estimate: false,
+      subject_cpu: 140,
+      subject_windows: 2,
+      other_apps: [],
+      since_ms: NOW - 60_000,
+    } as OverloadAlertInfo;
+    renderPage(info([ours("a"), chatgpt], { alerts: [alert] }));
+    expect(screen.getByTestId("this-mac-alert").textContent).toContain("ChatGPT is using CPU 140% across 2 sessions");
+  });
+
   it("links what's working it hard, and leads to Cleanup for leftovers", () => {
     const open = vi.fn();
     const clean = vi.fn();
@@ -207,5 +242,32 @@ describe("the This Mac page", () => {
     renderPage(info([ours("a")], { alerts: [alert], recommendations: ["Codex sessions here usually peak at 2 GB"] }));
     expect(screen.getByTestId("this-mac-alert").textContent).toContain("branch-a is using 3.0 GB");
     expect(screen.getByTestId("this-mac-recommendations").textContent).toContain("Codex sessions here usually peak at 2 GB.");
+  });
+
+  /** The 0.2 walk (F13): every alert says what to do, names the app (never
+   * a bundle id), says nothing is blocked, and leads to what's using it. */
+  it("gives each alert its next step and a way to what's using it", () => {
+    const alert = {
+      key: "memory_pressure",
+      kind: "memory_pressure",
+      title: "Your Mac is under memory pressure",
+      detail: "macOS reports memory pressure",
+      session_id: null,
+      place: null,
+      subject_name: null,
+      subject_bytes: null,
+      subject_estimate: false,
+      subject_cpu: null,
+      subject_windows: null,
+      other_apps: [{ name: "Virtual Machine (part of macOS)", rss_bytes: 2_700_000_000, processes: 1 }],
+      since_ms: NOW - 60_000,
+    } as OverloadAlertInfo;
+    renderPage(info([ours("a")], { alerts: [alert] }));
+    const next = screen.getByTestId("this-mac-alert-next").textContent!;
+    expect(next).toBe("To make room, quit Virtual Machine (part of macOS) or another app you aren't using. Nothing is blocked, but everything is slower until it eases.");
+    expect(screen.getByTestId("this-mac-alert").textContent).not.toMatch(/com\.apple/);
+    expect(screen.getByTestId("this-mac-alert-using").textContent).toBe("See what's using it");
+    screen.getByTestId("this-mac-alert-using").click();
+    expect(document.activeElement?.id).toBe("this-mac-using-title");
   });
 });
