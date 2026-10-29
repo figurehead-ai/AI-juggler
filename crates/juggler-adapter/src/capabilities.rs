@@ -59,6 +59,10 @@ bitflags::bitflags! {
         /// the user started in their own terminal on the same account, so
         /// an account used in place is never linked by its launch alone.
         const SESSION_PROCESS_RECORDED = 1 << 15;
+        /// 0.3: its transcripts record the usage limit a turn stopped at,
+        /// while the session stays open (`HarnessAdapter::limit_hit` reads
+        /// it), so an open session can say it hit its limit.
+        const LIMIT_HITS = 1 << 16;
     }
 }
 

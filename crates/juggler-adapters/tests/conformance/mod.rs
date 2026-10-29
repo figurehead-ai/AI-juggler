@@ -61,6 +61,11 @@
 //!     it — and a session that started none as none; it changes no byte of
 //!     the account's folder while it reads; and a conversation it offers
 //!     is a file in that folder. One not supported reads nothing.
+//! 12. **Limit hits, honestly** (0.3) — `LIMIT_HITS` is declared exactly
+//!     when the adapter reads a hit from a transcript's tail. A tail whose
+//!     turn stopped at a limit reads as that hit (its time, and its reset
+//!     when recorded); the same tail once the model replied, an empty tail
+//!     and a plain session read as none.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -149,6 +154,14 @@ pub trait Subject {
     /// none.
     fn session_subagents(&self) -> usize {
         0
+    }
+
+    /// Two transcript tails as the tool writes them (check 12): a turn
+    /// that stopped at a usage limit with nothing after it, and the same
+    /// once the model replied. Default: none (a tool whose records say
+    /// nothing of a limit an open session waits at).
+    fn limit_tails(&self) -> Option<(String, String)> {
+        None
     }
 }
 
@@ -1429,6 +1442,67 @@ pub fn lists_subagents_honestly(subject: &dyn Subject) {
     }
 }
 
+/// Check 12: limit hits, honestly (0.3).
+pub fn reads_limit_hits_honestly(subject: &dyn Subject) {
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let name = adapter.id();
+    let declares = adapter.capabilities().contains(Capabilities::LIMIT_HITS);
+    let tails = subject.limit_tails();
+    assert_eq!(
+        tails.is_some(),
+        declares,
+        "{name}: LIMIT_HITS is declared {declares}, but a fixture is {}",
+        if tails.is_some() { "given" } else { "missing" }
+    );
+    assert!(
+        adapter.limit_hit("").is_none(),
+        "{name}: an empty tail reads as a limit hit"
+    );
+    let dir = sandbox.account_dir("a");
+    adapter.prepare_account(&dir).unwrap();
+    subject.write_session(&dir, &sandbox.project, 1);
+    for path in jsonl_under(&dir) {
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        assert!(
+            adapter.limit_hit(&text).is_none(),
+            "{name}: a plain session reads as a limit hit"
+        );
+    }
+    let Some((hit, carried_on)) = tails else {
+        return;
+    };
+    let found = adapter
+        .limit_hit(&hit)
+        .unwrap_or_else(|| panic!("{name}: a recorded limit hit isn't read"));
+    assert!(found.at_ms > 0, "{name}: a hit without its time");
+    assert!(
+        found.resets_at_ms.is_none_or(|reset| reset > found.at_ms),
+        "{name}: a reset before the hit"
+    );
+    assert!(
+        adapter.limit_hit(&carried_on).is_none(),
+        "{name}: a session that carried on still reads as at its limit"
+    );
+}
+
+/// Every `.jsonl` file under `dir`.
+fn jsonl_under(dir: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(next) = stack.pop() {
+        for entry in std::fs::read_dir(&next).into_iter().flatten().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|ext| ext == "jsonl") {
+                out.push(path);
+            }
+        }
+    }
+    out
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -1489,6 +1563,11 @@ macro_rules! conformance {
             #[test]
             fn lists_subagents_honestly() {
                 conformance::lists_subagents_honestly(&$subject);
+            }
+
+            #[test]
+            fn reads_limit_hits_honestly() {
+                conformance::reads_limit_hits_honestly(&$subject);
             }
         }
     };

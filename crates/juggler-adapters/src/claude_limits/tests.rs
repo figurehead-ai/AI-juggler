@@ -565,3 +565,78 @@ fn the_limit_readers_log_nothing() {
         }
     }
 }
+
+/// A reply of the model, as Claude Code writes one (synthetic content).
+fn reply_line(at: &str) -> String {
+    format!(
+        r#"{{"parentUuid":"u1","isSidechain":false,"type":"assistant","uuid":"u2","timestamp":"{at}","message":{{"id":"m2","model":"claude-model-x","role":"assistant","content":[{{"type":"text","text":"{PLANTED_TEXT}"}}],"usage":{{"input_tokens":3,"output_tokens":5}}}},"requestId":"r2"}}"#
+    )
+}
+
+/// The user's prompt (synthetic).
+fn prompt_line() -> String {
+    format!(
+        r#"{{"parentUuid":"u1","isSidechain":false,"type":"user","uuid":"u3","message":{{"role":"user","content":"{PLANTED_TEXT}"}}}}"#
+    )
+}
+
+#[test]
+fn an_open_session_at_its_limit_reads_as_its_last_hit_until_the_model_replies() {
+    let reset_s = 1_792_900_000;
+    let hit = hit_line("five_hour", "rejected", reset_s);
+    // The hit is the last word: the session waits at its limit.
+    let tail = [reply_line("2026-10-24T17:00:00.000Z"), hit.clone()].join("\n");
+    let found = limit_hit_in_tail(&tail).expect("a hit with nothing after it");
+    assert_eq!(found.window, Some(WindowKind::FiveHour));
+    assert_eq!(found.resets_at_ms, Some(reset_s * 1000));
+    assert_eq!(
+        Some(found.at_ms),
+        juggler_core::time::timestamp_ms("2026-10-24T18:02:11.511Z")
+    );
+    // The user typed again (and other bookkeeping lines followed): still
+    // at the limit until the model answers.
+    let typed = [
+        tail.clone(),
+        prompt_line(),
+        r#"{"type":"last-prompt"}"#.to_owned(),
+    ]
+    .join("\n");
+    assert_eq!(limit_hit_in_tail(&typed), Some(found));
+    // The model replied: the session carried on.
+    let carried = [typed, reply_line("2026-10-24T21:05:00.000Z")].join("\n");
+    assert_eq!(limit_hit_in_tail(&carried), None);
+    // A new prompt at the limit writes a new hit: that one counts.
+    let again = hit_line("seven_day", "rejected", reset_s + 86_400)
+        .replace("2026-10-24T18:02:11.511Z", "2026-10-24T22:00:00.000Z");
+    let found = limit_hit_in_tail(&[carried, again].join("\n")).expect("the newer hit");
+    assert_eq!(found.window, Some(WindowKind::Weekly { anchor_ms: None }));
+}
+
+#[test]
+fn a_warning_a_models_week_a_sub_agent_or_another_error_is_no_open_hit() {
+    let reset_s = 1_792_900_000;
+    let reply = reply_line("2026-10-24T17:00:00.000Z");
+    for line in [
+        hit_line("five_hour", "allowed_warning", reset_s),
+        hit_line("seven_day_opus", "rejected", reset_s),
+        hit_line("five_hour", "rejected", reset_s)
+            .replace("\"error\":\"rate_limit\"", "\"error\":\"overloaded\""),
+        hit_line("five_hour", "rejected", reset_s)
+            .replace("\"isSidechain\":false", "\"isSidechain\":true"),
+    ] {
+        assert_eq!(limit_hit_in_tail(&line), None);
+        // Nor does it hide what came before it: a reply stays a reply.
+        assert_eq!(limit_hit_in_tail(&[reply.clone(), line].join("\n")), None);
+    }
+    // An interruption Claude Code writes itself is no reply: the hit
+    // before it still holds.
+    let synthetic = reply_line("2026-10-24T19:00:00.000Z").replace("claude-model-x", "<synthetic>");
+    let held = [hit_line("five_hour", "rejected", reset_s), synthetic].join("\n");
+    assert!(limit_hit_in_tail(&held).is_some());
+    // A cut first line and an empty tail say nothing.
+    assert_eq!(limit_hit_in_tail("{\"type\":\"assist"), None);
+    assert_eq!(limit_hit_in_tail(""), None);
+    // What comes back holds no words of the conversation.
+    let kept = format!("{:?}", limit_hit_in_tail(&held));
+    assert!(!kept.contains(PLANTED_TEXT) && !kept.contains("/w/p"));
+}

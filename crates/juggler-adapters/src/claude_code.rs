@@ -145,6 +145,8 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             | Capabilities::PROTOCOL_SERVER
             // Its `sessions/<pid>.json` name each session's process.
             | Capabilities::SESSION_PROCESS_RECORDED
+            // 0.3: a limit hit stays open; its transcript records it.
+            | Capabilities::LIMIT_HITS
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
@@ -634,6 +636,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
 
     fn pending_ask(&self, tail: &str) -> Option<juggler_adapter::live::Ask> {
         crate::claude_asks::pending_ask(tail)
+    }
+
+    fn limit_hit(&self, tail: &str) -> Option<juggler_adapter::live::LimitHit> {
+        crate::claude_limits::limit_hit_in_tail(tail)
     }
 
     fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
