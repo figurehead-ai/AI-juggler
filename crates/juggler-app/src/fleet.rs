@@ -470,7 +470,7 @@ pub fn fleet_set_permission_impl(
         _ => {
             return Err(AppError::Validation {
                 subject: "permission",
-                message: "Choose View only or View + control.".to_owned(),
+                message: "Choose No access, View only or View + control.".to_owned(),
             });
         }
     };
