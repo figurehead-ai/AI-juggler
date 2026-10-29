@@ -225,7 +225,9 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     probably: state === "asks_you" && c.probably === true,
     need: state === "asks_you" ? "asks" : state === "done_review" ? "review" : null,
     lastMs: last,
-    viewedMs: c.viewed_ms,
+    // A payload without the field (an older reader's) reads as never
+    // viewed: "viewed NaN d ago" in the 0.2.0 re-render's replica rows.
+    viewedMs: c.viewed_ms ?? null,
     live: c.live,
     background: c.live && c.background,
     inactive: !c.live && c.inactive,
