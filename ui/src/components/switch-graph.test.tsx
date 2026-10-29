@@ -253,6 +253,30 @@ describe("AJ-E209 SwitchGraph — the timeline", () => {
     );
   });
 
+  it("an edge whose switch wrote a handover opens what the other tool was told", async () => {
+    w().__AIJ_SWITCH_GRAPH__ = [
+      {
+        ...LINEAR_BACK[0]!,
+        edges: [
+          { ...LINEAR_BACK[0]!.edges[0]!, id: "edge-1", handover: { to_tool: "Codex", line: "Hidden from Codex: 1 API key" } },
+          ...LINEAR_BACK[0]!.edges.slice(1),
+        ],
+      },
+    ];
+    const { container } = render(<SwitchGraph projectId="p1" onOpenSession={() => {}} />);
+    await waitFor(() => expect(container.querySelector('[data-handover="true"]')).not.toBeNull());
+    // Only the edge with a handover is a button; the others stay labels.
+    expect(container.querySelectorAll('button[data-testid="switch-graph-edge"]')).toHaveLength(1);
+    const edge = container.querySelector<HTMLButtonElement>('[data-handover="true"]')!;
+    expect(edge.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(edge);
+    const detail = container.querySelector('[data-testid="switch-graph-edge-detail"]')!;
+    expect(detail.textContent).toContain("What Codex was told");
+    expect(detail.querySelector('[data-testid="handover-line"]')!.textContent).toBe("Hidden from Codex: 1 API key");
+    expect(detail.querySelector('[data-testid="handover-open"]')!.textContent).toBe("Open the handover");
+    expect(edge.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("renders the honest empty state when no switches exist", async () => {
     w().__AIJ_SWITCH_GRAPH__ = [];
     const { container } = render(<SwitchGraph projectId="p1" onOpenSession={() => {}} />);

@@ -7,120 +7,21 @@
  * collapse to "+n switches" — the list is never unbounded. Clicking a
  * node offers Resume (only when the native session + transcript
  * survive), "Switch from here…", and "Save handover…" (through the
- * E208 redaction policy; the path lands in a toast line). Suggest
- * and act only on explicit clicks. A11y: nodes and failed edges are
+ * E208 redaction policy; where it went, what was hidden, Open the
+ * handover and Reveal in Finder). 0.3: an edge whose switch wrote a
+ * handover (to another tool) is a button that opens what that tool was
+ * told: one line and the handover, read-only. Suggest and act only on
+ * explicit clicks. A11y: nodes and failed edges are
  * buttons with ↑/↓ roving focus; every arrow is labelled;
  * ⌘R resumes the open node. Density: the collapse cut bounds each
  * timeline; long chains scroll horizontally.
  */
-import { kindWords } from "../lib/status-words";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
-import { providerDisplayName } from "../lib/providers";
-import type { EpochTask } from "../lib/ipc/tasks";
-import { epochResume, packExport, switchGraphOverview, errorText, type EpochNodeData, type GraphEdgeData, type WorkGraphData } from "../lib/bridge";
+import { epochResume, packExport, switchGraphOverview, errorText, type WorkGraphData } from "../lib/bridge";
+import type { SavedHandoverInfo } from "../lib/ipc/handover";
 import { providerMark } from "./indicator";
-
-/** One epoch node — a button (keyboard-first; the menu opens on
- * click and reads its actions as a list). `fork`/`merge` chips come
- * from the work's edge shape (text, never colour-only). */
-function GraphNode({
-  epoch,
-  open,
-  shape,
-  onToggle,
-}: {
-  epoch: EpochNodeData & EpochTask;
-  open: boolean;
-  shape: { fork: boolean; merge: boolean };
-  onToggle: () => void;
-}): JSX.Element {
-  const mark = providerMark(epoch.provider);
-  const Icon = mark.Icon;
-  return (
-    <button
-      type="button"
-      data-row
-      data-testid="switch-graph-node"
-      data-resumable={epoch.resumable ? "true" : "false"}
-      aria-pressed={open}
-      aria-expanded={open}
-      onClick={onToggle}
-      title={`${epoch.account_label} on ${providerDisplayName(epoch.provider)}${epoch.resumable ? " — resumable" : ""}`}
-      className={
-        "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-2.5 py-2 text-center text-label transition-colors focus:outline-none focus:ring-2 focus:ring-accent " +
-        (open
-          ? "border-accent/60 bg-surface"
-          : "border-hairline hover:border-accent/40 hover:bg-surface")
-      }
-    >
-      <span className="flex items-center gap-1.5" aria-hidden="true">
-        <Icon width={12} height={12} />
-        <span className="font-medium">{epoch.account_label}</span>
-      </span>
-      <span className="flex items-center gap-1 text-label text-muted">
-        <span className="font-mono">{mark.abbrev}</span>
-        <span aria-hidden="true">·</span>
-        <span>{kindWords(epoch.kind)}</span>
-        {shape.fork && <span className="rounded border border-warning/50 px-1 text-warning" data-testid="node-fork-chip">fork</span>}
-        {shape.merge && <span className="rounded border border-accent/50 px-1 text-accent" data-testid="node-merge-chip">merge</span>}
-      </span>
-      <span className={`text-label ${epoch.resumable ? "text-success" : "text-muted"}`}>
-        {epoch.resumable ? "resumable" : "no transcript"}
-      </span>
-      {/* AJ-E1904: the task this session worked; a switch keeps it. */}
-      {epoch.task && <span className="max-w-[12rem] truncate text-label text-ink" title={epoch.task} data-testid="node-task">{epoch.task}</span>}
-      <span className="sr-only">
-        {`, ${providerDisplayName(epoch.provider)}, ${kindWords(epoch.kind).toLowerCase()} session${shape.fork ? ", forks here" : ""}${shape.merge ? ", converges here" : ""}${epoch.task ? `, its task ${epoch.task}` : ""}`}
-      </span>
-    </button>
-  );
-}
-
-/** One edge — an inline labelled arrow; failed edges are dashed-red
- * buttons that open the §9 reason + recovery. */
-function GraphEdge({
-  edge,
-  open,
-  onToggle,
-}: {
-  edge: GraphEdgeData;
-  open: boolean;
-  onToggle: () => void;
-}): JSX.Element {
-  const failed = edge.failed_reason !== undefined && edge.failed_reason !== null;
-  if (failed) {
-    return (
-      <button
-        type="button"
-        data-testid="switch-graph-failed-edge"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex shrink-0 flex-col items-center gap-0.5 rounded px-2 py-1 text-label text-danger focus:outline-none focus:ring-2 focus:ring-accent"
-      >
-        <span aria-hidden="true" className="tracking-widest">
-          ✕ ┄┄▶
-        </span>
-        <span className="underline decoration-dashed">failed — view reason</span>
-        <span className="sr-only">{`Switch failed: ${edge.label}`}</span>
-      </button>
-    );
-  }
-  return (
-    <span
-      data-testid="switch-graph-edge"
-      role="img"
-      aria-label={edge.label}
-      className="flex shrink-0 select-none flex-col items-center gap-0.5 px-1 text-label text-muted"
-    >
-      <span aria-hidden="true" className="tracking-widest">
-        {edge.switch_back ? "↺" : "→"}
-      </span>
-      <span className="max-w-[9rem] truncate text-center" title={edge.label}>
-        {edge.label}
-      </span>
-    </span>
-  );
-}
+import { SavedHandover, SwitchHandover } from "./HandoverView";
+import { GraphEdge, GraphNode } from "./switch/GraphParts";
 
 export function SwitchGraph({
   projectId,
@@ -135,7 +36,10 @@ export function SwitchGraph({
   const [works, setWorks] = useState<WorkGraphData[] | null>(null);
   const [openNode, setOpenNode] = useState<string | null>(null);
   const [openFailedEdge, setOpenFailedEdge] = useState<string | null>(null);
+  // The edge whose handover is open (its id).
+  const [openEdge, setOpenEdge] = useState<string | null>(null);
   const [actionLine, setActionLine] = useState<string | null>(null);
+  const [saved, setSaved] = useState<SavedHandoverInfo | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -174,6 +78,7 @@ export function SwitchGraph({
   const doResume = async (epochId: string) => {
     setActionError(null);
     setActionLine(null);
+    setSaved(null);
     try {
       const result = await epochResume(epochId);
       setActionLine(`Resumed — session ${result.session_id} is starting.`);
@@ -186,9 +91,9 @@ export function SwitchGraph({
   const doExport = async (epochId: string) => {
     setActionError(null);
     setActionLine(null);
+    setSaved(null);
     try {
-      const path = await packExport(epochId);
-      setActionLine(`Handover saved to ${path}`);
+      setSaved(await packExport(epochId));
     } catch (cause) {
       setActionError(errorText(cause));
     }
@@ -235,6 +140,8 @@ export function SwitchGraph({
           failedEdge === null
             ? null
             : (work.epochs.find((epoch) => epoch.id === failedEdge.from) ?? null);
+        const handoverEdge =
+          openEdge === null ? null : (work.edges.find((edge) => edge.id === openEdge && !!edge.handover) ?? null);
         return (
           <div
             key={work.title}
@@ -294,30 +201,35 @@ export function SwitchGraph({
                     {incoming !== null && (
                       <GraphEdge
                         edge={incoming}
-                        open={false}
-                        onToggle={() => {}}
+                        open={incoming.id !== undefined && openEdge === incoming.id}
+                        onToggle={() => {
+                          setOpenFailedEdge(null);
+                          setOpenEdge((current) => (current === incoming.id ? null : (incoming.id ?? null)));
+                        }}
                       />
                     )}
                     <GraphNode
                       epoch={epoch}
                       open={openNode === epoch.id}
                       shape={{ fork: confirmedOut > 1, merge: confirmedIn > 1 }}
-                      onToggle={() =>
-                        setOpenNode((current) => (current === epoch.id ? null : epoch.id))
-                      }
+                      onToggle={() => {
+                        setOpenEdge(null);
+                        setOpenNode((current) => (current === epoch.id ? null : epoch.id));
+                      }}
                     />
                     {trailingFailed.map((failed) => (
                       <GraphEdge
                         key={failed.label}
                         edge={failed}
                         open={openFailedEdge === edgeKey(failed.from, failed.to ?? null)}
-                        onToggle={() =>
+                        onToggle={() => {
+                          setOpenEdge(null);
                           setOpenFailedEdge((current) =>
                             current === edgeKey(failed.from, failed.to ?? null)
                               ? null
                               : edgeKey(failed.from, failed.to ?? null),
-                          )
-                        }
+                          );
+                        }}
                       />
                     ))}
                   </span>
@@ -359,7 +271,19 @@ export function SwitchGraph({
               </div>
             )}
 
-            {openEpoch !== null && failedEdge === null && (
+            {handoverEdge?.handover && handoverEdge.id && failedEdge === null && (
+              <div
+                data-testid="switch-graph-edge-detail"
+                className="flex flex-col gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 py-2"
+              >
+                <p className="text-section font-semibold text-ink">
+                  What {handoverEdge.handover.to_tool} was told
+                </p>
+                <SwitchHandover edgeId={handoverEdge.id} summary={handoverEdge.handover} />
+              </div>
+            )}
+
+            {openEpoch !== null && failedEdge === null && handoverEdge === null && (
               <div
                 data-testid="switch-graph-node-menu"
                 className="flex flex-col gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 py-2"
@@ -417,6 +341,11 @@ export function SwitchGraph({
         <p className="text-label text-success" data-testid="pack-export-toast">
           {actionLine}
         </p>
+      )}
+      {saved !== null && (
+        <div data-testid="pack-export-toast">
+          <SavedHandover saved={saved} inline />
+        </div>
       )}
       {actionError !== null && (
         <p className="text-label text-danger" data-testid="switch-graph-action-error">
