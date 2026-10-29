@@ -224,10 +224,12 @@ fn carried(saved: &HandoverState) -> (Vec<String>, Vec<String>) {
         ));
     }
     if !saved.notes_left_out.is_empty() {
-        not_carried.push(format!(
-            "{}: a key or password was found in them, or they didn't fit",
-            saved.notes_left_out.join(", ")
-        ));
+        let why = if saved.notes_left_out.len() == 1 {
+            "a key or password was found in it, or it didn't fit"
+        } else {
+            "a key or password was found in them, or they didn't fit"
+        };
+        not_carried.push(format!("{}: {why}", saved.notes_left_out.join(", ")));
     }
     (carries, not_carried)
 }
