@@ -9380,28 +9380,10 @@ pub fn kill_execute_as(
     // the port (then re-offer pid-only after fresh verification).
     let (still_holding, reoffer_pid) =
         still_holding_report(ports_before.as_deref(), pid, outcome.cancelled);
-    // Audit completion: per-pid vocabulary joined; a CANCELLED
-    // ladder leaves the intent pending ("TERM'd, outcome unknown").
+    // Audit completion: a CANCELLED ladder leaves the intent pending
+    // ("TERM'd, outcome unknown").
     if !outcome.cancelled {
-        let vocabulary = outcome
-            .members
-            .iter()
-            .map(|(pid, outcome)| format!("pid {pid}: {}", outcome.as_str()))
-            .chain(
-                left_alone
-                    .iter()
-                    .map(|left| format!("pid {}: {}", left.pid, left.outcome)),
-            )
-            .collect::<Vec<_>>()
-            .join("; ");
-        let ports_after = still_holding
-            .iter()
-            .map(|held| held.port.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-        let ports_after = (!ports_after.is_empty()).then_some(ports_after);
-        // Best-effort (E509's floor is the intent row itself).
-        let _ = audit.complete(intent_id, &vocabulary, ports_after.as_deref());
+        complete_kill_audit(audit, intent_id, &outcome, &left_alone, &still_holding);
     }
     if outcome.all_succeeded() && !outcome.cancelled {
         let held: Vec<u16> = still_holding.iter().map(|held| held.port).collect();
@@ -9424,6 +9406,36 @@ pub fn kill_execute_as(
         still_holding,
         reoffer_pid,
     })
+}
+
+/// Completes a ladder's audit row: each pid's outcome (the ones a wider
+/// stop left alone included) and the ports still held after it.
+fn complete_kill_audit(
+    audit: &dyn AuditWriter,
+    intent_id: i64,
+    outcome: &juggler_supervisor::tree::LadderOutcome,
+    left_alone: &[KillMemberOutcome],
+    still_holding: &[StillHoldingInfo],
+) {
+    let vocabulary = outcome
+        .members
+        .iter()
+        .map(|(pid, outcome)| format!("pid {pid}: {}", outcome.as_str()))
+        .chain(
+            left_alone
+                .iter()
+                .map(|left| format!("pid {}: {}", left.pid, left.outcome)),
+        )
+        .collect::<Vec<_>>()
+        .join("; ");
+    let ports_after = still_holding
+        .iter()
+        .map(|held| held.port.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    let ports_after = (!ports_after.is_empty()).then_some(ports_after);
+    // Best-effort (E509's floor is the intent row itself).
+    let _ = audit.complete(intent_id, &vocabulary, ports_after.as_deref());
 }
 
 /// The kill sheet's audit intent row (Req.6 / AJ-E509 Req.2): the
