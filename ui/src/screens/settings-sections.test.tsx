@@ -258,7 +258,7 @@ describe("wireframe 26 — the policies the user owns", () => {
     fireEvent.click(within(row).getByRole("button", { name: /Access… for Mac mini/ }));
     const none = getByTestId("fleet-access-none");
     expect(none.textContent).toContain("No access");
-    expect(none.textContent).toContain("Mac mini sees nothing of this Mac and can't act here.");
+    expect(none.textContent).toContain("Mac mini sees nothing of this computer and can't act here.");
     fireEvent.click(within(none).getByRole("radio"));
     await act(async () => {
       fireEvent.click(getByTestId("fleet-access-save"));

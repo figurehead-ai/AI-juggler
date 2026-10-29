@@ -596,7 +596,7 @@ export function AccessSheet({
     };
   }, [onCancel]);
   const options: Array<{ id: AccessChoice; title: string; body: string }> = [
-    { id: "none", title: "No access", body: `${peer.label} sees nothing of this Mac and can't act here. It stays paired, so you can let it back in here.` },
+    { id: "none", title: "No access", body: `${peer.label} sees nothing of this computer and can't act here. It stays paired, so you can let it back in here.` },
     { id: "view", title: "View only", body: `${peer.label} can see this Mac's accounts, sessions and usage — it can't change anything.` },
     {
       id: "ask",

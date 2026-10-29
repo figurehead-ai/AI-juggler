@@ -371,7 +371,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   app's leftover, and "Clean up what this session left" warns on each
   line.
 - **Your Macs: "No access" can be chosen** in a paired Mac's Access sheet
-  ("sees nothing of this Mac and can't act here"); before, only View
+  ("sees nothing of this computer and can't act here"); before, only View
   only and View + control were offered.
 - **A paired Mac's processes say where to clean them**: Processes › Your
   other Macs, a link there, instead of a session's Processes tab, which
