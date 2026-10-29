@@ -27,6 +27,14 @@ use juggler_app::error::AppError;
 use juggler_app::features::pools::{self, canvas};
 use lab::Lab;
 
+fn at(session: &str, x: f64, y: f64) -> pools::NodePositionInfo {
+    pools::NodePositionInfo {
+        session_id: session.to_owned(),
+        x,
+        y,
+    }
+}
+
 fn refused(result: Result<(), AppError>) -> String {
     match result {
         Err(AppError::Refused(words)) => words,
@@ -107,10 +115,11 @@ fn an_ask_sits_on_the_member_that_asked_and_its_edge_waits() {
 fn positions_are_the_users_and_tidy_up_forgets_them() {
     let lab = Lab::new();
     let (a_id, _a) = lab.agent("s-a", "Alpha");
+    let (b_id, _b) = lab.agent("s-b", "Beta");
     let before = pools::pools_list_impl(&lab.state).unwrap();
 
-    canvas::place_impl(&lab.state, &lab.pool, "s-a", 120.0, -40.5).unwrap();
-    canvas::place_impl(&lab.state, &lab.pool, "s-a", 160.0, -40.5).unwrap();
+    canvas::place_impl(&lab.state, &lab.pool, &[at("s-a", 120.0, -40.5)]).unwrap();
+    canvas::place_impl(&lab.state, &lab.pool, &[at("s-a", 160.0, -40.5)]).unwrap();
     let info = canvas::canvas_impl(&lab.state, &lab.pool, vec![a_id.to_string()]).unwrap();
     assert_eq!(info.positions.len(), 1, "one place a member");
     assert_eq!(info.positions[0].session_id, "s-a");
@@ -122,15 +131,22 @@ fn positions_are_the_users_and_tidy_up_forgets_them() {
     assert_eq!(cards[0].moving, 0);
 
     // Refused: off the canvas, not a number, a session elsewhere, a pool gone.
-    let far = refused(canvas::place_impl(&lab.state, &lab.pool, "s-a", 1e9, 0.0));
+    let far = refused(canvas::place_impl(
+        &lab.state,
+        &lab.pool,
+        &[at("s-a", 1e9, 0.0)],
+    ));
     assert!(far.contains("off the canvas"), "{far}");
     let nan = refused(canvas::place_impl(
         &lab.state,
         &lab.pool,
-        "s-a",
-        f64::NAN,
-        0.0,
+        &[at("s-a", f64::NAN, 0.0)],
     ));
+    // One bad node and none is written.
+    let mixed = [at("s-b", 5.0, 5.0), at("s-a", f64::INFINITY, 0.0)];
+    refused(canvas::place_impl(&lab.state, &lab.pool, &mixed));
+    let info = canvas::canvas_impl(&lab.state, &lab.pool, vec![b_id.to_string()]).unwrap();
+    assert!(info.positions.is_empty(), "all or nothing");
     assert!(nan.contains("off the canvas"), "{nan}");
     let other = pools::pool_create_impl(&lab.state, "Other", None).unwrap();
     let other = other
@@ -140,9 +156,17 @@ fn positions_are_the_users_and_tidy_up_forgets_them() {
         .unwrap()
         .id
         .clone();
-    let elsewhere = refused(canvas::place_impl(&lab.state, &other, "s-a", 0.0, 0.0));
+    let elsewhere = refused(canvas::place_impl(
+        &lab.state,
+        &other,
+        &[at("s-a", 0.0, 0.0)],
+    ));
     assert!(elsewhere.contains("isn't in this pool"), "{elsewhere}");
-    let gone = refused(canvas::place_impl(&lab.state, "pool-gone", "s-a", 0.0, 0.0));
+    let gone = refused(canvas::place_impl(
+        &lab.state,
+        "pool-gone",
+        &[at("s-a", 0.0, 0.0)],
+    ));
     assert!(gone.contains("isn't there"), "{gone}");
 
     canvas::tidy_impl(&lab.state, &lab.pool).unwrap();

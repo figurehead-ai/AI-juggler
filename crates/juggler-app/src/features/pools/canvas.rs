@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use juggler_core::agent_access::AgentAction;
 use juggler_core::model::{SessionId, WorkItemId};
-use juggler_core::storage::{HeldAsk, MemberRef, SENDER_USER, Storage};
+use juggler_core::storage::{HeldAsk, MemberRef, POSITION_LIMIT, SENDER_USER, Storage};
 
 use super::dto::{
     CanvasEdgeInfo, NodeAskInfo, NodePositionInfo, PendingInfo, PoolCanvasInfo, PoolPreviewInfo,
@@ -300,33 +300,54 @@ pub fn canvas_impl(
     })
 }
 
-/// Puts a member's node where the user dropped it.
+/// Puts members' nodes where the user dropped them (one, or every shown
+/// one the first time the user arranges a pool, so the rest stay put).
+/// Nothing is written unless every node is in the pool and on the canvas.
 ///
 /// # Errors
 ///
 /// [`AppError::Refused`] for a pool that isn't there, a session that
-/// isn't in it, or a place off the canvas; storage failures.
+/// isn't in it, a place off the canvas, or too many nodes; storage
+/// failures.
 pub fn place_impl(
     state: &Arc<AppState>,
     pool_id: &str,
-    session_id: &str,
-    x: f64,
-    y: f64,
+    nodes: &[NodePositionInfo],
 ) -> AppResult<()> {
+    if nodes.len() > MOST_NODES {
+        return Err(AppError::Refused(format!(
+            "At most {MOST_NODES} sessions at a time"
+        )));
+    }
     let storage = lock_storage_arc(state)?;
     super::live_pool(&storage, pool_id)?;
-    let in_pool = super::members::place_of(&storage, &SessionId::new(session_id))?
-        .is_some_and(|(place, _)| place == pool_id);
-    if !in_pool {
-        return Err(AppError::Refused(
-            "That session isn't in this pool any more".to_owned(),
-        ));
+    let memberships = super::members::memberships(&storage)?;
+    for node in nodes {
+        let session = SessionId::new(node.session_id.as_str());
+        let in_pool = storage
+            .sessions()
+            .get(&session)
+            .is_ok_and(|record| memberships.place(&session, record.project.as_ref()).0 == pool_id);
+        if !in_pool {
+            return Err(AppError::Refused(
+                "That session isn't in this pool any more".to_owned(),
+            ));
+        }
+        let on_canvas = node.x.is_finite()
+            && node.y.is_finite()
+            && node.x.abs() <= POSITION_LIMIT
+            && node.y.abs() <= POSITION_LIMIT;
+        if !on_canvas {
+            return Err(AppError::Refused("That place is off the canvas".to_owned()));
+        }
     }
-    let refs = Refs::new(&storage, &[session_id.to_owned()])?;
-    storage
-        .pool_canvas()
-        .place(pool_id, &refs.anchor_of(session_id), x, y)
-        .map_err(|_| AppError::Refused("That place is off the canvas".to_owned()))
+    let ids: Vec<String> = nodes.iter().map(|node| node.session_id.clone()).collect();
+    let refs = Refs::new(&storage, &ids)?;
+    let canvas = storage.pool_canvas();
+    for node in nodes {
+        canvas.place(pool_id, &refs.anchor_of(&node.session_id), node.x, node.y)?;
+    }
+    Ok(())
 }
 
 /// Forgets where the user put a pool's members ("Tidy up").

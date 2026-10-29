@@ -225,7 +225,8 @@ pub async fn pools_canvas(
     .await
 }
 
-/// Puts a member's node where the user dropped it on its pool's canvas.
+/// Puts members' nodes where the user dropped them on their pool's
+/// canvas.
 ///
 /// # Errors
 ///
@@ -234,12 +235,10 @@ pub async fn pools_canvas(
 pub async fn pools_canvas_place(
     state: tauri::State<'_, Arc<AppState>>,
     pool_id: String,
-    session_id: String,
-    x: f64,
-    y: f64,
+    nodes: Vec<super::NodePositionInfo>,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "the pool's canvas", move |state| {
-        super::canvas::place_impl(state, &pool_id, &session_id, x, y)
+        super::canvas::place_impl(state, &pool_id, &nodes)
     })
     .await
 }

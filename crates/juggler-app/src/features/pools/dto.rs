@@ -1,6 +1,6 @@
 //! The pools' wire types (AJ-E1702, AJ-E1703).
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::features::sessions::dto::InstanceInfo;
@@ -210,7 +210,7 @@ pub struct PoolCanvasInfo {
 }
 
 /// Where the user put one member on the canvas.
-#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct NodePositionInfo {
     /// The member's session (as the canvas shows it).
