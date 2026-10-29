@@ -121,11 +121,11 @@ describe("AJ-E306 flow (e) — the launch sheet", () => {
     // in the verdict region (the sheet's account area).
     const accounts = container.querySelector("[data-testid='launch-sheet-accounts']")!;
     expect(accounts.textContent).not.toMatch(/%/);
-    // Customise ▸ exposes the full list — the unknown-headroom account
+    // Customise exposes the full list — the unknown-headroom account
     // says so in text (the one runway's words; no verdict chip beside
     // it, QA P26b) with its Sign-in-first detour.
     fireEvent.click(
-      Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Customise ▸")!,
+      Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Customise")!,
     );
     await waitFor(() =>
       expect(container.querySelector("[data-testid='sign-in-first']")).not.toBeNull(),
@@ -141,7 +141,7 @@ describe("AJ-E306 flow (e) — the launch sheet", () => {
       expect(container.querySelector("[data-testid='launch-preselected']")).not.toBeNull(),
     );
     fireEvent.click(
-      Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Customise ▸")!,
+      Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Customise")!,
     );
     const signin = await waitFor(() => {
       const found = container.querySelector("[data-testid='sign-in-first']");
@@ -164,13 +164,13 @@ describe("AJ-E306 flow (e) — the launch sheet", () => {
     expect(text).toContain("Launch settings");
   });
 
-  it("Customise ▸ collapses back; the recommended row returns", async () => {
+  it("Customise collapses back; the recommended row returns", async () => {
     const { container } = mountSheet();
     await waitFor(() =>
       expect(container.querySelector("[data-testid='launch-preselected']")).not.toBeNull(),
     );
     fireEvent.click(
-      Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Customise ▸")!,
+      Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Customise")!,
     );
     await waitFor(() =>
       expect(container.querySelector("[data-testid='sign-in-first']")).not.toBeNull(),

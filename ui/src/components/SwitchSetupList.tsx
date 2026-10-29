@@ -21,6 +21,7 @@ import {
 import { Meaning, TurnOnSteps } from "./SwitchSetupTurnOn";
 import { SecretSteps } from "./switch/SecretSteps";
 import { IN_HANDOVER, NOTES_KIND, NotesRow } from "./switch/NotesRow";
+import { Checkbox, Disclosure } from "./controls";
 
 const KIND_WORDS: Record<string, string> = {
   "mcp-server": "MCP server",
@@ -161,9 +162,8 @@ function SetupRow({
   return (
     <li className="flex items-start gap-2" data-testid="switch-setup-row" data-verdict={offer.verdict}>
       {settable ? (
-        <input
+        <Checkbox
           id={id}
-          type="checkbox"
           className="mt-1"
           checked={picked.has(offer.id)}
           onChange={() => onToggle(offer.id)}
@@ -199,7 +199,7 @@ function SetupRow({
         )}
         {offer.verdict === "turn-on" && offer.can_copy && (
           <label className="flex items-center gap-1.5 text-meta text-ink">
-            <input type="checkbox" checked={picked.has(offer.id)} onChange={() => onToggle(offer.id)} />
+            <Checkbox checked={picked.has(offer.id)} onChange={() => onToggle(offer.id)} />
             Copy {offer.name} to {check.to} now instead (only if you made it)
           </label>
         )}
@@ -264,12 +264,9 @@ export function SwitchSetupList({
       )}
       {lead.length > 0 && <ul className="flex flex-col gap-3">{lead.map(row)}</ul>}
       {rest.length > 0 && (
-        <details className="flex flex-col gap-2" data-testid="switch-setup-unused">
-          <summary className="cursor-pointer text-meta text-ink">
-            Also on {check.from}, not on {check.to} ({rest.length}, not used in this conversation)
-          </summary>
+        <Disclosure testId="switch-setup-unused" summary={<>Also on {check.from}, not on {check.to} ({rest.length}, not used in this conversation)</>}>
           <ul className="mt-2 flex flex-col gap-3">{rest.map(row)}</ul>
-        </details>
+        </Disclosure>
       )}
     </section>
   );

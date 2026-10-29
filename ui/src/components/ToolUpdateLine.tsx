@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { toolUpdateCheckSet, toolUpdateStatus, type ToolUpdateInfo } from "../lib/ipc/toolUpdates";
+import { Checkbox } from "./controls";
 
 export function ToolUpdateLine({ tool, name }: { tool: string; name: string }) {
   const [info, setInfo] = useState<ToolUpdateInfo | null>(null);
@@ -38,8 +39,7 @@ export function ToolUpdateLine({ tool, name }: { tool: string; name: string }) {
         </p>
       )}
       <label className="flex items-center gap-2 text-muted">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={info.checks_on}
           onChange={(event) => toggle(event.target.checked)}
           data-testid="provider-update-check"

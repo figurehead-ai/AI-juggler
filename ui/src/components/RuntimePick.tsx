@@ -11,6 +11,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { runtimeChoices } from "../lib/ipc/runtime";
 import { useFolderTrust } from "./FolderTrustAsk";
+import { Picker } from "./controls";
 
 export type RuntimeChoice = "terminal" | "driven" | undefined;
 
@@ -26,19 +27,21 @@ export function useRuntimePick(): {
     void runtimeChoices().then((choices) => setBeta(choices.beta_on), () => setBeta(false));
   }, []);
   const element = (
-    <label className="flex items-center gap-2 text-xs text-muted" data-testid="runtime-pick">
-      <span>How it runs</span>
-      <select
-        className="h-7 rounded-lg border border-hairline bg-surface-2 px-2 text-xs text-ink"
-        value={runtime ?? ""}
-        onChange={(event) => setRuntime(event.target.value === "" ? undefined : (event.target.value as "terminal" | "driven"))}
-      >
-        <option value="">As its launch settings say</option>
-        <option value="terminal">Start in terminal</option>
-        {beta && <option value="driven">Run without a terminal: answer from AI Juggler (Beta)</option>}
-      </select>
+    <div className="flex items-center gap-2 text-xs text-muted" data-testid="runtime-pick">
+      <span aria-hidden="true">How it runs</span>
+      <Picker
+        ariaLabel="How it runs"
+        size="sm"
+        value={runtime ?? "settings"}
+        onChange={(next) => setRuntime(next === "settings" ? undefined : next)}
+        options={[
+          { value: "settings", label: "As its launch settings say" },
+          { value: "terminal", label: "Start in terminal" },
+          ...(beta ? [{ value: "driven" as const, label: "Run without a terminal", hint: "Answer from AI Juggler (Beta)" }] : []),
+        ]}
+      />
       {trust.element}
-    </label>
+    </div>
   );
   return { runtime, element, confirm: trust.confirm };
 }

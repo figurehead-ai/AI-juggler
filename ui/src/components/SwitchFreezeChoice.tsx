@@ -10,6 +10,7 @@
 import type { JSX } from "react";
 import { Explain } from "./switch/Explain";
 import { GUIDE } from "../lib/switch-words";
+import { Radio } from "./controls";
 
 export type FreezeChoice = "finish-turn" | "stop-now";
 
@@ -40,7 +41,7 @@ export function originalWords({
     : "The original stops now; an unfinished reply is marked as cut off. You can switch back to it any time.";
 }
 
-const radio = "mt-1 size-4 shrink-0 accent-[var(--color-accent)]";
+const radio = "mt-1 shrink-0";
 
 export function SwitchFreezeChoice({
   sourceLive,
@@ -77,14 +78,14 @@ export function SwitchFreezeChoice({
     <fieldset className="flex flex-col gap-2.5" data-testid="switch-freeze">
       <legend className="mb-1 text-body font-semibold text-ink">When to stop the original</legend>
       <label className="flex items-start gap-2.5 text-body text-ink">
-        <input type="radio" name="freeze" className={radio} checked={value === "finish-turn"} onChange={() => onChange("finish-turn")} />
+        <Radio name="freeze" className={radio} checked={value === "finish-turn"} onChange={() => onChange("finish-turn")} />
         <span>
           Let it finish its reply, then switch <span className="text-label text-success">recommended</span>
           <span className="block text-meta">For example, if it's writing a test, the test is finished first.</span>
         </span>
       </label>
       <label className="flex items-start gap-2.5 text-body text-ink">
-        <input type="radio" name="freeze" className={radio} checked={value === "stop-now"} onChange={() => onChange("stop-now")} />
+        <Radio name="freeze" className={radio} checked={value === "stop-now"} onChange={() => onChange("stop-now")} />
         <span>
           Stop it now and switch
           <span className="block text-meta">An unfinished reply is marked as cut off, so the new session knows to pick it up again.</span>

@@ -245,7 +245,7 @@ describe("AJ-E1504 keys in the app", () => {
     window.removeEventListener("aij:go-place", listen);
     expect(places).toEqual([0, 2]);
     press({ key: "V", shiftKey: true });
-    expect(await view.findByRole("dialog", { name: "View" })).toBeTruthy();
+    expect(await view.findByRole("menu", { name: "View" })).toBeTruthy();
   });
 
   it("⌘⇧I folds the inspector to its header line, keeps the open tab, and remembers it", async () => {

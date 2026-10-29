@@ -10,6 +10,7 @@ import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
 import { messagesSend, type ThreadPage } from "../../lib/ipc/messages";
 import { KINDS, KIND_WORDS } from "./words";
+import { Checkbox, Picker } from "../../components/controls";
 
 export interface Member {
   session_id: string;
@@ -73,22 +74,17 @@ export function Compose({
       {!reply && (
         <div className="flex flex-wrap items-center gap-2">
           {!fixedTo && (
-            <label className="flex items-center gap-2 text-meta text-muted">
-              To
-              <select
+            <div className="flex items-center gap-2 text-meta text-muted">
+              <span aria-hidden="true">To</span>
+              <Picker
+                ariaLabel="To"
+                size="sm"
                 value={to}
-                onChange={(event) => setTo(event.target.value)}
-                className="h-8 rounded-lg border border-hairline bg-surface px-2 text-meta text-ink outline-none focus:border-accent/60"
-                data-testid="compose-to"
-              >
-                <option value="pool">Everyone in the pool</option>
-                {members.map((member) => (
-                  <option key={member.session_id} value={member.session_id}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(next) => setTo(next)}
+                options={[{ value: "pool", label: "Everyone in the pool" }, ...members.map((member) => ({ value: member.session_id, label: member.name }))]}
+                testId="compose-to"
+              />
+            </div>
           )}
           <input
             aria-label="Subject"
@@ -98,18 +94,13 @@ export function Compose({
             onChange={(event) => setSubject(event.target.value)}
             className="h-8 min-w-0 flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-meta text-ink outline-none focus:border-accent/60"
           />
-          <select
-            aria-label="Kind"
+          <Picker
+            ariaLabel="Kind"
+            size="sm"
             value={kind}
-            onChange={(event) => setKind(event.target.value)}
-            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-meta text-ink outline-none focus:border-accent/60"
-          >
-            {KINDS.map((word) => (
-              <option key={word} value={word}>
-                {KIND_WORDS[word]}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => setKind(next)}
+            options={KINDS.map((word) => ({ value: word, label: KIND_WORDS[word] }))}
+          />
         </div>
       )}
       <textarea
@@ -130,7 +121,7 @@ export function Compose({
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label htmlFor={`${ids}-deliver`} className="flex items-center gap-2 text-meta text-muted" title="Into the sessions AI Juggler runs, as their next prompt, between turns. A session in a terminal reads its messages itself.">
-          <input id={`${ids}-deliver`} type="checkbox" checked={deliver} onChange={(event) => setDeliver(event.target.checked)} className="size-4 accent-accent" />
+          <Checkbox id={`${ids}-deliver`} checked={deliver} onChange={(event) => setDeliver(event.target.checked)} />
           Deliver to their sessions
         </label>
         <div className="flex items-center gap-2">

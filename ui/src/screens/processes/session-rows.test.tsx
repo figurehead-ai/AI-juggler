@@ -71,4 +71,13 @@ describe("Processes' session rows", () => {
     const view = render(<NameCell row={row({ title: "Blog images" }, 0)} open={false} onToggle={() => {}} />);
     expect(view.container.textContent).toContain("nothing of its own running");
   });
+
+  it("0.3: a process's line says what started it first, its role guess last", () => {
+    const process = { pid: 8123, name: "node (vite)", role: "dev_server", role_words: "dev server", role_sure: false, label: "Started by Bash: npm run dev", failed: null } as unknown as ProcessGraphRowInfo["process"];
+    const view = render(<NameCell row={{ ...row({}), kind: "process", session: null, process }} open={false} onToggle={() => {}} />);
+    const line = view.container.textContent ?? "";
+    expect(line.indexOf("Started by Bash: npm run dev")).toBeGreaterThan(-1);
+    expect(line.indexOf("Started by Bash")).toBeLessThan(line.indexOf("probably a dev server"));
+  });
 });
+

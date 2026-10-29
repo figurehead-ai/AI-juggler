@@ -1,6 +1,7 @@
 /**
- * AJ-E2104 — the rail's View (⇧V, and its button): Group by, Show and
- * Only, plus Back to the defaults. Kept per Mac in this window's storage,
+ * AJ-E2104 — the rail's View (⇧V, and its button): Show and Only, plus
+ * Reset; 0.3: Group by is the rail's own switch (App · Project · Account
+ * · Pool), kept in the same store. Kept per Mac in this window's storage,
  * read guarded (junk or a storage that throws is the defaults), and one
  * store for every reader (the rail, its button's dot, Home's links).
  *
@@ -43,13 +44,13 @@ export const SHOW_LABELS: Record<ShowKey, string> = {
   archived: "Archived",
 };
 
-/** What each one is, beside it (the 0.2 walk, F18: "Quiet ones" and
+/** What each one is, under it (the 0.2 walk, F18: "Quiet ones" and
  * "Inactive" said nothing of the difference). */
 export const SHOW_NOTES: Partial<Record<ShowKey, string>> = {
-  inactive: "in an app's list, not running",
-  quiet: "idle rows a place folds away",
-  background: "headless runs, from scripts",
-  subagents: "how many each session runs",
+  inactive: "In an app's list, not running",
+  quiet: "Idle sessions a place folds away",
+  background: "Headless runs, from scripts",
+  subagents: "How many each session runs",
 };
 
 const KEY = "aij.rail.view.v1";
@@ -128,7 +129,25 @@ export function showInRail(key: ShowKey, on = true): void {
 }
 
 export function isDefaultView(view: RailView): boolean {
-  return view.group === "place" && SHOW_KEYS.every((key) => !view.show[key]) && ONLY_KEYS.every((key) => view.only[key] === undefined);
+  return view.group === "place" && !viewChanged(view);
+}
+
+/** 0.3: whether the View's own parts (Show, Only) differ from the
+ * defaults: its dot and its Reset. The grouping is the rail's switch,
+ * always in sight, so it never counts here. */
+export function viewChanged(view: RailView): boolean {
+  return SHOW_KEYS.some((key) => view.show[key]) || ONLY_KEYS.some((key) => view.only[key] !== undefined);
+}
+
+/** The View's Reset: Show and Only back to the defaults, the grouping
+ * kept. */
+export function resetViewParts(): void {
+  setRailView((view) => ({ ...DEFAULT_VIEW, group: view.group }));
+}
+
+/** The rail's switch: group sessions by app, project, account or pool. */
+export function setGroupBy(group: GroupBy): void {
+  setRailView((view) => ({ ...view, group }));
 }
 
 // --- the words search and ⌘K take ------------------------------------------------

@@ -15,7 +15,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo, openFilters } from "./fixtures";
+import { goTo, groupBy } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/91-pools");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -76,13 +76,9 @@ async function axe(page: Page, what: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${what}`).toEqual([]);
 }
 
-/** The View's Group by › Pool, then the View closed. */
+/** The rail's switch › Pool (0.3: no longer in the View). */
 async function groupByPool(page: Page) {
-  await openFilters(page);
-  const pool = page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ });
-  await expect(pool).toBeEnabled();
-  await pool.check();
-  await page.keyboard.press("Escape");
+  await groupBy(page, "Pool");
 }
 
 /** A pool's header: its Open button. */

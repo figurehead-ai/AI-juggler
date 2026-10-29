@@ -5,6 +5,7 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { EnvOverlayEditor } from "./EnvOverlayEditor";
+import { Picker } from "./controls";
 import { errorText, expertSetupInfo, type LaunchRecipeInfo } from "../lib/bridge";
 import { sessionsRestartChoiceSet } from "../lib/ipc/sessions";
 
@@ -16,17 +17,17 @@ const choiceOf = (restart: boolean | null): Choice => (restart === null ? "setti
 function RestartChoice({ recipe }: { recipe: LaunchRecipeInfo }): JSX.Element {
   const [choice, setChoice] = useState<Choice>(choiceOf(recipe.restart_on_crash));
   const [error, setError] = useState<string | null>(null);
-  const id = `recipe-restart-${recipe.id}`;
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="recipe-restart">
-      <label htmlFor={id} className="font-medium text-ink">
+      <span aria-hidden="true" className="font-medium text-ink">
         If a session crashes
-      </label>
-      <select
-        id={id}
+      </span>
+      <Picker
+        ariaLabel="If a session crashes"
+        size="sm"
         value={choice}
-        onChange={(event) => {
-          const next = event.target.value as Choice;
+        testId="recipe-restart-choice"
+        onChange={(next) => {
           const before = choice;
           setChoice(next);
           setError(null);
@@ -35,12 +36,12 @@ function RestartChoice({ recipe }: { recipe: LaunchRecipeInfo }): JSX.Element {
             setError(errorText(cause));
           });
         }}
-        className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
-      >
-        <option value="settings">As in Settings</option>
-        <option value="restart">Restart it</option>
-        <option value="stay">Leave it ended</option>
-      </select>
+        options={[
+          { value: "settings", label: "As in Settings" },
+          { value: "restart", label: "Restart it" },
+          { value: "stay", label: "Leave it ended" },
+        ]}
+      />
       {error && (
         <span className="text-label text-danger" role="alert">
           {error}

@@ -15,6 +15,7 @@ import { SettingSwitch as Switch } from "./SettingSwitch";
 import { errorText } from "../lib/bridge";
 import { runtimeBeta, runtimeChoices, runtimeChoose, type RuntimeChoicesInfo } from "../lib/ipc/runtime";
 import { launchTitle } from "../lib/account-words";
+import { Picker } from "./controls";
 
 export const BETA_HINT =
   "Lets you start a Claude Code session with no terminal, its questions and approvals answered here. It runs your own Claude Code with your own sign-in; the terminal stays the default, and Open in terminal hands the conversation back when a turn ends.";
@@ -38,13 +39,14 @@ export function RuntimeSettings(): JSX.Element | null {
         How sessions run
       </p>
       {standing.map((profile) => (
-        <label key={profile.profile_id} className="flex flex-wrap items-center gap-2 text-xs" data-testid={`runtime-${profile.profile_id}`}>
+        <div key={profile.profile_id} className="flex flex-wrap items-center gap-2 text-xs" data-testid={`runtime-${profile.profile_id}`}>
           <span className="min-w-0 flex-1 text-ink">{launchTitle({ account_label: profile.account_label, name: profile.name })}</span>
-          <select
-            className="h-7 rounded-lg border border-hairline bg-surface-2 px-2 text-xs text-ink"
+          <Picker
+            size="sm"
+            ariaLabel={`How ${launchTitle({ account_label: profile.account_label, name: profile.name })} runs`}
             value={profile.chosen ?? ""}
-            onChange={(event) => {
-              const value = event.target.value === "" ? null : (event.target.value as "terminal" | "driven");
+            onChange={(picked) => {
+              const value = picked === "" ? null : (picked as "terminal" | "driven");
               void runtimeChoose(profile.profile_id, value).then(
                 (next) => {
                   setChoices(next);
@@ -53,11 +55,12 @@ export function RuntimeSettings(): JSX.Element | null {
                 (cause) => setNote(errorText(cause)),
               );
             }}
-          >
-            <option value="">{RUN_WORDS[profile.default === "driven" ? "driven" : "terminal"]} (default)</option>
-            {profile.default === "driven" ? <option value="terminal">{RUN_WORDS.terminal}</option> : <option value="driven">{RUN_WORDS.driven}</option>}
-          </select>
-        </label>
+            options={[
+              { value: "", label: `${RUN_WORDS[profile.default === "driven" ? "driven" : "terminal"]} (default)` },
+              profile.default === "driven" ? { value: "terminal", label: RUN_WORDS.terminal } : { value: "driven", label: RUN_WORDS.driven },
+            ]}
+          />
+        </div>
       ))}
       <Switch
         id="runtime_beta"

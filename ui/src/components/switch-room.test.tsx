@@ -22,7 +22,7 @@ import { ContinueOn } from "../pages/session/ContinueOn";
 import { fromInstance } from "../pages/session/model";
 import { SwitchFlow } from "./SwitchFlow";
 import { CarryList, withSetup } from "./switch/CarryList";
-import { LaunchPickWhy } from "./LaunchPickWhy";
+import { LaunchPickBadge, LaunchPickWhy } from "./LaunchPickWhy";
 import { pickLaunch } from "../lib/launch-pick";
 import { resetToasts } from "./Toast";
 
@@ -218,7 +218,7 @@ describe("F17 New session's pick says why, and offers the Suggested one", () => 
     const pick = pickLaunch(recipes, null, Object.values(quota), accounts)!;
     expect(pick.recipe.account_id).toBe("g");
     const onUse = vi.fn();
-    render(<LaunchPickWhy pick={pick} quota={quota} onUse={onUse} />);
+    render(<><LaunchPickBadge pick={pick} /><LaunchPickWhy pick={pick} quota={quota} onUse={onUse} /></>);
     expect(screen.getByTestId("launch-default").textContent).toBe("your default");
     expect(screen.getByTestId("launch-suggested").textContent).toContain("Suggested: Account B has the most room (98% left).");
     fireEvent.click(screen.getByTestId("launch-use-suggested"));
@@ -231,7 +231,7 @@ describe("F17 New session's pick says why, and offers the Suggested one", () => 
     const quota = { g: display("g", 0), b: display("b", 98) };
     const pick = pickLaunch(recipes, null, Object.values(quota), accounts)!;
     expect(pick.recipe.account_id).toBe("b");
-    render(<LaunchPickWhy pick={pick} quota={quota} onUse={vi.fn()} />);
+    render(<><LaunchPickBadge pick={pick} /><LaunchPickWhy pick={pick} quota={quota} onUse={vi.fn()} /></>);
     expect(screen.getByTestId("launch-default").textContent).toBe("Suggested: the most room");
     expect(screen.getByTestId("launch-passed-over").textContent).toMatch(/Account G \(your default\): Out of room until .+ A session there would stop at its limit at once/);
   });

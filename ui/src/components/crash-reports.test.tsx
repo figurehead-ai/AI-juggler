@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CrashReportPrompt, CrashReportsSetting } from "./CrashReports";
 import type { CrashInfo } from "../lib/bridge";
+import { pick } from "../test/pick";
 
 type Seams = { __AIJ_CRASH__?: CrashInfo; __AIJ_CRASH_ANSWERS__?: string[] };
 const w = () => window as unknown as Seams;
@@ -31,10 +32,10 @@ afterEach(() => cleanup());
 describe("AJ-E1107 crash reports", () => {
   it("Never by default; Ask keeps reports here while this build can't send", async () => {
     const { findByTestId, getByTestId, queryByTestId } = render(<CrashReportsSetting />);
-    const select = (await findByTestId("crash-setting")) as HTMLSelectElement;
-    expect(select.value).toBe("never");
+    const select = (await findByTestId("crash-setting")) as HTMLButtonElement;
+    expect(select.getAttribute("data-value")).toBe("never");
     expect(queryByTestId("crash-cannot-send")).toBeNull();
-    fireEvent.change(select, { target: { value: "ask" } });
+    pick(select, "Ask me each time");
     await waitFor(() => expect(getByTestId("crash-cannot-send").textContent).toContain("can't send crash reports yet"));
   });
 
@@ -48,9 +49,9 @@ describe("AJ-E1107 crash reports", () => {
       can_send: false,
     };
     const { findByTestId, getByTestId } = render(<CrashReportsSetting />);
-    const select = (await findByTestId("crash-setting")) as HTMLSelectElement;
+    const select = (await findByTestId("crash-setting")) as HTMLButtonElement;
     expect(select.disabled).toBe(true);
-    expect(select.value).toBe("never");
+    expect(select.getAttribute("data-value")).toBe("never");
     expect(getByTestId("privacy-crash-reports").textContent).toContain("DO_NOT_TRACK");
   });
 
