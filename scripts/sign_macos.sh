@@ -46,6 +46,30 @@ hdi() {
   done
   return 16
 }
+# Detach a mounted image. A busy detach can still finish on its own a
+# moment later, so the next try then fails with "not mounted" (the 0.2.0
+# rehearsal's Nightly edition): once the mount point is gone, it's done.
+# The last try forces it.
+detach() {
+  local mount attempt status
+  mount="$(cd "$1" && pwd -P)"
+  for attempt in 1 2 3 4 5; do
+    status=0
+    if [ "$attempt" -lt 5 ]; then
+      hdiutil detach -quiet "$mount" || status=$?
+    else
+      hdiutil detach -quiet -force "$mount" || status=$?
+    fi
+    [ "$status" -eq 0 ] && return 0
+    mounted "$mount" || return 0
+    echo "hdiutil detach: the image is busy (try $attempt of 5, exit $status)" >&2
+    sleep $((attempt * 3))
+  done
+  return "$status"
+}
+mounted() {
+  mount | grep -qF " on $1 ("
+}
 rehearsal="${REHEARSAL:-}"
 : "${VERSION:?}" "${PREFIX:?}"
 
@@ -210,7 +234,7 @@ if [ -n "$icon" ] && [ -x /usr/bin/SetFile ]; then
   cp "$icon" "$mount/.VolumeIcon.icns"
   chmod 644 "$mount/.VolumeIcon.icns"
   /usr/bin/SetFile -a C "$mount"
-  hdi detach -quiet "$mount"
+  detach "$mount"
 fi
 dmg="$out/${PREFIX}-${VERSION}-universal.dmg"
 hdi convert -quiet "$work/rw.dmg" -format UDZO -o "$dmg" -ov
