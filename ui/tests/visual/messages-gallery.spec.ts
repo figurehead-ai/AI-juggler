@@ -155,7 +155,7 @@ async function poolMessages(page: Page) {
   await page.keyboard.press("Escape");
   await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
   await expect(page.getByTestId("pool-page")).toBeVisible();
-  await page.getByRole("tab", { name: "Messages" }).click();
+  await page.getByTestId("pool-panel-messages").click();
   await expect(page.getByTestId("thread-view")).toBeVisible();
   await expect(page.getByTestId("message-bubble")).toHaveCount(5);
 }

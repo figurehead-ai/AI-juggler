@@ -43,6 +43,7 @@ export interface AppDoings {
 const SCREEN_ICON: Record<GlobalId | "home", PaletteCommandIcon> = {
   home: "home",
   history: "history",
+  pools: "screen",
   accounts: "accounts",
   usage: "usage",
   fleet: "fleet",
@@ -59,6 +60,7 @@ const SCREEN_WORDS: Partial<Record<GlobalId | "home", string>> = {
   accounts: "profiles subscriptions limits switch sign in",
   usage: "tokens cost limits charts",
   history: "ended past sessions transcripts search",
+  pools: "agents work together canvas lead members",
   cleanup: "processes stop kill leftovers cleanup",
   thismac: "memory processor computer machine",
   settings: "preferences options",

@@ -28,3 +28,5 @@ export const SessionPanel = lazyNamed(() => import("./screens/WorkPanels"), "Ses
 export const SwitchFlow = lazyNamed(() => import("./components/SwitchFlow"), "SwitchFlow");
 export const SwitchBackFlow = lazyNamed(() => import("./components/SwitchBackFlow"), "SwitchBackFlow");
 export const PoolPage = lazyNamed(() => import("./pages/PoolPage"), "PoolPage");
+// 0.3: every pool as a card (redesign §5).
+export const PoolsScreen = lazyNamed(() => import("./screens/pools/PoolsScreen"), "PoolsScreen");

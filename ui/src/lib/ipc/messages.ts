@@ -68,6 +68,17 @@ const preview = (): Required<MessagesSeed> => {
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((fn) => fn());
 
+/** The preview's messages in a pool, oldest first (the pool canvas's
+ * stand-in reads its edges from them). Preview only. */
+export function previewPoolMessages(poolId: string): MessageInfo[] {
+  const data = preview();
+  const threads = new Set(data.threads.filter((t) => t.pool_id === poolId).map((t) => t.id));
+  return Object.entries(data.messages)
+    .filter(([id]) => threads.has(id))
+    .flatMap(([, list]) => list)
+    .sort((a, b) => a.at_ms - b.at_ms);
+}
+
 /** Tests: forget the preview's messages between cases. */
 export function resetPreviewMessages(): void {
   store = null;

@@ -8,6 +8,8 @@ export const GLOBAL_NAV = [
   // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
   // AJ-E1007: every ended Instance — search, archive, replay.
   { id: "history", label: "History" },
+  // 0.3 (redesign §5): every pool, each opening its canvas.
+  { id: "pools", label: "Pools" },
   { id: "accounts", label: "Accounts" },
   { id: "usage", label: "Usage" },
   { id: "fleet", label: "Fleet" },
@@ -77,6 +79,7 @@ export function useSettingsLinks(global: GlobalId | null, setGlobal: (id: Global
  * Privacy are one click away in your menu, behind the avatar. */
 export const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "home", label: "Home" },
+  { id: "pools", label: "Pools" },
   { id: "accounts", label: "Accounts" },
   // The review of 0.1.4: the page with the most to show, out of More.
   { id: "usage", label: "Usage" },

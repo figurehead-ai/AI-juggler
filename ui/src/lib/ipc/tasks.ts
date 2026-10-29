@@ -349,7 +349,11 @@ let focused: string | null = null;
  * session's page). */
 export function focusTask(taskId: string | null): void {
   focused = taskId;
+  // A pool page already open (its canvas) opens its Tasks on it now.
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(FOCUS_TASK));
 }
+/** The event a pool page already open listens for. */
+export const FOCUS_TASK = "aij:focus-task";
 /** …taken once. */
 export function takeFocusedTask(): string | null {
   const task = focused;

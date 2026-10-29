@@ -17,7 +17,7 @@ import { prefetchLazy } from "./lib/lazy";
 import {
   ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
-  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage,
+  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage, PoolsScreen,
 } from "./lazyParts";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
@@ -751,9 +751,8 @@ export default function App() {
                 onOpenCleanup={() => setGlobal("cleanup")}
               />
             </ScrollingScreen>
-          ) : global === "privacy" ? (
-            // Settings › Privacy, a frame from now (the redirect above).
-            null
+          ) : global === "privacy" ? null /* Settings › Privacy, a frame from now (the redirect above). */ : global === "pools" ? (
+            <ScrollingScreen key="pools" screen="pools-screen" label="Pools"><PoolsScreen sessions={railSessions} projects={projects} /></ScrollingScreen>
           ) : global === "settings" ? (
             <ScrollingScreen key="settings" screen="settings" label="Settings">
               <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
