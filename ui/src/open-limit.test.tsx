@@ -9,7 +9,7 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { processGone } from "./components/TerminalView";
+import { processGone } from "./lib/session-process";
 import { LimitDialog } from "./components/LimitDialog";
 import { HandoverSection } from "./components/HandoverSection";
 import { NotificationCentre } from "./components/NotificationCentre";

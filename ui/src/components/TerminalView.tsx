@@ -20,6 +20,7 @@ import { copyText, pathLinkProvider, terminalKey, type TerminalKey } from "../li
 import { TerminalSearch } from "./TerminalSearch";
 import { TerminalToolbar, keyName, type TerminalConnection } from "./TerminalToolbar";
 import { Button } from "./primitives";
+import { processGone } from "../lib/session-process";
 
 const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
 
@@ -79,18 +80,6 @@ function decodeBase64(data: string): Uint8Array {
  * Ended word, maximize, and its own window (`ownWindow` is that window's
  * view; the main window then says where it went).
  */
-/** The session statuses whose process is gone: its terminal reads Ended
- * (waiting for you or stuck is still alive). */
-const PROCESS_GONE = new Set(["finished", "stopped", "failed", "handed_over", "quota_blocked"]);
-
-/** Whether a session's process is gone, from its status and attention
- * rule: one at its limit is gone only when it ended there (0.3: an
- * interactive tool stays open at its limit, rule `limit_hit`). */
-export function processGone(status: string | undefined, rule: string | null | undefined): boolean {
-  if (status === undefined) return false;
-  if (status === "quota_blocked") return rule !== "limit_hit";
-  return PROCESS_GONE.has(status);
-}
 
 export function TerminalView({
   id,

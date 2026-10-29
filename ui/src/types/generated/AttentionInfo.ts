@@ -7,7 +7,8 @@
  */
 export type AttentionInfo = { 
 /**
- * Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit`.
+ * Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit` | `limit_hit`
+ * (open at its limit) | `tool_asks`.
  */
 rule: string, 
 /**

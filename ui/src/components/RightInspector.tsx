@@ -996,8 +996,7 @@ function stuckRuleWords(rule: string): string {
       return "No output for a while";
     case "waiting_prompt":
       return "Waiting for your reply";
-    case "quota_exit":
-    case "limit_hit":
+    case "quota_exit": case "limit_hit": // ended, or open at its limit (0.3)
       return "Hit its limit";
     default:
       return "Looks stuck";

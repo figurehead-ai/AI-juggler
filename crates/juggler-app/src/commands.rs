@@ -1016,8 +1016,7 @@ pub struct TokenCountsInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct AttentionInfo {
-    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit` | `limit_hit`
-    /// (open at its limit) | `tool_asks`.
+    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit` | `limit_hit` | `tool_asks`.
     pub rule: String,
     /// Human-readable measured inputs (`no output 6m`, `cpu 0.3%`).
     pub inputs: Vec<String>,
@@ -3823,9 +3822,7 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 map
             };
         for record in storage.sessions().list(None)? {
-            // AJ-E2302: a driven session's state is its tool's, never a guess.
-            // 0.3: a session at its limit (open or ended) is the tool's fact,
-            // never re-judged as stuck or waiting.
+            // AJ-E2302, 0.3: a driven session's or a limit's state is the tool's.
             if !is_active(record.status)
                 || record.status == SessionStatus::QuotaBlocked
                 || state.runtime.is_exact(&record.id)
@@ -3890,8 +3887,6 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
     let mut changed = false;
     let drained: Vec<SessionId> = state.supervisor.drain_activity();
     for session in &drained {
-        // 0.3: output moved — a limit hit (or the session carrying on
-        // after one) shows now, not at the next tick.
         changed |= crate::features::sessions::limits::output_moved(state, session);
         if let Some(running) = state.heuristics.recover(session) {
             debug_assert_eq!(running, SessionStatus::Running);
@@ -12726,8 +12721,7 @@ pub struct SwitchBackSuggestionInfo {
     pub session_id: String,
     /// The original account's label (where work returns).
     pub original_account: String,
-    /// The original account's id (0.3: its "has room again" notice offers
-    /// the returns to it).
+    /// The original account's id (its "has room again" notice offers this).
     pub original_account_id: String,
     /// The away account's label.
     pub away_account: String,
@@ -12762,22 +12756,10 @@ pub async fn switch_back_suggestions(
 pub fn switch_back_suggestions_impl(
     state: &Arc<AppState>,
 ) -> AppResult<Vec<SwitchBackSuggestionInfo>> {
-    let storage = lock_storage_arc(state)?;
-    switch_back_suggestions_in(&storage, Timestamp::now().millis())
-}
-
-/// [`switch_back_suggestions_impl`] on held storage (the "has room again"
-/// notice asks while it holds it).
-///
-/// # Errors
-///
-/// Returns the typed [`AppError`] when storage reads fail.
-pub fn switch_back_suggestions_in(
-    storage: &Storage,
-    now: i64,
-) -> AppResult<Vec<SwitchBackSuggestionInfo>> {
     use juggler_core::model::EdgeState;
 
+    let now = Timestamp::now().millis();
+    let storage = lock_storage_arc(state)?;
     let accounts = storage.accounts().list()?;
     let graph = storage.switch_graph();
     let mut works = Vec::new();
@@ -12825,7 +12807,7 @@ pub fn switch_back_suggestions_in(
             };
             // The reset trigger: the original account has headroom
             // again (not exhausted, not tight).
-            let display = quota_display_inner(storage, original_account, now);
+            let display = quota_display_inner(&storage, original_account, now);
             let headroom = match display.five_hour.as_ref().map(|w| w.state.as_str()) {
                 Some("exhausted") => false,
                 Some(_) => display.forecast.tte_min.is_none_or(|tte| tte >= 45.0),
