@@ -454,6 +454,10 @@ for (const theme of THEMES) {
   test(`project menu — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], PINNED);
     await projectLens(page); // AJ-E2104: a project's row is the Project lens's
+    // The rail's Needs you fills in from the backend's count after the
+    // first paint (F2): a menu opened before then stays where its row was
+    // (the 0.2.0 re-render drew it in two places on two runs).
+    await expect(page.getByTestId("rail-needs-you")).toHaveText(/Needs you\s*5/);
     await page.getByRole("button", { name: "Project actions for ai-juggler" }).click();
     await expect(page.getByRole("menu", { name: "Actions for ai-juggler" })).toBeVisible();
     await page.mouse.move(0, 0);
