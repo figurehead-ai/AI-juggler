@@ -499,6 +499,41 @@ mod tests {
     }
 
     #[test]
+    fn another_tool_is_never_the_same_conversation() {
+        // The 0.2 re-render: a gallery fixture called a Claude → Codex
+        // target "Same conversation, new account". The real badge comes
+        // from this matrix, which keeps a cross-tool pair a handover.
+        for row in validation_matrix() {
+            if side_tool(&row.from) == side_tool(&row.to) {
+                continue;
+            }
+            assert!(
+                row.mechanism != PairMechanism::Transplant,
+                "{}→{}",
+                row.from,
+                row.to
+            );
+            assert!(
+                row.advertised_ceiling() <= FidelityLabel::F1,
+                "{}→{}",
+                row.from,
+                row.to
+            );
+            assert!(
+                !row.badge().starts_with("Same conversation"),
+                "{}→{}: {}",
+                row.from,
+                row.to,
+                row.badge()
+            );
+        }
+        assert_eq!(
+            pair_cell("claude-code", "codex").unwrap().badge(),
+            "Full story, fresh start · Beta"
+        );
+    }
+
+    #[test]
     fn nothing_validates_without_a_live_cell_and_real_ci() {
         for row in validation_matrix() {
             assert!(!row.validated(), "{}→{} ships Beta", row.from, row.to);

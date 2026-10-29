@@ -144,17 +144,19 @@ pub fn move_line(mechanism: Mechanism, messages: usize, tool_b: &str) -> String 
     } else {
         "every message".to_owned()
     };
-    // Never "moves" (deep/11 §4.9): the conversation is carried over, and
-    // the original stays.
+    // Never "moves" (deep/11 §4.9): the conversation is carried over.
+    // What happens to the original is said once, beside this line: the
+    // confirm summary's own line (stays, stops, or keeps running) and the
+    // Target step's, so it isn't here too.
     match mechanism {
         Mechanism::Transplant | Mechanism::NativeResume => format!(
-            "The whole conversation is carried over — {count}, its subagents and file history. The original stays as it was."
+            "The whole conversation is carried over — {count}, its subagents and file history."
         ),
         Mechanism::Replay => format!(
-            "{tool_b} starts fresh and reads the conversation — {count}, newest first as much as fits — to pick up the work. The original stays as it was."
+            "{tool_b} starts fresh and reads the conversation — {count}, newest first as much as fits — to pick up the work."
         ),
         Mechanism::PackOnly => format!(
-            "{tool_b} starts fresh from notes about the work: what it is, what was decided and what's left. The original stays as it was."
+            "{tool_b} starts fresh from notes about the work: what it is, what was decided and what's left."
         ),
     }
 }
@@ -240,7 +242,7 @@ mod tests {
     fn the_target_step_says_what_moves() {
         assert_eq!(
             move_line(Mechanism::Transplant, 42, "Claude Code"),
-            "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was."
+            "The whole conversation is carried over — all 42 messages, its subagents and file history."
         );
         // The 0.2 walk (F12): "all 31009 messages", and "moves".
         let long = move_line(Mechanism::Replay, 31_009, "Codex");
@@ -255,6 +257,9 @@ mod tests {
             for jargon in ["moves", "natively", "replay"] {
                 assert!(!words.contains(jargon), "{jargon} in {words}");
             }
+            // The 0.2 re-render: the confirm said "The original stays"
+            // twice. The line beside this one says it, once.
+            assert!(!words.contains("original"), "{words}");
         }
         assert_eq!(reader_words("Codex", "OpenAI"), "Codex (OpenAI)");
     }

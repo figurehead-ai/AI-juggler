@@ -121,7 +121,8 @@ for (const theme of ["dark", "light"] as const) {
     // (AJ-E2105).
     await expect(page.getByTestId("home-scroll").getByRole("heading", { level: 1 })).toHaveText("1 thing needs you");
     await expect(page.getByTestId("machine-alert")).toHaveCount(0);
-    await expect(page.getByText("Your Mac is under memory pressure", { exact: true })).toHaveCount(1);
+    // (The rail's Needs you lists it too, from the same count: F2.)
+    await expect(page.getByTestId("home-scroll").getByText("Your Mac is under memory pressure", { exact: true })).toHaveCount(1);
     await page.screenshot({ path: resolve(OUT, `memory-pressure-1280x800-${theme}.png`) });
     await axeClean(page);
   });

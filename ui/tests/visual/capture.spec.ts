@@ -2207,7 +2207,7 @@ const SWITCH_WIZARD_FIXTURE = {
     { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; the new session works in the same folder.", how: "moves" },
     { label: "Subagents' work", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
   ],
-  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
 };
 
 for (const theme of THEMES) {
@@ -2437,7 +2437,10 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 1 of 3: Target");
-      await expect(page.getByTestId("switch-move-line")).toContainText("The whole conversation moves");
+      // Never "moves" (deep/11 §4.9); the original is said once, here.
+      await expect(page.getByTestId("switch-move-line")).toHaveText(
+        "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was.",
+      );
       await expect(page.getByTestId("switch-wizard-reasons")).toContainText("hasn't been proven");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-target-${vp.name}-${theme}.png`),
@@ -2671,7 +2674,7 @@ for (const theme of THEMES) {
         { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
         { label: "Subagents' work", hint: "It doesn't go along: the new session starts without it.", how: "stays" },
       ],
-      move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work. The original stays as it was.",
+      move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work.",
       secrets: { asks: true, reader: "Codex (OpenAI)" },
       target_tool: "codex",
     };
@@ -2868,9 +2871,13 @@ const GRAPH_FAILED = [
   },
 ];
 
+// Each target's words match its tool (the 0.2.0 re-render): Work Max is
+// another profile of the same Claude Code account, Codex another tool
+// (a handover), Lab a tool that takes handover notes only.
 const BADGE_SET_TARGETS = [
   {
     recipe_id: "r-validated",
+    provider: "claude-code",
     account_id: "a-1",
     account_label: "Work Max",
     badge: "Continues exactly · Proven",
@@ -2886,8 +2893,9 @@ const BADGE_SET_TARGETS = [
   },
   {
     recipe_id: "r-beta",
+    provider: "codex",
     account_id: "a-2",
-    account_label: "Personal",
+    account_label: "Codex",
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
@@ -2901,6 +2909,7 @@ const BADGE_SET_TARGETS = [
   },
   {
     recipe_id: "r-filtered",
+    provider: "gemini-cli",
     account_id: "a-3",
     account_label: "Lab",
     badge: "Handover notes · Beta",
@@ -2914,6 +2923,19 @@ const BADGE_SET_TARGETS = [
     suggested: false,
   },
 ];
+
+/** The badge set's room, as its ranking reads it (a measured target says
+ * how much is left, never "Not measured yet" beside "Measured"). */
+const BADGE_SET_ROOM = [
+  ["a-1", 80],
+  ["a-2", 35],
+].map(([account, left]) => ({
+  account,
+  weekly: { state: "ok", percentage: 100 - (left as number), resets_at_ms: T0 + 26 * 3_600_000, badge: "measured" },
+  five_hour: null,
+  forecast: { state: "learning", badge: "learning" },
+  renewal: { state: "none", label: "", entered_by_user: false },
+}));
 
 /** AJ-E1533: a project's switch graph sits on its page's Overview tab. */
 const openProjectOverview = (page: import("@playwright/test").Page) =>
@@ -2942,16 +2964,17 @@ for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
     test(`graph — ranked targets with explanations — ${vp.name} — ${theme}`, gate("32-graph"), async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, targets, t0 }) => {
+        ({ fixture, targets, room, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_TARGETS__ = targets;
+          w.__AIJ_QUOTA_DISPLAY__ = room;
           localStorage.setItem("aij.theme", theme);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, targets: BADGE_SET_TARGETS, t0: T0 },
+        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0 },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -3040,16 +3063,17 @@ for (const theme of THEMES) {
 
     test(`graph — badge set (validated vs beta) — ${vp.name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, targets, t0 }) => {
+        ({ fixture, targets, room, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_TARGETS__ = targets;
+          w.__AIJ_QUOTA_DISPLAY__ = room;
           localStorage.setItem("aij.theme", theme);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, targets: BADGE_SET_TARGETS, t0: T0 },
+        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0 },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -5887,7 +5911,16 @@ for (const theme of THEMES) {
     test(`28 switch — ${state} — ${theme}`, async ({ page }) => {
       // The handover's case: a switch to Codex, the conversation replayed.
       const codex = state === "notes-handover";
-      const preflight = codex ? { ...NOTES_ONE_CLICK, mechanism: "replay", fidelity: "F1", fidelity_words: "Full story, fresh start", target_tool: "codex" } : NOTES_ONE_CLICK;
+      const preflight = codex
+        ? {
+            ...NOTES_ONE_CLICK,
+            mechanism: "replay",
+            fidelity: "F1",
+            fidelity_words: "Full story, fresh start",
+            target_tool: "codex",
+            move_line: "Codex starts fresh and reads the conversation — all 42 messages, newest first as much as fits — to pick up the work.",
+          }
+        : NOTES_ONE_CLICK;
       await openSwitchWith(page, theme, { __AIJ_SWITCH_PREFLIGHT__: preflight, __AIJ_SWITCH_SETUP__: setup });
       await pickTarget(page, codex ? /Codex/ : /Personal/);
       await expect(page.getByTestId("switch-step-confirm")).toContainText(codex ? "Ready to switch to Codex" : "Ready to switch to Personal");
@@ -5911,19 +5944,19 @@ for (const theme of THEMES) {
     forecast: { state: "learning", badge: "learning" },
     renewal: { state: "none", label: "", entered_by_user: false },
   });
+  // Each target's words match its tool: Codex is a handover (the 0.2
+  // re-render caught it labelled "Same conversation, new account").
+  const SAME_TOOL = { provider: "claude-code", badge: "Same conversation, new account · Beta", cross_provider: false, drops: [] as string[] };
+  const CODEX = { provider: "codex", badge: "Full story, fresh start · Beta", cross_provider: true, drops: ["Subagents' work", "The task list"] };
   const ROOM_TARGETS = [
-    { account_id: "acct-personal", account_label: "Personal", recipe_id: "recipe-personal", left: 0 },
-    { account_id: "acct-codex", account_label: "Codex", recipe_id: "recipe-codex", left: 62 },
-    { account_id: "acct-lab", account_label: "Lab", recipe_id: "recipe-lab", left: 88 },
+    { account_id: "acct-personal", account_label: "Personal", recipe_id: "recipe-personal", left: 0, ...SAME_TOOL },
+    { account_id: "acct-codex", account_label: "Codex", recipe_id: "recipe-codex", left: 62, ...CODEX },
+    { account_id: "acct-lab", account_label: "Lab", recipe_id: "recipe-lab", left: 88, ...SAME_TOOL },
   ];
   const roomSeams = {
     __AIJ_SWITCH_TARGETS__: ROOM_TARGETS.map(({ left: _left, ...target }) => ({
       ...target,
-      provider: "claude-code",
-      badge: "Same conversation, new account · Beta",
       validated: false,
-      cross_provider: false,
-      drops: [],
       score: null,
       filtered_reason: null,
       top_factors: [],

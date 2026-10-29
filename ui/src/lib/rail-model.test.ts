@@ -41,6 +41,12 @@ function own(id: string, over: Partial<InstanceInfo> = {}): InstanceInfo {
 }
 
 describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
+  it("a payload without viewed_ms reads as never viewed, not NaN", () => {
+    // The 0.2.0 re-render: an older reader's rows said "viewed NaN d ago".
+    const { viewed_ms: _drop, ...older } = talk("old", { state: "working" });
+    expect(conversationItem(older as ConversationInfo, none, null).viewedMs).toBeNull();
+  });
+
   it("every app's status maps onto Asks you, Working, Idle, Done (review it), Ended", () => {
     expect(conversationItem(talk("a", { state: "asks_you" }), none, null).state).toBe("asks_you");
     expect(conversationItem(talk("w", { state: "working" }), none, null).state).toBe("working");

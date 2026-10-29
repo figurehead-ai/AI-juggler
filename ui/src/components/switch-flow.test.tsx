@@ -48,7 +48,7 @@ const ONECLICK: PreflightInfoData = {
     { label: "The whole conversation", hint: "Every message from the start.", how: "moves" },
     { label: "Project rules", hint: "The rule files in the project folder.", how: "moves" },
   ],
-  move_line: "The whole conversation moves — all 42 messages, its subagents and file history. The original stays as it was.",
+  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
   target_tool: "claude-code",
 };
@@ -410,7 +410,33 @@ describe("leaving the switch", () => {
   it("the Target step opens with what moves, and another account is no warning", async () => {
     const view = mountWith(WIZARD);
     await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
-    expect(view.getByTestId("switch-move-line").textContent).toContain("The whole conversation moves");
+    expect(view.getByTestId("switch-move-line").textContent).toContain("The whole conversation is carried over");
     expect(view.getByTestId("switch-flow").textContent).not.toContain("usual account");
   });
+});
+
+/** The 0.2 re-render: the confirm said "The original stays" twice (the
+ * move line, then the original's own line). Each step says it once. */
+describe("the original, said once", () => {
+  // What happens to the original: it stays, stops, or keeps running.
+  const times = (text: string | null | undefined) => (text ?? "").match(/The original|can't stop this session/g)?.length ?? 0;
+  const cases: Array<[string, Partial<PreflightInfoData>]> = [
+    ["at rest", { source_live: false }],
+    ["running here", { source_live: true }],
+    ["one it can't stop", { source_keeps_running: true }],
+    ["one another app runs", { source_keeps_running: true, source_outside: true, source_app: "Claude" }],
+  ];
+  for (const [name, change] of cases) {
+    it(`on the confirm: ${name}`, async () => {
+      const view = mount({ ...ONECLICK, ...change }, vi.fn());
+      await waitFor(() => expect(view.getByTestId("switch-summary")).toBeTruthy());
+      expect(times(view.getByTestId("switch-summary").textContent)).toBe(1);
+    });
+    it(`on the Target step: ${name}`, async () => {
+      (window as never as Seams).__AIJ_SWITCH_PREFLIGHT__ = { ...WIZARD, ...change };
+      const view = render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" onClose={vi.fn()} onSwitched={vi.fn()} />);
+      await waitFor(() => expect(view.getByTestId("switch-step-target")).toBeTruthy());
+      expect(times(view.getByTestId("switch-step-target").textContent)).toBe(1);
+    });
+  }
 });

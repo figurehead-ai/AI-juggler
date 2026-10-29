@@ -22,6 +22,9 @@ export function TargetStep({ preflight, target, room }: { preflight: PreflightIn
       </p>
       <p className="text-body text-ink" data-testid="switch-move-line">
         {preflight.move_line}
+        {/* The move line says what goes along; where the original stays is
+            said once, here, or by the outside line below. */}
+        {!preflight.source_outside && " The original stays as it was."}
       </p>
       <RoomNote room={room} target={target} />
       {preflight.wizard_reasons.length > 0 && (
