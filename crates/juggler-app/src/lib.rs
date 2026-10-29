@@ -533,6 +533,14 @@ macro_rules! app_commands {
             // AJ-E1511: reads a folder the user picked; starts a session.
             Write features::packs::packs_open_preview,
             Write features::packs::packs_open_start,
+            // 0.3: what a switch's handover told the other tool. The line
+            // is counts only; the handover is the conversation's words
+            // (never over the bridge), and saving or revealing one writes
+            // or opens Finder.
+            Write features::handover::view::handover_summary,
+            Write features::handover::view::handover_open,
+            Write features::handover::view::handover_save,
+            Write features::handover::view::handover_reveal,
             // AJ-E1515: what a paired Mac offers; starting there; usage by machine.
             Read  features::fleet::fleet_launch_options,
             Write features::fleet::fleet_launch_start,

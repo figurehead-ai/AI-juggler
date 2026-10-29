@@ -112,6 +112,7 @@ unbounded os_access_list  # bounded: one row per account, tool, launch setting o
 unbounded os_access_request  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded overnight_summary  # TO PAGE: what happened while away (grows with sessions)
 unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded handover_open  # bounded: a fixed set (what carries, what was hidden by kind)
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
 unbounded pools_create  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members

@@ -15,6 +15,7 @@ use juggler_core::model::{
     AccountId, EdgeActor, EdgeState, Epoch, EpochId, FailureStage, HarnessId, ManifestEntry,
     PackId, ProfileId, SwitchEdge, SwitchEdgeId, SwitchMechanism, Timestamp, WorkItemId,
 };
+use juggler_handover::pack::RedactionCount;
 use juggler_handover::pack_read::{OpenedPack, read_pack};
 
 use crate::error::{AppError, AppResult};
@@ -64,6 +65,8 @@ pub struct PackOpenInfo {
     pub not_carried: Vec<String>,
     /// What redaction withheld when it was made.
     pub withheld: Vec<WithheldInfo>,
+    /// What it found and left as it was, as the user chose.
+    pub kept: Vec<WithheldInfo>,
     /// Its brief (`PACK.md`), to read in full.
     pub brief: String,
 }
@@ -112,19 +115,47 @@ fn fidelity_words(pack: &OpenedPack) -> String {
     }
 }
 
-/// A detector's kind in words, as packs and shared docs show it.
-pub(crate) fn withheld_words(kind: &str) -> String {
-    match kind {
-        "sk-key" | "api-key" => "API keys",
-        "bearer" => "bearer tokens",
-        "env-value" => "secret values",
-        "private-key" => "private keys",
-        other => other,
-    }
-    .to_owned()
+/// A detector's kind in words, for `count` of them, as packs, handovers
+/// and shared docs show it ("1 API key", "2 API keys"). A kind this
+/// build doesn't name is "other secrets", never its id.
+pub(crate) fn withheld_words(kind: &str, count: u32) -> String {
+    let (one, many) = match kind {
+        "sk-key" | "api-key" => ("API key", "API keys"),
+        "bearer" => ("bearer token", "bearer tokens"),
+        "env-value" => ("secret value", "secret values"),
+        "private-key" => ("private key", "private keys"),
+        "zcode-rollout" => ("access token", "access tokens"),
+        _ => ("other secret", "other secrets"),
+    };
+    if count == 1 { one } else { many }.to_owned()
 }
 
-fn tool_name(state: &Arc<AppState>, id: &str) -> String {
+/// Redaction counts as the sheet shows them (the empty ones dropped).
+pub(crate) fn withheld_rows(counts: &[RedactionCount]) -> Vec<WithheldInfo> {
+    counts
+        .iter()
+        .filter(|count| count.count > 0)
+        .map(|count| WithheldInfo {
+            what: withheld_words(&count.kind, count.count),
+            count: count.count,
+        })
+        .collect()
+}
+
+/// What a pack hid and what it left as it was. A pack made before
+/// `withheld` was recorded says what it found, as it always did.
+fn hidden_and_kept(pack: &OpenedPack) -> (Vec<RedactionCount>, Vec<RedactionCount>) {
+    let found = &pack.state.redactions;
+    match &pack.state.withheld {
+        Some(withheld) => (
+            withheld.clone(),
+            juggler_handover::redaction::kept_counts(found, withheld),
+        ),
+        None => (found.clone(), Vec::new()),
+    }
+}
+
+pub(crate) fn tool_name(state: &Arc<AppState>, id: &str) -> String {
     state
         .registry
         .get(&HarnessId::new(id))
@@ -163,6 +194,7 @@ pub fn preview_impl(state: &Arc<AppState>, path: &Path) -> AppResult<PackOpenInf
         carries.push("the uncommitted changes".to_owned());
     }
     let root = PathBuf::from(&pack.state.project.root);
+    let (withheld, kept) = hidden_and_kept(&pack);
     Ok(PackOpenInfo {
         digest: pack.digest.clone(),
         path: home_relative(path),
@@ -181,16 +213,8 @@ pub fn preview_impl(state: &Arc<AppState>, path: &Path) -> AppResult<PackOpenInf
             .iter()
             .map(|drop| format!("{}: {}", drop.artifact, drop.reason))
             .collect(),
-        withheld: pack
-            .state
-            .redactions
-            .iter()
-            .filter(|count| count.count > 0)
-            .map(|count| WithheldInfo {
-                what: withheld_words(&count.kind),
-                count: count.count,
-            })
-            .collect(),
+        withheld: withheld_rows(&withheld),
+        kept: withheld_rows(&kept),
         brief: pack.pack_md.clone(),
     })
 }
@@ -272,8 +296,8 @@ pub fn start_impl(
         &state.data_dir,
         &brief(state, &pack, &account.harness, folder),
         &crate::features::handover::HandoverState {
-            format: "ai-juggler-handover",
-            version: 1,
+            format: crate::features::handover::FORMAT.to_owned(),
+            version: crate::features::handover::VERSION,
             edge: edge.to_string(),
             from: crate::features::handover::Side {
                 tool: pack.state.source.provider.clone(),
@@ -290,6 +314,17 @@ pub fn start_impl(
             rules_files: Vec::new(),
             notes_quoted: Vec::new(),
             notes_left_out: Vec::new(),
+            // What the pack hid when it was made: a pack from before that
+            // was recorded doesn't say.
+            withheld: pack.state.withheld.clone(),
+            kept: pack
+                .state
+                .withheld
+                .as_ref()
+                .map(|withheld| {
+                    juggler_handover::redaction::kept_counts(&pack.state.redactions, withheld)
+                })
+                .unwrap_or_default(),
         },
     )
     .map_err(|error| {

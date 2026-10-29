@@ -83,7 +83,7 @@ pub(crate) fn info_of(doc: Doc) -> DocInfo {
         .into_iter()
         .filter(|found| found.count > 0)
         .map(|found| WithheldInfo {
-            what: crate::features::packs::withheld_words(&found.kind),
+            what: crate::features::packs::withheld_words(&found.kind, found.count),
             count: found.count,
         })
         .collect();
