@@ -24,10 +24,10 @@ async function open(page: Page, theme: "dark" | "light") {
       w.__AIJ_STAGED__ = {
         session_id: "sess-5",
         target_recipe_id: "recipe-work-max",
-        target_account_id: "acct-work",
+        target_account_id: "claude-work", // the preview's Work Max (its switch targets carry the accounts' own ids)
         target_account_label: "Work Max",
         prepared_at_ms: t0 - 4 * 60_000,
-        fidelity_words: "Full story, fresh start",
+        fidelity_words: "Same conversation, new account", // Claude Code to Claude Code
       };
       localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
