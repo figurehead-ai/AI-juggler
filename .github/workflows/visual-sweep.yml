@@ -51,7 +51,7 @@ jobs:
       base_label: ${{ steps.resolve.outputs.base_label }}
       head_label: ${{ steps.resolve.outputs.head_label }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Resolve base and head
@@ -105,14 +105,14 @@ jobs:
     steps:
       # The sweep's own tooling comes from this workflow's commit; each
       # gallery is rendered from its side's commit (which may predate it).
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: tools
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.refs.outputs.base }}
           path: base
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.refs.outputs.head }}
           path: head
@@ -148,7 +148,7 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --ipc=host
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install
         working-directory: ui
         run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile

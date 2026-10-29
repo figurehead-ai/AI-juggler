@@ -130,7 +130,7 @@ jobs:
       # update: `npm view pnpm@X.Y.Z dist.integrity`, base64 → hex.
       PNPM: pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.REF }}
           fetch-depth: 0
@@ -285,7 +285,7 @@ jobs:
       PREFIX: ${{ matrix.prefix }}
     steps:
       # The signing scripts only, from the commit being released.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.REF }}
           persist-credentials: false
@@ -353,7 +353,7 @@ jobs:
       PREFIX: ${{ matrix.prefix }}
     steps:
       # The signing scripts only, from the commit being released.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.REF }}
           persist-credentials: false
