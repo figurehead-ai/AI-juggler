@@ -54,7 +54,7 @@ export function ChoiceLine({
         </span>
       )}
       <span className="flex min-w-0 flex-col">
-        <span id={labelId} className={strong ? "font-semibold" : undefined}>
+        <span id={labelId} data-choice-label className={strong ? "font-semibold" : undefined}>
           {label}
         </span>
         {hint && (

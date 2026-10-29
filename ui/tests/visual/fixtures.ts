@@ -377,6 +377,13 @@ export async function projectLens(page: import("@playwright/test").Page): Promis
   await railViewAs(page, { group: "project" });
 }
 
+/** 0.3: choosing in a Picker (the shared control in place of the
+ * system select): open it, click the line with that label. */
+export async function pick(page: import("@playwright/test").Page, picker: import("@playwright/test").Locator, label: string | RegExp): Promise<void> {
+  await picker.click();
+  await page.getByRole("menuitemradio").filter({ has: page.locator("[data-choice-label]", { hasText: label }) }).first().click();
+}
+
 /** AJ-E2104: Only › Mac in the View ("all" puts it back). */
 export async function onlyMac(page: import("@playwright/test").Page, value: string): Promise<void> {
   await openFilters(page);
