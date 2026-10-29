@@ -13,7 +13,9 @@ version="${1:?usage: release_notes_check.sh X.Y.Z [FROM]}"
 file="docs/releases/${version}.md"
 fail() { echo "release-notes: $file: $*" >&2; exit 1; }
 [ -f "$file" ] || fail "missing — write the user-facing notes first (docs/RELEASING.md)"
-first="$(grep -v '^\s*$' "$file" | head -1)"
+# grep -m1, not `| head -1`: with pipefail, head closing the pipe early
+# fails grep with "Broken pipe" on long notes (the 0.2.0 nightly's publish).
+first="$(grep -m1 -v '^\s*$' "$file" || true)"
 case "$first" in
   "#"*|"-"*|"*"*) fail "the first line must be one plain sentence, not a heading or a bullet" ;;
 esac

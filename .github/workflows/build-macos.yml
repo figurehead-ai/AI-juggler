@@ -247,7 +247,7 @@ jobs:
           # The bridge is inside, beside the app's executable.
           test -x "$bundle"/*.app/Contents/MacOS/juggler-agent
           (cd "$bundle" && tar -cf "$out/app.tar" ./*.app)
-          tar -tf "$out/app.tar" | head -3
+          tar -tf "$out/app.tar" | sed -n 1,3p
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

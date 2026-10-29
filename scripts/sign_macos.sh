@@ -226,7 +226,7 @@ mkdir -p "$stage"
 ditto "$app" "$stage/$product.app"
 ln -s /Applications "$stage/Applications"
 hdi create -quiet -volname "$product" -srcfolder "$stage" -fs HFS+ -format UDRW -ov "$work/rw.dmg"
-icon="$(find "$app/Contents/Resources" -name '*.icns' | head -1)"
+icon="$(find "$app/Contents/Resources" -name '*.icns' -print -quit)"
 if [ -n "$icon" ] && [ -x /usr/bin/SetFile ]; then
   mount="$work/mount"
   mkdir -p "$mount"
