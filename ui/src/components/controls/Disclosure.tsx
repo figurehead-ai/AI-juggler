@@ -21,8 +21,9 @@ export function Disclosure({
   /** Open at first (or, with `onToggle`, as its owner keeps it). */
   open?: boolean;
   onToggle?: (open: boolean) => void;
-  /** A quiet line ("Details") or a section's title (a dialog's Details). */
-  tone?: "quiet" | "title";
+  /** A quiet line ("Details"), a group's heading in a card (Settings'
+   * Terminal), or a section's title (a dialog's Details). */
+  tone?: "quiet" | "heading" | "title";
   testId?: string;
   className?: string;
   summaryClassName?: string;
@@ -32,7 +33,7 @@ export function Disclosure({
       <summary
         className={
           "flex w-fit min-h-6 cursor-pointer list-none items-center gap-1.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden " +
-          (tone === "title" ? "text-body font-semibold text-ink " : "text-meta text-muted hover:text-ink ") +
+          (tone === "title" ? "text-body font-semibold text-ink " : tone === "heading" ? "text-meta font-semibold text-ink " : "text-meta text-muted hover:text-ink ") +
           summaryClassName
         }
       >

@@ -244,7 +244,7 @@ export function SessionsSettingsCard(): JSX.Element {
               save({ ...prefs, stuck_after_minutes: minutes }, `Sessions are marked Looks stuck after ${minutes} minutes without output.`)
             }
           />
-          <Disclosure className="text-xs text-muted" testId="settings-terminal" summary="Terminal">
+          <Disclosure className="text-xs text-muted" tone="heading" testId="settings-terminal" summary="Terminal">
             <div className="mt-3 flex flex-col gap-3">
               <PrefNumber
                 id="terminal_font_size"

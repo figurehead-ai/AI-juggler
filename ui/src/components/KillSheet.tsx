@@ -442,7 +442,7 @@ export function KillSheet(props: {
               ) : (
                 <fieldset className="mt-3">
                   <legend className="text-label font-medium text-ink">What to stop</legend>
-                  <div className="mt-1 flex flex-col gap-0.5" role="radiogroup" aria-label="What to stop">
+                  <div className="-mx-2 mt-1 flex flex-col gap-0.5" role="radiogroup" aria-label="What to stop">
                     {KILL_SCOPES.map((entry) => (
                       <ChoiceOption key={entry.id} type="radio" name={`kill-scope-${props.pid}`} label={entry.label} hint={entry.hint} checked={scope === entry.id} onChange={() => setScope(entry.id)} data-testid={`kill-scope-${entry.id}-${props.pid}`} />
                     ))}
