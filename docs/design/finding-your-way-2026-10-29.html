@@ -1,0 +1,436 @@
+<!doctype html>
+<!-- The approval record (D-54..D-57, E28: AJ-E2801..AJ-E2814): approved by the
+     maintainer on 2026-10-29: "Put the whole redesign in 0.3. Header: OK as
+     proposed. Pool canvas: I arrange nodes and it remembers, with an automatic
+     first layout." Those words answer the three questions under "What I need
+     from you" at the end. Copied as approved; the mock-ups use example data only
+     (example projects, accounts and sessions; no user data). -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Finding Your Way Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (max 980px) of numbered decisions; each design sits in a framed "app window" mock drawn in the app's own dark palette. */
+:root{
+  --bg:#f6f6f9; --fg:#1b1f2a; --muted:#5d6577; --rule:#dcdfe8; --card:#ffffff; --accent:#6a55e8; --accent-soft:#ece9fd;
+  --good:#1f8a5b; --warn:#b26b00; --bad:#c23b3b;
+  --display:"Manrope",ui-sans-serif,system-ui,sans-serif; --body:"Public Sans",ui-sans-serif,system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  /* the app's own dark palette, used only inside mock windows */
+  --a-bg:#0b0e14; --a-panel:#121722; --a-raise:#18202e; --a-line:#252d3c; --a-ink:#e7eaf0; --a-muted:#98a1b2; --a-faint:#6d7688;
+  --a-accent:#8b7cf6; --a-accent-soft:#2a2550; --a-green:#38c793; --a-amber:#f0b44c; --a-red:#f07272; --a-blue:#5aa9f0;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#0e1118; --fg:#e8ebf2; --muted:#a1a9b8; --rule:#262d3b; --card:#151a24; --accent:#9d8ff8; --accent-soft:#25214a; --good:#45c995; --warn:#f0b44c; --bad:#f07a7a; color-scheme:dark } }
+:root[data-theme="dark"]{ --bg:#0e1118; --fg:#e8ebf2; --muted:#a1a9b8; --rule:#262d3b; --card:#151a24; --accent:#9d8ff8; --accent-soft:#25214a; --good:#45c995; --warn:#f0b44c; --bad:#f07a7a; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--body);margin:0}
+.wrap{max-width:980px;margin:0 auto;padding-block:40px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:34px;font-weight:800;letter-spacing:-.01em}
+h2{font-size:24px;font-weight:800;margin-top:6px}
+h3{font-size:17px;font-weight:700}
+p{margin:0}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);max-width:68ch;margin-top:12px;font-size:16px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{font:500 12px/1 var(--mono);padding:6px 9px;border:1px solid var(--rule);border-radius:999px;color:var(--muted);background:var(--card)}
+section{margin-top:56px;display:flex;flex-direction:column;gap:16px}
+.num{font:500 13px/1 var(--mono);color:var(--muted)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cols > *{min-width:0}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.card ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.bad h3{color:var(--bad)} .good h3{color:var(--good)}
+ul.plain{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:72ch}
+table.facts{width:100%;border-collapse:collapse;font-size:14px}
+table.facts th,table.facts td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.facts th{font:500 12px/1.3 var(--mono);letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;background:var(--card)}
+.tag{font:500 11px/1 var(--mono);padding:3px 6px;border-radius:5px;white-space:nowrap}
+.t-exact{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.t-prob{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.t-no{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.note{font-size:14px;color:var(--muted);max-width:72ch}
+.ask{border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.ask h3{color:var(--accent)}
+code{font:13px var(--mono)}
+
+/* ---------- mock app windows (the app's dark palette, deliberately single-theme) ---------- */
+.mockwrap{overflow-x:auto;border-radius:14px}
+.win{min-width:860px;background:var(--a-bg);color:var(--a-ink);border:1px solid #2b3344;border-radius:14px;overflow:hidden;font:14px/1.45 var(--body);box-shadow:0 10px 30px rgba(10,12,20,.25)}
+.win.narrow{min-width:0;max-width:420px}
+.bar{display:flex;align-items:center;gap:7px;padding:9px 12px;background:#0f131b;border-bottom:1px solid var(--a-line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#3a4252}
+.bar .cap{margin-left:8px;font:500 11px var(--mono);color:var(--a-faint)}
+.hdr{display:flex;align-items:center;gap:18px;padding:10px 16px;border-bottom:1px solid var(--a-line)}
+.nav{display:flex;gap:2px}
+.nav span{padding:6px 10px;border-radius:7px;color:var(--a-muted);font-size:13.5px}
+.nav span.on{background:var(--a-raise);color:var(--a-ink);font-weight:600}
+.nav span.new{color:var(--a-ink)}
+.nav span.new::after{content:"new";font:500 9.5px var(--mono);color:var(--a-accent);margin-left:5px;vertical-align:top}
+.sp{flex:1}
+.btn{padding:6px 11px;border-radius:7px;border:1px solid var(--a-line);color:var(--a-ink);font-size:13px;background:var(--a-panel);white-space:nowrap}
+.btn.pri{background:var(--a-accent);border-color:var(--a-accent);color:#fff}
+.bell{width:28px;height:28px;border-radius:50%;border:1px solid var(--a-line);display:grid;place-items:center;font-size:12px;color:var(--a-muted)}
+.body{display:grid;grid-template-columns:250px 1fr}
+.rail{border-right:1px solid var(--a-line);padding:12px 10px;display:flex;flex-direction:column;gap:10px;background:#0d1118}
+.main{padding:16px 20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.search{display:flex;gap:6px}
+.search .in{flex:1;border:1px solid var(--a-line);border-radius:8px;padding:6px 9px;color:var(--a-faint);font-size:13px;background:var(--a-panel)}
+.iconbtn{border:1px solid var(--a-line);border-radius:8px;padding:6px 8px;color:var(--a-muted);font-size:12px;background:var(--a-panel)}
+.seg{display:flex;background:var(--a-panel);border:1px solid var(--a-line);border-radius:9px;padding:3px;gap:2px}
+.seg span{flex:1;text-align:center;padding:5px 6px;border-radius:6px;font-size:12.5px;color:var(--a-muted);white-space:nowrap}
+.seg span.on{background:var(--a-raise);color:var(--a-ink);font-weight:600;box-shadow:0 0 0 1px #343d50 inset}
+.seclbl{font:600 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--a-faint);display:flex;justify-content:space-between;padding:0 4px}
+.grp{display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:7px;font-weight:600;font-size:13.5px}
+.grp .ic{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font:600 10px var(--mono);color:#fff}
+.grp .n{margin-left:auto;font:500 11.5px var(--mono);color:var(--a-muted)}
+.row{display:flex;flex-direction:column;padding:5px 6px 5px 26px;border-radius:7px;font-size:13px}
+.row b{font-weight:600}
+.row small{color:var(--a-muted);font-size:12px;display:flex;justify-content:space-between}
+.st-work{color:var(--a-blue)} .st-ask{color:var(--a-amber)} .st-done{color:var(--a-green)} .st-fail{color:var(--a-red)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid}
+.p-run{color:var(--a-blue);border-color:#22456a;background:#0f2134}
+.p-done{color:var(--a-green);border-color:#1d4d3c;background:#0e2219}
+.p-fail{color:var(--a-red);border-color:#5a2a2a;background:#2a1414}
+.p-ask{color:var(--a-amber);border-color:#5a4520;background:#2a2011}
+.title{font:700 20px/1.2 var(--display)}
+.sub{color:var(--a-muted);font-size:13px}
+.crumbs{font-size:12.5px;color:var(--a-muted);display:flex;gap:6px;flex-wrap:wrap}
+.crumbs b{color:var(--a-ink);font-weight:600}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--a-line);padding-bottom:0}
+.tabs span{padding:7px 10px;font-size:13px;color:var(--a-muted);border-bottom:2px solid transparent}
+.tabs span.on{color:var(--a-ink);border-color:var(--a-accent);font-weight:600}
+.panel{background:var(--a-panel);border:1px solid var(--a-line);border-radius:10px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{background:var(--a-panel);border:1px solid var(--a-line);border-radius:10px;padding:10px 12px}
+.kpi .v{font:700 20px/1.1 var(--display)}
+.kpi .l{color:var(--a-muted);font-size:12px;margin-top:3px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chipf{font-size:12px;padding:4px 9px;border-radius:999px;border:1px solid var(--a-line);color:var(--a-muted)}
+.chipf.on{background:var(--a-accent-soft);border-color:#4b4290;color:var(--a-ink)}
+.tg{display:grid;grid-template-columns:minmax(0,1fr) 110px 82px 84px 64px;align-items:center}
+.tg > div{padding:7px 10px;border-bottom:1px solid #1c2330;min-width:0}
+.tg .h{font:600 11px var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--a-faint);background:#0f141c}
+.tg .num{font:500 12.5px var(--mono);color:var(--a-ink);text-align:right}
+.batch{grid-column:1/-1;background:#111723;color:var(--a-ink);font-size:12.5px;display:flex;gap:8px;align-items:center}
+.batch .q{color:var(--a-muted)}
+.tree{font:13px var(--mono);color:#4a5468;white-space:pre}
+.nm{display:flex;gap:6px;align-items:baseline;min-width:0}
+.nm b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kind{font-size:11.5px;color:var(--a-faint);white-space:nowrap}
+.dgrid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px}
+.dgrid > *{min-width:0}
+.box{background:var(--a-panel);border:1px solid var(--a-line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.box h4{margin:0;font:600 12px var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--a-faint)}
+.quote{font-size:13px;color:#cfd4de;background:#0f141c;border:1px solid #1f2735;border-radius:8px;padding:8px 10px;line-height:1.5}
+.more{color:var(--a-accent);font-size:12.5px}
+.bars{display:flex;height:8px;border-radius:4px;overflow:hidden;background:#1a2130}
+.kv{display:flex;justify-content:space-between;font-size:13px;color:var(--a-muted)}
+.kv b{color:var(--a-ink);font-weight:600}
+.prob{font-size:11px;color:var(--a-amber);border:1px solid #5a4520;border-radius:4px;padding:1px 5px;margin-left:6px}
+/* popover */
+.pop{background:#141a25;border:1px solid #2c3446;border-radius:12px;padding:6px;width:300px;box-shadow:0 14px 30px rgba(0,0,0,.45)}
+.pop .ph{display:flex;justify-content:space-between;align-items:center;padding:6px 8px 4px}
+.pop .ph b{font:700 13.5px var(--display)}
+.pop .reset{font-size:12px;color:var(--a-accent)}
+.pop .sec{font:600 10.5px var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--a-faint);padding:9px 8px 4px}
+.mi{display:grid;grid-template-columns:22px 1fr 18px;gap:8px;align-items:start;padding:6px 8px;border-radius:7px}
+.mi .ico{width:18px;height:18px;border:1.5px solid #6f7890;border-radius:5px;margin-top:1px}
+.mi .ico.c{border-radius:50%}
+.mi .t{font-size:14px;line-height:1.25}
+.mi .h{font-size:12px;color:var(--a-muted);line-height:1.3;margin-top:2px}
+.mi .ck{color:var(--a-accent);font-weight:700;text-align:right}
+.mi.on{background:#1d2433}
+.mi.dis .t{color:var(--a-faint)}
+.mi .val{font-size:12.5px;color:var(--a-muted);text-align:right;white-space:nowrap}
+.sepl{height:1px;background:#252d3c;margin:5px 6px}
+.old{background:#141a25;border:1px solid #2c3446;border-radius:10px;padding:10px 12px;width:300px;font-size:12px;color:#a8b1c0;display:flex;flex-direction:column;gap:6px}
+.old .lg{font-weight:600}
+.old .sel{border:1px solid #3a4252;border-radius:5px;padding:2px 6px;background:#0f141c}
+/* canvas */
+.canvas{position:relative;background:radial-gradient(#1b2230 1px,transparent 1px) 0 0/18px 18px,#0c1017;border-right:1px solid var(--a-line);min-height:420px}
+.canvas svg{position:absolute;inset:0;width:100%;height:100%}
+.node{position:absolute;width:176px;background:#141b27;border:1px solid #2c3548;border-radius:11px;padding:9px 10px;display:flex;flex-direction:column;gap:5px;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.node.lead{border-color:#5b4fc4;box-shadow:0 0 0 1px #5b4fc4,0 6px 16px rgba(0,0,0,.35)}
+.node.alert{border-color:#8a6a24;box-shadow:0 0 0 1px #8a6a24,0 0 18px rgba(240,180,76,.18)}
+.node .top{display:flex;gap:7px;align-items:center}
+.node .tl{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font:700 10px var(--mono);color:#fff}
+.node .nmn{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .acc{font-size:11.5px;color:var(--a-muted)}
+.node .badge{position:absolute;top:-8px;right:-8px;font:600 10px var(--mono);background:var(--a-amber);color:#1a1205;border-radius:999px;padding:2px 6px}
+.node .actions{display:flex;gap:5px;margin-top:2px}
+.node .actions span{font-size:11px;padding:2px 6px;border-radius:5px;border:1px solid #3a4356}
+.node .actions span.y{background:#3a2f12;border-color:#8a6a24;color:var(--a-amber)}
+.insp{padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:#0f141c}
+.palette{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:6px;background:#121925;border:1px solid #2a3244;border-radius:10px;padding:8px;width:150px}
+.palette .pl{font:600 10.5px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--a-faint)}
+.palette .pi{font-size:12px;padding:4px 6px;border:1px dashed #3a4356;border-radius:6px;color:var(--a-muted)}
+.cardgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.pcard{background:var(--a-panel);border:1px solid var(--a-line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.mini{height:84px;border-radius:8px;background:radial-gradient(#1b2230 1px,transparent 1px) 0 0/12px 12px,#0c1017;position:relative;border:1px solid #1f2735}
+.mini i{position:absolute;width:30px;height:14px;border-radius:4px;background:#1c2433;border:1px solid #39435a}
+.mini i.l{border-color:#5b4fc4} .mini i.a{border-color:#8a6a24}
+.kan{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kcol{background:#0f141c;border:1px solid var(--a-line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:7px}
+.kcol .kh{font-size:12px;color:var(--a-muted);display:flex;justify-content:space-between}
+.tk{background:var(--a-panel);border:1px solid #2a3244;border-radius:8px;padding:7px 8px;font-size:12.5px;display:flex;flex-direction:column;gap:4px}
+.tk small{color:var(--a-muted);font-size:11.5px}
+.ep{font:500 10.5px var(--mono);color:var(--a-accent)}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">AI Juggler · 0.3 redesign proposal · for review</p>
+  <h1>Finding your way: projects, pools, tasks and subagents</h1>
+  <p class="lede">Four places you couldn't find or couldn't use in 0.2.0, and the bland menu you found them in. Each section says what's wrong, what changes, and shows it. Nothing is built until you approve; the questions at the end are the ones only you can answer.</p>
+  <div class="meta"><span class="chip">Mock-ups use example data</span><span class="chip">Built on what Claude Code, Codex and the others already record</span><span class="chip">Every new screen gets a design critique before baselines</span></div>
+
+  <section>
+    <span class="num">At a glance</span>
+    <h2>What's wrong today</h2>
+    <div class="cols">
+      <div class="card bad"><h3>Things exist but have no door</h3>
+        <ul><li>Grouping by project, pool or account hides behind an unlabelled icon.</li><li>Projects have no header entry; you reach one only through that grouping or ⌘K.</li><li>A pool's page opens from Settings › Agent access or a Needs you card; Group by Pool is greyed out "once you make a pool", though every project already has one.</li><li>Tasks and epics live only on a pool's page.</li></ul></div>
+      <div class="card bad"><h3>Things you open don't help</h3>
+        <ul><li>Subagents: 437 rows in one run, unexplained indents, no filters, search, usage, result or prompt.</li><li>The View menu: hints jump between two layouts, no icons, system selects, titles that look like options.</li><li>Our gates check "unchanged" and "accessible", never "good". The View menu wasn't even captured.</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 1 navigation -->
+  <section>
+    <span class="num">1 · Navigation</span>
+    <h2>Every important thing gets a door in the header</h2>
+    <p class="note">The header gains Projects, Pools and Tasks. To make room (it already wraps at 1280 px), the separate page title goes: the highlighted tab is the title. Processes, This Mac and Settings stay in your menu. The rail's grouping becomes a visible switch.</p>
+    <div class="mockwrap"><div class="win">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="cap">AI Juggler · Home</span></div>
+      <div class="hdr">
+        <div class="nav"><span class="on">Home</span><span class="new">Projects</span><span class="new">Pools</span><span class="new">Tasks</span><span>Accounts</span><span>Usage</span><span>History</span></div>
+        <span class="sp"></span><span class="btn">3 to clean up</span><span class="btn pri">New session</span><span class="bell">3</span>
+      </div>
+      <div class="body">
+        <div class="rail">
+          <div class="search"><span class="in">Search ⌘K</span><span class="iconbtn">View</span></div>
+          <div class="seg"><span>App</span><span class="on">Project</span><span>Account</span><span>Pool</span></div>
+          <div class="seclbl"><span>Needs you · 2</span></div>
+          <div class="seclbl"><span>Open now · 7</span><span>Your order ▾</span></div>
+          <div class="grp"><span class="ic" style="background:#3b6fd8">S</span>storefront<span class="n">3</span></div>
+          <div class="row"><b>Fix the cart totals</b><small><span>Work · Claude Code</span><span class="st-work">Working</span></small></div>
+          <div class="row"><b>Checkout copy pass</b><small><span>Personal · Codex</span><span class="st-ask">Asks you</span></small></div>
+          <div class="row"><b>Price API tests</b><small><span>Work · Claude Code</span><span class="st-done">Done</span></small></div>
+          <div class="grp"><span class="ic" style="background:#8a5ad8">D</span>docs-site<span class="n">2</span></div>
+          <div class="row"><b>Rewrite the install guide</b><small><span>Personal · Claude Code</span><span class="st-work">Working</span></small></div>
+          <div class="grp"><span class="ic" style="background:#2f9b78">A</span>api-gateway<span class="n">2</span></div>
+        </div>
+        <div class="main">
+          <p class="sub">The switch remembers your choice per Mac. "Pool" appears once any pool has members besides a project's own.</p>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 2 View menu -->
+  <section>
+    <span class="num">2 · The View menu</span>
+    <h2>A real menu: one grid, icons, styled choices</h2>
+    <div class="cols">
+      <div class="card"><h3>Today</h3>
+        <div class="old"><span class="lg">Group by</span><span>◉ Place the app and profile</span><span>○ Project</span><span style="opacity:.5">● Pool once you make a pool</span><span class="lg">Show</span><span>☐ Quiet ones</span><span style="margin-left:-2px">idle rows a place folds away</span><span class="lg">Only</span><span class="sel">App: all ⇕</span><span class="sel">Profile: all ⇕</span><span style="opacity:.5">Back to the defaults</span></div>
+        <p class="note">Two hint layouts, 12 px everywhere, system radios and selects, a disabled option that looks selected.</p></div>
+      <div class="card"><h3>Proposed</h3>
+        <div class="pop">
+          <div class="ph"><b>View</b><span class="reset">↺ Reset</span></div>
+          <div class="sec">Show</div>
+          <div class="mi on"><span class="ico"></span><div><div class="t">Quiet ones</div><div class="h">Idle sessions a place folds away</div></div><span class="ck">✓</span></div>
+          <div class="mi"><span class="ico"></span><div><div class="t">Ended today</div></div><span class="ck"></span></div>
+          <div class="mi"><span class="ico"></span><div><div class="t">Subagents</div><div class="h">How many each session runs</div></div><span class="ck">✓</span></div>
+          <div class="mi"><span class="ico"></span><div><div class="t">Other Macs</div></div><span class="ck"></span></div>
+          <div class="sepl"></div>
+          <div class="sec">Only</div>
+          <div class="mi"><span class="ico c"></span><div class="t">App</div><span class="val">All ›</span></div>
+          <div class="mi"><span class="ico c"></span><div class="t">Account</div><span class="val">Work ›</span></div>
+          <div class="mi"><span class="ico c"></span><div class="t">Project</div><span class="val">All ›</span></div>
+        </div>
+        <p class="note">Group by moved to the rail's switch. Every line: icon · label · hint under it · ✓ on the right. "Only" opens a sub-menu, never a system select. Reset shows only when something changed.</p></div>
+    </div>
+    <div class="card"><h3>The same fixes, everywhere</h3>
+      <ul><li><b>One choice line</b> (icon, label, hint stacked, ✓), promoted from the order menu, for the View menu, the stop sheet's "What to stop" and Settings choices.</li>
+      <li><b>One checkbox and radio</b> in the accent colour with a clear disabled state, replacing the mix of system-blue and purple in about 38 files.</li>
+      <li><b>One picker</b> (value + chevron, opens a menu with ✓) replacing about 21 system selects: How it runs, History filters, Open projects in, Add account.</li>
+      <li>Smaller fixes from the sweep: the limit dialog's orphan line and missing ×, New session's wrapped "Suggested" and text triangles, the tool menu covering its own button, Settings › General's squeezed card, Home's misaligned app buttons.</li>
+      <li>The gallery captures every popover, so none escapes review again.</li></ul></div>
+  </section>
+
+  <!-- 3 Projects -->
+  <section>
+    <span class="num">3 · Projects</span>
+    <h2>A Projects screen, and a project page with everything about it</h2>
+    <div class="mockwrap"><div class="win">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="cap">Projects › storefront</span></div>
+      <div class="hdr"><div class="nav"><span>Home</span><span class="on">Projects</span><span>Pools</span><span>Tasks</span><span>Accounts</span><span>Usage</span><span>History</span></div><span class="sp"></span><span class="btn pri">New session</span></div>
+      <div class="main">
+        <div class="crumbs"><span>Projects</span>›<b>storefront</b><span style="margin-left:auto">~/Dev/storefront · branch main</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><span class="title">storefront</span><span class="pill p-ask">1 asks you</span><span class="pill p-run">2 working</span></div>
+        <div class="tabs"><span class="on">Overview</span><span>Sessions 3</span><span>Tasks 12</span><span>Pool</span><span>Subagents 41</span><span>Usage</span><span>History</span></div>
+        <div class="kpis"><div class="kpi"><div class="v">3</div><div class="l">open sessions · 2 apps</div></div><div class="kpi"><div class="v">12</div><div class="l">tasks · 4 ready · 1 in review</div></div><div class="kpi"><div class="v">1.9M</div><div class="l">tokens this week</div></div><div class="kpi"><div class="v">2</div><div class="l">accounts used</div></div></div>
+        <p class="sub">The Projects screen lists each project the same way: name, folder, what needs you, sessions working, open tasks, this week's tokens. Sorted by recent activity, searchable, paged.</p>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 4 Tasks -->
+  <section>
+    <span class="num">4 · Tasks</span>
+    <h2>A Tasks screen across every project</h2>
+    <p class="note">Agents write tasks; you see and steer them (D-44). The screen shows them by state, filtered by project, pool or holder, with the plan (epics → stories → tasks) as a second view. Review items stay in Needs you too.</p>
+    <div class="mockwrap"><div class="win">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="cap">Tasks</span></div>
+      <div class="main">
+        <div class="toolbar"><span class="title" style="font-size:18px">Tasks</span><span class="sp"></span><span class="chipf on">Board</span><span class="chipf">Plan</span><span class="chipf">Project: all</span><span class="chipf">Holder: anyone</span><span class="search"><span class="in" style="min-width:180px">Search tasks</span></span></div>
+        <div class="kan">
+          <div class="kcol"><div class="kh"><span>Ready</span><span>4</span></div><div class="tk"><span class="ep">Checkout v2 › Totals</span>Round tax per line<small>storefront · unclaimed</small></div><div class="tk"><span class="ep">Docs › Install</span>Screenshots for step 3<small>docs-site · unclaimed</small></div></div>
+          <div class="kcol"><div class="kh"><span>In progress</span><span>3</span></div><div class="tk"><span class="ep">Checkout v2 › Totals</span>Fix the cart totals<small>storefront · Work · Claude Code</small></div><div class="tk"><span class="ep">Gateway › Auth</span>Refresh-token retries<small>api-gateway · Personal · Codex</small></div></div>
+          <div class="kcol"><div class="kh"><span>In review</span><span>1</span></div><div class="tk" style="border-color:#5a4520"><span class="ep">Checkout v2 › Copy</span>Checkout copy pass<small>storefront · Approve · Send back…</small></div></div>
+          <div class="kcol"><div class="kh"><span>Blocked</span><span>1</span></div><div class="tk"><span class="ep">Gateway › Auth</span>Rotate signing keys<small>waits on Refresh-token retries</small></div></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 5 Pools -->
+  <section>
+    <span class="num">5 · Pools</span>
+    <h2>A pool is one live canvas you watch and edit in place</h2>
+    <p class="note">No separate view and setup screens. Members are nodes, interactions are edges, alerts sit on what they concern with their answers right there. Select anything to see and change it in the inspector. Drag a session from the palette to add it, or onto empty space to start a new pool.</p>
+    <div class="mockwrap"><div class="win">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="cap">Pools › Checkout team</span></div>
+      <div class="hdr"><div class="nav"><span>Home</span><span>Projects</span><span class="on">Pools</span><span>Tasks</span><span>Accounts</span><span>Usage</span><span>History</span></div><span class="sp"></span><span class="chipf on">Canvas</span><span class="chipf">Tasks</span><span class="chipf">Messages</span><span class="btn">Work together ▾</span></div>
+      <div style="display:grid;grid-template-columns:1fr 280px">
+        <div class="canvas">
+          <svg viewBox="0 0 600 420" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M300 110 C 300 170, 160 190, 150 250" stroke="#5b4fc4" stroke-width="2" fill="none"/>
+            <path d="M300 110 C 320 170, 440 190, 450 250" stroke="#38507a" stroke-width="2" fill="none" stroke-dasharray="5 5"/>
+            <path d="M190 300 C 260 330, 360 330, 410 300" stroke="#8a6a24" stroke-width="2" fill="none"/>
+            <circle cx="235" cy="185" r="4" fill="#8b7cf6"/>
+          </svg>
+          <div class="palette"><span class="pl">Add a session</span><span class="pi">⋮⋮ Price API tests</span><span class="pi">⋮⋮ Rewrite install guide</span></div>
+          <div class="node lead" style="left:42%;top:9%"><div class="top"><span class="tl" style="background:#d97757">C</span><span class="nmn">Planner</span></div><span class="acc">Lead · Work · Claude Code</span><span class="pill p-run" style="align-self:flex-start">Working · Totals epic</span></div>
+          <div class="node" style="left:13%;top:55%"><div class="top"><span class="tl" style="background:#d97757">C</span><span class="nmn">Fix the cart totals</span></div><span class="acc">Work · Claude Code</span><span class="pill p-run" style="align-self:flex-start">Working · 1 task</span></div>
+          <div class="node alert" style="left:63%;top:55%"><span class="badge">asks</span><div class="top"><span class="tl" style="background:#1f1f1f;border:1px solid #444">O</span><span class="nmn">Checkout copy pass</span></div><span class="acc">Personal · Codex</span><span class="acc" style="color:var(--a-amber)">Wants to message Planner</span><div class="actions"><span class="y">Allow once</span><span>Always</span><span>Deny</span></div></div>
+          <div style="position:absolute;left:39%;top:79%;font-size:11.5px;color:var(--a-amber);background:#1a150b;border:1px solid #5a4520;border-radius:6px;padding:3px 7px">1 message held · Deliver</div>
+        </div>
+        <div class="insp">
+          <h3 style="font-size:15px">Checkout team</h3>
+          <div class="kv"><span>Members</span><b>3 · lead Planner</b></div>
+          <div class="kv"><span>Agents may</span><b>Work together</b></div>
+          <div class="kv"><span>Delivery</span><b>Between turns, 5 hops</b></div>
+          <div class="kv"><span>Rules you granted</span><b>2 · take back</b></div>
+          <div class="kv"><span>Notify me</span><b>Asks and held chains</b></div>
+          <div class="sepl"></div>
+          <h4 style="margin:0;font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--a-faint)">Live</h4>
+          <span class="sub">14:02 · Planner gave "Round tax per line" to Fix the cart totals</span>
+          <span class="sub">14:05 · Checkout copy pass asked to message Planner</span>
+          <span class="sub">14:06 · a reply is held: Planner is mid-turn</span>
+          <p class="sub" style="color:var(--a-faint)">Select a member or an edge and this panel shows its tasks, messages, usage and rules instead.</p>
+        </div>
+      </div>
+    </div></div>
+    <div class="mockwrap"><div class="win">
+      <div class="main">
+        <div class="toolbar"><span class="title" style="font-size:18px">Pools</span><span class="sp"></span><span class="btn pri">New pool</span></div>
+        <div class="cardgrid">
+          <div class="pcard"><div class="mini"><i class="l" style="left:44%;top:12%"></i><i style="left:16%;top:58%"></i><i class="a" style="left:66%;top:58%"></i></div><b>Checkout team</b><span class="sub">3 members · 1 asks you · 2 tasks moving</span></div>
+          <div class="pcard"><div class="mini"><i class="l" style="left:20%;top:30%"></i><i style="left:60%;top:30%"></i></div><b>storefront (project pool)</b><span class="sub">2 members · quiet</span></div>
+          <div class="pcard"><div class="mini"><i class="l" style="left:40%;top:36%"></i></div><b>docs-site (project pool)</b><span class="sub">1 member</span></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 6 Subagents -->
+  <section>
+    <span class="num">6 · Subagents</span>
+    <h2>Answer "what's running, what failed, what did it cost" first</h2>
+    <p class="note">Why someone opens this: something still running or stuck after the session looks idle; why the session is expensive; what got delegated and what failed; what a background subagent produced; which one started a process. Claude Code forgets finished subagents after 30 seconds and shows no cost per subagent, so the lasting record is our reason to exist here.</p>
+    <div class="mockwrap"><div class="win">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="cap">storefront › Fix the cart totals › Subagents</span></div>
+      <div class="main">
+        <div class="crumbs"><span>storefront</span>›<span>Fix the cart totals</span>›<b>Subagents</b></div>
+        <div class="tabs"><span>Overview</span><span class="on">Subagents</span><span>Usage</span><span>Processes</span></div>
+        <div style="font-size:14px"><b>437 subagents</b> · <span class="st-work">3 running</span> · <span class="st-fail">2 failed</span> · <span style="color:var(--a-muted)">41% of this session's tokens</span></div>
+        <div class="toolbar"><span class="chipf on">Running 3</span><span class="chipf">Needs attention 2</span><span class="chipf">All</span><span class="search"><span class="in" style="min-width:230px">Search task, prompt, result, file:</span></span><span class="chipf">Type ▾</span><span class="chipf">Sort: newest ▾</span></div>
+        <div class="panel" style="overflow:hidden">
+          <div class="tg">
+            <div class="h">Subagent</div><div class="h">State</div><div class="h" style="text-align:right">Time</div><div class="h" style="text-align:right">Tokens</div><div class="h">Model</div>
+            <div class="batch">▾ <span>You asked:</span><span class="q">"fix the totals and add tests for rounding" · 14:02</span><span style="margin-left:auto;color:var(--a-muted)">6 subagents · 2 running · 1.2M</span></div>
+            <div><div class="nm"><span class="tree">├ </span><b>Audit the cart store</b><span class="kind">General</span></div></div><div><span class="pill p-run">● Running</span></div><div class="num">4m</div><div class="num">412k</div><div class="sub">Opus</div>
+            <div><div class="nm"><span class="tree">│ ├ </span><b>Find rounding call sites</b><span class="kind">Explore</span></div></div><div><span class="pill p-done">✓ Done</span></div><div class="num">32s</div><div class="num">38k</div><div class="sub">Haiku</div>
+            <div><div class="nm"><span class="tree">│ └ </span><b>Read the tax tables</b><span class="kind">Explore</span></div></div><div><span class="pill p-run">● Running</span></div><div class="num">1m</div><div class="num">22k</div><div class="sub">Haiku</div>
+            <div><div class="nm"><span class="tree">├ </span><b>Write rounding tests</b><span class="kind">General</span></div></div><div><span class="pill p-fail">✕ Failed</span></div><div class="num">6m</div><div class="num">288k</div><div class="sub">Sonnet</div>
+            <div><div class="nm"><span class="tree">└ </span><b>Review the diff</b><span class="kind">Review</span></div></div><div><span class="pill p-done">✓ Done</span></div><div class="num">2m</div><div class="num">96k</div><div class="sub">Opus</div>
+            <div class="batch">▸ <span>You asked:</span><span class="q">"split the checkout page into components" · yesterday</span><span style="margin-left:auto;color:var(--a-muted)">23 subagents · 3.4M</span></div>
+            <div class="batch">▸ <span>You asked:</span><span class="q">"plan the totals epic" · 2 days ago</span><span style="margin-left:auto;color:var(--a-muted)">41 subagents · 5.1M</span></div>
+          </div>
+        </div>
+        <p class="sub">Grouped under the message that started them; older groups fold. Tree lines show who started whom (a parent's tokens include its children, its own on hover). Opens on Running when anything runs. Windowed and paged: never all 437 at once.</p>
+      </div>
+    </div></div>
+    <div class="mockwrap"><div class="win">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="cap">a subagent</span></div>
+      <div class="main">
+        <div class="crumbs"><span>Fix the cart totals</span>›<span>Subagents</span>›<span>Audit the cart store</span>›<b>Read the tax tables</b><span style="margin-left:auto">Esc to go back</span></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="title">Read the tax tables</span><span class="pill p-run">● Running · 1m</span><span class="sub">Explore · Haiku · in the background · started by Audit the cart store</span></div>
+        <div class="dgrid">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="box"><h4>Task it was given</h4><div class="quote">Find every place the cart reads tax rates. List the file, the function and whether it rounds per line or per order…</div><span class="more">Show the whole prompt</span></div>
+            <div class="box"><h4>Result</h4><span class="sub">It's still running. Its answer shows here when it ends; a failure shows its reason in one line.</span></div>
+            <div class="box"><h4>Work</h4><div class="kv"><span>Tool uses</span><b>38 · 12 reads · 9 searches · 6 commands · 4 edits</b></div><div class="kv"><span>Lines</span><b>+120 −34</b></div><div class="kv"><span>Files</span><b>tax.ts, cart/store.ts, +3 more</b></div><span class="more">Open its conversation</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="box"><h4>Usage</h4><div class="bars"><span style="width:62%;background:#5b4fc4"></span><span style="width:24%;background:#3b6fd8"></span><span style="width:14%;background:#2f9b78"></span></div><div class="kv"><span>Tokens</span><b>22k</b></div><div class="kv"><span>Estimated cost</span><b>~$0.04</b></div><div class="kv"><span>Share of the session</span><b>0.6%</b></div></div>
+            <div class="box"><h4>Processes</h4><div class="kv"><span>vite --port 5173<span class="prob">probably</span></span><b>212 MB</b></div><span class="sub">Matched from the commands it ran. Stop it from the session's Processes tab.</span></div>
+            <div class="box"><h4>Stop</h4><span class="sub">AI Juggler can't stop one subagent inside a Claude Code session it doesn't drive. In Claude Code: /tasks, select it, press x.</span></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <section>
+    <span class="num">7 · Honest data</span>
+    <h2>What each tool records, and what we'll claim</h2>
+    <div class="tbl"><table class="facts">
+      <tr><th>For each subagent</th><th>Claude Code</th><th>Codex</th><th>Kimi, Grok, OpenCode</th></tr>
+      <tr><td>Task, state, times, who started it</td><td><span class="tag t-exact">exact</span></td><td><span class="tag t-exact">exact</span></td><td><span class="tag t-exact">exact</span></td></tr>
+      <tr><td>Prompt it was given · its result</td><td><span class="tag t-exact">exact</span></td><td><span class="tag t-exact">exact</span></td><td><span class="tag t-prob">where recorded</span></td></tr>
+      <tr><td>Tokens, model, cost estimate</td><td><span class="tag t-exact">exact</span> part of the session's total</td><td><span class="tag t-exact">exact</span> separate from the parent</td><td><span class="tag t-prob">where recorded</span></td></tr>
+      <tr><td>Tools used, lines changed, files</td><td><span class="tag t-exact">exact</span></td><td><span class="tag t-prob">derived</span></td><td><span class="tag t-prob">derived</span></td></tr>
+      <tr><td>Processes it started</td><td><span class="tag t-prob">probably</span> matched from its commands</td><td><span class="tag t-prob">probably</span></td><td><span class="tag t-prob">probably</span></td></tr>
+      <tr><td>CPU and memory of the subagent itself</td><td colspan="3"><span class="tag t-no">not possible</span> every subagent runs inside the tool's one process</td></tr>
+    </table></div>
+    <ul class="plain">
+      <li><b>Speed:</b> that 437-subagent session has about 700 MB of subagent records, and today each page re-reads them all. A small saved index, updated as files grow, makes the tab open at once and page.</li>
+      <li><b>No double counting:</b> per-subagent tokens are a split of the session's total and show as a share of it.</li>
+      <li><b>"Running" stays truthful:</b> a subagent with no end record after its session ends reads "Unknown", never a guess; a quiet one shows its last activity.</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="num">8 · Building it</span>
+    <h2>How it gets built and checked</h2>
+    <ul class="plain">
+      <li><b>Shared controls first</b> (choice line, checkbox and radio, picker), so every screen after them is consistent from the start.</li>
+      <li><b>Then in parallel:</b> navigation (header, rail switch, Projects screen and page), Tasks, Subagents (index, reader, tab, detail), Pools (the canvas).</li>
+      <li><b>Every new or changed screen</b> gets a design critique next to its screenshot on the review page, against the app's best screens, before you see it.</li>
+      <li><b>Size:</b> the canvas is the largest piece. Everything else is days, not weeks.</li>
+    </ul>
+    <div class="ask"><h3>What I need from you</h3>
+      <ul class="plain">
+        <li><b>Header:</b> Home · Projects · Pools · Tasks · Accounts · Usage · History, with the page title folded into the highlighted tab. OK?</li>
+        <li><b>Pool canvas layout:</b> you arrange the nodes and it remembers, with an automatic first layout? Or always automatic?</li>
+        <li><b>One release or two:</b> all of this in 0.3, or ship 0.3 now (stop safety, live limits, the handover line, the Fleet fixes, all ready) and put this redesign in 0.4?</li>
+      </ul>
+    </div>
+  </section>
+</div>

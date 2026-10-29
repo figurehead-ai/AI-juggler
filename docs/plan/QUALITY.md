@@ -23,6 +23,7 @@ A task is done only when **all** of the following are true:
 - [ ] Architecture conformance: dependency direction rules (§4) respected; no layer violations "just this once".
 - [ ] Security: no new `unsafe`; `cargo-deny` clean; no secrets/log redaction regressions (guardrail tests still green).
 - [ ] Every shipped OS (D-52): the change works and is tested on every OS AI Juggler ships for (macOS today; Windows and Linux from their first releases), or is marked unsupported there with the reason, on screen and in the docs.
+- [ ] Design quality (D-57): every new or changed screen has a short written critique beside its gallery captures (`docs/qa/evidence/_gallery/<family>/critique.md`, AJ-E2814), against the checklist and the reference screens (the row menus, the rail's order menu, Usage, Processes): one alignment grid, a clear hierarchy, consistent spacing, icons on menu and action lines, the shared controls (no system select, radio or checkbox), disabled states that say why, plain words, body 14 px and nothing under 12 px, both themes at 1280×800 and 1024×700. Every popover, menu and sheet it adds is captured. What the critique finds is fixed before the task is done; "unchanged" and "accessible" are not "good".
 - [ ] Docs updated: CHANGELOG (Unreleased), relevant spec section marked implemented, ADR if a decision was made.
 - [ ] PR: small and reviewable (guideline ≤ ~400 lines of diff), linked issue, checklist completed, self-reviewed diff before requesting review.
 
