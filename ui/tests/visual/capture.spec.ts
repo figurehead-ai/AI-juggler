@@ -2437,7 +2437,10 @@ for (const theme of THEMES) {
       await openDoor(page, SWITCH_WIZARD_FIXTURE);
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       await expect(page.getByTestId("switch-steps")).toContainText("Step 1 of 3: Target");
-      await expect(page.getByTestId("switch-move-line")).toContainText("The whole conversation moves");
+      // Never "moves" (deep/11 §4.9); the original is said once, here.
+      await expect(page.getByTestId("switch-move-line")).toHaveText(
+        "The whole conversation is carried over — all 42 messages, its subagents and file history. The original stays as it was.",
+      );
       await expect(page.getByTestId("switch-wizard-reasons")).toContainText("hasn't been proven");
       await page.screenshot({
         path: resolve(GALLERY, `29-door/wizard-target-${vp.name}-${theme}.png`),
