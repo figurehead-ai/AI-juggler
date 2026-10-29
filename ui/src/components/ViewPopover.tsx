@@ -12,7 +12,7 @@ import { IconView, IconWindow } from "./icons-places";
 import { IconArchive, IconComputer, IconKey, IconReplay } from "./icons-actions";
 import { IconProfiles, IconProjects, IconSubtasks } from "./icons";
 import { IconBackground, IconChevronRight, IconEnded, IconInactive, IconQuiet } from "./icons-controls";
-import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu } from "./RowMenu";
+import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, type MenuAt } from "./RowMenu";
 import { ChoiceLine, type ControlIcon } from "./controls";
 import { ONLY_KEYS, resetViewParts, setRailView, SHOW_KEYS, SHOW_LABELS, SHOW_NOTES, useRailView, viewChanged, type OnlyKey, type ShowKey } from "../lib/rail-view";
 
@@ -36,7 +36,7 @@ function Section({ children }: { children: string }): JSX.Element {
 
 export function ViewPopover({ options }: { options: Record<OnlyKey, { value: string; label: string }[]> }): JSX.Element {
   const view = useRailView();
-  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const [at, setAt] = useState<MenuAt | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const changed = viewChanged(view);
   const open = at !== null;
@@ -44,7 +44,7 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     buttonRef.current?.focus();
-    setAt({ x: rect.left, y: rect.bottom + 6 });
+    setAt({ x: rect.left, y: rect.bottom + 6, above: rect.top - 6, right: rect.right });
   };
   // ⇧V (App's key) opens it from anywhere, or closes it.
   const toggleRef = useRef(() => {});

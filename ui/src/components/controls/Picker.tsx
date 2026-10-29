@@ -9,7 +9,7 @@
  * in), and focus comes back to the button.
  */
 import { useId, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
-import { MenuItem, RowMenu } from "../RowMenu";
+import { MenuItem, RowMenu, type MenuAt } from "../RowMenu";
 import { IconChevronDown } from "../icons-controls";
 import { ChoiceLine, type ControlIcon } from "./ChoiceLine";
 
@@ -74,7 +74,7 @@ export function Picker<T extends string>({
   describedBy?: string;
 }): JSX.Element {
   const button = useRef<HTMLButtonElement | null>(null);
-  const [at, setAt] = useState<{ x: number; y: number; width: number } | null>(null);
+  const [at, setAt] = useState<(MenuAt & { width: number }) | null>(null);
   // A press on the button while it's open closes it (the menu's own
   // outside-press already did): the click that follows doesn't reopen.
   const closing = useRef(false);
@@ -86,7 +86,7 @@ export function Picker<T extends string>({
     const box = button.current?.getBoundingClientRect();
     if (!box) return;
     button.current?.focus();
-    setAt({ x: box.left, y: box.bottom + 4, width: box.width });
+    setAt({ x: box.left, y: box.bottom + 4, above: box.top - 4, right: box.right, width: box.width });
   };
   const onKey = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {

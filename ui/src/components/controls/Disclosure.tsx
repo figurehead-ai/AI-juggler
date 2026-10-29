@@ -10,23 +10,29 @@ export function Disclosure({
   summary,
   children,
   open,
+  onToggle,
+  tone = "quiet",
   testId,
   className = "",
   summaryClassName = "",
 }: {
   summary: ReactNode;
   children: ReactNode;
-  /** Open at first. */
+  /** Open at first (or, with `onToggle`, as its owner keeps it). */
   open?: boolean;
+  onToggle?: (open: boolean) => void;
+  /** A quiet line ("Details") or a section's title (a dialog's Details). */
+  tone?: "quiet" | "title";
   testId?: string;
   className?: string;
   summaryClassName?: string;
 }): JSX.Element {
   return (
-    <details open={open} data-testid={testId} className={"group " + className}>
+    <details open={open} onToggle={onToggle && ((event) => onToggle(event.currentTarget.open))} data-testid={testId} className={"group " + className}>
       <summary
         className={
-          "flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-meta text-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden " +
+          "flex w-fit min-h-6 cursor-pointer list-none items-center gap-1.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden " +
+          (tone === "title" ? "text-body font-semibold text-ink " : "text-meta text-muted hover:text-ink ") +
           summaryClassName
         }
       >

@@ -1162,8 +1162,9 @@ const KILL_VERIFY_OK = {
       pgid: 8100,
       exe: "sh",
       cmdline: "sh -c vite dev",
-      role_guess: "TerminalShell",
-      unsaved_state_warning: "Includes a TerminalShell that may hold unsaved state.",
+      // As the backend sends them now: plain words (role_words), never a code.
+      role_guess: "terminal shell",
+      unsaved_state_warning: "Includes a terminal shell that may hold unsaved state.",
       from_ledger: true,
     },
     {
@@ -1171,7 +1172,7 @@ const KILL_VERIFY_OK = {
       pgid: 8100,
       exe: "node",
       cmdline: "node vite dev",
-      role_guess: "DevServer",
+      role_guess: "dev server",
       unsaved_state_warning: null,
       from_ledger: true,
     },
@@ -1634,7 +1635,7 @@ for (const theme of THEMES) {
           members: [
             {
               pid: 8123, pgid: 8100, exe: "node", cmdline: "node vite dev",
-              role_guess: "DevServer", unsaved_state_warning: null, from_ledger: true,
+              role_guess: "dev server", unsaved_state_warning: null, from_ledger: true,
             },
           ],
           tree_pids: [8100, 8123],
@@ -1710,7 +1711,7 @@ test("alerts — keyboard-only pass: find the hog, open its sheet, Esc returns f
       ports: [5173], pgid: 8100, escaped_group: false,
       members: [
         { pid: 8123, pgid: 8100, exe: "node", cmdline: "node vite dev",
-          role_guess: "DevServer", unsaved_state_warning: null, from_ledger: true },
+          role_guess: "dev server", unsaved_state_warning: null, from_ledger: true },
       ],
       tree_pids: [8100, 8123], platform: "TERM → grace → KILL", grace_secs: 5,
       provider: "claude-code", account_id: "Work Max", project_id: "web",
@@ -3516,7 +3517,7 @@ for (const theme of THEMES) {
         fullPage: true,
       });
       await page
-        .getByRole("button", { name: "Customise ▸" })
+        .getByRole("button", { name: "Customise", exact: true })
         .click();
       await expect(page.getByTestId("sign-in-first")).toBeVisible();
       // Unknown room reads in the one runway's words; no verdict chip

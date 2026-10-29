@@ -71,3 +71,12 @@ export function IconBackground(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** A dialog's close (×). */
+export function IconClose(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+    </svg>
+  );
+}

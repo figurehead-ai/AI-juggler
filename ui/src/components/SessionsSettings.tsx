@@ -8,6 +8,7 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
+import { Disclosure } from "./controls";
 import { SettingSwitch as Switch } from "./SettingSwitch";
 import { Status } from "./SettingsSections";
 import { errorText } from "../lib/bridge";
@@ -243,10 +244,7 @@ export function SessionsSettingsCard(): JSX.Element {
               save({ ...prefs, stuck_after_minutes: minutes }, `Sessions are marked Looks stuck after ${minutes} minutes without output.`)
             }
           />
-          <details className="text-xs text-muted" data-testid="settings-terminal">
-            <summary className="cursor-pointer outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-              Terminal
-            </summary>
+          <Disclosure className="text-xs text-muted" testId="settings-terminal" summary="Terminal">
             <div className="mt-3 flex flex-col gap-3">
               <PrefNumber
                 id="terminal_font_size"
@@ -273,7 +271,7 @@ export function SessionsSettingsCard(): JSX.Element {
                 }
               />
             </div>
-          </details>
+          </Disclosure>
           <KeepGoing prefs={prefs} save={save} />
           <RuntimeSettings />
         </>

@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Checkbox, ChoiceOption, Disclosure, Picker, Radio, Segmented } from ".";
 import { Modal } from "../form";
+import { anchoredEdge, menuEdge, menuPoint, type MenuAt } from "../RowMenu";
 
 afterEach(cleanup);
 
@@ -160,6 +161,34 @@ describe("Picker", () => {
     const button = screen.getByRole("button", { name: "Account: Work" });
     expect((button as HTMLInputElement).disabled).toBe(true);
     expect(describedBy(button)).toBe("Only one account");
+  });
+});
+
+describe("a menu from a button", () => {
+  it("hangs below it, flips to its other side when there's no room, and keeps 8 px from the window's edge", () => {
+    // Room below: at the point.
+    expect(anchoredEdge(100, 60, 200, 800)).toBe(100);
+    // No room below: it ends at the button's top (never over the button).
+    expect(anchoredEdge(700, 660, 200, 800)).toBe(460);
+    // No room either side: as far in as the window allows, 8 px in.
+    expect(anchoredEdge(700, 150, 200, 800)).toBe(592);
+    // A pointer's menu keeps the Mac's 4 px.
+    expect(menuEdge(700, 200, 800)).toBe(500);
+  });
+
+  it("a click on a button gives the button's edges, a right-click the pointer", () => {
+    let at: MenuAt | null = null;
+    render(
+      <button type="button" onClick={(event) => (at = menuPoint(event))} onContextMenu={(event) => (at = menuPoint(event))}>
+        ⋯
+      </button>,
+    );
+    const button = screen.getByRole("button");
+    button.getBoundingClientRect = () => ({ left: 900, right: 930, top: 40, bottom: 70, width: 30, height: 30, x: 900, y: 40, toJSON: () => ({}) });
+    fireEvent.click(button, { clientX: 915, clientY: 55 });
+    expect(at).toEqual({ x: 900, y: 74, above: 36, right: 930 });
+    fireEvent.contextMenu(button, { clientX: 915, clientY: 55, detail: 1 });
+    expect(at).toEqual({ x: 915, y: 55 });
   });
 });
 

@@ -5,7 +5,8 @@ import { IconProjects, IconTerminal } from "../components/icons";
 import { RunwayWords } from "../components/AccountRunway";
 import { RankedRows } from "../components/RankedRows";
 import { launchRoom, pickLaunch } from "../lib/launch-pick";
-import { LaunchPickWhy } from "../components/LaunchPickWhy";
+import { LaunchPickBadge, LaunchPickWhy } from "../components/LaunchPickWhy";
+import { IconChevronDown, IconChevronRight } from "../components/icons-controls";
 import { ExpertSetup } from "../components/ExpertSetup";
 import { MachineAdviceLine, MachineChip } from "../components/MachineAdvice";
 import { machineAdvice, type MachineAdviceInfo } from "../lib/machine";
@@ -326,6 +327,7 @@ export function NewSessionModal({
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <IconTerminal width={13} height={13} />
                   <span className="font-medium">{preselected.account_label}</span>
+                  {pick && <LaunchPickBadge pick={pick} />}
                   <RunwayWords display={quotaByAccount?.[preselected.account_id]} sessions={sessionsOf(preselected.account_id)} loading={!quotaByAccount} />
                   <span className="text-muted">·</span>
                   <span className="text-muted">Launch settings: {preselected.name}</span>
@@ -337,15 +339,7 @@ export function NewSessionModal({
                 </div>
                 <MachineAdviceLine advice={advice.get(preselected.id)} nameOf={(id) => sessionNames.get(id) ?? null} />
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={busy || !signedIn(loginByAccount.get(preselected.account_id))}
-                    onClick={() => void launch(preselected)}
-                    data-testid="launch-now"
-                  >
-                    Launch →
-                  </Button>
+                  {/* 0.3: Launch is the footer's, beside Close. */}
                   <Button
                     ref={customise.showRef}
                     size="sm"
@@ -353,7 +347,8 @@ export function NewSessionModal({
                     onClick={() => customise.toggle(true)}
                     aria-expanded={customiseOpen}
                   >
-                    Customise ▸
+                    Customise
+                    <IconChevronRight width={13} height={13} strokeWidth={2} aria-hidden="true" className="-mr-1" />
                   </Button>
                   {!signedIn(loginByAccount.get(preselected.account_id)) && (
                     <Button
@@ -375,10 +370,11 @@ export function NewSessionModal({
                 ref={customise.hideRef}
                 type="button"
                 onClick={() => customise.toggle(false)}
-                className="self-start text-label text-muted underline-offset-2 hover:text-ink hover:underline"
+                className="flex items-center gap-1 self-start rounded text-label text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
                 aria-expanded={customiseOpen}
               >
-                Customise ▾ (hide Launch settings)
+                <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" />
+                Customise (hide Launch settings)
               </button>
             )}
             {(customiseOpen || preselected === null) &&
@@ -460,9 +456,16 @@ export function NewSessionModal({
         <div className="flex items-center justify-between border-t border-hairline/60 px-6 py-4">
           {/* AJ-E1535: the footer speaks only when a folder is picked. */}
           <span className="text-label text-muted">{directory ? `Launching in ${directory.split("/").pop()}` : null}</span>
-          <Button size="sm" variant="secondary" onClick={onClose}>
-            Close
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+            {preselected !== null && !customiseOpen && (profiles ?? []).length > 0 && (
+              <Button size="sm" variant="primary" disabled={busy || !signedIn(loginByAccount.get(preselected.account_id))} onClick={() => void launch(preselected)} data-testid="launch-now">
+                Launch on {preselected.account_label}
+              </Button>
+            )}
+          </div>
         </div>
       </Card>
     </div>

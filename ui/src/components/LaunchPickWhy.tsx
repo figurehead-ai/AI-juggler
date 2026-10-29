@@ -1,7 +1,8 @@
 /**
  * New session's pick, explained (the 0.2 walk, F17: the pick wasn't the
  * one marked Suggested, and nothing said why). Beside the pick: why it's
- * the one ("your default", "used last here", "Suggested: the most room").
+ * the one ("your default", "used last here", "Suggested: the most room"),
+ * 0.3: a badge on its name's line (it wrapped onto a line of its own).
  * Under it, when it isn't the Suggested one: that one with its room and
  * "Use it" (the spec's suggest-only line, deep/11 §4.8); and a pick of
  * yours passed over for being out of room, with until when.
@@ -10,6 +11,17 @@ import type { JSX } from "react";
 import type { QuotaDisplayData } from "../lib/bridge";
 import { launchRoom, pickWhyWords, type LaunchPick } from "../lib/launch-pick";
 import { outOfRoomWords } from "../lib/room";
+
+/** Why the pick is the one: a badge beside its name. */
+export function LaunchPickBadge({ pick }: { pick: LaunchPick }): JSX.Element | null {
+  const why = pickWhyWords(pick.why);
+  if (!why) return null;
+  return (
+    <span className="shrink-0 whitespace-nowrap rounded border border-accent/50 px-1 text-label text-accent-hi" data-testid="launch-default" data-why={pick.why}>
+      {why}
+    </span>
+  );
+}
 
 export function LaunchPickWhy({
   pick,
@@ -21,18 +33,12 @@ export function LaunchPickWhy({
   /** Makes this account the pick. */
   onUse: (accountId: string) => void;
 }): JSX.Element {
-  const why = pickWhyWords(pick.why);
   const other = pick.suggested && pick.suggested.account_id !== pick.recipe.account_id ? pick.suggested : null;
   const otherLeft = other ? launchRoom(quota[other.account_id]).left : null;
   const passed = pick.passedOver;
   const passedWhy = passed ? pickWhyWords(passed.why) : null;
   return (
     <>
-      {why && (
-        <span className="ml-auto text-label text-muted" data-testid="launch-default" data-why={pick.why}>
-          {why}
-        </span>
-      )}
       {passed && (
         <span className="basis-full text-label text-warning" data-testid="launch-passed-over">
           {passed.recipe.account_label}

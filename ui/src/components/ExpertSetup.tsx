@@ -13,6 +13,7 @@ import {
 } from "../lib/bridge";
 import { funnelEvent } from "../lib/funnel";
 import { launchSettingsName } from "../lib/account-words";
+import { IconChevronDown, IconChevronRight } from "./icons-controls";
 
 /**
  * AJ-E309 Req.5: the [Expert setup…] hatch every flow exposes —
@@ -135,10 +136,11 @@ export function ExpertSetup({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={toggle}
-        className="self-start rounded text-label text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="flex items-center gap-1 self-start rounded text-label text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
         data-testid="expert-hatch"
       >
-        Expert setup… {open ? "▾" : "▸"}
+        {open ? <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" /> : <IconChevronRight width={12} height={12} strokeWidth={2} aria-hidden="true" />}
+        Expert setup…
       </button>
       {open && (
         <div

@@ -24,8 +24,10 @@ export function RowMenu({
    * the menu's own first lines say it (the user menu). */
   heading: string;
   ariaLabel: string;
-  /** Where it opens (viewport px), from {@link menuPoint}. */
-  at: { x: number; y: number };
+  /** Where it opens (viewport px), from {@link menuPoint}; anchored to
+   * a button, also where it ends when it opens above it or to its left
+   * (so it never covers the button that opened it). */
+  at: MenuAt;
   onClose: () => void;
   /** AJ-E2507: a little wider (the user menu's inline choices). */
   wide?: boolean;
@@ -123,8 +125,11 @@ export function RowMenu({
   useLayoutEffect(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
-    setStyle({ left: menuEdge(at.x, box.width, window.innerWidth), top: menuEdge(at.y, box.height, window.innerHeight) });
-  }, [at.x, at.y]);
+    setStyle({
+      left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
+      top: anchoredEdge(at.y, at.above, box.height, window.innerHeight),
+    });
+  }, [at.x, at.y, at.right, at.above]);
   // On the page itself: a blurred rail is the containing block of
   // anything fixed inside it, which would clip the menu to the rail.
   return createPortal(
@@ -144,6 +149,29 @@ export function RowMenu({
     </div>,
     document.body,
   );
+}
+
+/** Where a menu opens: a point, and for a menu opened from a button,
+ * where it ends instead when there's no room after the point (the
+ * button's top, or its right edge). */
+export interface MenuAt {
+  x: number;
+  y: number;
+  /** Opening above the button: the menu's bottom here. */
+  above?: number;
+  /** Opening to the left: the menu's right edge here. */
+  right?: number;
+}
+
+/** 0.3: a menu from a button keeps 8 px from the window's edges and
+ * flips to the button's other side, never over the button; a menu at
+ * the pointer keeps the Mac's 4 px. */
+export function anchoredEdge(at: number, end: number | undefined, size: number, room: number): number {
+  if (end === undefined) return menuEdge(at, size, room);
+  const inset = 8;
+  if (at + size <= room - inset) return at;
+  if (end - size >= inset) return end - size;
+  return Math.max(inset, Math.min(at, room - size - inset));
 }
 
 /** Where a menu of `size` opened at `at` starts along one axis of a
@@ -247,7 +275,9 @@ export function MenuSubmenu({ label, line, testId, children }: { label: string; 
         submenu={{ open }}
         onClick={(event) => {
           setFromKeys(event.detail === 0);
-          setOpen((was) => !was);
+          // A pointer's click keeps it open (the hover already opened it;
+          // a toggle closed it under the pointer); a key's click toggles.
+          setOpen((was) => (event.detail === 0 ? !was : true));
         }}
       >
         {line}
@@ -274,10 +304,11 @@ export function MenuSeparator() {
 
 /** Where a menu opens: at the pointer, or under its button when opened
  * from the keyboard (a keyboard click has no pointer position). */
-export function menuPoint(event: MouseEvent<HTMLElement>): { x: number; y: number } {
-  if (event.detail === 0 || (event.clientX === 0 && event.clientY === 0)) {
-    const box = event.currentTarget.getBoundingClientRect();
-    return { x: box.left, y: box.bottom + 4 };
-  }
+export function menuPoint(event: MouseEvent<HTMLElement>): MenuAt {
+  const box = event.currentTarget.getBoundingClientRect();
+  // 0.3: a button's menu hangs from the button (the design review: the
+  // tool menu opened at the pointer, over its own button).
+  if (event.type === "click") return { x: box.left, y: box.bottom + 4, above: box.top - 4, right: box.right };
+  if (event.detail === 0 || (event.clientX === 0 && event.clientY === 0)) return { x: box.left, y: box.bottom + 4 };
   return { x: event.clientX, y: event.clientY };
 }
