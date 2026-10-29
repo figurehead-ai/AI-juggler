@@ -23,7 +23,7 @@ export function edgeWords(edge: CanvasEdgeInfo, from: string, to: string): EdgeW
     edge.tasks > 0 ? `${edge.tasks} ${edge.tasks === 1 ? "task" : "tasks"}` : null,
   ].filter(Boolean) as string[];
   const count = parts.join(" · ") || "Waiting";
-  return { count, aria: `${from} to ${to}: ${count}` };
+  return { count, aria: `${count}, ${from} to ${to}` };
 }
 
 /** What Deliver does for each kind of waiting message. */
@@ -41,13 +41,8 @@ export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; c
   const [error, setError] = useState<string | null>(null);
   const actionable = edge.pending.filter((p) => p.kind !== "asked");
   const first = actionable[0];
-  if (!first) {
-    return edge.pending.length > 0 ? (
-      <span className="rounded-md border border-warning/50 bg-surface px-1.5 py-0.5 text-label text-warning" data-testid="edge-asked">
-        Waits on your answer
-      </span>
-    ) : null;
-  }
+  // One above the pool's level is answered on its sender's node.
+  if (!first) return null;
   const hop = first.kind === "hop_limit";
   const run = (deliver: boolean) => {
     setBusy(true);
@@ -64,7 +59,7 @@ export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; c
   const button = "rounded-md border px-1.5 py-0.5 text-label outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60";
   return (
     <span className="flex flex-col items-center gap-1 rounded-lg border border-warning/50 bg-surface px-2 py-1 shadow-card" data-testid="edge-pending" role="group" aria-label={label}>
-      {!compact && <span className="text-label text-warning">{label}</span>}
+      {!compact && <span className="whitespace-nowrap text-label text-warning">{label}</span>}
       <span className="flex gap-1">
         <button type="button" disabled={busy} onClick={() => run(true)} className={button + " border-warning/60 bg-warning/15 font-medium text-ink hover:bg-warning/25"} data-testid="edge-deliver">
           {hop ? "Let it continue" : "Deliver"}
@@ -105,6 +100,7 @@ export const CanvasEdges = memo(function CanvasEdges({
   zoomedOut: boolean;
   onSelect: (key: string) => void;
 }): JSX.Element {
+  const [hover, setHover] = useState<string | null>(null);
   const keys = new Set(edges.map((edge) => edgeKey(edge.from_session_id, edge.to_session_id)));
   const drawn: Drawn[] = [];
   for (const edge of edges) {
@@ -137,6 +133,8 @@ export const CanvasEdges = memo(function CanvasEdges({
                 fill="none"
                 strokeWidth={14}
                 className="pointer-events-auto cursor-pointer stroke-transparent"
+                onMouseEnter={() => setHover(key)}
+                onMouseLeave={() => setHover((was) => (was === key ? null : was))}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelect(key);
@@ -162,9 +160,11 @@ export const CanvasEdges = memo(function CanvasEdges({
       </svg>
       {!zoomedOut &&
         drawn.map(({ edge, key, mid, waits }) => {
+          if (!waits && selected !== key && hover !== key) return null;
           const words = edgeWords(edge, names.get(edge.from_session_id) ?? "A member", names.get(edge.to_session_id) ?? "a member");
           return (
             <div key={key} className="absolute left-0 top-0 flex flex-col items-center gap-1" style={{ transform: `translate(${mid.x}px, ${mid.y}px) translate(-50%, -50%)` }} data-testid="edge-label" data-edge={key}>
+              {(selected === key || hover === key) && (
               <button
                 type="button"
                 tabIndex={-1}
@@ -180,6 +180,7 @@ export const CanvasEdges = memo(function CanvasEdges({
               >
                 {words.count}
               </button>
+              )}
               {waits && <PendingChip edge={edge} compact={false} />}
             </div>
           );

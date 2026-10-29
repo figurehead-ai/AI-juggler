@@ -131,7 +131,8 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
   const place = useCallback(
     async (moved: NodePositionInfo[]) => {
       const first = saved.size === 0;
-      const nodes = first ? [...points].map(([id, at]) => moved.find((row) => row.session_id === id) ?? { session_id: id, x: at.x, y: at.y }) : moved;
+      const rest = first ? [...points].filter(([id]) => !moved.some((row) => row.session_id === id)).map(([id, at]) => ({ session_id: id, x: at.x, y: at.y })) : [];
+      const nodes = [...moved, ...rest];
       setMine((was) => {
         const next = new Map(was);
         for (const node of nodes) next.set(node.session_id, { x: node.x, y: node.y });

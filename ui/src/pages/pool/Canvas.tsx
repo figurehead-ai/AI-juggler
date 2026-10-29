@@ -85,6 +85,9 @@ export function Canvas({
   const [overPalette, setOverPalette] = useState(false);
   const [menu, setMenu] = useState<{ id: string; at: Point } | null>(null);
   const [tabStop, setTabStop] = useState<string | null>(null);
+  // The palette starts open where there's room for it beside the nodes,
+  // or when the pool is empty (it's how one starts).
+  const [paletteOpen, setPaletteOpen] = useState<boolean | null>(null);
   const justDragged = useRef(false);
   const reducedMotion = useReducedMotion();
 
@@ -97,12 +100,19 @@ export function Canvas({
     observer?.observe(element);
     return () => observer?.disconnect();
   }, []);
-  // The palette sits over the left: fit what's beside it.
-  const fit = useCallback(() => setView(fitView(points.values(), size.w, size.h, 48, size.w > 900 ? 260 : 0)), [points, size, setView]);
+  useEffect(() => {
+    if (paletteOpen === null && size.w > 0 && canvas && !data.list.loading) setPaletteOpen(size.w >= 900 || members.length === 0);
+  }, [paletteOpen, size.w, canvas, members.length, data.list.loading]);
+  // The palette sits over the top left: fit what's beside it (or below
+  // its folded line).
+  const fit = useCallback(
+    () => setView(fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44)),
+    [points, size, setView, paletteOpen],
+  );
   // The first time this pool's nodes are known: everything in view.
   useEffect(() => {
-    if (view === null && size.w > 0 && members.length > 0 && canvas) fit();
-  }, [view, size.w, members.length, canvas, fit]);
+    if (view === null && size.w > 0 && members.length > 0 && canvas && paletteOpen !== null) fit();
+  }, [view, size.w, members.length, canvas, fit, paletteOpen]);
   const shown = view ?? { x: size.w / 2 - NODE_W / 2, y: 48, scale: 1 };
 
   // Scroll pans; ⌘/Ctrl-scroll (and a trackpad's pinch) zooms at the pointer.
@@ -316,7 +326,7 @@ export function Canvas({
       </div>
 
       {members.length === 0 && canvas && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8" data-testid="canvas-empty">
+        <div className={"pointer-events-none absolute inset-0 flex items-center justify-center p-8" + (paletteOpen ? " pl-[17rem]" : "")} data-testid="canvas-empty">
           <div className="flex max-w-sm flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hairline bg-surface/80 px-6 py-8 text-center">
             <span className="text-section text-ink">No one in this pool yet</span>
             <span className="text-body text-muted">Drag a session from the left onto the canvas, or press Add beside it.</span>
@@ -330,6 +340,8 @@ export function Canvas({
           sessions={candidates}
           projects={projects}
           removing={dragged ? { over: overPalette, why: cannotRemove(pool) } : null}
+          open={paletteOpen ?? false}
+          onOpen={setPaletteOpen}
           onStartDrag={(session, event) => {
             if (event.button !== 0) return;
             setDrag({ kind: "session", session, start: { x: event.clientX, y: event.clientY }, moved: false });
@@ -356,7 +368,7 @@ export function Canvas({
         <ToolButton label="Zoom out" onClick={() => setView(zoomAt(shown, 1 / 1.2, { x: size.w / 2, y: size.h / 2 }))}>
           <IconZoomOut width={16} height={16} />
         </ToolButton>
-        <button type="button" onClick={() => setView(zoomAt(shown, 1 / shown.scale, { x: size.w / 2, y: size.h / 2 }))} className="h-7 w-12 rounded-md font-mono text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" aria-label={`Zoom ${Math.round(shown.scale * 100)} percent: back to 100`} data-testid="canvas-zoom">
+        <button type="button" onClick={() => setView(zoomAt(shown, 1 / shown.scale, { x: size.w / 2, y: size.h / 2 }))} className="h-7 w-12 rounded-md font-mono text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" aria-label={`${Math.round(shown.scale * 100)}%, back to 100%`} data-testid="canvas-zoom">
           {Math.round(shown.scale * 100)}%
         </button>
         <ToolButton label="Zoom in" onClick={() => setView(zoomAt(shown, 1.2, { x: size.w / 2, y: size.h / 2 }))}>

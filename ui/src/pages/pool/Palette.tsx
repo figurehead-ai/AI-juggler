@@ -21,6 +21,8 @@ export function Palette({
   sessions,
   projects,
   removing,
+  open,
+  onOpen,
   onStartDrag,
   onAdd,
 }: {
@@ -29,10 +31,12 @@ export function Palette({
   /** A member is being dragged: `over` while it's over the palette, `why`
    * when it can't be taken out. */
   removing: { over: boolean; why: string | null } | null;
+  /** Unfolded (the canvas decides: folded on a narrow canvas). */
+  open: boolean;
+  onOpen: (open: boolean) => void;
   onStartDrag: (session: InstanceInfo, event: PointerEvent<HTMLElement>) => void;
   onAdd: (session: InstanceInfo) => void;
 }): JSX.Element {
-  const [open, setOpen] = useState(true);
   const [words, setWords] = useState("");
   const query = words.trim().toLowerCase();
   const projectOf = (session: InstanceInfo) => projects.find((project) => project.id === session.project_id)?.name ?? null;
@@ -60,7 +64,7 @@ export function Palette({
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((was) => !was)}
+        onClick={() => onOpen(!open)}
         className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-label font-semibold uppercase tracking-[0.08em] text-faint outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="flex-1">Add a session</span>

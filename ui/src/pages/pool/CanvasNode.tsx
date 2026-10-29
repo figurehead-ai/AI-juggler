@@ -20,6 +20,8 @@ import { NODE_H, NODE_W, type Point } from "./layout";
 import { nameOf } from "./actions";
 import type { MemberNode } from "./useCanvas";
 
+const NO_TASK = "None";
+
 /** Answers an agent's ask (Allow once, Always allow in this pool, Deny). */
 export function answerAsk(ask: NodeAskInfo, answer: "once" | "always" | "deny"): Promise<void> {
   return ask.source === "task" ? tasksAnswer(ask.id, answer) : messagesAnswer(ask.id, answer);
@@ -97,7 +99,8 @@ export const CanvasNode = memo(function CanvasNode({ member, at, asks, held, sel
   const lead = member.role === "lead";
   const name = nameOf(member.session);
   const waits = asks.length + held + (alert ? 1 : 0);
-  const task = member.card.task.value;
+  // The card says "None" when it holds no task (cards.rs's NO_TASK).
+  const task = member.card.task.value === NO_TASK ? null : member.card.task.value;
   const account = member.card.account;
   const ended = state.state === "ended";
   const openMenu = (event: MouseEvent<HTMLElement>) => {
@@ -175,22 +178,20 @@ export const CanvasNode = memo(function CanvasNode({ member, at, asks, held, sel
         <span className="truncate">{[account, member.card.tool].filter(Boolean).join(" · ")}</span>
       </span>
       <span className="flex min-w-0 items-center gap-1.5 text-label" data-testid="node-state">
-        <span aria-hidden="true" className={"size-2 shrink-0 rounded-full " + STATE_TONE[state.state].dot + (state.state === "working" ? " shadow-[0_0_0_3px_var(--color-live-soft)]" : "")} />
-        <span className={"shrink-0 " + state.tone}>{state.word}</span>
+        <span aria-hidden="true" className={"size-2 shrink-0 rounded-full " + (alert?.tone === "danger" ? "bg-danger" : STATE_TONE[state.state].dot) + (state.state === "working" ? " shadow-[0_0_0_3px_var(--color-live-soft)]" : "")} />
+        <span className={"shrink-0 " + (alert?.tone === "danger" ? "text-danger" : state.tone)}>{alert?.word ?? state.word}</span>
         {task && (
           <span className="min-w-0 truncate text-muted" title={task}>
             · {task}
           </span>
         )}
-      </span>
-      {alert && (
-        <span className={"flex items-center gap-1.5 rounded-lg px-2 py-1 text-label " + (alert.tone === "danger" ? "bg-danger-soft text-danger" : "bg-warning-soft text-ink")} data-testid="node-alert">
-          {alert.word}
-          <button type="button" onClick={() => onSelect(member.id, true)} className="ml-auto rounded px-1 font-medium underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+        {alert && (
+          <button type="button" onClick={() => onSelect(member.id, true)} className="ml-auto shrink-0 rounded px-1 font-medium text-ink underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-alert">
             {member.session.status === "waiting_user" ? "Answer" : "See"}
+            <span className="sr-only"> {name}</span>
           </button>
-        </span>
-      )}
+        )}
+      </span>
       {asks.slice(0, 1).map((ask) => (
         <AskLine key={ask.id} ask={ask} />
       ))}

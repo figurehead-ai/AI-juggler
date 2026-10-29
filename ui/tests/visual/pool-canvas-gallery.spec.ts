@@ -70,6 +70,13 @@ async function canvas(page: Page) {
   await expect(page.getByTestId("canvas-node")).toHaveCount(6);
 }
 
+/** The palette, unfolded (it starts folded on a narrow canvas). */
+async function palette(page: Page) {
+  const fold = page.getByTestId("canvas-palette").getByRole("button", { name: /Add a session/ });
+  if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
+  await expect(page.getByTestId("canvas-palette-item").first()).toBeVisible();
+}
+
 const calls = (page: Page, seam: string) => page.evaluate((name) => (window as unknown as Record<string, string[] | undefined>)[name] ?? [], seam);
 
 for (const theme of ["dark", "light"] as const) {
@@ -92,7 +99,7 @@ for (const theme of ["dark", "light"] as const) {
       await canvas(page);
       await expect(page.locator('[data-node="s-plan"]').getByTestId("node-lead")).toBeVisible();
       await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toContainText("wants to message Planner");
-      await expect(page.getByTestId("canvas-palette-item")).toHaveCount(2);
+      await expect(page.getByTestId("canvas-palette").getByRole("button", { name: /Add a session/ })).toBeVisible();
       await expect(page.getByTestId("inspect-stream")).toContainText("Planner gave «Checkout copy» to Checkout copy pass");
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-${size}-${theme}.png`) });
@@ -143,7 +150,7 @@ for (const theme of ["dark", "light"] as const) {
     await canvas(page);
     await page.getByTestId("pool-mode-list").click();
     await expect(page.getByTestId("pool-card")).toHaveCount(6);
-    await expect(page.getByTestId("pool-list-edges").locator("li")).toHaveCount(5);
+    await expect(page.getByTestId("pool-list-edges").locator("li")).toHaveCount(7);
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `list-1280x800-${theme}.png`) });
     await axe(page, `list ${theme}`);
@@ -180,6 +187,8 @@ for (const theme of ["dark", "light"] as const) {
 test("drag: a session from the palette in, a node to a new place", async ({ page }) => {
   await open(page, "dark", 1280, 800);
   await canvas(page);
+  await palette(page);
+  await expect(page.getByTestId("canvas-palette-item")).toHaveCount(2);
   const item = page.getByTestId("canvas-palette-item").filter({ hasText: "Price API tests" });
   const from = (await item.boundingBox())!;
   const area = (await page.getByTestId("pool-canvas").boundingBox())!;

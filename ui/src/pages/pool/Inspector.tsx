@@ -138,7 +138,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   onDeleted: () => void;
 }>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
-  const title = selection.kind === "pool" ? "Pool settings" : member ? "Member" : selection.kind === "edge" ? "Between two" : "Activity";
+  const title = selection.kind === "pool" ? "Pool settings" : member ? "Member" : selection.kind === "edge" ? "Conversation" : "Activity";
   return (
     <aside aria-labelledby="pool-inspector-title" className="flex h-full min-h-0 w-[340px] shrink-0 flex-col border-l border-hairline bg-surface" data-testid="pool-inspector">
       <div className="flex h-11 shrink-0 items-center gap-2 px-4">

@@ -27,11 +27,11 @@ export function layoutOrder(nodes: LayoutNode[]): LayoutNode[] {
   return [...nodes].sort((a, b) => (ROLE_RANK[a.role] ?? 1) - (ROLE_RANK[b.role] ?? 1) || a.id.localeCompare(b.id));
 }
 
-/** How many to a row under the lead: one row up to five, then a block
- * about half again as wide as it is tall. */
+/** How many to a row under the lead: up to three in one row, then a
+ * block a little wider than it is tall (5 → 3 + 2, 20 → 5 × 4). */
 function columnsFor(count: number): number {
-  if (count <= 5) return Math.max(1, count);
-  return Math.ceil(Math.sqrt(count * 1.6));
+  if (count <= 3) return Math.max(1, count);
+  return Math.ceil(Math.sqrt(count * 1.2));
 }
 
 /** The places of a centred block of `count` boxes starting at `top`,
@@ -105,20 +105,25 @@ export function bounds(points: Iterable<Point>): { x: number; y: number; w: numb
 
 export type View = { x: number; y: number; scale: number };
 export const MIN_SCALE = 0.3;
+/** Fit never goes below this: the names stay readable, and you pan. */
+export const FIT_MIN_SCALE = 0.6;
 export const MAX_SCALE = 1.6;
 export const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 
 /** The view that shows every node in a `width` × `height` window, never
  * larger than 100 %. */
-export function fitView(points: Iterable<Point>, width: number, height: number, pad = 48, left = 0): View {
+export function fitView(points: Iterable<Point>, width: number, height: number, pad = 48, left = 0, top = 0): View {
   const box = bounds(points);
   const room = Math.max(width - left, width / 2);
   const middle = width - room / 2;
   if (!box || width <= 0 || height <= 0) return { x: middle - NODE_W / 2, y: pad, scale: 1 };
   // A node grows below its box with what waits on it: room for that too.
   const tall = box.h + NODE_H;
-  const scale = clampScale(Math.min(1, (room - pad * 2) / box.w, (height - pad * 2) / tall));
-  return { x: middle - (box.x + box.w / 2) * scale, y: height / 2 - (box.y + tall / 2) * scale, scale };
+  const high = height - top;
+  const scale = clampScale(Math.max(FIT_MIN_SCALE, Math.min(1, (room - pad * 2) / box.w, (high - pad * 2) / tall)));
+  // Too big to fit at a readable size: the top (the lead) in view.
+  const y = tall * scale > high - pad * 2 ? top + pad - box.y * scale : top + high / 2 - (box.y + tall / 2) * scale;
+  return { x: middle - (box.x + box.w / 2) * scale, y, scale };
 }
 
 /** Zooms by `factor` around a point of the window, keeping it still. */
