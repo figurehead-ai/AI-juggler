@@ -15,6 +15,7 @@ export function RowMenu({
   at,
   onClose,
   wide = false,
+  minWidth,
   children,
 }: {
   /** The small uppercase line on top (what the menu is about); none when
@@ -26,6 +27,8 @@ export function RowMenu({
   onClose: () => void;
   /** AJ-E2507: a little wider (the user menu's inline choices). */
   wide?: boolean;
+  /** 0.3: at least this wide (a Picker's menu, as wide as its button). */
+  minWidth?: number;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -42,7 +45,8 @@ export function RowMenu({
       [...(level?.querySelectorAll<HTMLButtonElement>(MENU_ITEMS) ?? [])].filter(
         (item) => item.closest('[role="menu"]') === level,
       );
-    items()[0]?.focus();
+    // A choice opens on the chosen one (a Picker, the order menu).
+    (items().find((item) => item.getAttribute("aria-checked") === "true" && item.getAttribute("role") === "menuitemradio") ?? items()[0])?.focus();
     const close = (restore: boolean) => {
       closeRef.current();
       if (restore) opener?.focus?.();
@@ -60,8 +64,12 @@ export function RowMenu({
         const trigger = level.parentElement?.querySelector<HTMLButtonElement>(':scope > [aria-haspopup="menu"]');
         trigger?.focus();
         trigger?.click();
+        if (event.key === "Escape") event.stopPropagation();
       } else if (event.key === "Escape") {
         event.preventDefault();
+        // 0.3: only the menu closes, never the sheet it opened from (a
+        // Picker in a dialog): this listener runs first (capture).
+        event.stopPropagation();
         close(true);
       } else if (event.key === "Tab") {
         close(true);
@@ -86,11 +94,11 @@ export function RowMenu({
       }
     };
     window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
     const menu = ref.current;
     return () => {
       window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onKey, true);
       // An action ran (or the menu went): focus goes back where it came
       // from, unless the action moved it on (a sheet that opened).
       const active = document.activeElement;
@@ -114,7 +122,7 @@ export function RowMenu({
       ref={ref}
       role="menu"
       aria-label={ariaLabel}
-      style={style}
+      style={minWidth ? { ...style, minWidth } : style}
       className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card " + (wide ? "w-80" : "w-64")}
     >
       {heading && <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>}
@@ -134,10 +142,11 @@ export function menuEdge(at: number, size: number, room: number): number {
 }
 
 /** What the arrows move through: actions, and a choice's options. */
-const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)';
+export const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)';
 
 /** One action in a {@link RowMenu}; with `checked`, one option of a
- * choice (a `menuitemradio`, D-47's order menu). */
+ * choice (a `menuitemradio`, D-47's order menu), or with `multi` too, a
+ * line that turns on and off (a `menuitemcheckbox`, the View's Show). */
 export function MenuItem({
   onClick,
   disabled,
@@ -147,6 +156,7 @@ export function MenuItem({
   describedBy,
   submenu,
   checked,
+  multi,
   children,
 }: {
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -160,12 +170,14 @@ export function MenuItem({
   submenu?: { open: boolean };
   /** An option of a choice: whether it is the one chosen. */
   checked?: boolean;
+  /** With `checked`: one of several that turn on and off. */
+  multi?: boolean;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
-      role={checked === undefined ? "menuitem" : "menuitemradio"}
+      role={checked === undefined ? "menuitem" : multi ? "menuitemcheckbox" : "menuitemradio"}
       aria-checked={checked}
       onClick={onClick}
       disabled={disabled}
@@ -209,7 +221,10 @@ export function MenuSubmenu({ label, line, testId, children }: { label: string; 
     });
   }, [open]);
   useEffect(() => {
-    if (open && fromKeys && place) panel.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
+    if (open && fromKeys && place)
+      (panel.current?.querySelector<HTMLButtonElement>('[role="menuitemradio"][aria-checked="true"]:not(:disabled)') ??
+        panel.current?.querySelector<HTMLButtonElement>(MENU_ITEMS)
+      )?.focus();
   }, [open, fromKeys, place]);
   return (
     <div ref={wrap} className="relative flex flex-col" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
@@ -229,7 +244,7 @@ export function MenuSubmenu({ label, line, testId, children }: { label: string; 
           role="menu"
           aria-label={label}
           style={place ?? { left: -9999, top: 0 }}
-          className="fixed z-50 flex w-52 flex-col gap-0.5 rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
+          className="fixed z-50 flex w-max min-w-52 max-w-80 flex-col gap-0.5 rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
         >
           {children}
         </div>
