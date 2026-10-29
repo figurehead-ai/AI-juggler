@@ -1016,7 +1016,8 @@ pub struct TokenCountsInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct AttentionInfo {
-    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit`.
+    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit` | `limit_hit`
+    /// (open at its limit) | `tool_asks`.
     pub rule: String,
     /// Human-readable measured inputs (`no output 6m`, `cpu 0.3%`).
     pub inputs: Vec<String>,
@@ -3823,7 +3824,12 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
             };
         for record in storage.sessions().list(None)? {
             // AJ-E2302: a driven session's state is its tool's, never a guess.
-            if !is_active(record.status) || state.runtime.is_exact(&record.id) {
+            // 0.3: a session at its limit (open or ended) is the tool's fact,
+            // never re-judged as stuck or waiting.
+            if !is_active(record.status)
+                || record.status == SessionStatus::QuotaBlocked
+                || state.runtime.is_exact(&record.id)
+            {
                 engine.forget(&record.id);
                 continue;
             }
@@ -3864,8 +3870,10 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
     for (session, status) in &entered {
         crate::features::notifications::session_status(state, session, status.as_str());
     }
+    // 0.3: open sessions at their limit, and marks whose reset passed.
+    let limits_changed = crate::features::sessions::limits::tick(state);
     crate::features::notifications::show_due(state);
-    if !entered.is_empty() {
+    if !entered.is_empty() || limits_changed {
         emit_sessions(app, state)?;
     }
     Ok(())
@@ -3882,6 +3890,9 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
     let mut changed = false;
     let drained: Vec<SessionId> = state.supervisor.drain_activity();
     for session in &drained {
+        // 0.3: output moved — a limit hit (or the session carrying on
+        // after one) shows now, not at the next tick.
+        changed |= crate::features::sessions::limits::output_moved(state, session);
         if let Some(running) = state.heuristics.recover(session) {
             debug_assert_eq!(running, SessionStatus::Running);
             {
