@@ -30,6 +30,24 @@ export function globalId(id: unknown): GlobalId | null {
   return GLOBAL_NAV.find((entry) => entry.id === id)?.id ?? null;
 }
 
+/** Opens a global screen and brings one of its sections into view
+ * (`anchor`: the section's element id), focused for the keyboard. The
+ * section may draw a moment after the screen: it is looked for briefly. */
+export function openScreenAt(id: GlobalId, anchor: string): void {
+  window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id } }));
+  const deadline = Date.now() + 2_000;
+  const look = () => {
+    const target = document.getElementById(anchor);
+    if (target) {
+      target.scrollIntoView({ block: "start" });
+      target.focus({ preventScroll: true });
+    } else if (Date.now() < deadline) {
+      window.requestAnimationFrame(look);
+    }
+  };
+  window.requestAnimationFrame(look);
+}
+
 /** The screens that are a Settings pane: their id opens it there. */
 export const IN_SETTINGS: Partial<Record<GlobalId, string>> = { privacy: "privacy" };
 
