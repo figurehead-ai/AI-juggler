@@ -19,7 +19,8 @@ use juggler_handover::pack::{
     PackProject, PackQuota, PackSource, write_pack,
 };
 use juggler_handover::redaction::{
-    RedactionApply, RedactionPolicy, list_segments, redacted_pack, resolve_policy, strip_segments,
+    RedactionApply, RedactionPolicy, kept_counts, list_segments, redacted_pack, resolve_policy,
+    strip_segments, strip_segments_counted,
 };
 use std::collections::BTreeSet;
 
@@ -213,6 +214,80 @@ fn un_redact_keeps_exactly_that_item_for_this_pack() {
         },
     );
     assert!(!String::from_utf8_lossy(&again.conversation_md).contains(CANARY_SK));
+}
+
+fn counts(rows: &[juggler_handover::pack::RedactionCount]) -> Vec<(String, u32)> {
+    rows.iter()
+        .map(|row| (row.kind.clone(), row.count))
+        .collect()
+}
+
+#[test]
+fn what_was_hidden_is_counted_apart_from_what_was_found() {
+    let segments: Vec<String> = canary_input()
+        .turns
+        .iter()
+        .map(|turn| turn.text.clone())
+        .collect();
+    // Strip with the sk-key shown anyway: found 2, hidden 1, kept 1.
+    let keep: BTreeSet<usize> = [0].into_iter().collect();
+    let stripped = strip_segments_counted(&segments, true, &keep);
+    assert_eq!(
+        counts(&stripped.detected),
+        [("bearer".to_owned(), 1), ("sk-key".to_owned(), 1)]
+    );
+    assert_eq!(counts(&stripped.withheld), [("bearer".to_owned(), 1)]);
+    assert_eq!(counts(&stripped.kept()), [("sk-key".to_owned(), 1)]);
+    assert_eq!(
+        (stripped.texts, stripped.detected),
+        strip_segments(&segments, true, &keep),
+        "the same pass as strip_segments"
+    );
+    // Keep: everything found, nothing hidden.
+    let kept = strip_segments_counted(&segments, false, &BTreeSet::new());
+    assert!(kept.withheld.is_empty());
+    assert_eq!(kept.kept(), kept.detected);
+    assert!(kept_counts(&kept.detected, &kept.detected).is_empty());
+
+    // The pack records both: `redactions` (found) and `withheld` (hidden).
+    let pack = redacted_pack(
+        &canary_input(),
+        ConversationMode::Full,
+        &RedactionApply { strip: true, keep },
+    );
+    let state =
+        serde_json::from_slice::<juggler_handover::pack::PackState>(&pack.state_json).unwrap();
+    let withheld = state.withheld.expect("a redacted pack records what it hid");
+    assert!(counts(&withheld).contains(&("bearer".to_owned(), 1)));
+    assert!(!counts(&withheld).iter().any(|(kind, _)| kind == "sk-key"));
+    // A pack without the redaction pass says nothing about it.
+    let plain = juggler_handover::pack::generate_pack(&canary_input(), ConversationMode::Full);
+    let state =
+        serde_json::from_slice::<juggler_handover::pack::PackState>(&plain.state_json).unwrap();
+    assert_eq!(state.withheld, None);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_written_pack_is_this_users_only() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let pack = redacted_pack(
+        &canary_input(),
+        ConversationMode::Full,
+        &RedactionApply {
+            strip: true,
+            keep: BTreeSet::new(),
+        },
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("exports").join("pack");
+    write_pack(&target, &pack).unwrap();
+    let mode =
+        |path: &std::path::Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode(&target), 0o700, "the folder");
+    for name in ["PACK.md", "conversation.md", "state.json", "manifest.json"] {
+        assert_eq!(mode(&target.join(name)), 0o600, "{name}");
+    }
 }
 
 #[test]
