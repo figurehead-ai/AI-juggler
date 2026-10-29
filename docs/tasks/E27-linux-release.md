@@ -85,7 +85,7 @@
 > | Formats | AppImage (the Tauri updater updates it), `.deb` and `.rpm` (updated by a package repository, as Claude's desktop app does), Flatpak or Snap (their sandboxes hide the host's processes: see AJ-E2713) |
 > | Repository | an apt / dnf repository signed with a project GPG key, with a Beta and a Stable component moved by the same promote, or downloads only |
 > | Support matrix | which distributions and versions (Tauri 2 needs WebKitGTK 4.1: Ubuntu 22.04 and later, Debian 12 and later, current Fedora), GNOME and KDE, Wayland and X11, x86_64 only or aarch64 too |
-> | Order and timing | Linux first, Windows first (E26), or both together; and when the bring-up starts (the standing plan, SPEC §15 decision 7, is after macOS 1.0) |
+> | Order and timing | Linux first, Windows first (E26), or both together; and when the bring-up starts (open: D-53 makes Windows, not Linux, a condition of 1.0) |
 >
 > **Shared seams, built once.** The default owners are in E26's table.
 > This epic owns `OpenFiles` (C11, AJ-E2710); for the others, the Linux

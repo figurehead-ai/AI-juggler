@@ -117,7 +117,7 @@ with [What's open, and getting to it](./docs/guide/whats-open.md).
 | Fleet: your other Macs in one window: their sessions, starting a session on one, usage by machine | Beta: checked with two copies on one Mac, not yet across two Macs ([guide](./docs/guide/fleet.md)) |
 | OpenCode, Kimi Code and Grok Build | Beta: built from their source and docs, not yet checked live |
 | More tools (ZCode, Kiro and others) | Planned |
-| Windows and Linux | Not before 1.0 |
+| Windows and Linux | Planned: Windows' first release comes before 1.0; Linux's timing is open |
 
 ## Supported tools
 
@@ -296,8 +296,9 @@ a monthly cap for an account or a group of projects (Usage › **Set a monthly
 cap**), and Needs you tells you at 80 % and 100 %. See
 [Monthly caps](./docs/guide/usage-and-limits.md#monthly-caps).
 
-**Windows or Linux?** Not before 1.0. The core is written to make that port
-possible.
+**Windows or Linux?** Not yet. Windows comes first: 1.0 waits for its first
+release. Linux follows; its timing is open. The core is written to make
+both ports possible.
 
 ## Troubleshooting
 

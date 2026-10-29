@@ -1002,7 +1002,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26, D-44..D-49 on 2026-10-27 and D-50..D-51 on 2026-10-28. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26, D-44..D-49 on 2026-10-27, D-50..D-51 on 2026-10-28 and D-52..D-53 on 2026-10-29. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1572,8 +1572,8 @@ time for each OS."
   Linux: AppImage, deb, rpm, Flatpak, Snap, and a package repository),
   signing, scope (architectures, Windows versions, WSL; Linux
   distributions, desktops and display servers), the Windows data folder,
-  and which OS goes first and when (the standing plan, SPEC §15 decision
-  7, is after macOS 1.0).
+  and which OS goes first and when. Windows' timing is settled by D-53
+  (its first release comes before 1.0); Linux's stays open.
 - The architecture rule is unchanged and now has a home per OS: OS code
   lives behind the OS seams (`juggler-platform`, the audited per-OS shims,
   the adapters), never as a per-OS branch in shared code; a seam shared by
@@ -1600,3 +1600,32 @@ lines would let an OS fall behind.
 - Evidence: the two epic files; `python3 scripts/check_task_counts.py`
   (the catalog, the file map and the plan's count agree with the epic
   files and this log).
+
+### D-53 1.0 comes only after a successful Windows release — SETTLED (2026-10-29)
+
+**Ruling.** The maintainer, 2026-10-29, on the roadmap: "I think we should
+only call version 1.0 after succesful Windows release".
+
+**What changed.**
+
+- The order is: macOS 0.x releases → Windows' dedicated first release
+  (E26, D-52) passes its Beta gate (AJ-E2615) → only then 1.0. Windows'
+  bring-up is no longer "after macOS 1.0" (SPEC §15 decision 7, as
+  refined by D-52): it is a condition of 1.0.
+- 1.0 (M8, Gate V8) therefore carries Windows as a shipped OS: its
+  regression matrix and Stable channel cover macOS and Windows, built,
+  signed and published by the same flow (D-52).
+- Linux wasn't named: its first release (E27) stays planned with its
+  timing open, and is not a condition of 1.0 unless the maintainer says
+  so.
+- Updated: SPEC §1 (platform row), §14 (the 1.0 row), §15 decision 7's
+  note; `docs/plan/EPICS.md` rows M8 and W and M8-4's acceptance; E26 and
+  E27's order-and-timing rows; the README's Windows and Linux lines.
+
+**Why.** "1.0" is the promise that AI Juggler is complete and stable for
+the people it's for; a version that can't run on Windows isn't that yet.
+
+- Risk: 1.0 moves later by the length of the Windows bring-up. The macOS
+  0.x line keeps shipping meanwhile (D-52: a macOS release never waits
+  for Windows work), so users don't wait; only the number does.
+- Evidence: this entry; `python3 scripts/check_task_counts.py`.
