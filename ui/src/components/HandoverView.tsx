@@ -186,7 +186,7 @@ export function SavedHandover({ saved, inline = false }: { saved: SavedHandoverI
     <div className="flex flex-col gap-1.5" data-testid="saved-handover">
       <div role="status" className="flex flex-col gap-1.5">
         <p className="text-meta text-ink">
-          Handover saved to <span className="break-all font-mono text-label">{saved.shown}</span>
+          Handover saved to <span className="font-mono text-label [overflow-wrap:anywhere]">{saved.shown}</span>
         </p>
         {saved.line && (
           <p className="text-meta text-ink" data-testid="handover-line">
