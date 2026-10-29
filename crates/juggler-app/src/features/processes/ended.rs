@@ -51,6 +51,8 @@ fn process(
         role_words: role.words().into(),
         role_sure: role.sure(),
         label: None,
+        subagent_id: None,
+        subagent_title: None,
         spark: Vec::new(),
         peak_rss,
         age_ms,

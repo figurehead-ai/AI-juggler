@@ -508,6 +508,10 @@ macro_rules! app_commands {
             // last messages, never served without the window).
             Write features::subagents::commands::subagents_list,
             Write features::subagents::commands::subagents_conversation,
+            // AJ-E1520 (0.3): a subagent's page and a project's subagents
+            // (their words, as the tab's).
+            Write features::subagents::commands::subagents_detail,
+            Write features::subagents::commands::subagents_project,
             Write features::conversations::commands::conversations_go_to,
             // Brings a running app forward (never launches it).
             Write features::conversations::commands::conversations_bring_forward,

@@ -206,11 +206,19 @@ fn the_rows_count_follows_the_tabs_reader_and_leaves_when_the_session_ends() {
         &lab.state,
         &lab.account,
         CONVERSATION,
+        &juggler_app::features::subagents::dto::SubagentsQuery::default(),
         &PageRequest::first(10),
     )
     .unwrap();
     assert_eq!(tab.state, "listed");
-    assert_eq!(tab.page.items.len(), 2);
+    assert_eq!(
+        tab.page
+            .items
+            .iter()
+            .filter(|row| row.agent.is_some())
+            .count(),
+        2
+    );
 
     // The session ends with t2 unanswered: the row stops counting.
     {

@@ -543,7 +543,34 @@ pub fn tick(state: &Arc<AppState>) -> Option<ProcessGraphChangedInfo> {
             titles: inner.titles.clone(),
             folders: inner.folders.clone(),
             others: view.others.clone(),
+            subagents: HashMap::new(),
         };
+        // AJ-E1520 (0.3): what each session's subagents ran, for "started
+        // by subagent" (only sessions whose readers are kept: no read).
+        let mut subagents = HashMap::new();
+        for session in &inputs.ours {
+            let conversation = inner
+                .meta
+                .get(&session.session_id)
+                .and_then(|meta| meta.conversation.as_deref());
+            if let (Some(account), Some(conversation)) =
+                (session.account_id.as_deref(), conversation)
+            {
+                let commands = state.subagents.commands_of(account, conversation);
+                if !commands.is_empty() {
+                    subagents.insert(session.session_id.clone(), commands);
+                }
+            }
+        }
+        for session in &inputs.theirs {
+            if let Some(account) = session.account_id.as_deref() {
+                let commands = state.subagents.commands_of(account, &session.session_id);
+                if !commands.is_empty() {
+                    subagents.insert(session.session_id.clone(), commands);
+                }
+            }
+        }
+        inputs.subagents = subagents;
         // Each process's CPU now joins its sparkline before the build.
         let mut seen: HashSet<(u32, i64)> = HashSet::new();
         let mut note = |pid: u32, start: i64, cpu: Option<f64>, rss: u64, zombie: bool| {

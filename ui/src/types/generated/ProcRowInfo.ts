@@ -34,6 +34,15 @@ role_sure: boolean,
  */
 label: string | null, 
 /**
+ * AJ-E1520 (0.3): the subagent that probably started it, matched
+ * from the commands it ran (its id in the session, and its task).
+ */
+subagent_id: string | null, 
+/**
+ * That subagent's task (redacted).
+ */
+subagent_title: string | null, 
+/**
  * Recent CPU, oldest first (percent of one core).
  */
 spark: Array<number>, 
