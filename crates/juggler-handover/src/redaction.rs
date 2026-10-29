@@ -409,33 +409,101 @@ pub fn strip_segments(
     strip: bool,
     keep_global: &BTreeSet<usize>,
 ) -> (Vec<String>, Vec<RedactionCount>) {
-    let mut counts: BTreeMap<&'static str, u32> = BTreeMap::new();
+    let stripped = strip_segments_counted(segments, strip, keep_global);
+    (stripped.texts, stripped.detected)
+}
+
+/// What one strip pass did: the rewritten segments, every detection
+/// by kind, and the ones it hid by kind (none under Keep; the ones the
+/// user showed anyway are detected, not hidden). Kinds and counts
+/// only: never a value.
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+pub struct Stripped {
+    /// The segments, rewritten.
+    pub texts: Vec<String>,
+    /// Every detection, kept or hidden, by kind.
+    pub detected: Vec<RedactionCount>,
+    /// The detections replaced with `•••`, by kind.
+    pub withheld: Vec<RedactionCount>,
+}
+
+impl Stripped {
+    /// The detections left as they were, by kind.
+    #[must_use]
+    pub fn kept(&self) -> Vec<RedactionCount> {
+        kept_counts(&self.detected, &self.withheld)
+    }
+}
+
+/// What was found and not hidden, by kind: `detected` less `withheld`
+/// (a pack's `redactions` less its `withheld`).
+#[must_use]
+pub fn kept_counts(
+    detected: &[RedactionCount],
+    withheld: &[RedactionCount],
+) -> Vec<RedactionCount> {
+    detected
+        .iter()
+        .filter_map(|found| {
+            let hidden = withheld
+                .iter()
+                .filter(|row| row.kind == found.kind)
+                .map(|row| row.count)
+                .sum::<u32>();
+            let count = found.count.saturating_sub(hidden);
+            (count > 0).then(|| RedactionCount {
+                kind: found.kind.clone(),
+                count,
+            })
+        })
+        .collect()
+}
+
+/// [`strip_segments`], counting what was hidden apart from what was
+/// found: "Was my key hidden?" has its own answer.
+#[must_use]
+pub fn strip_segments_counted(
+    segments: &[String],
+    strip: bool,
+    keep_global: &BTreeSet<usize>,
+) -> Stripped {
+    let mut detected: BTreeMap<&'static str, u32> = BTreeMap::new();
+    let mut withheld: BTreeMap<&'static str, u32> = BTreeMap::new();
     let mut base = 0;
-    let mut out = Vec::with_capacity(segments.len());
+    let mut texts = Vec::with_capacity(segments.len());
     for text in segments {
         let local = scan_segment(text);
-        for detection in &local {
-            *counts.entry(detection.kind).or_insert(0) += 1;
-        }
         let keep_local: BTreeSet<usize> = keep_global
             .range(base..base + local.len())
             .map(|global| global - base)
             .collect();
-        out.push(if strip {
+        for (index, detection) in local.iter().enumerate() {
+            *detected.entry(detection.kind).or_insert(0) += 1;
+            if strip && !keep_local.contains(&index) {
+                *withheld.entry(detection.kind).or_insert(0) += 1;
+            }
+        }
+        texts.push(if strip {
             strip_one(text, &keep_local)
         } else {
             text.clone()
         });
         base += local.len();
     }
-    let rows = counts
-        .into_iter()
-        .map(|(kind, count)| RedactionCount {
-            kind: kind.to_owned(),
-            count,
-        })
-        .collect();
-    (out, rows)
+    let rows = |counts: BTreeMap<&'static str, u32>| {
+        counts
+            .into_iter()
+            .map(|(kind, count)| RedactionCount {
+                kind: kind.to_owned(),
+                count,
+            })
+            .collect()
+    };
+    Stripped {
+        texts,
+        detected: rows(detected),
+        withheld: rows(withheld),
+    }
 }
 
 /// What a pack generation pass applies (the user's resolved will:
@@ -466,7 +534,11 @@ pub fn redacted_pack(
             .iter()
             .map(|(_, bytes)| String::from_utf8_lossy(bytes).into_owned()),
     );
-    let (stripped, rows) = strip_segments(&segments, apply.strip, &apply.keep);
+    let Stripped {
+        texts: stripped,
+        detected: rows,
+        withheld,
+    } = strip_segments_counted(&segments, apply.strip, &apply.keep);
     let mut stripped_input = input.clone();
     for (turn, text) in stripped_input.turns.iter_mut().zip(&stripped) {
         turn.text.clone_from(text);
@@ -483,7 +555,7 @@ pub fn redacted_pack(
     // The rows ride the manifest state at GENERATION time (the
     // manifest hashes the final bytes — patching after would break
     // verification).
-    crate::pack::generate_pack_with_redactions(&stripped_input, mode, rows)
+    crate::pack::generate_pack_with_redactions(&stripped_input, mode, rows, Some(withheld))
 }
 
 #[cfg(test)]

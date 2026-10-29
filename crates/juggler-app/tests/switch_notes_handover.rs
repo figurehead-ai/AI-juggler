@@ -21,6 +21,7 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::claude_memory::{INDEX, memory_folder};
 use juggler_adapters::{CLAUDE_CODE_ID, CODEX_ID, ClaudeCodeAdapter, CodexAdapter};
 use juggler_app::commands;
+use juggler_app::features::handover::view;
 use juggler_app::features::switch_setup::{apply_impl, check_impl};
 use juggler_app::state::AppState;
 #[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
@@ -215,7 +216,7 @@ fn ticked_the_handover_quotes_them_under_a_heading_without_the_key() {
         .iter()
         .find(|offer| offer.kind == "memory")
         .unwrap();
-    commands::switch_execute_with(
+    let edge = commands::switch_execute_with(
         &lab.state,
         &lab.session,
         &lab.codex_profile,
@@ -224,7 +225,8 @@ fn ticked_the_handover_quotes_them_under_a_heading_without_the_key() {
         &[],
         std::slice::from_ref(&offer.id),
     )
-    .unwrap();
+    .unwrap()
+    .edge_id;
     let (brief, state) = handover_of(&args_of(&lab.codex_home));
     assert!(
         brief.contains("This project's notes from Work Max: what Claude Code noted for itself"),
@@ -250,6 +252,25 @@ fn ticked_the_handover_quotes_them_under_a_heading_without_the_key() {
         serde_json::json!(["project-codename.md", "testing.md"])
     );
     assert_eq!(state["notes_left_out"], serde_json::json!(["deploy.md"]));
+
+    // Afterwards: what Codex was told, in one line and in the sheet. The
+    // note with a key was left out whole: left out, not "hidden".
+    let summary = view::summary_impl(&lab.state, &edge).unwrap().unwrap();
+    assert_eq!(summary.line.as_deref(), Some("Left out: 1 note"));
+    let sheet = view::open_impl(&lab.state, &edge).unwrap();
+    assert_eq!(
+        sheet.carries,
+        ["the conversation (2 turns)", "2 notes for this project"]
+    );
+    assert_eq!(
+        sheet.not_carried,
+        ["deploy.md: a key or password was found in it, or it didn't fit"]
+    );
+    assert_eq!(
+        sheet.withheld,
+        Some(Vec::new()),
+        "nothing in the conversation"
+    );
 }
 
 #[test]

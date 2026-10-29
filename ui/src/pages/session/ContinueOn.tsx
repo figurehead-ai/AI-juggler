@@ -7,6 +7,7 @@
  * (AJ-E1542/1543), never a copy of them. The same for a session AI
  * Juggler runs and one another app runs: that one is read, never touched,
  * and continues as a new session here while it stays open in its app.
+ * 0.3: Save handover… at its foot, ending with Reveal in Finder.
  */
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
@@ -19,6 +20,7 @@ import { rankTargets, type RoomTarget, type TargetRoom } from "../../lib/room-ta
 import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, type SessionModel } from "./model";
 import { CardTitle } from "./CardTitle";
+import { SaveHandover } from "../../components/HandoverView";
 
 /** A target profile, as the page shows it. */
 export type Target = {
@@ -256,6 +258,9 @@ export function ContinueOn({
           )}
         </div>
       )}
+      {/* 0.3: save its handover, beside the switch actions (a session
+          another app runs is only read for it). */}
+      <SaveHandover sessionId={source} />
     </Card>
   );
 }

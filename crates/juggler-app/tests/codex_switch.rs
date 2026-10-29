@@ -783,7 +783,7 @@ fn exported_pack(work: &Path, from: &str) -> (Setup, PathBuf) {
         .unwrap()
         .from_epoch
         .to_string();
-    let path = PathBuf::from(commands::pack_export_impl(&s.state, &epoch).unwrap());
+    let path = PathBuf::from(commands::pack_export_impl(&s.state, &epoch).unwrap().path);
     (s, path)
 }
 

@@ -21,7 +21,6 @@ ui/src/App.tsx 1161
 ui/src/components/KillSheet.tsx 622
 ui/src/components/RemoteTabs.tsx 494
 ui/src/components/RightInspector.tsx 1218
-ui/src/components/SwitchGraph.tsx 428
 ui/src/components/UpdatesCard.tsx 417
 ui/src/components/WorkflowRail.tsx 926
 ui/src/components/indicator.tsx 490

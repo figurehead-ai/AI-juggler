@@ -440,3 +440,33 @@ describe("the original, said once", () => {
     });
   }
 });
+
+describe("0.3 what the other tool was told", () => {
+  afterEach(() => {
+    delete (window as never as Record<string, unknown>).__AIJ_HANDOVER_SUMMARY__;
+  });
+
+  it("a done switch that wrote a handover says what was told and opens it", async () => {
+    (window as never as Record<string, unknown>).__AIJ_HANDOVER_SUMMARY__ = {
+      "*": { to_tool: "Codex", line: "Hidden from Codex: 2 API keys" },
+    };
+    const view = mount(WIZARD, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-continue"));
+    fireEvent.click(view.getByTestId("switch-continue"));
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("handover-line").textContent).toBe("Hidden from Codex: 2 API keys"));
+    expect(view.getByRole("button", { name: "Open the handover" })).toBeTruthy();
+  });
+
+  it("a done switch on the same tool shows nothing of the kind", async () => {
+    const view = mount(WIZARD, vi.fn());
+    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-continue"));
+    fireEvent.click(view.getByTestId("switch-continue"));
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-done")).toBeTruthy());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(view.queryByTestId("switch-handover")).toBeNull();
+  });
+});

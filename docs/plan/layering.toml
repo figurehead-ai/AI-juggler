@@ -24,7 +24,7 @@ juggler-platform = []
 juggler-adapter = ["juggler-core", "juggler-platform"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
 juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-vm-stats"]
-juggler-handover = ["juggler-adapter", "juggler-core"]
+juggler-handover = ["juggler-adapter", "juggler-core", "juggler-platform"]
 juggler-link = ["juggler-core"]
 juggler-app = [
   "juggler-account",

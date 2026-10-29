@@ -6450,14 +6450,17 @@ fn launch_with_handover(
     .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()))
 }
 
-/// A replay's brief: its text, the source's hash and size, and how many
-/// turns it holds and leaves out.
+/// A replay's brief: its text, the source's hash and size, how many
+/// turns it holds and leaves out, and what the keys check hid and left
+/// as it was (kinds and counts).
 struct ReplayBrief {
     text: String,
     sha: String,
     bytes: u64,
     included: usize,
     left_out: usize,
+    withheld: Vec<juggler_handover::pack::RedactionCount>,
+    kept: Vec<juggler_handover::pack::RedactionCount>,
 }
 
 /// AJ-E1541: writes the brief, with the rules files in play, as the
@@ -6501,8 +6504,8 @@ fn write_handover(
         &state.data_dir,
         &text,
         &handover::HandoverState {
-            format: "ai-juggler-handover",
-            version: 1,
+            format: handover::FORMAT.to_owned(),
+            version: handover::VERSION,
             edge: edge.to_string(),
             from: side(&sides.account_a),
             to: side(&sides.account_b),
@@ -6516,6 +6519,8 @@ fn write_handover(
                 .map(|notes| notes.quoted.clone())
                 .unwrap_or_default(),
             notes_left_out: notes.map(|notes| notes.left_out).unwrap_or_default(),
+            withheld: Some(brief.withheld.clone()),
+            kept: brief.kept.clone(),
         },
     )
 }
@@ -6527,7 +6532,7 @@ fn replay_prompt(
     redaction_unredact: &[u32],
 ) -> AppResult<ReplayBrief> {
     use juggler_handover::pipeline::SwitchFailure;
-    use juggler_handover::redaction::strip_segments;
+    use juggler_handover::redaction::strip_segments_counted;
 
     let stopped =
         |failure| AppError::switch(failure, &sides.account_a.label, &sides.account_b.label);
@@ -6543,8 +6548,9 @@ fn replay_prompt(
         .iter()
         .filter_map(|index| usize::try_from(*index).ok())
         .collect();
-    let (texts, _counts) = strip_segments(&segments, strip, &keep);
-    let (prime_turns, left_out) = replay_turns(&turns, texts);
+    let stripped = strip_segments_counted(&segments, strip, &keep);
+    let kept = stripped.kept();
+    let (prime_turns, left_out) = replay_turns(&turns, stripped.texts);
     let included = prime_turns.len() - usize::from(left_out > 0);
     let prompt = state
         .registry
@@ -6567,6 +6573,8 @@ fn replay_prompt(
         bytes: len,
         included,
         left_out,
+        withheld: stripped.withheld,
+        kept,
     })
 }
 
@@ -13411,6 +13419,8 @@ pub struct EpochNodeInfo {
 /// One labelled edge on the timeline.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
 pub struct EdgeInfo {
+    /// The edge's id (what opens its handover).
+    pub id: String,
     /// From epoch id.
     pub from: String,
     /// To epoch id (None until launched).
@@ -13423,6 +13433,9 @@ pub struct EdgeInfo {
     pub failed_reason: Option<String>,
     /// Switch-back edge (renders ↺).
     pub switch_back: bool,
+    /// Its handover in one line, when the switch wrote one (another
+    /// tool's); `None` for one that copied the session.
+    pub handover: Option<crate::features::handover::view::HandoverSummaryInfo>,
 }
 
 /// One work item's timeline.
@@ -13491,6 +13504,14 @@ fn graph_works_for(state: &Arc<AppState>, project_id: &str) -> AppResult<Vec<Wor
             &state.conversations,
             &work,
         )?);
+    }
+    drop(storage);
+    // What each switch that wrote a handover told the other tool (read
+    // without the storage lock: each read takes it).
+    for edge in out.iter_mut().flat_map(|work| work.edges.iter_mut()) {
+        if edge.failed_reason.is_none() {
+            edge.handover = crate::features::handover::view::edge_summary(state, &edge.id);
+        }
     }
     Ok(out)
 }
@@ -13588,7 +13609,7 @@ fn work_graph_info(
 
 /// What an edge carried, in the user's words: the fidelity it showed
 /// (its user label), else what its mechanism does.
-fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'static str {
+pub(crate) fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'static str {
     use juggler_core::model::SwitchMechanism;
     if let Some(level) = edge
         .fidelity_shown
@@ -13620,6 +13641,7 @@ fn graph_edge_summary(edges: &[juggler_core::model::SwitchEdge]) -> (Vec<EdgeInf
             _ => carried.to_owned(),
         };
         wire_edges.push(EdgeInfo {
+            id: edge.id.to_string(),
             from: edge.from_epoch.to_string(),
             to: edge.to_epoch.as_ref().map(ToString::to_string),
             label,
@@ -13628,6 +13650,7 @@ fn graph_edge_summary(edges: &[juggler_core::model::SwitchEdge]) -> (Vec<EdgeInf
                 _ => None,
             },
             switch_back: back,
+            handover: None,
         });
     }
     let hops = u32::try_from(
@@ -13794,7 +13817,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
 /// — conversation turns rendered through the AJ-E208 redaction
 /// policy (the GLOBAL choice — a standalone export has no
 /// destination Provider), written under `<app-data>/exports/`.
-/// Returns the pack directory for the toast.
+/// Returns where it was saved, and what was hidden, in one line.
 ///
 /// # Errors
 ///
@@ -13805,7 +13828,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
 pub async fn pack_export(
     state: tauri::State<'_, Arc<AppState>>,
     epoch_id: String,
-) -> AppResult<String> {
+) -> AppResult<crate::features::handover::view::SavedHandoverInfo> {
     crate::ipc::blocking(state.inner(), "pack export", move |state| {
         pack_export_impl(state, &epoch_id)
     })
@@ -13817,12 +13840,12 @@ pub async fn pack_export(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] per the command docs.
-pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<String> {
+pub fn pack_export_impl(
+    state: &Arc<AppState>,
+    epoch_id: &str,
+) -> AppResult<crate::features::handover::view::SavedHandoverInfo> {
     let (epoch, session_row, account) = find_epoch_with_session(state, epoch_id)?;
-    let dir = state
-        .data_dir
-        .join("exports")
-        .join(format!("pack-{}", unique_suffix()));
+    let dir = export_dir(state);
     stage_session_pack(
         state,
         &session_row,
@@ -13834,7 +13857,15 @@ pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Stri
         },
         &dir,
     )?;
-    Ok(dir.to_string_lossy().into_owned())
+    crate::features::handover::view::saved_info(state, &dir)
+}
+
+/// A new folder for a saved handover, under `<app-data>/exports/`.
+pub(crate) fn export_dir(state: &Arc<AppState>) -> std::path::PathBuf {
+    state
+        .data_dir
+        .join("exports")
+        .join(format!("pack-{}", unique_suffix()))
 }
 
 /// The lineage ids a staged pack carries.

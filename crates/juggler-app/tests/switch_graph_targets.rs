@@ -325,6 +325,11 @@ fn graph_renders_the_round_trip_and_hop_note() {
     );
     assert!(timeline.edges[1].switch_back);
     assert!(!timeline.edges[2].label.is_empty());
+    // A same-tool switch copies the whole session: no handover to open.
+    assert!(
+        timeline.edges.iter().all(|edge| edge.handover.is_none()),
+        "no handover line on a same-tool edge"
+    );
 
     // S-F9: the cumulative hop line informs, never blocks.
     assert!(
@@ -404,7 +409,7 @@ fn pack_export_blocks_until_policy_then_strips_the_canary() {
     );
 
     commands::redaction_policy_set_global_impl(state, Some("strip")).unwrap();
-    let path = commands::pack_export_impl(state, &epoch_a).unwrap();
+    let path = commands::pack_export_impl(state, &epoch_a).unwrap().path;
     let dir = PathBuf::from(&path);
     assert!(dir.is_dir(), "the pack directory is written");
     assert!(dir.join("manifest.json").is_file(), "manifest present");

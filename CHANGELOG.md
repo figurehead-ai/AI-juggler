@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **What the other tool was told** (0.3): after a switch to another tool
+  (say Claude Code to Codex), the done screen says in one line what was
+  hidden from it and what was left out ("Hidden from Codex: 2 API keys ·
+  Left out: 12 earlier turns, 1 note") and offers **Open the handover**:
+  the handover, read-only, with the same rows as Start from a saved
+  handover… (where it came from, what it carries and doesn't, what was
+  withheld, and the handover itself). The switch's arrow in the Switch
+  Graph opens the same. A switch on the same tool copies the whole
+  session and writes no handover, so nothing shows there. Keys you chose
+  to send as they were are said so, never called hidden. Only kinds and
+  counts are kept, never a key itself.
+- **Save handover…** on a session's page (0.3), beside Continue on
+  another account: it saves the session's handover with keys and
+  passwords handled as you chose, then says where it went and what was
+  hidden, with **Open the handover** and **Reveal in Finder**. Save
+  handover… in the Switch Graph ends the same way.
 - **Notifications in one place** (0.2): a bell at the top right with one
   count — the same number as Needs you on Home, the Dock icon and a new
   menu-bar item. Click it (or press ⌥⌘N) for the notification centre:
@@ -349,6 +365,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A saved handover is yours only** (0.3): its folder and files could be
+  read by other users of the Mac; now only you can open them, like the
+  rest of AI Juggler's data. Its Withheld line no longer counts keys you
+  chose to keep as they were.
 - **Going back names the newest version that reads your data**: "Go back
   to an earlier version" offered 0.1.0 (and 0.0.13) where 0.1.9 (and
   0.0.17) read the same data; schema 37 is now listed as 0.2.0's.

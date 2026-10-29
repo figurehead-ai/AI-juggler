@@ -240,6 +240,12 @@ pub struct PackState {
     /// stored).
     #[serde(default)]
     pub redactions: Vec<RedactionCount>,
+    /// What the user's choice hid of them, by kind: `redactions` counts
+    /// every detection, the ones kept as they were too. `None` in a pack
+    /// made before this was recorded (and in one made without the
+    /// redaction pass).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub withheld: Option<Vec<RedactionCount>>,
 }
 
 /// Conversation facts block.
@@ -308,7 +314,7 @@ pub enum ConversationMode {
 /// pinned by golden tests). Pure — no I/O, no clock, no randomness.
 #[must_use]
 pub fn generate_pack(input: &PackInput, mode: ConversationMode) -> GeneratedPack {
-    generate_pack_with_redactions(input, mode, Vec::new())
+    generate_pack_with_redactions(input, mode, Vec::new(), None)
 }
 
 /// Same as [`generate_pack`] with the redaction counts recorded in
@@ -319,6 +325,7 @@ pub(crate) fn generate_pack_with_redactions(
     input: &PackInput,
     mode: ConversationMode,
     redactions: Vec<RedactionCount>,
+    withheld: Option<Vec<RedactionCount>>,
 ) -> GeneratedPack {
     // Conversation facts (deterministic reductions over the turns).
     let mut uuids = String::new();
@@ -358,6 +365,7 @@ pub(crate) fn generate_pack_with_redactions(
         quota_at_creation: input.quota_at_creation.clone(),
         lineage: input.lineage.clone(),
         redactions, // AJ-E208: counts under the user's policy
+        withheld,
     };
     let state_json = serde_json::to_vec_pretty(&state).unwrap_or_default();
     let diff_staged = input
@@ -552,7 +560,8 @@ pub enum PackWriteError {
 /// Writes the pack atomically: a temp sibling directory is fully
 /// written and sha256-verified against the manifest, then renamed
 /// into place. A crash leaves the previous pack (or none) — never a
-/// partial directory. The credential guard runs BEFORE any write:
+/// partial directory. The pack is this user's only (folders `0700`,
+/// files `0600`). The credential guard runs BEFORE any write:
 /// no pack file may ship credential material under any policy.
 ///
 /// # Errors
@@ -580,17 +589,21 @@ pub fn write_pack(dir: &Path, pack: &GeneratedPack) -> Result<(), PackWriteError
     if tmp.exists() {
         std::fs::remove_dir_all(&tmp)?;
     }
-    std::fs::create_dir_all(&tmp)?;
-    std::fs::write(tmp.join("PACK.md"), &pack.pack_md)?;
-    std::fs::write(tmp.join("conversation.md"), &pack.conversation_md)?;
-    std::fs::write(tmp.join("state.json"), &pack.state_json)?;
-    std::fs::write(tmp.join("manifest.json"), &pack.manifest_json)?;
+    std::fs::create_dir_all(parent)?;
+    // This user's only, like the rest of AI Juggler's data: the folder is
+    // closed before anything is written in it, and each file is too.
+    juggler_platform::private_fs::create_private_dir(&tmp)?;
+    let write = juggler_platform::private_fs::write_private;
+    write(&tmp.join("PACK.md"), &pack.pack_md)?;
+    write(&tmp.join("conversation.md"), &pack.conversation_md)?;
+    write(&tmp.join("state.json"), &pack.state_json)?;
+    write(&tmp.join("manifest.json"), &pack.manifest_json)?;
     for (rel_path, bytes) in &pack.extra_files {
         let target = tmp.join(rel_path);
         if let Some(folder) = target.parent() {
             std::fs::create_dir_all(folder)?;
         }
-        std::fs::write(target, bytes)?;
+        write(&target, bytes)?;
     }
     // The EMPTY marker when no diffs travelled.
     if pack
@@ -601,7 +614,7 @@ pub fn write_pack(dir: &Path, pack: &GeneratedPack) -> Result<(), PackWriteError
         // `fs::write` creates no directories — a diff-less pack never
         // materialised `diffs/` via the extra-files loop above.
         std::fs::create_dir_all(tmp.join("diffs"))?;
-        std::fs::write(tmp.join("diffs/EMPTY"), b"no uncommitted diff at freeze\n")?;
+        write(&tmp.join("diffs/EMPTY"), b"no uncommitted diff at freeze\n")?;
     }
 
     // sha256 verify BEFORE the rename — a partial or corrupted temp

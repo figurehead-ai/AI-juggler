@@ -2986,7 +2986,7 @@ fn j3_old_path(s: &mut Suite) {
 /// whether its `diffs/` hold the project's changes.
 fn pack_facts(state: &Arc<AppState>, epoch: &str, project: &Path) -> Value {
     let dir = match commands::pack_export_impl(state, epoch) {
-        Ok(dir) => PathBuf::from(dir),
+        Ok(saved) => PathBuf::from(saved.path),
         Err(error) => return json!({"error": format!("{error:?}")}),
     };
     let read = |name: &str| std::fs::read_to_string(dir.join(name)).unwrap_or_default();

@@ -2871,6 +2871,7 @@ dependencies = [
  "cpu-time",
  "juggler-adapter",
  "juggler-core",
+ "juggler-platform",
  "serde",
  "serde_json",
  "sha2 0.11.1",
