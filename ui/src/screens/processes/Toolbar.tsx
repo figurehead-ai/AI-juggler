@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { Checkbox, Picker } from "../../components/controls";
 import { IconSliders } from "../../components/icons-actions";
 import { processState, STATE_FILTERS } from "../../lib/process-states";
 import type { ProcessCountsInfo } from "../../lib/ipc/processes";
@@ -84,7 +85,7 @@ export function ViewTabs({ view, counts, onView, embedded = false }: { view: Vie
 function Check({ on, label, onChange, testId }: { on: boolean; label: string; onChange: (on: boolean) => void; testId: string }): JSX.Element {
   return (
     <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-meta text-ink hover:bg-surface-2">
-      <input type="checkbox" checked={on} onChange={(event) => onChange(event.target.checked)} className="accent-accent" data-testid={testId} />
+      <Checkbox checked={on} onChange={(event) => onChange(event.target.checked)} className="-m-0.5" data-testid={testId} />
       {label}
     </label>
   );
@@ -93,17 +94,18 @@ function Check({ on, label, onChange, testId }: { on: boolean; label: string; on
 function Pick({ label, value, choices, onChange, testId }: { label: string; value: string | null; choices: Choice[]; onChange: (id: string | null) => void; testId: string }): JSX.Element | null {
   if (choices.length < 2) return null;
   return (
-    <label className="flex flex-col gap-1 px-2 py-1 text-meta text-muted">
-      {label}
-      <select value={value ?? ""} onChange={(event) => onChange(event.target.value || null)} className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-meta text-ink" data-testid={testId}>
-        <option value="">Any</option>
-        {choices.map((choice) => (
-          <option key={choice.id} value={choice.id}>
-            {choice.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="flex flex-col gap-1 px-2 py-1 text-meta text-muted">
+      <span aria-hidden="true">{label}</span>
+      <Picker
+        ariaLabel={label}
+        size="sm"
+        value={value ?? ""}
+        onChange={(next) => onChange(next || null)}
+        options={[{ value: "", label: "Any" }, ...choices.map((choice) => ({ value: choice.id, label: choice.label }))]}
+        testId={testId}
+        className="w-full"
+      />
+    </div>
   );
 }
 

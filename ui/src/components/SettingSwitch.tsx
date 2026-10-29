@@ -3,6 +3,7 @@
  * happened, when there is one): Sessions' and Notifications' alike.
  */
 import type { JSX } from "react";
+import { Checkbox } from "./controls";
 
 export function SettingSwitch({
   id,
@@ -25,14 +26,13 @@ export function SettingSwitch({
 }): JSX.Element {
   return (
     <div className={"flex items-start gap-2 text-xs" + (nested ? " ml-5" : "") + (disabled ? " opacity-60" : "")} data-testid={`pref-${id}`}>
-      <input
+      <Checkbox
         id={`pref-${id}-input`}
-        type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
         aria-describedby={`pref-${id}-hint`}
-        className="mt-0.5 size-3.5 accent-[var(--color-accent)]"
+        className="mt-0.5"
       />
       <span className="flex flex-col gap-0.5">
         <label htmlFor={`pref-${id}-input`} className="font-medium text-ink">

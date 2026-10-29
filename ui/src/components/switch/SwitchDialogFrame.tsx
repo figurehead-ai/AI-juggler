@@ -2,7 +2,7 @@
  * The ONE frame every switch dialog uses (this Mac's switch, the switch
  * to a paired Mac), so the two can't drift (the maintainer's walk of
  * 0.1.8, 2026-10-27): a header with the step marks and the close ×, a body
- * that scrolls, and a footer with the buttons — Cancel (Esc) · Back · the
+ * that scrolls, and a footer with the buttons — Cancel · Back · the
  * primary — always on screen, at any window size, on every step and in
  * every phase. The keyboard rules are the same too: the phase's own
  * default (Retry, Go to it) takes focus first, Tab stays inside, and Esc
@@ -39,11 +39,13 @@ export function StepMarks({ steps, step, testId }: { steps: readonly string[]; s
   );
 }
 
-/** Cancel, said the same everywhere, with its key. */
+/** Cancel, said the same everywhere (0.3: as every other dialog's —
+ * no key in the label; Escape still cancels, and says so to screen
+ * readers). */
 export function CancelButton({ onClick, testId }: { onClick: () => void; testId: string }): JSX.Element {
   return (
     <button type="button" onClick={onClick} className={SECONDARY} data-testid={testId} aria-keyshortcuts="Escape">
-      Cancel <span className="text-muted">(Esc)</span>
+      Cancel
     </button>
   );
 }

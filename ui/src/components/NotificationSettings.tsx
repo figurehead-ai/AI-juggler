@@ -12,6 +12,7 @@ import { errorText, notificationPrefsGet, notificationPrefsSet, type AccountInfo
 import { notificationsGet, notificationsSet, type SystemNotificationsInfo } from "../lib/ipc/notifications";
 import { CardTitle } from "./CardTitle";
 import { saveOptimistic } from "../lib/optimistic";
+import { Checkbox, Picker } from "./controls";
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
@@ -104,42 +105,34 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
         <>
           <fieldset className="flex flex-wrap items-center gap-2 text-xs" data-testid="quiet-hours">
             <legend className="mb-1 w-full font-medium text-ink">Quiet hours</legend>
-            <label className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <span className="text-muted">From</span>
-              <select
-                value={prefs.quiet_start}
-                onChange={(event) => {
-                  const start = Number.parseInt(event.target.value, 10);
+              <Picker
+                size="sm"
+                ariaLabel="Quiet hours from"
+                value={String(prefs.quiet_start)}
+                onChange={(value) => {
+                  const start = Number.parseInt(value, 10);
                   save({ ...prefs, quiet_start: start }, quietWords(start, prefs.quiet_end));
                 }}
-                className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
-                data-testid="quiet-start"
-              >
-                {HOURS.map((hour) => (
-                  <option key={hour} value={hour}>
-                    {hourLabel(hour)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-1.5">
+                testId="quiet-start"
+                options={HOURS.map((hour) => ({ value: String(hour), label: hourLabel(hour) }))}
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
               <span className="text-muted">to</span>
-              <select
-                value={prefs.quiet_end}
-                onChange={(event) => {
-                  const end = Number.parseInt(event.target.value, 10);
+              <Picker
+                size="sm"
+                ariaLabel="Quiet hours to"
+                value={String(prefs.quiet_end)}
+                onChange={(value) => {
+                  const end = Number.parseInt(value, 10);
                   save({ ...prefs, quiet_end: end }, quietWords(prefs.quiet_start, end));
                 }}
-                className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
-                data-testid="quiet-end"
-              >
-                {HOURS.map((hour) => (
-                  <option key={hour} value={hour}>
-                    {hourLabel(hour)}
-                  </option>
-                ))}
-              </select>
-            </label>
+                testId="quiet-end"
+                options={HOURS.map((hour) => ({ value: String(hour), label: hourLabel(hour) }))}
+              />
+            </div>
             <span className="w-full text-label text-muted">
               {quietOff
                 ? "No quiet hours: the digest comes every hour, notifications any time."
@@ -155,9 +148,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
                 const muted = prefs.digest_muted_accounts.includes(account.id);
                 return (
                   <label key={account.id} className="flex items-center gap-2" data-testid="digest-account">
-                    <input
-                      type="checkbox"
-                      className="size-3.5 accent-[var(--color-accent)]"
+                    <Checkbox
                       checked={!muted}
                       onChange={(event) =>
                         save(

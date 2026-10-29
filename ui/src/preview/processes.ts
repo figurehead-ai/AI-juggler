@@ -305,7 +305,7 @@ export function previewObservedVerify(pid: number, _start: number | null): KillV
     ports: node?.ports ?? [],
     pgid: null,
     escaped_group: false,
-    members: [{ pid, pgid: null, exe: "node", cmdline: COMMANDS[pid] ?? node?.name ?? "", role_guess: "DevServer", unsaved_state_warning: null, from_ledger: false }],
+    members: [{ pid, pgid: null, exe: "node", cmdline: COMMANDS[pid] ?? node?.name ?? "", role_guess: "dev server", unsaved_state_warning: null, from_ledger: false }],
     tree_pids: [pid],
     platform: "TERM → grace → KILL",
     grace_secs: 5,

@@ -15,17 +15,28 @@ export function RowMenu({
   at,
   onClose,
   wide = false,
+  minWidth,
+  focusFirst,
+  testId,
   children,
 }: {
   /** The small uppercase line on top (what the menu is about); none when
    * the menu's own first lines say it (the user menu). */
   heading: string;
   ariaLabel: string;
-  /** Where it opens (viewport px), from {@link menuPoint}. */
-  at: { x: number; y: number };
+  /** Where it opens (viewport px), from {@link menuPoint}; anchored to
+   * a button, also where it ends when it opens above it or to its left
+   * (so it never covers the button that opened it). */
+  at: MenuAt;
   onClose: () => void;
   /** AJ-E2507: a little wider (the user menu's inline choices). */
   wide?: boolean;
+  /** 0.3: at least this wide (a Picker's menu, as wide as its button). */
+  minWidth?: number;
+  /** 0.3: the line that takes focus on open (a selector), when it isn't
+   * the first (the View: its first Show line, not Reset). */
+  focusFirst?: string;
+  testId?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -42,7 +53,12 @@ export function RowMenu({
       [...(level?.querySelectorAll<HTMLButtonElement>(MENU_ITEMS) ?? [])].filter(
         (item) => item.closest('[role="menu"]') === level,
       );
-    items()[0]?.focus();
+    // A choice opens on the chosen one (a Picker, the order menu).
+    (
+      (focusFirst ? ref.current?.querySelector<HTMLButtonElement>(focusFirst) : null) ??
+      items().find((item) => item.getAttribute("aria-checked") === "true" && item.getAttribute("role") === "menuitemradio") ??
+      items()[0]
+    )?.focus();
     const close = (restore: boolean) => {
       closeRef.current();
       if (restore) opener?.focus?.();
@@ -60,8 +76,12 @@ export function RowMenu({
         const trigger = level.parentElement?.querySelector<HTMLButtonElement>(':scope > [aria-haspopup="menu"]');
         trigger?.focus();
         trigger?.click();
+        if (event.key === "Escape") event.stopPropagation();
       } else if (event.key === "Escape") {
         event.preventDefault();
+        // 0.3: only the menu closes, never the sheet it opened from (a
+        // Picker in a dialog): this listener runs first (capture).
+        event.stopPropagation();
         close(true);
       } else if (event.key === "Tab") {
         close(true);
@@ -86,11 +106,11 @@ export function RowMenu({
       }
     };
     window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
     const menu = ref.current;
     return () => {
       window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onKey, true);
       // An action ran (or the menu went): focus goes back where it came
       // from, unless the action moved it on (a sheet that opened).
       const active = document.activeElement;
@@ -105,8 +125,11 @@ export function RowMenu({
   useLayoutEffect(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
-    setStyle({ left: menuEdge(at.x, box.width, window.innerWidth), top: menuEdge(at.y, box.height, window.innerHeight) });
-  }, [at.x, at.y]);
+    setStyle({
+      left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
+      top: anchoredEdge(at.y, at.above, box.height, window.innerHeight),
+    });
+  }, [at.x, at.y, at.right, at.above]);
   // On the page itself: a blurred rail is the containing block of
   // anything fixed inside it, which would clip the menu to the rail.
   return createPortal(
@@ -114,7 +137,11 @@ export function RowMenu({
       ref={ref}
       role="menu"
       aria-label={ariaLabel}
-      style={style}
+      data-testid={testId}
+      style={minWidth ? { ...style, minWidth } : style}
+      // 0.3: a press inside the menu is never "outside" to the popover
+      // or sheet it opened from (a Picker in the Filters panel).
+      onMouseDown={(event) => event.stopPropagation()}
       className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card " + (wide ? "w-80" : "w-64")}
     >
       {heading && <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>}
@@ -122,6 +149,29 @@ export function RowMenu({
     </div>,
     document.body,
   );
+}
+
+/** Where a menu opens: a point, and for a menu opened from a button,
+ * where it ends instead when there's no room after the point (the
+ * button's top, or its right edge). */
+export interface MenuAt {
+  x: number;
+  y: number;
+  /** Opening above the button: the menu's bottom here. */
+  above?: number;
+  /** Opening to the left: the menu's right edge here. */
+  right?: number;
+}
+
+/** 0.3: a menu from a button keeps 8 px from the window's edges and
+ * flips to the button's other side, never over the button; a menu at
+ * the pointer keeps the Mac's 4 px. */
+export function anchoredEdge(at: number, end: number | undefined, size: number, room: number): number {
+  if (end === undefined) return menuEdge(at, size, room);
+  const inset = 8;
+  if (at + size <= room - inset) return at;
+  if (end - size >= inset) return end - size;
+  return Math.max(inset, Math.min(at, room - size - inset));
 }
 
 /** Where a menu of `size` opened at `at` starts along one axis of a
@@ -134,10 +184,11 @@ export function menuEdge(at: number, size: number, room: number): number {
 }
 
 /** What the arrows move through: actions, and a choice's options. */
-const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)';
+export const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)';
 
 /** One action in a {@link RowMenu}; with `checked`, one option of a
- * choice (a `menuitemradio`, D-47's order menu). */
+ * choice (a `menuitemradio`, D-47's order menu), or with `multi` too, a
+ * line that turns on and off (a `menuitemcheckbox`, the View's Show). */
 export function MenuItem({
   onClick,
   disabled,
@@ -147,6 +198,7 @@ export function MenuItem({
   describedBy,
   submenu,
   checked,
+  multi,
   children,
 }: {
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -160,12 +212,14 @@ export function MenuItem({
   submenu?: { open: boolean };
   /** An option of a choice: whether it is the one chosen. */
   checked?: boolean;
+  /** With `checked`: one of several that turn on and off. */
+  multi?: boolean;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
-      role={checked === undefined ? "menuitem" : "menuitemradio"}
+      role={checked === undefined ? "menuitem" : multi ? "menuitemcheckbox" : "menuitemradio"}
       aria-checked={checked}
       onClick={onClick}
       disabled={disabled}
@@ -209,7 +263,10 @@ export function MenuSubmenu({ label, line, testId, children }: { label: string; 
     });
   }, [open]);
   useEffect(() => {
-    if (open && fromKeys && place) panel.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
+    if (open && fromKeys && place)
+      (panel.current?.querySelector<HTMLButtonElement>('[role="menuitemradio"][aria-checked="true"]:not(:disabled)') ??
+        panel.current?.querySelector<HTMLButtonElement>(MENU_ITEMS)
+      )?.focus();
   }, [open, fromKeys, place]);
   return (
     <div ref={wrap} className="relative flex flex-col" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
@@ -218,7 +275,9 @@ export function MenuSubmenu({ label, line, testId, children }: { label: string; 
         submenu={{ open }}
         onClick={(event) => {
           setFromKeys(event.detail === 0);
-          setOpen((was) => !was);
+          // A pointer's click keeps it open (the hover already opened it;
+          // a toggle closed it under the pointer); a key's click toggles.
+          setOpen((was) => (event.detail === 0 ? !was : true));
         }}
       >
         {line}
@@ -229,7 +288,7 @@ export function MenuSubmenu({ label, line, testId, children }: { label: string; 
           role="menu"
           aria-label={label}
           style={place ?? { left: -9999, top: 0 }}
-          className="fixed z-50 flex w-52 flex-col gap-0.5 rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
+          className="fixed z-50 flex w-max min-w-52 max-w-80 flex-col gap-0.5 rounded-xl border border-hairline bg-surface p-1.5 shadow-card"
         >
           {children}
         </div>
@@ -245,10 +304,11 @@ export function MenuSeparator() {
 
 /** Where a menu opens: at the pointer, or under its button when opened
  * from the keyboard (a keyboard click has no pointer position). */
-export function menuPoint(event: MouseEvent<HTMLElement>): { x: number; y: number } {
-  if (event.detail === 0 || (event.clientX === 0 && event.clientY === 0)) {
-    const box = event.currentTarget.getBoundingClientRect();
-    return { x: box.left, y: box.bottom + 4 };
-  }
+export function menuPoint(event: MouseEvent<HTMLElement>): MenuAt {
+  const box = event.currentTarget.getBoundingClientRect();
+  // 0.3: a button's menu hangs from the button (the design review: the
+  // tool menu opened at the pointer, over its own button).
+  if (event.type === "click") return { x: box.left, y: box.bottom + 4, above: box.top - 4, right: box.right };
+  if (event.detail === 0 || (event.clientX === 0 && event.clientY === 0)) return { x: box.left, y: box.bottom + 4 };
   return { x: event.clientX, y: event.clientY };
 }

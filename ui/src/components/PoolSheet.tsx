@@ -4,10 +4,11 @@ import { errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { poolCreate, poolMove, type PoolsInfo } from "../lib/ipc/pools";
 import { defaultPoolIdOf, hasUserPools, openPoolSheet, poolById, poolIdOf, setPools, usePoolPlace, type PoolSheetTarget } from "../lib/pools";
 import { placeOf } from "../lib/project-words";
-import { Field, Input, Modal, Select } from "./form";
+import { Field, Input, Modal } from "./form";
 import { PoolEditor } from "./PoolEditor";
 import { useActionHost } from "./ItemMenu";
 import { Button } from "./primitives";
+import { Picker } from "./controls";
 
 /**
  * The pool sheet (AJ-E1702), loaded on first use: make a pool, move a
@@ -112,14 +113,14 @@ function CreatePool({
         </Field>
         {projects.length > 0 && (
           <Field label="For" hint="A pool for one project takes only that project's sessions.">
-            <Select value={project} onChange={(event) => setProject(event.target.value)} data-testid="pool-create-project">
-              <option value="">Any project</option>
-              {projects.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.name}
-                </option>
-              ))}
-            </Select>
+            <Picker
+              ariaLabel="For"
+              value={project}
+              onChange={setProject}
+              testId="pool-create-project"
+              className="self-start"
+              options={[{ value: "", label: "Any project" }, ...projects.map((row) => ({ value: row.id, label: row.name }))]}
+            />
           </Field>
         )}
         {where && (

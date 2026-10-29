@@ -17,7 +17,7 @@ import { resolve } from "node:path";
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
-import { allStatuses, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX } from "./fixtures";
+import { allStatuses, honestEmpty, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -265,8 +265,7 @@ test("rail — the View open", async ({ page }) => {
 
 test("rail — group by project with rollups", async ({ page }) => {
   await seedRail(page, {});
-  await openFilters(page);
-  await page.getByTestId("rail-view").getByRole("radio", { name: /^Project/ }).check();
+  await groupBy(page, "Project");
   await expect(page.getByText(/running/).first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/group-by-project-1440x900.png") });
 });
@@ -1163,8 +1162,9 @@ const KILL_VERIFY_OK = {
       pgid: 8100,
       exe: "sh",
       cmdline: "sh -c vite dev",
-      role_guess: "TerminalShell",
-      unsaved_state_warning: "Includes a TerminalShell that may hold unsaved state.",
+      // As the backend sends them now: plain words (role_words), never a code.
+      role_guess: "terminal shell",
+      unsaved_state_warning: "Includes a terminal shell that may hold unsaved state.",
       from_ledger: true,
     },
     {
@@ -1172,7 +1172,7 @@ const KILL_VERIFY_OK = {
       pgid: 8100,
       exe: "node",
       cmdline: "node vite dev",
-      role_guess: "DevServer",
+      role_guess: "dev server",
       unsaved_state_warning: null,
       from_ledger: true,
     },
@@ -1635,7 +1635,7 @@ for (const theme of THEMES) {
           members: [
             {
               pid: 8123, pgid: 8100, exe: "node", cmdline: "node vite dev",
-              role_guess: "DevServer", unsaved_state_warning: null, from_ledger: true,
+              role_guess: "dev server", unsaved_state_warning: null, from_ledger: true,
             },
           ],
           tree_pids: [8100, 8123],
@@ -1711,7 +1711,7 @@ test("alerts — keyboard-only pass: find the hog, open its sheet, Esc returns f
       ports: [5173], pgid: 8100, escaped_group: false,
       members: [
         { pid: 8123, pgid: 8100, exe: "node", cmdline: "node vite dev",
-          role_guess: "DevServer", unsaved_state_warning: null, from_ledger: true },
+          role_guess: "dev server", unsaved_state_warning: null, from_ledger: true },
       ],
       tree_pids: [8100, 8123], platform: "TERM → grace → KILL", grace_secs: 5,
       provider: "claude-code", account_id: "Work Max", project_id: "web",
@@ -3517,7 +3517,7 @@ for (const theme of THEMES) {
         fullPage: true,
       });
       await page
-        .getByRole("button", { name: "Customise ▸" })
+        .getByRole("button", { name: "Customise", exact: true })
         .click();
       await expect(page.getByTestId("sign-in-first")).toBeVisible();
       // Unknown room reads in the one runway's words; no verdict chip
@@ -6058,9 +6058,7 @@ for (const theme of THEMES) {
     await page.setViewportSize(RERENDER_VP);
     await page.goto("/");
     await expect(page.getByTestId("rail")).toBeVisible();
-    await openFilters(page);
-    await page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ }).check();
-    await page.keyboard.press("Escape");
+    await groupBy(page, "Pool");
     await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
     await expect(page.getByTestId("pool-page")).toBeVisible();
     await page.getByRole("tab", { name: "Tasks" }).click();

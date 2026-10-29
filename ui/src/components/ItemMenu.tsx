@@ -15,7 +15,7 @@ import { Fragment, createContext, useContext, useId, useMemo, useState, type JSX
 import { menuEntries, resolveActions, type ActionHost, type ActionIconName, type ItemKind, type ItemOf, type ResolvedAction } from "../lib/actions";
 import { matches } from "../lib/shortcuts";
 import { ActionIcon } from "./ActionIcon";
-import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, menuPoint } from "./RowMenu";
+import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 
 const HostContext = createContext<ActionHost>({});
 
@@ -57,9 +57,9 @@ export interface ItemMenu {
 export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], heading: string, local?: ActionHost): ItemMenu {
   const shared = useActionHost();
   const host = local ? { ...shared, ...local } : shared;
-  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const [at, setAt] = useState<MenuAt | null>(null);
   const actions = resolveActions(kind, item, host);
-  const open = (point: { x: number; y: number }) => {
+  const open = (point: MenuAt) => {
     if (actions.length > 0) setAt(point);
   };
   /** Under the row, for a menu opened from the keyboard. */

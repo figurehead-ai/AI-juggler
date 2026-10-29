@@ -1,5 +1,6 @@
 import { useId, type JSX } from "react";
 import { usageStatsOpenDocs, type UsageStatsMode } from "../lib/bridge";
+import { Radio } from "./controls";
 
 /**
  * AJ-E1105 (D-19): the usage-statistics consent. Three options with
@@ -68,14 +69,13 @@ export function UsageStatsChooser({
             data-value={option.value}
             data-selected={checked ? "true" : "false"}
           >
-            <input
-              type="radio"
+            <Radio
               name={`${base}-usage-stats`}
               value={option.value}
               checked={checked}
               onChange={() => onChange(option.value)}
               aria-describedby={consequenceId}
-              className="mt-0.5 size-3.5 shrink-0 accent-[var(--color-accent)]"
+              className="mt-0.5 shrink-0"
             />
             <span className="flex flex-col gap-0.5">
               <span className="font-medium text-ink">{option.title}</span>

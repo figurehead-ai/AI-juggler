@@ -23,11 +23,11 @@ it("says Subagents, and what Inactive, Quiet ones and Background runs are", () =
   const panel = view.getByTestId("rail-view");
   const note = (key: string) => document.getElementById(view.getByTestId(`rail-view-show-${key}`).getAttribute("aria-describedby") ?? "")?.textContent;
   // Named by its label alone; what it is, as its description.
-  expect(within(panel).getByRole("checkbox", { name: "Subagents" })).toBeTruthy();
-  expect(note("subagents")).toBe("how many each session runs");
-  expect(note("inactive")).toBe("in an app's list, not running");
-  expect(note("quiet")).toBe("idle rows a place folds away");
-  expect(note("background")).toBe("headless runs, from scripts");
+  expect(within(panel).getByRole("menuitemcheckbox", { name: "Subagents" })).toBeTruthy();
+  expect(note("subagents")).toBe("How many each session runs");
+  expect(note("inactive")).toBe("In an app's list, not running");
+  expect(note("quiet")).toBe("Idle sessions a place folds away");
+  expect(note("background")).toBe("Headless runs, from scripts");
   expect(within(panel).queryByText("Sub-agents")).toBeNull();
 });
 
