@@ -42,7 +42,8 @@ import { usePagedList } from "../lib/paged";
 import { notificationsDismiss, notificationsPage, type NoticeInfo } from "../lib/ipc/notices";
 import { acted } from "../lib/notices-store";
 import { useNoticeActions } from "../lib/notice-actions";
-import { clock, quotaDetail } from "../lib/notice-words";
+import { quotaDetail } from "../lib/notice-words";
+import { whenWords } from "../lib/time-words";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -275,7 +276,7 @@ export function NotificationRegion({
         <Banner
           key={row.id}
           tone="neutral"
-          title={row.state === "ready" ? `${accountName(row.account)} has room again — ready to resume` : row.state === "stale" ? "A queued resume can't go ahead: its session is gone" : `Queued for ${accountName(row.account)}'s reset at ${clock(row.resume_at_ms)}`}
+          title={row.state === "ready" ? `${accountName(row.account)} has room again — ready to resume` : row.state === "stale" ? "A queued resume can't go ahead: its session is gone" : `Queued for ${accountName(row.account)}'s reset at ${whenWords(row.resume_at_ms)}`}
           actions={row.state === "ready" && onQueueResume ? [{ label: "Resume", primary: true, onClick: () => onQueueResume(row) }] : []}
           onDismiss={() => void resetQueueDismiss(row.id).then(() => setQueue(queue.filter((entry) => entry.id !== row.id)))}
           testId={`queue-${row.state}`}

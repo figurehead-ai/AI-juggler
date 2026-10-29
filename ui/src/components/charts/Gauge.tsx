@@ -58,7 +58,7 @@ export function Gauge({
   name: string;
   /** Percent left; null when not measured. */
   left: number | null;
-  /** The reset in words ("16:20", "Fri 09:00"). */
+  /** The reset in words ("resets at 4:20 PM", "resets Fri 9:00 AM"). */
   resets?: string | null;
   /** How long until then ("in 40 min"). */
   resetsIn?: string | null;
@@ -74,7 +74,7 @@ export function Gauge({
   const said =
     status !== null
       ? `${name}: ${status}${note && !omitted ? `. ${note}` : ""}`
-      : `${name}: ${Math.round(left!)}% left${resets ? `, resets ${resets}` : ""}${resetsIn ? `, ${resetsIn}` : ""}`;
+      : `${name}: ${Math.round(left!)}% left${resets ? `, ${resets}` : ""}${resetsIn ? `, ${resetsIn}` : ""}`;
   return (
     <div className="flex min-w-0 items-center gap-3" role="img" aria-label={said} data-testid={testId ?? "gauge"} data-state={state}>
       <Ring left={status === null ? left : null} />
@@ -85,7 +85,7 @@ export function Gauge({
         ) : (
           <>
             <span className="text-label text-ink">
-              {Math.round(left!)}% left{resets && <span className="text-muted"> · resets {resets}</span>}
+              {Math.round(left!)}% left{resets && <span className="text-muted"> · {resets}</span>}
             </span>
             {resetsIn && <span className="text-label text-muted">{resetsIn}</span>}
           </>

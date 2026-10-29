@@ -67,6 +67,10 @@ async function shoot(page: Page, name: string, theme: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`a session row: ⋯, right-click and Shift+F10 open the same menu — ${theme}`, gate("77-menus"), async ({ page }) => {
     await seed(page, theme);
+    // The rail's Needs you fills in from the backend's count after the
+    // first paint (F2): a menu opened before then stays where its row was
+    // (as the project menu's, bb86b07a).
+    await expect(page.getByTestId("rail-needs-you")).toHaveText(/Needs you\s*5/);
     // The row and its ⋯: the same session either way.
     const row = page.locator(".group", { has: page.locator('[data-instance-id="sess-2"]') }).first();
     await row.hover();

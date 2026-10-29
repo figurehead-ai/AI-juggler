@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ForecastPill, QuotaChip, RenewalLine, TwoClocks, WindowRing } from "./QuotaRings";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
 import { forecastDisplay, quotaDisplay, windowDisplay } from "../lib/wire";
+import { resetsWords } from "../lib/time-words";
 
 const window = (over: Partial<WindowDisplay> = {}): WindowDisplay =>
   windowDisplay("tracking", {
@@ -37,7 +38,8 @@ describe("WindowRing typed states (Req.4)", () => {
     const screen = render(<WindowRing window={window()} kind="5h" />);
     expect(screen.getByText("82%")).toBeTruthy();
     expect(screen.getByText(/5-hour window · Measured/)).toBeTruthy();
-    expect(screen.container.textContent).toMatch(/resets \d{2}:\d{2}/);
+    // The one reset wording (lib/time-words): the system's clock, its day.
+    expect(screen.container.textContent).toContain(resetsWords(1_792_096_400_000));
     // role=img with the full text equivalent (Req.6)
     const img = screen.container.querySelector('[role="img"]');
     expect(img?.getAttribute("aria-label")).toContain("82%");

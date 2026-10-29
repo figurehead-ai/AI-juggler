@@ -19,6 +19,7 @@
  */
 import type { QuotaDisplayData, WindowDisplay } from "./bridge";
 import { compactCount } from "./compact";
+import { clock, resetsWords, whenWords } from "./time-words";
 
 export type WindowTone = "ok" | "low" | "out" | "none";
 
@@ -53,13 +54,9 @@ export interface WindowView {
   /** The line, in words. */
   words: string;
   tone: WindowTone;
-  /** The reset, in words ("resets Wed 03:07 PM"); null when none is known. */
+  /** The reset, in words ("resets at 3:07 PM", "resets Wed 3:07 PM"); null
+   * when none is known. */
   resets: string | null;
-}
-
-/** "Wed 03:07 PM" — the clock words every window uses. */
-export function resetClock(ms: number): string {
-  return new Date(ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 /** "as of 12 min ago" under an hour, "as of 3:12 PM" under a day, then
@@ -68,7 +65,7 @@ export function asOfWords(ms: number, now: number = Date.now()): string {
   const age = now - ms;
   if (age < 60_000) return "as of just now";
   if (age < 3_600_000) return `as of ${Math.round(age / 60_000)} min ago`;
-  if (age < 86_400_000) return `as of ${new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  if (age < 86_400_000) return `as of ${clock(ms)}`;
   return `as of ${new Date(ms).toLocaleDateString([], { month: "short", day: "numeric" })}`;
 }
 
@@ -96,10 +93,10 @@ export function forecastWords(tteMin: number | null, confidence: string): string
   return tteMin != null ? `exhausts ≈${Math.round(tteMin)} min · ${confidence}` : "Not enough use to forecast";
 }
 
-/** The reset in words, when one is known. */
-export function resetWords(window: WindowDisplay | null | undefined): string | null {
+/** The reset in words, when one is known (`resetsWords`' one rule). */
+export function resetWords(window: WindowDisplay | null | undefined, now: number = Date.now()): string | null {
   if (window?.resets_at_ms == null) return null;
-  return `resets ${resetClock(window.resets_at_ms)}`;
+  return resetsWords(window.resets_at_ms, now);
 }
 
 /** 12,345 → "12k", 1,234,567 → "1.2M", 10,329,000,000 → "10.3B" (tokens used in the window). */
@@ -138,7 +135,7 @@ export function measured(window: WindowDisplay | null | undefined): window is Wi
 
 /** One window, in words. `omitted` is the backend's reason when this
  * plan has no such window. */
-export function windowView(window: WindowDisplay | null | undefined, omitted?: string | null): WindowView {
+export function windowView(window: WindowDisplay | null | undefined, omitted?: string | null, now: number = Date.now()): WindowView {
   if (!window) return { left: null, words: omitted ?? "Not measured yet", tone: "none", resets: null };
   if (window.state === "learning") {
     return { left: null, words: "Measuring — shows after a little use", tone: "none", resets: null };
@@ -156,16 +153,16 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
     }
     return { left: null, words: "Not measured since the reset", tone: "none", resets: null };
   }
-  const resets = resetWords(window);
-  const reading = readingWords(window);
+  const resets = resetWords(window, now);
+  const reading = readingWords(window, now);
   const asOf = reading ? ` · ${reading}` : "";
   if (window.state === "exhausted") {
     // Claude Code's own record of hitting the limit: when, and the reset.
     if (window.source === "api_retry" && window.measured_at_ms != null) {
-      const hit = new Date(window.measured_at_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const hit = clock(window.measured_at_ms);
       return { left: 0, words: `Hit its limit at ${hit}${resets ? ` · ${resets}` : ""}`, tone: "out", resets };
     }
-    const until = window.resets_at_ms != null ? ` until ${resetClock(window.resets_at_ms)}` : "";
+    const until = window.resets_at_ms != null ? ` until ${whenWords(window.resets_at_ms, now)}` : "";
     return { left: 0, words: `Used up${until}${asOf}`, tone: "out", resets };
   }
   if (!measured(window)) {
@@ -176,7 +173,7 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
   }
   const left = Math.max(0, Math.round(100 - window.percentage));
   if (left === 0) {
-    return { left: 0, words: `Used up${window.resets_at_ms != null ? ` until ${resetClock(window.resets_at_ms)}` : ""}${asOf}`, tone: "out", resets };
+    return { left: 0, words: `Used up${window.resets_at_ms != null ? ` until ${whenWords(window.resets_at_ms, now)}` : ""}${asOf}`, tone: "out", resets };
   }
   // The "as of" says how old a reading is; without one, stale says so.
   const stale = !asOf && window.state === "stale" ? " · last known" : "";

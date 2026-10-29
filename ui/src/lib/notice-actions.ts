@@ -13,7 +13,8 @@ import { focusTask } from "./ipc/tasks";
 import { notificationsMute, notificationsRead, notificationsSnooze, type NoticeInfo } from "./ipc/notices";
 import { acted } from "./notices-store";
 import { focusHandoverSoon, openOnAccount } from "./handover-focus";
-import { clock, HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
+import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
+import { whenWords } from "./time-words";
 import { rememberTab } from "../pages/registry";
 
 /** The screens a notice can open, by the page its target names. */
@@ -88,7 +89,7 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
   const snooze = (notice: NoticeInfo, until: "hour" | "tomorrow") => {
     const at = until === "hour" ? Date.now() + HOUR_MS : tomorrowMorning(Date.now());
     // D-49: snoozed, it is out of the Needs you count until it wakes.
-    const back = `Back at ${clock(at)}${until === "tomorrow" ? " tomorrow" : ""}; out of Needs you until then.`;
+    const back = `Back at ${whenWords(at)}; out of Needs you until then.`;
     void acted(() => notificationsSnooze(notice.subject, at), "Couldn't snooze it").then((done) => done && showToast({ id: `snoozed:${notice.subject}`, message: until === "hour" ? "Snoozed for an hour" : "Snoozed until tomorrow", detail: back, undo: { onUndo: () => acted(() => notificationsSnooze(notice.subject, null)) } }));
   };
   const wake = (notice: NoticeInfo) => void acted(() => notificationsSnooze(notice.subject, null), "Couldn't wake it");
@@ -118,7 +119,7 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
         return;
       }
       void Promise.all(live.map((s) => resetQueueQueue(s.id, account, at))).then(
-        () => showToast({ id: "queue-reset", message: "Queued for the reset", detail: `At ${clock(at)} you'll be offered to carry on. Nothing restarts by itself.` }),
+        () => showToast({ id: "queue-reset", message: "Queued for the reset", detail: `At ${whenWords(at)} you'll be offered to carry on. Nothing restarts by itself.` }),
         (cause) => showToast({ tone: "error", message: "Couldn't queue it", detail: errorText(cause), action: { label: "Retry", run: () => second(notice, which) } }),
       );
     }

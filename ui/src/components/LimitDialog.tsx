@@ -26,10 +26,7 @@ import { stagingReady, type StagedSwitchInfo } from "../lib/ipc/staging";
 import { rankTargets, type RoomTarget } from "../lib/room-targets";
 import { useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { SuggestedMark } from "./SwitchTargetRows";
-
-function clock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-}
+import { resetsWords, whenWords } from "../lib/time-words";
 
 function inWords(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
@@ -164,7 +161,7 @@ export function LimitDialog({
           <p id="limit-what" className="text-sm leading-relaxed text-muted">
             {resetAt
               ? resetAt > now
-                ? `It resets at ${clock(resetAt)}, in ${inWords(resetAt - now)}. `
+                ? `It ${resetsWords(resetAt, now)}, in ${inWords(resetAt - now)}. `
                 : "Its window has reset. "
               : "Its reset time isn't known yet. "}
             The session is paused where it stopped; nothing is lost.
@@ -175,7 +172,7 @@ export function LimitDialog({
           <section className="flex flex-col gap-3 rounded-xl border border-hairline p-4" data-testid="limit-parked">
             <p className="text-sm">
               Parked.{" "}
-              {resetAt ? `At ${clock(resetAt)} it's offered back to you` : "When the reset is known, it's offered back to you"}; nothing restarts on
+              {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "When the reset is known, it's offered back to you"}; nothing restarts on
               its own.
             </p>
             <Button size="sm" variant="primary" data-autofocus onClick={close}>
@@ -234,7 +231,7 @@ export function LimitDialog({
             <section className="flex flex-col gap-2 rounded-xl border border-hairline p-4" data-testid="limit-wait">
               <span className="text-sm font-medium">Wait for the reset</span>
               <p className="text-xs leading-relaxed text-muted">
-                Parks the session. {resetAt ? `At ${clock(resetAt)} it's offered back to you` : "Once the reset is known it's offered back to you"};
+                Parks the session. {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "Once the reset is known it's offered back to you"};
                 nothing restarts on its own.
               </p>
               <Button
@@ -245,7 +242,7 @@ export function LimitDialog({
                 data-autofocus={target ? undefined : true}
                 onClick={() => void park()}
               >
-                {parking === "busy" ? "Parking…" : resetAt ? `Park until ${clock(resetAt)}` : "Park until the reset"}
+                {parking === "busy" ? "Parking…" : resetAt ? `Park until ${whenWords(resetAt, now)}` : "Park until the reset"}
               </Button>
               {error && <p className="text-xs text-danger">{error}</p>}
             </section>

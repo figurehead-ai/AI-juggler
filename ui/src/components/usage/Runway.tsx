@@ -15,6 +15,7 @@ import { Gauge } from "../charts/Gauge";
 import { LimitHistory } from "../charts/LimitHistory";
 import { Sparkline } from "../charts/StatTile";
 import { READING_SHORT } from "../../lib/history-reading";
+import { resetsWords } from "../../lib/time-words";
 
 /** How long until `at`, in words ("in 40 min", "in 2 h 10 min", "in 3 days"). */
 export function inWords(at: number, now: number): string {
@@ -25,12 +26,6 @@ export function inWords(at: number, now: number): string {
   if (hours < 24) return `in ${hours} h${minutes % 60 ? ` ${minutes % 60} min` : ""}`;
   const days = Math.round(hours / 24);
   return `in ${days} ${days === 1 ? "day" : "days"}`;
-}
-
-/** A reset, short: the time today ("4:20 PM"), else the day and time ("Mon 10:40 AM"). */
-export function resetShort(at: number, now: number): string {
-  const time = new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return new Date(at).toDateString() === new Date(now).toDateString() ? time : `${new Date(at).toLocaleDateString([], { weekday: "short" })} ${time}`;
 }
 
 /** When the reading was taken, in words ("12 min ago", "13 h ago"). */
@@ -52,7 +47,7 @@ export function WindowGauge({ name, window, omitted, now }: { name: string; wind
     const last = used != null ? `Last read ${Math.round(used)}% used${when}; it has reset since` : "It has reset since the last reading";
     return <Gauge name={name} left={null} state="stale" note={last} testId="window-gauge" />;
   }
-  const resets = window.resets_at_ms != null ? resetShort(window.resets_at_ms, now) : null;
+  const resets = window.resets_at_ms != null ? resetsWords(window.resets_at_ms, now) : null;
   const until = window.resets_at_ms != null ? inWords(window.resets_at_ms, now) : null;
   if (window.state === "exhausted" || (measured(window) && window.percentage >= 100)) {
     return <Gauge name={name} left={0} resets={resets} resetsIn={until ? `Limit hit · back ${until}` : "Limit hit"} testId="window-gauge" />;
