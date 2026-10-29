@@ -132,14 +132,18 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`home-${cell}.png`, SCREEN);
-        // AJ-E2104: the rail's search and View.
-        if (density !== "minimal") await expect.soft(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
-        await settle(page);
         // AJ-E2507: Settings moved into your menu; History is a header nav button.
         await expect.soft(page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "History", exact: true })).toHaveScreenshot(
           `chrome-nav-button-${cell}.png`,
           CHROME,
         );
+        // AJ-E2104: the rail's search and View (F14: below 1100 px they're
+        // in the list ⌘B opens).
+        if (density !== "minimal") {
+          await openRailList(page);
+          await settle(page);
+          await expect.soft(page.getByTestId("rail-toolbar")).toHaveScreenshot(`chrome-rail-toolbar-${cell}.png`, CHROME);
+        }
       });
 
       // AJ-E1021: Home's lower half — parked, pick up where you left off

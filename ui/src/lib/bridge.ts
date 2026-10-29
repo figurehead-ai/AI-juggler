@@ -2351,11 +2351,13 @@ export interface SwitchTargetData {
 const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   // Each row's words match its tool (the 0.2 re-render): another Claude
   // Code account keeps the same conversation; Codex starts fresh from the
-  // story, as the backend's pair matrix says.
+  // story, as the backend's pair matrix says. The Claude Code rows carry
+  // the preview accounts' own ids, so their room is read as Home reads it
+  // (the limit dialog's pick said nothing of Work Max's 58% left).
   {
     recipe_id: "recipe-work-max",
     provider: "claude-code",
-    account_id: "acct-work",
+    account_id: "claude-work",
     account_label: "Work Max",
     badge: "Same conversation, new account · Beta",
     validated: false,
@@ -2372,7 +2374,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   {
     recipe_id: "recipe-personal",
     provider: "claude-code",
-    account_id: "acct-personal",
+    account_id: "claude-personal",
     account_label: "Personal",
     badge: "Same conversation, new account · Beta",
     validated: false,

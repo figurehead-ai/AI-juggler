@@ -2868,9 +2868,13 @@ const GRAPH_FAILED = [
   },
 ];
 
+// Each target's words match its tool (the 0.2.0 re-render): Work Max is
+// another profile of the same Claude Code account, Codex another tool
+// (a handover), Lab a tool that takes handover notes only.
 const BADGE_SET_TARGETS = [
   {
     recipe_id: "r-validated",
+    provider: "claude-code",
     account_id: "a-1",
     account_label: "Work Max",
     badge: "Continues exactly · Proven",
@@ -2886,8 +2890,9 @@ const BADGE_SET_TARGETS = [
   },
   {
     recipe_id: "r-beta",
+    provider: "codex",
     account_id: "a-2",
-    account_label: "Personal",
+    account_label: "Codex",
     badge: "Full story, fresh start · Beta",
     validated: false,
     cross_provider: true,
@@ -2901,6 +2906,7 @@ const BADGE_SET_TARGETS = [
   },
   {
     recipe_id: "r-filtered",
+    provider: "gemini-cli",
     account_id: "a-3",
     account_label: "Lab",
     badge: "Handover notes · Beta",
@@ -2914,6 +2920,19 @@ const BADGE_SET_TARGETS = [
     suggested: false,
   },
 ];
+
+/** The badge set's room, as its ranking reads it (a measured target says
+ * how much is left, never "Not measured yet" beside "Measured"). */
+const BADGE_SET_ROOM = [
+  ["a-1", 80],
+  ["a-2", 35],
+].map(([account, left]) => ({
+  account,
+  weekly: { state: "ok", percentage: 100 - (left as number), resets_at_ms: T0 + 26 * 3_600_000, badge: "measured" },
+  five_hour: null,
+  forecast: { state: "learning", badge: "learning" },
+  renewal: { state: "none", label: "", entered_by_user: false },
+}));
 
 /** AJ-E1533: a project's switch graph sits on its page's Overview tab. */
 const openProjectOverview = (page: import("@playwright/test").Page) =>
@@ -2942,16 +2961,17 @@ for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
     test(`graph — ranked targets with explanations — ${vp.name} — ${theme}`, gate("32-graph"), async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, targets, t0 }) => {
+        ({ fixture, targets, room, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_TARGETS__ = targets;
+          w.__AIJ_QUOTA_DISPLAY__ = room;
           localStorage.setItem("aij.theme", theme);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, targets: BADGE_SET_TARGETS, t0: T0 },
+        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0 },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -3040,16 +3060,17 @@ for (const theme of THEMES) {
 
     test(`graph — badge set (validated vs beta) — ${vp.name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, targets, t0 }) => {
+        ({ fixture, targets, room, t0 }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_TARGETS__ = targets;
+          w.__AIJ_QUOTA_DISPLAY__ = room;
           localStorage.setItem("aij.theme", theme);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, targets: BADGE_SET_TARGETS, t0: T0 },
+        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0 },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
