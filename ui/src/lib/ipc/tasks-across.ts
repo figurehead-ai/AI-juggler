@@ -84,5 +84,6 @@ export async function tasksProjectCounts(projectIds: string[]): Promise<ProjectT
   if (!hasLiveBackend()) {
     return Promise.all(projectIds.map(async (id) => ({ project_id: id, counts: await tasksAcrossCounts({ project_id: id }) })));
   }
-  return invoke<ProjectTaskCounts[]>("tasks_project_counts", { projectIds });
+  const page: PageRequest = { cursor: null, limit: Math.min(Math.max(projectIds.length, 1), 200) };
+  return (await invoke<Page<ProjectTaskCounts>>("tasks_project_counts", { projectIds, page })).items;
 }

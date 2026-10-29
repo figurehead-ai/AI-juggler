@@ -7,7 +7,7 @@
  * place.
  */
 import { useState, type JSX, type ReactNode } from "react";
-import { MenuItem, MenuSeparator, RowMenu, menuPoint } from "./RowMenu";
+import { MenuItem, MenuSeparator, RowMenu } from "./RowMenu";
 
 export type FilterOption = { id: string; label: string; hint?: string; icon?: ReactNode };
 
@@ -59,7 +59,12 @@ export function FilterPicker({
         aria-expanded={at !== null}
         aria-label={`${label}: ${shown}`}
         data-testid={testId}
-        onClick={(event) => setAt(menuPoint(event))}
+        // Under its chip, never over it (the sweep: a menu covering its
+        // own button).
+        onClick={(event) => {
+          const box = event.currentTarget.getBoundingClientRect();
+          setAt({ x: box.left, y: box.bottom + 4 });
+        }}
         className={
           "inline-flex h-8 max-w-64 items-center gap-1.5 rounded-full border px-3 text-meta outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
           (value !== null ? "border-accent/45 bg-accent-soft text-ink" : "border-hairline bg-surface text-muted hover:text-ink")

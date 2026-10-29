@@ -168,7 +168,8 @@ export function History({
   const openSession = (id: string) => host.openSessionById?.(id);
   const all = useSessionRows(live ? [] : sessions, {}, openSession, Date.now());
 
-  useEffect(() => searchRef.current?.focus(), []);
+  // A project's History tab leaves the keyboard on its tab (APG tabs).
+  useEffect(() => void (fixedProject ? undefined : searchRef.current?.focus()), [fixedProject]);
   useEffect(() => {
     const trimmed = query.trim();
     if (!live) {

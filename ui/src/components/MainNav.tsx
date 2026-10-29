@@ -9,8 +9,10 @@
 import type { JSX } from "react";
 import { PAGE_UNDER } from "../lib/nav";
 
-const NAV_BUTTON = "rounded-md px-2 py-1.5 text-meta font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/60 xl:px-2.5 ";
-const lit = (current: boolean) => (current ? "bg-surface text-ink sheen" : "text-muted hover:bg-surface/60 hover:text-ink");
+// Snug below 1280 px, so the row fits at 1024 with the list open.
+const NAV_BUTTON = "rounded-md px-1.5 py-1.5 text-meta transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/60 xl:px-2.5 ";
+// The lit tab is the page's title: raised, in ink, heavier.
+const lit = (current: boolean) => (current ? "bg-surface font-semibold text-ink sheen" : "font-medium text-muted hover:bg-surface/60 hover:text-ink");
 
 /** Whether `id`'s tab is the page shown. */
 export function navLit(id: string, global: string | null, page: string): boolean {

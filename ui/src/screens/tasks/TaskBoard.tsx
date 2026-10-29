@@ -4,7 +4,7 @@
  * each pool's epics → stories → tasks, the pool's own tree (TaskTree).
  * Both read across pools (lib/ipc/tasks-across.ts), a page at a time.
  */
-import { useMemo, type JSX } from "react";
+import { useMemo, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../../components/primitives";
 import { usePagedList } from "../../lib/paged";
 import { tasksAcross, type TaskBoardRow, type TasksFilterInput } from "../../lib/ipc/tasks-across";
@@ -84,9 +84,25 @@ function Column({ status, count, ...shared }: Shared & { status: string; count: 
   );
 }
 
+/** The board from the keyboard: ↑ ↓ within a column, ← → to the next
+ * column's card at the same height. */
+function moveOnBoard(event: KeyboardEvent<HTMLDivElement>): void {
+  const step = { ArrowDown: [0, 1], ArrowUp: [0, -1], ArrowRight: [1, 0], ArrowLeft: [-1, 0] }[event.key];
+  const at = (event.target as HTMLElement).closest<HTMLElement>("[data-testid^='tasks-column-']");
+  if (!step || !at || !(event.target as HTMLElement).matches("[data-testid='task-card-open']")) return;
+  const columns = [...event.currentTarget.querySelectorAll<HTMLElement>("[data-testid^='tasks-column-']")];
+  const cards = (column: HTMLElement | undefined) => [...(column?.querySelectorAll<HTMLElement>("[data-testid='task-card-open']") ?? [])];
+  const col = columns.indexOf(at);
+  const row = cards(at).indexOf(event.target as HTMLElement);
+  const next = cards(columns[col + step[0]!])[Math.max(0, step[0] ? Math.min(row, cards(columns[col + step[0]!]).length - 1) : row + step[1]!)];
+  if (!next) return;
+  event.preventDefault();
+  next.focus();
+}
+
 export function Board({ counts, narrow, ...shared }: Shared & { counts: TaskCounts | null; narrow: boolean }): JSX.Element {
   return (
-    <div className="@container min-w-0" data-testid="tasks-board">
+    <div className="@container min-w-0" data-testid="tasks-board" onKeyDown={moveOnBoard}>
       <div className={"grid gap-4 " + (narrow ? "@min-[520px]:grid-cols-2" : "@min-[520px]:grid-cols-2 @min-[960px]:grid-cols-4")}>
         {BOARD_COLUMNS.map((status) => (
           <Column key={status} status={status} count={counts ? (counts as Record<string, number>)[status]! : null} {...shared} />

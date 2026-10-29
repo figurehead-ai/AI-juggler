@@ -15,6 +15,9 @@ import { Segmented } from "../../components/usage/controls";
 import { FilterPicker } from "../../components/FilterPicker";
 import { ProjectMark } from "../../components/ProjectMark";
 import { IconPool } from "../../components/icons-actions";
+import { IconProfiles, IconProjects } from "../../components/icons";
+import { IconClock } from "../../components/icons-menu";
+import { IconUser } from "../../components/usage/controls";
 import { useActionHost } from "../../components/ItemMenu";
 import { refreshPaged } from "../../lib/paged";
 import { usePools } from "../../lib/pools";
@@ -35,8 +38,8 @@ function storedView(): "board" | "plan" {
 }
 
 const HOLDERS = [
-  { id: "nobody", label: "No one yet", hint: "Ready work no agent has taken" },
-  { id: "you", label: "You", hint: "Tasks an agent gave you" },
+  { id: "nobody", label: "No one yet", hint: "Work no agent has taken", icon: <IconClock width={14} height={14} /> },
+  { id: "you", label: "You", hint: "Tasks an agent gave you", icon: <IconUser width={14} height={14} /> },
 ];
 
 export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo[]; sessions: InstanceInfo[]; now: number }): JSX.Element {
@@ -55,9 +58,11 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
     const timer = window.setTimeout(() => setQuery(words.trim()), words ? 200 : 0);
     return () => window.clearTimeout(timer);
   }, [words]);
+  // The plan's epics and stories have no holder: its filter is the board's.
+  const holding = view === "board" ? holder : null;
   const filter = useMemo<TasksFilterInput>(
-    () => ({ ...(projectId && { project_id: projectId }), ...(poolId && { pool_id: poolId }), ...(holder && { holder }), ...(query && { words: query }) }),
-    [projectId, poolId, holder, query],
+    () => ({ ...(projectId && { project_id: projectId }), ...(poolId && { pool_id: poolId }), ...(holding && { holder: holding }), ...(query && { words: query }) }),
+    [projectId, poolId, holding, query],
   );
   const filterKey = JSON.stringify(filter);
   // Every list shown reads again when tasks change (their keys start
@@ -104,7 +109,7 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   return (
     <Page
       title="Tasks"
-      subtitle={total === null ? "What the agents are working on, in every project." : `${total} open ${total === 1 ? "task" : "tasks"} the agents are working on, in every project. Agents write them; you follow and review.`}
+      subtitle={total === null ? "What the agents are working on, in every project." : `${total} open ${total === 1 ? "task" : "tasks"} across your projects. The agents write them; you follow and review.`}
       testId="tasks-screen"
     >
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Show">
@@ -122,13 +127,13 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
         <FilterPicker
           label="Project"
           value={projectId}
-          all={{ id: "all", label: "All" }}
+          all={{ id: "all", label: "All", hint: "Every project", icon: <IconProjects width={14} height={14} /> }}
           options={projects.map((project) => ({ id: project.id, label: project.name, icon: <ProjectMark projectId={project.id} size={14} /> }))}
           onChange={(next) => (setProjectId(next), setPoolId(null))}
           testId="tasks-filter-project"
         />
-        <FilterPicker label="Pool" value={poolId} all={{ id: "all", label: "All" }} options={poolOptions} onChange={setPoolId} testId="tasks-filter-pool" />
-        <FilterPicker label="Holder" value={holder} all={{ id: "anyone", label: "Anyone" }} options={HOLDERS} onChange={setHolder} testId="tasks-filter-holder" />
+        <FilterPicker label="Pool" value={poolId} all={{ id: "all", label: "All", hint: projectId ? "Every pool of this project" : "Every pool", icon: <IconPool width={14} height={14} /> }} options={poolOptions} onChange={setPoolId} testId="tasks-filter-pool" />
+        {view === "board" && <FilterPicker label="Holder" value={holder} all={{ id: "anyone", label: "Anyone", hint: "Whoever has it, or no one", icon: <IconProfiles width={14} height={14} /> }} options={HOLDERS} onChange={setHolder} testId="tasks-filter-holder" />}
         <input
           type="search"
           value={words}

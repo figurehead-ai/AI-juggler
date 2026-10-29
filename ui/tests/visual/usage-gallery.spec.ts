@@ -77,7 +77,8 @@ async function shoot(page: Page, name: string, theme: string, viewport: { width:
 
 async function openProject(page: Page, tab: "Overview" | "Usage") {
   await page.getByTestId("rail").getByTestId("rail-project").filter({ hasText: "web-app" }).first().click();
-  await expect(page.getByTestId("page-type")).toHaveText("Project");
+  // 0.3: a project's crumb is "Projects › its name".
+  await expect(page.getByTestId("crumb-projects")).toBeVisible();
   await page.getByRole("tab", { name: tab }).click();
 }
 

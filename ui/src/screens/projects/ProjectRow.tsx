@@ -14,8 +14,9 @@ import { needChips, openTasks, openWords, taskWords, type ProjectNeeds, type Pro
 import type { TaskCounts } from "../../lib/ipc/tasks";
 import type { ProjectInfo } from "../../lib/bridge";
 
-/** The one grid: wide, five columns; narrow, the name over its facts. */
-const GRID = "grid grid-cols-1 gap-x-4 gap-y-1.5 @min-[760px]:grid-cols-[minmax(0,2.2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem] @min-[760px]:items-center";
+/** The one grid: wide, five columns; narrow, the name over its facts two
+ * by two. */
+const GRID = "grid grid-cols-2 gap-x-4 gap-y-1.5 @min-[760px]:grid-cols-[minmax(0,2.2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem] @min-[760px]:items-center";
 
 export function ProjectRowsHead(): JSX.Element {
   return (
@@ -70,7 +71,7 @@ export function ProjectRow({
         data-project-id={project.id}
         className={GRID + " w-full rounded-lg px-3 py-3 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"}
       >
-        <span className="flex min-w-0 items-center gap-3">
+        <span className="col-span-2 flex min-w-0 items-center gap-3 @min-[760px]:col-span-1">
           <ProjectMark projectId={project.id} size={28} />
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-body font-semibold text-ink">{project.name}</span>
@@ -119,7 +120,7 @@ export function ProjectRow({
 export function ProjectRowSkeleton(): JSX.Element {
   return (
     <li className={GRID + " px-3 py-3"} aria-hidden="true">
-      <span className="flex items-center gap-3">
+      <span className="col-span-2 flex items-center gap-3 @min-[760px]:col-span-1">
         <span className="size-7 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
         <span className="flex flex-col gap-1.5">
           <span className="h-3.5 w-36 rounded bg-surface-3 motion-safe:animate-pulse" />

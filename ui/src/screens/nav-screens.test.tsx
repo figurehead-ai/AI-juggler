@@ -203,6 +203,20 @@ describe("Tasks", () => {
     expect(view.container.textContent).not.toMatch(/New task|Add task|Edit task/);
   });
 
+  it("moves between cards with the arrow keys: down a column, across to the next", async () => {
+    const view = screen();
+    const ready = await waitFor(() => {
+      const cards = within(view.getByTestId("tasks-column-ready")).getAllByTestId("task-card-open");
+      expect(cards).toHaveLength(2);
+      return cards;
+    });
+    ready[0]!.focus();
+    fireEvent.keyDown(ready[0]!, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(ready[1]);
+    fireEvent.keyDown(ready[1]!, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(within(view.getByTestId("tasks-column-in_progress")).getByTestId("task-card-open"));
+  });
+
   it("opens a card beside the board with the pool's own actions; Esc closes it", async () => {
     const view = screen();
     const review = await waitFor(() => within(view.getByTestId("tasks-column-in_review")).getByTestId("task-card-open"));
