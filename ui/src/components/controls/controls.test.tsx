@@ -7,7 +7,7 @@
  * segmented control moved by the arrow keys; the app's disclosure.
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Checkbox, ChoiceOption, Disclosure, Picker, Radio, Segmented } from ".";
 import { Modal } from "../form";
@@ -127,6 +127,32 @@ describe("Picker", () => {
     expect(screen.queryByRole("menu")).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(button);
+  });
+
+  it("picks inside a popover that closes on a press outside it", () => {
+    const closed = vi.fn();
+    function Popover() {
+      const box = useRef<HTMLDivElement | null>(null);
+      useEffect(() => {
+        const down = (event: MouseEvent) => {
+          if (!box.current?.contains(event.target as Node)) closed();
+        };
+        document.addEventListener("mousedown", down);
+        return () => document.removeEventListener("mousedown", down);
+      }, []);
+      return (
+        <div ref={box}>
+          <PickerHarness />
+        </div>
+      );
+    }
+    render(<Popover />);
+    fireEvent.click(screen.getByRole("button", { name: /Sort by/ }));
+    const line = screen.getByTestId("sort-name");
+    fireEvent.mouseDown(line);
+    fireEvent.click(line);
+    expect(closed).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Sort by: Name" })).toBeTruthy();
   });
 
   it("is greyed with a reason", () => {

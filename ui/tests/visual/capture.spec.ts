@@ -17,7 +17,7 @@ import { resolve } from "node:path";
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
-import { allStatuses, honestEmpty, readyHome, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX } from "./fixtures";
+import { allStatuses, honestEmpty, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -265,8 +265,7 @@ test("rail — the View open", async ({ page }) => {
 
 test("rail — group by project with rollups", async ({ page }) => {
   await seedRail(page, {});
-  await openFilters(page);
-  await page.getByTestId("rail-view").getByRole("radio", { name: /^Project/ }).check();
+  await groupBy(page, "Project");
   await expect(page.getByText(/running/).first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/group-by-project-1440x900.png") });
 });
@@ -6058,9 +6057,7 @@ for (const theme of THEMES) {
     await page.setViewportSize(RERENDER_VP);
     await page.goto("/");
     await expect(page.getByTestId("rail")).toBeVisible();
-    await openFilters(page);
-    await page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ }).check();
-    await page.keyboard.press("Escape");
+    await groupBy(page, "Pool");
     await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
     await expect(page.getByTestId("pool-page")).toBeVisible();
     await page.getByRole("tab", { name: "Tasks" }).click();

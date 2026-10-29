@@ -2,8 +2,8 @@
  * AJ-E1702 / AJ-E1703 vitest — pools in the rail, Home and the sheets,
  * agent access (D-28/D-29/D-32), and the pool page's cards.
  *
- * - The rail: the View's Pool lens waits, greyed, until you've made a
- *   pool; then Open now groups by pool and a pool's header opens its
+ * - The rail: the grouping switch offers Pool only once you've made a
+ *   pool (0.3); then Open now groups by pool and a pool's header opens its
  *   page. There is no separate pools section.
  * - A session's menu: "Move to pool…" in Working on it, with its icon.
  * - The sheets: make a pool (the session goes in, its page opens), move a session, rename
@@ -95,17 +95,15 @@ describe("pools in the rail: the Pool lens", () => {
         </ActionHostProvider>
       </ConversationsProvider>,
     );
-  const poolRadio = async (view: ReturnType<typeof board>) => {
-    act(() => void window.dispatchEvent(new Event("aij:rail-view")));
-    const panel = await view.findByRole("dialog", { name: "View" });
-    return within(panel).getByRole("radio", { name: /Pool/ }) as HTMLInputElement;
-  };
+  // 0.3: the rail's grouping switch (no longer in the View).
+  const groupSwitch = (view: ReturnType<typeof board>) => view.getByRole("radiogroup", { name: "Group sessions by" });
 
-  it("waits, greyed, until a pool of yours exists; the rail shows places meanwhile", async () => {
+  it("waits until a pool of yours exists; the rail shows places meanwhile", async () => {
     act(() => setRailView({ ...DEFAULT_VIEW, group: "pool" }));
     const view = board();
     await loaded();
-    expect((await poolRadio(view)).disabled).toBe(true);
+    expect(within(groupSwitch(view)).queryByRole("radio", { name: "Pool" })).toBeNull();
+    expect(within(groupSwitch(view)).getByRole("radio", { name: "App" }).getAttribute("aria-checked")).toBe("true");
     expect(view.getAllByTestId("place-header").some((header) => header.textContent?.includes("AI Juggler"))).toBe(true);
   });
 
@@ -114,8 +112,7 @@ describe("pools in the rail: the Pool lens", () => {
     const opened: string[] = [];
     const view = board({ openPool: (id: string) => opened.push(id) });
     await loaded();
-    const radio = await poolRadio(view);
-    expect(radio.disabled).toBe(false);
+    const radio = await within(groupSwitch(view)).findByRole("radio", { name: "Pool" });
     fireEvent.click(radio);
     expect(railView().group).toBe("pool");
     const open = await view.findByRole("button", { name: /^Open Checkout redesign/ });

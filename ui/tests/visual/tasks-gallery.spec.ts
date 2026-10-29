@@ -23,7 +23,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { openFilters, pick, projectLens } from "./fixtures";
+import { groupBy, pick, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/95-tasks");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -177,9 +177,7 @@ async function axe(page: Page, what: string) {
 }
 
 async function poolTab(page: Page, tab: string) {
-  await openFilters(page);
-  await page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ }).check();
-  await page.keyboard.press("Escape");
+  await groupBy(page, "Pool");
   await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
   await expect(page.getByTestId("pool-page")).toBeVisible();
   await page.getByRole("tab", { name: tab }).click();

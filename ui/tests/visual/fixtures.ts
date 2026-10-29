@@ -339,14 +339,21 @@ export async function settingsPane(page: import("@playwright/test").Page, name: 
 }
 
 /**
- * AJ-E2104: the rail's View (Group by, Show, Only) sits behind its View
- * button (⇧V); open it (once) before using it.
+ * AJ-E2104: the rail's View (Show, Only) sits behind its View button
+ * (⇧V); open it (once) before using it. 0.3: Group by is the rail's own
+ * switch (`groupBy`).
  */
 export async function openFilters(page: import("@playwright/test").Page): Promise<void> {
   const panel = page.getByTestId("rail-view");
   if (await panel.isVisible()) return;
   await page.getByTestId("rail-view-button").click();
   await panel.waitFor();
+}
+
+/** 0.3: the rail's grouping switch (App · Project · Account · Pool):
+ * one click. */
+export async function groupBy(page: import("@playwright/test").Page, name: "App" | "Project" | "Account" | "Pool"): Promise<void> {
+  await page.getByRole("radiogroup", { name: "Group sessions by" }).getByRole("radio", { name, exact: true }).click();
 }
 
 /** AJ-E2104: the rail's View as kept, then the page again. */
@@ -388,7 +395,9 @@ export async function pick(page: import("@playwright/test").Page, picker: import
 /** AJ-E2104: Only › Mac in the View ("all" puts it back). */
 export async function onlyMac(page: import("@playwright/test").Page, value: string): Promise<void> {
   await openFilters(page);
-  await page.getByLabel("Only this mac").selectOption(value === "all" ? "" : value);
+  // 0.3: Only › Mac is a submenu of values (never a system select).
+  await page.getByTestId("rail-view-only-mac").click();
+  await page.getByTestId(`rail-view-only-mac-${value}`).click();
 }
 
 /** AJ-E2104: a session started outside AI Juggler, by its page (its

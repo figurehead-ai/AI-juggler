@@ -86,10 +86,14 @@ export function ChoiceOption({
   label,
   hint,
   reason,
+  look = "line",
   className = "",
   ...input
 }: ToggleProps & {
   type: "radio" | "checkbox";
+  /** A line in a list, or a card in a grid of equal cards (Settings ›
+   * General's theme, density and order). */
+  look?: "line" | "card";
   icon?: ControlIcon | null;
   label: ReactNode;
   hint?: ReactNode;
@@ -109,8 +113,11 @@ export function ChoiceOption({
   return (
     <label
       className={
-        "flex rounded-lg px-2 py-1.5 text-body transition-colors " +
-        (input.disabled ? "text-muted" : "text-ink hover:bg-surface-2") +
+        "flex rounded-lg text-body transition-colors " +
+        (look === "card"
+          ? "border px-3 py-2 " + (input.checked ? "border-accent/60 bg-accent-soft " : "border-hairline ")
+          : "px-2 py-1.5 ") +
+        (input.disabled ? "text-muted" : look === "card" && input.checked ? "text-ink" : "text-ink hover:bg-surface-2") +
         (className ? ` ${className}` : "")
       }
     >

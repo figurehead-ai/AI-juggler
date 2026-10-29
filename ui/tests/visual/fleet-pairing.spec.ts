@@ -227,7 +227,7 @@ test("machine filter persists, a Fleet alert opens its machine, access is change
   // AJ-E2104: the kept choice puts a dot on the View; its value inside.
   await expect(page.getByRole("button", { name: "View, changed from the defaults" })).toBeVisible();
   await openFilters(page);
-  await expect(page.getByLabel("Only this mac")).toHaveValue("machine-mini");
+  await expect(page.getByTestId("rail-view-only-mac")).toContainText("Mac mini");
   await expect(page.getByTestId("board-machine-local")).toHaveCount(0);
 
   // The alert names the machine and opens its inspector.

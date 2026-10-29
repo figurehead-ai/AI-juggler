@@ -16,6 +16,8 @@ export function RowMenu({
   onClose,
   wide = false,
   minWidth,
+  focusFirst,
+  testId,
   children,
 }: {
   /** The small uppercase line on top (what the menu is about); none when
@@ -29,6 +31,10 @@ export function RowMenu({
   wide?: boolean;
   /** 0.3: at least this wide (a Picker's menu, as wide as its button). */
   minWidth?: number;
+  /** 0.3: the line that takes focus on open (a selector), when it isn't
+   * the first (the View: its first Show line, not Reset). */
+  focusFirst?: string;
+  testId?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -46,7 +52,11 @@ export function RowMenu({
         (item) => item.closest('[role="menu"]') === level,
       );
     // A choice opens on the chosen one (a Picker, the order menu).
-    (items().find((item) => item.getAttribute("aria-checked") === "true" && item.getAttribute("role") === "menuitemradio") ?? items()[0])?.focus();
+    (
+      (focusFirst ? ref.current?.querySelector<HTMLButtonElement>(focusFirst) : null) ??
+      items().find((item) => item.getAttribute("aria-checked") === "true" && item.getAttribute("role") === "menuitemradio") ??
+      items()[0]
+    )?.focus();
     const close = (restore: boolean) => {
       closeRef.current();
       if (restore) opener?.focus?.();
@@ -122,7 +132,11 @@ export function RowMenu({
       ref={ref}
       role="menu"
       aria-label={ariaLabel}
+      data-testid={testId}
       style={minWidth ? { ...style, minWidth } : style}
+      // 0.3: a press inside the menu is never "outside" to the popover
+      // or sheet it opened from (a Picker in the Filters panel).
+      onMouseDown={(event) => event.stopPropagation()}
       className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card " + (wide ? "w-80" : "w-64")}
     >
       {heading && <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>}
