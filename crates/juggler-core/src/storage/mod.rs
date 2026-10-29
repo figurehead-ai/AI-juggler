@@ -25,6 +25,7 @@ mod footprints;
 mod identity;
 mod messages;
 mod notices;
+mod pool_canvas;
 mod pools;
 mod process_ledger;
 mod projects;
@@ -59,6 +60,10 @@ pub use messages::{
 };
 pub use notices::{
     NOTICE_KEEP_DAYS, NOTICE_KEEP_MS, NewNotice, Notice, NoticeMute, NoticesRepo, Written,
+};
+pub use pool_canvas::{
+    MessageTraffic, NodePosition, POSITION_LIMIT, PendingMessage, PoolCanvasRepo, StreamEntry,
+    TaskHandoff,
 };
 pub use pools::{
     MemberRef, Memberships, NO_PROJECT_POOL_ID, Pool, PoolKind, PoolMember, PoolRole, PoolsRepo,
@@ -616,9 +621,14 @@ const V36: &str = tasks::MIGRATION;
 /// notices module owns its tables ([`notices::MIGRATION`]).
 const V37: &str = notices::MIGRATION;
 
+/// v38 (0.3, redesign §5): where the user put each member on a pool's
+/// canvas, and an index for a pool's task events. The pool canvas module
+/// owns them ([`pool_canvas::MIGRATION`]).
+const V38: &str = pool_canvas::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -995,6 +1005,13 @@ impl Storage {
     #[must_use]
     pub fn tasks(&self) -> TasksRepo<'_> {
         TasksRepo::new(&self.conn)
+    }
+
+    /// Repository for the pool canvas: where the user put each member, and
+    /// the reads its edges and live stream come from (schema v38).
+    #[must_use]
+    pub fn pool_canvas(&self) -> PoolCanvasRepo<'_> {
+        PoolCanvasRepo::new(&self.conn)
     }
 
     /// Repository for the notification model's history and the user's

@@ -18,6 +18,8 @@
 //!   page at a time ([`members`]).
 
 pub mod access;
+pub mod canvas;
+pub mod canvas_words;
 pub mod cards;
 pub mod commands;
 pub mod dto;
@@ -30,8 +32,9 @@ use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 pub use dto::{
-    AccessInfo, AgentRuleInfo, CardField, ContextCard, PoolCards, PoolInfo, PoolMemberInfo,
-    PoolMemberRow, PoolsInfo,
+    AccessInfo, AgentRuleInfo, CanvasEdgeInfo, CardField, ContextCard, NodeAskInfo,
+    NodePositionInfo, PendingInfo, PoolCanvasInfo, PoolCards, PoolInfo, PoolMemberInfo,
+    PoolMemberRow, PoolPreviewInfo, PoolsInfo, StreamLineInfo,
 };
 use juggler_core::model::{ProjectId, SessionId};
 use juggler_core::storage::{MemberRef, Pool, PoolKind, PoolRole, Storage, default_pool_name};

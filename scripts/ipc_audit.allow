@@ -115,6 +115,8 @@ unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices 
 unbounded handover_open  # bounded: a fixed set (what carries, what was hidden by kind)
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
+unbounded pools_canvas  # bounded: at most 200 members named, edges per pair of them, the newest 100 waiting messages and 30 stream lines
+unbounded pools_canvas_previews  # bounded: at most 60 pools named, each with its open members' places
 unbounded pools_create  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
 unbounded pools_delete  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
 unbounded pools_list  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members

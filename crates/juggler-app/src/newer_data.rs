@@ -42,8 +42,9 @@ const DB_FILES: [&str; 3] = ["", "-wal", "-shm"];
 /// not listed is named by number.
 // 29 shipped in 0.0.9 and 30 in 0.0.13; 0.1.0 shipped 32 (31, AJ-E1502,
 // and 32, AJ-E1519, came in together, so no release stays on 31); 0.2.0
-// ships 37 (33, pools, AJ-E1702, to 37 came in together). Each patch on
-// the newest schema moves its line to that patch.
+// ships 37 (33, pools, AJ-E1702, to 37 came in together); 0.3.0 ships 38
+// (the pool canvas's positions). Each patch on the newest schema moves its
+// line to that patch.
 const SCHEMA_RELEASES: &[(i64, &str)] = &[
     (27, "0.0.7"),
     (28, "0.0.8"),
@@ -51,6 +52,7 @@ const SCHEMA_RELEASES: &[(i64, &str)] = &[
     (30, "0.0.17"),
     (32, "0.1.9"),
     (37, "0.2.0"),
+    (38, "0.3.0"),
 ];
 
 /// The released version that reads `schema`, when it is known.
