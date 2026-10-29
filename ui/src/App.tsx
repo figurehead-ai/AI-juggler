@@ -359,7 +359,7 @@ export default function App() {
     // AJ-E2503/E2507: a notice's Continue elsewhere; your menu's shortcuts.
     const limit = (event: Event) => setLimitFor((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null);
     const shortcuts = () => setShortcutsOpen(true);
-    const on: [string, EventListener][] = [["aij:open-accounts", openAccounts], ["aij:new-session", newSession], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:open-shortcuts", shortcuts]];
+    const on: [string, EventListener][] = [["aij:open-accounts", openAccounts], ["aij:new-session", newSession], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:switch-back", (event: Event) => setSwitchBack((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null)], ["aij:open-shortcuts", shortcuts]];
     on.forEach(([name, run]) => window.addEventListener(name, run));
     return () => on.forEach(([name, run]) => window.removeEventListener(name, run));
   }, []);

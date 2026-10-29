@@ -9,7 +9,8 @@
 //! fake-harness run --dir DIR [--session-id ID | --resume ID] [--turns N]
 //!               [--delay-ms MS] [--stall-secs S] [--burn-cpus SECS]
 //!               [--exit CODE] [--prompt TEXT] [--wait-prompt TEXT]
-//!               [--quota-exit] [--spawn-child PROG --child-args "A B"]
+//!               [--quota-exit] [--limit-hit-ms MS]
+//!               [--spawn-child PROG --child-args "A B"]
 //!               [--child-ignore-term] [--mcp-config FILE]
 //! fake-harness write --format claude|codex --file PATH --cwd DIR
 //!               --session-id ID [--every-ms MS] [--used FIVE WEEK]
@@ -27,7 +28,9 @@
 //! of `user`/`assistant` lines (assistant lines carry token usage), and a
 //! terminal `ended` line. `--stall-secs` sleeps silently, `--burn-cpus`
 //! busy-loops (stuck-detection fixtures), `--exit` sets the exit code
-//! (crash fixtures). `--resume` appends to an existing session file.
+//! (crash fixtures). `--limit-hit-ms` writes a `limit` line (its reset that
+//! far on), runs the `StopFailure` hook and stays open (an interactive tool
+//! at its limit). `--resume` appends to an existing session file.
 //! `--spawn-child` starts a detached child (stdio null, so it never holds
 //! the harness's output pipes) that OUTLIVES the harness — the orphan
 //! fixture (AJ-E410); `--child-ignore-term` makes it ignore SIGTERM
@@ -121,6 +124,10 @@ struct RunOptions {
     /// Print a rate-limit signature and exit non-zero (the quota-exit
     /// fixture, AJ-E405).
     quota_exit: bool,
+    /// Stop at a usage limit and stay open (0.3, the open-limit fixture):
+    /// a `limit` line resetting this many ms on, a `StopFailure` hook,
+    /// then wait until stopped, like an interactive tool at its limit.
+    limit_hit_ms: Option<i64>,
     /// Detached child program to start (survives the harness — the
     /// orphan fixture, AJ-E410).
     spawn_child: Option<String>,
@@ -172,6 +179,11 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
             .ok()
             .filter(|p| !p.is_empty()),
         quota_exit: false,
+        // 0.3: launch settings can carry it where the arguments are the
+        // adapter's (the open-limit end-to-end test).
+        limit_hit_ms: env::var("FAKE_HARNESS_LIMIT_HIT_MS")
+            .ok()
+            .and_then(|ms| ms.trim().parse().ok()),
         spawn_child: None,
         child_args: String::new(),
         child_ignore_term: false,
@@ -205,6 +217,10 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
             }
             "--delay-ms" => {
                 opts.delay_ms = parse_num(&value()?)?;
+                true
+            }
+            "--limit-hit-ms" => {
+                opts.limit_hit_ms = Some(parse_num(&value()?)?);
                 true
             }
             "--stall-secs" => {
@@ -398,6 +414,22 @@ fn run(args: &[String]) -> ExitCode {
     if opts.stall_secs > 0 {
         thread::sleep(Duration::from_secs(opts.stall_secs));
     }
+    if let Some(reset_in) = opts.limit_hit_ms {
+        // The open-limit fixture: the tool's own record of the limit its
+        // turn stopped at, its StopFailure hook, and it stays open (the
+        // test's stop ladder reaps it).
+        let at = now_ms();
+        let hit = format!(
+            r#"{{"type":"limit","at_ms":{at},"resets_at_ms":{}}}"#,
+            at + reset_in
+        );
+        if out.line(&hit).is_err() {
+            return ExitCode::from(2);
+        }
+        hook("StopFailure", serde_json::json!({"error": "rate_limit"}));
+        println!("You've hit your limit");
+        thread::sleep(Duration::from_secs(600));
+    }
     if let Some(prompt) = &opts.wait_prompt {
         // The wait-permission fixture: an ALIVE, unanswered prompt. The
         // harness blocks (no stdin contract — supervised runs are
@@ -458,6 +490,14 @@ impl LineWriter {
 /// session instead of a corrupted one.
 fn line_count(path: &Path) -> usize {
     File::open(path).map_or(0, |file| BufReader::new(file).lines().count())
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|d| i64::try_from(d.as_millis()).ok())
+        .unwrap_or_default()
 }
 
 fn nanos() -> u128 {

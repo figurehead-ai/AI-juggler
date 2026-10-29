@@ -77,6 +77,20 @@ pub enum TailTurn {
     Ended,
 }
 
+/// What a transcript's tail says of a usage limit: the session's last turn
+/// stopped at it, as the tool itself recorded (its own error record, never
+/// a guess from words on screen), and nothing has answered since. Read by
+/// [`crate::HarnessAdapter::limit_hit`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LimitHit {
+    /// When the tool recorded it, epoch ms.
+    pub at_ms: i64,
+    /// The vendor's reset for it, epoch ms, when the record names one.
+    pub resets_at_ms: Option<i64>,
+    /// The window that ran out, when the record names it.
+    pub window: Option<juggler_core::quota::WindowKind>,
+}
+
 /// One open session, as its tool's own per-session file says.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LiveSession {

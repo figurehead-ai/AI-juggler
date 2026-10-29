@@ -538,7 +538,7 @@ function InstanceOverview(props: PanelProps) {
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 {session.runtime?.fell_back && <p className="text-meta text-muted" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
                 <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-                  <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
+                  <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} rule={session.attention?.rule ?? null} />
                 </Card>
                 {!live && <p className="text-meta text-muted">{`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}</p>}
               </div>
@@ -996,7 +996,7 @@ function stuckRuleWords(rule: string): string {
       return "No output for a while";
     case "waiting_prompt":
       return "Waiting for your reply";
-    case "quota_exit":
+    case "quota_exit": case "limit_hit": // ended, or open at its limit (0.3)
       return "Hit its limit";
     default:
       return "Looks stuck";

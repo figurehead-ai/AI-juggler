@@ -211,6 +211,13 @@ pub fn handle(state: &Arc<AppState>, report: &Report) -> Response {
             Timestamp::now().millis(),
         );
     }
+    // 0.3: a failed turn may have stopped at the limit (the tool's own
+    // record says, in its transcript), and any other event may mean the
+    // session carried on after one: looked at before the state is stored,
+    // so an ask that follows a limit is stored as an ask.
+    if report.hook.event != "SessionEnd" {
+        crate::features::sessions::limits::check(state, &session);
+    }
     state.runtime.observe(state, &session, &report.hook);
     // E18 (AJ-E1803): "N unread messages from …" at a turn boundary, once
     // per change; facts only, never a message's words.

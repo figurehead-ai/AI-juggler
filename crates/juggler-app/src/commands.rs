@@ -1016,7 +1016,7 @@ pub struct TokenCountsInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct AttentionInfo {
-    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit`.
+    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit` | `limit_hit` | `tool_asks`.
     pub rule: String,
     /// Human-readable measured inputs (`no output 6m`, `cpu 0.3%`).
     pub inputs: Vec<String>,
@@ -3822,8 +3822,11 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 map
             };
         for record in storage.sessions().list(None)? {
-            // AJ-E2302: a driven session's state is its tool's, never a guess.
-            if !is_active(record.status) || state.runtime.is_exact(&record.id) {
+            // AJ-E2302, 0.3: a driven session's or a limit's state is the tool's.
+            if !is_active(record.status)
+                || record.status == SessionStatus::QuotaBlocked
+                || state.runtime.is_exact(&record.id)
+            {
                 engine.forget(&record.id);
                 continue;
             }
@@ -3864,8 +3867,10 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
     for (session, status) in &entered {
         crate::features::notifications::session_status(state, session, status.as_str());
     }
+    // 0.3: open sessions at their limit, and marks whose reset passed.
+    let limits_changed = crate::features::sessions::limits::tick(state);
     crate::features::notifications::show_due(state);
-    if !entered.is_empty() {
+    if !entered.is_empty() || limits_changed {
         emit_sessions(app, state)?;
     }
     Ok(())
@@ -3882,6 +3887,7 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
     let mut changed = false;
     let drained: Vec<SessionId> = state.supervisor.drain_activity();
     for session in &drained {
+        changed |= crate::features::sessions::limits::output_moved(state, session);
         if let Some(running) = state.heuristics.recover(session) {
             debug_assert_eq!(running, SessionStatus::Running);
             {
@@ -12808,6 +12814,8 @@ pub struct SwitchBackSuggestionInfo {
     pub session_id: String,
     /// The original account's label (where work returns).
     pub original_account: String,
+    /// The original account's id (its "has room again" notice offers this).
+    pub original_account_id: String,
     /// The away account's label.
     pub away_account: String,
     /// The verbatim suggestion copy (Req.3).
@@ -12917,6 +12925,7 @@ pub fn switch_back_suggestions_impl(
             out.push(SwitchBackSuggestionInfo {
                 session_id: away_session.to_string(),
                 original_account: original_account.label.clone(),
+                original_account_id: original_account.id.to_string(),
                 copy: juggler_handover::switch_back::suggestion_copy(
                     &original_account.label,
                     &away_label,

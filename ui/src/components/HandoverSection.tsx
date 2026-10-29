@@ -60,6 +60,13 @@ export function HandoverSection({
 }): JSX.Element {
   const handoverRef = useRef<HTMLDetailsElement | null>(null);
   const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked");
+  // 0.3: a session open on its page that hits its limit now (it stays
+  // open, its status changes under the page) opens its switch list too.
+  const statusBefore = useRef(session.status);
+  useEffect(() => {
+    if (session.status === "quota_blocked" && statusBefore.current !== "quota_blocked") setSwitchOpen(true);
+    statusBefore.current = session.status;
+  }, [session.status]);
   useHandoverFocus(() => {
     setSwitchOpen(true);
     // jsdom has no scrollIntoView; the guard keeps tests honest.

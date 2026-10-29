@@ -100,6 +100,8 @@ export function LimitDialog({
   }, [targets]);
 
   const resetAt = session.quota?.resets_at_ms ?? null;
+  // 0.3: an interactive tool stays open at its limit (rule `limit_hit`).
+  const stillOpen = session.attention?.rule === "limit_hit";
   const accounts = useSubscriptions();
   const target = targets ? pickTarget(targets, session.account_id, accounts, displays) : null;
   const ready = target && staged?.target_account_id === target.account_id ? staged : null;
@@ -164,7 +166,7 @@ export function LimitDialog({
                 ? `It ${resetsWords(resetAt, now)}, in ${inWords(resetAt - now)}. `
                 : "Its window has reset. "
               : "Its reset time isn't known yet. "}
-            The session is paused where it stopped; nothing is lost.
+            {stillOpen ? "The session is still open where it stopped; nothing is lost." : "The session is paused where it stopped; nothing is lost."}
           </p>
         </header>
 
@@ -231,8 +233,9 @@ export function LimitDialog({
             <section className="flex flex-col gap-2 rounded-xl border border-hairline p-4" data-testid="limit-wait">
               <span className="text-sm font-medium">Wait for the reset</span>
               <p className="text-xs leading-relaxed text-muted">
-                Parks the session. {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "Once the reset is known it's offered back to you"};
-                nothing restarts on its own.
+                {stillOpen ? "Keeps it open where it stopped. " : "Parks the session. "}
+                {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "Once the reset is known it's offered back to you"};
+                nothing {stillOpen ? "runs" : "restarts"} on its own.
               </p>
               <Button
                 size="sm"

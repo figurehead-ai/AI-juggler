@@ -20,6 +20,7 @@ import { copyText, pathLinkProvider, terminalKey, type TerminalKey } from "../li
 import { TerminalSearch } from "./TerminalSearch";
 import { TerminalToolbar, keyName, type TerminalConnection } from "./TerminalToolbar";
 import { Button } from "./primitives";
+import { processGone } from "../lib/session-process";
 
 const SCROLLBACK_LINES = SESSION_PREFS_DEFAULT.terminal_scrollback_lines;
 
@@ -79,14 +80,12 @@ function decodeBase64(data: string): Uint8Array {
  * Ended word, maximize, and its own window (`ownWindow` is that window's
  * view; the main window then says where it went).
  */
-/** The session statuses whose process is gone: its terminal reads Ended
- * (waiting for you or stuck is still alive). */
-const PROCESS_GONE = new Set(["finished", "stopped", "failed", "handed_over", "quota_blocked"]);
 
 export function TerminalView({
   id,
   title,
   status,
+  rule = null,
   ended = false,
   ownWindow = false,
 }: {
@@ -94,6 +93,8 @@ export function TerminalView({
   title: string;
   /** The session's status, when it is one: says whether the process ended. */
   status?: string;
+  /** Its attention rule: a session at its limit may still be open. */
+  rule?: string | null;
   /** A login terminal's own word that it ended. */
   ended?: boolean;
   ownWindow?: boolean;
@@ -114,7 +115,7 @@ export function TerminalView({
   const [note, setNote] = useState<string | null>(null);
   const [linkHint, setLinkHint] = useState<string | null>(null);
   const away = poppedOut && !ownWindow;
-  const gone = ended || exited || (status !== undefined && PROCESS_GONE.has(status));
+  const gone = ended || exited || processGone(status, rule);
   const connection: TerminalConnection = gone ? "ended" : attached ? "live" : "reconnecting";
 
   const say = useCallback((words: string) => {

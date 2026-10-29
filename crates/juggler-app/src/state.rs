@@ -76,6 +76,9 @@ pub struct AppState {
     /// E19: tasks shared by pools — what tells the window. The rest is
     /// storage.
     pub tasks: crate::features::tasks::Tasks,
+    /// 0.3: open sessions at their limit — each transcript's tail as last
+    /// read, and driven sessions' marks. Held in memory only.
+    pub limits: crate::features::sessions::limits::LimitWatch,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -333,6 +336,7 @@ impl AppState {
             messages: crate::features::messages::Messages::default(),
             processes: crate::features::processes::Processes::default(),
             tasks: crate::features::tasks::Tasks::default(),
+            limits: crate::features::sessions::limits::LimitWatch::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

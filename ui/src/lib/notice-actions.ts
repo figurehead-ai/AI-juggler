@@ -74,6 +74,11 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
       case "limit":
         if (notice.target.session_id) return void window.dispatchEvent(new CustomEvent("aij:limit", { detail: { sessionId: notice.target.session_id } }));
         return open(notice);
+      // D-05 (0.3): an account has room again — the switch back for the
+      // work that left it (its newest); the plan opens, nothing runs yet.
+      case "switch-back":
+        if (notice.target.session_id) return void window.dispatchEvent(new CustomEvent("aij:switch-back", { detail: { sessionId: notice.target.session_id } }));
+        return open(notice);
       case "sign-in":
         return notice.target.account_id ? host.openAccountById?.(notice.target.account_id) : open(notice);
       case "this-computer":

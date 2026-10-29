@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passwords handled as you chose, then says where it went and what was
   hidden, with **Open the handover** and **Reveal in Finder**. Save
   handover… in the Switch Graph ends the same way.
+- **"Has room again" offers Switch back** (0.3): when an account you
+  moved work away from has room again, its notice names that work
+  ("“fix-auth-tests” can switch back to it") and its Switch back… opens the
+  switch back for it — the plan first; nothing runs until you choose. With
+  several, it names the newest and how many more; each keeps its own
+  switch-back card on its page.
 - **Notifications in one place** (0.2): a bell at the top right with one
   count — the same number as Needs you on Home, the Dock icon and a new
   menu-bar item. Click it (or press ⌥⌘N) for the notification centre:
@@ -396,6 +402,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read by other users of the Mac; now only you can open them, like the
   rest of AI Juggler's data. Its Withheld line no longer counts keys you
   chose to keep as they were.
+- **A session that hits its limit and stays open now says so** (0.3): a
+  Claude Code session in a terminal shows its limit and keeps running, so
+  AI Juggler only noticed once it ended. Now it reads the limit Claude
+  Code records in the session itself: the session reads "Limit reached"
+  at once, joins Needs you, and its page opens Continue on another
+  account; Home's limit row, the limit dialog and Park work for it, and
+  its terminal stays live. It clears when the session carries on or the
+  limit resets; a warning that the limit is near never marks it, and a
+  limit already in a resumed conversation never marks it again. A session
+  without a terminal is marked by its tool's own word. Quitting the tool
+  at its limit keeps it there, ready to continue elsewhere or be parked.
 - **Going back names the newest version that reads your data**: "Go back
   to an earlier version" offered 0.1.0 (and 0.0.13) where 0.1.9 (and
   0.0.17) read the same data; schema 37 is now listed as 0.2.0's.

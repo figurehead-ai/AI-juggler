@@ -478,6 +478,73 @@ fn limit_hit_in(line: &[u8]) -> Option<(WindowKind, QuotaSample)> {
     limit_hit_sample(&value)
 }
 
+/// One transcript line, only what tells a reply from a limit hit: its
+/// type, whether a sub-agent wrote it, its error word and its model (the
+/// message's text and everything else are skipped unkept).
+#[derive(serde::Deserialize)]
+struct TurnLine {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    #[serde(rename = "isSidechain", default)]
+    sidechain: bool,
+    #[serde(default)]
+    error: Option<serde::de::IgnoredAny>,
+    #[serde(default)]
+    message: Option<TurnMessage>,
+}
+
+#[derive(serde::Deserialize)]
+struct TurnMessage {
+    #[serde(default)]
+    model: Option<String>,
+}
+
+/// The model Claude Code names on a line it wrote itself (an error, an
+/// interruption), not the model's own reply.
+const SYNTHETIC_MODEL: &str = "<synthetic>";
+
+/// A session's limit from its transcript's tail (`tail`: whole lines): the
+/// newest assistant line of the session itself (never a sub-agent's) that
+/// is a limit hit, when no reply of the model follows it. Read from the
+/// end, so only the last few lines are parsed. Claude Code writes the hit
+/// as an assistant line of its own (`error: "rate_limit"` with
+/// `quotaLimits.status: "rejected"`); a new prompt typed at the limit
+/// gets another one, and the next real reply (a line with no error, from
+/// a model) means the session carried on. A warning, a limit on one model
+/// and any other error are no hit ([`limit_hit_sample`]) and leave the
+/// reading to the lines before them.
+#[must_use]
+pub fn limit_hit_in_tail(tail: &str) -> Option<juggler_adapter::live::LimitHit> {
+    for raw in tail.lines().rev() {
+        if !raw.contains("\"assistant\"") {
+            continue;
+        }
+        let Ok(line) = serde_json::from_str::<TurnLine>(raw) else {
+            continue; // the cut first line, or another shape
+        };
+        if line.kind.as_deref() != Some("assistant") || line.sidechain {
+            continue;
+        }
+        if line.error.is_some() {
+            let hit = limit_hit_in(raw.as_bytes());
+            if let Some((window, sample)) = hit {
+                return Some(juggler_adapter::live::LimitHit {
+                    at_ms: sample.ts,
+                    resets_at_ms: sample.resets_at,
+                    window: Some(window),
+                });
+            }
+            continue;
+        }
+        let model = line.message.and_then(|message| message.model);
+        if model.as_deref() == Some(SYNTHETIC_MODEL) {
+            continue;
+        }
+        return None; // the model replied: the session carried on
+    }
+    None
+}
+
 /// The limit hits in a whole transcript, one line in memory at a time
 /// (the one-time look back for hits written before they were kept).
 #[must_use]
