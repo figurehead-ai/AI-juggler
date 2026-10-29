@@ -56,7 +56,7 @@ export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; c
     );
   };
   const label = hop ? "Paused at the hop limit" : actionable.length === 1 ? "1 message waiting" : `${actionable.length} messages waiting`;
-  const button = "rounded-md border px-1.5 py-0.5 text-label outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60";
+  const button = "whitespace-nowrap rounded-md border px-1.5 py-0.5 text-label outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60";
   return (
     <span className="flex flex-col items-center gap-1 rounded-lg border border-warning/50 bg-surface px-2 py-1 shadow-card" data-testid="edge-pending" role="group" aria-label={label}>
       {!compact && <span className="whitespace-nowrap text-label text-warning">{label}</span>}
@@ -77,6 +77,18 @@ export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; c
       )}
     </span>
   );
+}
+
+/** Labels near one another move apart (down), so two edges between close
+ * nodes never put their answers on top of each other. */
+function apart<T extends { mid: Point }>(labels: T[]): T[] {
+  const placed: Point[] = [];
+  return labels.map((label) => {
+    let at = label.mid;
+    while (placed.some((other) => Math.abs(other.x - at.x) < 150 && Math.abs(other.y - at.y) < 58)) at = { x: at.x, y: at.y + 58 };
+    placed.push(at);
+    return { ...label, mid: at };
+  });
 }
 
 type Drawn = { edge: CanvasEdgeInfo; key: string; d: string; mid: Point; width: number; waits: boolean; tasksOnly: boolean };
@@ -159,11 +171,10 @@ export const CanvasEdges = memo(function CanvasEdges({
         })}
       </svg>
       {!zoomedOut &&
-        drawn.map(({ edge, key, mid, waits }) => {
-          if (!waits && selected !== key && hover !== key) return null;
+        apart(drawn.filter(({ key, waits }) => waits || selected === key || hover === key)).map(({ edge, key, mid, waits }) => {
           const words = edgeWords(edge, names.get(edge.from_session_id) ?? "A member", names.get(edge.to_session_id) ?? "a member");
           return (
-            <div key={key} className="absolute left-0 top-0 flex flex-col items-center gap-1" style={{ transform: `translate(${mid.x}px, ${mid.y}px) translate(-50%, -50%)` }} data-testid="edge-label" data-edge={key}>
+            <div key={key} className="absolute left-0 top-0 z-10 flex flex-col items-center gap-1" style={{ transform: `translate(${mid.x}px, ${mid.y}px) translate(-50%, -50%)` }} data-testid="edge-label" data-edge={key}>
               {(selected === key || hover === key) && (
               <button
                 type="button"
