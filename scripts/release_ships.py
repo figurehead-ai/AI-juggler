@@ -75,6 +75,8 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     (".github/**", False, "CI, the other workflows, issue and PR templates, Dependabot"),
     ("scripts/**", False, "gates and developer tools"),
     ("fuzz/**", False, "fuzz targets: never part of the app"),
+    ("clippy.toml", False, "the linter's settings: they change warnings, never the build"),
+    ("plugins/**", False, "the Claude Code plugin: users get it from this repository's plugin marketplace, not from the app's build"),
     ("stats/**", False, "the usage-statistics schema: the app has juggler-stats' generated copy, which a gate keeps equal"),
     ("justfile", False, "developer tasks"),
     ("deny.toml", False, "cargo-deny's policy (a CI gate)"),
@@ -223,7 +225,7 @@ def selftest() -> int:
         ".github/workflows/ci.yml": False,
         ".github/PULL_REQUEST_TEMPLATE.md": False,
         "scripts/sign_macos.sh": True,
-        "scripts/visual_gate.sh": False,
+        "scripts/example_gate.sh": False,
         "fuzz/fuzz_targets/link.rs": False,
         "stats/schema.v1.json": False,
         "justfile": False,
@@ -244,7 +246,7 @@ def selftest() -> int:
             "scripts/release_version.py": "",
             "scripts/sign_macos.sh": "python3 \"$here/apple_retry.py\"\n",
             "scripts/apple_retry.py": "",
-            "scripts/visual_gate.sh": "",
+            "scripts/example_gate.sh": "",
             "crates/a/src/lib.rs": 'const A: &str = include_str!("data.json");\n#[cfg(test)]\nmod tests;\n',
             "crates/a/src/data.json": "{}",
             "crates/a/src/tests.rs": "",
@@ -276,7 +278,7 @@ def selftest() -> int:
         (root / "ui/src/test/cpu.ts").write_text("")
         tree["ui/src/test/cpu.ts"] = ""
         broken("ui/src/main.tsx", 'import { cpu } from "./test/cpu";\n', "imports ui/src/test/cpu.ts")
-        broken("scripts/sign_macos.sh", "./visual_gate.sh\n", "runs scripts/visual_gate.sh")
+        broken("scripts/sign_macos.sh", "./example_gate.sh\n", "runs scripts/example_gate.sh")
         broken("crates/a/src/lib.rs", "mod tests;\n", "isn't declared")
         broken("crates/a/src/lib.rs", "#[cfg(test)]\nmod tests;\n#[cfg(feature = \"x\")]\nmod tests;\n", "isn't declared")
         broken("assets/logo.svg", "", "assets/logo.svg: no rule")
