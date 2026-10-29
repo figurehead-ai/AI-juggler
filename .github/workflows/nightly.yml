@@ -1,10 +1,14 @@
 # D-20: the nightly channel — built from main every day, no approval.
 # Its feed carries AI Juggler Nightly, installed next to AI Juggler (D-23).
-# Skips a day with no new commits. Every build gets the next version
-# (MAJOR.MINOR from Cargo.toml; PATCH 0 for a new MAJOR.MINOR, else one
-# past the last release tag: scripts/release_version.py), is
-# published as a pre-release, and becomes the nightly feed. Promotion to
-# beta and stable (promote.yml) reuses the same signed build.
+# The scheduled run skips a day when nothing that ships changed since the
+# newest release tag (scripts/release_ships.py), so a docs- or tests-only
+# day takes no version number. A run started by hand builds whatever
+# changed; only the very commit of the last nightly needs `force`. Every
+# build gets the next version (MAJOR.MINOR from Cargo.toml; PATCH 0 for a
+# new MAJOR.MINOR, else one past the last release tag:
+# scripts/release_version.py), is published as a pre-release, and becomes
+# the nightly feed. Promotion to beta and stable (promote.yml) reuses the
+# same signed build.
 name: Nightly
 
 on:
@@ -58,7 +62,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           FORCE: ${{ inputs.force || false }}
+          EVENT: ${{ github.event_name }}
         run: |
+          set -euo pipefail
           ref="$(git rev-parse HEAD)"
           previous=""
           work="$RUNNER_TEMP/feed" && mkdir -p "$work"
@@ -68,10 +74,35 @@ jobs:
             # there is no previous build to compare with.
             previous="$(gh release view "v$last" --repo "$REPO" --json targetCommitish --jq .targetCommitish 2>/dev/null || true)"
           fi
+          # What ships (scripts/release_ships.py, the only list): the files
+          # that differ from the newest release tag, renames as both paths.
+          newest="$(git tag -l 'v*' | python3 scripts/release_ships.py newest)"
+          changed="" shipping=""
+          if [ -n "$newest" ]; then
+            changed="$(git diff --no-renames --name-only "$newest" "$ref")"
+            shipping="$(printf '%s\n' "$changed" | python3 scripts/release_ships.py filter)"
+          fi
+          files() {
+            n="$(printf '%s' "$1" | grep -c . || true)"
+            if [ "$n" = 1 ]; then echo "1 file"; else echo "$n files"; fi
+          }
           skip=false
-          if [ "$previous" = "$ref" ] && [ "$FORCE" != "true" ]; then
+          if [ "$EVENT" = "schedule" ] && [ -n "$newest" ] && [ -z "$shipping" ]; then
+            # The scheduled run only: a build identical to $newest would
+            # take the number the next real release needs (v0.1.5, v0.1.7).
+            skip=true
+            if [ -z "$changed" ]; then
+              echo "No nightly today: main is still $newest's commit." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "No nightly today: nothing that ships changed since $newest ($(files "$changed") changed, none of them in the app or its build). Run Nightly by hand to build anyway." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          elif [ "$previous" = "$ref" ] && [ "$FORCE" != "true" ]; then
             skip=true
             echo "main hasn't changed since the last nightly ($ref)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ -n "$newest" ] && [ -z "$shipping" ]; then
+            echo "Built by hand: nothing that ships changed since $newest." >> "$GITHUB_STEP_SUMMARY"
+          elif [ -n "$newest" ]; then
+            echo "Changed since $newest: $(files "$changed"), $(printf '%s' "$shipping" | grep -c . || true) of them in the app or its build." >> "$GITHUB_STEP_SUMMARY"
           fi
           # The checkout above has every tag (fetch-depth: 0).
           version="$(git tag -l 'v*' | python3 scripts/release_version.py next)"
@@ -81,7 +112,9 @@ jobs:
             echo "ref=$ref"
             echo "previous=$previous"
           } >> "$GITHUB_OUTPUT"
-          echo "Nightly $version from $ref (previous: ${previous:-none})" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$skip" != "true" ]; then
+            echo "Nightly $version from $ref (previous: ${previous:-none})" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   build:
     needs: plan

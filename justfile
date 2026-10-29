@@ -33,10 +33,12 @@ verify:
     just dev-bridge-check
     python3 scripts/capabilities.py check
 
-# D-20 / D-24: the release scripts' self-tests (versions, nightly notes,
-# channel requirements). A release only runs them for real once a night.
+# D-20 / D-24: the release scripts' self-tests (versions, what ships,
+# nightly notes, channel requirements). A release only runs them for real
+# once a night.
 release-selftest:
     python3 scripts/release_version.py --selftest
+    python3 scripts/release_ships.py --selftest
     python3 scripts/nightly_notes.py --selftest
     python3 scripts/downgrade_note.py --selftest
     python3 scripts/promotion_rules.py --selftest
