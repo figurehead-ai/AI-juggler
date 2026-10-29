@@ -13,7 +13,7 @@ use super::dto::{ProjectTaskCounts, TaskBoardRow, TaskCounts, TasksFilterInput};
 use super::views::{after_of, info, sort_key};
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
-use crate::paging::{Page, PageRequest, page_of_fetched};
+use crate::paging::{Page, PageRequest, SortKey, page, page_of_fetched};
 use crate::state::AppState;
 
 /// The filter, as the store reads it: its pools (by id), with each pool's
@@ -206,16 +206,19 @@ pub fn across_counts(state: &Arc<AppState>, filter: &TasksFilterInput) -> AppRes
 /// The most projects one call counts (a page of the Projects screen).
 pub const PROJECTS_MAX: usize = 200;
 
-/// Each project's open work (its pools' tasks) by status: the Projects
-/// screen's page of rows in one call.
+/// Each project's open work (its pools' tasks) by status, in the order
+/// asked, a page at a time: the Projects screen's page of rows in one
+/// call.
 ///
 /// # Errors
 ///
-/// Validation for more than [`PROJECTS_MAX`] projects; storage failures.
+/// Validation for more than [`PROJECTS_MAX`] projects or a cursor this
+/// app didn't make; storage failures.
 pub fn counts_by_project(
     state: &Arc<AppState>,
     project_ids: &[String],
-) -> AppResult<Vec<ProjectTaskCounts>> {
+    request: &PageRequest,
+) -> AppResult<Page<ProjectTaskCounts>> {
     if project_ids.len() > PROJECTS_MAX {
         return Err(AppError::Validation {
             subject: "projects",
@@ -225,28 +228,35 @@ pub fn counts_by_project(
     let storage = lock_storage_arc(state)?;
     let shown = crate::features::pools::shown_pools(&storage)?;
     let repo = storage.tasks();
-    project_ids
-        .iter()
-        .map(|project| {
-            let pools: Vec<String> = shown
-                .iter()
-                .filter(|(pool, _)| pool.project.as_ref().is_some_and(|p| p.as_str() == project))
-                .map(|(pool, _)| pool.id.clone())
-                .collect();
-            let mut counts = TaskCounts::default();
-            if !pools.is_empty() {
-                for (status, count) in repo.counts_where(&TaskQuery {
-                    pools: Some(&pools),
-                    kinds: Some(&[TaskKind::Task]),
-                    ..TaskQuery::default()
-                })? {
-                    *super::views::slot(&mut counts, status) = count;
-                }
+    let mut rows = Vec::with_capacity(project_ids.len());
+    for (at, project) in project_ids.iter().enumerate() {
+        let pools: Vec<String> = shown
+            .iter()
+            .filter(|(pool, _)| pool.project.as_ref().is_some_and(|p| p.as_str() == project))
+            .map(|(pool, _)| pool.id.clone())
+            .collect();
+        let mut counts = TaskCounts::default();
+        if !pools.is_empty() {
+            for (status, count) in repo.counts_where(&TaskQuery {
+                pools: Some(&pools),
+                kinds: Some(&[TaskKind::Task]),
+                ..TaskQuery::default()
+            })? {
+                *super::views::slot(&mut counts, status) = count;
             }
-            Ok(ProjectTaskCounts {
+        }
+        rows.push((
+            i64::try_from(at).unwrap_or(i64::MAX),
+            ProjectTaskCounts {
                 project_id: project.clone(),
                 counts,
-            })
-        })
-        .collect()
+            },
+        ));
+    }
+    page(
+        rows,
+        |(at, row)| SortKey::new([*at], row.project_id.clone()),
+        request,
+    )
+    .map(|page| page.map(|(_, row)| row))
 }

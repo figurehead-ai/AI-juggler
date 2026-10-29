@@ -666,6 +666,21 @@ fn the_tasks_screen_reads_every_pool_by_filter() {
         across::across(&lab.state, &bad, &first_page()).is_err(),
         "an unknown holder filter is refused"
     );
+    let ids = ["no-such-project".to_owned(), "another".to_owned()];
+    let none = across::counts_by_project(&lab.state, &ids, &PageRequest::first(1)).unwrap();
+    assert_eq!(
+        (none.items.len(), none.items[0].counts.ready),
+        (1, 0),
+        "a project with no pool has no tasks"
+    );
+    let next = none.next_cursor.expect("a second page");
+    let rest = across::counts_by_project(&lab.state, &ids, &PageRequest::after(&next, 1)).unwrap();
+    assert_eq!(rest.items[0].project_id, "another", "in the order asked");
+    let many = vec![String::new(); across::PROJECTS_MAX + 1];
+    assert!(
+        across::counts_by_project(&lab.state, &many, &first_page()).is_err(),
+        "a page at most"
+    );
 }
 
 #[test]

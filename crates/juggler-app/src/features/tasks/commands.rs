@@ -86,7 +86,8 @@ pub async fn tasks_across_counts(
     .await
 }
 
-/// 0.3: each project's tasks by status (a page of the Projects screen).
+/// 0.3: each project's tasks by status (a page of the Projects screen),
+/// a page at a time.
 ///
 /// # Errors
 ///
@@ -95,9 +96,10 @@ pub async fn tasks_across_counts(
 pub async fn tasks_project_counts(
     state: tauri::State<'_, Arc<AppState>>,
     project_ids: Vec<String>,
-) -> AppResult<Vec<ProjectTaskCounts>> {
+    page: PageRequest,
+) -> AppResult<Page<ProjectTaskCounts>> {
     crate::ipc::blocking(state.inner(), "the tasks", move |state| {
-        super::across::counts_by_project(state, &project_ids)
+        super::across::counts_by_project(state, &project_ids, &page)
     })
     .await
 }
