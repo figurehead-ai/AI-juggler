@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pools, one live canvas** (0.3): a Pools screen in the header shows
+  every pool as a card — its members in small where they sit, the lead
+  and anything waiting on you in colour, "6 members · 1 needs you · 2
+  tasks moving" — and New pool. A pool's page is now its canvas: each
+  session a node (its tool, account, state, the task it holds, the lead
+  marked), messages and task hand-offs between them as arrows that light
+  up as they happen, an agent's ask answered right on its node (Allow
+  once, Always allow in this pool, Deny), a waiting message's Deliver and
+  a paused chain's Let it continue on its arrow. Drag a session in from
+  the side, drag a node where you like (kept per pool; Tidy up lays it
+  out again, with Undo), drag one out or press Delete to take it out
+  (Undo puts it back); ⋯ or a right-click makes it the lead, opens or
+  stops it. The panel on the right follows what you select — the pool's
+  settings, a member's asks, tasks, conversations and usage, or the
+  conversation between two — and shows the pool's live activity
+  otherwise. Tasks and Messages open over the canvas; List shows the same
+  as rows for the keyboard and screen readers. Rename the pool and change
+  what agents may do in its header. Links from Needs you still land on
+  the pool's Messages or Tasks. Going back to 0.2 after this needs the
+  copy 0.3 keeps of your data (Settings › About & updates).
+
 - **Group the session list with one click** (0.3): under the search, a
   switch — App · Project · Account, and Pool once you've made a pool of
   your own (a project's own pool doesn't count). Your choice is kept on
