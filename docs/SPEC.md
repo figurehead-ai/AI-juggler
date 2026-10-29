@@ -602,8 +602,11 @@ rule ("older than N s, dimmed, show age") are E4 scope.
 A dedicated surface: Leftover Inventory (ledger-verified orphans with
 command line, cwd, held ports, age), the verify-before-kill sheet
 (§5.2), per-Account tier controls (`Notify only` default /
-`Clean safe (this Account)` opt-in), and the audit log of every kill
-ever performed.
+`Clean safe (this Account)` opt-in), and the audit log of every stop:
+append-only, written before any signal, kept 7 days like the spawn
+ledger, and exportable from Cleanup history (amended 2026-10-29: the
+original "every kill ever performed" was never built, and the 0.3 review
+found 7 days plus export enough; the stop report links to the history).
 
 ### 9.5 Positioning (D-09)
 
