@@ -124,7 +124,7 @@ describe("the rail by place", () => {
     expect(spy).toHaveBeenLastCalledWith(4100);
   });
 
-  it("the Also line turns a view on; the View's dot says it changed; Back to the defaults; kept", async () => {
+  it("the Also line turns a view on; the View's dot says it changed; Reset; kept", async () => {
     const view = board([]);
     await view.findByTestId("rail-also");
     expect(view.queryByTestId("rail-view-dot")).toBeNull();
@@ -134,12 +134,16 @@ describe("the rail by place", () => {
     expect(view.getByTestId("rail-view-dot")).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("aij.rail.view.v1")!).show.ended).toBe(true);
     act(() => void window.dispatchEvent(new Event("aij:rail-view")));
-    const panel = await view.findByRole("dialog", { name: "View" });
-    expect(within(panel).getByRole("radio", { name: /Pool/ })).toHaveProperty("disabled", true);
-    fireEvent.click(within(panel).getByRole("checkbox", { name: "Inactive" }));
+    const panel = await view.findByRole("menu", { name: "View" });
+    // 0.3: the grouping is the rail's switch; Pool waits for a pool of yours.
+    expect(within(panel).queryByRole("radio")).toBeNull();
+    expect(within(view.getByRole("radiogroup", { name: "Group sessions by" })).queryByRole("radio", { name: "Pool" })).toBeNull();
+    fireEvent.click(within(panel).getByRole("menuitemcheckbox", { name: "Inactive" }));
     expect(railView().show.inactive).toBe(true);
     fireEvent.click(within(panel).getByTestId("rail-view-reset"));
     expect(railView()).toEqual(DEFAULT_VIEW);
+    // Nothing changed: no Reset to offer.
+    await waitFor(() => expect(within(panel).queryByTestId("rail-view-reset")).toBeNull());
     await waitFor(() => expect(view.queryByTestId("rail-view-dot")).toBeNull());
   });
 

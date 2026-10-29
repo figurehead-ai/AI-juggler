@@ -32,7 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Every door obvious** (0.3): a session in a pool shows the pool as a
   chip in its header that opens the pool's page; the tool's chip moved
   there from the top bar.
-
+- **Group the session list with one click** (0.3): under the search, a
+  switch — App · Project · Account, and Pool once you've made a pool of
+  your own (a project's own pool doesn't count). Your choice is kept on
+  this Mac. The arrow keys move it; screen readers hear "Group sessions
+  by".
 - **What the other tool was told** (0.3): after a switch to another tool
   (say Claude Code to Codex), the done screen says in one line what was
   hidden from it and what was left out ("Hidden from Codex: 2 API keys ·
@@ -138,6 +142,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The View menu, redone** (0.3): ⇧V or the View button opens a real
+  menu — "View" on top with **Reset** (only once something changed; your
+  grouping stays), then **Show** lines with an icon, what each one is
+  under it and a ✓ (Inactive, Quiet ones, Ended today, Background runs,
+  Subagents, Other Macs, Archived), then **Only** lines showing their
+  value that open a list with a ✓ (App, Profile, Account, Project). Group
+  by moved to the list's own switch.
+- **One look for every choice** (0.3): checkboxes and radio buttons are
+  drawn the same everywhere, in the app's colour, with a clear focus ring
+  and a greyed state that says why; every drop-down (How it runs, History's
+  filters, Open projects in, launch settings, pools, messages, tasks,
+  accounts, Processes' filters) is the app's own picker with a ✓ on the
+  chosen line instead of the system's. Settings › General's theme,
+  density and order are rows of equal cards; the stop sheet's What to
+  stop says what each choice does under it.
+- **Menus from a button hang from it** (0.3): a page's ⋯ menu, a picker and
+  the View open under their button (or above it, near the bottom of the
+  window), never over it, and keep clear of the window's edge.
+- **New session** (0.3): why the suggested account is the one is a badge
+  beside its name; Customise and Expert setup… open with chevrons; the
+  footer has Close and **Launch on** the picked account.
+- **The limit dialog** (0.3) closes with × like every other dialog, and
+  "You can switch back after the reset" sits in the Wait card it belongs
+  to. The switch dialogs say **Cancel** (Escape still cancels), and their
+  Details, "What does this mean?" and Settings › Sessions' Terminal fold
+  with the app's chevron instead of the browser's triangle.
+- **Processes** (0.3): a process's second line says what started it first
+  ("Started by Bash: npm run dev") and the guess at its role last, so a
+  narrow column cuts the guess, not the news.
 - **The stop sheet says what it checked in one line** (0.3): "Checked: the
   process AI Juggler started (same start time and program) · its session
   has ended · stopping frees :5173". The command, program, folder and

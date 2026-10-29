@@ -145,7 +145,7 @@ describe("a pool's messages", () => {
     const { findByTestId, getAllByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
     fireEvent.click(await findByTestId("messages-new"));
     const form = getAllByTestId("message-compose").find((f) => f.getAttribute("aria-label") === "New message")!;
-    expect((within(form).getByTestId("compose-to") as HTMLSelectElement).value).toBe("pool");
+    expect(within(form).getByTestId("compose-to").getAttribute("data-value")).toBe("pool");
     expect((within(form).getByLabelText("Deliver to their sessions") as HTMLInputElement).checked).toBe(true);
     fireEvent.change(within(form).getByTestId("compose-body"), { target: { value: "Pause; review first." } });
     fireEvent.keyDown(within(form).getByTestId("compose-body"), { key: "Enter", metaKey: true });

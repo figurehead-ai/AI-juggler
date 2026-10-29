@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./primitives";
+import { ChoiceOption, Disclosure } from "./controls";
 import { errorText } from "../lib/bridge";
 import { killDisplayName, probablyWords } from "../lib/process-words";
 import { proofWords } from "../lib/process-states";
@@ -111,10 +112,10 @@ export const defaultKillBridge: KillBridge = {
 };
 
 export const KILL_SCOPES: { id: KillScope; label: string; hint: string }[] = [
-  { id: "pid", label: "This process only", hint: "the narrowest choice" },
+  { id: "pid", label: "This process only", hint: "The narrowest choice" },
   // ADR-0010: a helper AI Juggler didn't start is never stopped.
-  { id: "pgid", label: "This process and its helpers", hint: "the ones AI Juggler started" },
-  { id: "tree", label: "Whole session tree", hint: "every process of this session still running" },
+  { id: "pgid", label: "This process and its helpers", hint: "The ones AI Juggler started" },
+  { id: "tree", label: "Whole session tree", hint: "Every process of this session still running" },
 ];
 
 // The short process name lives with the other process words (the
@@ -409,8 +410,7 @@ export function KillSheet(props: {
                   {targetWarning}
                 </p>
               )}
-              <details className="mt-2" data-testid={`kill-details-${props.pid}`}>
-                <summary className="cursor-pointer text-label text-muted hover:text-ink">Details</summary>
+              <Disclosure className="mt-2" testId={`kill-details-${props.pid}`} summary="Details">
                 <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-label">
                   <dt className="text-muted">command</dt>
                   <dd className="break-all text-ink" data-testid={`kill-cmdline-${props.pid}`}>
@@ -433,7 +433,7 @@ export function KillSheet(props: {
                       : "AI Juggler recorded it when it started it; its start time and program match the process running now."}
                   </dd>
                 </dl>
-              </details>
+              </Disclosure>
 
               {props.onlyThisProcess ? (
                 <p className="mt-3 text-label text-muted" data-testid={`kill-only-${props.pid}`}>
@@ -442,22 +442,9 @@ export function KillSheet(props: {
               ) : (
                 <fieldset className="mt-3">
                   <legend className="text-label font-medium text-ink">What to stop</legend>
-                  <div className="mt-1 flex flex-col gap-1" role="radiogroup" aria-label="What to stop">
+                  <div className="-mx-2 mt-1 flex flex-col gap-0.5" role="radiogroup" aria-label="What to stop">
                     {KILL_SCOPES.map((entry) => (
-                      <label
-                        key={entry.id}
-                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-hairline px-2 py-1.5"
-                      >
-                        <input
-                          type="radio"
-                          name={`kill-scope-${props.pid}`}
-                          checked={scope === entry.id}
-                          onChange={() => setScope(entry.id)}
-                          data-testid={`kill-scope-${entry.id}-${props.pid}`}
-                        />
-                        <span className="text-ink">{entry.label}</span>
-                        <span className="text-muted">— {entry.hint}</span>
-                      </label>
+                      <ChoiceOption key={entry.id} type="radio" name={`kill-scope-${props.pid}`} label={entry.label} hint={entry.hint} checked={scope === entry.id} onChange={() => setScope(entry.id)} data-testid={`kill-scope-${entry.id}-${props.pid}`} />
                     ))}
                   </div>
                 </fieldset>

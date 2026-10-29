@@ -7,7 +7,7 @@
 import { useState, type JSX } from "react";
 import { IconOrderLatest, IconOrderName, IconOrderYours } from "./icons-places";
 import { IconReplay } from "./icons-actions";
-import { MenuItem, MenuSeparator, RowMenu, menuPoint } from "./RowMenu";
+import { MenuItem, MenuSeparator, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { showToast } from "./Toast";
 import { ORDER_MODES, ORDER_WORDS, type OrderMode } from "../lib/rail-order";
 import { resetMyOrder, restoreOrder, setOrderMode, useRailOrder } from "../lib/rail-order-store";
@@ -32,7 +32,7 @@ export function resetWithUndo(): void {
 
 export function RailOrderMenu(): JSX.Element {
   const order = useRailOrder();
-  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const [at, setAt] = useState<MenuAt | null>(null);
   const label = ORDER_WORDS[order.mode].label;
   const pick = (mode: OrderMode) => {
     setAt(null);

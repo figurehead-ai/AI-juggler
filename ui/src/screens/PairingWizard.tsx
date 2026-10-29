@@ -16,6 +16,7 @@ import {
   type PairPermission,
   type PairingStateInfo,
 } from "../lib/bridge";
+import { Radio } from "../components/controls";
 
 /** Which side of pairing this Mac is on. */
 export type PairingMode = "host" | "join";
@@ -495,8 +496,7 @@ function JoinFind({
                 }
                 data-testid="pairing-machine"
               >
-                <input
-                  type="radio"
+                <Radio
                   name="pairing-machine"
                   checked={chosen === machine.instance_id}
                   onChange={() => setChosen(machine.instance_id)}
@@ -698,8 +698,7 @@ function Permissions({
             }
             data-testid={`pairing-permission-${option.id}`}
           >
-            <input
-              type="radio"
+            <Radio
               name="pairing-permission"
               className="mt-0.5"
               checked={permission === option.id}

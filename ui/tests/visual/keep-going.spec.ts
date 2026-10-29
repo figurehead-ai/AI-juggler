@@ -9,7 +9,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo } from "./fixtures";
+import { goTo, pick } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/83-keep-going");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -67,10 +67,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("account-menu").first().click();
     await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
     await page.getByTestId("recipe-env-toggle").first().click();
-    const choice = page.getByLabel("If a session crashes").first();
-    await expect(choice).toHaveValue("settings");
-    await choice.selectOption("restart");
-    await expect(choice).toHaveValue("restart");
+    const choice = page.getByRole("button", { name: /^If a session crashes/ }).first();
+    await expect(choice).toHaveAttribute("data-value", "settings");
+    await pick(page, choice, "Restart it");
+    await expect(choice).toHaveAttribute("data-value", "restart");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `launch-setting-restart-1280x800-${theme}.png`) });
     await axe(page, `launch setting restart ${theme}`);

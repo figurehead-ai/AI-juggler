@@ -146,7 +146,7 @@ const KILL_VERIFY_OK = {
       pgid: 8100,
       exe: "node",
       cmdline: "node vite dev",
-      role_guess: "DevServer",
+      role_guess: "dev server",
       unsaved_state_warning: null,
       from_ledger: true,
     },

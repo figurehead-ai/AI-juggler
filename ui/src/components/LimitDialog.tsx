@@ -26,6 +26,7 @@ import { stagingReady, type StagedSwitchInfo } from "../lib/ipc/staging";
 import { rankTargets, type RoomTarget } from "../lib/room-targets";
 import { useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { SuggestedMark } from "./SwitchTargetRows";
+import { IconClose } from "./icons-controls";
 import { resetsWords, whenWords } from "../lib/time-words";
 
 function inWords(ms: number): string {
@@ -157,9 +158,22 @@ export function LimitDialog({
         className="sheen flex w-full max-w-lg flex-col gap-4 rounded-card border border-hairline bg-surface p-6 outline-none shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
       >
         <header className="flex flex-col gap-1">
-          <h2 id="limit-title" className="text-base font-semibold">
-            {session.account_label} hit its limit
-          </h2>
+          <div className="flex items-start gap-3">
+            <h2 id="limit-title" className="min-w-0 flex-1 text-base font-semibold">
+              {session.account_label} hit its limit
+            </h2>
+            {/* 0.3: a close like every other dialog's (Not now does the same). */}
+            <button
+              type="button"
+              onClick={close}
+              aria-label="Close"
+              title="Close"
+              data-testid="limit-close"
+              className="-mr-3 -mt-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              <IconClose width={16} height={16} aria-hidden="true" />
+            </button>
+          </div>
           <p id="limit-what" className="text-sm leading-relaxed text-muted">
             {resetAt
               ? resetAt > now
@@ -237,6 +251,10 @@ export function LimitDialog({
                 {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "Once the reset is known it's offered back to you"};
                 nothing {stillOpen ? "runs" : "restarts"} on its own.
               </p>
+              {/* 0.3: said with the wait it belongs to, not under the footer. */}
+              <p className="text-xs leading-relaxed text-muted" data-testid="limit-switch-back">
+                You can switch back to {session.account_label} after the reset.
+              </p>
               <Button
                 size="sm"
                 variant="secondary"
@@ -262,7 +280,6 @@ export function LimitDialog({
                 Not now
               </Button>
             </footer>
-            <p className="text-label text-muted">You can switch back to {session.account_label} after the reset.</p>
           </>
         )}
       </div>

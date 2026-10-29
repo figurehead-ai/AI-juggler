@@ -2,7 +2,7 @@
  * AJ-E1501 — a project's own account for new sessions (the project page).
  */
 import { useEffect, useState } from "react";
-import { Select } from "./form";
+import { Picker } from "./controls";
 import { errorText, projectSetDefaultAccount, type AccountInfo, type ProjectInfo } from "../lib/bridge";
 
 /** AJ-E1501 Req.4: which account this project's new sessions start
@@ -24,14 +24,14 @@ export function ProjectDefaultAccount({
   const fallback = accounts.find((account) => account.is_default);
   return (
     <div className="flex flex-col gap-1 pb-2">
-      <label className="flex flex-wrap items-center gap-2 text-meta text-muted" data-testid="project-default-account">
+      <div className="flex flex-wrap items-center gap-2 text-meta text-muted" data-testid="project-default-account">
         New sessions here start with
-        <Select
-          aria-label="New sessions here start with"
+        <Picker
+          size="sm"
+          ariaLabel="New sessions here start with"
           className="max-w-full"
           value={value}
-          onChange={async (event) => {
-            const next = event.target.value;
+          onChange={async (next) => {
             setValue(next);
             setError(null);
             try {
@@ -42,15 +42,12 @@ export function ProjectDefaultAccount({
               setValue(project.default_account_id ?? "");
             }
           }}
-        >
-          <option value="">{fallback ? `Your default (${fallback.label})` : "The account used last"}</option>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.label}
-            </option>
-          ))}
-        </Select>
-      </label>
+          options={[
+            { value: "", label: fallback ? `Your default (${fallback.label})` : "The account used last" },
+            ...accounts.map((account) => ({ value: account.id, label: account.label })),
+          ]}
+        />
+      </div>
       {error && (
         <p className="text-label text-danger" role="alert">
           {error}

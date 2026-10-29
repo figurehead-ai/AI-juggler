@@ -22,6 +22,7 @@ import { agoWords } from "../lib/time-words";
 import { projectSyncApply, projectSyncDiff, projectSyncRules, type RulesDiffInfo, type RulesFileInfo, type RulesSyncInfo } from "../lib/ipc/projectSync";
 import { ServersSection } from "./ProjectSyncServers";
 import { DoneLine, SYNC_HEADING, type Done } from "./SyncDoneLine";
+import { Radio } from "./controls";
 
 /** A file the master can be applied to that differs from it, or isn't
  * there. */
@@ -158,7 +159,7 @@ function RulesRow({
       data-testid={`sync-file-${file.name}`}
     >
       <label className={`flex items-center gap-2 ${file.can_be_master ? "" : "pl-5"}`}>
-        {file.can_be_master && <input type="radio" name="rules-master" checked={isMaster} onChange={onPick} aria-label={`Use ${file.name} as the master`} />}
+        {file.can_be_master && <Radio name="rules-master" checked={isMaster} onChange={onPick} aria-label={`Use ${file.name} as the master`} />}
         <span className="font-mono text-label text-ink">{file.name}</span>
       </label>
       <span className="text-muted">{file.tools.join(", ")}</span>

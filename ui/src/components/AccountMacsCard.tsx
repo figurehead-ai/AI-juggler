@@ -17,6 +17,7 @@ import {
   type AccountMacInfo,
   type AccountMacsInfo,
 } from "../lib/bridge";
+import { Checkbox } from "./controls";
 
 const STATE_WORDS: Record<string, string> = {
   not_paired: "Not paired",
@@ -174,7 +175,7 @@ function CompareSheet({
           allow more later.
         </p>
         <label className="flex items-center gap-2 text-label text-ink">
-          <input type="checkbox" checked={match} onChange={(event) => setMatch(event.target.checked)} data-testid="compare-match" />
+          <Checkbox checked={match} onChange={(event) => setMatch(event.target.checked)} data-testid="compare-match" />
           Both fingerprints match on both Macs
         </label>
         {error && (
