@@ -93,6 +93,8 @@ interface Shape {
   ports?: number[];
   age?: number;
   label?: string;
+  /** AJ-E1520 (0.3): the subagent that probably started it (id, task). */
+  subagent?: [string, string];
   stop?: "ours" | "observed" | "never";
   why?: string;
   heavy?: boolean;
@@ -114,6 +116,8 @@ function node(now: number, pid: number, parent: number | null, depth: number, na
     role,
     role_words: ROLE_WORDS[role] ?? "helper",
     label: shape.label ?? null,
+    subagent_id: shape.subagent?.[0] ?? null,
+    subagent_title: shape.subagent?.[1] ?? null,
     state: shape.state ?? (cpu >= 2 ? "working" : "idle"),
     cpu_pct: shape.state === "zombie" ? null : cpu,
     spark: shape.state === "zombie" ? [] : spark(cpu, pid % 7),
