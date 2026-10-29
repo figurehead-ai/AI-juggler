@@ -1513,3 +1513,62 @@ they are offered the same way, with the same undo.
   `docs/qa/evidence/AJ-E1539/lab-2026-10-28.md`): a planted note
   answered on B after the ticked copy, gone after its undo, and answered
   by Codex from the handover.
+
+### D-52 Windows and Linux are each their own project with their own releases — SETTLED (2026-10-29)
+
+**Ruling.** The maintainer, 2026-10-29: "Can you add in our global planner
+of all the features and future versions, special releases for both Windows
+and Linux separately." Earlier the same day, on why: "we have a lot of
+specialized process monitoring, special desktop capabilities that work
+separately for each OS … I am not saying we will not build them but I feel
+they are massive and require their own projects and releases."
+
+**What changed.**
+
+- Windows and Linux are each a project of their own, with their own epic,
+  their own lab, their own Beta and Stable gates and their own release
+  line: [E26 — AI Juggler for Windows](../tasks/E26-windows-release.md)
+  (AJ-E2601–E2616) and [E27 — AI Juggler for Linux](../tasks/E27-linux-release.md)
+  (AJ-E2701–E2715), grounded in the readiness audit
+  (`docs/research/cross-platform-readiness.md`).
+- They are not part of the macOS 0.x releases. Today macOS is the only
+  platform shipped; a macOS release never waits for Windows or Linux work
+  and never claims either. CI's `build-windows` and `build-linux` jobs stay
+  as compile guards for shared code (Linux also runs the workspace tests in
+  `verify`), not as releases.
+- The plan's milestone table gains rows **W** and **L** beside M0–M8;
+  M7-5 ("Windows/Linux bring-up begins") now keeps only the compile guards
+  and points to E26 and E27 (`docs/plan/EPICS.md`). SPEC §1's platform
+  row, §14's table and §15's decision 7 say the same.
+- Not decided by this ruling, and left open for the maintainer in the
+  first task of each epic (AJ-E2601, AJ-E2701): the version numbers
+  (the same numbers as macOS with each OS's own channel position, or a
+  stream of its own), the channels and feeds per OS, the packaging
+  (Windows: NSIS, MSI, MSIX or the Store; Linux: AppImage, deb, rpm,
+  Flatpak, Snap), signing, the supported versions and architectures, WSL,
+  and which OS goes first. When each starts is also the maintainer's call; the standing
+  plan (SPEC §15, decision 7) is after macOS 1.0.
+- The architecture rule is unchanged and now has a home per OS: OS code
+  lives behind the OS seams (`juggler-platform`, the audited per-OS shims,
+  the adapters), never as a per-OS branch in shared code; a seam shared by
+  both systems is built once (E26's intro names each one's owner) and the
+  platform guard lint's allowlist only shrinks.
+
+**Why.** What makes AI Juggler useful (watching and stopping process
+trees, finding and focusing desktop apps, keeping the computer awake, the
+system's credential store, notifications, packaging and updates) is
+different work on each system. Folded into the macOS releases, it would
+either hold them back or ship half-done; as its own project, each OS gets
+its own lab, its own evidence and its own gates.
+
+- Risk: shared code drifts back to macOS-only assumptions while the
+  Windows and Linux projects wait. The platform guard lint and the two
+  compile guards stay required on every change, and the seams already built
+  (the agent bridge, driven sessions and hand-over on `juggler-platform`)
+  keep their honest "not on this system yet" answers.
+- Risk: two more release lines to run. Their shape is decided before
+  either ships (AJ-E2601, AJ-E2701), and neither gate may pass on another
+  line's evidence.
+- Evidence: the two epic files; `python3 scripts/check_task_counts.py`
+  (the catalog, the file map and the plan's count agree with the epic
+  files and this log).

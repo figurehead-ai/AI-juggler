@@ -17,6 +17,11 @@ blocker stops every promotion until it's fixed or relabelled. A rule can
 be overridden only with a written reason (Promote's `override` input),
 which is kept in the channel tag.
 
+Everything on this page is the macOS release line, the only one shipped
+today. Windows and Linux will each have a release line of their own
+(D-52); how they are versioned, channelled, packaged and signed is decided
+before either ships (AJ-E2601, AJ-E2701) and will get its own section here.
+
 There is **one version stream**. A build is made once, by the nightly
 workflow, with the next version as Semantic Versioning has it: `MAJOR.MINOR`
 from `Cargo.toml` (raised by hand), and a patch that starts at 0 for each new

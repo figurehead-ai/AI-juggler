@@ -12,10 +12,10 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-51. Do not re-litigate them; supersede only via a
+   decisions D-01..D-52. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E25 below).
+4. The epic file for the task you claim (E1-E27 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -48,13 +48,16 @@
 | [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2310 |
 | [E24-processes.md](E24-processes.md) | The Processes view: every app, session and process, one model | AJ-E2401-E2407 |
 | [E25-notifications-and-user-menu.md](E25-notifications-and-user-menu.md) | Notifications and your menu: one model, one count, every view | AJ-E2501-E2507 |
+| [E26-windows-release.md](E26-windows-release.md) | AI Juggler for Windows: its own project and releases (D-52) | AJ-E2601-E2616 |
+| [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: its own project and releases (D-52) | AJ-E2701-E2715 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)
 
 Each task carries: Goal; User story; numbered testable SHALL
 Requirements; UI/UX reasoning tied to a named guideline (Nielsen/NN-g,
-Apple HIG, WCAG) plus exact states/copy/shortcuts; a numeric
+Apple HIG, WCAG; for E26 Microsoft Fluent and the Windows app design
+guidelines, for E27 the GNOME HIG and the freedesktop specs) plus exact states/copy/shortcuts; a numeric
 Performance budget; Quality gates; an Evidence/validation proof with
 exact command/fixture/live step, pass threshold and storage path;
 Visual testing requirements (viewports, states, comparison, a11y);

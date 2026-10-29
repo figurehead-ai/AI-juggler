@@ -15,7 +15,7 @@ AI Juggler is a native desktop application that **supervises** AI coding harness
 
 | Requirement | Target |
 |---|---|
-| Platform (v0.x) | macOS 14+ (Universal: Apple Silicon + Intel). Windows/Linux post-1.0; the Rust core and adapters are cross-platform from day one (CI builds all three OSes) so ports need no rewrites |
+| Platform (v0.x) | macOS 14+ (Universal: Apple Silicon + Intel), the only platform shipped today. Windows and Linux are each **their own project with their own releases** (own lab, own Beta and Stable gates; D-52, E26 and E27), not part of the macOS 0.x releases; when each starts is the maintainer's call (the standing plan, decision 7, is after macOS 1.0). The Rust core and adapters stay cross-platform: OS-specific code lives behind the OS seams (`juggler-platform`, the per-OS shims, the adapters), the platform guard lint keeps new macOS-only code out of shared code, and CI compiles every target on Linux and Windows on each change (a guard, not a release) |
 | Startup | < 1.5s cold start; session board interactive < 500ms after launch |
 | Footprint | < 150 MB RSS typical; UI at 60 fps with 20 live sessions |
 | Reliability | App crash never kills supervised sessions (children survive; state journaled); recovery on relaunch |
@@ -751,8 +751,10 @@ Task-level breakdown, live tracking, and the per-milestone validation-gate proce
 | **M4** | Handover: packs, takeover/return wizard, rules-file sync, export/import; lineage | Round-trip A→B→A preserves continuity (dogfood criterion) |
 | **M5** | Hardening, signed + notarized self-update, Provider update tracking, onboarding polish; fleet transport spike (tonic/rustls prototype) → **v0.1 public beta** | Fresh-machine install → 2 parallel accounts < 5 min; updater works end-to-end on a signed build |
 | **M6** | Fleet link: pairing wizard, mDNS discovery, telemetry sync, remote board (read-only) → **v0.2** | Second machine joins in < 60 s with a code; one board across two machines |
-| **M7** | Fleet control: launch/stop/handover from a console, aggregated usage, fleet alerts; Windows/Linux bring-up begins → **v0.3** | Full manage workflow across 3 machines; cross-machine handover demo |
+| **M7** | Fleet control: launch/stop/handover from a console, aggregated usage, fleet alerts; the Windows and Linux compile guards in CI → **v0.3** | Full manage workflow across 3 machines; cross-machine handover demo |
 | **1.0** | Stabilization from beta feedback (protocol, adapters, UX) | Stable update channel opens |
+| **Windows** | Its own project (D-52, E26): the OS seams on Windows, a read-only lab, a signed installer and updates; its own release line, shape decided in AJ-E2601 | Windows Beta gate (AJ-E2615), then Windows Stable (AJ-E2616) |
+| **Linux** | Its own project (D-52, E27): the missing desktop seams, a read-only lab on GNOME and KDE, packages and updates; its own release line, shape decided in AJ-E2701 | Linux Beta gate (AJ-E2714), then Linux Stable (AJ-E2715) |
 
 ## 15. Decisions
 
@@ -764,7 +766,7 @@ Task-level breakdown, live tracking, and the per-milestone validation-gate proce
 4. **Naming: binary `ai-juggler`, crates `juggler-*`.** ✅
 5. **MVP order: Claude Code first (M1); Codex + ZCode in M2.** ✅
 6. **Codex control plane: PTY-first (M2); app-server explored at M4.** ✅
-7. **Platform: macOS-first (Universal, v0.x); Windows/Linux post-1.0; cross-platform core from day one.** ✅
+7. **Platform: macOS-first (Universal, v0.x); Windows/Linux post-1.0; cross-platform core from day one.** ✅ *(Refined by D-52, 2026-10-29: Windows and Linux are each their own project with their own releases, E26 and E27; their version numbers, channels and packaging are open decisions, AJ-E2601 and AJ-E2701.)*
 8. **Fleet: gRPC over mTLS + mDNS pairing; one binary, console/node roles; LAN/user-VPN only — no cloud relay.** ✅ (M5 transport spike de-risks tonic/rustls before M6.)
 9. **Release: strict semver; `0.x.0-beta.N` on the beta channel for feedback; stable channel opens at 1.0; macOS signing/notarization via Vuxtra's Apple Developer account.** ✅ *(Versioning and channels superseded by D-20: nightly → beta → stable on one version stream, see `docs/RELEASING.md`.)*
 
