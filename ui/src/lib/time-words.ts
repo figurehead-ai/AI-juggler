@@ -61,3 +61,46 @@ export function dayWords(ms: number, now: number): string {
   const sameYear = at.getFullYear() === new Date(now).getFullYear();
   return at.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", ...(sameYear ? {} : { year: "numeric" }) });
 }
+
+/** "3:10 PM" (or "15:10"): a time of day as the system's own clock writes
+ * it — never a hard-coded 12 or 24 hours, never a leading zero beside AM. */
+export function clock(ms: number): string {
+  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+/** Whole calendar days from `now`'s day to `ms`'s (0 today, 1 tomorrow). */
+function daysAhead(ms: number, now: number): number {
+  const start = (at: number) => {
+    const day = new Date(at);
+    day.setHours(0, 0, 0, 0);
+    return day.getTime();
+  };
+  return Math.round((start(ms) - start(now)) / 86_400_000);
+}
+
+/** A time to come, by its day — the one rule every reset (and every time
+ * one is waited for) is written by (the 0.2 walk, F18, and the 0.2.0
+ * re-render: "08:13" and "Sun 07:13 AM" in one dialog): "3:10 PM" today,
+ * "8:00 AM tomorrow", "Thu 8:00 AM" within the week, and with its date
+ * from a week on ("Thu, Nov 5 8:00 AM"), when the weekday alone would
+ * read as today's. */
+export function whenWords(ms: number, now: number = Date.now()): string {
+  const days = daysAhead(ms, now);
+  if (days === 0) return clock(ms);
+  if (days === 1) return `${clock(ms)} tomorrow`;
+  const day = new Date(ms).toLocaleDateString([], days > 1 && days < 7 ? { weekday: "short" } : { weekday: "short", month: "short", day: "numeric" });
+  return `${day} ${clock(ms)}`;
+}
+
+/** When a limit resets: "resets at 3:10 PM", "resets at 8:00 AM
+ * tomorrow", "resets Thu 8:00 AM". */
+export function resetsWords(ms: number, now: number = Date.now()): string {
+  const days = daysAhead(ms, now);
+  return `resets ${days === 0 || days === 1 ? "at " : ""}${whenWords(ms, now)}`;
+}
+
+/** The same, heading a line: "Resets at 3:10 PM". */
+export function resetsLead(ms: number, now: number = Date.now()): string {
+  const words = resetsWords(ms, now);
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

@@ -16,14 +16,10 @@
 import type { JSX } from "react";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
 import { asOfWords, measured, windowView } from "../lib/quotaWindow";
+import { resetsWords } from "../lib/time-words";
 
 const badgeText = (badge?: string | null): string =>
   badge === "measured" ? "Measured" : badge === "computed" ? "Computed" : "Estimate";
-
-const clock = (ms: number): string => {
-  const date = new Date(ms);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-};
 
 const hoursAgo = (ms: number): string => {
   const minutes = Math.max(1, Math.round(ms / 60_000));
@@ -81,7 +77,7 @@ export function WindowRing({
   const exhausted = window.state === "exhausted";
   const ringText =
     pct != null ? `${Math.round(pct)}%` : exhausted ? "100%" : "—";
-  const reset = window.resets_at_ms == null ? "" : `resets ${clock(window.resets_at_ms)}`;
+  const reset = window.resets_at_ms == null ? "" : resetsWords(window.resets_at_ms);
   // When the vendor's reading was taken; without one, how long Measured
   // has been quiet.
   const stale =

@@ -12,7 +12,8 @@
 import type { JSX } from "react";
 import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
 import { READING_LIMITS } from "../lib/history-reading";
-import { asOfWords, limitWindows, measured, resetClock, resetWords, usedTokensWords, windowView } from "../lib/quotaWindow";
+import { asOfWords, limitWindows, measured, resetWords, usedTokensWords, windowView } from "../lib/quotaWindow";
+import { resetsLead, resetsWords } from "../lib/time-words";
 import { LOW_LEFT, rankByRoom } from "../lib/room";
 
 export type RunwayLine = {
@@ -41,7 +42,7 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
     {
       label: "Last read in a session",
       left,
-      words: `${left}% left${reading.resets_at_ms ? ` · resets ${resetClock(reading.resets_at_ms)}` : ""}`,
+      words: `${left}% left${reading.resets_at_ms ? ` · ${resetsWords(reading.resets_at_ms)}` : ""}`,
       tone: left === 0 ? "out" : left <= 25 ? "low" : "ok",
     },
   ];
@@ -98,7 +99,7 @@ export function runwayOf(
     return {
       left,
       words: `${left}% left, from its latest session`,
-      resets: reading.resets_at_ms != null ? `Resets ${resetClock(reading.resets_at_ms)}` : null,
+      resets: reading.resets_at_ms != null ? resetsLead(reading.resets_at_ms) : null,
       resetsAtMs: reading.resets_at_ms ?? null,
     };
   }

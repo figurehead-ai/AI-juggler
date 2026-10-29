@@ -12,7 +12,7 @@
  * (signed out, the same account). Out of room is listed, never hidden.
  * Pure: the callers hand in each one's room.
  */
-import { resetClock } from "./quotaWindow";
+import { whenWords } from "./time-words";
 
 /** At or under this much left, an account is low: never suggested. */
 export const LOW_LEFT = 25;
@@ -58,15 +58,15 @@ export function rankByRoom<T>(
   return rows.map(({ item, left, kind }, index) => ({ item, left, kind, suggested: index === 0 && kind === "room" }));
 }
 
-/** "Out of room until Thu 08:00" (or "Out of room for now" when the reset
- * isn't known). */
-export function outOfRoomWords(resetsAtMs: number | null | undefined): string {
-  return resetsAtMs != null ? `Out of room until ${resetClock(resetsAtMs)}` : "Out of room for now";
+/** "Out of room until 3:10 PM", "… until 8:00 AM tomorrow", "… until
+ * Thu 8:00 AM" (or "Out of room for now" when the reset isn't known). */
+export function outOfRoomWords(resetsAtMs: number | null | undefined, now: number = Date.now()): string {
+  return resetsAtMs != null ? `Out of room until ${whenWords(resetsAtMs, now)}` : "Out of room for now";
 }
 
 /** What picking an account out of room does, in one line. */
-export function outOfRoomConsequence(name: string, resetsAtMs: number | null | undefined): string {
-  const until = resetsAtMs != null ? ` until ${resetClock(resetsAtMs)}` : " until its limit resets";
+export function outOfRoomConsequence(name: string, resetsAtMs: number | null | undefined, now: number = Date.now()): string {
+  const until = resetsAtMs != null ? ` until ${whenWords(resetsAtMs, now)}` : " until its limit resets";
   return `You can still pick it, but the conversation stops at ${name}'s limit straight away and waits there${until}.`;
 }
 

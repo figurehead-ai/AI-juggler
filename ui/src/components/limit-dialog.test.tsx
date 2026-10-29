@@ -8,6 +8,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LimitDialog, pickTarget } from "./LimitDialog";
 import type { InstanceInfo, SwitchTargetData } from "../lib/bridge";
+import { resetsWords, whenWords } from "../lib/time-words";
 
 const NOW = 1_728_800_000_000;
 const w = () => window as unknown as Record<string, unknown>;
@@ -80,6 +81,11 @@ describe("D-25 limit decision — the dialog", () => {
     expect(dialog.textContent).toContain("Work A hit its limit");
     expect(dialog.textContent).toContain("in 2 h 10 min");
     expect(dialog.textContent).toContain("nothing is lost");
+    // One reset wording, as its card and Home's Runway say it (lib/time-words).
+    const reset = NOW + 130 * 60_000;
+    expect(dialog.textContent).toContain(`It ${resetsWords(reset, NOW)}, in 2 h 10 min.`);
+    expect(dialog.textContent).toContain(`At ${whenWords(reset, NOW)} it's offered back to you`);
+    expect(within(getByTestId("limit-wait")).getByRole("button", { name: `Park until ${whenWords(reset, NOW)}` })).toBeTruthy();
     fireEvent.click(await findByRole("button", { name: "Continue on Personal" }));
     expect(onContinue).toHaveBeenCalledWith(expect.objectContaining({ recipe_id: "r-acct-personal" }));
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();

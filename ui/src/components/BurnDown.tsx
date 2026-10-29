@@ -8,7 +8,8 @@
  */
 import type { JSX } from "react";
 import { quotaTierTag } from "./primitives";
-import { limitWindows, resetClock } from "../lib/quotaWindow";
+import { limitWindows } from "../lib/quotaWindow";
+import { resetsLead, whenWords } from "../lib/time-words";
 import type { QuotaDisplayData, RunwayDisplay } from "../lib/ipc/quota";
 
 const W = 300;
@@ -29,10 +30,10 @@ export function sessionsLeftWords(runway: RunwayDisplay): string {
 }
 
 /** When it runs out at this pace, or that it lasts past the reset. */
-export function paceWords(runway: RunwayDisplay): string {
-  if (runway.exhausts_at_ms !== null) return `At this pace it runs out about ${resetClock(runway.exhausts_at_ms)}, before the reset at ${resetClock(runway.resets_at_ms)}`;
-  if (runway.pct_per_hour === null) return `Resets ${resetClock(runway.resets_at_ms)}`;
-  return `At this pace it lasts past the reset at ${resetClock(runway.resets_at_ms)}`;
+export function paceWords(runway: RunwayDisplay, now: number = Date.now()): string {
+  if (runway.exhausts_at_ms !== null) return `At this pace it runs out about ${whenWords(runway.exhausts_at_ms, now)}, before the reset at ${whenWords(runway.resets_at_ms, now)}`;
+  if (runway.pct_per_hour === null) return resetsLead(runway.resets_at_ms, now);
+  return `At this pace it lasts past the reset at ${whenWords(runway.resets_at_ms, now)}`;
 }
 
 /** The chart: used over the window (solid), the projection (dashed), now

@@ -1,28 +1,12 @@
 /**
  * AJ-E2503 — how a notice reads: its primary action's name, its second
- * one, its lines in the user's own time ("resets 9:09 PM", "waiting
+ * one, its lines in the user's own time ("resets at 9:09 PM", "waiting
  * 24 min"), the digest, and the muted line. Plain words only: the backend
  * sends sentences and facts, never an id to show.
  */
 import type { NoticeInfo } from "../types/generated/NoticeInfo";
 import type { NoticeDigestInfo } from "../types/generated/NoticeDigestInfo";
-import { minutes } from "./time-words";
-
-/** "9:09 PM": a time today, as the system writes it. */
-export function clock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
-
-/** When a limit resets, with its day when that isn't today (the 0.2
- * walk, F18: "resets at 8:00 AM" for tomorrow): "resets at 3:10 PM",
- * "resets at 8:00 AM tomorrow", "resets Thu 8:00 AM". */
-export function resetsWords(ms: number, now: number): string {
-  const day = (offset: number) => new Date(now + offset * 24 * HOUR_MS).toDateString();
-  const on = new Date(ms).toDateString();
-  if (on === day(0)) return `resets at ${clock(ms)}`;
-  if (on === day(1)) return `resets at ${clock(ms)} tomorrow`;
-  return `resets ${new Date(ms).toLocaleDateString([], { weekday: "short" })} ${clock(ms)}`;
-}
+import { clock, minutes, resetsWords, whenWords } from "./time-words";
 
 /** When something happened: today a time, else its day. */
 export function happenedAt(ms: number, now: number): string {
@@ -42,7 +26,7 @@ export function quotaDetail(notice: NoticeInfo, now: number): string {
 /** The line under a need's title. */
 export function needLine(notice: NoticeInfo, now: number): string {
   // D-49: snoozed, it says when it comes back into Needs you.
-  if (notice.snoozed) return notice.snoozed_until_ms === null ? "Snoozed until you wake it" : `Snoozed · back at ${clock(notice.snoozed_until_ms)}${notice.snoozed_until_ms - now > 12 * HOUR_MS ? " tomorrow" : ""}`;
+  if (notice.snoozed) return notice.snoozed_until_ms === null ? "Snoozed until you wake it" : `Snoozed · back at ${whenWords(notice.snoozed_until_ms, now)}`;
   if (notice.kind === "quota") return quotaDetail(notice, now);
   if (notice.kind === "asks" || notice.kind === "stuck") {
     const waited = minutes(notice.created_ms, now);
@@ -110,14 +94,14 @@ export function tomorrowMorning(now: number): number {
   return at.getTime();
 }
 
-/** The digest line: "Today: 4 finished · 1 restarted · Work Max resets 9:09 PM". */
+/** The digest line: "Today: 4 finished · 1 restarted · Work Max resets at 9:09 PM". */
 export function digestLine(digest: NoticeDigestInfo, now: number): string | null {
   const parts: string[] = [];
   if (digest.finished) parts.push(`${digest.finished} finished`);
   if (digest.restarted) parts.push(`${digest.restarted} restarted`);
   if (digest.resets) parts.push(digest.resets === 1 ? "1 reset" : `${digest.resets} resets`);
   if (digest.updates) parts.push(digest.updates === 1 ? "1 update" : `${digest.updates} updates`);
-  if (digest.next_reset_account && digest.next_reset_ms !== null && digest.next_reset_ms > now) parts.push(`${digest.next_reset_account} resets ${clock(digest.next_reset_ms)}`);
+  if (digest.next_reset_account && digest.next_reset_ms !== null && digest.next_reset_ms > now) parts.push(`${digest.next_reset_account} ${resetsWords(digest.next_reset_ms, now)}`);
   return parts.length > 0 ? `Today: ${parts.join(" · ")}` : null;
 }
 

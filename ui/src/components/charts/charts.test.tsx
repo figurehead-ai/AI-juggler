@@ -164,7 +164,7 @@ describe("charts", () => {
     expect(screen.getByTestId("gauge").textContent).toContain("Not measured yet");
     expect(screen.getByTestId("gauge").querySelector("circle[stroke-dasharray]")).toBeNull();
     cleanup();
-    render(<Gauge name="This week" left={41} resets="Mon 10:40 AM" resetsIn="in 3 days" />);
+    render(<Gauge name="This week" left={41} resets="resets Mon 10:40 AM" resetsIn="in 3 days" />);
     expect(screen.getByRole("img").getAttribute("aria-label")).toBe("This week: 41% left, resets Mon 10:40 AM, in 3 days");
   });
 

@@ -18,6 +18,7 @@ import { errorText, type InstanceInfo } from "../../lib/bridge";
 import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSend, useRuntimeView } from "../../lib/ipc/runtime";
 import { useFolderTrust } from "../../components/FolderTrustAsk";
 import { messagesTyping } from "../../lib/ipc/messages";
+import { resetsWords } from "../../lib/time-words";
 
 const ITEM_WORDS: Record<string, string> = {
   user_message: "You",
@@ -114,7 +115,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       {runtime?.limits && runtime.limits.length > 0 && (
         <p className="text-label text-muted" data-testid="runtime-limits">
           {runtime.limits
-            .map((w) => `${w.window_mins === 300 ? "5 hours" : w.window_mins === 10080 ? "Weekly" : w.window_mins ? `${w.window_mins} min` : w.id}: ${Math.round(w.used_pct)}% used${w.resets_at_ms ? `, resets ${new Date(w.resets_at_ms).toLocaleString()}` : ""}`)
+            .map((w) => `${w.window_mins === 300 ? "5 hours" : w.window_mins === 10080 ? "Weekly" : w.window_mins ? `${w.window_mins} min` : w.id}: ${Math.round(w.used_pct)}% used${w.resets_at_ms ? `, ${resetsWords(w.resets_at_ms)}` : ""}`)
             .join(" · ")}
           {!runtime.limits.some((w) => w.window_mins === 300) && " · no 5-hour limit reported"}
         </p>
