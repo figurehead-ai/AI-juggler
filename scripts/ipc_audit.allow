@@ -37,6 +37,10 @@ unbounded backup_export  # bounded: a fixed set (settings, checks, choices or to
 unbounded backup_restore  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded backup_verify  # bounded: one backup's checks
 unbounded budgets_list  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded cache_clear  # bounded: one row per registered local cache (three today, ADR-0023)
+unbounded cache_set_limit  # bounded: one row per registered local cache (three today, ADR-0023)
+unbounded cache_set_on  # bounded: one row per registered local cache (three today, ADR-0023)
+unbounded cache_status  # bounded: one row per registered local cache (three today, ADR-0023)
 unbounded cleanup_alerts  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cleanup_pause_set  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cleanup_resume_after_crash  # bounded: a fixed set (settings, checks, choices or tools)

@@ -45,7 +45,7 @@ pub fn local_cache(data_dir: &Path) -> Arc<dyn LocalCache> {
         About {
             id: CACHE,
             name: "App icons",
-            speeds_up: "The apps' icons show at once, without asking macOS for them again.",
+            speeds_up: "The apps' icons show at once, without asking the system for them again.",
             slower: "Each app's icon is read from the app again the first time it shows.",
             trim: Trim::Partly,
             own_switch: None,

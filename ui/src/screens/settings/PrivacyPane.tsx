@@ -39,7 +39,7 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
         />
         <SettingRow
           title="What it keeps to be quick"
-          description="A cache on this Mac, never sent: subagent lists (their prompts and results only while Last messages are on), app icons and the search index. Clear it or turn it off in Local cache."
+          description="A cache on this computer, never sent: subagent lists (their prompts and results only while Last messages are on), app icons and the search index. Clear it or turn it off in Local cache."
           testId="privacy-reads-cache"
           control={
             <Button size="sm" variant="ghost" onClick={() => openSection("local-cache")} data-testid="privacy-local-cache">

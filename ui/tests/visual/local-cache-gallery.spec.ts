@@ -134,7 +134,7 @@ for (const theme of ["dark", "light"] as const) {
           {
             key: "icons",
             name: "App icons",
-            speeds_up: "The apps' icons show at once, without asking macOS for them again.",
+            speeds_up: "The apps' icons show at once, without asking the system for them again.",
             slower: "Each app's icon is read from the app again the first time it shows.",
             bytes: 1 * MB,
             entries: 38,

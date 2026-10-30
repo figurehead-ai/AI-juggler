@@ -63,7 +63,7 @@ The maintainer, 2026-10-30: "remember our tool is installed on users machines. W
 
 6. **Subagent text.** The Subagents tab's prompts, results and the message that started them are kept, redacted, in the subagent lists whenever the cache is on and Last messages are on, so the tab and its search are instant. Showing text still follows Last messages: the cache follows what the app is allowed to read. **Turning Last messages off drops that text from the cache at once**, because the user asked the app not to read it; the lists are rebuilt without it. A session's own last messages are still read on demand and kept nowhere.
 
-7. **Settings.** Settings › Advanced › Local cache, after the Data sections: one line ("Keep a cache on this Mac", what it uses of its limit, the switch); Size limit (Automatic or a fixed size); Clear cache…, whose sheet says what is slower until it fills again; and, folded, each cache with its size and what it speeds up. Off removes the files of every cache without its own switch; the search index keeps to its own. Settings › Privacy says what is kept and opens it.
+7. **Settings.** Settings › Advanced › Local cache, after the Data sections: one line ("Keep a cache on this computer", what it uses of its limit, the switch); Size limit (Automatic or a fixed size); Clear cache…, whose sheet says what is slower until it fills again; and, folded, each cache with its size and what it speeds up. Off removes the files of every cache without its own switch; the search index keeps to its own. Settings › Privacy says what is kept and opens it.
 
 ## Alternatives considered
 

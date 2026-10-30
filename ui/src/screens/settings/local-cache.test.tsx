@@ -33,10 +33,10 @@ const section = async () => {
 describe("Local cache", () => {
   it("says on one line whether it's on, what it uses and its limit", async () => {
     const row = await section();
-    expect(row.textContent).toContain("Keep a cache on this Mac");
+    expect(row.textContent).toContain("Keep a cache on this computer");
     expect(row.textContent).toContain("Using 47 MB of 1.3 GB.");
-    expect(within(row).getByRole("switch", { name: "Keep a cache on this Mac" }).getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByTestId("cache-limit-row").textContent).toContain("Automatic: 1.3 GB now, from this Mac's free space.");
+    expect(within(row).getByRole("switch", { name: "Keep a cache on this computer" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("cache-limit-row").textContent).toContain("Automatic: 1.3 GB now, from this computer's free space.");
     expect(screen.getByRole("button", { name: "Size limit: Automatic" })).toBeTruthy();
     expect(screen.getByTestId("cache-clear-row").textContent).toContain("Frees 47 MB now.");
     // Plain words, never the caches' keys.
@@ -75,7 +75,7 @@ describe("Local cache", () => {
     await section();
     fireEvent.click(screen.getByTestId("cache-clear"));
     const sheet = await screen.findByTestId("cache-clear-sheet");
-    expect(sheet.textContent).toContain("Frees 47 MB on this Mac. Nothing of yours is lost.");
+    expect(sheet.textContent).toContain("Frees 47 MB on this computer. Nothing of yours is lost.");
     const slower = within(sheet).getByTestId("cache-clear-slower");
     // Only what's in the cache now: the search index is empty here.
     expect(slower.querySelectorAll("li")).toHaveLength(2);
@@ -124,7 +124,7 @@ describe("Privacy's door to it", () => {
     window.addEventListener("aij:open-settings", opened);
     render(<PrivacyPane />);
     const row = screen.getByTestId("privacy-reads-cache");
-    expect(row.textContent).toContain("A cache on this Mac, never sent");
+    expect(row.textContent).toContain("A cache on this computer, never sent");
     expect(screen.getByTestId("privacy-reads-last").textContent).toContain("kept nowhere");
     fireEvent.click(within(row).getByRole("button", { name: "Local cache…" }));
     expect((opened.mock.calls[0]![0] as CustomEvent).detail).toEqual({ section: "local-cache" });

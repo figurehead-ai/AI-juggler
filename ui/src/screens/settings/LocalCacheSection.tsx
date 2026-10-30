@@ -28,7 +28,7 @@ const LIMITS: PickerOption[] = [
   {
     value: "auto",
     label: "Automatic",
-    hint: "2% of this Mac's free space, between 64 MB and 2 GB",
+    hint: "2% of this computer's free space, between 64 MB and 2 GB",
   },
   ...CACHE_LIMITS_MB.map((mb) => ({
     value: String(mb),
@@ -37,7 +37,7 @@ const LIMITS: PickerOption[] = [
   })),
 ];
 
-/** The one line under "Keep a cache on this Mac". */
+/** The one line under "Keep a cache on this computer". */
 export function cacheSummary(info: CacheInfo): string {
   if (!info.on) return "Off: nothing is kept, so pages read your tools' files each time they open.";
   return `Using ${cacheSize(info.used_bytes)} of ${cacheSize(info.budget_bytes)}. Pages that read many files open at once.`;
@@ -46,7 +46,7 @@ export function cacheSummary(info: CacheInfo): string {
 /** What the size limit row says. */
 function limitWords(info: CacheInfo): string {
   if (!info.on) return "Turn the cache on to set its limit.";
-  if (info.automatic) return `Automatic: ${cacheSize(info.budget_bytes)} now, from this Mac's free space.`;
+  if (info.automatic) return `Automatic: ${cacheSize(info.budget_bytes)} now, from this computer's free space.`;
   return `Fixed at ${cacheSize((info.limit_mb ?? 0) * MB)}. The least recently used goes first.`;
 }
 
@@ -73,14 +73,14 @@ export function LocalCacheSection(): JSX.Element {
       <PaneSection
         id="local-cache"
         title="Local cache"
-        footer="On this Mac only, readable by you only, and never sent. Everything in it can be rebuilt from your tools' files."
+        footer="On this computer only, readable by you only, and never sent. Everything in it can be rebuilt from your tools' files."
       >
         {info === null ? (
-          <SettingRow title="Keep a cache on this Mac" description={error ?? "Reading its size…"} testId="cache-loading" />
+          <SettingRow title="Keep a cache on this computer" description={error ?? "Reading its size…"} testId="cache-loading" />
         ) : (
           <>
             <SwitchRow
-              title="Keep a cache on this Mac"
+              title="Keep a cache on this computer"
               description={cacheSummary(info)}
               checked={info.on}
               testId="cache-switch-row"
@@ -179,7 +179,7 @@ function ClearSheet({ info, onClose, onClear }: { info: CacheInfo; onClose: () =
   return (
     <Modal
       title="Clear the cache?"
-      subtitle={`Frees ${cacheSize(info.used_bytes)} on this Mac. Nothing of yours is lost.`}
+      subtitle={`Frees ${cacheSize(info.used_bytes)} on this computer. Nothing of yours is lost.`}
       onClose={onClose}
       testId="cache-clear-sheet"
     >
