@@ -57,7 +57,7 @@ export function Segmented<T extends string>({
       aria-label={label}
       data-testid={testId}
       onKeyDown={onKey}
-      className={"flex gap-0.5 rounded-[10px] border border-hairline bg-surface/70 p-[3px] " + className}
+      className={"flex gap-0.5 rounded-[10px] border border-hairline bg-surface/70 p-[2px] " + className}
     >
       {segments.map((segment, index) => {
         const on = index === at;
@@ -78,7 +78,7 @@ export function Segmented<T extends string>({
             // quarters cut "Account" to "Accou…" beside a short "App"
             // and "Pool" (the 0.3 re-render).
             className={
-              "min-w-0 flex-auto truncate rounded-[7px] px-1 py-1 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
+              "min-h-6 min-w-0 flex-auto truncate rounded-[7px] px-1 py-0.5 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
               (on ? "bg-surface-3 font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-hairline)]" : "text-muted hover:bg-surface-2 hover:text-ink")
             }
           >

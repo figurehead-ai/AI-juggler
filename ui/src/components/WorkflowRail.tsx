@@ -490,7 +490,7 @@ export function InstanceBoard({
 
   return (
     <ActionHostProvider host={host}>
-    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="instance-board">
+    <div className="flex min-h-0 flex-1 flex-col gap-0.5" data-testid="instance-board">
       {/* AJ-E2104: search (the View's words too) and the View. */}
       <RailToolbar query={query} onQuery={setQuery} searchRef={searchRef} sessions={sessions} projects={projects} machines={remoteMachines} />
 
