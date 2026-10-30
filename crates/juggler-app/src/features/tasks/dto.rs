@@ -1,6 +1,6 @@
 //! The tasks' wire types (E19).
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// One task, epic or story, as a row.
@@ -30,6 +30,9 @@ pub struct TaskInfo {
     pub holder_session_id: Option<String>,
     /// The open tasks that block it.
     pub blocked_by: Vec<String>,
+    /// 0.3 (D-25: no id on screen): the same, each with its title (none
+    /// when it was removed), in the same order.
+    pub waits_on: Vec<TaskRefInfo>,
     /// Items under it, and how many are done.
     pub items: u32,
     /// …
@@ -43,6 +46,17 @@ pub struct TaskInfo {
     pub updated_at_ms: i64,
     /// The issue it comes from: its name there (`owner/repo#12`).
     pub issue_label: Option<String>,
+}
+
+/// 0.3: another task, as a row names it: its id (to open it) and its
+/// title (what the screen says).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct TaskRefInfo {
+    /// Its id.
+    pub id: String,
+    /// Its title; none when it was removed.
+    pub title: Option<String>,
 }
 
 /// How many of a pool's tasks are in each honest status (the filter's
@@ -64,6 +78,57 @@ pub struct TaskCounts {
     pub done: u32,
     /// Dropped.
     pub cancelled: u32,
+}
+
+/// 0.3: what the Tasks screen asks for, across pools. Each field left
+/// out means "any".
+#[derive(Debug, Clone, Default, Deserialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[serde(default)]
+pub struct TasksFilterInput {
+    /// `open` (the default), `closed`, or one status (`ready`, …).
+    #[ts(optional)]
+    pub status: Option<String>,
+    /// `task` (the work, the default) or `plan` (epics and stories).
+    #[ts(optional)]
+    pub kind: Option<String>,
+    /// One project's pools.
+    #[ts(optional)]
+    pub project_id: Option<String>,
+    /// One pool.
+    #[ts(optional)]
+    pub pool_id: Option<String>,
+    /// `anyone` (the default), `you`, or `nobody` (no one has it yet).
+    #[ts(optional)]
+    pub holder: Option<String>,
+    /// Words in its title.
+    #[ts(optional)]
+    pub words: Option<String>,
+}
+
+/// 0.3: a task on the Tasks screen: the row, and where it is (its pool,
+/// that pool's project, its epic and story).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct TaskBoardRow {
+    /// The task.
+    pub task: TaskInfo,
+    /// Its pool's name on screen.
+    pub pool_name: String,
+    /// That pool's project, when it has one.
+    pub project_id: Option<String>,
+    /// Its epic and story titles, outermost first.
+    pub path: Vec<String>,
+}
+
+/// 0.3: one project's tasks by status (the Projects screen's row).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ProjectTaskCounts {
+    /// The project.
+    pub project_id: String,
+    /// Its pools' tasks (the work) by status.
+    pub counts: TaskCounts,
 }
 
 /// One link, from the task's side.

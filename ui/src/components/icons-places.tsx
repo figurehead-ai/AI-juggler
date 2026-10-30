@@ -91,3 +91,38 @@ export function IconCode(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** 0.3: tasks — a checklist (a ticked box, an open one, their lines). */
+export function IconTasks(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="4.5" width="5" height="5" rx="1" />
+      <path d="m4.8 7 1 1 1.7-1.8" />
+      <rect x="3.5" y="14.5" width="5" height="5" rx="1" />
+      <path d="M11.5 7h9M11.5 17h9" />
+    </svg>
+  );
+}
+
+/** 0.3: a board — columns of cards (the Tasks screen's Board). */
+export function IconBoard(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="4" width="5" height="16" rx="1.2" />
+      <rect x="9.5" y="4" width="5" height="11" rx="1.2" />
+      <rect x="15.5" y="4" width="5" height="7" rx="1.2" />
+    </svg>
+  );
+}
+
+/** 0.3: a plan — a tree (an epic, its stories, their tasks). */
+export function IconPlan(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 4.5v13a2 2 0 0 0 2 2h3M5 11.5h5" />
+      <rect x="11" y="9" width="9" height="5" rx="1.2" />
+      <rect x="11" y="17" width="9" height="5" rx="1.2" />
+      <rect x="2.5" y="2" width="5" height="3" rx="1" />
+    </svg>
+  );
+}

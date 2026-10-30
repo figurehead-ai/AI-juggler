@@ -28,3 +28,5 @@ export const SessionPanel = lazyNamed(() => import("./screens/WorkPanels"), "Ses
 export const SwitchFlow = lazyNamed(() => import("./components/SwitchFlow"), "SwitchFlow");
 export const SwitchBackFlow = lazyNamed(() => import("./components/SwitchBackFlow"), "SwitchBackFlow");
 export const PoolPage = lazyNamed(() => import("./pages/PoolPage"), "PoolPage");
+// 0.3: Projects, Pools and Tasks (the header's new doors).
+export const NavScreen = lazyNamed(() => import("./screens/NavScreens"), "NavScreen");

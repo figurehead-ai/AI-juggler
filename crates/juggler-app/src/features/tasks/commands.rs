@@ -8,7 +8,10 @@
 
 use std::sync::Arc;
 
-use super::dto::{TaskCounts, TaskDetail, TaskInfo, TaskNeedInfo, TaskStartedInfo};
+use super::dto::{
+    ProjectTaskCounts, TaskBoardRow, TaskCounts, TaskDetail, TaskInfo, TaskNeedInfo,
+    TaskStartedInfo, TasksFilterInput,
+};
 use crate::error::AppResult;
 use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
@@ -44,6 +47,59 @@ pub async fn tasks_counts(
 ) -> AppResult<TaskCounts> {
     crate::ipc::blocking(state.inner(), "the tasks", move |state| {
         super::views::counts(state, &pool_id)
+    })
+    .await
+}
+
+/// 0.3: one page of every pool's tasks the filter names (the Tasks
+/// screen), ready work first.
+///
+/// # Errors
+///
+/// As [`super::across::across`].
+#[tauri::command]
+pub async fn tasks_across(
+    state: tauri::State<'_, Arc<AppState>>,
+    filter: TasksFilterInput,
+    page: PageRequest,
+) -> AppResult<Page<TaskBoardRow>> {
+    crate::ipc::blocking(state.inner(), "the tasks", move |state| {
+        super::across::across(state, &filter, &page)
+    })
+    .await
+}
+
+/// 0.3: how many of the tasks the filter names are in each status (the
+/// Tasks screen's columns).
+///
+/// # Errors
+///
+/// As [`super::across::across_counts`].
+#[tauri::command]
+pub async fn tasks_across_counts(
+    state: tauri::State<'_, Arc<AppState>>,
+    filter: TasksFilterInput,
+) -> AppResult<TaskCounts> {
+    crate::ipc::blocking(state.inner(), "the tasks", move |state| {
+        super::across::across_counts(state, &filter)
+    })
+    .await
+}
+
+/// 0.3: each project's tasks by status (a page of the Projects screen),
+/// a page at a time.
+///
+/// # Errors
+///
+/// As [`super::across::counts_by_project`].
+#[tauri::command]
+pub async fn tasks_project_counts(
+    state: tauri::State<'_, Arc<AppState>>,
+    project_ids: Vec<String>,
+    page: PageRequest,
+) -> AppResult<Page<ProjectTaskCounts>> {
+    crate::ipc::blocking(state.inner(), "the tasks", move |state| {
+        super::across::counts_by_project(state, &project_ids, &page)
     })
     .await
 }

@@ -62,3 +62,12 @@ export function itemsWords(items: number, done: number): string | null {
   if (items === 0) return null;
   return `${done} of ${items} done`;
 }
+
+/** What a task waits on, by title, never by id (D-25): "Refresh-token
+ * retries", "Refresh-token retries and 2 more", or a task that was
+ * removed. `null` when it waits on nothing. */
+export function waitsOnWords(waits: { id: string; title: string | null }[] | undefined): string | null {
+  if (!waits || waits.length === 0) return null;
+  const first = waits[0]!.title ?? "a task that was removed";
+  return waits.length === 1 ? first : `${first} and ${waits.length - 1} more`;
+}
