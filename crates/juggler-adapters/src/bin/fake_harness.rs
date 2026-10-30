@@ -11,7 +11,7 @@
 //!               [--exit CODE] [--prompt TEXT] [--wait-prompt TEXT]
 //!               [--quota-exit] [--limit-hit-ms MS]
 //!               [--spawn-child PROG --child-args "A B"]
-//!               [--child-ignore-term] [--mcp-config FILE]
+//!               [--child-ignore-term] [--mcp-config FILE] [--exit-when FILE]
 //! fake-harness write --format claude|codex --file PATH --cwd DIR
 //!               --session-id ID [--every-ms MS] [--used FIVE WEEK]
 //! fake-harness drive --dir DIR [--session-id ID | --resume ID]
@@ -34,7 +34,9 @@
 //! `--spawn-child` starts a detached child (stdio null, so it never holds
 //! the harness's output pipes) that OUTLIVES the harness — the orphan
 //! fixture (AJ-E410); `--child-ignore-term` makes it ignore SIGTERM
-//! (the stop-ladder escalation fixture, unix only). `--mcp-config` makes
+//! (the stop-ladder escalation fixture, unix only). `--exit-when` holds the
+//! end until a file exists (at most two minutes), so a test ends the run
+//! once it has seen what it needs, whatever the machine's load. `--mcp-config` makes
 //! it an MCP client of the servers in FILE (AJ-E1704, `support/mcp_client.rs`):
 //! it logs each reply to `.fake-mcp.jsonl` in its working folder. `write` is the
 //! replica's live session (AJ-E1531, `support/replica_write.rs`).
@@ -139,6 +141,10 @@ struct RunOptions {
     mcp_config: Option<PathBuf>,
     /// The hook command to run at its events (AJ-E2306, `support/hooks.rs`).
     hooks_config: Option<PathBuf>,
+    /// Before ending, wait until this file exists (at most two minutes):
+    /// a test ends the run when it has seen what it needs, not on a timer
+    /// a loaded machine can miss.
+    exit_when: Option<PathBuf>,
 }
 
 /// A session's first line: `resumed`, or `session_meta` with the
@@ -189,6 +195,7 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
         child_ignore_term: false,
         mcp_config: None,
         hooks_config: None,
+        exit_when: None,
     };
     let mut i = 0;
     while i < args.len() {
@@ -262,6 +269,10 @@ fn parse_options(args: &[String]) -> Result<RunOptions, String> {
             }
             "--hooks-config" => {
                 opts.hooks_config = Some(PathBuf::from(value()?));
+                true
+            }
+            "--exit-when" => {
+                opts.exit_when = Some(PathBuf::from(value()?));
                 true
             }
             "--mcp-config" => {
@@ -457,6 +468,12 @@ fn run(args: &[String]) -> ExitCode {
         let _ = sink;
     }
 
+    if let Some(file) = &opts.exit_when {
+        let deadline = Instant::now() + Duration::from_secs(120);
+        while !file.exists() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
     let ended = format!(r#"{{"type":"ended","id":"{session_id}"}}"#);
     if out.line(&ended).is_err() {
         return ExitCode::from(2);
