@@ -76,8 +76,12 @@ stats-events:
     ./scripts/stats_feature_check.sh
 
 # Evidence-store gate (AJ-E801): link resolution + secret scan + index freshness.
+# AJ-E2814 (D-57): every gallery family's captures have a critique written
+# for them (its allowlist of older families only shrinks).
 evidence:
     ./scripts/evidence_check.sh
+    python3 scripts/critique_check.py --selftest
+    python3 scripts/critique_check.py
 
 # Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back;
 # AJ-E1535: nor can developer words on screen (its allowlist only shrinks).
