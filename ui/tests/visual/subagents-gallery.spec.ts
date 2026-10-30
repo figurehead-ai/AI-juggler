@@ -120,8 +120,13 @@ async function shoot(page: Page, name: string, theme: string, size = "1280x800")
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${name}`).toEqual([]);
 }
 
-async function openTab(page: Page) {
+async function openTab(page: Page, folded = false) {
+  // The open rail settled first: Needs you arriving after the click pushed
+  // the selected row back out of view (CI, #198). Folded (1024), it has
+  // no Needs you list.
+  if (!folded) await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*5/);
   await page.locator(`[data-instance-id="${SESSION}"]`).first().click();
+  if (!folded) await expect(page.locator("[data-testid='rail'] [data-rail-selected='true']").first()).toBeInViewport();
   await page.getByRole("tab", { name: "Subagents" }).click();
   await expect(page.getByTestId("session-subagents")).toBeVisible();
 }
@@ -177,7 +182,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`the narrower window, the Usage tab's line, and the session's line — ${theme}`, async ({ page }) => {
     await seed(page, theme, { width: 1024, height: 700 });
-    await openTab(page);
+    await openTab(page, true);
     await page.getByRole("radio", { name: "All" }).click();
     await shoot(page, "tab-all-grouped", theme, "1024x700");
     await page.getByTestId("subagent-row").filter({ hasText: "Run the full test suite" }).click();

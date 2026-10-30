@@ -194,7 +194,10 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
     await expect(page.getByTestId("user-menu-disconnect")).toBeVisible();
     await shoot(page, "user-menu-account", theme);
 
-    // The menu-bar item's menu, from the builder's output.
+    // The menu-bar item's menu, from the builder's output. A blank page
+    // first: setContent keeps the app's scripts running, and the open
+    // menu above could draw once more into the new page (CI, #198).
+    await page.goto("about:blank");
     await page.setContent(trayPage(theme));
     await shoot(page, "tray-menu", theme);
     await page.goto("/");
