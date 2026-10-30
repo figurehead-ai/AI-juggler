@@ -94,10 +94,20 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Clippy (no default features)
         run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+      # --no-fail-fast: every failing test in one run, not the first
+      # binary's only (#198 took four runs to show four problems).
       - name: Tests
         run: |
-          cargo test --workspace
+          cargo test --workspace --no-fail-fast
           ./scripts/leaked_fixtures.sh
+      - name: Room left on the runner
+        shell: bash
+        run: |
+          free=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
+          echo "Free after the test build: ${free} GB"
+          if [ "$free" -lt 15 ]; then
+            echo "::warning::Only ${free} GB free after the test build; the dev-bridge build and coverage need room (#198 ran out)."
+          fi
       - name: Read-only test bridge (Dev builds only; docs/qa/DEV-BRIDGE.md)
         run: |
           df -h /
@@ -129,7 +139,7 @@ jobs:
         run: |
           python3 scripts/platform_lint.py --selftest
           python3 scripts/platform_lint.py
-      - name: Layering, IPC audit and size budget (AJ-E2011)
+      - name: Layering, IPC audit, size budget and machine reads (AJ-E2011)
         run: |
           python3 scripts/check_layering.py --selftest
           python3 scripts/check_layering.py
@@ -137,6 +147,8 @@ jobs:
           python3 scripts/ipc_audit.py
           python3 scripts/size_budget.py --selftest
           python3 scripts/size_budget.py
+          python3 scripts/machine_state_lint.py --selftest
+          python3 scripts/machine_state_lint.py
       - name: Task counts and ranges in the docs match the epic files
         run: |
           python3 scripts/check_task_counts.py --selftest
@@ -157,6 +169,10 @@ jobs:
           python3 scripts/apple_retry.py --selftest
       - name: Dependency policy (cargo-deny)
         run: cargo deny check
+      - name: The local gate runs what this job runs (`just verify`)
+        run: |
+          python3 scripts/ci_parity.py --selftest
+          python3 scripts/ci_parity.py
       - name: Save the Cargo cache (the test build, before coverage)
         if: steps.cargo-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0

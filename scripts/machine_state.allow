@@ -1,0 +1,13 @@
+# scripts/machine_state_lint.py: the places that read this machine's disk,
+# memory or system state directly, with how many reads. A count only goes
+# down; new code takes these from a seam a test can replace (#198).
+crates/juggler-app/src/features/app/crash.rs 1
+crates/juggler-app/src/features/app/own.rs 1
+crates/juggler-app/src/features/cache/mod.rs 2  # the cache's platform reader (Manager::read_disk_with) and its memory tier at start
+crates/juggler-app/src/features/conversations/procs.rs 2
+crates/juggler-app/src/features/processes/stop.rs 1
+crates/juggler-app/src/link.rs 3
+crates/juggler-supervisor/src/cpu_since.rs 1
+crates/juggler-supervisor/src/lib.rs 1
+crates/juggler-supervisor/src/live_stats.rs 1
+crates/juggler-supervisor/src/machine.rs 7  # the machine sampler: the seam This Mac reads

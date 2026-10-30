@@ -507,6 +507,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Esc closes New session at once.** An Esc pressed right after ⌘N,
+  before focus had moved into the sheet, did nothing; it closes the
+  sheet wherever focus is now.
+
 - **A wider stop checks every process before it stops it** (0.3): "Whole
   session tree" could stop a process whose number had been reused by
   another program since AI Juggler recorded it. Each process is now

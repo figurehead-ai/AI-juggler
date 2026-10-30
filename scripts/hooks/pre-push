@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# A push to main or release/* only of a commit `scripts/preflight.sh`
+# passed (#198). Other branches push freely. Installed by `just hooks`
+# (core.hooksPath). In an emergency, AIJ_PREFLIGHT_SKIP="the reason"
+# lets one push through and says so; the release PR's CI still runs.
+set -uo pipefail
+STAMPS="$(git rev-parse --git-common-dir)/aij-preflight"
+status=0
+while read -r local_ref local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main | refs/heads/release/*) ;;
+    *) continue ;;
+  esac
+  [ "$local_sha" = 0000000000000000000000000000000000000000 ] && continue # a delete
+  if [ -f "$STAMPS/$local_sha" ]; then
+    continue
+  fi
+  if [ -n "${AIJ_PREFLIGHT_SKIP:-}" ]; then
+    echo "pre-push: ${local_sha:0:12} to ${remote_ref#refs/heads/} WITHOUT preflight: $AIJ_PREFLIGHT_SKIP" >&2
+    continue
+  fi
+  echo "pre-push: ${local_sha:0:12} (${local_ref#refs/heads/}) hasn't passed scripts/preflight.sh; run it on this commit before pushing to ${remote_ref#refs/heads/}." >&2
+  status=1
+done
+exit $status

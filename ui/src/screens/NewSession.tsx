@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useEscapeCloses } from "../lib/use-escape-closes";
 import { homeRelative } from "../lib/project-words";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
@@ -193,19 +194,7 @@ export function NewSessionModal({
     [projects],
   );
 
-  // Esc closes the sheet wherever focus is: on the sheet's own element it
-  // was lost while focus hadn't reached the sheet yet (an Esc right after
-  // ⌘N, #198). A layout effect, so it listens from the first paint; an
-  // Esc something inside already handled is left alone.
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-  useLayoutEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) closeRef.current();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  useEscapeCloses(onClose);
 
   // ⌘↩ launches the preselected Launch settings (flow (e) HIG).
   useEffect(() => {

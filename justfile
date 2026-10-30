@@ -15,7 +15,7 @@ verify:
     cargo clippy --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
     cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
-    cargo test --workspace
+    cargo test --workspace --no-fail-fast
     cargo test -p juggler-app --features dev-bridge --lib dev_bridge
     ./scripts/leaked_fixtures.sh
     LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
@@ -32,6 +32,19 @@ verify:
     just release-selftest
     just dev-bridge-check
     python3 scripts/capabilities.py check
+    cargo deny check
+    python3 scripts/ci_parity.py --selftest
+    python3 scripts/ci_parity.py
+
+# The whole of CI on this Mac, on HEAD (a clean tree): CI's verify and
+# ui jobs, Linux clippy in a container, and the visual and a11y gates
+# when ui/ changed. Stamps the commit for scripts/hooks/pre-push (#198).
+preflight base="origin/main":
+    ./scripts/preflight.sh --base {{base}}
+
+# Pushes to main and release/* only of a commit preflight passed.
+hooks:
+    git config core.hooksPath scripts/hooks
 
 # D-20 / D-24: the release scripts' self-tests (versions, what ships,
 # nightly notes, channel requirements). A release only runs them for real
@@ -105,7 +118,9 @@ platform:
     python3 scripts/platform_lint.py
 
 # AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
-# the IPC rules and the size budget. Each allowlist only shrinks.
+# the IPC rules and the size budget; and no new direct read of the
+# machine's disk or memory outside a seam (#198). Each allowlist only
+# shrinks.
 structure:
     python3 scripts/check_layering.py --selftest
     python3 scripts/check_layering.py
@@ -113,6 +128,8 @@ structure:
     python3 scripts/ipc_audit.py
     python3 scripts/size_budget.py --selftest
     python3 scripts/size_budget.py
+    python3 scripts/machine_state_lint.py --selftest
+    python3 scripts/machine_state_lint.py
 
 # The docs that quote task counts and ranges agree with the epic files.
 task-counts:
