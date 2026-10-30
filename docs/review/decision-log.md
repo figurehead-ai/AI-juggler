@@ -1963,3 +1963,40 @@ about text the subagent index kept.
 - Evidence: `crates/juggler-app/src/features/cache/tests.rs`,
   `crates/juggler-app/tests/local_cache.rs`; the gallery's
   `98-local-cache`.
+
+### D-59 The roadmap to 1.0, and 0.4's scope; a bug in a shipped release goes to its patch line — SETTLED (2026-10-30)
+
+**Ruling.** The maintainer, 2026-10-30, after 0.3.0 reached Beta:
+"Actually any bugs I find in 0.3 should got to 0.3.* that is how this
+works", then, on the proposed roadmap and 0.4's intent: "Yes, lock it
+in".
+
+**What changed.**
+
+- **The versions to 1.0** ([`docs/plan/ROADMAP.md`](../plan/ROADMAP.md)):
+  0.4 trust and the finished basics; 0.5 more tools, and teams; 0.6 the
+  first Stable; 0.7 Windows' first release (E26); 0.8 Linux's (E27);
+  1.0 after Windows has succeeded (D-53).
+- **0.4's intent:** AI Juggler trustworthy and complete for daily use:
+  secure enough to recommend (E20), the spec's promises for the core
+  workflows actually there (E29, from `docs/review/spec-gap-audit.md`),
+  and proven on real tools (AJ-E1305, AJ-E2301, AJ-E808, AJ-E710).
+- **Patch lines:** a bug in a shipped release ships in that release's
+  patch line (0.3.1, 0.3.2…) from `release/0.3` through `main`; only
+  planned work waits for the next minor. The next minor is built on its
+  own branch (`release/0.4`, version 0.4.0) and merged into `main` once;
+  each patch is merged into it too.
+- **The first Stable is 0.6,** not 0.1 as planned on 2026-10-23: the
+  releases since moved faster than the plan, and a Stable should sit on
+  0.4's security pass and live proof.
+
+**Why.** The written plan (`docs/plan/EPICS.md`'s M-milestones) no
+longer matched the releases, and 0.4 had no stated purpose; the gap
+audit's still-missing items had no tasks; and fixes for a shipped
+release need a home that isn't the next minor.
+
+- Risk: two lines in flight (0.3.x on `main`, 0.4 on its branch) drift
+  apart. Every patch merged into `main` is merged into `release/0.4` the
+  same day.
+- Risk: 0.4 grows without end. Its scope is this list; anything new goes
+  to 0.5 or later unless the maintainer moves it.

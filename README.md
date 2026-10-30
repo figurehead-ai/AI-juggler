@@ -331,8 +331,18 @@ Your own `~/.claude` and `~/.codex` folders are otherwise left as they are.
 
 ## Roadmap
 
-- More tools: OpenCode, ZCode, Kimi and others.
-- Groups of accounts, and agents that can message each other.
+- **0.4:** trust and the finished basics: a security pass, a real
+  command palette, cost per finished task and wasted spend, notification
+  and shortcut settings that fit you, and every core feature checked on
+  real tools.
+- **0.5:** more tools (ZCode, Kiro, Hermes, Muse, Cursor, Antigravity),
+  pools across your Macs, and handing work to a colleague.
+- **0.6:** the first Stable release.
+- **0.7 and 0.8:** AI Juggler for Windows, then Linux.
+- **1.0:** after the Windows release has succeeded.
+
+The full plan, with what each version holds and why, is in
+[docs/plan/ROADMAP.md](./docs/plan/ROADMAP.md).
 
 Ideas and votes are welcome in
 [Discussions](https://github.com/figurehead-ai/AI-juggler/discussions).

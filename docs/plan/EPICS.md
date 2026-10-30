@@ -17,6 +17,10 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 4. Scope changes go through the spec first (PR), then this plan — never sideways into code.
 5. Autonomous operation: unattended build runs follow the contract in [RUNBOOK.md](./RUNBOOK.md) — same PR flow, same DoD, hard stops at gates and genuine blockages.
 
+**The versions ahead** (0.4 to 1.0, what each is for and holds) are in
+[ROADMAP.md](./ROADMAP.md) (D-59, 2026-10-30). The M-milestones below are
+kept for tracking continuity.
+
 **Milestone status** (2026-10-21)
 
 | Milestone | Scope | Status |
