@@ -75,6 +75,7 @@ fn orphan_detected_after_grace_and_stopped_gone() {
     let dir = tempfile::tempdir().unwrap();
     let supervisor = Supervisor::with_journal(dir.path()).unwrap();
     let session = SessionId::new("orphan-fixture");
+    let go = dir.path().join("go");
     supervisor
         .spawn(
             &session,
@@ -85,8 +86,10 @@ fn orphan_detected_after_grace_and_stopped_gone() {
                     dir.path().join("transcripts").to_str().unwrap(),
                     "--turns",
                     "2",
-                    "--delay-ms",
-                    "200",
+                    // Ends when the test has seen the tree (a 2 × 200 ms
+                    // window was missed under load).
+                    "--exit-when",
+                    go.to_str().unwrap(),
                     "--spawn-child",
                     "/bin/sleep",
                     "--child-args",
@@ -118,6 +121,7 @@ fn orphan_detected_after_grace_and_stopped_gone() {
         std::thread::sleep(Duration::from_millis(200));
     }
     assert!(root_pid != 0, "collector never saw the tree (root + child)");
+    std::fs::write(&go, b"").unwrap();
 
     // Wait for the non-clean exit (code 7).
     let mut exit: Option<(u32, ExitKind)> = None;
@@ -217,6 +221,7 @@ fn stop_ladder_escalates_when_sigterm_ignored() {
     let dir = tempfile::tempdir().unwrap();
     let supervisor = Supervisor::new();
     let session = SessionId::new("ladder-ignore-term");
+    let go = dir.path().join("go");
     supervisor
         .spawn(
             &session,
@@ -227,8 +232,8 @@ fn stop_ladder_escalates_when_sigterm_ignored() {
                     dir.path().to_str().unwrap(),
                     "--turns",
                     "3",
-                    "--delay-ms",
-                    "300",
+                    "--exit-when",
+                    go.to_str().unwrap(),
                     "--spawn-child",
                     "/bin/sleep",
                     "--child-args",
@@ -258,6 +263,7 @@ fn stop_ladder_escalates_when_sigterm_ignored() {
         std::thread::sleep(Duration::from_millis(200));
     }
     assert!(child_pid != 0, "ignoring child never observed in the tree");
+    std::fs::write(&go, b"").unwrap();
     // Drain the harness's own exit (it ends immediately after 1 turn).
     let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline && supervisor.try_recv().is_none() {

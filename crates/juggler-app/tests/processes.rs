@@ -101,10 +101,12 @@ fn harness_spec(extra: &[&str], cwd: &Path) -> LaunchSpec {
 }
 
 /// Spawns the orphan fixture under the state's supervisor, ticks the
-/// collector until the tree is visible, waits for the non-clean exit,
+/// collector until the tree is visible, lets the harness end, waits for
+/// the non-clean exit,
 /// and runs the exit-snapshot hook. Returns (session, child pid).
 fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (SessionId, u32) {
     let session = seed_instance(state, dir, id);
+    let go = dir.join(format!("{id}.go"));
     state
         .supervisor
         .spawn(
@@ -117,12 +119,13 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
                     "--turns",
                     "3",
                     // The child is in the session's tree only while the
-                    // harness lives (then launchd adopts it): 3 × 1.5 s
-                    // gives the collector a window a loaded test run can't
-                    // miss (0.3 s turns failed under a parallel workspace
-                    // run, 2026-10-24).
-                    "--delay-ms",
-                    "1500",
+                    // harness lives (then launchd adopts it). A timer's
+                    // window was missed under a loaded run (0.3 s turns on
+                    // 2026-10-24, then 3 × 1.5 s on 2026-10-30): the
+                    // harness now ends only when the test has seen the
+                    // child and says so.
+                    "--exit-when",
+                    go.to_str().unwrap(),
                     "--spawn-child",
                     "/bin/sleep",
                     "--child-args",
@@ -150,6 +153,8 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
         std::thread::sleep(Duration::from_millis(200));
     }
     assert!(child_pid != 0, "processes command never saw the child");
+    // Seen: the harness may end now.
+    std::fs::write(&go, b"").unwrap();
 
     // Wait for the non-clean exit and run the forwarder's snapshot hook.
     let deadline = Instant::now() + Duration::from_secs(20);
