@@ -14,9 +14,18 @@ export function happenedAt(ms: number, now: number): string {
   return day ? clock(ms) : new Date(ms).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
 }
 
-/** An account almost out of room: room left, the reset, the sessions on it. */
+/** An account almost out of room: room left, the reset, the sessions on it.
+ * One carrying on with its credits (0.3.2): "Its weekly window is used up
+ * until Wed 1:35 AM · 14,150 credits left". */
 export function quotaDetail(notice: NoticeInfo, now: number): string {
-  const { window, resets_at_ms, sessions } = notice.facts;
+  const { window, resets_at_ms, sessions, credits } = notice.facts;
+  if (credits != null) {
+    const until = resets_at_ms !== null && resets_at_ms > now ? ` until ${whenWords(resets_at_ms, now)}` : "";
+    const parts = [`Its ${window ?? "usage"} window is used up${until}`];
+    if (credits) parts.push(credits);
+    if (sessions) parts.push(sessions === 1 ? "1 session uses it" : `${sessions} sessions use it`);
+    return parts.join(" · ");
+  }
   const parts = [notice.meter !== null ? `${notice.meter}% of its ${window ?? "usage"} window left` : notice.detail];
   if (resets_at_ms !== null && resets_at_ms > now) parts.push(resetsWords(resets_at_ms, now));
   if (sessions) parts.push(sessions === 1 ? "1 session uses it" : `${sessions} sessions use it`);
@@ -34,6 +43,12 @@ export function needLine(notice: NoticeInfo, now: number): string {
     return notice.kind === "asks" ? `waiting ${waited}` : `for ${waited}`;
   }
   return notice.detail;
+}
+
+/** What happened, under Earlier: its detail; an account carrying on with
+ * its credits says until when, in the user's own time. */
+export function earlierLine(notice: NoticeInfo, now: number): string {
+  return notice.kind === "quota" && notice.facts.credits != null ? quotaDetail(notice, now) : notice.detail;
 }
 
 /** The quieter line under that (where; or the sessions on an account). */
@@ -74,6 +89,12 @@ export function secondOf(notice: NoticeInfo): { id: Second; label: string } | nu
   if (notice.kind === "review" && notice.target.session_id) return { id: "mark-reviewed", label: "Mark reviewed" };
   if (!notice.snoozed && ["asks", "stuck", "message", "task"].includes(notice.kind)) return { id: "snooze-hour", label: "Snooze 1 h" };
   return null;
+}
+
+/** A notice's look: an account carrying on with its credits informs
+ * (0.3.2), it doesn't warn. */
+export function noticeTone(notice: Pick<NoticeInfo, "kind" | "facts">): ReturnType<typeof toneOf> {
+  return notice.kind === "quota" && notice.facts.credits != null ? "info" : toneOf(notice.kind);
 }
 
 /** A row's look: what its mark says. */

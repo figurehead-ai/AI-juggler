@@ -16,7 +16,7 @@ export function gaugeTone(left: number): string {
   return "var(--color-accent)";
 }
 
-export function Ring({ left, size = 60, color }: { left: number | null; size?: number; color?: string }): JSX.Element {
+export function Ring({ left, size = 60, color, onCredits = false }: { left: number | null; size?: number; color?: string; onCredits?: boolean }): JSX.Element {
   const stroke = 7;
   const r = size / 2 - stroke / 2 - 1;
   const c = size / 2;
@@ -24,7 +24,7 @@ export function Ring({ left, size = 60, color }: { left: number | null; size?: n
   const share = left === null ? 0 : Math.max(0, Math.min(100, left)) / 100;
   return (
     <svg width={size} height={size} aria-hidden="true" className="shrink-0">
-      <circle cx={c} cy={c} r={r} fill="none" stroke={left === 0 ? "color-mix(in oklab, var(--color-danger) 45%, var(--color-surface-3))" : "var(--color-surface-3)"} strokeWidth={stroke} />
+      <circle cx={c} cy={c} r={r} fill="none" stroke={left === 0 ? `color-mix(in oklab, var(${onCredits ? "--color-warning" : "--color-danger"}) 45%, var(--color-surface-3))` : "var(--color-surface-3)"} strokeWidth={stroke} />
       {left !== null && share > 0 && (
         <circle
           cx={c}
@@ -54,6 +54,7 @@ export function Gauge({
   state = "measured",
   note,
   testId,
+  onCredits = false,
 }: {
   name: string;
   /** Percent left; null when not measured. */
@@ -66,6 +67,8 @@ export function Gauge({
   /** A line under it (the reading's age, an estimate's basis). */
   note?: string | null;
   testId?: string;
+  /** Used up, but credits carry the work on (0.3.2): amber, not red. */
+  onCredits?: boolean;
 }): JSX.Element {
   // The 0.2 walk (F18): "Not measured yet · Codex reports no five-hour
   // limit" said two things; a limit the plan hasn't is said once.
@@ -77,7 +80,7 @@ export function Gauge({
       : `${name}: ${Math.round(left!)}% left${resets ? `, ${resets}` : ""}${resetsIn ? `, ${resetsIn}` : ""}`;
   return (
     <div className="flex min-w-0 items-center gap-3" role="img" aria-label={said} data-testid={testId ?? "gauge"} data-state={state}>
-      <Ring left={status === null ? left : null} />
+      <Ring left={status === null ? left : null} onCredits={onCredits} />
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="text-body font-semibold text-ink">{name}</span>
         {status !== null ? (

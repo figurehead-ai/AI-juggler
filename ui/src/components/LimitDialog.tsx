@@ -28,6 +28,7 @@ import { useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { SuggestedMark } from "./SwitchTargetRows";
 import { IconClose } from "./icons-controls";
 import { resetsWords, whenWords } from "../lib/time-words";
+import { creditsConsequence, usingCreditsWords } from "../lib/credits";
 
 function inWords(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
@@ -42,8 +43,9 @@ function ago(ms: number): string {
 
 /** The pick: the one order by room's suggestion (`lib/room`, as Home's
  * "Best for new work"), else the first other account that isn't out of
- * room. Never the same account, a held-back one, or one out of room: that
- * would walk into another limit (the 0.2 walk, F1). */
+ * room (one carrying on with its credits can be: a session there goes on,
+ * 0.3.2). Never the same account, a held-back one, or one out of room:
+ * that would walk into another limit (the 0.2 walk, F1). */
 export function pickTarget(
   targets: SwitchTargetData[],
   fromAccount: string | null,
@@ -209,6 +211,11 @@ export function LimitDialog({
                   {ready && (
                     <p className="text-xs text-success" data-testid="limit-ready">
                       Ready to continue on {target.account_label} · prepared {ago(now - ready.prepared_at_ms)}
+                    </p>
+                  )}
+                  {target.room.kind === "credits" && target.room.credits && (
+                    <p className="text-xs text-ink" data-testid="limit-target-credits">
+                      {usingCreditsWords(target.room.credits)}. {creditsConsequence(target.room.resetsAtMs, now, "It goes on")}
                     </p>
                   )}
                   {targetLines.length > 0 && (

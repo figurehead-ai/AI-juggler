@@ -9,17 +9,20 @@
 import { runwayOf } from "../components/AccountRunway";
 import type { QuotaDisplayData, SwitchTargetData } from "./bridge";
 import { rankByRoom, type RoomKind } from "./room";
+import type { CreditsCover } from "./credits";
 import { accountDisplay, accountOfProfile, shareAccount, type SubscriptionInfo } from "./subscriptions";
 
 /** A target's room, in the one runway's words. */
 export interface TargetRoom {
   left: number | null;
   kind: RoomKind;
-  /** "75% left this week". */
+  /** "75% left this week"; "Using credits · 14,150 left". */
   words: string;
   /** "Week resets Thu 08:00", when known. */
   resets: string | null;
   resetsAtMs: number | null;
+  /** A used-up window its credits carry on past (0.3.2). */
+  credits: CreditsCover | null;
 }
 
 export type RoomTarget = SwitchTargetData & { room: TargetRoom };
@@ -30,7 +33,7 @@ export function roomOfProfile(profileId: string, accounts: SubscriptionInfo[] | 
   const account = accounts ? accountOfProfile(accounts, profileId) : undefined;
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === profileId);
   const run = runwayOf(display);
-  return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null };
+  return { left: run.left, words: run.words, resets: run.resets, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null };
 }
 
 /** `targets` by room, the best "Suggested". One the ranking holds back,
@@ -46,7 +49,7 @@ export function rankTargets(
     target.filtered_reason == null &&
     target.account_id !== sourceProfile &&
     !(accounts && sourceProfile && shareAccount(accounts, sourceProfile, target.account_id));
-  return rankByRoom(targets, (target) => rooms.get(target)!.left, usable).map(({ item, kind, suggested }) => ({
+  return rankByRoom(targets, (target) => rooms.get(target)!.left, usable, (target) => rooms.get(target)!.credits !== null).map(({ item, kind, suggested }) => ({
     ...item,
     suggested,
     room: { ...rooms.get(item)!, kind },

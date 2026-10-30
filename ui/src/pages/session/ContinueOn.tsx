@@ -265,8 +265,10 @@ export function ContinueOn({
   );
 }
 
-/** An account's room, short, beside its name ("75% left", "Out of room"). */
+/** An account's room, short, beside its name ("75% left", "Out of room",
+ * "Using credits"). */
 function RoomFigure({ room }: { room: TargetRoom | null }): JSX.Element {
+  if (room?.kind === "credits") return <span className="shrink-0 text-ink">Using credits</span>;
   if (room === null || room.left === null) return <span className="shrink-0 text-muted">not measured</span>;
   const tone = room.kind === "out" ? "text-danger" : room.kind === "low" ? "text-warning" : "text-muted";
   return <span className={"shrink-0 tabular-nums " + tone}>{room.kind === "out" ? "Out of room" : `${room.left}% left`}</span>;

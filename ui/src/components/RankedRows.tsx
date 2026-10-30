@@ -17,6 +17,7 @@ import type { RankedRowData } from "../lib/bridge";
 export function RankedRows({
   rows: given,
   leftOf,
+  creditsOf,
   onPick,
   activeAccount,
 }: {
@@ -24,11 +25,14 @@ export function RankedRows({
   /** Each account's % left, as Home's Runway reads it: the rows go in the
    * one order by room and "Suggested" is its pick (the 0.2 walk, F17). */
   leftOf?: (account: string) => number | null;
+  /** A used-up window its credits carry on past (0.3.2): ranked after the
+   * low ones, before any out of room. */
+  creditsOf?: (account: string) => boolean;
   onPick: (account: string) => void;
   activeAccount?: string;
 }): JSX.Element {
   const rows = leftOf
-    ? rankByRoom(given, (row) => leftOf(row.account), (row) => row.filtered_reason == null).map(({ item, suggested }) => ({ ...item, suggested }))
+    ? rankByRoom(given, (row) => leftOf(row.account), (row) => row.filtered_reason == null, (row) => creditsOf?.(row.account) ?? false).map(({ item, suggested }) => ({ ...item, suggested }))
     : given;
   const [whyOpen, setWhyOpen] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);

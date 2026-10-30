@@ -507,6 +507,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An account on its credits isn't "out of room"** (0.3.2). A Codex
+  account whose week was used up kept working on its pre-bought credits
+  while AI Juggler said it had "run out of room · 0% of its weekly window
+  left". Credits that cover (unlimited, or a balance above 0; "probably"
+  when the tool doesn't say how many) are now their own room state: the
+  notice says "Codex is using its credits" (under Earlier, not Needs you,
+  with no empty meter, Continue on another account… still one click), the
+  switch list, its confirm, New session's pick, the limit dialog, Home's
+  Runway and the account card say "Using credits · 14,150 left" and that
+  a session there goes on with its credits until the window resets. Such
+  an account ranks after any with room in its window, before any truly
+  out, and is never Suggested; with a balance of 0 nothing changes.
+
 - **Deleting launch settings keeps their sessions** (0.3.1, D-60). One
   click on the bin deleted launch settings and every session made with
   them from History. Now it asks first; the settings stop starting

@@ -241,6 +241,112 @@ pub struct CreditsDisplay {
     pub source: String,
 }
 
+/// Whether an account's credits carry its work on once a window is used
+/// up (the maintainer's report, 0.3.2: Codex kept working on pre-bought
+/// credits while AI Juggler said it had run out of room). The one rule,
+/// [`CreditsDisplay::cover`]; the UI keeps the same one (`lib/credits`).
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum CreditsCover {
+    /// Unlimited credits.
+    Unlimited,
+    /// A balance above zero, as the tool reported it.
+    Balance(f64),
+    /// The tool says the plan has credits but not how many: they
+    /// probably carry it on (D-36's word for an inferred state).
+    Probably,
+}
+
+impl CreditsCover {
+    /// What's left, as people read it: "14,150 credits left",
+    /// "unlimited credits"; `None` when the tool didn't say.
+    #[must_use]
+    pub fn left_words(self) -> Option<String> {
+        match self {
+            Self::Unlimited => Some("unlimited credits".to_owned()),
+            Self::Balance(balance) => Some(format!("{} credits left", whole_number(balance))),
+            Self::Probably => None,
+        }
+    }
+}
+
+/// A window used up: no whole percent left (what every screen rounds to
+/// "0% left").
+#[must_use]
+pub fn used_up(used_pct: f64) -> bool {
+    (100.0 - used_pct).round() <= 0.0
+}
+
+/// A balance rounded to a whole number, with thousands separators
+/// ("14,150").
+#[must_use]
+pub fn whole_number(value: f64) -> String {
+    // Rounded and clamped first: the cast can't truncate or wrap.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let whole = value.round().clamp(0.0, 1e15) as u64;
+    let digits = whole.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    out
+}
+
+impl CreditsDisplay {
+    /// Whether the credits carry the account's work on: unlimited, or a
+    /// balance above zero; credits with no balance reported, probably. A
+    /// balance of zero, or no credits, don't.
+    #[must_use]
+    pub fn cover(&self) -> Option<CreditsCover> {
+        if self.unlimited {
+            return Some(CreditsCover::Unlimited);
+        }
+        if !self.has_credits {
+            return None;
+        }
+        match self.balance.as_deref().map(str::trim) {
+            None | Some("") => Some(CreditsCover::Probably),
+            Some(raw) => raw
+                .parse::<f64>()
+                .ok()
+                .filter(|balance| balance.is_finite() && *balance > 0.0)
+                .map(CreditsCover::Balance),
+        }
+    }
+}
+
+impl QuotaDisplayInfo {
+    /// A window spent with no reset known: the ranking's hard filter
+    /// (unless credits carry it on, [`Self::using_credits`]).
+    #[must_use]
+    pub fn exhausted_no_reset(&self) -> bool {
+        [self.five_hour.as_ref(), self.weekly.as_ref()]
+            .into_iter()
+            .flatten()
+            .any(|window| window.state == "exhausted" && window.resets_at_ms.is_none())
+    }
+
+    /// A window used up (its last reading at 100%, or spent until its
+    /// reset) while the account's credits carry its work on: the cover,
+    /// else `None` (no window used up, or no credits that cover).
+    #[must_use]
+    pub fn using_credits(&self) -> Option<CreditsCover> {
+        let used_up = [self.five_hour.as_ref(), self.weekly.as_ref()]
+            .into_iter()
+            .flatten()
+            .any(|window| {
+                window.state == "exhausted"
+                    || (window.state != "reset" && window.percentage.is_some_and(used_up))
+            });
+        if !used_up {
+            return None;
+        }
+        self.credits.as_ref().and_then(CreditsDisplay::cover)
+    }
+}
+
 /// The account's newest credits snapshot, when its tool reported one.
 fn credits_of(
     storage: &juggler_core::storage::Storage,
@@ -725,4 +831,61 @@ fn reported_windows(
         })
     };
     (reported(five_hour), reported(weekly))
+}
+
+#[cfg(test)]
+mod credits_tests {
+    use super::*;
+
+    fn credits(has_credits: bool, unlimited: bool, balance: Option<&str>) -> CreditsDisplay {
+        CreditsDisplay {
+            has_credits,
+            unlimited,
+            balance: balance.map(str::to_owned),
+            as_of_ms: 0,
+            source: "A tool".to_owned(),
+        }
+    }
+
+    /// The one rule: unlimited, or a balance above zero; credits with no
+    /// balance probably; zero or none never.
+    #[test]
+    fn credits_cover_by_one_rule() {
+        // The maintainer's real stored value.
+        assert_eq!(
+            credits(true, false, Some("14150.1635025000")).cover(),
+            Some(CreditsCover::Balance(14_150.163_502_5))
+        );
+        assert_eq!(
+            credits(false, true, None).cover(),
+            Some(CreditsCover::Unlimited)
+        );
+        assert_eq!(
+            credits(true, false, None).cover(),
+            Some(CreditsCover::Probably)
+        );
+        assert_eq!(credits(true, false, Some("0")).cover(), None);
+        assert_eq!(credits(true, false, Some("0.0000")).cover(), None);
+        assert_eq!(credits(true, false, Some("-3")).cover(), None);
+        assert_eq!(credits(true, false, Some("not a number")).cover(), None);
+        assert_eq!(credits(false, false, Some("50")).cover(), None);
+    }
+
+    #[test]
+    fn what_is_left_is_a_whole_number_with_separators() {
+        assert_eq!(
+            CreditsCover::Balance(14_150.163_502_5)
+                .left_words()
+                .as_deref(),
+            Some("14,150 credits left")
+        );
+        assert_eq!(
+            CreditsCover::Unlimited.left_words().as_deref(),
+            Some("unlimited credits")
+        );
+        assert_eq!(CreditsCover::Probably.left_words(), None);
+        assert_eq!(whole_number(0.4), "0");
+        assert_eq!(whole_number(999.5), "1,000");
+        assert_eq!(whole_number(1_234_567.0), "1,234,567");
+    }
 }
