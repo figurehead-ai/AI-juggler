@@ -5,7 +5,7 @@
 //! - The canvas names the members it shows (a page or a few of them); the
 //!   answer is about those alone and never grows with the history (I6):
 //!   edges are counted per pair since [`EDGE_WINDOW_MS`], what waits is
-//!   the newest few, the stream the newest [`STREAM_LINES`].
+//!   the newest few, the stream the newest 30.
 //! - Positions are kept under what a member stands for (its Work item,
 //!   else its session), so a switch keeps its node where it was.
 //! - Only the app's own window calls these. Placing a node or tidying up
@@ -98,16 +98,6 @@ fn edge_in(
         })
 }
 
-/// A session Deliver can put a message into now: it runs, in AI Juggler.
-fn deliverable(state: &Arc<AppState>, storage: &Storage, session: &str) -> bool {
-    let id = SessionId::new(session);
-    state.runtime.is_driven(&id)
-        && storage
-            .sessions()
-            .get(&id)
-            .is_ok_and(|record| crate::features::messages::is_live(record.status))
-}
-
 /// A list of session ids, deduplicated and capped.
 fn checked(ids: Vec<String>, most: usize, what: &str) -> AppResult<Vec<String>> {
     if ids.len() > most {
@@ -184,7 +174,9 @@ fn edges_of(
         let kind = match (ask, row.state.as_str()) {
             (Some(ask), _) if ask.action == deliver => "hop_limit",
             (Some(_), "held") => "asked",
-            (None, "unread") if deliverable(state, storage, &to) => "waiting",
+            (None, "unread") if crate::features::messages::deliverable_now(state, storage, &to) => {
+                "waiting"
+            }
             _ => continue,
         };
         let edge = edge_in(&mut folded, from, to);

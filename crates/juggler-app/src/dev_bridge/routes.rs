@@ -292,6 +292,9 @@ read_routes! {
     "pools_list" => async_result features::pools::commands::pools_list(state);
     "pools_members" => async_result features::pools::commands::pools_members(state; pool_id: String, page: crate::paging::PageRequest);
     "pools_place" => async_result features::pools::commands::pools_place(state; session_id: String);
+    // 0.3: a pool's canvas and the Pools screen's cards (reads only).
+    "pools_canvas" => async_result features::pools::commands::pools_canvas(state; pool_id: String, session_ids: Vec<String>);
+    "pools_canvas_previews" => async_result features::pools::commands::pools_canvas_previews(state; pool_ids: Vec<String>);
     // E18: messages' lists (reads only; opening a thread marks it read).
     "messages_threads" => async_result features::messages::commands::messages_threads(state; pool_id: Option<String>, session_id: Option<String>, cursor: Option<String>);
     "messages_needs" => async_result features::messages::commands::messages_needs(state);
