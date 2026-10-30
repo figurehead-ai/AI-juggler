@@ -29,6 +29,12 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-latest
+    env:
+      # Line tables only: a failing test still names its file and line, but
+      # the test build is a fraction of its size. With full debug info it
+      # took about 100 GB (main had 3.3 GB left before coverage on
+      # 2026-10-29) and 0.3's dev-bridge build ran out of disk (#198).
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
       # The full gate (coverage, three clippy variants, every test binary)
       # outgrew the runner's free disk (#148, 2026-10-23: "No space left on
@@ -57,8 +63,10 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-${{ github.job }}-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-
+          # "-lt": builds with line tables only (above). An older cache, built
+          # with full debug info, would be rebuilt beside itself.
+          key: ${{ runner.os }}-${{ github.job }}-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-lt-
       - name: Install cargo-llvm-cov and cargo-deny (release binaries)
         env:
           LLVM_COV_VERSION: v0.9.1
@@ -92,6 +100,7 @@ jobs:
           ./scripts/leaked_fixtures.sh
       - name: Read-only test bridge (Dev builds only; docs/qa/DEV-BRIDGE.md)
         run: |
+          df -h /
           cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
           cargo test -p juggler-app --features dev-bridge --lib dev_bridge
           ./scripts/dev_bridge_check.sh
