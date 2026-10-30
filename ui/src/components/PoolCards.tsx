@@ -66,10 +66,12 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
           />
           <ProjectMark projectId={session.project_id} size={16} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm text-ink" data-testid="pool-card-name">
-              {name}
-              <span className="text-faint">
-                {" "}
+            {/* The name gives way, never its state ("En…" at 1024 px). */}
+            <span className="flex min-w-0 items-baseline gap-1 text-sm">
+              <span className="truncate text-ink" data-testid="pool-card-name">
+                {name}
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-faint">
                 · <span className={said.tone} data-testid="pool-card-state">{said.word}</span>
               </span>
             </span>

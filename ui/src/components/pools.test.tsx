@@ -332,7 +332,9 @@ describe("context cards", () => {
     const { getByTestId, getByLabelText } = render(<PoolCardRows list={listOf([card({})])} sessions={MOCK_SESSIONS} now={Date.now()} />);
     // The session's one title, as the rail names it (not the card's own
     // fallback, which said "its folder").
-    expect(getByTestId("pool-card-name").textContent).toBe(`${sessionTitle(first)} · ${sessionState(first).word}`);
+    expect(getByTestId("pool-card-name").textContent).toBe(sessionTitle(first));
+    // Its state beside the name, outside the part that gives way.
+    expect(getByTestId("pool-card-name").contains(getByTestId("pool-card-state"))).toBe(false);
     // D-36: the rows' place line; the tool beside it (the line names the profile).
     expect(getByTestId("pool-card").textContent).toContain("shop · AI Juggler · Work Max");
     expect(getByTestId("pool-card").textContent).toContain("Claude Code");

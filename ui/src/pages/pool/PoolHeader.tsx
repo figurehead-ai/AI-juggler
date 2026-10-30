@@ -121,7 +121,10 @@ export function PoolHeader({
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-hi" aria-hidden="true">
         <IconPool width={18} height={18} />
       </span>
-      <div className="flex min-w-[12rem] flex-1 flex-col">
+      {/* The name never gives way to the controls: they wrap to a row of
+          their own first (at 1024 px the name read "payments-api · all
+          se…" beside them). */}
+      <div className="flex min-w-0 max-w-full flex-[1_0_auto] flex-col">
         <div className="flex min-w-0 items-center gap-2">
           <Name pool={pool} />
           {pool.kind === "default" && <span className="shrink-0 rounded-md border border-hairline px-1.5 text-label text-muted">Project pool</span>}
