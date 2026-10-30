@@ -2929,6 +2929,7 @@ name = "juggler-platform"
 version = "0.3.0"
 dependencies = [
  "nix 0.31.3",
+ "sysinfo",
  "tempfile",
  "tokio",
 ]
