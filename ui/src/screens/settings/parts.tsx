@@ -6,6 +6,7 @@
  */
 import { useEffect, useId, useRef, type JSX, type ReactNode } from "react";
 import { InSettingsSection } from "../../components/CardTitle";
+import { IconWarn } from "../../components/icons-menu";
 import type { PaneTone } from "./panes";
 
 /** How long a pane waits for its anchored section to appear (a section
@@ -159,6 +160,7 @@ export function SwitchRow({
   onChange,
   testId,
   note,
+  noteTone = "info",
 }: {
   title: string;
   description: ReactNode;
@@ -168,6 +170,8 @@ export function SwitchRow({
   onChange: (on: boolean) => void;
   testId?: string;
   note?: string | null;
+  /** How the note reads: a plain status line, or a warning. */
+  noteTone?: RowNoteTone;
 }): JSX.Element {
   const id = useId();
   return (
@@ -182,12 +186,28 @@ export function SwitchRow({
         <Switch checked={checked} disabled={disabled} onChange={onChange} labelledBy={`${id}-title`} describedBy={`${id}-why`} testId={testId ? `${testId}-switch` : undefined} />
       }
     >
-      {note && (
-        <span className="text-xs text-ink" role="status">
-          {note}
-        </span>
-      )}
+      {note && <RowNote tone={noteTone}>{note}</RowNote>}
     </SettingRow>
+  );
+}
+
+export type RowNoteTone = "info" | "warning";
+
+/** A line under a row's words: what just happened (info), or something
+ * to look at (warning: the app's warning icon and tone, as a notice's). */
+export function RowNote({ tone = "info", children, testId }: { tone?: RowNoteTone; children: ReactNode; testId?: string }): JSX.Element {
+  if (tone === "warning") {
+    return (
+      <span className="mt-1 flex items-start gap-1.5 text-xs leading-relaxed text-warning" role="status" data-tone="warning" data-testid={testId}>
+        <IconWarn aria-hidden="true" width={14} height={14} className="mt-px shrink-0" />
+        <span>{children}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="text-xs text-ink" role="status" data-testid={testId}>
+      {children}
+    </span>
   );
 }
 

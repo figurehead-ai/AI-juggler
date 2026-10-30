@@ -1,7 +1,8 @@
 /**
  * ADR-0023 gallery: Settings › Advanced › Local cache. On (its size and
  * automatic limit), its caches unfolded, the size-limit menu, Clear
- * cache…'s sheet, off, and a nearly full disk; then Privacy's line about
+ * cache…'s sheet, off, a nearly full disk (a warning), and the search
+ * index's row off (with its door) and on but empty; then Privacy's line about
  * it. Both themes, at 1280×800 and 1024×700; axe 0 critical/serious on
  * each.
  */
@@ -16,6 +17,20 @@ const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/98-local-cache"
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
 const MB = 1_000_000;
+/** The search index's row, with search on and nothing in it yet. */
+const SEARCH = {
+  key: "search-index",
+  name: "Search index",
+  speeds_up: "Search the words of every session answers at once.",
+  slower: "The index is built again in the background; until it's done, search finds less.",
+  bytes: 0,
+  entries: 0,
+  whole_only: true,
+  on: true,
+  own_switch: "Search the words of every session",
+  own_switch_pane: "Privacy",
+  own_switch_section: "search",
+};
 type Size = { width: number; height: number };
 const SIZES: Size[] = [
   { width: 1280, height: 800 },
@@ -49,7 +64,10 @@ async function open(page: Page, theme: "dark" | "light", size: Size, cache?: Rec
 async function axe(page: Page, what: string) {
   const results = await new AxeBuilder({ page }).analyze();
   const bad = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
-  expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${what}`).toEqual([]);
+  expect(
+    bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`),
+    `axe on ${what}`,
+  ).toEqual([]);
 }
 
 async function painted(page: Page) {
@@ -62,7 +80,7 @@ for (const theme of ["dark", "light"] as const) {
 
     test(`Local cache, on — ${at} ${theme}`, at === "1280x800" ? gate("98-local-cache") : {}, async ({ page }) => {
       await open(page, theme, size);
-      await expect(page.getByTestId("cache-switch-row")).toContainText("Using 47 MB of 1.3 GB.");
+      await expect(page.getByTestId("cache-switch-row")).toContainText("Using 47 MB of 1.3 GB. Subagent lists and app icons open without re-reading files.");
       await painted(page);
       await page.screenshot({ path: resolve(OUT, `on-${at}-${theme}.png`) });
       await axe(page, `local cache on ${at} ${theme}`);
@@ -70,10 +88,33 @@ for (const theme of ["dark", "light"] as const) {
       // What's in it, unfolded.
       await page.getByTestId("cache-contents-toggle").locator("summary").click();
       await expect(page.getByTestId("cache-row")).toHaveCount(3);
+      // Search is off here: its row says so, with a way to its switch.
+      await expect(page.getByTestId("cache-row-size").last()).toHaveText("Off");
+      await expect(page.getByTestId("cache-row-door")).toHaveText("Turn it on in Privacy");
       await page.getByTestId("cache-row").last().scrollIntoViewIfNeeded();
       await painted(page);
       await page.screenshot({ path: resolve(OUT, `contents-${at}-${theme}.png`) });
       await axe(page, `its caches ${at} ${theme}`);
+    });
+
+    test(`Local cache, search on but empty — ${at} ${theme}`, async ({ page }) => {
+      await open(page, theme, size, {
+        on: true,
+        automatic: true,
+        limit_mb: null,
+        budget_bytes: 1_300 * MB,
+        used_bytes: 0,
+        low_disk: false,
+        free_bytes: 65_500 * MB,
+        caches: [SEARCH],
+      });
+      await expect(page.getByTestId("cache-switch-row")).toContainText("Search index opens without re-reading files.");
+      await page.getByTestId("cache-contents-toggle").locator("summary").click();
+      await expect(page.getByTestId("cache-row-size")).toHaveText("Empty");
+      await page.getByTestId("cache-row").last().scrollIntoViewIfNeeded();
+      await painted(page);
+      await page.screenshot({ path: resolve(OUT, `search-empty-${at}-${theme}.png`) });
+      await axe(page, `search on but empty ${at} ${theme}`);
     });
 
     test(`Local cache, its menus and sheet — ${at} ${theme}`, async ({ page }) => {
@@ -103,7 +144,7 @@ for (const theme of ["dark", "light"] as const) {
         used_bytes: 0,
         low_disk: false,
         free_bytes: 65_500 * MB,
-        caches: [],
+        caches: [{ ...SEARCH, on: false }],
       });
       await expect(page.getByTestId("cache-switch-row")).toContainText("Off: nothing is kept");
       await painted(page);
@@ -129,7 +170,10 @@ for (const theme of ["dark", "light"] as const) {
             bytes: 11 * MB,
             entries: 31,
             whole_only: false,
+            on: true,
             own_switch: null,
+            own_switch_pane: null,
+            own_switch_section: null,
           },
           {
             key: "icons",
@@ -139,11 +183,14 @@ for (const theme of ["dark", "light"] as const) {
             bytes: 1 * MB,
             entries: 38,
             whole_only: false,
+            on: true,
             own_switch: null,
+            own_switch_pane: null,
+            own_switch_section: null,
           },
         ],
       });
-      await expect(page.getByTestId("cache-switch-row")).toContainText("Your disk is nearly full");
+      await expect(page.getByTestId("cache-switch-row").locator('[data-tone="warning"]')).toContainText("Your disk is nearly full");
       await painted(page);
       await page.screenshot({ path: resolve(OUT, `low-disk-${at}-${theme}.png`) });
       await axe(page, `nearly full disk ${at} ${theme}`);

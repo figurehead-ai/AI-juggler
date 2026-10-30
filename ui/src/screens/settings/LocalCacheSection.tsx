@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { Disclosure, Picker, type PickerOption } from "../../components/controls";
 import { Modal } from "../../components/form";
-import { IconBroom } from "../../components/icons-actions";
+import { IconBroom, IconGoTo } from "../../components/icons-actions";
 import { byteSize } from "../../lib/compact";
 import { errorText } from "../../lib/bridge";
 import { CACHE_LIMITS_MB, cacheClear, cacheSetLimit, cacheSetOn, cacheStatus, type CacheInfo, type CacheRowInfo } from "../../lib/ipc/cache";
@@ -37,11 +37,24 @@ const LIMITS: PickerOption[] = [
   })),
 ];
 
-/** The one line under "Keep a cache on this computer". */
+/** "a, b and c". */
+function listWords(words: string[]): string {
+  return words.length < 2 ? (words[0] ?? "") : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
+}
+
+/** The one line under "Keep a cache on this computer": what it uses, and
+ * what that makes faster (the caches kept now, by name). */
 export function cacheSummary(info: CacheInfo): string {
   if (!info.on) return "Off: nothing is kept, so pages read your tools' files each time they open.";
-  return `Using ${cacheSize(info.used_bytes)} of ${cacheSize(info.budget_bytes)}. Pages that read many files open at once.`;
+  const kept = info.caches.filter((row) => row.on).map((row, at) => (at === 0 ? row.name : row.name.toLowerCase()));
+  // "Subagent lists and app icons open", "Search index opens".
+  const one = kept.length === 1 && !kept[0]!.endsWith("s");
+  const faster = kept.length > 0 ? `${listWords(kept)} ${one ? "opens" : "open"} without re-reading files.` : "Nothing is kept yet.";
+  return `Using ${cacheSize(info.used_bytes)} of ${cacheSize(info.budget_bytes)}. ${faster}`;
 }
+
+/** Opens a Settings section (a cache's own switch, elsewhere). */
+const openSection = (section: string) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section } }));
 
 /** What the size limit row says. */
 function limitWords(info: CacheInfo): string {
@@ -58,6 +71,8 @@ export function LocalCacheSection(): JSX.Element {
   useEffect(() => {
     void cacheStatus().then(setInfo, (cause) => setError(errorText(cause)));
   }, []);
+  const lowDisk =
+    info?.on && info.low_disk ? `Your disk is nearly full, so the cache keeps to ${cacheSize(info.budget_bytes)} and adds nothing until there's room.` : null;
   const apply = useCallback((change: Promise<CacheInfo>, done?: (next: CacheInfo) => string | null) => {
     setError(null);
     void change.then(
@@ -84,13 +99,8 @@ export function LocalCacheSection(): JSX.Element {
               description={cacheSummary(info)}
               checked={info.on}
               testId="cache-switch-row"
-              note={
-                error ??
-                note ??
-                (info.on && info.low_disk
-                  ? `Your disk is nearly full, so the cache keeps to ${cacheSize(info.budget_bytes)} and adds nothing until there's room.`
-                  : null)
-              }
+              note={error ?? note ?? lowDisk}
+              noteTone={(error ?? note) ? "info" : "warning"}
               onChange={(on) => apply(cacheSetOn(on), (next) => (next.on ? null : "Turned off. Its files were removed."))}
             />
             <SettingRow
@@ -153,8 +163,9 @@ export function LocalCacheSection(): JSX.Element {
 
 /** One cache: its name and size, what it speeds up, and its own switch. */
 function CacheRow({ row }: { row: CacheRowInfo }): JSX.Element {
-  const size =
-    row.bytes === 0
+  const size = !row.on
+    ? "Off"
+    : row.bytes === 0
       ? "Empty"
       : row.whole_only || row.entries === 0
         ? cacheSize(row.bytes)
@@ -164,7 +175,22 @@ function CacheRow({ row }: { row: CacheRowInfo }): JSX.Element {
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-sm text-ink">{row.name}</span>
         <span className="text-xs leading-relaxed text-muted">{row.speeds_up}</span>
-        {row.own_switch && <span className="text-xs leading-relaxed text-muted">Kept whole, with its own switch: {row.own_switch}.</span>}
+        {row.own_switch && (
+          <span className="text-xs leading-relaxed text-muted">
+            Kept whole, with its own switch{row.own_switch_pane ? ` in ${row.own_switch_pane}` : ""}: {row.own_switch}.
+          </span>
+        )}
+        {row.own_switch_section && (
+          <button
+            type="button"
+            onClick={() => openSection(row.own_switch_section!)}
+            className="mt-0.5 flex w-fit items-center gap-1 rounded-md text-xs font-medium text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
+            data-testid="cache-row-door"
+          >
+            <IconGoTo aria-hidden="true" width={14} height={14} />
+            {row.on ? `Change it in ${row.own_switch_pane ?? "Settings"}` : `Turn it on in ${row.own_switch_pane ?? "Settings"}`}
+          </button>
+        )}
       </div>
       <span className="shrink-0 pt-px text-xs tabular-nums text-muted" data-testid="cache-row-size">
         {size}

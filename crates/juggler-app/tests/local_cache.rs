@@ -63,6 +63,8 @@ fn the_switch_removes_the_files_and_is_kept_with_the_limit_across_a_restart() {
     );
     let search = &info.caches[2];
     assert!(search.whole_only && search.own_switch.is_some());
+    assert!(!search.on, "search is off until turned on in Privacy");
+    assert_eq!(search.own_switch_section.as_deref(), Some("search"));
     assert!(info.budget_bytes >= cache::budget::FLOOR);
 
     let gate = state.cache.gate();

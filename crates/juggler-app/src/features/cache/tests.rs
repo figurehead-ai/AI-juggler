@@ -115,7 +115,11 @@ fn whole(dir: &Path, bytes: u64) -> Arc<dyn LocalCache> {
     Arc::new(Whole {
         file,
         about: About {
-            own_switch: Some("its own switch"),
+            own_switch: Some(OwnSwitch {
+                name: "its own switch",
+                pane: "Privacy",
+                section: "search",
+            }),
             ..about("whole", Trim::WholeOnly)
         },
     })
@@ -425,5 +429,12 @@ fn settings_shows_each_cache_with_its_size_and_words() {
     assert!(row.bytes > 100);
     assert!(info.caches[1].whole_only);
     assert_eq!(info.caches[1].own_switch.as_deref(), Some("its own switch"));
+    assert_eq!(info.caches[1].own_switch_section.as_deref(), Some("search"));
+    assert!(info.caches.iter().all(|row| row.on));
     assert_eq!(info.used_bytes, row.bytes + 1_000);
+    // Off: the caches it governs say so; one with its own switch keeps to it.
+    manager.set_on(false).unwrap();
+    let info = info_of(&manager, Duration::ZERO);
+    assert!(!info.caches[0].on);
+    assert!(info.caches[1].on);
 }

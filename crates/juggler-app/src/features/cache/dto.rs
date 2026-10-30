@@ -48,6 +48,12 @@ pub struct CacheRowInfo {
     pub entries: u64,
     /// Kept only whole: never trimmed for the limit.
     pub whole_only: bool,
-    /// Where its own switch is, when it has one.
+    /// Kept now: on by its own switch, or by the cache's.
+    pub on: bool,
+    /// Its own switch's name, when it has one.
     pub own_switch: Option<String>,
+    /// The Settings pane that switch is in.
+    pub own_switch_pane: Option<String>,
+    /// The Settings section a link to that switch opens.
+    pub own_switch_section: Option<String>,
 }

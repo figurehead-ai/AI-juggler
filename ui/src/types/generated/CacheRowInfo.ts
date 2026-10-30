@@ -33,6 +33,18 @@ entries: number,
  */
 whole_only: boolean, 
 /**
- * Where its own switch is, when it has one.
+ * Kept now: on by its own switch, or by the cache's.
  */
-own_switch: string | null, };
+on: boolean, 
+/**
+ * Its own switch's name, when it has one.
+ */
+own_switch: string | null, 
+/**
+ * The Settings pane that switch is in.
+ */
+own_switch_pane: string | null, 
+/**
+ * The Settings section a link to that switch opens.
+ */
+own_switch_section: string | null, };

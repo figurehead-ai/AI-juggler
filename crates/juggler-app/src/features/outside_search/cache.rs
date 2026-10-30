@@ -11,7 +11,7 @@ use std::sync::{Arc, Weak};
 
 use juggler_core::storage::SearchIndexFile;
 
-use crate::features::cache::{About, Item, LocalCache, Trim};
+use crate::features::cache::{About, Item, LocalCache, OwnSwitch, Trim};
 use crate::state::AppState;
 
 /// The search index, for the cache's registry.
@@ -26,7 +26,11 @@ pub fn local_cache(state: &Arc<AppState>) -> Arc<dyn LocalCache> {
             speeds_up: "Search the words of every session answers at once.",
             slower: "The index is built again in the background; until it's done, search finds less.",
             trim: Trim::WholeOnly,
-            own_switch: Some("Search the words of every session, in Privacy"),
+            own_switch: Some(OwnSwitch {
+                name: "Search the words of every session",
+                pane: "Privacy",
+                section: "search",
+            }),
             max_entries: None,
             shaped_by: &[],
         },
@@ -69,6 +73,12 @@ impl LocalCache for SearchIndex {
         })
         .into_iter()
         .collect()
+    }
+
+    fn is_on(&self) -> bool {
+        self.state
+            .upgrade()
+            .is_some_and(|state| super::enabled(&state).unwrap_or(false))
     }
 
     fn remove(&self, item: &Item) -> u64 {

@@ -40,7 +40,10 @@ export const SAMPLE_CACHE: CacheInfo = {
       bytes: 45 * MB,
       entries: 126,
       whole_only: false,
+      on: true,
       own_switch: null,
+      own_switch_pane: null,
+      own_switch_section: null,
     },
     {
       key: "icons",
@@ -50,7 +53,10 @@ export const SAMPLE_CACHE: CacheInfo = {
       bytes: 2 * MB,
       entries: 38,
       whole_only: false,
+      on: true,
       own_switch: null,
+      own_switch_pane: null,
+      own_switch_section: null,
     },
     {
       key: "search-index",
@@ -60,7 +66,10 @@ export const SAMPLE_CACHE: CacheInfo = {
       bytes: 0,
       entries: 0,
       whole_only: true,
-      own_switch: "Search the words of every session, in Privacy",
+      on: false,
+      own_switch: "Search the words of every session",
+      own_switch_pane: "Privacy",
+      own_switch_section: "search",
     },
   ],
 };
@@ -87,7 +96,7 @@ export async function cacheStatus(): Promise<CacheInfo> {
 export async function cacheSetOn(on: boolean): Promise<CacheInfo> {
   if (!hasLiveBackend()) {
     const now = current();
-    const caches = on ? now.caches : now.caches.map((row) => (row.own_switch ? row : { ...row, bytes: 0, entries: 0 }));
+    const caches = now.caches.map((row) => (row.own_switch ? row : on ? { ...row, on: true } : { ...row, on: false, bytes: 0, entries: 0 }));
     return settle({ ...now, on, caches }, { on });
   }
   return invoke<CacheInfo>("cache_set_on", { on });

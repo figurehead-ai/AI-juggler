@@ -87,14 +87,25 @@ pub struct About {
     pub slower: &'static str,
     /// How it may be made smaller.
     pub trim: Trim,
-    /// Where its own switch is, when it has one (the cache's switch then
-    /// leaves it alone).
-    pub own_switch: Option<&'static str>,
+    /// Its own switch, when it has one (the cache's switch then leaves it
+    /// alone).
+    pub own_switch: Option<OwnSwitch>,
     /// The most entries it keeps (the oldest beyond go).
     pub max_entries: Option<usize>,
     /// The settings that shape its entries: a change drops those made
     /// with the old value at once.
     pub shaped_by: &'static [&'static str],
+}
+
+/// A cache's own switch, elsewhere in Settings.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OwnSwitch {
+    /// The switch's name ("Search the words of every session").
+    pub name: &'static str,
+    /// The pane it is in ("Privacy").
+    pub pane: &'static str,
+    /// The Settings section a link opens (`panes.ts`'s anchors).
+    pub section: &'static str,
 }
 
 /// One entry on disk.
@@ -124,6 +135,11 @@ pub trait LocalCache: Send + Sync {
     ///
     /// What couldn't be removed.
     fn clear(&self) -> std::io::Result<()>;
+    /// Whether it is kept now by its own switch (a cache without one: on;
+    /// the cache's switch decides the rest).
+    fn is_on(&self) -> bool {
+        true
+    }
     /// Drops the entries the current format or settings don't match (at
     /// most `limit` looked at); how many went.
     fn purge_stale(&self, limit: usize) -> usize {
@@ -407,7 +423,7 @@ impl Manager {
     /// Every cache with its size, as the last walk found it (walking now
     /// when none has, something was written since, or it's older than
     /// `fresh`), and the budget.
-    fn measured(&self, fresh: Duration) -> (Vec<(About, Usage)>, Budget, Option<DiskSpace>) {
+    fn measured(&self, fresh: Duration) -> (Vec<(About, Usage, bool)>, Budget, Option<DiskSpace>) {
         let written = self.gate.written.load(Ordering::Acquire) > 0;
         let stale = written
             || self.seen.lock().map_or(true, |seen| {
@@ -427,7 +443,8 @@ impl Manager {
             .map(|cache| {
                 let about = cache.about().clone();
                 let usage = seen.usage.get(about.id).copied().unwrap_or_default();
-                (about, usage)
+                let on = cache.is_on() && (about.own_switch.is_some() || self.gate.is_on());
+                (about, usage, on)
             })
             .collect();
         (rows, seen.budget, seen.disk)
@@ -592,12 +609,12 @@ fn info_of(manager: &Manager, fresh: Duration) -> CacheInfo {
             Limit::Fixed(bytes) => Some(bytes / 1_000_000),
         },
         budget_bytes: budget.bytes,
-        used_bytes: rows.iter().map(|(_, usage)| usage.bytes).sum(),
+        used_bytes: rows.iter().map(|(_, usage, _)| usage.bytes).sum(),
         low_disk: budget.low_disk,
         free_bytes: disk.map(|disk| disk.free),
         caches: rows
             .into_iter()
-            .map(|(about, usage)| CacheRowInfo {
+            .map(|(about, usage, on)| CacheRowInfo {
                 key: about.id.to_owned(),
                 name: about.name.to_owned(),
                 speeds_up: about.speeds_up.to_owned(),
@@ -605,7 +622,10 @@ fn info_of(manager: &Manager, fresh: Duration) -> CacheInfo {
                 bytes: usage.bytes,
                 entries: usage.entries,
                 whole_only: about.trim == Trim::WholeOnly,
-                own_switch: about.own_switch.map(str::to_owned),
+                on,
+                own_switch: about.own_switch.map(|own| own.name.to_owned()),
+                own_switch_pane: about.own_switch.map(|own| own.pane.to_owned()),
+                own_switch_section: about.own_switch.map(|own| own.section.to_owned()),
             })
             .collect(),
     }

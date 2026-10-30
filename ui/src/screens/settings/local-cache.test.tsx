@@ -34,7 +34,9 @@ describe("Local cache", () => {
   it("says on one line whether it's on, what it uses and its limit", async () => {
     const row = await section();
     expect(row.textContent).toContain("Keep a cache on this computer");
-    expect(row.textContent).toContain("Using 47 MB of 1.3 GB.");
+    expect(row.textContent).toContain("Using 47 MB of 1.3 GB. Subagent lists and app icons open without re-reading files.");
+    // Nothing to warn about: the switch row has no status line.
+    expect(within(row).queryByRole("status")).toBeNull();
     expect(within(row).getByRole("switch", { name: "Keep a cache on this computer" }).getAttribute("aria-checked")).toBe("true");
     expect(screen.getByTestId("cache-limit-row").textContent).toContain("Automatic: 1.3 GB now, from this computer's free space.");
     expect(screen.getByRole("button", { name: "Size limit: Automatic" })).toBeTruthy();
@@ -52,8 +54,7 @@ describe("Local cache", () => {
     expect(rows.map((row) => row.querySelector("span")?.textContent)).toEqual(["Subagent lists", "App icons", "Search index"]);
     expect(rows[0]!.textContent).toContain("A session's Subagents tab opens at once");
     expect(within(rows[0]!).getByTestId("cache-row-size").textContent).toBe("45 MB · 126 items");
-    expect(within(rows[2]!).getByTestId("cache-row-size").textContent).toBe("Empty");
-    expect(rows[2]!.textContent).toContain("Kept whole, with its own switch: Search the words of every session, in Privacy.");
+    expect(rows[2]!.textContent).toContain("Kept whole, with its own switch in Privacy: Search the words of every session.");
   });
 
   it("turned off, says so, keeps nothing and explains what is greyed", async () => {
@@ -109,12 +110,59 @@ describe("Local cache", () => {
     seams().__AIJ_CACHE__ = { ...SAMPLE_CACHE, low_disk: true, budget_bytes: 64_000_000, used_bytes: 12_000_000, free_bytes: 3_100_000_000 };
     const row = await section();
     expect(row.textContent).toContain("Using 12 MB of 64 MB.");
-    expect(within(row).getByRole("status").textContent).toBe("Your disk is nearly full, so the cache keeps to 64 MB and adds nothing until there's room.");
+    const warning = within(row).getByRole("status");
+    expect(warning.textContent).toBe("Your disk is nearly full, so the cache keeps to 64 MB and adds nothing until there's room.");
+    // A warning: the app's warning icon and tone, as a notice's.
+    expect(warning.getAttribute("data-tone")).toBe("warning");
+    expect(warning.className).toContain("text-warning");
+    expect(warning.querySelector("svg")).toBeTruthy();
   });
 
   it("summarises off and on in one line", () => {
     expect(cacheSummary({ ...SAMPLE_CACHE, on: false })).toBe("Off: nothing is kept, so pages read your tools' files each time they open.");
-    expect(cacheSummary(SAMPLE_CACHE)).toBe("Using 47 MB of 1.3 GB. Pages that read many files open at once.");
+    // What gets faster, by name: the caches kept now (search is off here).
+    expect(cacheSummary(SAMPLE_CACHE)).toBe("Using 47 MB of 1.3 GB. Subagent lists and app icons open without re-reading files.");
+    const searchOn = { ...SAMPLE_CACHE, caches: SAMPLE_CACHE.caches.map((row) => ({ ...row, on: true })) };
+    expect(cacheSummary(searchOn)).toBe("Using 47 MB of 1.3 GB. Subagent lists, app icons and search index open without re-reading files.");
+    expect(cacheSummary({ ...SAMPLE_CACHE, caches: [{ ...SAMPLE_CACHE.caches[2]!, on: true }] })).toBe(
+      "Using 47 MB of 1.3 GB. Search index opens without re-reading files.",
+    );
+  });
+});
+
+describe("the search index's row", () => {
+  const unfold = async () => {
+    await section();
+    fireEvent.click(within(screen.getByTestId("cache-contents-toggle")).getByText("What's in it"));
+    return screen.getAllByTestId("cache-row")[2]!;
+  };
+
+  it("says Off while search is off, with one click to its switch", async () => {
+    const opened = vi.fn();
+    window.addEventListener("aij:open-settings", opened);
+    const row = await unfold();
+    expect(within(row).getByTestId("cache-row-size").textContent).toBe("Off");
+    fireEvent.click(within(row).getByRole("button", { name: "Turn it on in Privacy" }));
+    expect((opened.mock.calls[0]![0] as CustomEvent).detail).toEqual({ section: "search" });
+    window.removeEventListener("aij:open-settings", opened);
+    expect(targetOf("search")).toEqual({ pane: "privacy", anchor: "stats" });
+  });
+
+  it("says Empty only when search is on and the index holds nothing", async () => {
+    seams().__AIJ_CACHE__ = { ...SAMPLE_CACHE, caches: SAMPLE_CACHE.caches.map((row) => ({ ...row, on: true })) };
+    const row = await unfold();
+    expect(within(row).getByTestId("cache-row-size").textContent).toBe("Empty");
+    expect(within(row).getByRole("button", { name: "Change it in Privacy" })).toBeTruthy();
+  });
+
+  it("the caches the switch governs say Off when it's off", async () => {
+    const top = await section();
+    await act(async () => {
+      fireEvent.click(within(top).getByRole("switch"));
+    });
+    fireEvent.click(within(screen.getByTestId("cache-contents-toggle")).getByText("What's in it"));
+    const sizes = screen.getAllByTestId("cache-row-size").map((size) => size.textContent);
+    expect(sizes).toEqual(["Off", "Off", "Off"]);
   });
 });
 
