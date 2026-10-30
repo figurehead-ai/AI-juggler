@@ -140,7 +140,7 @@ describe("AJ-E2110 — Settings panes", () => {
     ];
     for (const [pane, testId] of homes) {
       const view = render(<SettingsScreen focusSection={pane} />);
-      expect(await view.findByTestId(testId, {}, { timeout: 3000 }), `${pane} › ${testId}`).toBeTruthy();
+      expect(await view.findByTestId(testId), `${pane} › ${testId}`).toBeTruthy();
       view.unmount();
     }
   });
