@@ -59,6 +59,8 @@ pub use runtime::{
 };
 pub use spec::{ReleaseFeed, SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms};
 pub use subagents::{
-    Subagent, SubagentConversations, SubagentReader, SubagentScope, SubagentStatus, SubagentSupport,
+    Asked, LinesChanged, Subagent, SubagentCommand, SubagentConversations, SubagentDetails,
+    SubagentReader, SubagentScope, SubagentStatus, SubagentSupport, SubagentText, SubagentTokens,
+    TextFilter, TokensCounted, ToolCounts,
 };
 pub use watcher::{SessionEvent, SessionWatcher};

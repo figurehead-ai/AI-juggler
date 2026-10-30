@@ -27,7 +27,8 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use juggler_adapter::subagents::{
-    Subagent, SubagentConversations, SubagentReader, SubagentScope, SubagentStatus, SubagentSupport,
+    Subagent, SubagentConversations, SubagentDetails, SubagentReader, SubagentScope,
+    SubagentStatus, SubagentSupport, SubagentTokens, TokensCounted,
 };
 
 use crate::subtasks::{Subtask, SubtaskLog, SubtaskState, SubtaskTail};
@@ -37,6 +38,7 @@ use crate::transcript::is_compressed;
 pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
     route: "Codex's rollout files: each child thread's session_meta names its parent; the parent's rollout says how each ended (the app-server would start Codex on the user's home, so it isn't used)",
     conversations: SubagentConversations::Read,
+    stop_hint: None,
 };
 
 /// The most bytes read from a rollout's first line.
@@ -250,6 +252,24 @@ impl CodexSubagents {
         })
     }
 
+    /// AJ-E1520 (0.3): what a child's start and its own rollout say: its
+    /// prompt and result, and (exact, apart from its parent's) its tokens
+    /// and model.
+    fn details_of(&self, item: Option<&Subtask>, thread: Option<&str>) -> SubagentDetails {
+        let own = thread
+            .and_then(|thread| self.sources.get(thread))
+            .and_then(Source::log);
+        SubagentDetails {
+            prompt: item.and_then(|item| item.prompt.clone()),
+            result: item.and_then(|item| item.result.clone()),
+            failure: item.and_then(|item| item.failure.clone()),
+            asked: item.and_then(|item| item.asked.clone()),
+            model: own.and_then(|log| log.own_model().map(str::to_owned)),
+            tokens: own.and_then(SubtaskLog::own_tokens),
+            ..SubagentDetails::default()
+        }
+    }
+
     /// The child a start names (by thread id, or by its path).
     fn child_for(&self, item: &Subtask) -> Option<(&String, &Child)> {
         let agent = item.agent.as_deref()?;
@@ -292,6 +312,17 @@ impl SubagentReader for CodexSubagents {
                 .unwrap_or(true);
         }
         Ok(caught_up)
+    }
+
+    fn session_tokens(&self) -> Option<SubagentTokens> {
+        self.sources
+            .get(&self.thread)
+            .and_then(Source::log)
+            .and_then(SubtaskLog::own_tokens)
+    }
+
+    fn tokens_counted(&self) -> TokensCounted {
+        TokensCounted::Separate
     }
 
     fn subagents(&self) -> Vec<Subagent> {
@@ -338,6 +369,7 @@ impl SubagentReader for CodexSubagents {
                     depth: child.and_then(|(_, child)| child.depth).unwrap_or(0),
                     background: None,
                     transcript: child.map(|(_, child)| child.path.clone()),
+                    details: self.details_of(Some(item), child.map(|(thread, _)| thread.as_str())),
                 });
             }
         }
@@ -357,6 +389,7 @@ impl SubagentReader for CodexSubagents {
                 depth: child.depth.unwrap_or(0),
                 background: None,
                 transcript: Some(child.path.clone()),
+                details: self.details_of(None, Some(thread)),
             });
         }
         crate::subtasks::fill_depths(&mut out);
@@ -763,6 +796,71 @@ mod tests {
             )))
             .as_deref(),
             Some(KID)
+        );
+    }
+
+    #[test]
+    fn a_childs_tokens_and_model_are_its_own_threads_apart_from_its_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("sessions");
+        let usage = |input: u64, cached: u64, output: u64, at: &str| {
+            serde_json::json!({"timestamp": at, "type": "event_msg", "payload": {"type": "token_count",
+                "info": {"total_token_usage": {"input_tokens": input, "cached_input_tokens": cached,
+                    "output_tokens": output, "reasoning_output_tokens": 0, "total_tokens": input + output}}}})
+        };
+        let session = rollout(
+            &root,
+            "2026/10/27",
+            PARENT,
+            &[
+                meta(PARENT, None, "2026-10-27T10:00:00Z"),
+                usage(500, 100, 50, "2026-10-27T10:00:30Z"),
+                call(
+                    "spawn_agent",
+                    "c1",
+                    &serde_json::json!({"message": "Explore the parser in depth", "agent_type": "explorer"}),
+                    "2026-10-27T10:01:00Z",
+                ),
+                output(
+                    "c1",
+                    &serde_json::json!({"agent_id": KID}),
+                    "2026-10-27T10:01:01Z",
+                ),
+            ],
+        );
+        rollout(
+            &root,
+            "2026/10/27",
+            KID,
+            &[
+                meta(
+                    KID,
+                    Some((PARENT, 1, "/root/parser", "explorer")),
+                    "2026-10-27T10:01:02Z",
+                ),
+                serde_json::json!({"timestamp": "2026-10-27T10:01:03Z", "type": "turn_context", "payload": {"model": "gpt-5-codex"}}),
+                usage(1_000, 400, 80, "2026-10-27T10:02:00Z"),
+                usage(3_000, 2_000, 120, "2026-10-27T10:03:00Z"),
+            ],
+        );
+        let mut reader = CodexSubagents::new(&session, PARENT);
+        reader.refresh().unwrap();
+        let list = reader.subagents();
+        let kid = by_id(&list, KID);
+        assert_eq!(kid.details.model.as_deref(), Some("gpt-5-codex"));
+        let tokens = kid.details.tokens.expect("its own thread's total");
+        assert_eq!(
+            (tokens.input, tokens.cache_read, tokens.output),
+            (1_000, 2_000, 120)
+        );
+        assert_eq!(
+            kid.details.prompt.as_deref(),
+            Some("Explore the parser in depth")
+        );
+        assert_eq!(reader.tokens_counted(), TokensCounted::Separate);
+        assert_eq!(
+            reader.session_tokens().map(SubagentTokens::total),
+            Some(550)
         );
     }
 }

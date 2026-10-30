@@ -456,7 +456,12 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                 "spawn_agent" => {
                     let task = text(&arguments, "message")
                         .unwrap_or_else(|| message_text(arguments.get("items")));
-                    log.started(&call, &task, text(&arguments, "agent_type").as_deref());
+                    log.started_with(
+                        &call,
+                        &task,
+                        text(&arguments, "agent_type").as_deref(),
+                        Some(&task),
+                    );
                 }
                 "close_agent" | "interrupt_agent" => {
                     if let Some(target) =

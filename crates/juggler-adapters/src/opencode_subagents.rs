@@ -48,6 +48,7 @@ pub const SUPPORT: SubagentSupport = SubagentSupport::Supported {
     conversations: SubagentConversations::NotRead(
         "OpenCode keeps a subagent's conversation in its database, which AI Juggler doesn't show as a conversation yet.",
     ),
+    stop_hint: None,
 };
 
 /// The most child sessions one session is read for.
@@ -301,6 +302,7 @@ fn described(
         depth,
         background: part.and_then(|part| part.background),
         transcript: None,
+        details: juggler_adapter::subagents::SubagentDetails::default(),
     }
 }
 

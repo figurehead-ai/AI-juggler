@@ -11,7 +11,7 @@ use crate::claude_transcript::{ParsedTranscript, parse_transcript};
 use crate::codex_transcript::parse_rollout;
 
 /// Which vendor format a transcript is in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TranscriptFormat {
     /// Claude Code session JSONL.
     ClaudeCode,

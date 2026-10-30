@@ -2765,6 +2765,7 @@ version = "0.3.0"
 dependencies = [
  "juggler-adapter",
  "juggler-core",
+ "memchr",
  "notify",
  "rusqlite",
  "serde",

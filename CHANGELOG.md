@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Subagents: what's running, what failed, what it cost** (0.3): a
+  session's Subagents tab opens with a line like "437 subagents · 3
+  running · 2 failed · 41% of this session's tokens" (the counts are one
+  click to their view), then Running · Needs attention · All (it opens
+  on Running when anything runs), a search over each one's task, prompt,
+  result and files (`type:` and `file:` narrow it), a type and an order
+  (newest, most tokens, longest). They're grouped under the message you
+  sent that started them, older groups folded, with tree lines showing
+  which subagent started which; a parent's tokens include its children's.
+  Click one for its own page: the task it was given, its result (or why
+  it failed, in one line), its work (tool calls, lines changed, files),
+  its usage with an estimated cost and its share of the session, the
+  processes it probably started (one click selects it in the Processes
+  tab), and how to stop it in Claude Code (/tasks, select it, press x).
+  Esc goes back to where you were. The Usage tab says how much the
+  subagents used ("see which ›"), and a process a subagent probably
+  started says so on its row. Tokens per subagent are part of the
+  session's total for Claude Code and its own thread's for Codex; a tool
+  that doesn't record a part says "Not recorded by …". A long session
+  opens at once: AI Juggler keeps a small index of its subagents and
+  reads only what grew (a 437-subagent session reopens in tens of
+  milliseconds instead of re-reading its transcripts). A project's
+  subagents can be shown the same way across its sessions.
 - **Projects, Pools and Tasks in the header** (0.3): the header is now
   Home · Projects · Pools · Tasks · Accounts · Usage · History, and the
   lit tab is the page's title (the separate title is gone, so the header

@@ -141,6 +141,11 @@ pub struct ProcRowInfo {
     /// What started it, from the tool's own events ("Started by Bash: npm
     /// run dev"), when known.
     pub label: Option<String>,
+    /// AJ-E1520 (0.3): the subagent that probably started it, matched
+    /// from the commands it ran (its id in the session, and its task).
+    pub subagent_id: Option<String>,
+    /// That subagent's task (redacted).
+    pub subagent_title: Option<String>,
     /// Recent CPU, oldest first (percent of one core).
     pub spark: Vec<f32>,
     /// The most memory seen, bytes.

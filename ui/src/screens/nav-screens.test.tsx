@@ -17,6 +17,7 @@
  * - A project's page: its seven tabs; its pool in brief with "Open the
  *   pool ›"; its subagents' mount point.
  */
+import * as subagentsIpc from "../lib/ipc/subagents";
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActionHostProvider } from "../components/ItemMenu";
@@ -306,16 +307,10 @@ describe("Pools and a project's page", () => {
     expect(actions.calls).toEqual([`pool:pool-default:${SHOP.id}`]);
   });
 
-  it("its Subagents tab lists its sessions, each opening its own Subagents tab", () => {
-    const actions = host();
-    const view = render(
-      <ActionHostProvider host={actions}>
-        <ProjectSubagents project={SHOP} sessions={MOCK_SESSIONS} />
-      </ActionHostProvider>,
-    );
-    const rows = view.getAllByTestId("project-subagents-session");
-    fireEvent.click(rows[0]!);
-    expect(actions.calls[0]).toMatch(/^session:/);
-    expect(localStorage.getItem("aij.page.tab.session")).toBe("subagents");
+  it("its Subagents tab is the project-wide Subagents view over its sessions", async () => {
+    const read = vi.spyOn(subagentsIpc, "subagentsProject");
+    const view = render(<ProjectSubagents project={SHOP} sessions={MOCK_SESSIONS} />);
+    expect(await view.findByTestId("project-subagents")).toBeTruthy();
+    expect(read.mock.calls[0]![0]).toBe(SHOP.id);
   });
 });

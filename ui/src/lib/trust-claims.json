@@ -119,6 +119,16 @@
           ]
         },
         {
+          "id": "subagent-index",
+          "text": "So a session with hundreds of subagents opens at once, AI Juggler keeps a small index of each one's subagents in its own folder on your Mac: what each was asked and its answer's first lines (only while last messages are on), its tokens, tool counts, files and commands, with keys and passwords redacted first. Only the newest 200 sessions' are kept; nothing leaves the Mac.",
+          "tests": [
+            "crates/juggler-app/src/features/subagents/index.rs::a_saved_index_loads_only_with_the_same_messages_setting_and_the_oldest_go",
+            "crates/juggler-adapters/src/claude_subagents/tests.rs::a_checkpoint_resumes_where_it_left_off_with_its_words_filtered",
+            "crates/juggler-app/src/features/subagents/tests.rs::a_saved_index_opens_the_tab_without_reading_the_transcripts_again",
+            "crates/juggler-app/src/features/subagents/tests.rs::a_subagents_page_says_what_it_was_given_did_and_used"
+          ]
+        },
+        {
           "id": "runtime-held",
           "text": "For a session it runs without a terminal, what the page shows comes from the tool as it works. AI Juggler holds only the latest part, in memory, and never writes it down; the tool keeps its own transcript as it always does.",
           "tests": [

@@ -45,7 +45,7 @@ impl SubagentStatus {
 }
 
 /// One subagent a session (or one of its subagents) started.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Subagent {
     /// The tool's id for it, unique within the session (Claude Code's
     /// agent id, Codex's thread id, a child session's id).
@@ -74,7 +74,188 @@ pub struct Subagent {
     /// Its own conversation, when the tool keeps one in a file the
     /// session page's reader reads (`SubagentConversations::Read`).
     pub transcript: Option<PathBuf>,
+    /// AJ-E1520 (0.3): what else its records say (its prompt, result,
+    /// tokens, work); every part `None` or empty when the tool doesn't
+    /// record it.
+    pub details: SubagentDetails,
 }
+
+/// AJ-E1520 (0.3): what a subagent's records say beyond where it stands
+/// — what it was given, what it answered, what it used and did. Raw text
+/// (the caller redacts, D-14), capped by the reader; each part `None`
+/// (or empty) when its tool doesn't record it: never a guess.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SubagentDetails {
+    /// The prompt it was given (at most [`PROMPT_CHARS`]).
+    pub prompt: Option<String>,
+    /// The start of its answer (at most [`RESULT_CHARS`]), markdown.
+    pub result: Option<String>,
+    /// Why it failed, in one line, when it did and the tool says.
+    pub failure: Option<String>,
+    /// The model it ran on, as the tool names it.
+    pub model: Option<String>,
+    /// The tokens it used (its own, not its subagents').
+    pub tokens: Option<SubagentTokens>,
+    /// Its tool calls by kind.
+    pub tools: Option<ToolCounts>,
+    /// Lines its edits added and removed.
+    pub lines: Option<LinesChanged>,
+    /// The files it edited or wrote, most-edited first (at most
+    /// [`FILES_MAX`]).
+    pub files: Vec<String>,
+    /// How many files it edited in all (more than `files` holds when
+    /// capped).
+    pub files_total: u32,
+    /// The commands it ran, oldest first (at most [`COMMANDS_MAX`], the
+    /// latest kept): what a process it probably started is matched by.
+    pub commands: Vec<SubagentCommand>,
+    /// The user's message the turn that started it began with (the
+    /// session's subagents only; a nested one is under its parent's).
+    pub asked: Option<Asked>,
+    /// Whether the user stopped it, when the tool records it.
+    pub stopped_by_user: Option<bool>,
+    /// The worktree it ran in, when it had its own.
+    pub worktree: Option<String>,
+    /// That worktree's branch.
+    pub branch: Option<String>,
+    /// When its records last changed, epoch ms.
+    pub last_activity_ms: Option<i64>,
+    /// How long it ran, as the tool reported at its end (ms).
+    pub duration_ms: Option<i64>,
+}
+
+/// The most characters of a prompt a reader keeps.
+pub const PROMPT_CHARS: usize = 4_000;
+/// The most characters of a result a reader keeps.
+pub const RESULT_CHARS: usize = 4_000;
+/// The most characters of the user's message a reader keeps (its first
+/// line).
+pub const ASKED_CHARS: usize = 240;
+/// The most files a reader lists for one subagent.
+pub const FILES_MAX: usize = 200;
+/// The most commands a reader keeps for one subagent.
+pub const COMMANDS_MAX: usize = 40;
+/// The most characters of one command a reader keeps.
+pub const COMMAND_CHARS: usize = 200;
+
+/// Tokens by kind.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SubagentTokens {
+    /// Fresh input.
+    pub input: u64,
+    /// Output (with any reasoning).
+    pub output: u64,
+    /// Read from the cache.
+    pub cache_read: u64,
+    /// Written to the cache.
+    pub cache_write: u64,
+}
+
+impl SubagentTokens {
+    /// Every kind together.
+    #[must_use]
+    pub fn total(self) -> u64 {
+        self.input
+            .saturating_add(self.output)
+            .saturating_add(self.cache_read)
+            .saturating_add(self.cache_write)
+    }
+
+    /// `self` and `other` together.
+    #[must_use]
+    pub fn plus(self, other: Self) -> Self {
+        Self {
+            input: self.input.saturating_add(other.input),
+            output: self.output.saturating_add(other.output),
+            cache_read: self.cache_read.saturating_add(other.cache_read),
+            cache_write: self.cache_write.saturating_add(other.cache_write),
+        }
+    }
+}
+
+/// How a tool's subagents' tokens relate to their session's.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TokensCounted {
+    /// Not recorded per subagent.
+    #[default]
+    NotRecorded,
+    /// Part of the session's own total (Claude Code: the session's usage
+    /// counts its subagents' files): shown as a share, never added on top.
+    InSession,
+    /// Apart from the session's (Codex: each child is a thread of its
+    /// own).
+    Separate,
+}
+
+/// A subagent's tool calls by kind.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ToolCounts {
+    /// Every call.
+    pub total: u32,
+    /// Files read.
+    pub reads: u32,
+    /// Searches (files, text, the web).
+    pub searches: u32,
+    /// Commands run.
+    pub commands: u32,
+    /// Files edited or written.
+    pub edits: u32,
+    /// Anything else.
+    pub other: u32,
+}
+
+/// Lines added and removed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LinesChanged {
+    /// Added.
+    pub added: u64,
+    /// Removed.
+    pub removed: u64,
+}
+
+/// One command a subagent ran.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SubagentCommand {
+    /// The command (at most [`COMMAND_CHARS`]). Raw: the caller redacts.
+    pub command: String,
+    /// When it was asked for, epoch ms.
+    pub at_ms: Option<i64>,
+    /// Asked to run in the background.
+    pub background: bool,
+}
+
+/// The user's message a turn began with.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Asked {
+    /// Its first line (at most [`ASKED_CHARS`]). Raw: the caller redacts.
+    pub text: String,
+    /// When it was sent, epoch ms.
+    pub at_ms: Option<i64>,
+    /// The tool's id for the message (stable: subagents of one turn
+    /// share it).
+    pub key: String,
+}
+
+/// Which kind of text a reader hands its checkpoint filter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SubagentText {
+    /// What it was asked to do (the call's short description).
+    Task,
+    /// The prompt it was given.
+    Prompt,
+    /// Its answer, or why it failed.
+    Result,
+    /// The user's message the turn began with.
+    Asked,
+    /// A file it edited.
+    File,
+    /// A command it ran.
+    Command,
+}
+
+/// What a checkpoint's text passes through: the text kept (redacted), or
+/// `None` to keep none of it.
+pub type TextFilter<'a> = dyn Fn(SubagentText, &str) -> Option<String> + 'a;
 
 /// Whether a subagent's own conversation can be shown.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,6 +283,9 @@ pub enum SubagentSupport {
         route: &'static str,
         /// Whether each subagent's conversation can be shown.
         conversations: SubagentConversations,
+        /// AJ-E1520 (0.3): how to stop one subagent in the tool itself
+        /// (AI Juggler can't stop one inside a session), when it can be.
+        stop_hint: Option<&'static str>,
     },
 }
 
@@ -146,6 +330,58 @@ pub trait SubagentReader: Send {
     /// Every subagent read so far, in no particular order (the app
     /// orders and pages them).
     fn subagents(&self) -> Vec<Subagent>;
+
+    /// AJ-E1520 (0.3): how many are running as far as read (the rail's
+    /// count, read every few seconds: a reader that can answer without
+    /// building every subagent's details should).
+    fn running(&self) -> u64 {
+        self.subagents()
+            .iter()
+            .filter(|agent| agent.status == SubagentStatus::Running)
+            .count() as u64
+    }
+
+    /// AJ-E1520 (0.3): reads what each subagent's own records gained
+    /// (its tokens, tools, files) within at most `budget` bytes, beyond
+    /// what [`Self::refresh`] reads. True when caught up. The rail's
+    /// count never asks; the Subagents tab does.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::refresh`].
+    fn refresh_details(&mut self, budget: u64) -> std::io::Result<bool> {
+        let _ = budget;
+        Ok(true)
+    }
+
+    /// AJ-E1520 (0.3): the session's own tokens (without its subagents'),
+    /// as far as read, when the tool records them per message.
+    fn session_tokens(&self) -> Option<SubagentTokens> {
+        None
+    }
+
+    /// AJ-E1520 (0.3): how its subagents' tokens relate to the session's.
+    fn tokens_counted(&self) -> TokensCounted {
+        TokensCounted::NotRecorded
+    }
+
+    /// AJ-E1520 (0.3): what it has read, as bytes the app may save and
+    /// hand back to [`Self::resume`] (so a long session's tab opens at
+    /// once next time), every text passed through `text` first (the
+    /// app's redaction, D-14). `None`: it keeps no checkpoint.
+    fn checkpoint(&self, text: &TextFilter<'_>) -> Option<Vec<u8>> {
+        let _ = text;
+        None
+    }
+
+    /// AJ-E1520 (0.3): picks up from a [`Self::checkpoint`]; false when
+    /// it can't (another version, another session): it reads from the
+    /// start as before. Files that changed since are read again by the
+    /// next refresh (a replaced or shorter one from its start).
+    fn resume(&mut self, saved: &[u8]) -> bool {
+        let _ = saved;
+        false
+    }
 }
 
 /// The conversation a reader is asked about: its record as the
@@ -168,6 +404,7 @@ mod tests {
         let supported = SubagentSupport::Supported {
             route: "files",
             conversations: SubagentConversations::Read,
+            stop_hint: None,
         };
         assert!(supported.is_supported());
         assert_eq!(supported.reason(), None);
@@ -177,6 +414,23 @@ mod tests {
             Some("no record")
         );
         assert!(!SubagentSupport::NotSupported("x").is_supported());
+    }
+
+    #[test]
+    fn tokens_add_up_and_never_overflow() {
+        let one = SubagentTokens {
+            input: 1,
+            output: 2,
+            cache_read: 3,
+            cache_write: 4,
+        };
+        assert_eq!(one.total(), 10);
+        assert_eq!(one.plus(one).total(), 20);
+        let huge = SubagentTokens {
+            input: u64::MAX,
+            ..SubagentTokens::default()
+        };
+        assert_eq!(huge.plus(one).input, u64::MAX);
     }
 
     #[test]

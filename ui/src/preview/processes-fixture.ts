@@ -93,6 +93,8 @@ interface Shape {
   ports?: number[];
   age?: number;
   label?: string;
+  /** AJ-E1520 (0.3): the subagent that probably started it (id, task). */
+  subagent?: [string, string];
   stop?: "ours" | "observed" | "never";
   why?: string;
   heavy?: boolean;
@@ -114,6 +116,8 @@ function node(now: number, pid: number, parent: number | null, depth: number, na
     role,
     role_words: ROLE_WORDS[role] ?? "helper",
     label: shape.label ?? null,
+    subagent_id: shape.subagent?.[0] ?? null,
+    subagent_title: shape.subagent?.[1] ?? null,
     state: shape.state ?? (cpu >= 2 ? "working" : "idle"),
     cpu_pct: shape.state === "zombie" ? null : cpu,
     spark: shape.state === "zombie" ? [] : spark(cpu, pid % 7),
@@ -190,7 +194,7 @@ function ours(now: number): PreviewApp {
           n(61001, 60900, 0, "claude", "tool", { cpu: 4.5, rss: 410 * MB, age: 20 * MIN }),
           n(61020, 61001, 1, "node (mcp-server-filesystem)", "mcp_server", { rss: 90 * MB, age: 19 * MIN }),
           n(61044, 61001, 1, "npm", "helper", { rss: 60 * MB, age: 10 * MIN, label: "Started by Bash: npm run dev" }),
-          n(61045, 61044, 2, "node (vite)", "dev_server", { cpu: 1.9, rss: 640 * MB, ports: [5180], age: 10 * MIN }),
+          n(61045, 61044, 2, "node (vite)", "dev_server", { cpu: 1.9, rss: 640 * MB, ports: [5180], age: 10 * MIN, subagent: ["a3", "Run the full test suite and report failures"] }),
           n(61046, 61045, 3, "esbuild", "dev_server", { rss: 30 * MB, age: 9 * MIN }),
           n(61060, 61001, 1, "node (tsc)", "watcher", { cpu: 0.8, rss: 240 * MB, age: 5 * MIN, label: "Started by Bash: npx tsc --watch" }),
           n(61070, 61001, 1, "juggler-agent", "bridge", { rss: 12 * MB, stop: "never", why: "Part of AI Juggler" }),

@@ -264,6 +264,10 @@ pub struct Inputs {
     /// What started a process, from the tool's own events, by session:
     /// `(when, words)` newest last ("Bash: npm run dev").
     pub labels: HashMap<String, Vec<(i64, String)>>,
+    /// AJ-E1520 (0.3): the commands each session's subagents ran, by
+    /// session (the subagents feature's, as its readers last listed
+    /// them).
+    pub subagents: HashMap<String, std::sync::Arc<Vec<crate::features::subagents::AgentCommand>>>,
     /// Pids whose last stop failed, with the outcome.
     pub failed_stops: HashMap<u32, String>,
     /// Heavy pids (the hog rules).
@@ -304,6 +308,9 @@ pub struct ProcNode {
     pub role: Role,
     /// What started it, from the tool's own events, when known.
     pub label: Option<String>,
+    /// AJ-E1520 (0.3): the subagent that probably started it (its id and
+    /// task), matched from the commands it ran.
+    pub subagent: Option<(String, String)>,
     /// Its state.
     pub state: ProcState,
     /// CPU now, percent of one core.
@@ -540,6 +547,8 @@ fn key_of(pid: u32, start: i64) -> String {
 }
 
 /// The words of the newest label whose command this process runs.
+use crate::features::subagents::attribute::started_by;
+
 fn label_for(
     labels: Option<&Vec<(i64, String)>>,
     cmdline: &str,
@@ -683,6 +692,7 @@ fn tree_order(mut nodes: Vec<ProcNode>, root: Option<u32>) -> Vec<ProcNode> {
 fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
     let inputs = ctx.inputs;
     let labels = inputs.labels.get(&session.session_id);
+    let subagents = inputs.subagents.get(&session.session_id);
     let root_row = session
         .rows
         .iter()
@@ -759,6 +769,7 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
             name: short_name(&name, Some(&row.cmdline_trunc)),
             role,
             label: label_for(labels, &row.cmdline_trunc, start.saturating_mul(1000)),
+            subagent: started_by(subagents, &row.cmdline_trunc, start.saturating_mul(1000)),
             state,
             cpu_pct: cpu,
             spark: ctx.spark(pid, start),
@@ -822,6 +833,7 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
                 name: short_name(&live.name, Some(&cmd)),
                 role,
                 label: label_for(labels, &cmd, live.start_time.saturating_mul(1000)),
+                subagent: started_by(subagents, &cmd, live.start_time.saturating_mul(1000)),
                 state,
                 cpu_pct: live.cpu_pct,
                 spark: ctx.spark(live.pid, live.start_time),
@@ -893,6 +905,7 @@ fn ours_session(ctx: &Ctx<'_>, session: &OursInput) -> SessionNode {
 fn theirs_session(ctx: &Ctx<'_>, session: &TheirsInput) -> SessionNode {
     let inputs = ctx.inputs;
     let labels = inputs.labels.get(&session.session_id);
+    let subagents = inputs.subagents.get(&session.session_id);
     let mut nodes = Vec::with_capacity(session.tree.len());
     for live in &session.tree {
         if live.pid == inputs.own_pid {
@@ -928,6 +941,7 @@ fn theirs_session(ctx: &Ctx<'_>, session: &TheirsInput) -> SessionNode {
             name: short_name(&live.name, Some(&cmd)),
             role,
             label: label_for(labels, &cmd, live.start_time.saturating_mul(1000)),
+            subagent: started_by(subagents, &cmd, live.start_time.saturating_mul(1000)),
             state,
             cpu_pct: live.cpu_pct,
             spark: ctx.spark(live.pid, live.start_time),
@@ -1105,6 +1119,7 @@ fn leftover_sessions(ctx: &Ctx<'_>) -> Vec<(AppRef, SessionNode)> {
             name: short_name(&live.name, Some(&cmd)),
             role,
             label: None,
+            subagent: None,
             state,
             cpu_pct: live.cpu_pct,
             spark: ctx.spark(live.pid, live.start_time),
