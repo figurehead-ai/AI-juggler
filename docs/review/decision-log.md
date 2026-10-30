@@ -2026,3 +2026,24 @@ does to tidy their setup should erase it.
   ("deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones"),
   `ui/src/screens/accounts/delete-launch-settings.test.tsx`, the
   gallery's `41-policy`.
+
+### D-61 Pools are redesigned in 0.4, research and a reviewed proposal first — SETTLED (2026-10-30)
+
+**Ruling.** The maintainer, 2026-10-30, on 0.3.0's new-pool screen (E30's
+source quotes it in full): pools should be general or restricted to one
+or several projects; members can be a session, an app or account, or a
+whole Mac; a wizard with templates beside the manual setup; "Have you
+fully validated and researched capabilities and possibilities from
+multiple real world use cases …". Then: "Add it to 0.4".
+
+**What changed.** 0.4 gains E30. Its first task (AJ-E3001) researches
+real use and each tool's capability, proposes the model (scope, member
+types, roles and access, communication, auto-join, the move from today's
+pools) and the creation flow, and goes to the maintainer as a proposal;
+the build tasks are written from what's approved.
+
+**Why.** 0.3's pools were built without the spike that should have
+settled their model (AJ-E1701): members are single sessions AI Juggler
+started, the add list hides why others can't join, and nothing helps a
+user start.
+

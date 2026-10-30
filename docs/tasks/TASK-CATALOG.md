@@ -344,5 +344,6 @@
 | AJ-E2908 | An ended session's page: Resume, Archive, Replay and Copy ID | E29-trust-and-the-finished-basics.md | P1 | M | — |
 | AJ-E2909 | A keyboard-operable rail splitter | E29-trust-and-the-finished-basics.md | P0 | S | — |
 | AJ-E2910 | Home: filter chips, the r / h / s / e keys, and Mark all finished as reviewed | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2801 |
-Total: 342 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3001 | Pools from real use: research, the model and a proposal for review | E30-pools-redesign.md | P0 | L | — |
+Total: 343 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

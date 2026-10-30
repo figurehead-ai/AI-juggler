@@ -12,10 +12,10 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-60. Do not re-litigate them; supersede only via a
+   decisions D-01..D-61. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E29 below).
+4. The epic file for the task you claim (E1-E30 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -52,6 +52,7 @@
 | [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: a dedicated first release, then every release (D-52) | AJ-E2701-E2715 |
 | [E28-finding-your-way.md](E28-finding-your-way.md) | Finding your way: projects, pools, tasks and subagents (D-54..D-57) | AJ-E2801-E2814 |
 | [E29-trust-and-the-finished-basics.md](E29-trust-and-the-finished-basics.md) | Trust and the finished basics: what the spec promised for the daily loop (0.4, D-59) | AJ-E2901-E2910 |
+| [E30-pools-redesign.md](E30-pools-redesign.md) | Pools, redesigned from how people work (0.4, D-61) | AJ-E3001-E3001 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)
