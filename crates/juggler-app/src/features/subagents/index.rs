@@ -12,7 +12,6 @@
 //! newest [`KEEP`] files stay; older ones go. Written whole to a
 //! temporary file and moved into place, readable by this user only.
 
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 /// The folder under AI Juggler's data folder.
@@ -73,22 +72,14 @@ pub fn save(path: &Path, messages: bool, checkpoint: &[u8]) -> std::io::Result<(
         messages,
     })
     .map_err(std::io::Error::other)?;
-    let temp = path.with_extension("idx.part");
-    {
-        let mut options = std::fs::OpenOptions::new();
-        options.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt as _;
-            options.mode(0o600);
-        }
-        let mut file = options.open(&temp)?;
-        file.write_all(&head)?;
-        file.write_all(b"\n")?;
-        file.write_all(checkpoint)?;
-        file.sync_all()?;
-    }
-    std::fs::rename(&temp, path)?;
+    let mut bytes = Vec::with_capacity(head.len() + 1 + checkpoint.len());
+    bytes.extend_from_slice(&head);
+    bytes.push(b'\n');
+    bytes.extend_from_slice(checkpoint);
+    // Whole or not at all, readable by this user only (where the system
+    // has owner-only files: elsewhere nothing is saved, and the tab reads
+    // the tool's files as before).
+    juggler_platform::private_fs::write_private(path, &bytes)?;
     prune(dir, KEEP);
     Ok(())
 }
