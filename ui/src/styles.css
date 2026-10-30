@@ -130,7 +130,7 @@ body {
      background clear WCAG AA in the light theme. */
   --color-success: #065f46;
   --color-success-soft: #065f461a;
-  --color-warning: #a94e08; /* AJ-E804: ≥ 4.5:1 on surface-3 too */
+  --color-warning: #9c4807; /* AJ-E804: ≥ 4.5:1 on surface-3 too, and on a chip's soft fill over it (0.3: #a94e08 measured 4.38) */
   --color-warning-soft: #b4530914;
   /* AJ-E702: darkened (from #dc2626) — danger text on its own tinted
      button/chip background was 3.6–4.3:1 in the light theme; #b91c1c

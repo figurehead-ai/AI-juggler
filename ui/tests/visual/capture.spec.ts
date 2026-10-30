@@ -371,9 +371,11 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await openRailList(page); // D-25: a project row needs the list
     await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
     const tabs = page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab");
-    await expect(tabs.first()).toHaveText("Sessions");
-    await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
+    // D-54: a project's page opens on its Overview; Sessions is one click.
+    await expect(tabs.first()).toHaveText("Overview");
     await expect(tabs.filter({ hasText: "Processes" })).toHaveCount(0);
+    await tabs.filter({ hasText: /^Sessions/ }).click();
+    await expect(tabs.filter({ hasText: /^Sessions/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/project-sessions-${vp.name}.png`) });
   });
