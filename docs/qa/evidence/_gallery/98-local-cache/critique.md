@@ -1,4 +1,4 @@
-<!-- captures: 7a5d0d593786 -->
+<!-- captures: 11d8ddc0a5ef -->
 # 98-local-cache: Settings › Advanced › Local cache, and Privacy's line about it
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good. New family (ADR-0023, D-58).

@@ -1,4 +1,4 @@
-<!-- captures: d70b2267bef7 -->
+<!-- captures: 0a698059c359 -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
