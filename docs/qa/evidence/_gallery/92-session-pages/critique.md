@@ -39,7 +39,8 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | outside-asks-1280x800, -1680x1050, -2000x1100, -2000x1100-zoom200 | "Fix the flaky checkout test", run by the Claude app, asks you: Asks you · 3 min, its 30-turn conversation, the question with Go to it. | 0.3 header. This branch: state chip + Account menu; "Running in the Claude app · viewed 2 min ago" on the facts line. |
 | outside-working-1280x800, -1680x1050, -2000x1100, -2000x1100-zoom200 | A Codex thread still working: "Codex is working", its Usage tab. | Same header change. |
 | outside-steps-open-1280x800 | A turn's steps opened to their lines; earlier messages loaded. | Same header change. |
-| outside-ended-1280x800 | An ended session with no transcript here: Continue in AI Juggler, Copy resume command. | Same; "Last active …" on the facts line. |
+| outside-ended-1280x800 | "Move the orders API to v2", ended, no transcript here: Ended and Personal ▾ under the name, "Claude Code · Last active 5 h ago" under them, Continue in AI Juggler and Copy resume command. | Same; "Last active …" on the facts line. The spec opens the project's Sessions tab (a project opens on Overview since 0.3; the state had stopped running). |
+| account-menu-open-1280x800, -1024x700 | The Account chip (Work Max ▾) opened on "Fix the flaky checkout test": Account over Claude Max · o…@work.com · Max, Profile Work Max, Folder ~/Dev/web-app, then Open Work Max's page, focused. | New state (this branch). |
 | own-overview-1280x800 | AI Juggler's own session on its Overview: its terminal, Where it runs, Runway. | Same; "Running in AI Juggler" on the facts line. |
 | last-messages-off-1280x800 | The page with last messages turned off. | Same header change. |
 | usage-1280x800, usage-not-measured-1280x800 | The Usage tab with its counts, and with none of its own. | Same header change. |

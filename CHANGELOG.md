@@ -185,10 +185,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The 0.3 screenshot review's follow-ups** (0.3): a pool's canvas reads
+  at any zoom — below 100 % each member keeps its place but draws its
+  name and state at full size (12 px and up), its waiting count is a
+  badge that opens what it asks with Allow once · Deny in place, and a
+  message waiting on an edge is a small badge ("1 waiting", "Paused")
+  that opens Deliver or Let it continue; full cards from 100 %. A window
+  under 1100 px opens a pool as its List until you choose (kept per
+  pool). A session's header has two chips, its state and an **Account**
+  menu (the account, profile and folder, and Open the profile's page);
+  where it runs moved onto the facts line. **⌘⇧Y** opens History (D-54
+  had said ⌘⇧H, which is Continue on another account), and every header
+  tab's tooltip names its key. The list's top is a shorter stack, and the
+  View's lines are one height, a hint on its label's line. History's
+  picker, open, is in the gallery; every gallery family has a design
+  critique beside its captures, checked by `scripts/critique_check.py`
+  in `just evidence` (AJ-E2814).
 - **The View menu, redone** (0.3): ⇧V or the View button opens a real
   menu — "View" on top with **Reset** (only once something changed; your
   grouping stays), then **Show** lines with an icon, what each one is
-  under it and a ✓ (Inactive, Quiet ones, Ended today, Background runs,
+  beside it and a ✓ (Inactive, Quiet ones, Ended today, Background runs,
   Subagents, Other Macs, Archived), then **Only** lines showing their
   value that open a list with a ✓ (App, Profile, Account, Project). Group
   by moved to the list's own switch.

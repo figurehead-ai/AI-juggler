@@ -41,12 +41,12 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | Capture | What is on it | What changed in 0.3 |
 |---|---|---|
 | pools-screen-1280x800, -1024x700 | Every pool as a card with its canvas in small; Checkout team says "6 members · 4 need you · 2 tasks moving"; two project pools labelled. | New screen (AJ-E2808). |
-| canvas-1280x800 | Checkout team at fit: Planner (lead) on top, five members under it, a message waiting and a chain paused at the hop limit on their edges, the inspector's Live feed. | New. This branch: compact nodes at fit, edge waits as badges. |
-| canvas-1024x700 | The same pool at 1024, opened on the canvas from the List view. | New. This branch: the window starts in the List view. |
-| canvas-compact | At fit: names and states at true size, waiting counts as badges. | New state (this branch). |
-| canvas-full-100 | At 100 %: full cards, Checkout copy pass's ask answered on its card (Allow once · Deny). | New state (this branch). |
-| canvas-edge-badge-open | An edge's "Paused" badge opened: Let it continue · Don't deliver. | New state (this branch). |
-| list-default-1024 | A pool opened at 1024 without a chosen view: the List view. | New state (this branch). |
+| canvas-1280x800 | Checkout team at fit (69 %): Planner (lead) on top, five members under it, each compact — a state dot, its name (on two lines when long), "Lead · Working" or its state word, all 12 px and up; amber count badges on Checkout copy pass (1), Review the checkout steps (2) and Tax rules research (1); "1 waiting" and "Paused" badges on their edges; the inspector's Live feed. | New. This branch: compact nodes at fit (the cards' words were 9–10 px), edge waits as badges. |
+| canvas-1024x700 | The same pool at 1024 (56 %), opened on the canvas from the List view: the same compact nodes, names wrapping to two lines. | New. This branch: compact nodes; the window starts in the List view, the canvas chosen. |
+| canvas-badge-open-1280x800, -1024x700 | Checkout copy pass's badge pressed: a small panel under the node with "Checkout copy pass wants to message Planner" and Allow once · Deny, focus on Allow once. | New state (this branch). |
+| canvas-edge-badge-open-1280x800, -1024x700 | The "Paused" badge on Checkout copy pass → Tax rules research pressed: "Paused at the hop limit" with Let it continue · Don't deliver. | New state (this branch). |
+| canvas-full-1280x800, -1024x700 | At 100 % (the zoom button): full cards — tool, name, account · tool, state · task — the ask answered on Checkout copy pass's card, "1 message waiting · Deliver" and "Paused at the hop limit · Let it continue · Don't deliver" on their edges. | New state (this branch). |
+| list-default-1024x700 | Checkout team opened at 1024 with no view chosen: the List view (six member rows, who talks to whom), List lit in the switch. | New state (this branch). |
 | inspect-member-1280x800, -1024x700 | Checkout copy pass in the inspector: its ask with its answers, who it talks to ("To Planner"), its tasks and usage. | New. |
 | inspect-edge-1280x800 | Planner → Fix the cart totals: the three messages between them. | New. |
 | inspect-pool-1280x800 | The pool's settings in the inspector: what agents may do, the rule "Take a task", delivery and the hop limit of 5. | New. |

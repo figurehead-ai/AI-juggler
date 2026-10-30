@@ -27,13 +27,13 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 - Hints sat on some lines and not others (Inactive had one, Ended today, Other Macs and Archived didn't), so rows had two heights (fixed in this branch).
 - The menu covers the grouping switch beside it while open.
-- History's Picker open wasn't captured (no filter with two values in the fixture; fixed in this branch).
+- History's Picker open wasn't captured (fixed in this branch).
 
 ## Fixed
 
 - Re-render: the grouping switch's segments size by their words (Pool cut "Account" to "Accou…").
 - Polish (0.3, this branch): the View's rows are one height; a hint sits on the label's line, muted, in shorter words, only where the label needs it.
-- Polish (0.3, this branch): History's Picker open is captured (the fixture has a filter with two values).
+- Polish (0.3, this branch): History's Picker open is captured (the fixture always had three projects; the state counted the filters before the lazily loaded screen drew, and skipped).
 
 ## Captures
 
@@ -42,5 +42,5 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | rail-group-switch-1280x800, -1024x700 | The rail's App · Project · Account · Pool switch with Project chosen (a pool of yours exists). | New (AJ-E2802). |
 | view-open-1280x800, -1024x700 | The View as it opens: Show's seven lines, Only's Account and Project, no Reset. | New menu (AJ-E2801, AJ-E2802). This branch: one row height. |
 | view-changed-only-open-1280x800, -1024x700 | Quiet ones turned on, Reset shown, Only › Account's submenu open with ✓ on All. | New. This branch: one row height. |
-| picker-open-history | History's filter Picker open, ✓ on the chosen line. | New state (this branch). |
+| picker-open-history-1280x800, -1024x700 | History with its Project filter open: "Project" over All ✓ (focused), ai-juggler, storefront, sacrificial, under the Project: All and Profile: All chips. | New state (this branch): the spec counted the filters before History had drawn and skipped. |
 | settings-general-cards-1280x800, -1024x700 | Settings › General: theme, density and order as equal cards with the shared radio. | New (AJ-E2813). |

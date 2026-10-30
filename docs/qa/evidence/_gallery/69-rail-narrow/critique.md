@@ -29,7 +29,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 ## Fixed
 
 - Re-render: below 1100 px the folded rail hid the grouping switch and View; the only way back was the logo or ⌘B. The door is at the top of the column now.
-- Polish (0.3, this branch): the opened list's top is a tighter stack before the first session (details in the release notes).
+- Polish (0.3, this branch): the opened list's top is a shorter stack — search and View 28 px, the grouping switch 30 px (each segment still a 24 px target), less air before Needs you — so the first session sits 13 px higher, every control where it was.
 
 ## Captures
 
