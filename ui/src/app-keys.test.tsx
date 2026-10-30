@@ -218,6 +218,16 @@ describe("AJ-E1504 keys in the app", () => {
     expect(view.queryByTestId("notification-centre")).toBeNull();
   });
 
+  it("Esc closes New session even before focus reaches the sheet (#198: an Esc right after ⌘N)", async () => {
+    const view = await openApp();
+    press({ key: "n", metaKey: true });
+    expect(await view.findByTestId("new-session-sheet")).toBeTruthy();
+    // Focus is still on the page, not in the sheet.
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(view.queryByTestId("new-session-sheet")).toBeNull());
+  });
+
   it("D-50: ⌥⌘N opens the notifications (by the key's place)", async () => {
     const view = await openApp();
     press({ key: "˜", code: "KeyN", altKey: true, metaKey: true });
