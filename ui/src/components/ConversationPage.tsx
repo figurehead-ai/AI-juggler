@@ -183,7 +183,7 @@ function ConversationView({
           ) : tab === "processes" ? (
             <ProcessesView sessionId={conversation.id} height="calc(100vh - 22rem)" testId="conversation-processes" />
           ) : tab === "subagents" ? (
-            <SubagentsTab model={model} visible={visible} now={now} />
+            <SubagentsTab model={model} title={title} visible={visible} now={now} />
           ) : (
             <SessionOverview
               model={model}

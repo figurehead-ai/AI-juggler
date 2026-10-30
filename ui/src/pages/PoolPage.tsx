@@ -143,7 +143,7 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
       <AgentToolsQuestion className="mx-4 mt-3" />
       {unplaced.length > 0 && (
         <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
-          {unplaced.length === 1 ? "An agent that isn't on the canvas asks you something" : `${unplaced.length} agents that aren't on the canvas ask you something`}: answer in Needs you or View as list.
+          {unplaced.length === 1 ? "An agent that isn't on the canvas asks you something" : `${unplaced.length} agents that aren't on the canvas ask you something`}: answer it in Needs you, or in the List view.
         </p>
       )}
       <div className="flex min-h-0 flex-1">
@@ -171,6 +171,12 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
             </section>
           )}
         </div>
+        {/* Tasks and Messages are the page's other tabs (D-55): open, they
+            take the whole width — beside the inspector their list and
+            their open task or thread were squeezed into a column a few
+            words wide at 1280 px (the 0.3 re-render). The inspector stays
+            mounted, as it was, for the canvas. */}
+        <div className={panel ? "hidden" : "contents"} data-testid="pool-inspector-slot">
         <Inspector
           ref={inspectorTitle}
           pool={pool}
@@ -189,6 +195,7 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
             else host.openHome?.();
           }}
         />
+        </div>
       </div>
     </div>
   );

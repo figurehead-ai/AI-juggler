@@ -50,7 +50,13 @@ describe("AJ-E1520 (0.3) the Subagents words", () => {
     expect(shareWords(41.2)).toBe("41%");
     expect(shareWords(0.62)).toBe("0.6%");
     expect(shareWords(0.01)).toBe("<0.1%");
-    expect(treeLines([true, false], true)).toBe("│   └ ");
+    // The first level (started by the message) has no lines; below it,
+    // who started whom.
+    expect(treeLines([], false)).toBe("");
+    expect(treeLines([], true)).toBe("");
+    expect(treeLines([true], false)).toBe("├ ");
+    expect(treeLines([true, false], true)).toBe("  └ ");
+    expect(treeLines([true, true], true)).toBe("│ └ ");
   });
 
   it("the preview answers as the backend: newest group open, a tree with its lines, a filter keeps the parent", () => {

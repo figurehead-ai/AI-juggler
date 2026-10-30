@@ -637,6 +637,7 @@ export default function App() {
         }
         onSelectRemote={inspectRemote}
         loading={!loaded}
+        onShowList={toggleRail}
         header={(minimal) => <RailHeader minimal={minimal} info={info} onToggle={toggleRail} />}
         footer={(minimal) =>
           minimal ? (

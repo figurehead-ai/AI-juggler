@@ -58,7 +58,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
           <ol className="flex flex-col gap-2" aria-live="polite" aria-relevant="additions">
             {canvas.stream.map((line, index) => (
               <li key={`${line.at_ms}-${index}`} className="flex gap-2 text-meta">
-                <span className="w-14 shrink-0 font-mono text-label text-faint">{agoWords(line.at_ms, now)}</span>
+                <span className="w-[4.75rem] shrink-0 whitespace-nowrap text-label tabular-nums text-faint">{agoWords(line.at_ms, now)}</span>
                 {line.session_id ? (
                   <button
                     type="button"

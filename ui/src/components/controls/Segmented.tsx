@@ -74,8 +74,11 @@ export function Segmented<T extends string>({
             title={segment.title}
             data-testid={testId ? `${testId}-${segment.value}` : undefined}
             onClick={() => onChange(segment.value)}
+            // Each as wide as its word first, the rest shared: four equal
+            // quarters cut "Account" to "Accou…" beside a short "App"
+            // and "Pool" (the 0.3 re-render).
             className={
-              "min-w-0 flex-1 truncate rounded-[7px] px-1.5 py-1 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
+              "min-w-0 flex-auto truncate rounded-[7px] px-1 py-1 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
               (on ? "bg-surface-3 font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-hairline)]" : "text-muted hover:bg-surface-2 hover:text-ink")
             }
           >

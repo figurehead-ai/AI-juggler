@@ -221,6 +221,10 @@ describe("a pool's page: its canvas", () => {
     rememberTab("pool", "messages");
     let view = await openPage();
     expect(view.getByTestId("pool-panel-messages-open")).toBeTruthy();
+    // Open, Messages takes the page's width: the inspector steps aside.
+    expect(view.getByTestId("pool-inspector-slot").className).toBe("hidden");
+    fireEvent.click(view.getByTestId("pool-panel-close"));
+    expect(view.getByTestId("pool-inspector-slot").className).toBe("contents");
     cleanup();
     rememberTab("pool", "access");
     view = await openPage();

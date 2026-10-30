@@ -49,13 +49,16 @@ export function AppHeader({
       // AJ-E804 (WCAG 1.4.10): at narrow widths and 200 % zoom the right
       // cluster wraps onto a second row instead of being clipped; at 1024
       // and 1280 px with the list open it fits one row (0.3).
-      className="relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
+      className="@container/header relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
     >
       <h1 className="sr-only">{title}</h1>
       <MainNav primary={PRIMARY_NAV} global={global} page={page} pairedCount={pairedCount} onPick={onPick} />
       <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 xl:gap-1.5" data-tauri-drag-region={false}>
-        {/* AJ-E2105: This Mac's line, in the top bar (it gives way first). */}
-        <span className="mr-1 hidden min-w-0 text-muted xl:flex">
+        {/* AJ-E2105: This Mac's line, in the top bar (it gives way first):
+            by the bar's own width, not the window's, so the list open at
+            1280 px with Fleet's tab too (a paired Mac) still fits one row
+            (the 0.3 re-render found it wrapping). */}
+        <span className={"mr-1 hidden min-w-0 text-muted " + (pairedCount > 0 ? "@min-[1060px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
           <MachineStatusLine minimal={false} onOpen={onOpenThisMac} />
         </span>
         <CleanupPill count={cleanupCount} shown={global !== "cleanup"} onOpen={() => onPick("cleanup")} />

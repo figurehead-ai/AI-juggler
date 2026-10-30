@@ -196,9 +196,6 @@ export function InspectorHeader({
       ) : (
         state && <Chip tone={state.tone}>{state.label}</Chip>
       )}
-      {/* 0.3: its pool, one click away. */}
-      {model && instance && <SessionPoolChip sessionId={instance.id} />}
-      {model && instance && <SessionToolChip tool={instance.provider} />}
       {/* AJ-E510: re-adopted after a crash; its earlier output is gone. */}
       {kind === "instance" && instance?.adopted && (
         <span data-testid="instance-adopted-chip">
@@ -215,7 +212,10 @@ export function InspectorHeader({
   const facts =
     kind === "instance" && instance ? (
       <>
+        {/* 0.3: its tool and its pool, one click away. */}
+        {model && <SessionToolChip tool={instance.provider} />}
         <span data-testid="session-subline">{sessionFacts(instance, now)}</span>
+        {model && <SessionPoolChip sessionId={instance.id} />}
         {/* Once something's measured: never a line of dashes. */}
         {isActiveStatus(instance.status) && (instance.cpu_pct !== null || instance.rss_bytes !== null || instance.child_count !== null) && (
           <SessionResources session={instance} />

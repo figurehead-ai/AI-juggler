@@ -129,7 +129,7 @@ describe("AJ-E1520 the Subagents tab", () => {
   it("says what runs, failed and costs first, groups under the message, with real tree lines", async () => {
     let answer: (info: SubagentsInfo) => void = () => undefined;
     vi.spyOn(ipc, "subagentsList").mockImplementation(() => new Promise((resolve) => (answer = resolve)));
-    render(<SubagentsTab model={model} visible now={NOW} />);
+    render(<SubagentsTab model={model} title="Fix the cart totals" visible now={NOW} />);
     expect(screen.getByTestId("subagents-loading")).toBeTruthy();
     await act(async () => answer(listed(TREE)));
     expect(screen.getByTestId("subagents-summary").textContent).toBe("3 subagents·1 running·1 failed·41% of this session's tokens");
@@ -138,8 +138,9 @@ describe("AJ-E1520 the Subagents tab", () => {
     expect(groups[0]!.textContent).toContain("“fix the totals and add tests”");
     const rows = screen.getAllByTestId("subagent-row");
     expect(rows.map((r) => r.getAttribute("data-status"))).toEqual(["running", "failed", "done"]);
-    expect(rows.map((r) => r.textContent?.slice(0, 2))).toEqual(["├ ", "│ ", "└ "]);
-    expect(rows[1]!.textContent).toContain("│ └ ");
+    // Lines for who started whom; the message's own (the first level) none.
+    expect(rows.map((r) => r.textContent?.slice(0, 2))).toEqual(["Au", "└ ", "Re"]);
+    expect(rows[1]!.textContent?.startsWith("└ Task n1")).toBe(true);
     expect(within(rows[0]!).getByTestId("subagent-status").textContent).toBe("Running");
     expect(rows[0]!.textContent).toContain("412k");
     expect(rows[0]!.textContent).toContain("Haiku 4.5");
@@ -150,7 +151,7 @@ describe("AJ-E1520 the Subagents tab", () => {
   it("sends the view, search, type, order and opened groups as the query", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const list = vi.spyOn(ipc, "subagentsList").mockResolvedValue(listed(TREE));
-    render(<SubagentsTab model={model} visible now={NOW} />);
+    render(<SubagentsTab model={model} title="Fix the cart totals" visible now={NOW} />);
     await screen.findAllByTestId("subagent-row");
     const last = () => list.mock.calls[list.mock.calls.length - 1]![3]!;
     fireEvent.click(screen.getByTestId("subagents-summary-failed"));
@@ -172,7 +173,7 @@ describe("AJ-E1520 the Subagents tab", () => {
     const Page = () => {
       useHasSubagents("work", "c-run", false);
       const heard = useHeardSubagentCounts("work", "c-run");
-      return heard ? <SubagentsTab model={{ ...model, conversationId: "c-run" }} visible now={NOW} /> : null;
+      return heard ? <SubagentsTab model={{ ...model, conversationId: "c-run" }} title="Fix the cart totals" visible now={NOW} /> : null;
     };
     render(<Page />);
     const running = await screen.findByRole("radio", { name: "Running 1" });
@@ -212,10 +213,12 @@ describe("AJ-E1520 the Subagents tab", () => {
       tool: "Claude Code",
     };
     const read = vi.spyOn(ipc, "subagentsDetail").mockResolvedValue(detail);
-    render(<SubagentsTab model={model} visible now={NOW} />);
+    render(<SubagentsTab model={model} title="Fix the cart totals" visible now={NOW} />);
     fireEvent.click((await screen.findAllByTestId("subagent-row"))[1]!);
     expect((await screen.findByTestId("subagent-title")).textContent).toBe("Task n1");
     expect(read).toHaveBeenCalledWith("work", "c1", "n1");
+    // The breadcrumb starts at the session, by its own title.
+    expect(screen.getByRole("navigation", { name: "Where you are" }).textContent).toMatch(/^Fix the cart totals›Subagents›/);
     expect(screen.getByTestId("subagent-detail-status").textContent).toBe("Running · 1m");
     expect(screen.getByTestId("subagent-prompt").textContent).toBe("Find every place the cart reads tax rates.");
     expect(screen.getByTestId("subagent-result-box").textContent).toContain("It's still running.");
@@ -246,7 +249,7 @@ describe("AJ-E1520 the Subagents tab", () => {
       stamp: "s",
       turns: [{ speaker: "you", blocks: [{ kind: "text", text: "Review it", steps: [], hidden: 0 }], at_ms: null, model: null }],
     });
-    render(<SubagentsTab model={model} visible now={NOW} />);
+    render(<SubagentsTab model={model} title="Fix the cart totals" visible now={NOW} />);
     fireEvent.click((await screen.findAllByTestId("subagent-row"))[2]!);
     fireEvent.click(await screen.findByTestId("subagent-open-conversation"));
     await waitFor(() => expect(screen.getAllByTestId("last-turn")).toHaveLength(1));
@@ -257,14 +260,21 @@ describe("AJ-E1520 the Subagents tab", () => {
 
   it("a tool that keeps none says why, and a long session says it is still reading", async () => {
     vi.spyOn(ipc, "subagentsList").mockResolvedValueOnce({ ...listed([]), state: "unsupported", reason: "This tool keeps no record of its subagents." });
-    render(<SubagentsTab model={model} visible now={NOW} />);
+    render(<SubagentsTab model={model} title="Fix the cart totals" visible now={NOW} />);
     expect((await screen.findByTestId("subagents-unlisted")).textContent).toBe("This tool keeps no record of its subagents.");
     cleanup();
     forgetPaged();
     vi.spyOn(ipc, "subagentsList").mockResolvedValue(listed(TREE, { reading: true, conversations_note: "Kimi Code keeps it as a journal." }));
-    render(<SubagentsTab model={model} visible now={NOW} />);
+    render(<SubagentsTab model={model} title="Fix the cart totals" visible now={NOW} />);
     expect(await screen.findByTestId("subagents-reading")).toBeTruthy();
     expect(screen.getByTestId("subagents-note").textContent).toContain("journal");
+  });
+
+  it("with none, says so in the session's words, with no bar of dead controls", async () => {
+    vi.spyOn(ipc, "subagentsList").mockResolvedValue(listed([]));
+    render(<SubagentsTab model={model} title="Fix the cart totals" visible now={NOW} />);
+    expect((await screen.findByTestId("subagents-empty")).textContent).toBe("This session hasn't started any subagents.");
+    expect(screen.queryByTestId("subagents-toolbar")).toBeNull();
   });
 });
 

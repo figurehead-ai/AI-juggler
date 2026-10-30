@@ -150,7 +150,11 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
             {thread.state !== "open" && <Pill tone={thread.state === "stopped" ? "danger" : "warning"}>{THREAD_WORDS[thread.state] ?? thread.state}</Pill>}
-            {hops && <Pill tone="neutral">{hops}</Pill>}
+            {hops && (
+              <Pill tone="neutral" wrap testId="thread-hops">
+                {hops}
+              </Pill>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1.5">

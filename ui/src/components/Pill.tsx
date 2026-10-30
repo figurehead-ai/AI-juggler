@@ -18,9 +18,13 @@ const TONES: Record<PillTone, string> = {
   success: "border-success/25 bg-success-soft text-success",
 };
 
-export function Pill({ tone, children, testId }: { tone: PillTone; children: ReactNode; testId?: string }): JSX.Element {
+/** `wrap`: a sentence, not a word — it may take two lines where its
+ * column is narrow, never running past its card (a thread's "2 of 6 agent
+ * messages in a row without you" did, beside a pool's canvas). */
+export function Pill({ tone, children, testId, wrap = false }: { tone: PillTone; children: ReactNode; testId?: string; wrap?: boolean }): JSX.Element {
+  const shape = wrap ? "min-w-0 max-w-full rounded-lg" : "shrink-0 whitespace-nowrap rounded-full";
   return (
-    <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-label font-medium ${TONES[tone]}`} data-testid={testId}>
+    <span className={`inline-flex items-center ${shape} border px-2 py-0.5 text-label font-medium ${TONES[tone]}`} data-testid={testId}>
       {children}
     </span>
   );

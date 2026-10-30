@@ -238,3 +238,15 @@ describe("Disclosure", () => {
     expect(summary.querySelector("svg")).not.toBeNull();
   });
 });
+
+describe("Segmented, sized by its words (the 0.3 re-render)", () => {
+  it("lets each segment start at its word's width, so a long one isn't cut beside short ones", () => {
+    const view = render(
+      <Segmented label="Group sessions by" value="place" onChange={() => {}} segments={[{ value: "place", label: "App" }, { value: "project", label: "Project" }, { value: "account", label: "Account" }, { value: "pool", label: "Pool" }]} />,
+    );
+    for (const radio of view.getAllByRole("radio")) {
+      expect(radio.className).toContain("flex-auto");
+      expect(radio.className).not.toContain("flex-1");
+    }
+  });
+});

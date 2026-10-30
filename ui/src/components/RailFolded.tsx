@@ -16,10 +16,14 @@
  *   computer is calm (`RailCalm`); while the sessions still load, round
  *   placeholders stand in, never a false "All clear" (AJ-E1503 Req.4, as
  *   the full rail's rows do; the 0.2.0 re-render found it).
+ * - **Group and View** (0.3 re-render): the grouping switch and the View
+ *   menu live in the list, so the folded column keeps one visible door to
+ *   them, View's own icon, which shows the list (⌘B does the same).
  */
 import { useId, useMemo, useRef, type JSX } from "react";
 import { PlaceMark, ProfileBadge } from "./PlaceMarks";
 import { ToolMark } from "./ToolMark";
+import { IconView } from "./icons-places";
 import { providerDisplayName } from "../lib/providers";
 import { RailCalm } from "./RailCalm";
 import { useActionHost } from "./ItemMenu";
@@ -57,6 +61,7 @@ export function FoldedRail({
   selectedId,
   onSelect,
   loading = false,
+  onShowList,
 }: {
   sessions: InstanceInfo[];
   projects?: ProjectInfo[];
@@ -66,6 +71,8 @@ export function FoldedRail({
   onSelect: (id: string) => void;
   /** The sessions haven't loaded yet. */
   loading?: boolean;
+  /** Shows the list, where its grouping switch and View are. */
+  onShowList?: () => void;
 }): JSX.Element {
   const needs = useBackendNeeds();
   const { conversations } = useShownConversations();
@@ -84,6 +91,20 @@ export function FoldedRail({
   useRoving(root);
   return (
     <div ref={root} className="flex flex-col items-center gap-1 pt-1" data-testid="rail-folded">
+      {onShowList && (
+        <button
+          type="button"
+          data-rail-nav
+          data-testid="rail-folded-show-list"
+          onClick={onShowList}
+          aria-label="Group and View: show the list"
+          aria-keyshortcuts="Meta+B"
+          title="Group and View — show the list (⌘B)"
+          className="mb-1 flex size-8 items-center justify-center rounded-lg border border-hairline bg-surface/70 text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        >
+          <IconView width={14} height={14} />
+        </button>
+      )}
       {count > 0 && (
         <button
           type="button"

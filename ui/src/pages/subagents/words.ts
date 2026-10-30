@@ -61,9 +61,16 @@ export function titleOf(agent: Pick<SubagentInfo, "task" | "kind">): string {
   return agent.task ?? (agent.kind ? `A ${kindWords(agent.kind)?.toLowerCase()} subagent` : "A subagent");
 }
 
-/** The tree's lines before a row: `│ ├ `. */
+/** The tree's lines before a row: `│ ├ `. Lines show who a subagent
+ * started; one the message started (the group's own, the first level)
+ * has none — its group's header already says who asked, and a column of
+ * "├" beside a flat list of 437 read as noise (the 0.3 re-render). */
 export function treeLines(guides: readonly boolean[], last: boolean): string {
-  return guides.map((down) => (down ? "│ " : "  ")).join("") + (last ? "└ " : "├ ");
+  if (guides.length === 0) return "";
+  return guides
+    .slice(1)
+    .map((down) => (down ? "│ " : "  "))
+    .join("") + (last ? "└ " : "├ ");
 }
 
 /** A share, 0–100, as words: "41%", "0.6%", "<0.1%". */

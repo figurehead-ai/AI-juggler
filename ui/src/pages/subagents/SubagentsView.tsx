@@ -131,6 +131,8 @@ export function SubagentsView({
           )}
         </p>
       )}
+      {/* Nothing to filter, search or sort: no bar of dead controls. */}
+      {!(meta && meta.state === "listed" && meta.summary.total === 0) && (
       <div className="flex flex-wrap items-center gap-2" data-testid="subagents-toolbar">
         <Segmented<ViewId>
           className="h-9 w-[23rem] max-w-full shrink-0"
@@ -159,6 +161,7 @@ export function SubagentsView({
           <Picker<SortId> value={sort} options={SORTS} onChange={setSort} ariaLabel="Sort" prefix="Sort:" heading="Sort by" testId="subagents-sort" />
         </div>
       </div>
+      )}
       {list.loading && rows.length === 0 ? (
         <div className="flex flex-col gap-1.5" role="status" aria-label="Loading its subagents" data-testid="subagents-loading">
           {[0, 1, 2, 3].map((row) => (
@@ -171,7 +174,7 @@ export function SubagentsView({
         </p>
       ) : meta && meta.summary.total === 0 ? (
         <p className="text-body text-muted" data-testid="subagents-empty">
-          It hasn't started any subagents.
+          {whose === "this session's" ? "This session hasn't started any subagents." : "None of these sessions has started a subagent."}
         </p>
       ) : rows.length === 0 && filtered ? (
         <div className="flex flex-col items-start gap-2 rounded-card border border-dashed border-hairline px-4 py-6" data-testid="subagents-none-match">

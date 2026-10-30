@@ -30,6 +30,7 @@ import { sessionState } from "../lib/rail-items";
 import { PoolAccessPanel } from "./PoolAccess";
 import { AgentAccessCard } from "../screens/settings/AgentAccessPane";
 import { PoolCardRows } from "./PoolCards";
+import { sessionTitle } from "./ManageWork";
 import { PoolSheet } from "./PoolSheet";
 import { InstanceBoard } from "./WorkflowRail";
 import { pick } from "../test/pick";
@@ -329,13 +330,15 @@ describe("context cards", () => {
 
   it("shows a row like Home's, and the rest behind its disclosure", () => {
     const { getByTestId, getByLabelText } = render(<PoolCardRows list={listOf([card({})])} sessions={MOCK_SESSIONS} now={Date.now()} />);
-    expect(getByTestId("pool-card").textContent).toContain("Split checkout");
+    // The session's one title, as the rail names it (not the card's own
+    // fallback, which said "its folder").
+    expect(getByTestId("pool-card-name").textContent).toBe(`${sessionTitle(first)} · ${sessionState(first).word}`);
     // D-36: the rows' place line; the tool beside it (the line names the profile).
     expect(getByTestId("pool-card").textContent).toContain("shop · AI Juggler · Work Max");
     expect(getByTestId("pool-card").textContent).toContain("Claude Code");
     // AJ-E2104: the rail's one state vocabulary.
     expect(getByTestId("pool-card-state").textContent).toBe(sessionState(first).word);
-    const more = getByLabelText("Show what Split checkout is doing");
+    const more = getByLabelText(`Show what ${sessionTitle(first)} is doing`);
     expect(more.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(more);
     expect(getByTestId("pool-card-said").textContent).toBe("“Split checkout into steps”said by the agent");

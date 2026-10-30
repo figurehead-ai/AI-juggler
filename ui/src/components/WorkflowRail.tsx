@@ -111,7 +111,10 @@ export function WorkflowRail({
   onSelectRemote,
   loading = false,
   onChanged,
+  onShowList,
 }: {
+  /** The folded column's Group and View: shows the list (⌘B). */
+  onShowList?: () => void;
   /** AJ-E1503: the first load hasn't answered yet (placeholders). */
   loading?: boolean;
   /** AJ-E1502: a rename, pin or forget from a row's menu — the app reads
@@ -200,7 +203,7 @@ export function WorkflowRail({
       {/* The live list for the active tab */}
       <div className="rail-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
         {minimal ? (
-          <FoldedRail sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelectSession} loading={loading} />
+          <FoldedRail sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelectSession} loading={loading} onShowList={onShowList} />
         ) : (
           <InstanceBoard
             onSelectProject={onSelectProject}

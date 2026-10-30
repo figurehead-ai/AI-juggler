@@ -38,7 +38,9 @@ export function globalId(id: unknown): GlobalId | null {
 /** The header's tab an item's page sits under (its lit tab, the page's
  * title): a project's page under Projects, a pool's under Pools, an
  * account's under Accounts. A session's page names its own place. */
-export const PAGE_UNDER: Partial<Record<string, GlobalId>> = { project: "projects", pool: "pools", account: "accounts" };
+// A paired Mac's session ("Fleet › Mac mini › Session") lights Fleet (the
+// 0.3 re-render found no tab lit there).
+export const PAGE_UNDER: Partial<Record<string, GlobalId>> = { project: "projects", pool: "pools", account: "accounts", remote: "fleet" };
 
 /** Opens a global screen and brings one of its sections into view
  * (`anchor`: the section's element id), focused for the keyboard. The

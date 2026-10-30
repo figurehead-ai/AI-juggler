@@ -28,7 +28,10 @@ import { useHeardSubagentCounts } from "./useSubagents";
 
 type Step = { at: "list" } | { at: "detail"; id: string } | { at: "chat"; agent: SubagentInfo; from: string };
 
-export function SubagentsTab({ model, visible, now }: { model: SessionModel; visible: boolean; now: number }): JSX.Element {
+/** `title`: the session's own title, as its page's header names it — the
+ * first step of a subagent's breadcrumb ("Fix the cart totals ›
+ * Subagents › …", D-56). */
+export function SubagentsTab({ model, title, visible, now }: { model: SessionModel; title: string; visible: boolean; now: number }): JSX.Element {
   const [step, setStep] = useState<Step>({ at: "list" });
   const [sort, setSort] = useState<SortId>("newest");
   const keep = useRef(0);
@@ -64,7 +67,7 @@ export function SubagentsTab({ model, visible, now }: { model: SessionModel; vis
       <div className="w-full min-w-0 max-w-[1280px]">
         <SubagentDetail
           target={{ profileId: model.profileId, conversationId: model.conversationId, subagentId: step.id }}
-          sessionTitle="This session"
+          sessionTitle={title}
           visible={visible}
           onBack={back}
           onOpen={(id) => setStep({ at: "detail", id })}
