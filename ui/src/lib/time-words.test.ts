@@ -6,7 +6,7 @@
  * `resetsWords`: the system's own clock, today / tomorrow / the weekday.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clock, resetsLead, resetsWords, whenWords } from "./time-words";
+import { clock, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
 import { outOfRoomConsequence, outOfRoomWords } from "./room";
 import { resetWords, windowView } from "./quotaWindow";
 import { windowDisplay } from "./wire";
@@ -97,5 +97,16 @@ describe("every caller says it the one way", () => {
   it("the digest", () => {
     const digest = { finished: 0, restarted: 0, resets: 0, updates: 0, next_reset_account: "Work Max", next_reset_ms: TODAY } as unknown as Parameters<typeof digestLine>[0];
     expect(digestLine(digest, NOW)).toBe(`Today: Work Max resets at ${time(TODAY)}`);
+  });
+});
+
+describe("a session row's when", () => {
+  it("says \"ago\" for every ended session, one stopped with an error too", () => {
+    const at = NOW - 7 * 3600_000;
+    const row = (status: string) => sessionWhen({ status, started_at_ms: at - 3600_000, last_activity_ms: at, attention: { since_ms: at } }, NOW);
+    expect(row("finished")).toBe("7 h ago");
+    expect(row("failed")).toBe("7 h ago");
+    // A live one: how long it has been at what it's doing.
+    expect(row("waiting_user")).toBe("7 h");
   });
 });

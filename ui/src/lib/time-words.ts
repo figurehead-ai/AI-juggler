@@ -35,7 +35,9 @@ export function sessionWhen(
   session: { status: string; started_at_ms: number; last_activity_ms: number | null; attention?: { since_ms: number } | null },
   now: number,
 ): string {
-  const ended = ["finished", "stopped", "handed_over"].includes(session.status);
+  // "Stopped with an error" has ended too (the rail's ENDED set): History
+  // said "7 h" beside its neighbours' "5 h ago".
+  const ended = ["finished", "stopped", "failed", "handed_over"].includes(session.status);
   const since = ended ? (session.last_activity_ms ?? session.started_at_ms) : (session.attention?.since_ms ?? session.started_at_ms);
   return ended ? agoWords(since, now) : ago(since, now);
 }

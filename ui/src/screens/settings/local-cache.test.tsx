@@ -92,7 +92,7 @@ describe("Local cache", () => {
     });
     await waitFor(() => expect(screen.getByTestId("cache-switch-row").textContent).toContain("Cleared 47 MB."));
     expect(calls()).toEqual([{ clear: true }]);
-    expect(screen.getByTestId("cache-switch-row").textContent).toContain("Using 0 B of 1.3 GB.");
+    expect(screen.getByTestId("cache-switch-row").textContent).toContain("Empty for now. It fills as you use AI Juggler, up to 1.3 GB.");
   });
 
   it("a fixed limit is picked from the menu and said in plain words", async () => {
@@ -127,6 +127,8 @@ describe("Local cache", () => {
     expect(cacheSummary({ ...SAMPLE_CACHE, caches: [{ ...SAMPLE_CACHE.caches[2]!, on: true }] })).toBe(
       "Using 47 MB of 1.3 GB. Search index opens without re-reading files.",
     );
+    // Empty: no "0 B", and no claim that anything is faster yet.
+    expect(cacheSummary({ ...SAMPLE_CACHE, used_bytes: 0 })).toBe("Empty for now. It fills as you use AI Juggler, up to 1.3 GB.");
   });
 });
 

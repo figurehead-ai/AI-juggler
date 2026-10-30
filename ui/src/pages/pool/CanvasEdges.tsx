@@ -116,7 +116,11 @@ function apart<T extends { mid: Point }>(labels: T[], nodes: Iterable<Point>, ro
   });
 }
 
-type Drawn = { edge: CanvasEdgeInfo; key: string; d: string; mid: Point; width: number; waits: boolean; tasksOnly: boolean };
+/** `waits`: something waits on the edge (it draws dashed); `answers`: it
+ * carries an answer here (a badge or chip). An agent's ask waits on its
+ * sender's node, so its edge is dashed but has no label: it must not
+ * take a label's room and push another edge's badge off its line. */
+type Drawn = { edge: CanvasEdgeInfo; key: string; d: string; mid: Point; width: number; waits: boolean; answers: boolean; tasksOnly: boolean };
 
 export const CanvasEdges = memo(function CanvasEdges({
   edges,
@@ -152,7 +156,7 @@ export const CanvasEdges = memo(function CanvasEdges({
     const key = edgeKey(edge.from_session_id, edge.to_session_id);
     const curve = edgeCurve(from, to, keys.has(edgeKey(edge.to_session_id, edge.from_session_id)));
     const total = edge.messages + edge.tasks;
-    drawn.push({ edge, key, d: curve.d, mid: curve.mid, width: Math.min(4, 1.5 + Math.log2(1 + total) * 0.6), waits: edge.pending.length > 0, tasksOnly: edge.messages === 0 && edge.tasks > 0 });
+    drawn.push({ edge, key, d: curve.d, mid: curve.mid, width: Math.min(4, 1.5 + Math.log2(1 + total) * 0.6), waits: edge.pending.length > 0, answers: pendingWords(edge) !== null, tasksOnly: edge.messages === 0 && edge.tasks > 0 });
   }
   return (
     <>
@@ -200,7 +204,7 @@ export const CanvasEdges = memo(function CanvasEdges({
           );
         })}
       </svg>
-      {apart(drawn.filter(({ key, waits }) => waits || selected === key || hover === key), points.values(), room).map(({ edge, key, mid, waits }) => {
+      {apart(drawn.filter(({ key, answers }) => answers || selected === key || hover === key), points.values(), room).map(({ edge, key, mid, answers }) => {
           const from = names.get(edge.from_session_id) ?? "A member";
           const words = edgeWords(edge, from, names.get(edge.to_session_id) ?? "a member");
           return (
@@ -229,7 +233,7 @@ export const CanvasEdges = memo(function CanvasEdges({
                 {words.count}
               </button>
               )}
-              {waits && (compact ? <EdgeBadge edge={edge} about={words.aria} /> : <PendingChip edge={edge} compact={false} />)}
+              {answers && (compact ? <EdgeBadge edge={edge} about={words.aria} /> : <PendingChip edge={edge} compact={false} />)}
             </div>
           );
         })}

@@ -30,6 +30,9 @@ import { PoolPage } from "../PoolPage";
 import { forgetCanvasViews } from "./Canvas";
 import { cardOrder, cardWords, newPoolName } from "../../screens/pools/PoolsScreen";
 import { deliveryWords } from "./InspectPool";
+import { CanvasEdges } from "./CanvasEdges";
+import { CompactNode } from "./CompactNode";
+import type { ContextCard } from "../../types/generated/ContextCard";
 import { edgeCurve, fitView, layout, neighbour, NODE_H, NODE_W, nodeForm, zoomAt } from "./layout";
 
 type Seams = Record<string, unknown> & { __AIJ_POOL_CALLS__?: string[]; __AIJ_MESSAGES_CALLS__?: string[] };
@@ -324,6 +327,51 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     fireEvent.click(badge);
     expect(badge.getAttribute("aria-expanded")).toBe("true");
     expect(within(view.getByTestId("edge-badge-panel")).getByTestId("edge-deliver").textContent).toBe("Deliver");
+  });
+
+  it("a narrow box at fit draws a two-line name at 12 px, so a long one reads whole", () => {
+    const member = {
+      id: first.id,
+      session: { ...first, label: "Spike: payment sandbox" },
+      card: { account: "Work Max", tool: "Claude Code", task: { value: "None" } } as unknown as ContextCard,
+      role: "member",
+    };
+    const node = (scale: number) => {
+      const view = render(
+        <CompactNode member={member} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
+      );
+      const name = view.container.querySelector(`[data-node-name="${first.id}"]`) as HTMLElement;
+      const classes = name.className.split(" ");
+      view.unmount();
+      return classes;
+    };
+    // Fit in a 1024 px window (56 %, a box about 130 px wide): 12 px, two lines.
+    expect(node(0.56)).toEqual(expect.arrayContaining(["text-label", "line-clamp-2"]));
+    // A wider box (69 %, about 160 px): 13 px, two lines.
+    expect(node(0.69)).toEqual(expect.arrayContaining(["text-meta", "line-clamp-2"]));
+    expect(node(0.69)).not.toContain("text-label");
+  });
+
+  it("an ask's edge takes no label's room: the other way's badge stays on its own line", () => {
+    // A pair: A → B carries a waiting message (a badge), B → A an agent's
+    // ask (answered on B's node, so its edge has no label). The ask's edge
+    // once reserved a label's room and pushed A → B's badge off its line.
+    const points = new Map([
+      ["a", { x: 0, y: 0 }],
+      ["b", { x: 0, y: 400 }],
+    ]);
+    const at = Date.now();
+    const pending = (kind: "waiting" | "asked") => [{ message_id: `m-${kind}`, thread_id: "thr", subject: "Totals", recipient: "session:x", kind, ask_id: kind === "asked" ? "ask-1" : null, at_ms: at }];
+    const edges = [
+      { from_session_id: "a", to_session_id: "b", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr", pending: pending("waiting") },
+      { from_session_id: "b", to_session_id: "a", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr", pending: pending("asked") },
+    ];
+    const view = render(<CanvasEdges edges={edges} points={points} names={new Map([["a", "A"], ["b", "B"]])} selected={null} pulses={new Map()} reducedMotion scale={0.6} onSelect={() => {}} />);
+    const labels = view.getAllByTestId("edge-label");
+    expect(labels.map((label) => label.dataset.edge)).toEqual(["a>b"]);
+    const mid = edgeCurve(points.get("a")!, points.get("b")!, true).mid;
+    expect(labels[0]!.style.transform.startsWith(`translate(${mid.x}px, ${mid.y}px)`)).toBe(true);
+    expect(within(labels[0]!).getByTestId("edge-badge").textContent).toBe("1 waiting");
   });
 
   it("back at 100 % the cards are whole again", async () => {

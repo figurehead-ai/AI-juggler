@@ -38,6 +38,10 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   // Room for the name on two lines above its state (a long name read
   // whole at fit, not cut at "Checkout cop…").
   const wrap = lines === 2 && height >= 62;
+  // A narrow box (fit in a small window, ~130 px): the name at 12 px, so
+  // "Spike: payment sandbox" reads whole on its two lines, not "Spike:
+  // payment…" at 13 px.
+  const nameSize = lines === 3 ? "text-body" : lines === 2 && !(wrap && width < 150) ? "text-meta" : "text-label";
 
   useEffect(() => {
     if (!open) return;
@@ -79,7 +83,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       className={
         "min-w-0 flex-1 rounded text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " +
         (wrap ? "line-clamp-2 break-words leading-tight " : "truncate ") +
-        (lines === 3 ? "text-body" : lines === 2 ? "text-meta" : "text-label")
+        nameSize
       }
       title={name}
     >

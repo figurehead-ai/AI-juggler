@@ -108,7 +108,7 @@ for (const theme of ["dark", "light"] as const) {
         free_bytes: 65_500 * MB,
         caches: [SEARCH],
       });
-      await expect(page.getByTestId("cache-switch-row")).toContainText("Search index opens without re-reading files.");
+      await expect(page.getByTestId("cache-switch-row")).toContainText("Empty for now. It fills as you use AI Juggler, up to 1.3 GB.");
       await page.getByTestId("cache-contents-toggle").locator("summary").click();
       await expect(page.getByTestId("cache-row-size")).toHaveText("Empty");
       await page.getByTestId("cache-row").last().scrollIntoViewIfNeeded();

@@ -46,6 +46,9 @@ function listWords(words: string[]): string {
  * what that makes faster (the caches kept now, by name). */
 export function cacheSummary(info: CacheInfo): string {
   if (!info.on) return "Off: nothing is kept, so pages read your tools' files each time they open.";
+  // Empty (just cleared, or nothing kept yet): nothing is faster yet, and
+  // "0 B" is a machine's word.
+  if (info.used_bytes === 0) return `Empty for now. It fills as you use AI Juggler, up to ${cacheSize(info.budget_bytes)}.`;
   const kept = info.caches.filter((row) => row.on).map((row, at) => (at === 0 ? row.name : row.name.toLowerCase()));
   // "Subagent lists and app icons open", "Search index opens".
   const one = kept.length === 1 && !kept[0]!.endsWith("s");
