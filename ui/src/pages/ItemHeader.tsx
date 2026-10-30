@@ -215,11 +215,11 @@ export function InspectorHeader({
         {/* 0.3: its tool and its pool, one click away. */}
         {model && <SessionToolChip tool={instance.provider} />}
         <span data-testid="session-subline">{sessionFacts(instance, now)}</span>
-        {model && <SessionPoolChip sessionId={instance.id} />}
         {/* Once something's measured: never a line of dashes. */}
         {isActiveStatus(instance.status) && (instance.cpu_pct !== null || instance.rss_bytes !== null || instance.child_count !== null) && (
           <SessionResources session={instance} />
         )}
+        {model && <SessionPoolChip sessionId={instance.id} />}
       </>
     ) : kind === "project" && data.project ? (
       <ProjectFacts project={data.project} sessions={sessions} />
