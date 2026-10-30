@@ -1,6 +1,6 @@
 //! The pools' wire types (AJ-E1702, AJ-E1703).
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::features::sessions::dto::InstanceInfo;
@@ -184,4 +184,136 @@ pub struct PoolCards {
     pub pool_id: String,
     /// One card per member.
     pub cards: Vec<ContextCard>,
+}
+
+/// 0.3 (redesign §5): what a pool's canvas draws besides its members —
+/// where the user put them, who talks to whom, what waits on the user and
+/// the pool's newest activity. Read for the members the canvas shows,
+/// never the whole history (I6).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolCanvasInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// Where the user put each member; one with none is laid out by the
+    /// app.
+    pub positions: Vec<NodePositionInfo>,
+    /// Messages and task hand-offs between two members since `since_ms`.
+    pub edges: Vec<CanvasEdgeInfo>,
+    /// Agents' asks waiting on the user, each on the member that asked.
+    pub asks: Vec<NodeAskInfo>,
+    /// The pool's newest messages and task events, newest first.
+    pub stream: Vec<StreamLineInfo>,
+    /// Edges count from here, epoch ms.
+    #[ts(type = "number")]
+    pub since_ms: i64,
+}
+
+/// Where the user put one member on the canvas.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct NodePositionInfo {
+    /// The member's session (as the canvas shows it).
+    pub session_id: String,
+    /// Across, in canvas units.
+    pub x: f64,
+    /// Down, in canvas units.
+    pub y: f64,
+}
+
+/// Who talked to whom: one direction between two members.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct CanvasEdgeInfo {
+    /// The sender (or the one who gave the task).
+    pub from_session_id: String,
+    /// The recipient (or the task's holder).
+    pub to_session_id: String,
+    /// Messages sent this way.
+    pub messages: u32,
+    /// Tasks handed over this way that the recipient still holds.
+    pub tasks: u32,
+    /// The newest of them, epoch ms.
+    #[ts(type = "number")]
+    pub last_at_ms: i64,
+    /// The newest message's thread (the conversation to open).
+    pub thread_id: Option<String>,
+    /// Messages this way the recipient hasn't got yet that the user can
+    /// act on.
+    pub pending: Vec<PendingInfo>,
+}
+
+/// A message that waits: on the user's click to go in, or on their answer.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PendingInfo {
+    /// The message.
+    pub message_id: String,
+    /// Its thread.
+    pub thread_id: String,
+    /// Its subject.
+    pub subject: String,
+    /// The recipient as AI Juggler keeps it (what Deliver names).
+    pub recipient: String,
+    /// `waiting` (in a session run here; Deliver puts it in) | `hop_limit`
+    /// (its chain reached the pool's hop limit: Let it continue or Don't
+    /// deliver) | `asked` (above what the pool allows: answered on the
+    /// sender's node).
+    pub kind: String,
+    /// The held ask that answers it, for `hop_limit` and `asked`.
+    pub ask_id: Option<String>,
+    /// When it was sent, epoch ms.
+    #[ts(type = "number")]
+    pub at_ms: i64,
+}
+
+/// An agent's ask that waits on the user (D-28), on the member that asked.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct NodeAskInfo {
+    /// The member that asked; `None` when it isn't on the canvas.
+    pub session_id: Option<String>,
+    /// `message` (answered with `messages_answer`) | `task`
+    /// (`tasks_answer`).
+    pub source: String,
+    /// The ask's id (what the answer names).
+    pub id: String,
+    /// In one line.
+    pub title: String,
+    /// Offer "Always allow in this pool" (from the second approval).
+    pub offer_always: bool,
+    /// Since when, epoch ms.
+    #[ts(type = "number")]
+    pub at_ms: i64,
+}
+
+/// One line of the pool's live stream, in words.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct StreamLineInfo {
+    /// When, epoch ms.
+    #[ts(type = "number")]
+    pub at_ms: i64,
+    /// What happened ("Planner gave «Round tax» to Cart totals").
+    pub words: String,
+    /// `message` | `task`.
+    pub source: String,
+    /// The member who did it, when it's on the canvas.
+    pub session_id: Option<String>,
+    /// The member it went to, when one did and it's on the canvas.
+    pub other_session_id: Option<String>,
+}
+
+/// One pool's card on the Pools screen: where its open members sit on its
+/// canvas, and how many of its tasks are in progress.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolPreviewInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// Where the user put its members that are in the working set (what
+    /// the rail holds).
+    pub positions: Vec<NodePositionInfo>,
+    /// Its tasks in progress.
+    pub moving: u32,
 }

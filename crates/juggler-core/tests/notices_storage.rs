@@ -84,8 +84,8 @@ fn upgrading_from_tasks_keeps_a_copy_and_everything_as_it_was() {
     assert!(!tables(&db).contains(&"notices".to_owned()));
 
     let storage = Storage::open(&db).unwrap();
-    assert_eq!(storage.user_version().unwrap(), 37);
-    assert_eq!(Storage::schema_version(), 37);
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
+    assert!(Storage::schema_version() >= 37, "v37 is the notices'");
     assert_eq!(pre_migration_copies(&db)[0].0, 36);
     let after = tables(&db);
     assert!(after.contains(&"notices".to_owned()));

@@ -208,6 +208,17 @@ pub(crate) fn is_live(status: SessionStatus) -> bool {
     )
 }
 
+/// A session the user's Deliver can put a message into now: it runs, in
+/// AI Juggler (driven). The pool canvas asks this, never the runtime.
+pub(crate) fn deliverable_now(state: &Arc<AppState>, storage: &Storage, session: &str) -> bool {
+    let id = SessionId::new(session);
+    state.runtime.is_driven(&id)
+        && storage
+            .sessions()
+            .get(&id)
+            .is_ok_and(|record| is_live(record.status))
+}
+
 /// The live session a member ref stands for now (its Work item's newest
 /// running session), when there is one.
 pub(crate) fn live_session_of(storage: &Storage, member_ref: &str) -> Option<SessionId> {

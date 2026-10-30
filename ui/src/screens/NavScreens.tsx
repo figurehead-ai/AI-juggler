@@ -12,6 +12,6 @@ export type NavScreenId = "projects" | "pools" | "tasks";
 
 export function NavScreen({ id, projects, sessions, loading, now, onNewProject }: { id: NavScreenId; projects: ProjectInfo[]; sessions: InstanceInfo[]; loading: boolean; now: number; onNewProject: () => void }): JSX.Element {
   if (id === "projects") return <ProjectsScreen projects={projects} sessions={sessions} loading={loading} now={now} onNewProject={onNewProject} />;
-  if (id === "pools") return <PoolsScreen />;
+  if (id === "pools") return <PoolsScreen sessions={sessions} projects={projects} />;
   return <TasksScreen projects={projects} sessions={sessions} now={now} />;
 }

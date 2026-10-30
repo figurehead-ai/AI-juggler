@@ -180,7 +180,9 @@ async function poolTab(page: Page, tab: string) {
   await groupBy(page, "Pool");
   await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
   await expect(page.getByTestId("pool-page")).toBeVisible();
-  await page.getByRole("tab", { name: tab }).click();
+  // 0.3: the members are the canvas's List; Tasks and Messages open over it.
+  if (tab === "Members") await page.getByTestId("pool-mode-list").click();
+  else await page.getByTestId(tab === "Tasks" ? "pool-panel-tasks" : "pool-panel-messages").click();
 }
 
 async function poolTasks(page: Page) {

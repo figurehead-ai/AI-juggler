@@ -233,11 +233,8 @@ export function resetPools(): void {
 // --- The pool sheet ----------------------------------------------------------
 
 /** What the pool sheet is open on: making a pool (with a session to put
- * in it), one pool, or a session to move. */
-export type PoolSheetTarget =
-  | { mode: "create"; sessionId?: string; projectId?: string | null }
-  | { mode: "pool"; poolId: string }
-  | { mode: "move"; sessionId: string };
+ * in it), or a session to move. A pool itself is changed on its canvas. */
+export type PoolSheetTarget = { mode: "create"; sessionId?: string; projectId?: string | null } | { mode: "move"; sessionId: string };
 
 let sheet: PoolSheetTarget | null = null;
 const sheetListeners = new Set<() => void>();

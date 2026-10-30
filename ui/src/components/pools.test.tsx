@@ -6,9 +6,9 @@
  *   pool (0.3); then Open now groups by pool and a pool's header opens its
  *   page. There is no separate pools section.
  * - A session's menu: "Move to pool…" in Working on it, with its icon.
- * - The sheets: make a pool (the session goes in, its page opens), move a session, rename
- *   (a taken name refused in words), a project's default pool can't be renamed or
- *   deleted, deleting says what happens first.
+ * - The sheets: make a pool (the session goes in, its page opens), move a
+ *   session (a taken name refused in words). Renaming, roles and deleting
+ *   are the canvas's (pages/pool/canvas.test.tsx).
  * - Agent access: the level picker, Custom's actions (never delivery),
  *   the hop limit and stop-all, rules taken back; Settings lists every
  *   pool.
@@ -20,7 +20,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../lib/bridge";
 import { actionSpecs } from "../lib/actions";
-import { defaultPoolIdOf, poolMembers, poolsList, resetPreviewPools, type ContextCard, type PoolMemberRow, type PoolsInfo } from "../lib/ipc/pools";
+import { poolMembers, poolsList, resetPreviewPools, type ContextCard, type PoolMemberRow, type PoolsInfo } from "../lib/ipc/pools";
 import { forgetPaged, type PagedList } from "../lib/paged";
 import { openPoolSheet, refreshPools, resetPools, usePoolPlace } from "../lib/pools";
 import { ConversationsProvider } from "../lib/conversations";
@@ -156,14 +156,6 @@ describe("instant and paged (I6)", () => {
     expect(rest.next_cursor).toBeNull();
   });
 
-  it("the pool sheet lists its members from that read", async () => {
-    seedCheckout();
-    const pools = await loaded();
-    const { findAllByTestId, getAllByTestId } = render(<PoolSheet target={{ mode: "pool", poolId: "pool-checkout" }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
-    expect(await findAllByTestId("pool-member")).toHaveLength(2);
-    expect(getAllByTestId("pool-member-role")[0]!.getAttribute("data-value")).toBe("lead");
-  });
-
   it("reads one session's place alone, and the rail's lookups see it", async () => {
     seedCheckout();
     await loaded();
@@ -227,25 +219,6 @@ describe("the pool sheets", () => {
     const { getByTestId, queryByTestId } = render(<PoolSheet target={{ mode: "move", sessionId: first.id }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
     expect(queryByTestId("pool-move-list")).toBeNull();
     expect(getByTestId("pool-create-session").textContent).toContain("goes in it");
-  });
-
-  it("a project's default pool keeps its name and can't be deleted", async () => {
-    const pools = await poolsList();
-    const { queryByTestId, getByText } = render(<PoolSheet target={{ mode: "pool", poolId: defaultPoolIdOf(first.project_id) }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
-    expect(queryByTestId("pool-name")).toBeNull();
-    expect(queryByTestId("pool-delete")).toBeNull();
-    expect(getByText("It's always here: every session of its project that isn't in another pool.")).toBeTruthy();
-  });
-
-  it("says what deleting does before it does it", async () => {
-    seedCheckout();
-    const pools = await poolsList();
-    const { getByTestId } = render(<PoolSheet target={{ mode: "pool", poolId: "pool-checkout" }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
-    fireEvent.click(getByTestId("pool-delete"));
-    expect(getByTestId("pool-delete-confirm").textContent).toContain("Its 2 sessions go back to their projects' pools; nothing else changes.");
-    expect(calls()).toEqual([]);
-    fireEvent.click(getByTestId("pool-delete-yes"));
-    await waitFor(() => expect(calls()).toEqual(["delete:pool-checkout"]));
   });
 
   it("opens from anywhere and closes", () => {

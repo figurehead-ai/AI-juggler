@@ -272,14 +272,14 @@ describe("Tasks", () => {
 });
 
 describe("Pools and a project's page", () => {
-  it("Pools lists every pool, each opening its page", async () => {
+  it("Pools shows every pool with someone in it as a card, each opening its page", async () => {
     const actions = host();
     const view = render(
       <ActionHostProvider host={actions}>
-        <PoolsScreen />
+        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />
       </ActionHostProvider>,
     );
-    const rows = await view.findAllByTestId("pools-row");
+    const rows = await view.findAllByTestId("pool-card-tile");
     fireEvent.click(rows[0]!);
     expect(actions.calls[0]).toMatch(/^pool:/);
   });

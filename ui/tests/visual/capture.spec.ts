@@ -6061,7 +6061,7 @@ for (const theme of THEMES) {
     await groupBy(page, "Pool");
     await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
     await expect(page.getByTestId("pool-page")).toBeVisible();
-    await page.getByRole("tab", { name: "Tasks" }).click();
+    await page.getByTestId("pool-panel-tasks").click();
     await expect(page.getByTestId("task-view")).toBeVisible();
     await expect(page.getByTestId("task-sessions")).toContainText("Planner continued it after a switch");
     const history = page.getByTestId("task-history");
