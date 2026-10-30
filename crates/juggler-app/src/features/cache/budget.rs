@@ -22,25 +22,28 @@
 
 use juggler_platform::room::DiskSpace;
 
-const MIB: u64 = 1024 * 1024;
-const GIB: u64 = 1024 * MIB;
+// Decimal units, as Finder and Settings count them.
+const MB: u64 = 1_000_000;
+const GB: u64 = 1_000 * MB;
+/// Memory is counted in binary units: an "8 GB" Mac has 8 GiB.
+const GIB: u64 = 1 << 30;
 
 /// The least the cache may keep, and what low-disk mode trims to.
-pub const FLOOR: u64 = 64 * MIB;
+pub const FLOOR: u64 = 64 * MB;
 /// The most the automatic limit gives.
-pub const CEILING: u64 = 2 * GIB;
+pub const CEILING: u64 = 2 * GB;
 /// The automatic limit's share of the free disk, in percent.
 pub const SHARE_PERCENT: u64 = 2;
 /// The limit when the free disk can't be read.
-pub const UNKNOWN: u64 = 256 * MIB;
+pub const UNKNOWN: u64 = 256 * MB;
 /// Low disk below this much free space…
-pub const LOW_DISK_BYTES: u64 = 5 * GIB;
+pub const LOW_DISK_BYTES: u64 = 5 * GB;
 /// …or below this share of a small disk, in percent.
 pub const LOW_DISK_PERCENT: u64 = 5;
 /// Leaving low-disk mode takes this many fifths of the line more room.
 pub const LEAVE_EXTRA_FIFTHS: u64 = 1;
 /// The largest fixed limit a user may pick.
-pub const MOST: u64 = 64 * GIB;
+pub const MOST: u64 = 64 * GB;
 
 /// The limit the user chose.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -58,7 +61,7 @@ impl Limit {
     pub fn stored(self) -> String {
         match self {
             Self::Automatic => String::new(),
-            Self::Fixed(bytes) => (bytes / MIB).to_string(),
+            Self::Fixed(bytes) => (bytes / MB).to_string(),
         }
     }
 
@@ -73,7 +76,7 @@ impl Limit {
     /// A fixed limit of `mb` megabytes, within the floor and [`MOST`].
     #[must_use]
     pub fn from_mb(mb: u64) -> Self {
-        Self::Fixed(mb.saturating_mul(MIB).clamp(FLOOR, MOST))
+        Self::Fixed(mb.saturating_mul(MB).clamp(FLOOR, MOST))
     }
 }
 
@@ -177,8 +180,8 @@ mod tests {
 
     fn disk(free_gb: u64, total_gb: u64) -> Option<DiskSpace> {
         Some(DiskSpace {
-            free: free_gb * GIB,
-            total: total_gb * GIB,
+            free: free_gb * GB,
+            total: total_gb * GB,
         })
     }
 
@@ -186,14 +189,14 @@ mod tests {
     fn the_automatic_budget_is_a_share_of_free_disk_clamped() {
         let auto = |free, total| budget(Limit::Automatic, disk(free, total), false).bytes;
         // 2 % of 50 GB is 1 GB.
-        assert_eq!(auto(50, 500), GIB);
+        assert_eq!(auto(50, 500), GB);
         // Never above the ceiling…
         assert_eq!(auto(900, 1000), CEILING);
-        // …and never under the floor (2 % of 6 GB is 123 MB).
-        assert_eq!(auto(6, 1000), 6 * GIB / 100 * 2);
+        // …and never under the floor (2 % of 6 GB is 120 MB).
+        assert_eq!(auto(6, 1000), 6 * GB / 100 * 2);
         assert_eq!(
             budget(Limit::Automatic, disk(6, 2000), false).bytes,
-            6 * GIB / 100 * 2
+            6 * GB / 100 * 2
         );
         assert_eq!(
             budget(Limit::Automatic, None, false),
@@ -213,7 +216,7 @@ mod tests {
         // A fixed limit is the user's.
         assert_eq!(
             budget(Limit::from_mb(512), disk(900, 1000), false).bytes,
-            512 * MIB
+            512 * MB
         );
         assert_eq!(Limit::from_mb(1), Limit::Fixed(FLOOR));
         assert_eq!(Limit::from_mb(u64::MAX), Limit::Fixed(MOST));
@@ -237,8 +240,8 @@ mod tests {
         assert!(budget(Limit::Automatic, disk(3, 64), false).low_disk);
         // Just over the line after being low: still low until a fifth more.
         let just_over = Some(DiskSpace {
-            free: 5 * GIB + 100 * MIB,
-            total: 500 * GIB,
+            free: 5 * GB + 100 * MB,
+            total: 500 * GB,
         });
         assert!(!budget(Limit::Automatic, just_over, false).low_disk);
         assert!(budget(Limit::Automatic, just_over, true).low_disk);
@@ -259,10 +262,10 @@ mod tests {
         }
         assert_eq!(Limit::parse(Some("")), Limit::Automatic);
         assert_eq!(Limit::parse(Some("junk")), Limit::Automatic);
-        assert_eq!(Limit::parse(Some("1024")), Limit::Fixed(GIB));
+        assert_eq!(Limit::parse(Some("1000")), Limit::Fixed(GB));
         assert_eq!(
-            Limit::parse(Some(&Limit::Fixed(GIB).stored())),
-            Limit::Fixed(GIB)
+            Limit::parse(Some(&Limit::Fixed(GB).stored())),
+            Limit::Fixed(GB)
         );
         assert_eq!(Limit::Automatic.stored(), "");
     }

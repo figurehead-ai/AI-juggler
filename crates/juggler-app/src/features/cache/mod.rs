@@ -589,7 +589,7 @@ fn info_of(manager: &Manager, fresh: Duration) -> CacheInfo {
         automatic: limit == Limit::Automatic,
         limit_mb: match limit {
             Limit::Automatic => None,
-            Limit::Fixed(bytes) => Some(bytes / (1024 * 1024)),
+            Limit::Fixed(bytes) => Some(bytes / 1_000_000),
         },
         budget_bytes: budget.bytes,
         used_bytes: rows.iter().map(|(_, usage)| usage.bytes).sum(),

@@ -10,7 +10,7 @@ use super::folder::FolderCache;
 use super::stamp::{self, Stamp};
 use super::*;
 
-const GIB: u64 = 1024 * 1024 * 1024;
+const GB: u64 = 1_000_000_000;
 
 fn about(id: &'static str, trim: Trim) -> About {
     About {
@@ -59,15 +59,15 @@ fn entry(gate: &Gate, dir: &Path, id: &str, name: &str, bytes: usize, age: u64) 
 
 fn plenty() -> Option<DiskSpace> {
     Some(DiskSpace {
-        free: 500 * GIB,
-        total: 1000 * GIB,
+        free: 500 * GB,
+        total: 1000 * GB,
     })
 }
 
 fn nearly_full() -> Option<DiskSpace> {
     Some(DiskSpace {
-        free: GIB,
-        total: 1000 * GIB,
+        free: GB,
+        total: 1000 * GB,
     })
 }
 
@@ -407,7 +407,7 @@ fn settings_shows_each_cache_with_its_size_and_words() {
         tmp.path().to_path_buf(),
         true,
         Limit::from_mb(512),
-        Some(8 * GIB),
+        Some(8 << 30),
     );
     manager.register(folder("c", &dir));
     manager.register(whole(tmp.path(), 1_000));
