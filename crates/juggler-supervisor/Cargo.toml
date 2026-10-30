@@ -35,7 +35,7 @@ netstat2 = "0.11"
 # memory-pressure level (sysctl), power and thermal state (safe IOKit and
 # Foundation bindings; no `unsafe` in this crate).
 [target."cfg(target_os = \"macos\")".dependencies]
-sysctl = "0.6"
+sysctl = "0.7"
 # D-27: the pages the memory compressor occupies (the audited shim).
 juggler-vm-stats = { version = "0.3.0", path = "../juggler-vm-stats" }
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSProcessInfo", "NSString", "block2"] }
