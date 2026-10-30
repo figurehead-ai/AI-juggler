@@ -9,10 +9,10 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, test } from "./axe-gallery";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, expectRail, openRailList, openSwitch } from "./fixtures";
+import { allStatuses, expectRail, groupBy, openRailList, openSwitch } from "./fixtures";
 import { EXAMPLE_SETUP } from "../../src/lib/ipc/switchSetupExamples";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/97-handover-told");
@@ -84,7 +84,7 @@ async function axeClean(page: Page, where: string, what: string) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`done: what Codex was told, in one line — ${theme}`, async ({ page }) => {
+  test(`done: what Codex was told, in one line — ${theme}`, gate("97-handover-told"), async ({ page }) => {
     await switchedToCodex(page, theme);
     await expect(page.getByTestId("handover-line")).toHaveText(LINE);
     await page.getByTestId("switch-done").screenshot({ path: resolve(OUT, `done-line-${theme}.png`) });
@@ -129,6 +129,8 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
     await openRailList(page);
+    // A project's header is the Project grouping's (D-54).
+    await groupBy(page, "Project");
     await page.getByRole("button", { name: /^ai-juggler/ }).first().click();
     await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();
     await page.locator("[data-testid='switch-graph-edge'][data-handover='true']").click();

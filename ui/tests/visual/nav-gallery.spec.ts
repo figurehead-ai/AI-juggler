@@ -207,10 +207,27 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "tasks-holder-menu-1280x800", theme);
   });
 
+  // The 0.3 re-render's review: the narrow window as it opens (the list
+  // folded to icons): the Tasks board, and a session's header with its
+  // pool chip and tool mark.
+  test(`Tasks: the board at 1024 — ${theme}`, async ({ page }) => {
+    await open(page, theme, { width: 1024, height: 700 });
+    await nav(page, "Tasks").click();
+    await expect(page.getByTestId("tasks-column-ready").getByTestId("task-card")).toHaveCount(3);
+    await shoot(page, "tasks-board-1024x700", theme);
+  });
+
+  test(`a session's header with its pool chip at 1024 — ${theme}`, async ({ page }) => {
+    await open(page, theme, { width: 1024, height: 700 });
+    await page.locator('[data-instance-id="sess-2"]').first().click();
+    await expect(page.getByTestId("session-pool-chip")).toBeVisible();
+    await shoot(page, "session-pool-chip-1024x700", theme);
+  });
+
   test(`Pools and a session's pool chip — ${theme}`, async ({ page }) => {
     await open(page, theme);
     await nav(page, "Pools").click();
-    await expect(page.getByTestId("pools-row").first()).toBeVisible();
+    await expect(page.getByTestId("pool-card-tile").first()).toBeVisible();
     await shoot(page, "pools-1280x800", theme);
     await page.locator('[data-instance-id="sess-2"]').first().click();
     await expect(page.getByTestId("session-pool-chip")).toBeVisible();

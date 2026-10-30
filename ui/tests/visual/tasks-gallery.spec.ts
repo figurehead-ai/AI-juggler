@@ -212,7 +212,7 @@ for (const theme of ["dark", "light"] as const) {
       for (const story of ["Payment step", "Address step"]) {
         await tree.getByRole("button", { name: `Unfold ${story}` }).click();
       }
-      await expect(tree.getByTestId("task-row").filter({ hasText: "Orders API" })).toBeVisible();
+      await expect(tree.getByRole("button", { name: /^Orders API/ })).toBeVisible();
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `pool-plan-${size}-${theme}.png`) });
       await axe(page, `plan ${size} ${theme}`);

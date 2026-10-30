@@ -453,7 +453,11 @@ export async function openRailList(page: import("@playwright/test").Page): Promi
   const rail = page.getByTestId("rail");
   await expect(rail).toBeVisible();
   if ((await rail.getAttribute("data-density")) === "minimal") {
-    await page.keyboard.press("ControlOrMeta+b");
+    // The folded column's own door to the list (the 0.3 re-render), as a
+    // user would find it; ⌘B where a test's rail has none.
+    const door = page.getByTestId("rail-folded-show-list");
+    if (await door.isVisible()) await door.click();
+    else await page.keyboard.press("ControlOrMeta+b");
     await expect(page.getByTestId("instance-board")).toBeVisible();
   }
 }

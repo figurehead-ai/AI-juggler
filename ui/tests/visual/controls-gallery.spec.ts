@@ -15,7 +15,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo, groupBy, openFilters, settingsPane } from "./fixtures";
+import { allStatuses, goTo, groupBy, openFilters, openRailList, settingsPane } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/97-controls");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -47,6 +47,8 @@ async function seed(page: Page, theme: "dark" | "light", size: { width: number; 
   await page.setViewportSize(size);
   await page.goto("/");
   await expect(page.getByTestId("rail")).toBeVisible();
+  // At 1024 the list folds to icons: open it, where the switch and View are.
+  await openRailList(page);
 }
 
 async function shoot(page: Page, name: string, size: { width: number; height: number }, theme: string) {

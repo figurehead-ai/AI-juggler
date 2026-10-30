@@ -11,7 +11,8 @@
  * critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, expectRail, railViewAs } from "./fixtures";
@@ -126,7 +127,7 @@ async function openTab(page: Page) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the Subagents tab: running first, all grouped, a search, most tokens, none matching — ${theme}`, async ({ page }) => {
+  test(`the Subagents tab: running first, all grouped, a search, most tokens, none matching — ${theme}`, gate("88-subagents"), async ({ page }) => {
     await seed(page, theme);
     await openTab(page);
     const tab = page.getByTestId("session-subagents");
