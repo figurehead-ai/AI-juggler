@@ -248,6 +248,8 @@ for (const theme of ["dark", "light"] as const) {
     // Its project's page lists it (AJ-E1533); its row opens its page.
     await openConversation(page, "Fix the flaky checkout test");
     await page.getByTestId("crumb-project").click();
+    // 0.3: a project opens on its Overview; its Sessions are the next tab.
+    await page.getByTestId("page-tab-sessions").click();
     await page.getByTestId("page-panel-sessions").locator('[data-testid="page-session-row"][data-outside="true"]').filter({ hasText: "Move the orders API to v2" }).first().click();
     await expect(page.getByTestId("conversation-page")).toBeVisible();
     await expect(page.getByTestId("last-messages-none")).toBeVisible();
