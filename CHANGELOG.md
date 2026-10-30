@@ -507,6 +507,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Deleting launch settings keeps their sessions** (0.3.1, D-60). One
+  click on the bin deleted launch settings and every session made with
+  them from History. Now it asks first; the settings stop starting
+  sessions, the sessions they made stay in History, and while one of
+  them is open the delete is refused, naming it.
+
 - **Esc closes New session at once** (0.3.1). An Esc pressed right after
   ⌘N, before focus had moved into the sheet, did nothing; it closes the
   sheet wherever focus is now.
