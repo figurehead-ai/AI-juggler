@@ -55,8 +55,11 @@ restore_evidence() {
 }
 
 git fetch -q origin 2>/dev/null || true
+# CI's rule for the visual and a11y jobs. No `| grep -q`: under pipefail
+# grep's early exit cut git off mid-write and read as "no UI change".
 UI=false
-if ! git rev-parse -q --verify "$BASE" >/dev/null || git diff --name-only "$BASE" HEAD | grep -qE '^ui/|^scripts/(a11y_gate\.sh|axe_summary\.py)$|^\.github/workflows/ci\.yml$'; then
+if ! git rev-parse -q --verify "$BASE" >/dev/null \
+  || [ -n "$(git diff --name-only "$BASE" HEAD -- ui scripts/a11y_gate.sh scripts/axe_summary.py .github/workflows/ci.yml)" ]; then
   UI=true
 fi
 
