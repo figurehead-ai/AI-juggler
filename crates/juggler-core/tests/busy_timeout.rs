@@ -316,19 +316,19 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v38, the pool canvas) is
-    // undone by hand and runs again on open.
+    // One version behind: the last migration (v39, launch settings'
+    // removed_at) is undone by hand and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 38,
-        "a new migration landed: undo it here instead (this test's undo is v38's)"
+        version, 39,
+        "a new migration landed: undo it here instead (this test's undo is v39's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("DROP TABLE pool_layout; DROP INDEX idx_task_events_pool;")
+        conn.execute_batch("ALTER TABLE launch_recipes DROP COLUMN removed_at;")
             .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();

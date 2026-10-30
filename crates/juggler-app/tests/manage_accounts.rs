@@ -578,3 +578,81 @@ fn move_to_trash_uses_the_macos_trash() {
         trashed.display()
     );
 }
+
+/// D-60 (0.3.1): deleting launch settings kept no history: the row went
+/// and the sessions table cascaded, taking every session made with them.
+/// Now it is refused while one is open, by name; otherwise the settings
+/// are marked removed, leave the list, start nothing, and their sessions
+/// stay.
+#[test]
+fn deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    seed(&state, "acc-main", "Main account", None);
+    session(
+        &state,
+        "acc-main",
+        "s-open",
+        &work.path().join("api"),
+        SessionStatus::Running,
+    );
+    session(
+        &state,
+        "acc-main",
+        "s-done",
+        &work.path().join("docs"),
+        SessionStatus::Finished,
+    );
+
+    let words = refusal(manage::launch_settings_remove_impl(&state, "rec-acc-main").unwrap_err());
+    assert_eq!(
+        words,
+        "«Main» has a session open: api. Stop it first, then delete the launch settings"
+    );
+
+    // The open one ends; the delete goes through.
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut open = storage.sessions().get(&SessionId::new("s-open")).unwrap();
+        open.status = SessionStatus::Finished;
+        storage.sessions().update(&open).unwrap();
+    }
+    within_budget("delete launch settings", || {
+        manage::launch_settings_remove_impl(&state, "rec-acc-main").unwrap()
+    });
+    {
+        let storage = state.storage.lock().unwrap();
+        assert!(
+            storage
+                .profiles()
+                .list_by_account(&AccountId::new("acc-main"))
+                .unwrap()
+                .is_empty(),
+            "they leave the list"
+        );
+        for id in ["s-open", "s-done"] {
+            assert!(
+                storage.sessions().get(&SessionId::new(id)).is_ok(),
+                "{id} stays in history"
+            );
+        }
+        assert_eq!(
+            storage
+                .profiles()
+                .get(&ProfileId::new("rec-acc-main"))
+                .unwrap()
+                .name,
+            "Main"
+        );
+    }
+    // They start nothing, and a second delete finds nothing to delete.
+    let launch = commands::launch_profile(&state, "rec-acc-main", None).unwrap_err();
+    assert_eq!(
+        refusal(launch),
+        "«Main» was deleted — pick other launch settings to start a session"
+    );
+    assert!(matches!(
+        manage::launch_settings_remove_impl(&state, "rec-acc-main"),
+        Err(AppError::NotFound { .. })
+    ));
+}

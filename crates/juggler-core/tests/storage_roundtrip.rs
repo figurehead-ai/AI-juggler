@@ -380,7 +380,7 @@ fn account_update_changes_fields() {
 }
 
 #[test]
-fn profile_update_and_delete() {
+fn profile_update_and_remove() {
     let storage = Storage::open_in_memory().unwrap();
     let (account, _) = seed_chain(&storage);
     let mut profile = Profile {
@@ -409,9 +409,56 @@ fn profile_update_and_delete() {
         2
     );
 
-    storage.profiles().delete(&profile.id).unwrap();
+    // D-60: removing launch settings marks them; they leave the list,
+    // start nothing, and the sessions made with them stay.
+    let kept = SessionRecord {
+        id: SessionId::new("s-kept"),
+        conversation: None,
+        profile: profile.id.clone(),
+        machine: MachineId::new("this-mac"),
+        kind: juggler_core::model::InstanceKind::Terminal,
+        project: None,
+        cwd: PathBuf::from("/tmp"),
+        status: SessionStatus::Finished,
+        started_at: Timestamp::from_millis(7),
+        last_activity: Some(Timestamp::from_millis(9)),
+        usage: UsageSnapshot::default(),
+        attention: None,
+        running: None,
+        window: None,
+        transcript_ref: None,
+    };
+    storage.sessions().insert(&kept).unwrap();
+    assert!(!storage.profiles().is_removed(&profile.id).unwrap());
+    storage.profiles().mark_removed(&profile.id).unwrap();
+    assert!(storage.profiles().is_removed(&profile.id).unwrap());
+    assert_eq!(
+        storage.profiles().get(&profile.id).unwrap(),
+        profile,
+        "still found, for history"
+    );
+    assert_eq!(
+        storage
+            .profiles()
+            .list_by_account(&account.id)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        storage
+            .profiles()
+            .list_all_by_account(&account.id)
+            .unwrap()
+            .len(),
+        2
+    );
+    assert!(
+        storage.sessions().get(&kept.id).is_ok(),
+        "the sessions made with them stay in history"
+    );
     assert!(matches!(
-        storage.profiles().get(&profile.id),
+        storage.profiles().mark_removed(&profile.id),
         Err(CoreError::NotFound { .. })
     ));
 }
@@ -503,8 +550,12 @@ fn footprints_skip_short_and_failed_sessions_and_go_with_their_setting() {
         0,
         "its setting still exists"
     );
-    storage.profiles().delete(&profile.id).unwrap();
-    assert_eq!(repo.forget_deleted().unwrap(), 3);
+    storage.profiles().mark_removed(&profile.id).unwrap();
+    assert_eq!(
+        repo.forget_deleted().unwrap(),
+        3,
+        "removed settings' footprints go"
+    );
     assert!(repo.of_key(&key).unwrap().is_empty());
 }
 
@@ -724,8 +775,9 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 38,
-        "v4 → current (v38, the pool canvas, after v37's notices) exactly once, on open"
+        version,
+        Storage::schema_version(),
+        "v4 → current exactly once, on open"
     );
 
     let account = storage.accounts().get(&AccountId::new("acc-1")).unwrap();
@@ -752,7 +804,7 @@ fn v4_database_upgrades_in_place_to_v5_with_identical_values() {
         .raw_conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 38);
+    assert_eq!(version, Storage::schema_version());
     assert!(storage.sessions().get(&SessionId::new("sess-1")).is_ok());
 }
 
@@ -1319,8 +1371,9 @@ fn v12_ledger_upgrades_in_place_to_v13() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 38,
-        "v12 → current (v38, the pool canvas, after v37's notices) exactly once, on open"
+        version,
+        Storage::schema_version(),
+        "v12 → current exactly once, on open"
     );
     drop(storage);
 

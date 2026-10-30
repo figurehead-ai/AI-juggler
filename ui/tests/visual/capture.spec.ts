@@ -3877,6 +3877,34 @@ for (const theme of THEMES) {
   }
 }
 
+// D-60 (0.3.1): deleting launch settings asks first and says their
+// sessions stay in History. Evidence, not a gate baseline.
+for (const theme of THEMES) {
+  for (const vp of ACCOUNTS_VP) {
+    test(`41 policy — Accounts → Delete launch settings asks first — ${vp.name} — ${theme}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ fixture, t }) => {
+          const w = window as unknown as Record<string, unknown>;
+          w.__AIJ_FIXTURE__ = fixture;
+          localStorage.setItem("aij.theme", t);
+          localStorage.setItem("aij.onboarding.dismissed", "1");
+          sessionStorage.setItem("aij.ready.skipped", "1");
+        },
+        { fixture: allStatuses, t: theme },
+      );
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme as "dark" | "light" });
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/");
+      await goTo(page, "Accounts");
+      await page.getByTestId("account-menu").first().click();
+      await page.getByRole("menuitem", { name: "Edit launch settings" }).click();
+      await page.getByTestId("recipe-delete").first().click();
+      await expect(page.getByTestId("delete-launch-settings")).toContainText("stay in History");
+      await shot41(page, `accounts-delete-launch-settings-${vp.name}-${theme}`);
+    });
+  }
+}
+
 // ---------------------------------------------------------------------
 // AJ-E702 — 42-fleet: this Mac's identity (fingerprint sheet), the
 // paired list, the Unpair confirmation, and the fail-closed "Trust

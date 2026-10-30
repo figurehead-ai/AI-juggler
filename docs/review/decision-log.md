@@ -2000,3 +2000,29 @@ release need a home that isn't the next minor.
   same day.
 - Risk: 0.4 grows without end. Its scope is this list; anything new goes
   to 0.5 or later unless the maintainer moves it.
+### D-60 Deleting launch settings keeps their sessions — SETTLED (2026-10-30, 0.3.1)
+
+**Ruling.** A data-loss bug found while writing E29 (AJ-E2907's check of
+`ProfileRow.tsx`): one click on the bin deleted launch settings, and the
+sessions table's `ON DELETE CASCADE` took every session made with them
+out of History. The maintainer, 2026-10-30: "any bugs I find in 0.3
+should got to 0.3.*" (D-59), so the fix ships in 0.3.1. Removing an
+account already kept its history (AJ-E1501, v30); launch settings now
+work the same way.
+
+**What changed (0.3.1).** v39 adds `launch_recipes.removed_at`. Deleting
+marks it: the settings leave every list and start nothing, History still
+names them, and their usage footprints go. While a session made with
+them is open the delete is refused, naming it. The bin asks first and
+says the sessions stay.
+
+**Why.** History is the user's record of their work; nothing a user
+does to tidy their setup should erase it.
+
+- Risk: a removed row lingers forever. It is a few hundred bytes per
+  launch setting, the same trade AJ-E1501 made for accounts.
+- Evidence: `crates/juggler-core/tests/storage_roundtrip.rs`
+  ("profile_update_and_remove"), `crates/juggler-app/tests/manage_accounts.rs`
+  ("deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones"),
+  `ui/src/screens/accounts/delete-launch-settings.test.tsx`, the
+  gallery's `41-policy`.

@@ -294,7 +294,8 @@ fn migration_up_from_earlier_schema_preserves_rows() {
         storage
             .raw_conn()
             .execute_batch(
-                "DROP TABLE pool_layout;
+                "ALTER TABLE launch_recipes DROP COLUMN removed_at;
+                 DROP TABLE pool_layout;
                  DROP TABLE notice_mutes; DROP TABLE need_snoozes; DROP TABLE notices;
                  DROP TABLE task_needs; DROP TABLE task_events; DROP TABLE task_sessions;
                  DROP TABLE task_links; DROP TABLE tasks;
