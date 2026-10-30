@@ -11,13 +11,17 @@
  * - Keyboard: Tab reaches the nodes (one stop), the arrows move between
  *   them, Option+arrows move one, Enter opens it in the inspector, Delete
  *   takes it out, Shift+F10 opens its menu, Escape lets go.
+ * - Semantic zoom (0.3 polish): from 100 % up each node is its full card;
+ *   below, the same box draws its words at screen size (CompactNode) and
+ *   what waits on an edge is a badge that opens its answer. The places,
+ *   Tidy up, Fit and the keys are the same in both.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent } from "react";
 
-import { IconFit, IconTidy, IconZoomIn, IconZoomOut } from "../../components/icons-canvas";
 import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { CanvasEdges } from "./CanvasEdges";
+import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasNode } from "./CanvasNode";
 import { NodeMenu } from "./NodeMenu";
 import { Palette } from "./Palette";
@@ -34,6 +38,8 @@ type Drag =
 
 /** Each pool's view while the app runs (back to a pool: where you left it). */
 const views = new Map<string, View>();
+/** Tests: every pool back to its first view. */
+export const forgetCanvasViews = () => views.clear();
 const NUDGE = 16;
 
 function useReducedMotion(): boolean {
@@ -195,7 +201,7 @@ export function Canvas({
     (id: string, event: PointerEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
       const target = event.target as HTMLElement;
-      if (target.closest("button") && !target.closest("[data-node-name]")) return;
+      if ((target.closest("button") && !target.closest("[data-node-name]")) || target.closest("[data-node-popover]")) return;
       const origin = points.get(id);
       if (!origin) return;
       event.stopPropagation();
@@ -271,7 +277,6 @@ export function Canvas({
   const firstStop = tabStop && byId.has(tabStop) ? tabStop : selection.kind === "node" && byId.has(selection.id) ? selection.id : (members[0]?.id ?? null);
   const dragged = drag?.kind === "node" && drag.moved ? byId.get(drag.id) : undefined;
   const menuMember = menu ? byId.get(menu.id) : undefined;
-  const zoomedOut = shown.scale < 0.55;
 
   return (
     <div
@@ -301,7 +306,7 @@ export function Canvas({
           selected={selection.kind === "edge" ? selection.key : null}
           pulses={pulses}
           reducedMotion={reducedMotion}
-          zoomedOut={zoomedOut}
+          scale={shown.scale}
           onSelect={(key) => onSelect({ kind: "edge", key })}
         />
         {members.map((member) => {
@@ -316,6 +321,7 @@ export function Canvas({
               selected={selection.kind === "node" && selection.id === member.id}
               tabStop={firstStop === member.id}
               dragging={drag?.kind === "node" && drag.id === member.id && drag.moved}
+              scale={shown.scale}
               onSelect={select}
               onMenu={(id, point) => setMenu({ id, at: point })}
               onPointerDown={startNode}
@@ -364,35 +370,14 @@ export function Canvas({
         </span>
       )}
 
-      <div data-canvas-toolbar className="absolute bottom-3 left-3 flex items-center gap-1 rounded-xl border border-hairline bg-surface p-1 shadow-card" role="toolbar" aria-label="Canvas view">
-        <ToolButton label="Zoom out" onClick={() => setView(zoomAt(shown, 1 / 1.2, { x: size.w / 2, y: size.h / 2 }))}>
-          <IconZoomOut width={16} height={16} />
-        </ToolButton>
-        <button type="button" onClick={() => setView(zoomAt(shown, 1 / shown.scale, { x: size.w / 2, y: size.h / 2 }))} className="h-7 w-12 rounded-md font-mono text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" aria-label={`${Math.round(shown.scale * 100)}%, back to 100%`} data-testid="canvas-zoom">
-          {Math.round(shown.scale * 100)}%
-        </button>
-        <ToolButton label="Zoom in" onClick={() => setView(zoomAt(shown, 1.2, { x: size.w / 2, y: size.h / 2 }))}>
-          <IconZoomIn width={16} height={16} />
-        </ToolButton>
-        <ToolButton label="Fit to screen" onClick={fit} testId="canvas-fit">
-          <IconFit width={16} height={16} />
-        </ToolButton>
-        <span className="mx-0.5 h-5 w-px bg-hairline" aria-hidden="true" />
-        <button type="button" onClick={() => void data.tidy().then(() => (views.delete(pool.id), setViewState(null)))} className="flex h-7 items-center gap-1.5 rounded-md px-2 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="canvas-tidy" title="Lay the pool out again: the lead on top, the rest under it">
-          <IconTidy width={16} height={16} aria-hidden="true" />
-          Tidy up
-        </button>
-      </div>
+      <CanvasToolbar
+        scale={shown.scale}
+        onZoom={(factor) => setView(zoomAt(shown, factor, { x: size.w / 2, y: size.h / 2 }))}
+        onFit={fit}
+        onTidy={() => void data.tidy().then(() => (views.delete(pool.id), setViewState(null)))}
+      />
 
       {menu && menuMember && <NodeMenu pool={pool} member={menuMember} members={members} at={menu.at} onClose={() => setMenu(null)} onRemove={remove} />}
     </div>
-  );
-}
-
-function ToolButton({ label, onClick, testId, children }: { label: string; onClick: () => void; testId?: string; children: JSX.Element }): JSX.Element {
-  return (
-    <button type="button" onClick={onClick} aria-label={label} title={label} data-testid={testId} className="flex size-7 items-center justify-center rounded-md text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-      {children}
-    </button>
   );
 }

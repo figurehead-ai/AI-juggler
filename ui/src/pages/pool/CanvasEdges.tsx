@@ -6,12 +6,12 @@
  * sits on it with its answer: Deliver for a message waiting for a session
  * run here; Let it continue or Don't deliver for a chain at the hop limit.
  */
-import { memo, useState, type JSX } from "react";
+import { memo, useEffect, useRef, useState, type JSX } from "react";
 
 import { errorText } from "../../lib/bridge";
 import { messagesAnswer, messagesDeliver } from "../../lib/ipc/messages";
 import type { CanvasEdgeInfo, PendingInfo } from "../../lib/ipc/pool-canvas";
-import { edgeCurve, NODE_H, NODE_W, type Point } from "./layout";
+import { edgeCurve, NODE_H, NODE_W, nodeForm, type Point } from "./layout";
 import { edgeKey } from "./useCanvas";
 
 export type EdgeWords = { count: string; aria: string };
@@ -35,15 +35,28 @@ export async function settle(pending: PendingInfo, deliver: boolean): Promise<vo
   if (pending.ask_id) await messagesAnswer(pending.ask_id, deliver ? "once" : "deny");
 }
 
+/** What waits on an edge, in words: the panel's line and the compact
+ * badge's ("Paused at the hop limit" / "Paused"). None when nothing on
+ * it is answered here (one above the pool's level is answered on its
+ * sender's node). */
+export function pendingWords(edge: CanvasEdgeInfo): { label: string; short: string; hop: boolean } | null {
+  const actionable = edge.pending.filter((p) => p.kind !== "asked");
+  const first = actionable[0];
+  if (!first) return null;
+  const hop = first.kind === "hop_limit";
+  if (hop) return { label: "Paused at the hop limit", short: "Paused", hop };
+  return { label: actionable.length === 1 ? "1 message waiting" : `${actionable.length} messages waiting`, short: `${actionable.length} waiting`, hop };
+}
+
 /** The answer an edge carries in place (the first that waits). */
 export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; compact?: boolean }): JSX.Element | null {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const actionable = edge.pending.filter((p) => p.kind !== "asked");
   const first = actionable[0];
-  // One above the pool's level is answered on its sender's node.
-  if (!first) return null;
-  const hop = first.kind === "hop_limit";
+  const words = pendingWords(edge);
+  if (!first || !words) return null;
+  const hop = words.hop;
   const run = (deliver: boolean) => {
     setBusy(true);
     setError(null);
@@ -55,7 +68,7 @@ export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; c
       },
     );
   };
-  const label = hop ? "Paused at the hop limit" : actionable.length === 1 ? "1 message waiting" : `${actionable.length} messages waiting`;
+  const label = words.label;
   const button = "whitespace-nowrap rounded-md border px-1.5 py-0.5 text-label outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60";
   return (
     <span className="flex flex-col items-center gap-1 rounded-lg border border-warning/50 bg-surface px-2 py-1 shadow-card" data-testid="edge-pending" role="group" aria-label={label}>
@@ -79,16 +92,24 @@ export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; c
   );
 }
 
+/** A label's room in canvas units: the full card's chip (about 120 × 48;
+ * a node grows below its box with an ask), or a compact badge at screen
+ * size (about 110 × 26, so larger in canvas units the further out). */
+type LabelRoom = { w: number; h: number; below: number };
+const FULL_ROOM: LabelRoom = { w: 120, h: 48, below: 60 };
+
 /** Where an edge's label goes: at its middle unless that covers a node
  * or another label, else the nearest free place above or below it. */
-function apart<T extends { mid: Point }>(labels: T[], nodes: Iterable<Point>): T[] {
+function apart<T extends { mid: Point }>(labels: T[], nodes: Iterable<Point>, room: LabelRoom = FULL_ROOM): T[] {
   const boxes = [...nodes];
   const placed: Point[] = [];
-  // A label is about 120 × 48; a node grows below its box with an ask.
-  const onNode = (at: Point) => boxes.some((node) => at.x > node.x - 60 && at.x < node.x + NODE_W + 60 && at.y > node.y - 24 && at.y < node.y + NODE_H + 60);
-  const onLabel = (at: Point) => placed.some((other) => Math.abs(other.x - at.x) < 160 && Math.abs(other.y - at.y) < 58);
+  const { w, h, below } = room;
+  const onNode = (at: Point) => boxes.some((node) => at.x > node.x - w / 2 && at.x < node.x + NODE_W + w / 2 && at.y > node.y - h / 2 && at.y < node.y + NODE_H + below);
+  const onLabel = (at: Point) => placed.some((other) => Math.abs(other.x - at.x) < w + 40 && Math.abs(other.y - at.y) < h + 10);
+  const sx = w * 0.75;
+  const sy = h * 1.25;
   return labels.map((label) => {
-    const tries = [[0, 0], [0, -60], [0, 60], [-90, 0], [90, 0], [-90, -60], [90, -60], [-90, 60], [90, 60], [0, -120], [0, 120]].map(([dx, dy]) => ({ x: label.mid.x + dx!, y: label.mid.y + dy! }));
+    const tries = [[0, 0], [0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1], [0, -2], [0, 2]].map(([dx, dy]) => ({ x: label.mid.x + dx! * sx, y: label.mid.y + dy! * sy }));
     const at = tries.find((spot) => !onNode(spot) && !onLabel(spot)) ?? tries.find((spot) => !onLabel(spot)) ?? label.mid;
     placed.push(at);
     return { ...label, mid: at };
@@ -104,7 +125,7 @@ export const CanvasEdges = memo(function CanvasEdges({
   selected,
   pulses,
   reducedMotion,
-  zoomedOut,
+  scale,
   onSelect,
 }: {
   edges: CanvasEdgeInfo[];
@@ -113,10 +134,15 @@ export const CanvasEdges = memo(function CanvasEdges({
   selected: string | null;
   pulses: ReadonlyMap<string, number>;
   reducedMotion: boolean;
-  zoomedOut: boolean;
+  /** The canvas's zoom: under 100 % labels draw at screen size, and what
+   * waits on an edge is a badge that opens its answers (semantic zoom). */
+  scale: number;
   onSelect: (key: string) => void;
 }): JSX.Element {
   const [hover, setHover] = useState<string | null>(null);
+  const compact = !nodeForm(scale).full;
+  const unit = compact ? 1 / scale : 1;
+  const room: LabelRoom = compact ? { w: 110 * unit, h: 26 * unit, below: 13 * unit } : FULL_ROOM;
   const keys = new Set(edges.map((edge) => edgeKey(edge.from_session_id, edge.to_session_id)));
   const drawn: Drawn[] = [];
   for (const edge of edges) {
@@ -174,11 +200,18 @@ export const CanvasEdges = memo(function CanvasEdges({
           );
         })}
       </svg>
-      {!zoomedOut &&
-        apart(drawn.filter(({ key, waits }) => waits || selected === key || hover === key), points.values()).map(({ edge, key, mid, waits }) => {
-          const words = edgeWords(edge, names.get(edge.from_session_id) ?? "A member", names.get(edge.to_session_id) ?? "a member");
+      {apart(drawn.filter(({ key, waits }) => waits || selected === key || hover === key), points.values(), room).map(({ edge, key, mid, waits }) => {
+          const from = names.get(edge.from_session_id) ?? "A member";
+          const words = edgeWords(edge, from, names.get(edge.to_session_id) ?? "a member");
           return (
-            <div key={key} className="absolute left-0 top-0 z-10 flex flex-col items-center gap-1" style={{ transform: `translate(${mid.x}px, ${mid.y}px) translate(-50%, -50%)` }} data-testid="edge-label" data-edge={key}>
+            <div
+              key={key}
+              className="absolute left-0 top-0 z-10 flex flex-col items-center gap-1"
+              // Below 100 %: undo the canvas's scale, so it reads at screen size.
+              style={{ transform: `translate(${mid.x}px, ${mid.y}px)${compact ? ` scale(${unit})` : ""} translate(-50%, -50%)` }}
+              data-testid="edge-label"
+              data-edge={key}
+            >
               {(selected === key || hover === key) && (
               <button
                 type="button"
@@ -196,10 +229,66 @@ export const CanvasEdges = memo(function CanvasEdges({
                 {words.count}
               </button>
               )}
-              {waits && <PendingChip edge={edge} compact={false} />}
+              {waits && (compact ? <EdgeBadge edge={edge} about={words.aria} /> : <PendingChip edge={edge} compact={false} />)}
             </div>
           );
         })}
     </>
   );
 });
+
+/** Below 100 %: what waits on an edge as a small badge ("1 waiting",
+ * "Paused"), its answers a click away in a small panel under it (the
+ * full card's chip, at screen size). Esc or a click elsewhere closes it. */
+function EdgeBadge({ edge, about }: { edge: CanvasEdgeInfo; about: string }): JSX.Element | null {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLSpanElement | null>(null);
+  const button = useRef<HTMLButtonElement | null>(null);
+  const words = pendingWords(edge);
+  useEffect(() => {
+    if (!open) return;
+    box.current?.querySelector<HTMLButtonElement>("[data-testid='edge-pending'] button")?.focus();
+    const away = (event: PointerEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener("pointerdown", away);
+    return () => window.removeEventListener("pointerdown", away);
+  }, [open]);
+  if (!words) return null;
+  return (
+    <span
+      ref={box}
+      className="relative flex flex-col items-center gap-1"
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        button.current?.focus();
+      }}
+    >
+      <button
+        ref={button}
+        type="button"
+        aria-expanded={open}
+        // Its name starts with what it shows (axe: label-content-name-mismatch).
+        aria-label={`${words.short}: ${words.label}, ${about}`}
+        title={words.label}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((now) => !now);
+        }}
+        className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-warning/60 bg-surface px-2 py-0.5 text-label font-medium text-warning shadow-card outline-none hover:bg-warning-soft focus-visible:ring-2 focus-visible:ring-accent/60"
+        data-testid="edge-badge"
+      >
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-warning" />
+        {words.short}
+      </button>
+      {open && (
+        <span className="absolute top-full z-20 mt-1.5" data-testid="edge-badge-panel">
+          <PendingChip edge={edge} />
+        </span>
+      )}
+    </span>
+  );
+}

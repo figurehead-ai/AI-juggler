@@ -105,8 +105,10 @@ export function bounds(points: Iterable<Point>): { x: number; y: number; w: numb
 
 export type View = { x: number; y: number; scale: number };
 export const MIN_SCALE = 0.3;
-/** Fit never goes below this: the names stay readable, and you pan. */
-export const FIT_MIN_SCALE = 0.6;
+/** Fit never goes below this: a node still has room for its name and
+ * its state on two lines (they draw at screen size below 100 %), and
+ * past it you pan. */
+export const FIT_MIN_SCALE = 0.45;
 export const MAX_SCALE = 1.6;
 export const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 
@@ -191,4 +193,24 @@ export function neighbour(points: ReadonlyMap<string, Point>, from: string, key:
     if (!best || score < best.score) best = { id, score };
   }
   return best?.id ?? null;
+}
+
+/**
+ * Semantic zoom (the 0.3 review: at fit a card's words were 9–10 px).
+ * From 100 % up a node is its full card, drawn at the canvas's scale, so
+ * nothing in it is under 12 px. Below, it keeps its box (its place, its
+ * edges, Tidy up and Fit are the same) but draws its words at screen
+ * size, as many lines as its box has room for: three (name, account and
+ * tool, state and task), two (name, state) or one (name, the state its
+ * dot).
+ */
+export const FULL_SCALE = 1;
+export type NodeForm = { full: true } | { full: false; lines: 1 | 2 | 3; width: number; height: number };
+
+export function nodeForm(scale: number): NodeForm {
+  // A hair under 100 % (a zoom's rounding) is still 100 %.
+  if (scale >= FULL_SCALE - 0.005) return { full: true };
+  const width = NODE_W * scale;
+  const height = NODE_H * scale;
+  return { full: false, lines: height >= 84 ? 3 : height >= 50 ? 2 : 1, width, height };
 }

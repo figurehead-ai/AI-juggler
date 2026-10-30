@@ -11,6 +11,11 @@
  *   on an edge (the conversation), on the pool (what agents may do,
  *   rules, delivery, notifications).
  * - View as list; Tasks and Messages over the canvas; a new, empty pool.
+ * - Semantic zoom (0.3 polish): at fit the nodes draw their words at
+ *   screen size (compact), a node's waiting badge opens its ask to answer
+ *   in place, an edge's waiting badge opens Deliver / Let it continue;
+ *   at 100 % the full cards. Under 1100 px a pool opens in the List view
+ *   until you choose (the choice is kept for that pool).
  * - Interaction: drag a session from the palette in, drag a node (its
  *   place kept), the keyboard (arrows between nodes, Enter, Delete with
  *   Undo, Option+arrows), an ask answered in place.
@@ -66,8 +71,20 @@ async function poolsScreen(page: Page) {
 async function canvas(page: Page) {
   await poolsScreen(page);
   await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
+  // Under 1100 px a pool opens as rows until you choose the canvas.
+  if ((page.viewportSize()?.width ?? 1280) < 1100) {
+    await expect(page.getByTestId("pool-card").first()).toBeVisible();
+    await page.getByTestId("pool-mode-canvas").click();
+  }
   await expect(page.getByTestId("pool-canvas")).toBeVisible();
   await expect(page.getByTestId("canvas-node")).toHaveCount(6);
+}
+
+/** Back to 100 %: the full cards. */
+async function fullCards(page: Page) {
+  await page.getByTestId("canvas-zoom").click();
+  await expect(page.getByTestId("canvas-zoom")).toHaveText("100%");
+  await expect(page.locator("[data-form='compact']")).toHaveCount(0);
 }
 
 /** The palette, unfolded (it starts folded on a narrow canvas). */
@@ -97,13 +114,57 @@ for (const theme of ["dark", "light"] as const) {
     test(`a pool's canvas — ${size} ${theme}`, width === 1280 ? gate("97-pool-canvas") : {}, async ({ page }) => {
       await open(page, theme, width, height);
       await canvas(page);
+      // At fit, under 100 %: every node compact, its words at screen size.
+      await expect(page.locator("[data-form='full']")).toHaveCount(0);
       await expect(page.locator('[data-node="s-plan"]').getByTestId("node-lead")).toBeVisible();
-      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toContainText("wants to message Planner");
+      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-badge")).toBeVisible();
+      await expect(page.getByTestId("edge-badge").first()).toBeVisible();
       await expect(page.getByTestId("canvas-palette").getByRole("button", { name: /Add a session/ })).toBeVisible();
       await expect(page.getByTestId("inspect-stream")).toContainText("Planner gave «Checkout copy» to Checkout copy pass");
+      // Nothing on a node drawn under 12 px.
+      const smallest = await page.locator("[data-node] *").evaluateAll((all) =>
+        Math.min(...all.filter((el) => el.childNodes.length > 0 && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim())).map((el) => parseFloat(getComputedStyle(el).fontSize) * (el.getBoundingClientRect().height / ((el as HTMLElement).offsetHeight || el.getBoundingClientRect().height)))),
+      );
+      // (Measured through the transforms: a hair under 12 is rounding.)
+      expect(smallest, "node text 12 px or more on screen").toBeGreaterThanOrEqual(11.5);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-${size}-${theme}.png`) });
       await axe(page, `canvas ${size} ${theme}`);
+    });
+
+    test(`a node's waiting badge opened, its ask answered in place — ${size} ${theme}`, async ({ page }) => {
+      await open(page, theme, width, height);
+      await canvas(page);
+      await page.locator('[data-node="s-copy"]').getByTestId("node-badge").click();
+      const panel = page.locator('[data-node="s-copy"]').getByTestId("node-popover");
+      await expect(panel.getByTestId("node-ask")).toContainText("wants to message Planner");
+      await expect(panel.getByTestId("node-ask-once")).toBeFocused();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(OUT, `canvas-badge-open-${size}-${theme}.png`) });
+      await axe(page, `node badge open ${size} ${theme}`);
+    });
+
+    test(`an edge's waiting badge opened — ${size} ${theme}`, async ({ page }) => {
+      await open(page, theme, width, height);
+      await canvas(page);
+      const paused = page.getByTestId("edge-badge").filter({ hasText: "Paused" });
+      await paused.click();
+      await expect(page.getByTestId("edge-badge-panel").getByTestId("edge-deliver")).toHaveText("Let it continue");
+      await expect(page.getByTestId("edge-badge-panel").getByTestId("edge-dont-deliver")).toBeVisible();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(OUT, `canvas-edge-badge-open-${size}-${theme}.png`) });
+      await axe(page, `edge badge open ${size} ${theme}`);
+    });
+
+    test(`the canvas at 100 %: full cards — ${size} ${theme}`, async ({ page }) => {
+      await open(page, theme, width, height);
+      await canvas(page);
+      await fullCards(page);
+      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toContainText("wants to message Planner");
+      await expect(page.getByTestId("edge-pending").first()).toBeVisible();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(OUT, `canvas-full-${size}-${theme}.png`) });
+      await axe(page, `canvas full ${size} ${theme}`);
     });
 
     test(`a member in the inspector — ${size} ${theme}`, async ({ page }) => {
@@ -143,6 +204,25 @@ for (const theme of ["dark", "light"] as const) {
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `inspect-pool-1280x800-${theme}.png`) });
     await axe(page, `pool settings ${theme}`);
+  });
+
+  test(`a narrow window opens a pool in the List view, until you choose — 1024x700 ${theme}`, async ({ page }) => {
+    await open(page, theme, 1024, 700);
+    await poolsScreen(page);
+    await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
+    await expect(page.getByTestId("pool-card")).toHaveCount(6);
+    await expect(page.getByTestId("pool-canvas")).toHaveCount(0);
+    await expect(page.getByTestId("pool-mode-list")).toHaveAttribute("aria-checked", "true");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(OUT, `list-default-1024x700-${theme}.png`) });
+    await axe(page, `list default ${theme}`);
+    // Chosen once, kept for this pool.
+    await page.getByTestId("pool-mode-canvas").click();
+    await expect(page.getByTestId("pool-canvas")).toBeVisible();
+    await page.reload();
+    await poolsScreen(page);
+    await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
+    await expect(page.getByTestId("pool-canvas")).toBeVisible();
   });
 
   test(`View as list — 1280x800 ${theme}`, async ({ page }) => {
@@ -235,7 +315,27 @@ test("keyboard: arrows between nodes, Enter, Option+arrows, Delete with Undo, an
   await page.getByTestId("canvas-removed").click();
   await expect(page.getByTestId("canvas-node")).toHaveCount(6);
 
-  await page.locator('[data-node="s-copy"]').getByTestId("node-ask-once").click();
+  // At fit the node is compact: its badge opens the ask, answered there.
+  await page.locator('[data-node="s-copy"]').getByTestId("node-badge").focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
   await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toHaveCount(0);
   expect(await calls(page, "__AIJ_MESSAGES_CALLS__")).toContain("answer:ask-copy:once");
+});
+
+test("semantic zoom: Tidy up and Fit in both forms, places kept across the switch", async ({ page }) => {
+  await open(page, "dark", 1280, 800);
+  await canvas(page);
+  const before = await page.locator('[data-node="s-cart"]').boundingBox();
+  await fullCards(page);
+  await page.getByTestId("canvas-fit").click();
+  await expect(page.locator("[data-form='compact']").first()).toBeVisible();
+  // The same box at fit, whichever form it was in before.
+  const after = await page.locator('[data-node="s-cart"]').boundingBox();
+  expect(Math.round(after!.width)).toBe(Math.round(before!.width));
+  await page.getByTestId("canvas-tidy").click();
+  await expect(page.getByTestId("canvas-node")).toHaveCount(6);
+  await fullCards(page);
+  await page.getByTestId("canvas-tidy").click();
+  await expect(page.getByTestId("canvas-node")).toHaveCount(6);
 });
