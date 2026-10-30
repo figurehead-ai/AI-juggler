@@ -280,6 +280,7 @@ read_routes! {
     "usage_history_session" => async_result features::usage_history::commands::usage_history_session(state; profile: String, conversation: String);
     "outside_search_status" => async_result features::outside_search::commands::outside_search_status(state);
     "outside_search_estimate" => async_result features::outside_search::commands::outside_search_estimate(state);
+    "cache_status" => async_result features::cache::commands::cache_status(state);
     "switch_setup_list" => async_result features::switch_setup::switch_setup_list(state);
     "switch_back_plan" => async_result commands::switch_back_plan(state; session_id: String, to_epoch: Option<String>);
     "switch_graph_overview" => async_result commands::switch_graph_overview(state; project_id: String);

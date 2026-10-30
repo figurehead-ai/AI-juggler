@@ -412,6 +412,10 @@ macro_rules! app_commands {
             Read  features::outside_search::commands::outside_search_status,
             Read  features::outside_search::commands::outside_search_estimate,
             Write features::outside_search::commands::outside_search_set,
+            Read  features::cache::commands::cache_status,
+            Write features::cache::commands::cache_set_on,
+            Write features::cache::commands::cache_set_limit,
+            Write features::cache::commands::cache_clear,
             Write commands::switch_execute,
             Write commands::switch_undo,
             Read  commands::switch_back_plan,
@@ -1241,6 +1245,9 @@ fn spawn_read_model_ticks(
     }
     // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
     features::outside_search::spawn(index_state.clone());
+    // ADR-0023: the local caches, sized by this Mac and trimmed in the
+    // background (one cheap pass a minute; folders walked rarely).
+    features::cache::start(&index_state);
     // AJ-E1611: new tool versions, once a day, well after start.
     features::tool_updates::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the

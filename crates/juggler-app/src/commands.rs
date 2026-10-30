@@ -3534,15 +3534,7 @@ pub async fn app_setting_set(
     value: String,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "app setting set", move |state| {
-        lock_storage_arc(state)?
-            .app_settings()
-            .set(&key, &value)
-            .map_err(AppError::from)?;
-        // A seen mark or a shown app changes Needs you now, not next tick.
-        if crate::features::notifications::needs::reads_setting(&key) {
-            crate::features::notifications::needs::refresh(state);
-        }
-        Ok(())
+        crate::settings_policy::app_setting_set_impl(state, &key, &value)
     })
     .await
 }

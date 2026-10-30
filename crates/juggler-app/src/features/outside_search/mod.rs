@@ -14,9 +14,15 @@
 //!   tool's own file. A conversation the tool deletes leaves the index
 //!   on the next pass.
 //!
+//! - **One of the local caches** (ADR-0023, [`cache`]): Settings ›
+//!   Advanced › Local cache shows its size and clears it; it is never
+//!   trimmed for the cache's limit, and waits while the disk is nearly
+//!   full.
+//!
 //! AI Juggler's own sessions are indexed by AJ-E1007's index already;
 //! this one covers only the conversations no AI Juggler session owns.
 
+pub mod cache;
 pub mod commands;
 pub mod dto;
 
@@ -32,6 +38,7 @@ use juggler_core::storage::SearchIndexFile;
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
+pub use cache::local_cache;
 pub use dto::{OutsideSearchEstimateInfo, OutsideSearchInfo};
 
 /// Where the switch is kept.
@@ -439,6 +446,10 @@ pub fn pass(state: &Arc<AppState>, budget: Duration) -> AppResult<bool> {
     // fast with this on), and not before it has read anything.
     if state.conversations.is_reading() {
         return Ok(true);
+    }
+    // ADR-0023: nothing new while the disk is nearly full.
+    if !state.cache.gate().has_room() {
+        return Ok(false);
     }
     if !enabled(state)? || state.conversations.all()?.is_empty() {
         return Ok(false);

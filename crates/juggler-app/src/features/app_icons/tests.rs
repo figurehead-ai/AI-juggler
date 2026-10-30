@@ -11,6 +11,7 @@ use juggler_adapter::live::{HostApp, HostKind};
 use super::bundle::{self, Ask, Bundle, Lookup, OWN_APP_ID};
 use super::cache::IconCache;
 use super::{SIZES, icon_data_url, render};
+use crate::features::cache::Gate;
 use crate::features::conversations::places::HostRegistry;
 
 /// A Mac made of fixtures.
@@ -41,6 +42,11 @@ impl Lookup for Fake {
 }
 
 /// A bundle at `root/name` with an Info.plist and an icon file.
+/// The cache's gate, on.
+fn gate() -> std::sync::Arc<Gate> {
+    std::sync::Arc::new(Gate::default())
+}
+
 fn app(root: &Path, name: &str) -> PathBuf {
     let path = root.join(name);
     std::fs::create_dir_all(path.join("Contents/Resources")).unwrap();
@@ -221,15 +227,16 @@ fn an_icon_is_kept_until_the_app_changes_then_read_again() {
         path: path.clone(),
         key: "dev.example.kept".into(),
     };
-    let cache = IconCache::new(dir.clone());
+    let cache = IconCache::new(dir.clone(), gate());
     assert_eq!(cache.get_or_render(&first, 64, render), Some(PNG.to_vec()));
     assert_eq!(cache.get_or_render(&first, 64, render), Some(PNG.to_vec()));
     assert_eq!(renders.get(), 1, "the second read is from memory");
     let file = cache.file_of(&first, 64);
-    assert!(file.ends_with(format!("dev.example.kept-{}-64.png", first.version)));
-    assert_eq!(std::fs::read(&file).unwrap(), PNG);
+    assert!(file.ends_with(format!("dev.example.kept-{}-64.icon", first.version)));
+    let kept = std::fs::read(&file).unwrap();
+    assert!(kept.ends_with(PNG), "the icon, after the cache's head line");
     // A new run reads the file, not the app.
-    let again = IconCache::new(dir.clone());
+    let again = IconCache::new(dir.clone(), gate());
     assert_eq!(again.get_or_render(&first, 64, render), Some(PNG.to_vec()));
     assert_eq!(renders.get(), 1);
 
@@ -256,7 +263,7 @@ fn an_icon_is_kept_until_the_app_changes_then_read_again() {
     assert!(again.file_of(&updated, 64).exists());
 
     // What can't be read is no icon, and isn't written.
-    let none = IconCache::new(root.join("none"));
+    let none = IconCache::new(root.join("none"), gate());
     assert_eq!(none.get_or_render(&first, 32, || None), None);
     assert_eq!(
         none.get_or_render(&first, 128, || Some(b"not a png".to_vec())),
@@ -265,7 +272,7 @@ fn an_icon_is_kept_until_the_app_changes_then_read_again() {
     assert!(!root.join("none").exists());
     // A kept file that isn't a PNG is read again from the app.
     std::fs::write(cache.file_of(&first, 32), b"junk").unwrap();
-    let fresh = IconCache::new(dir);
+    let fresh = IconCache::new(dir, gate());
     assert_eq!(fresh.get_or_render(&first, 32, render), Some(PNG.to_vec()));
     assert_eq!(renders.get(), 3);
 }
@@ -274,7 +281,7 @@ fn an_icon_is_kept_until_the_app_changes_then_read_again() {
 fn only_the_three_sizes_are_read() {
     let mac = Fake::default();
     let tmp = tempfile::tempdir().unwrap();
-    let cache = IconCache::new(tmp.path().join("icons"));
+    let cache = IconCache::new(tmp.path().join("icons"), gate());
     let ask = Ask {
         app_id: Some(OWN_APP_ID.into()),
         app_pid: None,
@@ -329,7 +336,7 @@ fn pixels_are_written_as_a_png_and_resampled_cleanly() {
 #[ignore = "reads apps installed on this Mac"]
 fn live_icons_of_installed_apps() {
     let tmp = tempfile::tempdir().unwrap();
-    let cache = IconCache::new(tmp.path().join("icons"));
+    let cache = IconCache::new(tmp.path().join("icons"), gate());
     let hosts = HostRegistry::new(Vec::new());
     let out = std::env::var_os("AIJ_ICON_OUT").map(PathBuf::from);
     for (name, path) in [

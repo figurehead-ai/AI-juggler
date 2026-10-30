@@ -16,6 +16,27 @@ use juggler_core::storage::Storage;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+/// Writes one app-level setting (`app_setting_set`; empty value = reset
+/// to default), then what reads it hears at once.
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn app_setting_set_impl(state: &Arc<AppState>, key: &str, value: &str) -> AppResult<()> {
+    crate::commands::lock_storage_arc(state)?
+        .app_settings()
+        .set(key, value)
+        .map_err(AppError::from)?;
+    // A seen mark or a shown app changes Needs you now, not next tick.
+    if crate::features::notifications::needs::reads_setting(key) {
+        crate::features::notifications::needs::refresh(state);
+    }
+    // ADR-0023: cache entries the setting shaped go at once (last
+    // messages turned off: the subagent lists' prompts and results).
+    crate::features::cache::setting_changed(state, key);
+    Ok(())
+}
+
 /// The digest's quiet hours: `start-end` (local hours), e.g. `22-7`.
 const QUIET_HOURS_KEY: &str = "alert_quiet_hours";
 /// `1` when new Accounts start with left-behind dev servers tidied.

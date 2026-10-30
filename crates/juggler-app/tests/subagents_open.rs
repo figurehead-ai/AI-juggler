@@ -167,14 +167,15 @@ fn a_session_with_437_subagents_opens_at_once_from_its_index() {
             .unwrap()
     });
     let file = index::path_for(dir.path(), "acc", "big", &path);
-    index::save(&file, true, &checkpoint).unwrap();
+    let cache = juggler_app::features::cache::Gate::default();
+    index::save(&cache, &file, true, &checkpoint).unwrap();
     println!("index: {} KB", checkpoint.len() / 1000);
 
     // After a restart: a new reader from the index.
     let mut restarted = reader(&path);
     let mut cleaned = Cleaned::default();
     let ((total, caught_up), from_index) = timed("open from the index (cold)", || {
-        let saved = index::load(&file, true).unwrap();
+        let saved = index::load(&cache, &file, true).unwrap();
         assert!(restarted.resume(&saved));
         open(&mut restarted, &mut cleaned)
     });

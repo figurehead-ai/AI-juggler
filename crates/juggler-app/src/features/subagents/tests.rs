@@ -665,11 +665,12 @@ fn a_saved_index_opens_the_tab_without_reading_the_transcripts_again() {
             .unwrap()
     };
     let key = ("acc".to_owned(), "s2".to_owned(), path.clone());
-    let first = Entry::resumed(Some(index.path()), true, key.clone(), make());
+    let cache = crate::features::cache::Gate::default();
+    let first = Entry::resumed(&cache, index.path(), true, key.clone(), make());
     let listed = first.list(u64::MAX).unwrap();
     let cleans = first.clean.lock().unwrap().all(&listed.agents, true);
     first.remember(&listed.agents, &cleans);
-    first.save(index.path(), true);
+    first.save(&cache, index.path(), true);
     let saved = index::path_for(index.path(), &key.0, &key.1, &key.2);
     assert!(saved.exists(), "the index was saved");
     // Its commands, for the Processes view.
@@ -680,7 +681,7 @@ fn a_saved_index_opens_the_tab_without_reading_the_transcripts_again() {
         ("n1", "npm run dev")
     );
     // A new reader from the index: nothing left to read, the same list.
-    let second = Entry::resumed(Some(index.path()), true, key.clone(), make());
+    let second = Entry::resumed(&cache, index.path(), true, key.clone(), make());
     {
         let mut reader = second.reader.lock().unwrap();
         assert!(reader.refresh().unwrap());
@@ -692,8 +693,53 @@ fn a_saved_index_opens_the_tab_without_reading_the_transcripts_again() {
     let again = second.list(0).unwrap();
     assert_eq!(again.agents.len(), listed.agents.len());
     // Saved with last messages on: not used with them off.
-    let third = Entry::resumed(Some(index.path()), false, key, make());
+    let third = Entry::resumed(&cache, index.path(), false, key, make());
     let mut reader = third.reader.lock().unwrap();
     reader.refresh().unwrap();
     assert!(!reader.refresh_details(0).unwrap(), "read from the start");
+}
+
+#[test]
+fn turning_last_messages_off_keeps_no_prompt_in_the_index_and_cache_off_saves_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let index = tempfile::tempdir().unwrap();
+    let path = turns(dir.path());
+    let adapter = juggler_adapters::ClaudeCodeAdapter::new();
+    let key = ("acc".to_owned(), "s2".to_owned(), path.clone());
+    let saved = index::path_for(index.path(), &key.0, &key.1, &key.2);
+    let cache = crate::features::cache::Gate::default();
+    let entry = Entry::resumed(
+        &cache,
+        index.path(),
+        true,
+        key,
+        adapter
+            .subagent_reader(SubagentScope {
+                path: &path,
+                id: "s2",
+            })
+            .unwrap(),
+    );
+    let listed = entry.list(u64::MAX).unwrap();
+    assert!(!listed.agents.is_empty());
+    entry.save(&cache, index.path(), true);
+    let text = String::from_utf8_lossy(&std::fs::read(&saved).unwrap()).into_owned();
+    assert!(text.contains("Prompt for Audit the cart"), "kept while on");
+    // Last messages off: the same reader saves again at once, and the
+    // prompts its memo redacted while they were on are not kept.
+    entry.save(&cache, index.path(), false);
+    let text = String::from_utf8_lossy(&std::fs::read(&saved).unwrap()).into_owned();
+    assert!(!text.contains("Prompt for"), "no prompt once they're off");
+    assert!(!text.contains("Result of"), "no result either");
+    assert!(text.contains("Audit the cart"), "the task stays");
+    // The cache off: nothing is saved.
+    std::fs::remove_file(&saved).unwrap();
+    let off = crate::features::cache::Manager::new(
+        index.path().to_path_buf(),
+        false,
+        crate::features::cache::Limit::Automatic,
+        None,
+    );
+    entry.save(&off.gate(), index.path(), true);
+    assert!(!saved.exists(), "nothing written while the cache is off");
 }

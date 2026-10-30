@@ -135,18 +135,19 @@ pub fn tick(state: &Arc<AppState>) -> Changed {
     followed.extend(live_conversations(state, &followed));
     let messages = crate::features::conversations::last_messages::enabled(state);
     let dir = super::index_dir(state);
+    let cache = state.cache.gate();
     let changed = pass(
         &state.subagents,
         followed,
         &|tool, scope| reader_for(&state.registry, tool, scope),
-        Some((&dir, messages)),
+        Some((&cache, &dir, messages)),
     );
     let passes = state
         .subagents
         .passes
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     if passes.is_multiple_of(DETAILS_EVERY) {
-        follow_details(&state.subagents, &dir, messages);
+        follow_details(&state.subagents, &cache, &dir, messages);
     }
     changed
 }
@@ -161,7 +162,12 @@ const LIVE_BUDGET: u64 = 8 * 1024 * 1024;
 
 /// Reads on each live session's subagents' own transcripts and keeps
 /// their commands (and the index) current.
-fn follow_details(readers: &Readers, dir: &std::path::Path, messages: bool) {
+fn follow_details(
+    readers: &Readers,
+    cache: &crate::features::cache::Gate,
+    dir: &std::path::Path,
+    messages: bool,
+) {
     let live: Vec<Arc<Entry>> = readers
         .kept
         .lock()
@@ -179,7 +185,7 @@ fn follow_details(readers: &Readers, dir: &std::path::Path, messages: bool) {
             continue;
         };
         entry.remember(&listed.agents, &cleans);
-        entry.save(dir, messages);
+        entry.save(cache, dir, messages);
     }
 }
 
@@ -278,7 +284,7 @@ pub(crate) fn pass(
     readers: &Readers,
     followed: Vec<Followed>,
     make: MakeReader<'_>,
-    saved: Option<(&std::path::Path, bool)>,
+    saved: Option<(&crate::features::cache::Gate, &std::path::Path, bool)>,
 ) -> Changed {
     let before: HashMap<Row, u64> = readers
         .counts
@@ -294,8 +300,8 @@ pub(crate) fn pass(
                 id: &one.key.1,
             };
             make(&one.tool, scope).map(|reader| match saved {
-                Some((dir, messages)) => {
-                    Entry::resumed(Some(dir), messages, one.key.clone(), reader)
+                Some((cache, dir, messages)) => {
+                    Entry::resumed(cache, dir, messages, one.key.clone(), reader)
                 }
                 None => Entry::new(one.key.clone(), reader),
             })
@@ -527,7 +533,7 @@ mod tests {
                 agents: Vec::new(),
             }),
         );
-        readers.used(&tab);
+        readers.used(&tab, super::super::READERS_KEPT);
         let never = |_: &str, _: SubagentScope<'_>| -> Option<Box<dyn SubagentReader>> {
             panic!("the tab's reader is reused, not a second one made")
         };

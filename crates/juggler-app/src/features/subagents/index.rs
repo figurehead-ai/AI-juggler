@@ -8,26 +8,81 @@
 //! older version can't throw away (a file it can't read is read again
 //! from the tool's own files). Its words are redacted before they are
 //! written (D-14), and a prompt, result or message only while last
-//! messages are on (a file written the other way is not used). The
-//! newest [`KEEP`] files stay; older ones go. Written whole to a
-//! temporary file and moved into place, readable by this user only.
+//! messages are on (a file written the other way is dropped, and turning
+//! them off drops every such file at once). One of the local caches
+//! (ADR-0023): nothing is written while the cache is off or the disk is
+//! nearly full, and the cache's manager keeps the newest [`KEEP`].
+//! Written whole to a temporary file and moved into place, readable by
+//! this user only.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use crate::features::cache::{self, About, Gate, LocalCache, Trim, folder::FolderCache, stamp};
+use crate::state::AppState;
 
 /// The folder under AI Juggler's data folder.
 pub const DIR: &str = "subagents";
 
-/// How many sessions' indexes are kept (the newest).
+/// The cache's key.
+pub const CACHE: &str = "subagents";
+
+/// The file's format: another is not read. (2: the cache's head line,
+/// ADR-0023; 1 was this module's own.)
+pub const FORMAT: u32 = 2;
+
+/// How many sessions' indexes are kept (the newest): the manager's cap.
 pub const KEEP: usize = 200;
 
-/// The file's format: another is not read.
-const VERSION: u32 = 1;
+/// The largest index read back.
+const MAX_BYTES: u64 = 256 * 1024 * 1024;
 
-/// The first line of a file.
-#[derive(serde::Serialize, serde::Deserialize)]
-struct Head {
-    v: u32,
-    messages: bool,
+/// The print of the settings an index is shaped by: whether last
+/// messages are on (its prompts, results and messages are kept only
+/// then).
+#[must_use]
+pub fn settings_print(messages: bool) -> u64 {
+    stamp::settings_print(&[if messages { "messages" } else { "no messages" }])
+}
+
+fn stamp_of(path: &Path, messages: bool) -> stamp::Stamp<'_> {
+    stamp::Stamp {
+        cache: CACHE,
+        format: FORMAT,
+        settings: settings_print(messages),
+        source: path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or_default(),
+    }
+}
+
+/// The subagent lists, for the cache's registry.
+#[must_use]
+pub fn local_cache(state: &Arc<AppState>) -> Arc<dyn LocalCache> {
+    Arc::new(FolderCache::new(
+        About {
+            id: CACHE,
+            name: "Subagent lists",
+            speeds_up: "A session's Subagents tab opens at once, even with hundreds of subagents.",
+            slower: "Each session's Subagents tab reads its subagents' files again the first time it opens.",
+            trim: Trim::Partly,
+            own_switch: None,
+            max_entries: Some(KEEP),
+            shaped_by: &[crate::features::conversations::last_messages::SETTING_KEY],
+        },
+        state.data_dir.join(DIR),
+        "idx",
+        &[],
+        cache::with_state(state, |state| {
+            (
+                FORMAT,
+                settings_print(crate::features::conversations::last_messages::enabled(
+                    state,
+                )),
+            )
+        }),
+    ))
 }
 
 /// The file for a session's index: a hash of its account, the tool's id
@@ -49,62 +104,24 @@ pub fn path_for(dir: &Path, account: &str, id: &str, record: &Path) -> PathBuf {
 }
 
 /// The checkpoint saved at `path`, when it was saved with last messages
-/// as they are now.
+/// as they are now (one saved otherwise, or unreadable, is dropped).
 #[must_use]
-pub fn load(path: &Path, messages: bool) -> Option<Vec<u8>> {
-    let bytes = std::fs::read(path).ok()?;
-    let end = memchr_newline(&bytes)?;
-    let head: Head = serde_json::from_slice(&bytes[..end]).ok()?;
-    (head.v == VERSION && head.messages == messages).then(|| bytes[end + 1..].to_vec())
+pub fn load(gate: &Gate, path: &Path, messages: bool) -> Option<Vec<u8>> {
+    stamp::read(gate, path, &stamp_of(path, messages), MAX_BYTES)
 }
 
-/// Saves `checkpoint` at `path` (whole, or not at all), then lets the
-/// oldest indexes beyond [`KEEP`] go.
+/// Saves `checkpoint` at `path` (whole, or not at all; nothing while the
+/// cache is off or the disk nearly full). The cache's manager keeps the
+/// newest [`KEEP`].
 ///
 /// # Errors
 ///
 /// The folder or file can't be written.
-pub fn save(path: &Path, messages: bool, checkpoint: &[u8]) -> std::io::Result<()> {
-    let dir = path.parent().unwrap_or_else(|| Path::new("."));
-    std::fs::create_dir_all(dir)?;
-    let head = serde_json::to_vec(&Head {
-        v: VERSION,
-        messages,
-    })
-    .map_err(std::io::Error::other)?;
-    let mut bytes = Vec::with_capacity(head.len() + 1 + checkpoint.len());
-    bytes.extend_from_slice(&head);
-    bytes.push(b'\n');
-    bytes.extend_from_slice(checkpoint);
+pub fn save(gate: &Gate, path: &Path, messages: bool, checkpoint: &[u8]) -> std::io::Result<bool> {
     // Whole or not at all, readable by this user only (where the system
     // has owner-only files: elsewhere nothing is saved, and the tab reads
     // the tool's files as before).
-    juggler_platform::private_fs::write_private(path, &bytes)?;
-    prune(dir, KEEP);
-    Ok(())
-}
-
-/// Lets all but the newest `keep` indexes in `dir` go.
-pub fn prune(dir: &Path, keep: usize) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut files: Vec<(std::time::SystemTime, PathBuf)> = entries
-        .flatten()
-        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "idx"))
-        .filter_map(|entry| Some((entry.metadata().ok()?.modified().ok()?, entry.path())))
-        .collect();
-    if files.len() <= keep {
-        return;
-    }
-    files.sort_by_key(|file| std::cmp::Reverse(file.0));
-    for (_, path) in files.into_iter().skip(keep) {
-        let _ = std::fs::remove_file(path);
-    }
-}
-
-fn memchr_newline(bytes: &[u8]) -> Option<usize> {
-    bytes.iter().position(|b| *b == b'\n')
+    stamp::write(gate, path, &stamp_of(path, messages), checkpoint)
 }
 
 #[cfg(test)]
@@ -116,19 +133,22 @@ mod tests {
     #[test]
     fn a_saved_index_loads_only_with_the_same_messages_setting_and_the_oldest_go() {
         let dir = tempfile::tempdir().unwrap();
+        let gate = Gate::default();
         let path = path_for(dir.path(), "acc", "s1", Path::new("/p/s1.jsonl"));
         assert_ne!(
             path,
             path_for(dir.path(), "acc", "s2", Path::new("/p/s1.jsonl"))
         );
         assert!(!path.to_string_lossy().contains("s1"), "no readable name");
-        save(&path, true, b"{\"x\":1}").unwrap();
-        assert_eq!(load(&path, true).as_deref(), Some(&b"{\"x\":1}"[..]));
+        assert!(save(&gate, &path, true, b"{\"x\":1}").unwrap());
+        assert_eq!(load(&gate, &path, true).as_deref(), Some(&b"{\"x\":1}"[..]));
         assert_eq!(
-            load(&path, false),
+            load(&gate, &path, false),
             None,
             "saved with messages: not used without"
         );
+        assert!(!path.exists(), "and dropped at once");
+        save(&gate, &path, true, b"{}").unwrap();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
@@ -136,13 +156,44 @@ mod tests {
             assert_eq!(mode & 0o077, 0, "readable by this user only");
         }
         std::fs::write(&path, b"garbage").unwrap();
-        assert_eq!(load(&path, true), None);
+        assert_eq!(load(&gate, &path, true), None);
+        assert!(!path.exists(), "a file that can't be read is dropped");
+        // The manager keeps the newest (here three; 200 in the app).
+        let manager = cache::Manager::new(
+            dir.path().to_path_buf(),
+            true,
+            cache::Limit::Automatic,
+            None,
+        );
+        manager.register(Arc::new(FolderCache::new(
+            About {
+                max_entries: Some(3),
+                ..local_about()
+            },
+            dir.path().to_path_buf(),
+            "idx",
+            &[],
+            Box::new(|| (FORMAT, settings_print(false))),
+        )));
         for n in 0..5 {
             let other = path_for(dir.path(), "acc", &format!("o{n}"), Path::new("/p"));
-            save(&other, false, b"{}").unwrap();
+            save(&gate, &other, false, b"{}").unwrap();
         }
-        prune(dir.path(), 3);
+        manager.pass(None);
         let left = std::fs::read_dir(dir.path()).unwrap().count();
         assert_eq!(left, 3);
+    }
+
+    fn local_about() -> About {
+        About {
+            id: CACHE,
+            name: "Subagent lists",
+            speeds_up: "",
+            slower: "",
+            trim: Trim::Partly,
+            own_switch: None,
+            max_entries: Some(KEEP),
+            shaped_by: &[],
+        }
     }
 }

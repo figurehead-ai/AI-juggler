@@ -27,6 +27,11 @@
 //! its reader found — never a path the page names. Read only when the
 //! page asks, kept nowhere (D-37), and off with the session's last
 //! messages in Settings.
+//!
+//! The index is one of the local caches (ADR-0023): written only while
+//! the cache is on, its prompts, results and messages only while last
+//! messages are on too, and dropped at once when last messages are
+//! turned off.
 
 pub mod attribute;
 pub mod clean;
@@ -50,6 +55,7 @@ use juggler_adapter::subagents::{
 use juggler_core::model::HarnessId;
 
 use crate::error::AppResult;
+use crate::features::cache::Gate;
 use crate::features::conversations::last_messages::{self, Ask, LastMessagesInfo};
 use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
@@ -57,7 +63,8 @@ use crate::state::AppState;
 use dto::{SubagentsInfo, SubagentsQuery, SubagentsSummaryInfo};
 pub use view::{Found, status_word};
 
-/// How many sessions' readers the tab keeps (the pages opened last); a
+/// How many sessions' readers the tab keeps (the pages opened last) on
+/// a Mac of medium memory (half on 8 GB, twice on more than 16 GB); a
 /// live session's also stays while the count follows it.
 const READERS_KEPT: usize = 8;
 
@@ -91,8 +98,11 @@ struct Saved {
     at: Option<Instant>,
     print: u64,
     /// Each text's redaction, by its raw words' print (a save redacts
-    /// only what's new).
+    /// only what's new), as kept with last messages as `memo_messages`
+    /// says: a change of the setting starts it again, so a prompt kept
+    /// while they were on is never saved after they're turned off.
     memo: HashMap<u64, Option<String>>,
+    memo_messages: bool,
 }
 
 /// One session's reader. Its tab and the rail's count share it, each
@@ -127,16 +137,15 @@ impl Entry {
 
     /// A reader picked up from its saved index, when it has one.
     fn resumed(
-        dir: Option<&Path>,
+        cache: &Gate,
+        dir: &Path,
         messages: bool,
         key: Key,
         mut reader: Box<dyn SubagentReader>,
     ) -> Arc<Self> {
-        if let Some(dir) = dir {
-            let path = index::path_for(dir, &key.0, &key.1, &key.2);
-            if let Some(bytes) = index::load(&path, messages) {
-                let _ = reader.resume(&bytes);
-            }
+        let path = index::path_for(dir, &key.0, &key.1, &key.2);
+        if let Some(bytes) = index::load(cache, &path, messages) {
+            let _ = reader.resume(&bytes);
         }
         Self::new(key, reader)
     }
@@ -194,11 +203,20 @@ impl Entry {
         }
     }
 
-    /// Saves its index when it's due and something changed.
-    fn save(&self, dir: &Path, messages: bool) {
+    /// Saves its index when it's due and something changed (never while
+    /// the cache is off or the disk nearly full).
+    fn save(&self, cache: &Gate, dir: &Path, messages: bool) {
+        if !cache.may_write() {
+            return;
+        }
         let Ok(mut saved) = self.saved.lock() else {
             return;
         };
+        if saved.memo_messages != messages {
+            saved.memo.clear();
+            saved.memo_messages = messages;
+            saved.at = None;
+        }
         if saved.at.is_some_and(|at| at.elapsed() < SAVE_EVERY) {
             return;
         }
@@ -230,7 +248,7 @@ impl Entry {
             return;
         }
         let path = index::path_for(dir, &self.key.0, &self.key.1, &self.key.2);
-        if index::save(&path, messages, &bytes).is_ok() {
+        if index::save(cache, &path, messages, &bytes).unwrap_or(false) {
             saved.print = print;
         }
     }
@@ -295,12 +313,12 @@ impl Readers {
     }
 
     /// The tab used `entry`: it is the latest, and the oldest beyond
-    /// [`READERS_KEPT`] goes (a live session's stays with the count).
-    fn used(&self, entry: &Arc<Entry>) {
+    /// `keep` goes (a live session's stays with the count).
+    fn used(&self, entry: &Arc<Entry>, keep: usize) {
         if let Ok(mut kept) = self.kept.lock() {
             kept.tab.retain(|other| other.key != entry.key);
             kept.tab.push(Arc::clone(entry));
-            let extra = kept.tab.len().saturating_sub(READERS_KEPT);
+            let extra = kept.tab.len().saturating_sub(keep);
             kept.tab.drain(..extra);
         }
     }
@@ -365,11 +383,13 @@ pub fn found(
     }
     let messages = last_messages::enabled(state);
     let dir = index_dir(state);
+    let cache = state.cache.gate();
     let key = (account.to_owned(), id.to_owned(), conversation.path.clone());
     let entry = match state.subagents.find(&key) {
         Some(entry) => entry,
         None => Entry::resumed(
-            Some(&dir),
+            &cache,
+            &dir,
             messages,
             key,
             adapter
@@ -380,7 +400,9 @@ pub fn found(
                 .ok_or(Missing::None)?,
         ),
     };
-    state.subagents.used(&entry);
+    state
+        .subagents
+        .used(&entry, cache.tier().scale(READERS_KEPT));
     let listed = entry.list(budget).ok_or(Missing::Unreadable)?;
     let caught_up = listed.refreshed.map_err(|_| Missing::Unreadable)?;
     let cleans = entry
@@ -389,7 +411,7 @@ pub fn found(
         .map(|mut cleaned| cleaned.all(&listed.agents, messages))
         .map_err(|_| Missing::Unreadable)?;
     entry.remember(&listed.agents, &cleans);
-    entry.save(&dir, messages);
+    entry.save(&cache, &dir, messages);
     Ok(Found {
         support,
         live: state.conversations.is_live(account, &conversation.tool, id),
