@@ -1,4 +1,4 @@
-<!-- captures: none -->
+<!-- captures: a8e30ac1825e -->
 # 97-controls: the shared controls and the rail's View
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -28,12 +28,15 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 - Hints sat on some lines and not others (Inactive had one, Ended today, Other Macs and Archived didn't), so rows had two heights (fixed in this branch).
 - The menu covers the grouping switch beside it while open.
 - History's Picker open wasn't captured (fixed in this branch).
+- Second re-render, seen by eye on picker-open-history: History's rows stopped with an error said "7 h" and "12 h" beside their neighbours' "5 h ago" (fixed, below).
 
 ## Fixed
 
 - Re-render: the grouping switch's segments size by their words (Pool cut "Account" to "Accou…").
 - Polish (0.3, this branch): the View's rows are one height; a hint sits on the label's line, muted, in shorter words, only where the label needs it.
 - Polish (0.3, this branch): History's Picker open is captured (the fixture always had three projects; the state counted the filters before the lazily loaded screen drew, and skipped).
+
+- Second re-render (seen by eye): a session stopped with an error has ended, so its row says "7 h ago" like every other ended row (History, a project's Sessions); it was timed like a live one ("7 h"). Vitest: "says \"ago\" for every ended session, one stopped with an error too".
 
 ## Captures
 

@@ -1,4 +1,4 @@
-<!-- captures: 279b56e9fe47 -->
+<!-- captures: 9921ef05b246 -->
 # 92-session-pages: a session's page, for each kind of session
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -27,10 +27,15 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 - Before this branch the header repeated itself: "Running in the Claude app", "Profile: Work Max" and the account and folder as chips, while the facts line and Where it runs said them again.
 
+- The Overview's footnote ("from the apps' own session files and the end of its transcript") is a lowercase fragment under the page; it reads as a sentence cut off. It is the app-wide "from …" source pattern, kept as it is.
+- The Account menu's first line is the plan's name ("Claude Max") under the heading Account, while the chip says the profile ("Work Max"); clear once open, but the chip and its menu lead with different names.
+
 ## Fixed
 
 - Re-render: the tool and the pool are named doors on the facts line (the tool was a bare mark).
 - Polish (0.3, this branch): the header has two chips, its state and one Account menu (the profile's badge and name ▾: Account, Profile, Folder and Open the profile's page). "Running in …" or "Last active …" is on the facts line after the tool. The separate Where, Profile, Account and Folder chips went; nothing they held is lost (the menu and Where it runs keep it) and no door moved: Go to it, the tool and the pool are where they were.
+
+- Second re-render: looked at again by eye at 1280, 1680 and 2000 in both themes: one chip row, the Account menu opens under its chip without covering the title, the facts line carries where it runs. Nothing else to fix here.
 
 ## Captures
 

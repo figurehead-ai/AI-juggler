@@ -1,4 +1,4 @@
-<!-- captures: 269932ff5308 -->
+<!-- captures: 833dc79d5a14 -->
 # 69-rail-narrow: the narrow window
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -25,11 +25,14 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 ## Weak
 
 - At 390 px the icons-only rail is the whole navigation; fine for a desktop minimum.
+- At 390 px the header takes three rows (the tabs wrap after Accounts, the actions on their own row), about 150 px before the page starts.
 
 ## Fixed
 
 - Re-render: below 1100 px the folded rail hid the grouping switch and View; the only way back was the logo or ⌘B. The door is at the top of the column now.
 - Polish (0.3, this branch): the opened list's top is a shorter stack — search and View 28 px, the grouping switch 30 px (each segment still a 24 px target), less air before Needs you — so the first session sits 13 px higher, every control where it was.
+
+- Second re-render: the opened list at 860 shows the shorter top (search and View 28 px, the switch 30 px) and Needs you starting higher; the folded column is unchanged. Nothing else to fix here.
 
 ## Captures
 

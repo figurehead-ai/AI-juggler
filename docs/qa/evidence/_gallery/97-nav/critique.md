@@ -1,4 +1,4 @@
-<!-- captures: none -->
+<!-- captures: 9c478ca959ce -->
 # 97-nav: the header, Projects, a project's page, Tasks
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -36,6 +36,8 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 - Re-render: a session's tool and pool are named doors on its facts line ("Claude Code · … · Pool"), so the chips no longer cut to "Running in AI J…".
 - Polish (0.3, this branch): History has a key, ⌘⇧Y, in the same letter scheme as ⌘⇧P, ⌘⇧O, ⌘⇧T, ⌘⇧A and ⌘⇧U (⌘⇧H stays Continue on another account); every header tab's tooltip names its key.
 - Polish (0.3, this branch): a session's header has two chips, its state and one Account menu (the profile's badge and name ▾: Account, Profile, Folder and Open the profile's page). "Running in …" or "Last active …" moved onto the facts line after the tool; the separate Where, Profile, Account and Folder chips went. Go to it, the tool and the pool doors are unchanged.
+
+- Second re-render: the captures were looked at again after the rail's shorter top and the session header's Account chip; the header row stays one row at 1024 with the list folded, the board stays 2×2, and the session header is two chips (Working, Work Max ▾) with Claude Code, Running in AI Juggler, started, CPU and Pool on the facts line. Nothing else to fix here.
 
 ## Captures
 
