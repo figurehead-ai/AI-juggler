@@ -11,7 +11,7 @@ import { memo, useState, type JSX } from "react";
 import { errorText } from "../../lib/bridge";
 import { messagesAnswer, messagesDeliver } from "../../lib/ipc/messages";
 import type { CanvasEdgeInfo, PendingInfo } from "../../lib/ipc/pool-canvas";
-import { edgeCurve, type Point } from "./layout";
+import { edgeCurve, NODE_H, NODE_W, type Point } from "./layout";
 import { edgeKey } from "./useCanvas";
 
 export type EdgeWords = { count: string; aria: string };
@@ -79,13 +79,17 @@ export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; c
   );
 }
 
-/** Labels near one another move apart (down), so two edges between close
- * nodes never put their answers on top of each other. */
-function apart<T extends { mid: Point }>(labels: T[]): T[] {
+/** Where an edge's label goes: at its middle unless that covers a node
+ * or another label, else the nearest free place above or below it. */
+function apart<T extends { mid: Point }>(labels: T[], nodes: Iterable<Point>): T[] {
+  const boxes = [...nodes];
   const placed: Point[] = [];
+  // A label is about 120 × 48; a node grows below its box with an ask.
+  const onNode = (at: Point) => boxes.some((node) => at.x > node.x - 60 && at.x < node.x + NODE_W + 60 && at.y > node.y - 24 && at.y < node.y + NODE_H + 60);
+  const onLabel = (at: Point) => placed.some((other) => Math.abs(other.x - at.x) < 160 && Math.abs(other.y - at.y) < 58);
   return labels.map((label) => {
-    let at = label.mid;
-    while (placed.some((other) => Math.abs(other.x - at.x) < 150 && Math.abs(other.y - at.y) < 58)) at = { x: at.x, y: at.y + 58 };
+    const tries = [[0, 0], [0, -60], [0, 60], [-90, 0], [90, 0], [-90, -60], [90, -60], [-90, 60], [90, 60], [0, -120], [0, 120]].map(([dx, dy]) => ({ x: label.mid.x + dx!, y: label.mid.y + dy! }));
+    const at = tries.find((spot) => !onNode(spot) && !onLabel(spot)) ?? tries.find((spot) => !onLabel(spot)) ?? label.mid;
     placed.push(at);
     return { ...label, mid: at };
   });
@@ -171,7 +175,7 @@ export const CanvasEdges = memo(function CanvasEdges({
         })}
       </svg>
       {!zoomedOut &&
-        apart(drawn.filter(({ key, waits }) => waits || selected === key || hover === key)).map(({ edge, key, mid, waits }) => {
+        apart(drawn.filter(({ key, waits }) => waits || selected === key || hover === key), points.values()).map(({ edge, key, mid, waits }) => {
           const words = edgeWords(edge, names.get(edge.from_session_id) ?? "A member", names.get(edge.to_session_id) ?? "a member");
           return (
             <div key={key} className="absolute left-0 top-0 z-10 flex flex-col items-center gap-1" style={{ transform: `translate(${mid.x}px, ${mid.y}px) translate(-50%, -50%)` }} data-testid="edge-label" data-edge={key}>
