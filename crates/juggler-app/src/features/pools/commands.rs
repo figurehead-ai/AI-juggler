@@ -1,10 +1,11 @@
-//! The pools' commands (AJ-E1702, AJ-E1703): three reads, and the user's
-//! changes to pools, members, roles, access levels and rules. Only the app's own window
+//! The pools' commands (AJ-E1702, AJ-E1703): the reads, and the user's
+//! changes to pools, members, roles, access levels and rules, and where
+//! the user put each member on a pool's canvas (0.3). Only the app's own window
 //! calls them; none of them touches a session.
 
 use std::sync::Arc;
 
-use super::{PoolMemberInfo, PoolMemberRow, PoolsInfo};
+use super::{PoolCanvasInfo, PoolMemberInfo, PoolMemberRow, PoolPreviewInfo, PoolsInfo};
 use crate::error::AppResult;
 use crate::paging::{Page, PageRequest};
 use crate::state::AppState;
@@ -202,6 +203,75 @@ pub async fn pools_revoke_rule(
 ) -> AppResult<PoolsInfo> {
     crate::ipc::blocking(state.inner(), "the rule", move |state| {
         super::access::revoke_impl(state, rule_id)
+    })
+    .await
+}
+
+/// A pool's canvas for the members it shows: where the user put them,
+/// who talks to whom, what waits on the user and the newest activity.
+///
+/// # Errors
+///
+/// As [`super::canvas::canvas_impl`].
+#[tauri::command]
+pub async fn pools_canvas(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    session_ids: Vec<String>,
+) -> AppResult<PoolCanvasInfo> {
+    crate::ipc::blocking(state.inner(), "the pool's canvas", move |state| {
+        super::canvas::canvas_impl(state, &pool_id, session_ids)
+    })
+    .await
+}
+
+/// Puts members' nodes where the user dropped them on their pool's
+/// canvas.
+///
+/// # Errors
+///
+/// As [`super::canvas::place_impl`].
+#[tauri::command]
+pub async fn pools_canvas_place(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    nodes: Vec<super::NodePositionInfo>,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "the pool's canvas", move |state| {
+        super::canvas::place_impl(state, &pool_id, &nodes)
+    })
+    .await
+}
+
+/// Forgets where the user put a pool's members ("Tidy up").
+///
+/// # Errors
+///
+/// As [`super::canvas::tidy_impl`].
+#[tauri::command]
+pub async fn pools_canvas_tidy(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "the pool's canvas", move |state| {
+        super::canvas::tidy_impl(state, &pool_id)
+    })
+    .await
+}
+
+/// The Pools screen's cards: each named pool's open members' positions
+/// and its tasks in progress.
+///
+/// # Errors
+///
+/// As [`super::canvas::previews_impl`].
+#[tauri::command]
+pub async fn pools_canvas_previews(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_ids: Vec<String>,
+) -> AppResult<Vec<PoolPreviewInfo>> {
+    crate::ipc::blocking(state.inner(), "the pools", move |state| {
+        super::canvas::previews_impl(state, pool_ids)
     })
     .await
 }

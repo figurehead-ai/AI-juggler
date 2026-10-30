@@ -14,6 +14,7 @@ import { useProfiles, useRunways } from "./data";
 import type { SessionModel } from "./model";
 import { Runway } from "./Runway";
 import { SessionUsageTab, useTranscriptModels, type TokenKinds } from "./UsageTab";
+import { SubagentsShareLine } from "../subagents/ShareLine";
 
 export function UsagePanel({ model, visible, tokens, account }: { model: SessionModel; visible: boolean; tokens: TokenKinds | null; account: SubscriptionInfo | undefined }): JSX.Element {
   const displays = useRunways();
@@ -30,6 +31,7 @@ export function UsagePanel({ model, visible, tokens, account }: { model: Session
   if (known) {
     return (
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-grid" data-testid="session-usage">
+        <SubagentsShareLine profileId={model.profileId} conversationId={model.conversationId} />
         <SessionUsage profile={model.profileId} conversation={model.conversationId!} profileLabel={model.profileLabel} />
         <div className="grid grid-cols-1 gap-grid lg:grid-cols-2">
           <Runway display={display} title={accountTitle} heading="Its account's window" testId="session-usage-runway" profile={profile}>
@@ -40,13 +42,16 @@ export function UsagePanel({ model, visible, tokens, account }: { model: Session
     );
   }
   return (
-    <SessionUsageTab
-      tokens={tokens}
-      models={model.conversationId === null && !model.model ? [] : models}
-      modelsWhy={why}
-      display={display}
-      accountTitle={accountTitle}
-      profile={profile}
-    />
+    <div className="flex w-full flex-col gap-3">
+      <SubagentsShareLine profileId={model.profileId} conversationId={model.conversationId} />
+      <SessionUsageTab
+        tokens={tokens}
+        models={model.conversationId === null && !model.model ? [] : models}
+        modelsWhy={why}
+        display={display}
+        accountTitle={accountTitle}
+        profile={profile}
+      />
+    </div>
   );
 }

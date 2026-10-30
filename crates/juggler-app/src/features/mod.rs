@@ -7,6 +7,7 @@ pub mod agent_bridge;
 pub mod app;
 pub mod app_icons;
 pub mod budgets;
+pub mod cache;
 pub mod conversations;
 pub mod fleet;
 pub mod handover;

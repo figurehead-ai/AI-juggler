@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button } from "./primitives";
+import { Picker } from "./controls";
 import { EnvOverlayEditor } from "./EnvOverlayEditor";
 import {
   errorText,
@@ -12,6 +13,7 @@ import {
 } from "../lib/bridge";
 import { funnelEvent } from "../lib/funnel";
 import { launchSettingsName } from "../lib/account-words";
+import { IconChevronDown, IconChevronRight } from "./icons-controls";
 
 /**
  * AJ-E309 Req.5: the [Expert setup…] hatch every flow exposes —
@@ -134,10 +136,11 @@ export function ExpertSetup({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={toggle}
-        className="self-start rounded text-label text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="flex items-center gap-1 self-start rounded text-label text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
         data-testid="expert-hatch"
       >
-        Expert setup… {open ? "▾" : "▸"}
+        {open ? <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" /> : <IconChevronRight width={12} height={12} strokeWidth={2} aria-hidden="true" />}
+        Expert setup…
       </button>
       {open && (
         <div
@@ -151,21 +154,17 @@ export function ExpertSetup({
             </p>
           )}
           {accounts.length > 1 && (
-            <label className="flex items-center gap-2 text-muted">
-              Account
-              <select
+            <div className="flex items-center gap-2 text-muted">
+              <span aria-hidden="true">Account</span>
+              <Picker
+                ariaLabel="Account"
+                size="sm"
                 value={accountId ?? ""}
-                onChange={(event) => setAccountId(event.target.value)}
-                className="rounded-lg border border-hairline bg-surface px-2 py-1 text-label text-ink"
-                data-testid="expert-account"
-              >
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(next) => setAccountId(next)}
+                options={accounts.map((account) => ({ value: account.id, label: account.label }))}
+                testId="expert-account"
+              />
+            </div>
           )}
           {info === null && error === null && <p className="text-muted">Loading…</p>}
           {info !== null && (
@@ -237,20 +236,16 @@ export function ExpertSetup({
                 {accountId !== null && recipe !== null ? (
                   <>
                     {recipes.length > 1 && (
-                      <label className="flex items-center gap-2 text-muted">
-                        Launch settings
-                        <select
+                      <div className="flex items-center gap-2 text-muted">
+                        <span aria-hidden="true">Launch settings</span>
+                        <Picker
+                          ariaLabel="Launch settings"
+                          size="sm"
                           value={recipe.id}
-                          onChange={(event) => setRecipeId(event.target.value)}
-                          className="rounded-lg border border-hairline bg-surface px-2 py-1 text-label text-ink"
-                        >
-                          {recipes.map((entry) => (
-                            <option key={entry.id} value={entry.id}>
-                              {launchSettingsName(entry.name)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                          onChange={(next) => setRecipeId(next)}
+                          options={recipes.map((entry) => ({ value: entry.id, label: launchSettingsName(entry.name) }))}
+                        />
+                      </div>
                     )}
                     <p className="leading-relaxed text-muted">
                       Extra variables set when{" "}

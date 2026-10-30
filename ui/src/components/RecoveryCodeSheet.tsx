@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { errorText, vaultConfirmSaved, vaultSaveCode, vaultSetup } from "../lib/bridge";
+import { Checkbox } from "./controls";
 
 export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => void }): JSX.Element {
   const [code, setCode] = useState<string | null>(null);
@@ -116,8 +117,7 @@ export function RecoveryCodeSheet({ onClose }: { onClose: (saved: boolean) => vo
           <span aria-hidden="true">⚠ </span>Without this code, a new Mac can't open your backups. We can't recover it for you.
         </p>
         <label className="flex items-center gap-2 text-label text-ink">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={saved}
             onChange={(event) => setSaved(event.target.checked)}
             data-testid="recovery-confirm"

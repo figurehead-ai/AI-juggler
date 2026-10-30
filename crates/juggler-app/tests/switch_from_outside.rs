@@ -373,7 +373,9 @@ fn the_graph_resumes_and_exports_an_original_another_app_runs() {
     assert!(node.resumable, "its conversation is there to resume");
     assert!(node.session_id.is_none(), "it stays the other app's");
 
-    let pack = commands::pack_export_impl(&w.state, edge.from_epoch.as_str()).unwrap();
+    let pack = commands::pack_export_impl(&w.state, edge.from_epoch.as_str())
+        .unwrap()
+        .path;
     let conversation = std::fs::read_to_string(Path::new(&pack).join("conversation.md")).unwrap();
     assert!(
         conversation.contains("Add a health check endpoint"),

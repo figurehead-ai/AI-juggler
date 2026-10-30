@@ -18,6 +18,7 @@ import { rememberTab } from "../registry";
 import { useHasSubagents } from "./useSubagents";
 import { useSessionHasHistory } from "./useSessionHasHistory";
 import { fromInstance } from "./model";
+import { sessionTitle } from "../../components/ManageWork";
 
 const SessionMessages = lazyNamed(() => import("../messages/PoolMessages"), "SessionMessages");
 const SessionTasks = lazyNamed(() => import("../tasks/PoolTasks"), "SessionTasks");
@@ -52,5 +53,5 @@ function InstanceSubagents({ session, now, visible }: { session: InstanceInfo; n
   // The same object while nothing it shows has changed.
   const json = JSON.stringify(fromInstance(session));
   const model = useMemo(() => JSON.parse(json) as ReturnType<typeof fromInstance>, [json]);
-  return <SubagentsTab model={model} visible={visible} now={now} />;
+  return <SubagentsTab model={model} title={sessionTitle(session)} visible={visible} now={now} />;
 }

@@ -20,6 +20,7 @@ import {
   type DivergenceInfo,
   type FleetSwitchBackPlanInfo,
 } from "../lib/bridge";
+import { Checkbox, Radio } from "./controls";
 
 type Choice = "keep_mine" | "keep_theirs" | "keep_both";
 
@@ -190,8 +191,8 @@ export function CrossMachineSwitchBack({
                     (choice === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
                   }
                 >
-                  <input
-                    type="radio"
+                  <Radio
+                   
                     name="conflict-choice"
                     checked={choice === option.id}
                     onChange={() => setChoice(option.id)}
@@ -261,7 +262,7 @@ export function CrossMachineSwitchBack({
                   </ul>
                 )}
                 <label className="flex items-center gap-2 text-label text-ink">
-                  <input type="checkbox" checked={keepAway} onChange={(event) => setKeepAway(event.target.checked)} />
+                  <Checkbox checked={keepAway} onChange={(event) => setKeepAway(event.target.checked)} />
                   Keep this session running too
                 </label>
                 <div className="flex justify-end gap-2">

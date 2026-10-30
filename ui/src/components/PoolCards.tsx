@@ -7,6 +7,7 @@ import { roleLabel } from "../lib/pools";
 import { agoWords } from "../lib/time-words";
 import { sessionState, STATE_TONE } from "../lib/rail-items";
 import { useActionHost } from "./ItemMenu";
+import { sessionTitle } from "./ManageWork";
 import { PagedList } from "./PagedList";
 import { ProjectMark } from "./ProjectMark";
 import { ToolMark } from "./ToolMark";
@@ -44,6 +45,11 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
   // The rail's words and dot (Asks you, Working, Idle, Ended).
   const said = sessionState(session);
   const detailId = `pool-card-${card.session_id}`;
+  // The session's one title, the rail's and its page's (label, title,
+  // else "Untitled session · <project>"): the card's own fallback said
+  // "its folder" where the rail named the same session (the 0.3
+  // re-render).
+  const name = sessionTitle(session);
   return (
     <div data-home-item data-testid="pool-card">
       <div className="flex items-center">
@@ -60,10 +66,12 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
           />
           <ProjectMark projectId={session.project_id} size={16} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm text-ink">
-              {card.name}
-              <span className="text-faint">
-                {" "}
+            {/* The name gives way, never its state ("En…" at 1024 px). */}
+            <span className="flex min-w-0 items-baseline gap-1 text-sm">
+              <span className="truncate text-ink" data-testid="pool-card-name">
+                {name}
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-faint">
                 · <span className={said.tone} data-testid="pool-card-state">{said.word}</span>
               </span>
             </span>
@@ -83,7 +91,7 @@ function CardRow({ card, session, now }: { card: ContextCard; session: InstanceI
           type="button"
           aria-expanded={open}
           aria-controls={detailId}
-          aria-label={`${open ? "Hide" : "Show"} what ${card.name} is doing`}
+          aria-label={`${open ? "Hide" : "Show"} what ${name} is doing`}
           onClick={() => setOpen((shown) => !shown)}
           className="mr-2 flex size-7 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
           data-testid="pool-card-more"

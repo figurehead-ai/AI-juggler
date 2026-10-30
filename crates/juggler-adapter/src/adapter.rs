@@ -480,6 +480,20 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// What the tail of an open session's transcript (`tail`: at most its
+    /// last 64 KB, cut at a line start) says of a usage limit: the limit
+    /// its last turn stopped at, from the tool's own record of it, when
+    /// nothing has answered since. A warning that a limit is near, or a
+    /// limit on one model only, is no hit. For a tool whose session stays
+    /// open at its limit (an interactive one), so AI Juggler can say so
+    /// while it waits. An adapter that answers declares
+    /// [`crate::Capabilities::LIMIT_HITS`]. Default: nothing.
+    #[must_use]
+    fn limit_hit(&self, tail: &str) -> Option<crate::live::LimitHit> {
+        let _ = tail;
+        None
+    }
+
     /// AJ-E2102 (ADR-0019): the tool's own apps, as data: how each is
     /// recognised in a parent chain, its instances, and its links.
     /// Default: none.

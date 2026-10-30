@@ -6,9 +6,10 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
-import { Field, Input, Modal, Select } from "./form";
+import { Field, Input, Modal } from "./form";
 import { errorText, type AccountInfo, type ProjectInfo } from "../lib/bridge";
 import { budgetRemove, budgetSave, budgetsList, dollars, percentOf, type BudgetInfo } from "../lib/ipc/budgets";
+import { Checkbox, Picker, Radio } from "./controls";
 
 /** What a cap counts, in words: an account's name, or its projects'. */
 export function scopeWords(cap: BudgetInfo, accounts: AccountInfo[], projects: ProjectInfo[]): string {
@@ -161,20 +162,21 @@ export function BudgetSheet({
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1.5 text-meta font-semibold text-ink">Counts</legend>
           <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="cap-kind" checked={kind === "account"} onChange={() => setKind("account")} className="accent-[var(--color-accent)]" />
+            <Radio name="cap-kind" checked={kind === "account"} onChange={() => setKind("account")} />
             One account
           </label>
           {kind === "account" && (
-            <Select aria-label="Account" value={account} onChange={(event) => setAccount(event.target.value)} data-testid="cap-account">
-              {accounts.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
+            <Picker
+              ariaLabel="Account"
+              value={account}
+              onChange={setAccount}
+              testId="cap-account"
+              className="self-start"
+              options={accounts.map((option) => ({ value: option.id, label: option.label }))}
+            />
           )}
           <label className="flex items-center gap-2 text-sm">
-            <input type="radio" name="cap-kind" checked={kind === "projects"} onChange={() => setKind("projects")} className="accent-[var(--color-accent)]" />
+            <Radio name="cap-kind" checked={kind === "projects"} onChange={() => setKind("projects")} />
             A group of projects, on any account
           </label>
           {kind === "projects" && (
@@ -182,13 +184,11 @@ export function BudgetSheet({
               {projects.map((project) => (
                 <li key={project.id}>
                   <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={picked.includes(project.id)}
                       onChange={(event) =>
                         setPicked((now) => (event.target.checked ? [...now, project.id] : now.filter((id) => id !== project.id)))
                       }
-                      className="accent-[var(--color-accent)]"
                     />
                     {project.name}
                   </label>

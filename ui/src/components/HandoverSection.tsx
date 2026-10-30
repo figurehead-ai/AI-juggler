@@ -7,6 +7,7 @@
  * badged destinations; AJ-E706: paired Macs as destinations and, for a
  * session that came from another Mac, the way back (AJ-E708: with any
  * divergence that waits for you). Suggest-only: every move is a click.
+ * 0.3: Save handover… under them, ending with Reveal in Finder.
  */
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { createPortal } from "react-dom";
@@ -15,6 +16,7 @@ import { SwitchTargetRows } from "./SwitchTargetRows";
 import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
 import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
+import { SaveHandover } from "./HandoverView";
 import {
   fleetDivergences,
   fleetSwitchBackPlan,
@@ -58,6 +60,13 @@ export function HandoverSection({
 }): JSX.Element {
   const handoverRef = useRef<HTMLDetailsElement | null>(null);
   const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked");
+  // 0.3: a session open on its page that hits its limit now (it stays
+  // open, its status changes under the page) opens its switch list too.
+  const statusBefore = useRef(session.status);
+  useEffect(() => {
+    if (session.status === "quota_blocked" && statusBefore.current !== "quota_blocked") setSwitchOpen(true);
+    statusBefore.current = session.status;
+  }, [session.status]);
   useHandoverFocus(() => {
     setSwitchOpen(true);
     // jsdom has no scrollIntoView; the guard keeps tests honest.
@@ -192,6 +201,8 @@ export function HandoverSection({
           {handoverTeaser(targets)}
         </p>
       )}
+      {/* 0.3: save its handover, beside the switch actions. */}
+      <SaveHandover sessionId={session.id} />
       {/* Out to the body: the page's column is a size container, which
           would hold a fixed sheet inside it. */}
       {crossTarget &&

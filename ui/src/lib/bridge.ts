@@ -11,6 +11,8 @@ import {
 } from "./ipc/transport";
 import { orderedJoin, orderedLatest } from "./ipc/ordered";
 import type { AppInfo } from "../types/generated/AppInfo";
+import type { HandoverSummaryInfo } from "../types/generated/HandoverSummaryInfo";
+import type { SavedHandoverInfo } from "../types/generated/SavedHandoverInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
@@ -2453,12 +2455,17 @@ export interface EpochNodeData {
 
 /** AJ-E209: one labelled timeline edge. */
 export interface GraphEdgeData {
+  /** The edge's id (what opens its handover). */
+  id?: string;
   from: string;
   to?: string | null;
   /** What carried, in plain words ("Full story, fresh start"; "Switched back · …"). */
   label: string;
   failed_reason?: string | null;
   switch_back: boolean;
+  /** 0.3: its handover in one line, when the switch wrote one (to another
+   * tool); none for one that copied the session. */
+  handover?: HandoverSummaryInfo | null;
 }
 
 /** AJ-E209: one Work item's timeline (epochs past the collapse cut). */
@@ -2522,8 +2529,8 @@ export async function epochResume(epochId: string): Promise<LaunchResult> {
 }
 
 /** AJ-E209 Req.5: exports an epoch's pack through the AJ-E208 GLOBAL
- * redaction policy — returns the pack directory for the toast. */
-export async function packExport(epochId: string): Promise<string> {
+ * redaction policy — returns where it went and what was hidden. */
+export async function packExport(epochId: string): Promise<SavedHandoverInfo> {
   if (!hasBackend) {
     const seams = window as unknown as {
       __AIJ_PACK_EXPORT_CALLS__?: string[];
@@ -2535,9 +2542,10 @@ export async function packExport(epochId: string): Promise<string> {
     if (seams.__AIJ_PACK_EXPORT_FAIL__ !== undefined) {
       return Promise.reject(seams.__AIJ_PACK_EXPORT_FAIL__);
     }
-    return `~/Library/Application Support/AI Juggler/exports/pack-preview-${Date.now()}`;
+    const path = `~/Library/Application Support/AI Juggler/exports/pack-preview-${Date.now()}`;
+    return { path, shown: path, line: null };
   }
-  return invoke<string>("pack_export", { epochId });
+  return invoke<SavedHandoverInfo>("pack_export", { epochId });
 }
 
 /** AJ-E210: one recorded live dogfood cell as the Beta table reads it. */
@@ -3554,10 +3562,20 @@ type PromptSeams = {
 };
 const promptSeams = () => window as unknown as PromptSeams;
 
+/** What a paired machine may do on this Mac (the backend's wire words). */
+export type FleetPermission = "no_access" | "view" | "control";
+
+/** The words each permission shows as (the backend's own labels). */
+const FLEET_PERMISSION_LABELS: Record<FleetPermission, string> = {
+  no_access: "No access",
+  view: "View only",
+  control: "View + control",
+};
+
 /** Changes what a paired machine may do on THIS Mac (only ever here). */
 export async function fleetSetPermission(
   machineId: string,
-  permission: "view" | "control",
+  permission: FleetPermission,
   askEachTime: boolean,
 ): Promise<FleetPeerInfo[]> {
   if (!hasBackend) {
@@ -3568,7 +3586,7 @@ export async function fleetSetPermission(
         ? {
             ...peer,
             permission,
-            permission_label: permission === "control" ? "View + control" : "View only",
+            permission_label: FLEET_PERMISSION_LABELS[permission],
             ask_each_time: permission === "control" && askEachTime,
           }
         : peer,

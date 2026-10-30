@@ -5,6 +5,7 @@
  * Mac awake and why not, with its setting one click away, and a launch
  * setting's own restart choice.
  */
+import { pick } from "../test/pick";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionsSettingsCard } from "./SessionsSettings";
@@ -103,15 +104,13 @@ describe("a launch setting's own restart choice", () => {
 
   it("shows its choice, and saves a new one (As in Settings saves none)", async () => {
     render(<RecipeOptions provider="claude-code" accountId="acc-1" recipe={recipe(true)} />);
-    const select = screen.getByLabelText("If a session crashes") as HTMLSelectElement;
-    expect(select.value).toBe("restart");
-    await act(async () => {
-      fireEvent.change(select, { target: { value: "stay" } });
-    });
+    const picker = screen.getByRole("button", { name: /^If a session crashes/ });
+    expect(picker.getAttribute("data-value")).toBe("restart");
+    pick(picker, "Leave it ended");
+    await act(async () => {});
     expect(restartChoice).toHaveBeenLastCalledWith("p-1", false);
-    await act(async () => {
-      fireEvent.change(select, { target: { value: "settings" } });
-    });
+    pick(picker, "As in Settings");
+    await act(async () => {});
     expect(restartChoice).toHaveBeenLastCalledWith("p-1", null);
   });
 });

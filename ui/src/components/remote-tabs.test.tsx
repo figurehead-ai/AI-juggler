@@ -5,9 +5,11 @@
  * with the reason; Stop shows the node's own verdict; freshness is
  * words + a shape, never colour alone.
  */
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RemoteTabBody, freshnessText } from "./RemoteTabs";
+import { resetToasts, ToastHost } from "./Toast";
+import { STOP_HOLD_SECONDS } from "../lib/stop";
 import type { RemoteMachineInfo } from "../lib/bridge";
 
 const NOW = 1_800_000_000_000;
@@ -46,7 +48,11 @@ const machine = (over: Partial<RemoteMachineInfo> = {}): RemoteMachineInfo => ({
   ...over,
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetToasts();
+  vi.useRealTimers();
+});
 beforeEach(() => {
   delete w().__AIJ_REMOTE_STOP__;
   delete w().__AIJ_REMOTE_FOCUS__;
@@ -104,14 +110,70 @@ describe("RemoteTabBody", () => {
     expect(w().__AIJ_FLEET_CALLS__).toContain("remote-focus:machine-mini:inst-1");
   });
 
-  it("Stop shows the node's own verdict", async () => {
+  it("Stop is held 5 s with Undo, like a local Stop, then shows the node's own verdict", async () => {
+    vi.useFakeTimers();
     w().__AIJ_REMOTE_STOP__ = { accepted: false, reason_code: "unknown_record", message: "No such session on this computer." };
+    render(<ToastHost />);
     const view = body("actions");
-    await act(async () => {
+    act(() => {
       fireEvent.click(view.getByTestId("remote-stop"));
     });
-    expect(view.getByTestId("remote-outcome").textContent).toContain("Mac mini refused: No such session on this computer.");
+    expect(screen.getByTestId("stop-undo-toast").textContent).toContain("Stopping Work Max on Mac mini.");
+    await act(async () => {
+      vi.advanceTimersByTime(STOP_HOLD_SECONDS * 1000 - 1);
+    });
+    expect(w().__AIJ_FLEET_CALLS__).toBeUndefined();
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+    });
     expect(w().__AIJ_FLEET_CALLS__).toContain("remote-stop:machine-mini:inst-1");
+    expect(view.getByTestId("remote-outcome").textContent).toContain("Mac mini refused: No such session on this computer.");
+  });
+
+  it("Undo in time and the remote Stop is never sent", async () => {
+    vi.useFakeTimers();
+    render(<ToastHost />);
+    const view = body("actions");
+    act(() => {
+      fireEvent.click(view.getByTestId("remote-stop"));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("stop-undo"));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(w().__AIJ_FLEET_CALLS__).toBeUndefined();
+  });
+
+  it("the processes tab points to where they are cleaned, and opens it", () => {
+    const m = machine({ processes: [
+        {
+          instance_id: "inst-1",
+          provider: "claude-code",
+          account_label: "Work Max",
+          pid: 4242,
+          role: "dev server",
+          state: "orphaned",
+          state_label: "Left running",
+          verified: true,
+          name: "vite",
+          age_ms: null,
+          rss_bytes: null,
+          cpu_percent: null,
+          ports: "5173",
+          measured_at_ms: NOW - 1_000,
+        },
+      ] });
+    const view = body("processes", m);
+    const link = view.getByTestId("remote-clean-link");
+    expect(link.parentElement!.textContent).toBe("Clean verified processes in Processes › Your other Macs.");
+    const opened = vi.fn();
+    const listener = (event: Event) => opened((event as CustomEvent).detail);
+    window.addEventListener("aij:open-screen", listener);
+    fireEvent.click(link);
+    window.removeEventListener("aij:open-screen", listener);
+    expect(opened).toHaveBeenCalledWith({ id: "cleanup" });
   });
 
   it("the machine overview lists its Instances and resources", () => {

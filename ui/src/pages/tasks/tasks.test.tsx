@@ -20,7 +20,8 @@
  * - 200 tasks render in under 100 ms (timed on the load gate; elsewhere
  *   each row renders once, under a sanity bound); nothing smaller than 12 px.
  */
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { pick } from "../../test/pick";
 import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import PoolTasksSource from "./PoolTasks.tsx?raw";
@@ -61,6 +62,7 @@ const task = (over: Partial<TaskInfo>): TaskInfo => ({
   holder: null,
   holder_session_id: null,
   blocked_by: [],
+  waits_on: [],
   items: 0,
   items_done: 0,
   written_by: "Planner",
@@ -77,7 +79,7 @@ const need = (over: Partial<TaskNeedInfo>): TaskNeedInfo => ({
   pool_name: "Checkout redesign",
   task_id: "aj-7f3c",
   task_title: "Build the orders API",
-  title: "«Planner» wants to give aj-7f3c to Builder",
+  title: "«Planner» wants to give «Build the orders API» to Builder",
   detail: "Checkout redesign · above what the pool lets agents do",
   offer_always: false,
   project_id: "p-shop",
@@ -148,9 +150,11 @@ describe("a pool's tasks", () => {
   it("a blocked task says what it waits on, honestly", async () => {
     const { findAllByTestId, findByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     const blocked = (await findAllByTestId("task-row")).find((r) => r.dataset.status === "blocked")!;
-    expect(blocked.textContent).toContain("Waits on aj-7f3c");
+    // D-25: by its title, never its id.
+    expect(blocked.textContent).toContain("Waits on Build the orders API");
+    expect(blocked.textContent).not.toMatch(/aj-[0-9a-f]{4}/);
     fireEvent.click(blocked);
-    expect((await findByTestId("task-view")).textContent).toContain("Set ready, but it waits on aj-7f3c");
+    expect((await findByTestId("task-view")).textContent).toContain("Set ready, but it waits on Build the orders API");
   });
 
   it("a switch is a line of the task's history, and the new session one of its sessions (AJ-E1904)", async () => {
@@ -193,7 +197,8 @@ describe("a pool's tasks", () => {
     expect(view.querySelectorAll("input, select")).toHaveLength(0);
     const links = getByTestId("task-links");
     expect(within(links).queryByRole("button", { name: /Remove|Add a link/ })).toBeNull();
-    expect(within(links).getByTestId("task-link").textContent).toContain("aj-b10c");
+    expect(within(links).getByTestId("task-link").textContent).toContain("Totals in cents");
+    expect(within(links).getByTestId("task-link").textContent).not.toContain("aj-b10c");
     // A ready task no one holds offers a session and Cancel, nothing more.
     expect(queryByTestId("task-approve")).toBeNull();
     expect(queryByTestId("task-free")).toBeNull();
@@ -246,7 +251,7 @@ describe("a pool's tasks", () => {
     const { findByTestId, getByTestId, queryByTestId, findAllByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     await findByTestId("task-view");
     fireEvent.click(getByTestId("task-cancel-open"));
-    expect(getByTestId("task-cancel").textContent).toContain("Cancel aj-7f3c?");
+    expect(getByTestId("task-cancel").textContent).toContain("Cancel this task?");
     expect(calls()).not.toContain("cancel:aj-7f3c");
     fireEvent.click(getByTestId("task-cancel-go"));
     await waitFor(() => expect(calls()).toContain("cancel:aj-7f3c"));
@@ -262,13 +267,15 @@ describe("a pool's tasks", () => {
     const { findByTestId, getByTestId } = render(<PoolTasks poolId="pool-team" sessions={MOCK_SESSIONS} projects={[project]} now={NOW} />);
     await findByTestId("task-view");
     fireEvent.click(getByTestId("task-start-open"));
-    const picker = (await findByTestId("task-start-profile")) as HTMLSelectElement;
-    await waitFor(() => expect(picker.options.length).toBe(3));
-    expect([...picker.options].map((o) => o.textContent)).toEqual(["Pick launch settings", "Deep work · Work Max", "Weekend build · Personal"]);
+    const picker = await findByTestId("task-start-profile");
+    await waitFor(() => expect(picker.textContent).toContain("Pick launch settings"));
+    fireEvent.click(picker);
+    expect(screen.getAllByRole("menuitemradio").map((o) => o.textContent)).toEqual(["Deep work · Work Max", "Weekend build · Personal"]);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
     // This pool's project has no default account: nothing is picked for you.
-    expect(picker.value).toBe("");
+    expect(picker.getAttribute("data-value")).toBe("");
     expect((getByTestId("task-start-go") as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(picker, { target: { value: "p-1" } });
+    pick(picker, "Deep work · Work Max");
     fireEvent.click(getByTestId("task-start-go"));
     await waitFor(() => expect(calls()).toContain("start:aj-7f3c:p-1:"));
   });
@@ -358,12 +365,12 @@ describe("Needs you", () => {
   });
 
   it("an agent's request for a session: you start it on your pick, or leave it", async () => {
-    const launch = need({ id: "tneed-2", kind: "launch", title: "«Planner» asks for a new session for aj-7f3c «Build the orders API»", detail: "«Use the Work account»" });
+    const launch = need({ id: "tneed-2", kind: "launch", title: "«Planner» asks for a new session for «Build the orders API»", detail: "«Use the Work account»" });
     const { getByTestId, findByTestId } = render(<TaskNeeds needs={[launch]} projects={[project]} />);
     const row = getByTestId("task-need-launch");
     expect(row.textContent).toContain("in shop");
-    const picker = (await findByTestId("task-start-profile")) as HTMLSelectElement;
-    await waitFor(() => expect(picker.value).toBe("p-2"));
+    const picker = await findByTestId("task-start-profile");
+    await waitFor(() => expect(picker.getAttribute("data-value")).toBe("p-2"));
     fireEvent.click(within(row).getByTestId("task-start-go"));
     await waitFor(() => expect(calls()).toContain("start:aj-7f3c:p-2:tneed-2"));
     fireEvent.click(within(row).getByRole("button", { name: /^Not now/ }));
@@ -383,8 +390,8 @@ describe("a session's tasks and the pages", () => {
       {
         title: "Orders API",
         epochs: [
-          { id: "ep-1", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-a", task: "aj-7f3c · Build the orders API" },
-          { id: "ep-2", provider: "codex", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b", task: "aj-7f3c · Build the orders API" },
+          { id: "ep-1", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-a", task: "Build the orders API" },
+          { id: "ep-2", provider: "codex", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b", task: "Build the orders API" },
         ],
         edges: [{ from: "ep-1", to: "ep-2", label: "Full story, fresh start", switch_back: false }],
         collapsed: 0,
@@ -393,7 +400,7 @@ describe("a session's tasks and the pages", () => {
     ];
     const { findAllByTestId } = render(<SwitchGraph projectId="p-shop" onOpenSession={() => undefined} />);
     const tasks = await findAllByTestId("node-task");
-    expect(tasks.map((t) => t.textContent)).toEqual(["aj-7f3c · Build the orders API", "aj-7f3c · Build the orders API"]);
+    expect(tasks.map((t) => t.textContent)).toEqual(["Build the orders API", "Build the orders API"]);
     delete (window as unknown as { __AIJ_SWITCH_GRAPH__?: unknown }).__AIJ_SWITCH_GRAPH__;
   });
 

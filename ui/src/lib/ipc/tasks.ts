@@ -25,7 +25,7 @@ import type { TaskNeedInfo } from "../../types/generated/TaskNeedInfo";
 import type { TaskStartedInfo } from "../../types/generated/TaskStartedInfo";
 
 /** AJ-E1904: what a switch-history epoch adds for tasks: its session's
- * task (`aj-7f3c · title`), from the backend's `task` field. */
+ * task (its title, never its id: D-25), from the backend's `task` field. */
 export type EpochTask = { task?: string | null };
 
 export type { TaskInfo, TaskCounts, TaskDetail, TaskActions, TaskNeedInfo, TaskStartedInfo };
@@ -67,14 +67,20 @@ const preview = (): Required<TasksSeed> => {
   }
   return store;
 };
+/** A preview row as the backend answers it: what it waits on, by title
+ * (none for a task that is gone). */
+const answered = (task: TaskInfo): TaskInfo => ({
+  ...task,
+  waits_on: task.blocked_by.map((id) => ({ id, title: preview().tasks.find((t) => t.id === id)?.title ?? null })),
+});
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((fn) => fn());
 
-/** The preview's card line for a session's task (`aj-7f3c · title (in
+/** The preview's card line for a session's task (`title (in
  * progress)`), or `None`, as the backend's card says it. */
 export function previewHeldBy(sessionId: string): string {
   const task = preview().tasks.find((t) => t.holder_session_id === sessionId && ["in_progress", "in_review", "blocked"].includes(t.status));
-  return task ? `${task.id} · ${task.title} (${task.status.replace("_", " ")})` : "None";
+  return task ? `${task.title} (${task.status.replace("_", " ")})` : "None";
 }
 
 /** Tests: forget the preview's tasks between cases. */
@@ -91,12 +97,12 @@ function previewDetail(taskId: string): TaskDetail {
   if (!task) throw refused("That task isn't there any more");
   const extra = data.details[taskId] ?? {};
   return {
-    task: { ...task },
+    task: answered(task),
     pool_name: extra.pool_name ?? "",
     body: extra.body ?? "",
     acceptance: extra.acceptance ?? "",
     parent_title: data.tasks.find((t) => t.id === task.parent_id)?.title ?? null,
-    children: data.tasks.filter((t) => t.parent_id === taskId).sort(order),
+    children: data.tasks.filter((t) => t.parent_id === taskId).sort(order).map(answered),
     links: extra.links ?? [],
     sessions: extra.sessions ?? [],
     threads: extra.threads ?? [],
@@ -113,9 +119,13 @@ function previewDetail(taskId: string): TaskDetail {
 function previewPage(rows: TaskInfo[], page: PageRequest): Page<TaskInfo> {
   const from = page.cursor ? Number(page.cursor.slice(1)) : 0;
   const limit = Math.min(Math.max(page.limit ?? 50, 1), 200);
-  const items = rows.slice(from, from + limit).map((t) => ({ ...t }));
+  const items = rows.slice(from, from + limit).map(answered);
   return { items, next_cursor: rows.length > from + limit ? `p${from + limit}` : null, total: rows.length };
 }
+
+/** The preview's tasks, their order and its pages, for the reads across
+ * pools (tasks-across.ts). */
+export const previewTasks = { rows: (): TaskInfo[] => preview().tasks, order, page: previewPage, answered };
 
 /** How many of a pool's tasks (the work) are in each status. */
 export async function tasksCounts(poolId: string): Promise<TaskCounts> {
@@ -295,7 +305,7 @@ export async function tasksStart(taskId: string, profileId: string, needId: stri
     if (!task) throw refused("That task isn't there any more");
     Object.assign(task, { status: "in_progress", holder: "New session", holder_session_id: "sess-preview-new" });
     changed();
-    return { session_id: "sess-preview-new", task: { ...task } };
+    return { session_id: "sess-preview-new", task: answered(task) };
   }
   return invoke<TaskStartedInfo>("tasks_start", { taskId, profileId, needId });
 }
@@ -349,7 +359,11 @@ let focused: string | null = null;
  * session's page). */
 export function focusTask(taskId: string | null): void {
   focused = taskId;
+  // A pool page already open (its canvas) opens its Tasks on it now.
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(FOCUS_TASK));
 }
+/** The event a pool page already open listens for. */
+export const FOCUS_TASK = "aij:focus-task";
 /** …taken once. */
 export function takeFocusedTask(): string | null {
   const task = focused;

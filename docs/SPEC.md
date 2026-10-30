@@ -15,7 +15,7 @@ AI Juggler is a native desktop application that **supervises** AI coding harness
 
 | Requirement | Target |
 |---|---|
-| Platform (v0.x) | macOS 14+ (Universal: Apple Silicon + Intel), the only platform shipped today. Windows and Linux each get **a dedicated first release** (D-52, E26 and E27: the VM and lab, that OS's own capabilities behind the OS seams, its tests, its first Beta), **then ship in every release**: one version stream (D-20), the same channels, every release carrying every shipped OS, and every feature built and tested on every shipped OS (or marked unsupported there, with the reason) as part of its Definition of Done. When each bring-up starts is the maintainer's call (the standing plan, decision 7, is after macOS 1.0). The Rust core and adapters stay cross-platform: OS-specific code lives behind the OS seams (`juggler-platform`, the per-OS shims, the adapters), the platform guard lint keeps new macOS-only code out of shared code, and CI compiles every target on Linux and Windows on each change (a guard, not a release) |
+| Platform (v0.x) | macOS 14+ (Universal: Apple Silicon + Intel), the only platform shipped today. Windows and Linux each get **a dedicated first release** (D-52, E26 and E27: the VM and lab, that OS's own capabilities behind the OS seams, its tests, its first Beta), **then ship in every release**: one version stream (D-20), the same channels, every release carrying every shipped OS, and every feature built and tested on every shipped OS (or marked unsupported there, with the reason) as part of its Definition of Done. Windows' first release comes before 1.0 (D-53: 1.0 only after a successful Windows release); when Linux's starts is the maintainer's call. The Rust core and adapters stay cross-platform: OS-specific code lives behind the OS seams (`juggler-platform`, the per-OS shims, the adapters), the platform guard lint keeps new macOS-only code out of shared code, and CI compiles every target on Linux and Windows on each change (a guard, not a release) |
 | Startup | < 1.5s cold start; session board interactive < 500ms after launch |
 | Footprint | < 150 MB RSS typical; UI at 60 fps with 20 live sessions |
 | Reliability | App crash never kills supervised sessions (children survive; state journaled); recovery on relaunch |
@@ -602,8 +602,11 @@ rule ("older than N s, dimmed, show age") are E4 scope.
 A dedicated surface: Leftover Inventory (ledger-verified orphans with
 command line, cwd, held ports, age), the verify-before-kill sheet
 (§5.2), per-Account tier controls (`Notify only` default /
-`Clean safe (this Account)` opt-in), and the audit log of every kill
-ever performed.
+`Clean safe (this Account)` opt-in), and the audit log of every stop:
+append-only, written before any signal, kept 7 days like the spawn
+ledger, and exportable from Cleanup history (amended 2026-10-29: the
+original "every kill ever performed" was never built, and the 0.3 review
+found 7 days plus export enough; the stop report links to the history).
 
 ### 9.5 Positioning (D-09)
 
@@ -689,10 +692,23 @@ One data folder per edition (D-23): `AI Juggler`, `AI Juggler Nightly` or
 ├── packs/                  # context packs + lineage metadata
 ├── fleet/                  # node identity keypair + paired-peer registry
 ├── logs/                   # rotated app logs (redaction-aware)
-└── cache/                  # parser fixtures cache, rollups
+├── subagents/              # local cache: subagent lists (ADR-0023)
+├── icons/                  # local cache: app icons (ADR-0023)
+└── outside-search.sqlite   # local cache: the opt-in search index (ADR-0023)
 ```
 
 AI Juggler writes nothing of its own inside `~/.claude`, `~/.codex`, `~/.zcode` or any other setup the user brings in (ADR-0018). Bringing one in either **uses it where it is** (the default: an in-place account whose folder is the user's own; per-launch settings go in as `--model` / `--settings` flags and AI Juggler's capture lives under `overlays/`) or makes **a separate copy** under `accounts/` (ADR-0006). Claude Code itself still writes to a folder it runs on, as it always does.
+
+### 12.0 Local cache (ADR-0023, D-58)
+
+What AI Juggler keeps to be quick is one system, `features/cache`:
+
+- **Local only, rebuildable.** Never sent; every entry is rebuilt from its source, so none is a record. Owner-only files, written whole; words redacted first (D-14).
+- **A registry** of caches behind `LocalCache` (name, place, size, trim an entry at a time or only whole, clear). Today: subagent lists (200 sessions, shaped by Last messages), app icons, and the search index (whole only, its own switch).
+- **Invalidation by stamp.** Each entry names its cache, format, a print of the settings that shaped it and its source's identity; any difference, or a corrupt file, drops it. A setting change drops what it shaped at once (Last messages off: the cached subagent prompts and results go).
+- **Budget from the machine.** 2 % of free disk between 64 MB and 2 GB, or a fixed 250 MB, 1 GB or 4 GB. Under 5 GB free (or 5 % of a small disk) it trims to 64 MB and writes nothing new. Memory caches scale with the Mac's memory (8 GB and less: half).
+- **Cheap monitoring.** A pass a minute; folders walked every 30 minutes or soon after writes; bounded work per pass; least recently used first across caches; the whole-only search index only on low disk.
+- **The user's.** Settings › Advanced › Local cache: the switch (off removes the files), the limit, Clear cache… and each cache's size.
 
 ### 12.1 Onboarding workflow (smart onboarding, ADR-0006; cross-Provider per pass2/03)
 
@@ -752,7 +768,7 @@ Task-level breakdown, live tracking, and the per-milestone validation-gate proce
 | **M5** | Hardening, signed + notarized self-update, Provider update tracking, onboarding polish; fleet transport spike (tonic/rustls prototype) → **v0.1 public beta** | Fresh-machine install → 2 parallel accounts < 5 min; updater works end-to-end on a signed build |
 | **M6** | Fleet link: pairing wizard, mDNS discovery, telemetry sync, remote board (read-only) → **v0.2** | Second machine joins in < 60 s with a code; one board across two machines |
 | **M7** | Fleet control: launch/stop/handover from a console, aggregated usage, fleet alerts; the Windows and Linux compile guards in CI → **v0.3** | Full manage workflow across 3 machines; cross-machine handover demo |
-| **1.0** | Stabilization from beta feedback (protocol, adapters, UX) | Stable update channel opens |
+| **1.0** | Stabilization from beta feedback (protocol, adapters, UX), only after Windows' first release has succeeded (D-53) | Stable update channel opens for macOS and Windows |
 | **Windows** | A dedicated first release (D-52, E26): the OS seams on Windows, a VM and read-only lab, a signed installer and updates; then Windows is in every release, same version and channels | The first release's Beta gate (AJ-E2615); then every nightly, beta and stable carries Windows (AJ-E2616) |
 | **Linux** | A dedicated first release (D-52, E27): the missing desktop seams, VMs and a read-only lab on GNOME and KDE, packages and updates; then Linux is in every release, same version and channels | The first release's Beta gate (AJ-E2714); then every nightly, beta and stable carries Linux (AJ-E2715) |
 
@@ -766,7 +782,7 @@ Task-level breakdown, live tracking, and the per-milestone validation-gate proce
 4. **Naming: binary `ai-juggler`, crates `juggler-*`.** ✅
 5. **MVP order: Claude Code first (M1); Codex + ZCode in M2.** ✅
 6. **Codex control plane: PTY-first (M2); app-server explored at M4.** ✅
-7. **Platform: macOS-first (Universal, v0.x); Windows/Linux post-1.0; cross-platform core from day one.** ✅ *(Refined by D-52, 2026-10-29: Windows and Linux each get a dedicated first release, E26 and E27, then ship in every release on the same version stream and channels as macOS; their packaging, signing and scope are open decisions, AJ-E2601 and AJ-E2701.)*
+7. **Platform: macOS-first (Universal, v0.x); Windows/Linux post-1.0; cross-platform core from day one.** ✅ *(Refined by D-52, 2026-10-29: Windows and Linux each get a dedicated first release, E26 and E27, then ship in every release on the same version stream and channels as macOS; their packaging, signing and scope are open decisions, AJ-E2601 and AJ-E2701. Refined again by D-53: 1.0 comes only after a successful Windows release.)*
 8. **Fleet: gRPC over mTLS + mDNS pairing; one binary, console/node roles; LAN/user-VPN only — no cloud relay.** ✅ (M5 transport spike de-risks tonic/rustls before M6.)
 9. **Release: strict semver; `0.x.0-beta.N` on the beta channel for feedback; stable channel opens at 1.0; macOS signing/notarization via Vuxtra's Apple Developer account.** ✅ *(Versioning and channels superseded by D-20: nightly → beta → stable on one version stream, see `docs/RELEASING.md`.)*
 

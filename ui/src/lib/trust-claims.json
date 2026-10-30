@@ -83,7 +83,7 @@
         },
         {
           "id": "app-icons",
-          "text": "To show apps' icons, AI Juggler reads the icon from each app installed on your Mac; nothing is sent or copied elsewhere. It reads only inside the app itself, and keeps a small copy in its own folder until the app changes.",
+          "text": "To show apps' icons, AI Juggler reads the icon from each app installed on your Mac; nothing is sent or copied elsewhere. It reads only inside the app itself, and keeps a small copy in its cache on your Mac until the app changes.",
           "tests": [
             "crates/juggler-app/src/features/app_icons/tests.rs::only_an_app_folder_that_is_not_a_link_is_read",
             "crates/juggler-app/src/features/app_icons/tests.rs::a_bundle_whose_icon_or_plist_links_out_of_it_is_refused",
@@ -116,6 +116,18 @@
             "crates/juggler-app/src/features/conversations/last_messages.rs::a_private_key_block_is_taken_out_whole",
             "crates/juggler-app/src/features/conversations/last_messages.rs::nothing_is_kept_written_or_logged",
             "crates/juggler-app/src/features/conversations/last_messages.rs::off_in_settings_no_transcript_is_looked_up_or_read"
+          ]
+        },
+        {
+          "id": "subagent-index",
+          "text": "So a session with hundreds of subagents opens at once, AI Juggler keeps a small index of each one's subagents in its cache on your Mac, never sent: what each was asked and its answer's first lines (only while last messages are on; turning them off removes them at once), its tokens, tool counts, files and commands, with keys and passwords redacted first. Only the newest 200 sessions' are kept.",
+          "tests": [
+            "crates/juggler-app/src/features/subagents/index.rs::a_saved_index_loads_only_with_the_same_messages_setting_and_the_oldest_go",
+            "crates/juggler-adapters/src/claude_subagents/tests.rs::a_checkpoint_resumes_where_it_left_off_with_its_words_filtered",
+            "crates/juggler-app/src/features/subagents/tests.rs::a_saved_index_opens_the_tab_without_reading_the_transcripts_again",
+            "crates/juggler-app/src/features/subagents/tests.rs::a_subagents_page_says_what_it_was_given_did_and_used",
+            "crates/juggler-app/src/features/subagents/tests.rs::turning_last_messages_off_keeps_no_prompt_in_the_index_and_cache_off_saves_nothing",
+            "crates/juggler-app/tests/local_cache.rs::turning_last_messages_off_drops_the_cached_words_at_once"
           ]
         },
         {
@@ -154,6 +166,18 @@
           "tests": [
             "crates/juggler-app/tests/outside_search.rs::turning_it_off_leaves_no_index_behind",
             "crates/juggler-core/src/storage/transcript_index.rs::a_search_index_file_is_the_same_index_and_removes_whole"
+          ]
+        },
+        {
+          "id": "local-cache",
+          "text": "What AI Juggler keeps to be quick (subagent lists, app icons and the search index) is a cache on your Mac that is never sent, readable by you only, and rebuilt from your tools' files when needed. It sizes itself from your free disk, shrinks to 64 MB and adds nothing when the disk is nearly full, and Settings › Advanced › Local cache clears it or turns it off.",
+          "tests": [
+            "crates/juggler-app/src/features/cache/tests.rs::entries_are_owner_only_and_written_whole",
+            "crates/juggler-app/src/features/cache/tests.rs::an_entry_is_dropped_when_its_source_format_or_settings_change",
+            "crates/juggler-app/src/features/cache/tests.rs::a_nearly_full_disk_trims_to_the_floor_and_stops_writes_until_there_is_room",
+            "crates/juggler-app/src/features/cache/tests.rs::turning_it_off_stops_writes_and_reads_and_removes_its_files",
+            "crates/juggler-app/src/features/cache/tests.rs::clear_removes_every_caches_files_and_they_are_rebuilt_as_used",
+            "crates/juggler-app/tests/local_cache.rs::the_switch_removes_the_files_and_is_kept_with_the_limit_across_a_restart"
           ]
         },
         {

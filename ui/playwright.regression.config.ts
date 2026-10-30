@@ -18,6 +18,9 @@ const GALLERY_SPECS = [
   // service accounts, and the Usage dashboard.
   "agent-tools-gallery", "messages-gallery", "more-tools-gallery", "pools-gallery",
   "service-accounts-gallery", "tasks-gallery", "usage-gallery",
+  // 0.3's (E28): the shared controls, the header and its screens, the
+  // pool canvas, what the other tool was told, and the Subagents tab.
+  "controls-gallery", "handover-told-gallery", "nav-gallery", "pool-canvas-gallery", "subagents-gallery",
 ];
 
 // AJ-E803: the visual regression gate. Baselines are rendered in the

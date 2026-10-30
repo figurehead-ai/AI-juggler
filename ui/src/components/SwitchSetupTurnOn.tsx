@@ -11,6 +11,7 @@ import { useId, useState, type JSX } from "react";
 import { SWITCHING_GUIDE_URL, switchSetupOpen, type GetItInfo } from "../lib/ipc/switchSetup";
 import { errorText } from "../lib/bridge";
 import { trustOpen } from "../lib/ipc/trust";
+import { Disclosure } from "./controls";
 
 const BUTTON =
   "rounded border border-hairline px-2 py-0.5 text-meta text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
@@ -117,8 +118,7 @@ export function TurnOnSteps({
  * guide's section. */
 export function Meaning({ text, example, guide }: { text: string; example: string; guide?: string }): JSX.Element {
   return (
-    <details className="text-meta" data-testid="setup-meaning">
-      <summary className="cursor-pointer text-muted hover:text-ink">What does this mean?</summary>
+    <Disclosure className="text-meta" testId="setup-meaning" summary="What does this mean?">
       <div className="mt-1 flex flex-col gap-1 text-ink">
         <p>{text}</p>
         <p>For example: {example}</p>
@@ -134,6 +134,6 @@ export function Meaning({ text, example, guide }: { text: string; example: strin
           </button>
         </p>
       </div>
-    </details>
+    </Disclosure>
   );
 }

@@ -24,7 +24,8 @@ import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
 import { lazyNamed } from "../lib/lazy";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
-import { GoToButton, SessionChips, SessionMark } from "../pages/session/SessionHead";
+import { GoToButton, SessionChips, SessionMark, SessionWhere } from "../pages/session/SessionHead";
+import { SessionToolChip } from "../pages/session/HeaderDoors";
 import { fromConversation, type SessionModel } from "../pages/session/model";
 import { useHasSubagents } from "../pages/session/useSubagents";
 
@@ -158,6 +159,14 @@ function ConversationView({
             name={title}
             crumbs={crumbs}
             chips={<SessionChips model={model} account={account} now={now} />}
+            // Its tool (a door to its details) and where it runs, as a
+            // session AI Juggler runs says them.
+            facts={
+              <>
+                <SessionToolChip tool={model.tool} />
+                <SessionWhere model={model} now={now} />
+              </>
+            }
             actions={
               <>
                 {conversation.live ? (
@@ -183,7 +192,7 @@ function ConversationView({
           ) : tab === "processes" ? (
             <ProcessesView sessionId={conversation.id} height="calc(100vh - 22rem)" testId="conversation-processes" />
           ) : tab === "subagents" ? (
-            <SubagentsTab model={model} visible={visible} now={now} />
+            <SubagentsTab model={model} title={title} visible={visible} now={now} />
           ) : (
             <SessionOverview
               model={model}

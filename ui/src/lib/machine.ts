@@ -19,107 +19,13 @@ import type { ToolTreeInfo } from "../types/generated/ToolTreeInfo";
 import type { ToolTotalsInfo } from "../types/generated/ToolTotalsInfo";
 
 export type { MachineHealthInfo, MachinePointInfo, RoomReasonInfo };
+export { mockMachineHealth, type MachineFixture } from "../preview/machine";
 
-/** `others`: the 0.1.4 review's Mac, other apps holding most of the memory. */
-export type MachineFixture = "plenty" | "tight" | "pressure" | "others" | "unsampled";
 
 interface MachineSeams {
   __AIJ_MACHINE__?: MachineFixture | MachineHealthInfo;
 }
 const machineSeams = () => window as unknown as MachineSeams;
-
-// Memory, as macOS counts it (`lib/compact`'s memorySize): a 32 GB Mac
-// has 32 × 1024³ bytes.
-const GB = 1024 ** 3;
-
-/** A deterministic 5-minute series (150 points, 2 s apart). */
-function series(now: number, cpu: (i: number) => number, used: (i: number) => number): MachinePointInfo[] {
-  return Array.from({ length: 150 }, (_, i) => ({
-    at_ms: now - (149 - i) * 2_000,
-    cpu_pct: i === 0 ? null : cpu(i),
-    memory_used: used(i),
-  }));
-}
-
-/** The mock payload for one fixture state. */
-export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): MachineHealthInfo {
-  const base: MachineHealthInfo = {
-    sampled: true,
-    cores: 10,
-    cpu_pct: 18,
-    memory_total: 32 * GB,
-    // macOS's app + wired + compressed (close to Activity Monitor's
-    // "Memory Used"): high on a working Mac. Free is on the same basis, so
-    // used + free = total.
-    memory_used: 22 * GB,
-    memory_compressed: 2.4 * GB,
-    memory_basis: "app_wired_compressed",
-    memory_available: 10 * GB,
-    pressure: "normal",
-    swap_total: 4 * GB,
-    swap_used: 1.2 * GB,
-    swap_growth_mb_per_min: 0,
-    volumes: [{ name: "Macintosh HD", total_bytes: 994 * GB, available_bytes: 212 * GB }],
-    power: { on_battery: false, minutes_left: null, battery_low: false, low_power_mode: false },
-    thermal: "nominal",
-    summary: { level: "plenty", words: "Plenty of room", reasons: [] },
-    series: series(now, (i) => 14 + ((i * 7) % 9), (i) => 22 * GB + ((i * 13) % 5) * 40_000_000),
-  };
-  switch (fixture) {
-    case "unsampled":
-      return { ...base, sampled: false, cpu_pct: null, series: [], summary: { level: "plenty", words: "Plenty of room", reasons: [] } };
-    case "plenty":
-      return base;
-    case "others":
-      return othersFillIt(base);
-    case "tight":
-      return {
-        ...base,
-        cpu_pct: 64,
-        memory_used: 29.4 * GB,
-        memory_compressed: 5.1 * GB,
-        memory_available: 2.6 * GB,
-        pressure: "warning",
-        swap_used: 3.1 * GB,
-        swap_growth_mb_per_min: 140,
-        summary: {
-          level: "tight",
-          words: "Getting tight",
-          reasons: [
-            { kind: "pressure", level: "tight", words: "macOS reports memory pressure" },
-            { kind: "swap", level: "tight", words: "swap is growing — 140 MB a minute" },
-          ],
-        },
-        series: series(now, (i) => 55 + ((i * 7) % 15), (i) => 27 * GB + i * 16_000_000),
-      };
-    case "pressure":
-      return {
-        ...base,
-        cpu_pct: 96,
-        memory_used: 31.2 * GB,
-        memory_compressed: 8.6 * GB,
-        memory_available: 0.8 * GB,
-        pressure: "critical",
-        swap_used: 3.9 * GB,
-        swap_growth_mb_per_min: 620,
-        thermal: "serious",
-        volumes: [{ name: "Macintosh HD", total_bytes: 994 * GB, available_bytes: 14 * GB }],
-        summary: {
-          level: "pressure",
-          words: "Under pressure",
-          reasons: [
-            { kind: "pressure", level: "pressure", words: "macOS reports critical memory pressure" },
-            { kind: "swap", level: "pressure", words: "swap is growing — 620 MB a minute" },
-            { kind: "memory", level: "pressure", words: "only 800 MB of memory free" },
-            { kind: "cpu", level: "tight", words: "the processor has been 96% busy for over 60 s" },
-            { kind: "thermal", level: "tight", words: "the Mac is warm and slowing down to cool off" },
-            { kind: "disk", level: "tight", words: "Macintosh HD has only 14 GB free" },
-          ],
-        },
-        series: series(now, (i) => 91 + ((i * 3) % 8), (i) => 30 * GB + i * 8_000_000),
-      };
-  }
-}
 
 /** Walking states by hand in the preview: `?aij_machine=tight`,
  * `?aij_load=heavy` (the first live session heavy, two leftovers). */
@@ -148,12 +54,6 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   return [];
 }
 
-const FIXTURES: readonly MachineFixture[] = ["plenty", "tight", "pressure", "others", "unsampled"];
-
-/** A preview URL's fixture name, only when it is one we know. */
-function asFixture(value: string | undefined): MachineFixture | undefined {
-  return FIXTURES.find((fixture) => fixture === value);
-}
 
 /** How the Mac is doing now. */
 export async function machineHealth(): Promise<MachineHealthInfo> {
@@ -197,7 +97,7 @@ const thisMacSeams = () => window as unknown as ThisMacSeams;
 
 // The preview's This Mac (no backend) lives with the other preview data.
 import { mockThisMac, previewWindows, withHeavyLoad } from "../preview/this-mac";
-import { othersFillIt, othersPreview } from "../preview/machine";
+import { asFixture, mockMachineHealth, othersPreview, type MachineFixture } from "../preview/machine";
 import type { OtherAppInfo } from "../types/generated/OtherAppInfo";
 import { memorySize } from "./compact";
 export { mockHeavyNote, mockThisMac } from "../preview/this-mac";

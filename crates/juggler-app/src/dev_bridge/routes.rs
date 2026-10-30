@@ -280,6 +280,7 @@ read_routes! {
     "usage_history_session" => async_result features::usage_history::commands::usage_history_session(state; profile: String, conversation: String);
     "outside_search_status" => async_result features::outside_search::commands::outside_search_status(state);
     "outside_search_estimate" => async_result features::outside_search::commands::outside_search_estimate(state);
+    "cache_status" => async_result features::cache::commands::cache_status(state);
     "switch_setup_list" => async_result features::switch_setup::switch_setup_list(state);
     "switch_back_plan" => async_result commands::switch_back_plan(state; session_id: String, to_epoch: Option<String>);
     "switch_graph_overview" => async_result commands::switch_graph_overview(state; project_id: String);
@@ -292,6 +293,9 @@ read_routes! {
     "pools_list" => async_result features::pools::commands::pools_list(state);
     "pools_members" => async_result features::pools::commands::pools_members(state; pool_id: String, page: crate::paging::PageRequest);
     "pools_place" => async_result features::pools::commands::pools_place(state; session_id: String);
+    // 0.3: a pool's canvas and the Pools screen's cards (reads only).
+    "pools_canvas" => async_result features::pools::commands::pools_canvas(state; pool_id: String, session_ids: Vec<String>);
+    "pools_canvas_previews" => async_result features::pools::commands::pools_canvas_previews(state; pool_ids: Vec<String>);
     // E18: messages' lists (reads only; opening a thread marks it read).
     "messages_threads" => async_result features::messages::commands::messages_threads(state; pool_id: Option<String>, session_id: Option<String>, cursor: Option<String>);
     "messages_needs" => async_result features::messages::commands::messages_needs(state);
@@ -314,6 +318,9 @@ read_routes! {
     // E19: tasks' lists (reads only).
     "tasks_list" => async_result features::tasks::commands::tasks_list(state; pool_id: String, filter: Option<String>, words: Option<String>, page: crate::paging::PageRequest);
     "tasks_counts" => async_result features::tasks::commands::tasks_counts(state; pool_id: String);
+    "tasks_across" => async_result features::tasks::commands::tasks_across(state; filter: features::tasks::dto::TasksFilterInput, page: crate::paging::PageRequest);
+    "tasks_across_counts" => async_result features::tasks::commands::tasks_across_counts(state; filter: features::tasks::dto::TasksFilterInput);
+    "tasks_project_counts" => async_result features::tasks::commands::tasks_project_counts(state; project_ids: Vec<String>, page: crate::paging::PageRequest);
     "tasks_plan" => async_result features::tasks::commands::tasks_plan(state; pool_id: String, page: crate::paging::PageRequest);
     "tasks_children" => async_result features::tasks::commands::tasks_children(state; pool_id: String, parent: String, page: crate::paging::PageRequest);
     "tasks_session" => async_result features::tasks::commands::tasks_session(state; session_id: String, page: crate::paging::PageRequest);

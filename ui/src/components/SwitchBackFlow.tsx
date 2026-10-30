@@ -21,6 +21,7 @@ import {
   type SwitchBackPlanData,
   errorText,
 } from "../lib/bridge";
+import { Radio } from "./controls";
 
 type Phase =
   | { kind: "plan" }
@@ -160,8 +161,8 @@ export function SwitchBackFlow({
                 <legend className="text-section font-semibold text-ink">Go back to</legend>
                 {plan.returns.map((option) => (
                   <label key={option.epoch_id} className="flex items-center gap-2 text-xs">
-                    <input
-                      type="radio"
+                    <Radio
+                     
                       name="return-to"
                       checked={plan.return_to === option.epoch_id}
                       onChange={() => {
@@ -204,8 +205,8 @@ export function SwitchBackFlow({
                     <legend className="text-label font-medium">{conflict.rel_path}</legend>
                     {CHOICES.map((option) => (
                       <label key={option.value} className="flex items-center gap-2 text-xs">
-                        <input
-                          type="radio"
+                        <Radio
+                         
                           name={`conflict-${conflict.rel_path}`}
                           checked={choices[conflict.rel_path] === option.value}
                           onChange={() =>
@@ -229,8 +230,8 @@ export function SwitchBackFlow({
                   The away session is still running
                 </legend>
                 <label className="flex items-center gap-2 text-xs">
-                  <input
-                    type="radio"
+                  <Radio
+                   
                     name="away"
                     checked={!keepAwayRunning}
                     onChange={() => setKeepAwayRunning(false)}
@@ -238,8 +239,8 @@ export function SwitchBackFlow({
                   Stop it, then return <span className="text-muted">(default)</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs">
-                  <input
-                    type="radio"
+                  <Radio
+                   
                     name="away"
                     checked={keepAwayRunning}
                     onChange={() => setKeepAwayRunning(true)}
@@ -269,7 +270,7 @@ export function SwitchBackFlow({
                 onClick={onClose}
                 className="rounded-lg border border-hairline px-3 py-1.5 text-xs hover:bg-surface-2"
               >
-                Cancel <span className="text-muted">(Esc)</span>
+                Cancel
               </button>
               <button
                 type="button"

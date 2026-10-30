@@ -303,14 +303,16 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
 });
 
 describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
-  it("the header says where it is and its branch; Overview, its sessions ever and accounts", async () => {
+  it("the header says where it is and its branch; Overview, its open sessions, tasks and accounts", async () => {
     const { container, getByTestId } = shell("project", "proj-1");
     expect(getByTestId("project-root").getAttribute("title")).toBe("/w/ai-juggler");
     expect(getByTestId("page-facts").textContent).toContain("main");
     open(container, "overview");
     const summary = getByTestId("project-summary");
     expect(summary.textContent).toContain("Work Max");
-    await waitFor(() => expect(getByTestId("project-sessions-ever").textContent).toMatch(/^\d+ with usage in all$/));
+    // 0.3: the KPI row: open sessions, tasks, tokens, accounts used.
+    expect(getByTestId("tile-accounts").textContent).toContain("Work Max");
+    await waitFor(() => expect(getByTestId("tile-tasks-note").textContent).toBe("No open tasks"));
   });
 
   it("a missing directory renders the danger banner with Relocate… (AJ-E1502)", () => {

@@ -346,9 +346,15 @@ fn extract_text(content: Option<&serde_json::Value>) -> String {
 pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_json::Value) {
     use crate::subtasks::SubtaskState;
     if let Some(text) = notification_text(value) {
-        for (agent, state) in notifications(text) {
-            log.ended(&agent, state);
+        for told in notifications(text) {
+            log.ended(&told.agent, told.state);
+            log.told(told.call.as_deref(), Some(&told.agent), told.ending);
         }
+        return;
+    }
+    // AJ-E1520 (0.3): the user's message a turn begins with.
+    if let Some((text, key)) = user_prompt(value) {
+        log.asked(&text, &key);
         return;
     }
     let content = value.get("message").and_then(|m| m.get("content"));
@@ -371,7 +377,12 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                 let task = string_field(input, "description")
                     .or_else(|| string_field(input, "prompt"))
                     .unwrap_or_default();
-                log.started(&id, &task, string_field(input, "subagent_type").as_deref());
+                log.started_with(
+                    &id,
+                    &task,
+                    string_field(input, "subagent_type").as_deref(),
+                    input.get("prompt").and_then(serde_json::Value::as_str),
+                );
             }
         }
         Some("user") => {
@@ -406,6 +417,9 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
                 } else {
                     SubtaskState::Done
                 };
+                if log.is_start(&id) {
+                    log.told(Some(&id), None, answer(result, outcome, failed, background));
+                }
                 log.answered(&id, state);
             }
         }
@@ -413,14 +427,128 @@ pub(crate) fn subtask_line(log: &mut crate::subtasks::SubtaskLog, value: &serde_
     }
 }
 
+/// AJ-E1520 (0.3): what an Agent call's answer says: its text (a
+/// subagent in the foreground answers with its result; one in the
+/// background with only its launch, so no result), why it failed, and
+/// what Claude Code reported (`toolUseResult`: the model, its tokens,
+/// tool calls by kind, lines changed, how long it ran).
+fn answer(
+    result: &serde_json::Value,
+    outcome: Option<&serde_json::Value>,
+    failed: bool,
+    background: bool,
+) -> crate::subtasks::Ending {
+    use juggler_adapter::subagents::{LinesChanged, ToolCounts};
+    let text = extract_text(result.get("content"));
+    let number = |key: &str| {
+        outcome
+            .and_then(|o| o.get(key))
+            .and_then(serde_json::Value::as_u64)
+    };
+    let tools = outcome.and_then(|o| o.get("toolStats")).map(|stats| {
+        let count = |key: &str| {
+            stats
+                .get(key)
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|n| u32::try_from(n).ok())
+                .unwrap_or(0)
+        };
+        let reads = count("readCount");
+        let searches = count("searchCount");
+        let commands = count("bashCount");
+        let edits = count("editFileCount");
+        let other = count("otherToolCount");
+        let lines = LinesChanged {
+            added: stats
+                .get("linesAdded")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0),
+            removed: stats
+                .get("linesRemoved")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0),
+        };
+        (
+            ToolCounts {
+                total: number("totalToolUseCount")
+                    .and_then(|n| u32::try_from(n).ok())
+                    .unwrap_or(reads + searches + commands + edits + other),
+                reads,
+                searches,
+                commands,
+                edits,
+                other,
+            },
+            lines,
+        )
+    });
+    crate::subtasks::Ending {
+        result: (!failed && !background && !text.trim().is_empty()).then(|| text.clone()),
+        failure: failed.then_some(text),
+        reported: crate::subtasks::Reported {
+            model: outcome.and_then(|o| string_field(o, "resolvedModel")),
+            tokens: number("totalTokens"),
+            tool_uses: number("totalToolUseCount").and_then(|n| u32::try_from(n).ok()),
+            duration_ms: number("totalDurationMs").and_then(|n| i64::try_from(n).ok()),
+            tools: tools.map(|(tools, _)| tools),
+            lines: tools.map(|(_, lines)| lines),
+        },
+    }
+}
+
+/// AJ-E1520 (0.3): the user's own message on a line, and the line's id:
+/// a `user` line from a person (not a tool's result, a note Claude Code
+/// adds, a notification or another agent's message), its text not a
+/// command's tag.
+fn user_prompt(value: &serde_json::Value) -> Option<(String, String)> {
+    if value.get("type")?.as_str()? != "user"
+        || value.get("isMeta").and_then(serde_json::Value::as_bool) == Some(true)
+        || value
+            .get("isCompactSummary")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+    {
+        return None;
+    }
+    if let Some(kind) = value
+        .get("origin")
+        .and_then(|origin| origin.get("kind"))
+        .and_then(serde_json::Value::as_str)
+        && kind != "human"
+    {
+        return None;
+    }
+    let content = value.get("message")?.get("content")?;
+    if let serde_json::Value::Array(parts) = content
+        && parts
+            .iter()
+            .any(|part| part.get("type").and_then(serde_json::Value::as_str) == Some("tool_result"))
+    {
+        return None;
+    }
+    let text = extract_text(Some(content));
+    let trimmed = text.trim_start();
+    if trimmed.is_empty() || trimmed.starts_with('<') {
+        return None;
+    }
+    let key = string_field(value, "uuid")
+        .or_else(|| string_field(value, "timestamp"))
+        .unwrap_or_default();
+    Some((text, key))
+}
+
 /// Whether a raw line can matter to the subagent log: an Agent (or Task)
-/// call, an answer to a call the log waits on, or a task notification.
+/// call, an answer to a call the log waits on, a task notification, or
+/// (AJ-E1520, 0.3) a person's message.
 pub(crate) fn subtask_line_matters(log: &crate::subtasks::SubtaskLog, line: &[u8]) -> bool {
     use crate::subtasks::{holds, values_of};
     if holds(line, b"<task-notification>") {
         return true;
     }
     if holds(line, b"tool_use") && (holds(line, b"\"Agent\"") || holds(line, b"\"Task\"")) {
+        return true;
+    }
+    if holds(line, b"\"type\":\"user\"") && !holds(line, b"tool_result") {
         return true;
     }
     values_of(line, b"tool_use_id")
@@ -459,9 +587,20 @@ fn notification_text(value: &serde_json::Value) -> Option<&str> {
     text.trim_start().starts_with(TAG).then_some(text)
 }
 
+/// AJ-E1520 (0.3): one task notification: the agent, the call that
+/// started it, how it ended and what it said.
+struct Told {
+    agent: String,
+    call: Option<String>,
+    state: crate::subtasks::SubtaskState,
+    ending: crate::subtasks::Ending,
+}
+
 /// Each notification's agent and how it ended (a status this reader
-/// doesn't know is left out: never a guess).
-fn notifications(text: &str) -> Vec<(String, crate::subtasks::SubtaskState)> {
+/// doesn't know is left out: never a guess), with its result, summary
+/// and usage (`<usage>` holds `<subagent_tokens>`, `<tool_uses>` and
+/// `<duration_ms>`).
+fn notifications(text: &str) -> Vec<Told> {
     use crate::subtasks::SubtaskState;
     let tag = |block: &'_ str, name: &str| -> Option<String> {
         let open = format!("<{name}>");
@@ -470,6 +609,8 @@ fn notifications(text: &str) -> Vec<(String, crate::subtasks::SubtaskState)> {
         let end = block[start..].find(&close)? + start;
         Some(block[start..end].trim().to_owned())
     };
+    let usage =
+        |block: &str, key: &str| -> Option<u64> { tag(&tag(block, "usage")?, key)?.parse().ok() };
     let mut out = Vec::new();
     for block in text.split("<task-notification>").skip(1) {
         let block = block.split("</task-notification>").next().unwrap_or(block);
@@ -482,7 +623,26 @@ fn notifications(text: &str) -> Vec<(String, crate::subtasks::SubtaskState)> {
             "killed" | "stopped" => SubtaskState::Stopped,
             _ => continue,
         };
-        out.push((agent, state));
+        let summary = tag(block, "summary");
+        let result = tag(block, "result");
+        let failed = state == SubtaskState::Failed;
+        out.push(Told {
+            agent,
+            call: tag(block, "tool-use-id"),
+            state,
+            ending: crate::subtasks::Ending {
+                failure: failed
+                    .then(|| result.clone().or_else(|| summary.clone()))
+                    .flatten(),
+                result: if failed { None } else { result.or(summary) },
+                reported: crate::subtasks::Reported {
+                    tokens: usage(block, "subagent_tokens"),
+                    tool_uses: usage(block, "tool_uses").and_then(|n| u32::try_from(n).ok()),
+                    duration_ms: usage(block, "duration_ms").and_then(|n| i64::try_from(n).ok()),
+                    ..crate::subtasks::Reported::default()
+                },
+            },
+        });
     }
     out
 }

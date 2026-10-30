@@ -130,7 +130,7 @@ body {
      background clear WCAG AA in the light theme. */
   --color-success: #065f46;
   --color-success-soft: #065f461a;
-  --color-warning: #a94e08; /* AJ-E804: ≥ 4.5:1 on surface-3 too */
+  --color-warning: #9c4807; /* AJ-E804: ≥ 4.5:1 on surface-3 too, and on a chip's soft fill over it (0.3: #a94e08 measured 4.38) */
   --color-warning-soft: #b4530914;
   /* AJ-E702: darkened (from #dc2626) — danger text on its own tinted
      button/chip background was 3.6–4.3:1 in the light theme; #b91c1c
@@ -184,6 +184,17 @@ body {
   50% {
     opacity: 0.75;
     box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+/* 0.3: a pool canvas's node fading in as it changes form (semantic zoom);
+ * the reduced-motion rule below cuts it to nothing. */
+@keyframes aij-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -319,6 +330,74 @@ input[type="checkbox"] {
   height: 16px;
   margin: 5px;
   flex-shrink: 0;
+  /* 0.3: a safety net — any native one left is in the accent, never
+     the system blue. The shared Checkbox and Radio draw their own. */
+  accent-color: var(--color-accent);
+}
+
+/*
+ * 0.3 — the shared Checkbox and Radio (components/controls): one look
+ * in both themes. The input itself is the control (its role, checked
+ * state and label stay native); only its drawing is ours. The border
+ * is `faint` (≥ 4.5:1 on every surface, WCAG 1.4.11); chosen is the
+ * accent filled with a white ✓ or dot; disabled is faded and flat, a
+ * chosen one in grey, never one that looks live.
+ */
+.aj-check,
+.aj-radio {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-content: center;
+  border: 1.5px solid var(--color-faint);
+  background-color: var(--color-surface);
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-color 120ms, border-color 120ms, box-shadow 120ms;
+}
+.aj-check {
+  border-radius: 4px;
+}
+.aj-radio {
+  border-radius: 9999px;
+}
+.aj-check:not(:disabled):hover,
+.aj-radio:not(:disabled):hover {
+  border-color: var(--color-accent);
+}
+.aj-check:focus-visible,
+.aj-radio:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.aj-check:checked,
+.aj-check:indeterminate {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent);
+  background-size: 12px 12px;
+}
+.aj-check:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
+.aj-check:indeterminate {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round'%3E%3Cpath d='M6 12h12'/%3E%3C/svg%3E");
+}
+.aj-radio:checked {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent);
+  background-image: radial-gradient(circle, #fff 0 3px, transparent 3.5px);
+}
+.aj-check:disabled,
+.aj-radio:disabled {
+  opacity: 0.45;
+  border-style: dashed;
+}
+.aj-check:disabled:checked,
+.aj-check:disabled:indeterminate,
+.aj-radio:disabled:checked {
+  border-style: solid;
+  border-color: var(--color-faint);
+  background-color: var(--color-faint);
 }
 
 /* Everything you can click shows the hand (0.0.7 dogfood: the reset

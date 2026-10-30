@@ -211,8 +211,9 @@ for (const theme of THEMES) {
         await openRailList(page); // F14: below 1100 px the list is a ⌘B away
         await expect(page.getByTestId("instance-board")).toBeVisible();
         await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
-        // AJ-E1533: a project's page opens on its body, its sessions.
-        await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
+        // D-54 (AJ-E2805): a project's page opens on its Overview, its four
+        // figures first (was its sessions, AJ-E1533).
+        await expect(page.getByTestId("page-panel-overview")).toBeVisible();
         await page.mouse.move(0, 0);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`inspector-project-${cell}.png`, SCREEN);

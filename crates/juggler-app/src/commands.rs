@@ -1016,7 +1016,7 @@ pub struct TokenCountsInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct AttentionInfo {
-    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit`.
+    /// Rule id: `stuck_no_output` | `waiting_prompt` | `quota_exit` | `limit_hit` | `tool_asks`.
     pub rule: String,
     /// Human-readable measured inputs (`no output 6m`, `cpu 0.3%`).
     pub inputs: Vec<String>,
@@ -3534,15 +3534,7 @@ pub async fn app_setting_set(
     value: String,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "app setting set", move |state| {
-        lock_storage_arc(state)?
-            .app_settings()
-            .set(&key, &value)
-            .map_err(AppError::from)?;
-        // A seen mark or a shown app changes Needs you now, not next tick.
-        if crate::features::notifications::needs::reads_setting(&key) {
-            crate::features::notifications::needs::refresh(state);
-        }
-        Ok(())
+        crate::settings_policy::app_setting_set_impl(state, &key, &value)
     })
     .await
 }
@@ -3822,8 +3814,11 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
                 map
             };
         for record in storage.sessions().list(None)? {
-            // AJ-E2302: a driven session's state is its tool's, never a guess.
-            if !is_active(record.status) || state.runtime.is_exact(&record.id) {
+            // AJ-E2302, 0.3: a driven session's or a limit's state is the tool's.
+            if !is_active(record.status)
+                || record.status == SessionStatus::QuotaBlocked
+                || state.runtime.is_exact(&record.id)
+            {
                 engine.forget(&record.id);
                 continue;
             }
@@ -3864,8 +3859,10 @@ pub fn heuristic_tick(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResul
     for (session, status) in &entered {
         crate::features::notifications::session_status(state, session, status.as_str());
     }
+    // 0.3: open sessions at their limit, and marks whose reset passed.
+    let limits_changed = crate::features::sessions::limits::tick(state);
     crate::features::notifications::show_due(state);
-    if !entered.is_empty() {
+    if !entered.is_empty() || limits_changed {
         emit_sessions(app, state)?;
     }
     Ok(())
@@ -3882,6 +3879,7 @@ pub fn attention_recovery_drain(app: &tauri::AppHandle, state: &Arc<AppState>) -
     let mut changed = false;
     let drained: Vec<SessionId> = state.supervisor.drain_activity();
     for session in &drained {
+        changed |= crate::features::sessions::limits::output_moved(state, session);
         if let Some(running) = state.heuristics.recover(session) {
             debug_assert_eq!(running, SessionStatus::Running);
             {
@@ -6450,14 +6448,17 @@ fn launch_with_handover(
     .map_err(|error| SwitchFailure::LaunchFailed(error.to_string()))
 }
 
-/// A replay's brief: its text, the source's hash and size, and how many
-/// turns it holds and leaves out.
+/// A replay's brief: its text, the source's hash and size, how many
+/// turns it holds and leaves out, and what the keys check hid and left
+/// as it was (kinds and counts).
 struct ReplayBrief {
     text: String,
     sha: String,
     bytes: u64,
     included: usize,
     left_out: usize,
+    withheld: Vec<juggler_handover::pack::RedactionCount>,
+    kept: Vec<juggler_handover::pack::RedactionCount>,
 }
 
 /// AJ-E1541: writes the brief, with the rules files in play, as the
@@ -6501,8 +6502,8 @@ fn write_handover(
         &state.data_dir,
         &text,
         &handover::HandoverState {
-            format: "ai-juggler-handover",
-            version: 1,
+            format: handover::FORMAT.to_owned(),
+            version: handover::VERSION,
             edge: edge.to_string(),
             from: side(&sides.account_a),
             to: side(&sides.account_b),
@@ -6516,6 +6517,8 @@ fn write_handover(
                 .map(|notes| notes.quoted.clone())
                 .unwrap_or_default(),
             notes_left_out: notes.map(|notes| notes.left_out).unwrap_or_default(),
+            withheld: Some(brief.withheld.clone()),
+            kept: brief.kept.clone(),
         },
     )
 }
@@ -6527,7 +6530,7 @@ fn replay_prompt(
     redaction_unredact: &[u32],
 ) -> AppResult<ReplayBrief> {
     use juggler_handover::pipeline::SwitchFailure;
-    use juggler_handover::redaction::strip_segments;
+    use juggler_handover::redaction::strip_segments_counted;
 
     let stopped =
         |failure| AppError::switch(failure, &sides.account_a.label, &sides.account_b.label);
@@ -6543,8 +6546,9 @@ fn replay_prompt(
         .iter()
         .filter_map(|index| usize::try_from(*index).ok())
         .collect();
-    let (texts, _counts) = strip_segments(&segments, strip, &keep);
-    let (prime_turns, left_out) = replay_turns(&turns, texts);
+    let stripped = strip_segments_counted(&segments, strip, &keep);
+    let kept = stripped.kept();
+    let (prime_turns, left_out) = replay_turns(&turns, stripped.texts);
     let included = prime_turns.len() - usize::from(left_out > 0);
     let prompt = state
         .registry
@@ -6567,6 +6571,8 @@ fn replay_prompt(
         bytes: len,
         included,
         left_out,
+        withheld: stripped.withheld,
+        kept,
     })
 }
 
@@ -9096,7 +9102,7 @@ fn kill_collateral(
                 exe: member_exe.rsplit('/').next().unwrap_or("?").to_string(),
                 cmdline: truncate_cmdline(&member_cmd),
                 role_guess: role_words(role),
-                unsaved_state_warning: matches!(role, "McpServer" | "TerminalShell")
+                unsaved_state_warning: matches!(role, "McpServer" | "TerminalShell" | "Database")
                     .then(|| unsaved_state_copy(role)),
                 from_ledger: ledger_row.is_some(),
             });
@@ -9108,12 +9114,7 @@ fn kill_collateral(
     let mut tree_pids: Vec<u32> = rows
         .iter()
         .filter(|row| row.state == "running" || row.state == "orphaned")
-        .filter(|row| {
-            row.pid.zip(row.started_at).is_some_and(|(pid, start)| {
-                crate::features::processes::stop::read_now(pid)
-                    .is_some_and(|now| now.start_time == start && !now.zombie)
-            })
-        })
+        .filter(|row| still_as_recorded(row))
         .filter_map(|row| row.pid)
         .collect();
     tree_pids.sort_unstable();
@@ -9151,7 +9152,8 @@ pub struct KillMemberOutcome {
     /// OS process id.
     pub pid: u32,
     /// `exited on TERM` | `needed KILL` | `already gone` | `refused` |
-    /// `TERM'd — outcome unknown`.
+    /// `TERM'd — outcome unknown` | [`LEFT_NOT_OURS`] |
+    /// [`LEFT_UNVERIFIED`] (the last two: never signalled).
     pub outcome: String,
 }
 
@@ -9335,9 +9337,7 @@ pub fn kill_execute_as(
     }
     // Scope enumeration (Req.1's three scopes; the UI defaults to
     // the narrowest that covers the goal).
-    let members = scope_members(scope, &rows, pid)?;
-    // AJ-E1103: memory the members hold now (freed if they go).
-    let rss_before = crate::usage_stats::rss_of(state, &members);
+    let candidates = scope_members(scope, &rows, pid)?;
     // The port facts: the goal port when the user stated one (the
     // port that opened the sheet — it may be held by an ESCAPED
     // sibling, which is exactly the honest-still-holding case),
@@ -9362,6 +9362,15 @@ pub fn kill_execute_as(
     let intent_id = audit
         .intent(&record)
         .map_err(|_| AppError::AuditUnavailable)?;
+    // ADR-0010 verify-or-refuse, per MEMBER, the last thing before the
+    // first signal: every other process the scope names passes the same
+    // identity check as the target, or is left alone and reported (a
+    // reused pid, a process AI Juggler didn't start).
+    let (members, left_alone) = verified_members(&rows, pid, candidates, |row| {
+        verify_kill_target(state, &session, row)
+    });
+    // AJ-E1103: memory the members hold now (freed if they go).
+    let rss_before = crate::usage_stats::rss_of(state, &members);
     // Guardrail 3 — the ladder itself (cancellable through grace).
     let cancel = std::sync::Arc::clone(cancel_flag);
     let outcome = juggler_supervisor::terminate_group(
@@ -9377,23 +9386,10 @@ pub fn kill_execute_as(
     // the port (then re-offer pid-only after fresh verification).
     let (still_holding, reoffer_pid) =
         still_holding_report(ports_before.as_deref(), pid, outcome.cancelled);
-    // Audit completion: per-pid vocabulary joined; a CANCELLED
-    // ladder leaves the intent pending ("TERM'd, outcome unknown").
+    // Audit completion: a CANCELLED ladder leaves the intent pending
+    // ("TERM'd, outcome unknown").
     if !outcome.cancelled {
-        let vocabulary = outcome
-            .members
-            .iter()
-            .map(|(pid, outcome)| format!("pid {pid}: {}", outcome.as_str()))
-            .collect::<Vec<_>>()
-            .join("; ");
-        let ports_after = still_holding
-            .iter()
-            .map(|held| held.port.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-        let ports_after = (!ports_after.is_empty()).then_some(ports_after);
-        // Best-effort (E509's floor is the intent row itself).
-        let _ = audit.complete(intent_id, &vocabulary, ports_after.as_deref());
+        complete_kill_audit(audit, intent_id, &outcome, &left_alone, &still_holding);
     }
     if outcome.all_succeeded() && !outcome.cancelled {
         let held: Vec<u16> = still_holding.iter().map(|held| held.port).collect();
@@ -9406,6 +9402,7 @@ pub fn kill_execute_as(
             pid: *pid,
             outcome: label.as_str().to_string(),
         })
+        .chain(left_alone)
         .collect();
     Ok(KillExecuteInfo {
         refusal: None,
@@ -9415,6 +9412,36 @@ pub fn kill_execute_as(
         still_holding,
         reoffer_pid,
     })
+}
+
+/// Completes a ladder's audit row: each pid's outcome (the ones a wider
+/// stop left alone included) and the ports still held after it.
+fn complete_kill_audit(
+    audit: &dyn AuditWriter,
+    intent_id: i64,
+    outcome: &juggler_supervisor::tree::LadderOutcome,
+    left_alone: &[KillMemberOutcome],
+    still_holding: &[StillHoldingInfo],
+) {
+    let vocabulary = outcome
+        .members
+        .iter()
+        .map(|(pid, outcome)| format!("pid {pid}: {}", outcome.as_str()))
+        .chain(
+            left_alone
+                .iter()
+                .map(|left| format!("pid {}: {}", left.pid, left.outcome)),
+        )
+        .collect::<Vec<_>>()
+        .join("; ");
+    let ports_after = still_holding
+        .iter()
+        .map(|held| held.port.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    let ports_after = (!ports_after.is_empty()).then_some(ports_after);
+    // Best-effort (E509's floor is the intent row itself).
+    let _ = audit.complete(intent_id, &vocabulary, ports_after.as_deref());
 }
 
 /// The kill sheet's audit intent row (Req.6 / AJ-E509 Req.2): the
@@ -9462,7 +9489,8 @@ fn kill_intent_record(
 
 /// The three scopes' member enumeration (Req.1): `pid` — the one
 /// verified process; `pgid` — every live member of its process group;
-/// `tree` — the Instance's live ledger rows.
+/// `tree` — the Instance's live ledger rows. Candidates only: each is
+/// checked by [`verified_members`] before any signal.
 ///
 /// # Errors
 ///
@@ -9494,6 +9522,69 @@ fn scope_members(
             message: format!("unknown scope {other:?} (pid | pgid | tree)"),
         }),
     }
+}
+
+/// A stop's outcome for a group member AI Juggler didn't start: never
+/// signalled (ADR-0010: not in the ledger, never touched).
+pub const LEFT_NOT_OURS: &str = "left alone: not started by AI Juggler";
+/// A stop's outcome for a member whose record no longer matches a live
+/// process it can confirm (start time, program, boot): never signalled.
+pub const LEFT_UNVERIFIED: &str = "left alone: couldn't confirm it";
+
+/// ADR-0010 verify-or-refuse for every member of a stop, not only its
+/// target: `candidates` (a scope's enumeration) split into the pids to
+/// signal and the ones left alone, each with why. `anchor` was verified
+/// by the caller. Any other pid is signalled only when a ledger row for
+/// it passes `verifies` (the shared click-time rule,
+/// [`verify_kill_target`]). One whose recorded process is no longer the
+/// live one (it ended; its pid may be another program's now) reads
+/// `already gone`; a live process with no ledger row is
+/// [`LEFT_NOT_OURS`]; a row the check can't confirm, [`LEFT_UNVERIFIED`].
+pub(crate) fn verified_members(
+    rows: &[juggler_core::storage::LedgerRow],
+    anchor: u32,
+    candidates: Vec<u32>,
+    verifies: impl Fn(&juggler_core::storage::LedgerRow) -> bool,
+) -> (Vec<u32>, Vec<KillMemberOutcome>) {
+    let mut signal = Vec::new();
+    let mut left = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for pid in candidates {
+        if !seen.insert(pid) {
+            continue;
+        }
+        if pid == anchor {
+            signal.push(pid);
+            continue;
+        }
+        let recorded: Vec<&juggler_core::storage::LedgerRow> =
+            rows.iter().filter(|row| row.pid == Some(pid)).collect();
+        if recorded.iter().any(|row| verifies(row)) {
+            signal.push(pid);
+            continue;
+        }
+        let outcome = if recorded.is_empty() {
+            LEFT_NOT_OURS
+        } else if recorded.iter().any(|row| still_as_recorded(row)) {
+            LEFT_UNVERIFIED
+        } else {
+            juggler_supervisor::tree::ProcessOutcome::AlreadyGone.as_str()
+        };
+        left.push(KillMemberOutcome {
+            pid,
+            outcome: outcome.to_string(),
+        });
+    }
+    (signal, left)
+}
+
+/// The process a ledger row recorded still runs at its pid (same start
+/// time, not a zombie) — whether or not the full check confirms it.
+fn still_as_recorded(row: &juggler_core::storage::LedgerRow) -> bool {
+    row.pid.zip(row.started_at).is_some_and(|(pid, start)| {
+        crate::features::processes::stop::read_now(pid)
+            .is_some_and(|now| now.start_time == start && !now.zombie)
+    })
 }
 
 /// The post-ladder port re-probe (FMEA C2): who STILL holds each of
@@ -12715,6 +12806,8 @@ pub struct SwitchBackSuggestionInfo {
     pub session_id: String,
     /// The original account's label (where work returns).
     pub original_account: String,
+    /// The original account's id (its "has room again" notice offers this).
+    pub original_account_id: String,
     /// The away account's label.
     pub away_account: String,
     /// The verbatim suggestion copy (Req.3).
@@ -12824,6 +12917,7 @@ pub fn switch_back_suggestions_impl(
             out.push(SwitchBackSuggestionInfo {
                 session_id: away_session.to_string(),
                 original_account: original_account.label.clone(),
+                original_account_id: original_account.id.to_string(),
                 copy: juggler_handover::switch_back::suggestion_copy(
                     &original_account.label,
                     &away_label,
@@ -13411,6 +13505,8 @@ pub struct EpochNodeInfo {
 /// One labelled edge on the timeline.
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
 pub struct EdgeInfo {
+    /// The edge's id (what opens its handover).
+    pub id: String,
     /// From epoch id.
     pub from: String,
     /// To epoch id (None until launched).
@@ -13423,6 +13519,9 @@ pub struct EdgeInfo {
     pub failed_reason: Option<String>,
     /// Switch-back edge (renders ↺).
     pub switch_back: bool,
+    /// Its handover in one line, when the switch wrote one (another
+    /// tool's); `None` for one that copied the session.
+    pub handover: Option<crate::features::handover::view::HandoverSummaryInfo>,
 }
 
 /// One work item's timeline.
@@ -13491,6 +13590,14 @@ fn graph_works_for(state: &Arc<AppState>, project_id: &str) -> AppResult<Vec<Wor
             &state.conversations,
             &work,
         )?);
+    }
+    drop(storage);
+    // What each switch that wrote a handover told the other tool (read
+    // without the storage lock: each read takes it).
+    for edge in out.iter_mut().flat_map(|work| work.edges.iter_mut()) {
+        if edge.failed_reason.is_none() {
+            edge.handover = crate::features::handover::view::edge_summary(state, &edge.id);
+        }
     }
     Ok(out)
 }
@@ -13588,7 +13695,7 @@ fn work_graph_info(
 
 /// What an edge carried, in the user's words: the fidelity it showed
 /// (its user label), else what its mechanism does.
-fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'static str {
+pub(crate) fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'static str {
     use juggler_core::model::SwitchMechanism;
     if let Some(level) = edge
         .fidelity_shown
@@ -13620,6 +13727,7 @@ fn graph_edge_summary(edges: &[juggler_core::model::SwitchEdge]) -> (Vec<EdgeInf
             _ => carried.to_owned(),
         };
         wire_edges.push(EdgeInfo {
+            id: edge.id.to_string(),
             from: edge.from_epoch.to_string(),
             to: edge.to_epoch.as_ref().map(ToString::to_string),
             label,
@@ -13628,6 +13736,7 @@ fn graph_edge_summary(edges: &[juggler_core::model::SwitchEdge]) -> (Vec<EdgeInf
                 _ => None,
             },
             switch_back: back,
+            handover: None,
         });
     }
     let hops = u32::try_from(
@@ -13794,7 +13903,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
 /// — conversation turns rendered through the AJ-E208 redaction
 /// policy (the GLOBAL choice — a standalone export has no
 /// destination Provider), written under `<app-data>/exports/`.
-/// Returns the pack directory for the toast.
+/// Returns where it was saved, and what was hidden, in one line.
 ///
 /// # Errors
 ///
@@ -13805,7 +13914,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
 pub async fn pack_export(
     state: tauri::State<'_, Arc<AppState>>,
     epoch_id: String,
-) -> AppResult<String> {
+) -> AppResult<crate::features::handover::view::SavedHandoverInfo> {
     crate::ipc::blocking(state.inner(), "pack export", move |state| {
         pack_export_impl(state, &epoch_id)
     })
@@ -13817,12 +13926,12 @@ pub async fn pack_export(
 /// # Errors
 ///
 /// Returns the typed [`AppError`] per the command docs.
-pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<String> {
+pub fn pack_export_impl(
+    state: &Arc<AppState>,
+    epoch_id: &str,
+) -> AppResult<crate::features::handover::view::SavedHandoverInfo> {
     let (epoch, session_row, account) = find_epoch_with_session(state, epoch_id)?;
-    let dir = state
-        .data_dir
-        .join("exports")
-        .join(format!("pack-{}", unique_suffix()));
+    let dir = export_dir(state);
     stage_session_pack(
         state,
         &session_row,
@@ -13834,7 +13943,15 @@ pub fn pack_export_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Stri
         },
         &dir,
     )?;
-    Ok(dir.to_string_lossy().into_owned())
+    crate::features::handover::view::saved_info(state, &dir)
+}
+
+/// A new folder for a saved handover, under `<app-data>/exports/`.
+pub(crate) fn export_dir(state: &Arc<AppState>) -> std::path::PathBuf {
+    state
+        .data_dir
+        .join("exports")
+        .join(format!("pack-{}", unique_suffix()))
 }
 
 /// The lineage ids a staged pack carries.
@@ -15203,4 +15320,89 @@ pub fn recommendation_for_impl(
         &gaps,
         report.seeds.first().cloned(),
     ))
+}
+
+#[cfg(test)]
+mod verified_members_tests {
+    use super::{LEFT_NOT_OURS, LEFT_UNVERIFIED, verified_members};
+    use juggler_core::storage::LedgerRow;
+
+    fn row(pid: u32, started_at: i64) -> LedgerRow {
+        LedgerRow {
+            pid: Some(pid),
+            pgid: None,
+            started_at: Some(started_at),
+            exe_path: "/bin/sleep".into(),
+            cmdline_hash: "h".into(),
+            cmdline_trunc: "sleep".into(),
+            boot_id: "boot".into(),
+            session_id: "s".into(),
+            instance_id: None,
+            provider: "tool".into(),
+            account_id: None,
+            project_id: None,
+            machine_id: "this-mac".into(),
+            root_pid: None,
+            parent_pid: None,
+            depth: 1,
+            role: "helper".into(),
+            state: "orphaned".into(),
+            listens_on: None,
+            cwd: String::new(),
+            peak_rss: None,
+            peak_cpu: None,
+            exit_kind: None,
+            reaped_by_us: None,
+            escaped_group: false,
+            down_period: false,
+            first_seen: 0,
+            last_seen: 0,
+        }
+    }
+
+    /// The anchor (verified by the caller) and members whose rows pass the
+    /// check are signalled; a group member with no ledger row, a row whose
+    /// process ended, and a live process the check can't confirm are left
+    /// alone, each with why.
+    #[test]
+    fn only_members_that_pass_the_check_are_signalled() {
+        let own = std::process::id();
+        let own_start = crate::features::processes::stop::read_now(own)
+            .expect("this test's own process is readable")
+            .start_time;
+        // Pids far above any real one: nothing runs there.
+        let (anchor, ok, ended, stranger) = (4_000_001, 4_000_002, 4_000_003, 4_000_004);
+        let rows = vec![
+            row(anchor, 1),
+            row(ok, 2),
+            row(ended, 3),
+            // Running as recorded, yet the full check fails.
+            row(own, own_start),
+        ];
+        let verifies = |row: &LedgerRow| row.pid == Some(ok);
+        let (signal, left) = verified_members(
+            &rows,
+            anchor,
+            vec![anchor, ok, ended, stranger, own, ok],
+            verifies,
+        );
+        assert_eq!(
+            signal,
+            vec![anchor, ok],
+            "only the anchor and the verified member"
+        );
+        let said: Vec<(u32, &str)> = left
+            .iter()
+            .map(|left| (left.pid, left.outcome.as_str()))
+            .collect();
+        assert_eq!(
+            said,
+            vec![
+                (ended, "already gone"),
+                (stranger, LEFT_NOT_OURS),
+                (own, LEFT_UNVERIFIED),
+            ],
+            "each member left alone says why"
+        );
+    }
 }

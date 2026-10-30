@@ -98,6 +98,27 @@ impl Subject for Claude {
         Some(subagent_fixture::claude(state_dir, cwd))
     }
 
+    /// What Claude Code writes when a turn stops at a limit (key paths
+    /// and types as it writes them; every value invented), then a reply.
+    fn limit_tails(&self) -> Option<(String, String)> {
+        let hit = serde_json::json!({
+            "type": "assistant", "isSidechain": false, "uuid": "u-hit",
+            "timestamp": "2026-10-21T10:00:00.000Z",
+            "message": {"model": "<synthetic>", "role": "assistant",
+                "content": [{"type": "text", "text": "kit"}]},
+            "error": "rate_limit", "isApiErrorMessage": true,
+            "quotaLimits": {"status": "rejected", "rateLimitType": "five_hour",
+                "resetsAt": 1_793_000_000},
+        });
+        let reply = serde_json::json!({
+            "type": "assistant", "isSidechain": false, "uuid": "u-reply",
+            "timestamp": "2026-10-21T15:00:00.000Z",
+            "message": {"model": "claude-kit", "role": "assistant",
+                "content": [{"type": "text", "text": "kit"}]},
+        });
+        Some((format!("{hit}\n"), format!("{hit}\n{reply}\n")))
+    }
+
     fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
         subagent_fixture::find(state_dir, &format!("{id}.jsonl"))
     }
@@ -328,6 +349,13 @@ impl Subject for Fake {
 
     fn sandboxed_default(&self) -> bool {
         false
+    }
+
+    /// What `fake-harness run --limit-hit-ms` writes, then a reply.
+    fn limit_tails(&self) -> Option<(String, String)> {
+        let hit = r#"{"type":"limit","at_ms":1792000000000,"resets_at_ms":1792003600000}"#;
+        let reply = r#"{"type":"assistant","turn":3,"usage":{"input_tokens":1,"output_tokens":1}}"#;
+        Some((format!("{hit}\n"), format!("{hit}\n{reply}\n")))
     }
 }
 

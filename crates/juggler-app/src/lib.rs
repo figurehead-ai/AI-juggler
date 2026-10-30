@@ -344,6 +344,10 @@ macro_rules! app_commands {
             Write features::pools::commands::pools_set_delivery,
             Write features::pools::commands::pools_set_spans_macs,
             Write features::pools::commands::pools_revoke_rule,
+            Read  features::pools::commands::pools_canvas,
+            Read  features::pools::commands::pools_canvas_previews,
+            Write features::pools::commands::pools_canvas_place,
+            Write features::pools::commands::pools_canvas_tidy,
             Read  features::messages::commands::messages_threads,
             Write features::messages::commands::messages_thread,
             Write features::messages::commands::messages_send,
@@ -361,6 +365,9 @@ macro_rules! app_commands {
             Write features::messages::commands::messages_link,
             Read  features::tasks::commands::tasks_list,
             Read  features::tasks::commands::tasks_counts,
+            Read  features::tasks::commands::tasks_across,
+            Read  features::tasks::commands::tasks_across_counts,
+            Read  features::tasks::commands::tasks_project_counts,
             Read  features::tasks::commands::tasks_plan,
             Read  features::tasks::commands::tasks_children,
             Read  features::tasks::commands::tasks_session,
@@ -405,6 +412,10 @@ macro_rules! app_commands {
             Read  features::outside_search::commands::outside_search_status,
             Read  features::outside_search::commands::outside_search_estimate,
             Write features::outside_search::commands::outside_search_set,
+            Read  features::cache::commands::cache_status,
+            Write features::cache::commands::cache_set_on,
+            Write features::cache::commands::cache_set_limit,
+            Write features::cache::commands::cache_clear,
             Write commands::switch_execute,
             Write commands::switch_undo,
             Read  commands::switch_back_plan,
@@ -508,6 +519,10 @@ macro_rules! app_commands {
             // last messages, never served without the window).
             Write features::subagents::commands::subagents_list,
             Write features::subagents::commands::subagents_conversation,
+            // AJ-E1520 (0.3): a subagent's page and a project's subagents
+            // (their words, as the tab's).
+            Write features::subagents::commands::subagents_detail,
+            Write features::subagents::commands::subagents_project,
             Write features::conversations::commands::conversations_go_to,
             // Brings a running app forward (never launches it).
             Write features::conversations::commands::conversations_bring_forward,
@@ -533,6 +548,14 @@ macro_rules! app_commands {
             // AJ-E1511: reads a folder the user picked; starts a session.
             Write features::packs::packs_open_preview,
             Write features::packs::packs_open_start,
+            // 0.3: what a switch's handover told the other tool. The line
+            // is counts only; the handover is the conversation's words
+            // (never over the bridge), and saving or revealing one writes
+            // or opens Finder.
+            Write features::handover::view::handover_summary,
+            Write features::handover::view::handover_open,
+            Write features::handover::view::handover_save,
+            Write features::handover::view::handover_reveal,
             // AJ-E1515: what a paired Mac offers; starting there; usage by machine.
             Read  features::fleet::fleet_launch_options,
             Write features::fleet::fleet_launch_start,
@@ -1222,6 +1245,9 @@ fn spawn_read_model_ticks(
     }
     // AJ-E1538: the opt-in index of outside sessions' words (idle while off).
     features::outside_search::spawn(index_state.clone());
+    // ADR-0023: the local caches, sized by this Mac and trimmed in the
+    // background (one cheap pass a minute; folders walked rarely).
+    features::cache::start(&index_state);
     // AJ-E1611: new tool versions, once a day, well after start.
     features::tool_updates::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the

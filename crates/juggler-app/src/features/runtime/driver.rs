@@ -556,6 +556,26 @@ fn note_command(state: &Arc<AppState>, session: &SessionId, event: &RuntimeEvent
     }
 }
 
+/// 0.3: a limit the tool won't retry past marks the session at its limit
+/// (with the reset its last limits name); a new turn clears it.
+fn note_limit(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    event: &RuntimeEvent,
+    snapshot: &Mutex<Snapshot>,
+) {
+    if !matches!(
+        event,
+        RuntimeEvent::Error { .. } | RuntimeEvent::TurnStarted { .. }
+    ) {
+        return;
+    }
+    let limits = snapshot.lock().ok().and_then(|snap| snap.limits.clone());
+    if crate::features::sessions::limits::driven(state, session, event, limits.as_ref()) {
+        state.runtime.notify(session.as_str(), true);
+    }
+}
+
 fn store(state: &Arc<AppState>, session: &SessionId, snapshot: &Snapshot) {
     store_ask(state, session, snapshot.asks.first(), snapshot.ended);
 }
@@ -759,6 +779,7 @@ fn run(
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)
                 });
+                note_limit(&state, session, &event, snapshot);
                 if moves_the_mark(&event) {
                     mark(&state);
                 }

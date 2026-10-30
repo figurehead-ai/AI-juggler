@@ -13,6 +13,7 @@ import { SwitchSetupList, SwitchSetupResults } from "./SwitchSetupList";
 import { accountsList, errorText, type AccountInfo } from "../lib/bridge";
 import { accountSettingsApply, accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { AppliedInfo, SetupCheckInfo } from "../lib/ipc/switchSetup";
+import { Picker } from "./controls";
 
 export function AccountSettingsSheet({
   account,
@@ -86,25 +87,20 @@ export function AccountSettingsSheet({
         )}
         {sources !== null && sources.length > 0 && !results && (
           <>
-            <label className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span>From</span>
               {sources.length > 1 ? (
-                <select
+                <Picker
+                  size="sm"
                   value={source ?? ""}
-                  onChange={(event) => setChosen(event.target.value)}
-                  aria-label="Account to copy the settings from"
-                  className="rounded-lg border border-hairline bg-surface px-2 py-1 text-sm text-ink"
-                >
-                  {sources.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setChosen(value)}
+                  ariaLabel="Account to copy the settings from"
+                  options={sources.map((row) => ({ value: row.id, label: row.label }))}
+                />
               ) : (
                 <span className="font-medium text-ink">{name}</span>
               )}
-            </label>
+            </div>
             {check === null && !error && <p className="text-xs text-muted">Reading what {name} has…</p>}
             {check && check.offers.length === 0 && (
               <p className="text-xs text-muted">

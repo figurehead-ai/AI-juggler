@@ -29,8 +29,8 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 | M5 | Release engineering → **v0.1.0-beta.1** | 🟡 Signed Beta and Nightly builds ship (0.0.x); 0.1 is cut as set in E15 |
 | M6 | Fleet link → **v0.2** | 🟡 Built; the two-Mac dogfood is the maintainer's (AJ-E710) |
 | M7 | Fleet control → **v0.3**; the Windows and Linux compile guards | 🟡 Fleet control built; Windows and Linux bring-up moved to rows W and L (D-52) |
-| M8 | Stabilization → **1.0** (macOS) | ⚪ Planned |
-| W | **AI Juggler for Windows**: a dedicated first release, then in every release ([E26](../tasks/E26-windows-release.md)) | ⚪ Planned, not scheduled (D-52); packaging, signing and scope are the maintainer's decisions (AJ-E2601) |
+| M8 | Stabilization → **1.0**, only after Windows' first release has succeeded (D-53) | ⚪ Planned |
+| W | **AI Juggler for Windows**: a dedicated first release, then in every release ([E26](../tasks/E26-windows-release.md)) | ⚪ Planned before 1.0 (D-53), not yet scheduled; packaging, signing and scope are the maintainer's decisions (AJ-E2601) |
 | L | **AI Juggler for Linux**: a dedicated first release, then in every release ([E27](../tasks/E27-linux-release.md)) | ⚪ Planned, not scheduled (D-52); formats, repository and support matrix are the maintainer's decisions (AJ-E2701) |
 
 ---
@@ -41,7 +41,7 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 > and the [legacy→canonical glossary in SPEC §3](../SPEC.md).
 
 The canonical task breakdown is now the **E-catalog**
-(`docs/tasks/E1..E27`, 318 tasks, evidence-gated). The M-milestones
+(`docs/tasks/E1..E28`, 332 tasks, evidence-gated). The M-milestones
 below retain their IDs for tracking continuity; their *scope text* is
 re-sequenced around the settled thesis **Switch → See → Clean**, with
 Fleet integrated at launch (D-13), not deferred:
@@ -199,7 +199,7 @@ Goal: the founding pain point solved — two Claude accounts in parallel, one cl
 | M8-1 | Beta feedback hardening | Triage-driven fixes; perf & memory pass | No P0/P1 open; perf budgets (spec §1) met on reference hardware |
 | M8-2 | Security review | Internal security review vs SECURITY.md commitments; dependency audit | Findings fixed or documented with mitigations |
 | M8-3 | Docs completeness | User guide, adapter guide (public API), troubleshooting | A new contributor can add a fake adapter from docs alone |
-| M8-4 | **Gate V8 = 1.0** | Stable channel opens; `docs/qa/gate-M8.md` | Full regression matrix; quality audit #9; user confirmation → **1.0.0** |
+| M8-4 | **Gate V8 = 1.0** | Stable channel opens; `docs/qa/gate-M8.md` | Windows' first release has passed its Beta gate (AJ-E2615, D-53); full regression matrix on macOS and Windows; quality audit #9; user confirmation → **1.0.0** |
 
 ---
 

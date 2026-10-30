@@ -39,7 +39,8 @@ use juggler_agentbridge::wire::{
     TasksListArgs,
 };
 use juggler_app::features::pools;
-use juggler_app::features::tasks::{apply, issues, launch, needs, views};
+use juggler_app::features::tasks::dto::TasksFilterInput;
+use juggler_app::features::tasks::{across, apply, issues, launch, needs, views};
 use juggler_app::paging::PageRequest;
 use juggler_core::model::SessionId;
 use lab::{Lab, field, planner, seed_task};
@@ -357,7 +358,12 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
         ask.title.ends_with("to Builder") && !ask.title.contains(builder_id.as_str()),
         "the ask names the member"
     );
-    let named = format!("give {id} to Builder");
+    // D-25: and the task by its title, never its id.
+    assert!(
+        ask.title.contains("«Build the API»") && !ask.title.contains("aj-"),
+        "the ask names the task by its title"
+    );
+    let named = "give «Build the API» to Builder".to_owned();
     let history = views::detail(&lab.state, &id, None).unwrap().history;
     assert!(
         history.iter().any(|e| e.what.contains(&named)),
@@ -366,6 +372,10 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
     assert!(
         !history.iter().any(|e| e.what.contains(builder_id.as_str())),
         "no session id in the history"
+    );
+    assert!(
+        !history.iter().any(|e| e.what.contains("aj-")),
+        "no task id in the history"
     );
     let stranger = assign(&lab, &lead, &id, "s-nobody-here");
     assert_eq!(stranger.refused, Some(Refusal::Deny), "not in the pool");
@@ -494,6 +504,11 @@ fn an_agent_asks_for_a_session_and_only_the_user_starts_it() {
     let waiting = needs::needs(&lab.state).unwrap();
     assert_eq!(waiting.len(), 1);
     assert_eq!(waiting[0].kind, "launch");
+    // D-25: the request names the task by its title, never its id.
+    assert!(
+        waiting[0].title.contains("«Write the release notes»") && !waiting[0].title.contains("aj-"),
+        "the request names the task by its title"
+    );
     // The user starts it, on the launch settings they pick.
     let started = launch::start(&lab.state, &id, &lab.profile, Some(&waiting[0].id)).unwrap();
     let session = SessionId::new(started.session_id.as_str());
@@ -546,7 +561,8 @@ fn a_card_shows_its_members_task() {
     assert!(claim(&lab, &a, &id).result.is_some());
     assert_eq!(
         card(&lab).value.as_deref(),
-        Some(format!("{id} · Build the API (in progress)").as_str())
+        // D-25: its title, never its id.
+        Some("Build the API (in progress)")
     );
     let mine = views::of_session(&lab.state, a_id.as_str(), &first_page()).unwrap();
     assert_eq!(mine.items[0].id, id);
@@ -583,6 +599,117 @@ fn the_lead_plans_an_epic_with_stories_and_the_user_sees_the_tree() {
     assert_eq!((detail.task.items, detail.task.items_done), (3, 0));
     let under = views::children(&lab.state, &lab.pool, &stories[0], &first_page()).unwrap();
     assert_eq!(under.items.len(), 1);
+}
+
+#[test]
+fn the_tasks_screen_reads_every_pool_by_filter() {
+    let lab = Lab::new();
+    let epic = item(&lab, "Checkout v2", "epic", None);
+    let story = item(&lab, "Totals", "story", Some(&epic));
+    let round = item(&lab, "Round tax per line", "task", Some(&story));
+    let docs = pools::pool_create_impl(&lab.state, "Docs", None)
+        .unwrap()
+        .pools
+        .into_iter()
+        .find(|pool| pool.name == "Docs")
+        .unwrap()
+        .id;
+    let shots = seed_task(
+        &lab.state,
+        &docs,
+        TaskCreateArgs {
+            title: "Screenshots for step 3".into(),
+            ..TaskCreateArgs::default()
+        },
+    );
+    let every = TasksFilterInput::default();
+    let page = across::across(&lab.state, &every, &first_page()).unwrap();
+    let ids: Vec<&str> = page.items.iter().map(|row| row.task.id.as_str()).collect();
+    assert_eq!(ids.len(), 2, "the work of both pools, no epic or story");
+    assert!(ids.contains(&round.as_str()) && ids.contains(&shots.as_str()));
+    let row = page.items.iter().find(|row| row.task.id == round).unwrap();
+    assert_eq!(row.path, ["Checkout v2", "Totals"], "its epic and story");
+    assert_eq!(row.pool_name, "Team");
+    let one = TasksFilterInput {
+        pool_id: Some(docs.clone()),
+        ..TasksFilterInput::default()
+    };
+    let page = across::across(&lab.state, &one, &first_page()).unwrap();
+    assert_eq!(page.items.len(), 1, "one pool");
+    assert_eq!(page.items[0].pool_name, "Docs");
+    let plan = TasksFilterInput {
+        kind: Some("plan".into()),
+        ..TasksFilterInput::default()
+    };
+    assert_eq!(
+        across::across(&lab.state, &plan, &first_page())
+            .unwrap()
+            .items
+            .len(),
+        2,
+        "the plan: the epic and its story"
+    );
+    let nobody = TasksFilterInput {
+        holder: Some("nobody".into()),
+        status: Some("ready".into()),
+        ..TasksFilterInput::default()
+    };
+    assert_eq!(
+        across::across(&lab.state, &nobody, &first_page())
+            .unwrap()
+            .items
+            .len(),
+        2
+    );
+    let counts = across::across_counts(&lab.state, &every).unwrap();
+    assert_eq!((counts.ready, counts.in_review), (2, 0));
+    let gone = TasksFilterInput {
+        project_id: Some("no-such-project".into()),
+        ..TasksFilterInput::default()
+    };
+    assert!(
+        across::across(&lab.state, &gone, &first_page())
+            .unwrap()
+            .items
+            .is_empty()
+    );
+    let bad = TasksFilterInput {
+        holder: Some("someone".into()),
+        ..TasksFilterInput::default()
+    };
+    assert!(
+        across::across(&lab.state, &bad, &first_page()).is_err(),
+        "an unknown holder filter is refused"
+    );
+    let ids = ["no-such-project".to_owned(), "another".to_owned()];
+    let none = across::counts_by_project(&lab.state, &ids, &PageRequest::first(1)).unwrap();
+    assert_eq!(
+        (none.items.len(), none.items[0].counts.ready),
+        (1, 0),
+        "a project with no pool has no tasks"
+    );
+    let next = none.next_cursor.expect("a second page");
+    let rest = across::counts_by_project(&lab.state, &ids, &PageRequest::after(&next, 1)).unwrap();
+    assert_eq!(rest.items[0].project_id, "another", "in the order asked");
+    // D-25: a blocked row names what it waits on by its title.
+    task(&lab, "Rotate signing keys", &[round.as_str()]);
+    let blocked = TasksFilterInput {
+        status: Some("blocked".into()),
+        ..TasksFilterInput::default()
+    };
+    let row = across::across(&lab.state, &blocked, &first_page()).unwrap();
+    let waits = &row.items[0].task.waits_on;
+    assert_eq!(waits.len(), 1, "one blocker");
+    assert_eq!(
+        waits[0].title.as_deref(),
+        Some("Round tax per line"),
+        "named by its title"
+    );
+    let many = vec![String::new(); across::PROJECTS_MAX + 1];
+    assert!(
+        across::counts_by_project(&lab.state, &many, &first_page()).is_err(),
+        "a page at most"
+    );
 }
 
 #[test]

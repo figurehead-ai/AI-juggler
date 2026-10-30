@@ -7,7 +7,7 @@
  * renewal reminders, the digest's quiet hours and accounts, and Fleet
  * permissions through the same Access sheet as the Fleet screen.
  */
-import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsScreen } from "./Settings";
@@ -149,7 +149,8 @@ describe("AJ-E2110 — Settings panes", () => {
     const { findByTestId } = render(<SettingsScreen focusSection="advanced" />);
     const pane = await findByTestId("settings-pane-advanced");
     const sections = pane.querySelectorAll("section[data-settings-section]");
-    expect(sections.length).toBe(6);
+    // ADR-0023: Local cache, after the Data sections.
+    expect(sections.length).toBe(7);
     for (const section of sections) {
       expect(section.querySelector("h3")?.textContent).toBeTruthy();
       expect(section.lastElementChild?.tagName).toBe("P");
@@ -160,12 +161,13 @@ describe("AJ-E2110 — Settings panes", () => {
 describe("wireframe 26 — the policies the user owns", () => {
   it("D-08: the cleanup default is notify-only until chosen, and says existing Accounts keep theirs", async () => {
     const { findByTestId, findAllByTestId, getByTestId } = render(<SettingsScreen focusSection="cleanup" />);
-    const select = (await findByTestId("cleanup-default")) as HTMLSelectElement;
+    const select = (await findByTestId("cleanup-default")) as HTMLButtonElement;
     await waitFor(() => expect(select.disabled).toBe(false));
-    expect(select.value).toBe("notify");
+    expect(select.getAttribute("data-value")).toBe("notify");
     expect(await findAllByTestId("cleanup-account")).toHaveLength(2);
+    fireEvent.click(select);
     await act(async () => {
-      fireEvent.change(select, { target: { value: "tidy" } });
+      fireEvent.click(screen.getByTestId("cleanup-default-tidy"));
     });
     expect(w().__AIJ_CLEANUP_DEFAULT__).toBe(true);
     expect(getByTestId("settings-cleanup").textContent).toContain("Existing Accounts keep their own choice");
@@ -207,13 +209,14 @@ describe("wireframe 26 — the policies the user owns", () => {
 
   it("D-12: renewal reminders default to 7 days and every Account shows its own date, or that it has none", async () => {
     const { findByTestId, findAllByTestId, getByTestId } = render(<SettingsScreen focusSection="renewal" />);
-    const days = (await findByTestId("renewal-warn-days")) as HTMLSelectElement;
-    await waitFor(() => expect(days.value).toBe("7"));
+    const days = await findByTestId("renewal-warn-days");
+    await waitFor(() => expect(days.getAttribute("data-value")).toBe("7"));
     const rows = await findAllByTestId("settings-renewal");
     expect(rows).toHaveLength(2);
     expect(rows[1].textContent).toContain("Not set: no renewal reminders");
+    fireEvent.click(days);
     await act(async () => {
-      fireEvent.change(days, { target: { value: "14" } });
+      fireEvent.click(screen.getByTestId("renewal-warn-days-14"));
     });
     expect((w().__AIJ_APP_SETTINGS__ as Record<string, string>).renewal_warn_days).toBe("14");
     expect(getByTestId("settings-renewal-card").textContent).toContain("start 14 days before");
@@ -221,11 +224,12 @@ describe("wireframe 26 — the policies the user owns", () => {
 
   it("notifications: quiet hours 22–07 by default, changeable, and an Account can leave the digest", async () => {
     const { findByTestId, getByTestId, findAllByTestId } = render(<SettingsScreen focusSection="notifications" />);
-    const start = (await findByTestId("quiet-start")) as HTMLSelectElement;
-    await waitFor(() => expect(start.value).toBe("22"));
-    expect((getByTestId("quiet-end") as HTMLSelectElement).value).toBe("7");
+    const start = await findByTestId("quiet-start");
+    await waitFor(() => expect(start.getAttribute("data-value")).toBe("22"));
+    expect(getByTestId("quiet-end").getAttribute("data-value")).toBe("7");
+    fireEvent.click(getByTestId("quiet-start"));
     await act(async () => {
-      fireEvent.change(getByTestId("quiet-start"), { target: { value: "21" } });
+      fireEvent.click(screen.getByTestId("quiet-start-21"));
     });
     expect(w().__AIJ_NOTIFICATION_PREFS__).toMatchObject({ quiet_start: 21, quiet_end: 7 });
     const [work] = await findAllByTestId("digest-account");
@@ -234,8 +238,9 @@ describe("wireframe 26 — the policies the user owns", () => {
     });
     expect(w().__AIJ_NOTIFICATION_PREFS__).toMatchObject({ digest_muted_accounts: ["claude-work"] });
     expect(getByTestId("settings-notifications").textContent).toContain("left out of the digest");
+    fireEvent.click(getByTestId("quiet-end"));
     await act(async () => {
-      fireEvent.change(getByTestId("quiet-end"), { target: { value: "21" } });
+      fireEvent.click(screen.getByTestId("quiet-end-21"));
     });
     expect(getByTestId("quiet-hours").textContent).toContain("No quiet hours");
   });
@@ -248,6 +253,25 @@ describe("wireframe 26 — the policies the user owns", () => {
     expect(row.textContent).toContain("View only");
     fireEvent.click(within(row).getByRole("button", { name: /Access… for Mac mini/ }));
     expect(getByTestId("fleet-access-sheet")).toBeTruthy();
+  });
+
+  it("Access offers No access, said as what it means, and saves it", async () => {
+    w().__AIJ_FLEET_PEERS__ = [PEER];
+    w().__AIJ_FLEET_CALLS__ = [];
+    const { findByTestId, getByTestId, queryByTestId } = render(<SettingsScreen focusSection="fleet" />);
+    const row = await findByTestId("settings-fleet-peer");
+    fireEvent.click(within(row).getByRole("button", { name: /Access… for Mac mini/ }));
+    const none = getByTestId("fleet-access-none");
+    expect(none.textContent).toContain("No access");
+    expect(none.textContent).toContain("Mac mini sees nothing of this computer and can't act here.");
+    fireEvent.click(within(none).getByRole("radio"));
+    await act(async () => {
+      fireEvent.click(getByTestId("fleet-access-save"));
+    });
+    expect(w().__AIJ_FLEET_CALLS__).toContain("permission:machine-mini:no_access:false");
+    await waitFor(() => expect(queryByTestId("fleet-access-sheet")).toBeNull());
+    expect((await findByTestId("settings-fleet-peer")).textContent).toContain("No access");
+    delete w().__AIJ_FLEET_CALLS__;
   });
 
   it("a link to Your Macs with none paired says where to pair one", async () => {

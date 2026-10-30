@@ -497,6 +497,30 @@ fn ask_each_time_holds_a_command_until_this_macs_user_decides() {
     link::link_set_enabled_impl(&b, false).unwrap();
 }
 
+/// The Access sheet's "No access" reaches the command: the peer is kept,
+/// with no access, and any other word is refused in plain words.
+#[test]
+fn no_access_is_a_permission_this_mac_can_set() {
+    let work = tempfile::tempdir().unwrap();
+    let a = app_state(&work.path().join("a"));
+    let b = app_state(&work.path().join("b"));
+    link::link_set_enabled_impl(&a, true).unwrap();
+    link::link_set_enabled_impl(&b, true).unwrap();
+    pair(&a, &b, Permission::View);
+    let b_on_a = fleet::fleet_peers_impl(&a).unwrap()[0].machine_id.clone();
+
+    let peers = fleet::fleet_set_permission_impl(&a, &b_on_a, "no_access", true).unwrap();
+    assert_eq!(peers.len(), 1, "the peer stays paired");
+    assert_eq!(peers[0].permission, "no_access");
+    assert_eq!(peers[0].permission_label, "No access");
+    assert!(!peers[0].ask_each_time, "ask each time is for control only");
+
+    let refused = fleet::fleet_set_permission_impl(&a, &b_on_a, "everything", false);
+    assert!(refused.is_err(), "an unknown permission is refused");
+    link::link_set_enabled_impl(&a, false).unwrap();
+    link::link_set_enabled_impl(&b, false).unwrap();
+}
+
 #[test]
 fn alerts_on_one_mac_reach_its_paired_console_named_by_machine() {
     let work = tempfile::tempdir().unwrap();

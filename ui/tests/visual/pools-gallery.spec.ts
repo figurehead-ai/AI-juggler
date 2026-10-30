@@ -3,15 +3,10 @@
  *
  * - The rail's Pool lens (the View's Group by › Pool, offered once a pool
  *   of yours exists): Open now by pool, a pool's header opens its page.
- * - A session's "Move to pool…" sheet, and the pool sheet with what
- *   agents may do unfolded (D-28 levels).
- * - The pool page: the members' context cards, one unfolded (the agent's
- *   own words marked; Unavailable and why), and its Agent access tab
- *   (hop limit, rules, "Include my paired Macs").
+ * - A session's "Move to pool…" sheet.
  * - Settings › Agent access (its own pane): every pool's level, and the
  *   rules you made.
- * - Keyboard: a pool's header Open opens its page, a card unfolds with Enter,
- *   the level moves with the arrow keys.
+ * - The pool's own page is its canvas (0.3): pool-canvas-gallery.spec.ts.
  *
  * Both themes; axe 0 critical/serious on each.
  */
@@ -20,7 +15,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo, openFilters } from "./fixtures";
+import { goTo, groupBy } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/91-pools");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -81,23 +76,13 @@ async function axe(page: Page, what: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${what}`).toEqual([]);
 }
 
-/** The View's Group by › Pool, then the View closed. */
+/** The rail's switch › Pool (0.3: no longer in the View). */
 async function groupByPool(page: Page) {
-  await openFilters(page);
-  const pool = page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ });
-  await expect(pool).toBeEnabled();
-  await pool.check();
-  await page.keyboard.press("Escape");
+  await groupBy(page, "Pool");
 }
 
 /** A pool's header: its Open button. */
 const poolOpen = (page: Page, name: string) => page.getByTestId("place-header").getByRole("button", { name: new RegExp(`^Open ${name}`) });
-
-async function poolPage(page: Page) {
-  await groupByPool(page);
-  await poolOpen(page, "Checkout redesign").click();
-  await expect(page.getByTestId("pool-page")).toBeVisible();
-}
 
 for (const theme of ["dark", "light"] as const) {
   test(`the rail's Pool lens — ${theme}`, gate("91-pools"), async ({ page }) => {
@@ -123,47 +108,6 @@ for (const theme of ["dark", "light"] as const) {
     await axe(page, `move to pool ${theme}`);
   });
 
-  test(`the pool sheet, with what agents may do — ${theme}`, async ({ page }) => {
-    await open(page, theme);
-    await poolPage(page);
-    await page.getByTestId("pool-page-edit").click();
-    const sheet = page.getByTestId("pool-sheet");
-    await expect(sheet.getByTestId("pool-member")).toHaveCount(2);
-    await sheet.getByTestId("pool-access-fold").locator("> summary").click();
-    await expect(sheet.getByTestId("pool-level-work_together").getByRole("radio")).toBeChecked();
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `pool-sheet-1280x800-${theme}.png`) });
-    await axe(page, `pool sheet ${theme}`);
-  });
-
-  test(`the pool page's cards — ${theme}`, async ({ page }) => {
-    await open(page, theme);
-    await poolPage(page);
-    const cards = page.getByTestId("pool-card");
-    await expect(cards).toHaveCount(2);
-    await cards.first().getByTestId("pool-card-more").click();
-    await expect(page.getByTestId("pool-card-said")).toContainText("said by the agent");
-    await expect(page.getByTestId("pool-card-files")).toContainText("src/cart.ts");
-    await cards.nth(1).getByTestId("pool-card-more").click();
-    await expect(cards.nth(1).getByTestId("pool-card-files")).toContainText("Unavailable — ");
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `pool-cards-1280x800-${theme}.png`) });
-    await axe(page, `pool cards ${theme}`);
-  });
-
-  test(`the pool page's agent access — ${theme}`, async ({ page }) => {
-    await open(page, theme);
-    await poolPage(page);
-    await page.getByRole("tab", { name: "Agent access" }).click();
-    await expect(page.getByTestId("pool-rule")).toContainText("Give a task to someone else");
-    await page.getByTestId("pool-delivery").locator("summary").click();
-    await expect(page.getByTestId("pool-hop-limit")).toHaveValue("5");
-    await expect(page.getByText("Message and task content will travel to your other Macs.")).toBeVisible();
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `pool-access-1280x800-${theme}.png`) });
-    await axe(page, `pool access ${theme}`);
-  });
-
   test(`Settings › Agent access — ${theme}`, async ({ page }) => {
     await open(page, theme);
     await goTo(page, "Settings");
@@ -179,24 +123,3 @@ for (const theme of ["dark", "light"] as const) {
     await axe(page, `settings agent access ${theme}`);
   });
 }
-
-test("keyboard: a pool's header, a card's disclosure, the level", async ({ page }) => {
-  await open(page, "dark");
-  await groupByPool(page);
-  const header = poolOpen(page, "Checkout redesign");
-  await header.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.getByTestId("pool-page")).toBeVisible();
-  const more = page.getByTestId("pool-card-more").first();
-  await more.focus();
-  await page.keyboard.press("Enter");
-  await expect(more).toHaveAttribute("aria-expanded", "true");
-  await page.keyboard.press("Enter");
-  await expect(more).toHaveAttribute("aria-expanded", "false");
-  await page.getByRole("tab", { name: "Agent access" }).focus();
-  await page.keyboard.press("Enter");
-  const work = page.getByTestId("pool-level-work_together").getByRole("radio");
-  await work.focus();
-  await page.keyboard.press("ArrowDown");
-  await expect(page.getByTestId("pool-level-full").getByRole("radio")).toBeChecked();
-});

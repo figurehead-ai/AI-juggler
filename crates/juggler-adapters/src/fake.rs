@@ -76,6 +76,30 @@ impl HarnessAdapter for FakeHarnessAdapter {
             | Capabilities::AGENT_BRIDGE
             | Capabilities::PROTOCOL_SERVER
             | Capabilities::STATE_REPORTS
+            | Capabilities::LIMIT_HITS
+    }
+
+    /// 0.3: like a tool that records the limit a turn stopped at in its
+    /// transcript (`{"type":"limit","at_ms":…,"resets_at_ms":…}`); the next
+    /// `assistant` line means it carried on.
+    fn limit_hit(&self, tail: &str) -> Option<juggler_adapter::live::LimitHit> {
+        for raw in tail.lines().rev() {
+            let Ok(line) = serde_json::from_str::<serde_json::Value>(raw) else {
+                continue;
+            };
+            match line.get("type").and_then(serde_json::Value::as_str) {
+                Some("limit") => {
+                    return Some(juggler_adapter::live::LimitHit {
+                        at_ms: line.get("at_ms")?.as_i64()?,
+                        resets_at_ms: line.get("resets_at_ms").and_then(serde_json::Value::as_i64),
+                        window: None,
+                    });
+                }
+                Some("assistant") => return None,
+                _ => {}
+            }
+        }
+        None
     }
 
     /// AJ-E2306: like a tool that runs hooks named in a file on its command

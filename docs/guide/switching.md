@@ -382,6 +382,16 @@ stops, and you can switch back to it at any time.
   undo removes only what AI Juggler added, and only while it's unchanged.
 - **Usage:** the new account counts only what was done there, not the
   history it carried.
+- **What the other tool was told:** after a switch to another tool, the
+  result says in one line what was hidden from it and what was left out,
+  for example "Hidden from Codex: 2 API keys · Left out: 12 earlier
+  turns, 1 note". **Open the handover** shows it, read-only: where it came
+  from, what it carries and doesn't, what was withheld, and the handover
+  itself. Keys you chose to send as they were are listed as sent, never
+  as hidden. Later, the same is one click away in the project's
+  **Overview**, under **How this work travelled**: click the arrow of
+  that switch. A switch on the same tool copies the whole session, so it
+  has no handover and shows nothing of the kind.
 
 ## Switch back
 
@@ -395,10 +405,13 @@ the work passed through: their new turns, the changes and the task list.
 ## Start from a saved handover
 
 A saved handover is a conversation's story saved as a folder, the same thing
-a switch hands over. Save one from a project's **Overview**, under **How
-this work travelled**: choose a step, then **Save handover…**. Keys and
-passwords in it are handled by your choice in Settings › Switching ›
-Handovers and keys.
+a switch hands over. Save one from the session's page, under **Continue on
+another account**, or from a project's **Overview**, under **How this work
+travelled**: choose a step, then **Save handover…**. Keys and passwords in
+it are handled by your choice in Settings › Switching › Handovers and keys.
+When it's saved, AI Juggler says where it went and what was hidden, with
+**Open the handover** and **Reveal in Finder**. Only you can open its
+folder.
 
 To pick the work up later, in any tool, choose **New session** › **Start
 from a saved handover…** and pick its folder. AI Juggler checks it, then

@@ -26,6 +26,7 @@ import {
   type FleetPeerInfo,
 } from "../lib/bridge";
 import { CardTitle } from "./CardTitle";
+import { Checkbox, Picker } from "./controls";
 
 export function accountName(account: AccountInfo): string {
   return `${providerDisplayName(account.provider)} · ${account.label}`;
@@ -87,13 +88,15 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           recorded. Tidying after a crash waits 5 minutes and asks first, with Undo.
         </p>
       </div>
-      <label className="flex flex-wrap items-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="font-medium text-ink">Default for new accounts</span>
-        <select
+        <Picker
+          size="sm"
+          ariaLabel="Default for new accounts"
           value={defaultOn === null ? "" : defaultOn ? "tidy" : "notify"}
           disabled={defaultOn === null}
-          onChange={(event) => {
-            const on = event.target.value === "tidy";
+          onChange={(value) => {
+            const on = value === "tidy";
             setError(null);
             void cleanupDefaultSet(on).then(
               (saved) => {
@@ -107,17 +110,16 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
               (cause) => setError(errorText(cause)),
             );
           }}
-          className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
-          data-testid="cleanup-default"
-        >
-          <option value="notify">Notify only</option>
-          <option value="tidy">Tidy left-behind dev servers</option>
-        </select>
-      </label>
+          testId="cleanup-default"
+          options={[
+            { value: "notify", label: "Notify only" },
+            { value: "tidy", label: "Tidy left-behind dev servers" },
+          ]}
+        />
+      </div>
       {/* AJ-E508 Req.4: the global kill-switch, here and in Cleanup's ⋯. */}
       <label className="flex items-start gap-2 text-xs">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={paused === true}
           disabled={paused === null}
           onChange={(event) => {
@@ -131,7 +133,7 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
               (cause) => setError(errorText(cause)),
             );
           }}
-          className="mt-0.5 size-3.5 accent-[var(--color-accent)]"
+          className="mt-0.5"
           data-testid="settings-cleanup-pause"
         />
         <span className="flex flex-col gap-0.5">
@@ -233,13 +235,15 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           a date: an account without one simply gets no renewal reminders.
         </p>
       </div>
-      <label className="flex flex-wrap items-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="font-medium text-ink">Remind me</span>
-        <select
-          value={warnDays ?? ""}
+        <Picker
+          size="sm"
+          ariaLabel="Remind me"
+          value={warnDays === null ? "" : String(warnDays)}
           disabled={warnDays === null}
-          onChange={(event) => {
-            const days = Number.parseInt(event.target.value, 10);
+          onChange={(value) => {
+            const days = Number.parseInt(value, 10);
             // §4.15: a failed save puts the old choice back and says why.
             void saveOptimistic({
               previous: warnDays,
@@ -250,17 +254,11 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
               onFailed: setStatus,
             });
           }}
-          className="rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs text-ink"
-          data-testid="renewal-warn-days"
-        >
-          {options.map((days) => (
-            <option key={days} value={days}>
-              {days} {days === 1 ? "day" : "days"}
-            </option>
-          ))}
-        </select>
+          testId="renewal-warn-days"
+          options={options.map((days) => ({ value: String(days), label: `${days} ${days === 1 ? "day" : "days"}` }))}
+        />
         <span className="text-muted">before a renewal</span>
-      </label>
+      </div>
       <Status status={status} error={null} />
       <div className="flex flex-col divide-y divide-hairline">
         {accounts.length === 0 ? <NoAccounts /> : accounts.map((account) => <RenewalRow key={account.id} account={account} />)}

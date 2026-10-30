@@ -1,6 +1,6 @@
 {
   "name": "ai-juggler",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AI Juggler's pool tools and a skill for working the pool's tasks. Works in sessions AI Juggler started with its agent tools, while AI Juggler runs; anywhere else each tool says why it can't.",
   "author": {
     "name": "Figurehead"

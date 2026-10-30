@@ -2,12 +2,14 @@
  * AJ-E1511 — "Start from a saved handover…" in New session. The pack is read
  * and checked first, then shown as the switch screen shows a switch: where
  * it came from, its fidelity, what it carries and what it doesn't, and
- * what redaction withheld when it was made. The user picks the account and
+ * what redaction withheld when it was made (the rows a switch's handover
+ * is read with too, `HandoverView`). The user picks the account and
  * the folder in New session as for any session; Launch then starts it
  * primed with the pack.
  */
 import { useState, type JSX } from "react";
 import { Button } from "./primitives";
+import { HandoverRows } from "./HandoverView";
 import { errorText } from "../lib/bridge";
 import { packsOpenPreview, packsOpenStart, pickPackFolder, type PackOpenInfo, type PackStartedInfo } from "../lib/ipc/packs";
 
@@ -53,15 +55,6 @@ export function usePack(onFolder: (folder: string) => void): PackChoice {
   };
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
-  return (
-    <div className="grid grid-cols-[7.5rem_1fr] gap-2 text-label">
-      <span className="text-muted">{label}</span>
-      <span className="min-w-0 text-ink">{children}</span>
-    </div>
-  );
-}
-
 /** The pack line in New session: a link to choose one, or what it holds. */
 export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
   if (!pack.opened) {
@@ -79,7 +72,6 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
     );
   }
   const { info } = pack.opened;
-  const made = new Date(info.created_at_ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   return (
     <section className="mb-4 flex flex-col gap-2 rounded-xl border border-accent/30 bg-accent-soft/40 p-3" aria-labelledby="pack-title" data-testid="pack-summary">
       <div className="flex items-center gap-2">
@@ -90,29 +82,10 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
           Don't use it
         </Button>
       </div>
-      <Row label="From">
-        {info.from_tool} on {info.from_account} · {made}
-      </Row>
-      <Row label="Where">
-        <span className="font-mono">{info.project_root}</span> · {info.branch}
-        {!info.project_here && <span className="text-muted"> (not on this computer: pick where to work below)</span>}
-      </Row>
-      <Row label="Continues as">{info.fidelity}</Row>
-      <Row label="Carries">{info.carries.join(", ")}</Row>
-      {info.not_carried.length > 0 && <Row label="Doesn't carry">{info.not_carried.join("; ")}</Row>}
-      <Row label="Withheld">
-        <span data-testid="pack-withheld">
-          {info.withheld.length === 0
-            ? "Nothing: no secrets were found when it was made."
-            : `${info.withheld.map((item) => `${item.count} ${item.what}`).join(", ")}, when it was made. They stay out.`}
-        </span>
-      </Row>
-      <details className="text-label">
-        <summary className="cursor-pointer text-muted">The handover's brief</summary>
-        <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-canvas p-2 font-mono text-label text-ink" aria-label="The handover's brief (read-only)" tabIndex={0}>
-          {info.brief}
-        </pre>
-      </details>
+      <HandoverRows
+        data={info}
+        whereNote={!info.project_here && <span className="text-muted"> (not on this computer: pick where to work below)</span>}
+      />
     </section>
   );
 }

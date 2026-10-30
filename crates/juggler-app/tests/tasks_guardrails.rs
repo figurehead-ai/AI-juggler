@@ -420,6 +420,8 @@ fn the_app_writes_no_task() {
     assert_eq!(
         registered,
         [
+            "tasks_across",
+            "tasks_across_counts",
             "tasks_answer",
             "tasks_approve",
             "tasks_cancel",
@@ -432,6 +434,7 @@ fn the_app_writes_no_task() {
             "tasks_look_up",
             "tasks_needs",
             "tasks_plan",
+            "tasks_project_counts",
             "tasks_send_back",
             "tasks_session",
             "tasks_start",

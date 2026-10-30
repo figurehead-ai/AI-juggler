@@ -180,10 +180,13 @@ fn a_sent_back_task_keeps_its_holder_and_the_note_reaches_it() {
     let message = inbox.result.as_ref().unwrap()["messages"][0].clone();
     assert_eq!(message["from"], "You");
     let subject = message["subject"].as_str().unwrap_or_default();
-    assert!(
-        subject.starts_with(&format!("{id} sent back")),
-        "its subject names the task"
+    // D-25: the subject names the task by its title (the user reads it
+    // too); the body's hint keeps its id for the agent's own tool.
+    assert_eq!(
+        subject, "Sent back · Shipping rates",
+        "its subject names the task by its title"
     );
+    assert!(!subject.contains(id.as_str()), "no task id in the subject");
     let read = lab.call(
         &builder,
         Call::ReadInbox,
@@ -197,6 +200,21 @@ fn a_sent_back_task_keeps_its_holder_and_the_note_reaches_it() {
     );
     let body = serde_json::to_string(&read.result.unwrap()).unwrap();
     assert!(body.contains(note), "the note is the message");
+    assert!(
+        body.contains(&format!("task_get {id}")),
+        "the agent still gets the id for its tool"
+    );
+    // On screen, the message names the task by its title, never its id.
+    let thread = views::detail(&lab.state, &id, None).unwrap().threads[0]
+        .thread_id
+        .clone();
+    let shown = messages::views::thread(&lab.state, &thread, None);
+    let shown = serde_json::to_string(&shown.unwrap()).unwrap();
+    assert!(
+        !shown.contains(id.as_str()),
+        "no task id in the message on screen"
+    );
+    assert!(shown.contains("«Shipping rates»"), "named by its title");
     // The task's page shows the thread that names it.
     let threads = views::detail(&lab.state, &id, None).unwrap().threads;
     assert_eq!(threads.len(), 1);

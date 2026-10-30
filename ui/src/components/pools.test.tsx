@@ -2,13 +2,13 @@
  * AJ-E1702 / AJ-E1703 vitest — pools in the rail, Home and the sheets,
  * agent access (D-28/D-29/D-32), and the pool page's cards.
  *
- * - The rail: the View's Pool lens waits, greyed, until you've made a
- *   pool; then Open now groups by pool and a pool's header opens its
+ * - The rail: the grouping switch offers Pool only once you've made a
+ *   pool (0.3); then Open now groups by pool and a pool's header opens its
  *   page. There is no separate pools section.
  * - A session's menu: "Move to pool…" in Working on it, with its icon.
- * - The sheets: make a pool (the session goes in, its page opens), move a session, rename
- *   (a taken name refused in words), a project's default pool can't be renamed or
- *   deleted, deleting says what happens first.
+ * - The sheets: make a pool (the session goes in, its page opens), move a
+ *   session (a taken name refused in words). Renaming, roles and deleting
+ *   are the canvas's (pages/pool/canvas.test.tsx).
  * - Agent access: the level picker, Custom's actions (never delivery),
  *   the hop limit and stop-all, rules taken back; Settings lists every
  *   pool.
@@ -20,7 +20,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../lib/bridge";
 import { actionSpecs } from "../lib/actions";
-import { defaultPoolIdOf, poolMembers, poolsList, resetPreviewPools, type ContextCard, type PoolMemberRow, type PoolsInfo } from "../lib/ipc/pools";
+import { poolMembers, poolsList, resetPreviewPools, type ContextCard, type PoolMemberRow, type PoolsInfo } from "../lib/ipc/pools";
 import { forgetPaged, type PagedList } from "../lib/paged";
 import { openPoolSheet, refreshPools, resetPools, usePoolPlace } from "../lib/pools";
 import { ConversationsProvider } from "../lib/conversations";
@@ -30,8 +30,10 @@ import { sessionState } from "../lib/rail-items";
 import { PoolAccessPanel } from "./PoolAccess";
 import { AgentAccessCard } from "../screens/settings/AgentAccessPane";
 import { PoolCardRows } from "./PoolCards";
+import { sessionTitle } from "./ManageWork";
 import { PoolSheet } from "./PoolSheet";
 import { InstanceBoard } from "./WorkflowRail";
+import { pick } from "../test/pick";
 
 type Seams = { __AIJ_POOLS__?: unknown; __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_ACTIVITY__?: unknown };
 const seams = () => window as unknown as Seams;
@@ -94,17 +96,15 @@ describe("pools in the rail: the Pool lens", () => {
         </ActionHostProvider>
       </ConversationsProvider>,
     );
-  const poolRadio = async (view: ReturnType<typeof board>) => {
-    act(() => void window.dispatchEvent(new Event("aij:rail-view")));
-    const panel = await view.findByRole("dialog", { name: "View" });
-    return within(panel).getByRole("radio", { name: /Pool/ }) as HTMLInputElement;
-  };
+  // 0.3: the rail's grouping switch (no longer in the View).
+  const groupSwitch = (view: ReturnType<typeof board>) => view.getByRole("radiogroup", { name: "Group sessions by" });
 
-  it("waits, greyed, until a pool of yours exists; the rail shows places meanwhile", async () => {
+  it("waits until a pool of yours exists; the rail shows places meanwhile", async () => {
     act(() => setRailView({ ...DEFAULT_VIEW, group: "pool" }));
     const view = board();
     await loaded();
-    expect((await poolRadio(view)).disabled).toBe(true);
+    expect(within(groupSwitch(view)).queryByRole("radio", { name: "Pool" })).toBeNull();
+    expect(within(groupSwitch(view)).getByRole("radio", { name: "App" }).getAttribute("aria-checked")).toBe("true");
     expect(view.getAllByTestId("place-header").some((header) => header.textContent?.includes("AI Juggler"))).toBe(true);
   });
 
@@ -113,8 +113,7 @@ describe("pools in the rail: the Pool lens", () => {
     const opened: string[] = [];
     const view = board({ openPool: (id: string) => opened.push(id) });
     await loaded();
-    const radio = await poolRadio(view);
-    expect(radio.disabled).toBe(false);
+    const radio = await within(groupSwitch(view)).findByRole("radio", { name: "Pool" });
     fireEvent.click(radio);
     expect(railView().group).toBe("pool");
     const open = await view.findByRole("button", { name: /^Open Checkout redesign/ });
@@ -156,14 +155,6 @@ describe("instant and paged (I6)", () => {
     const rest = await poolMembers("pool-checkout", { cursor: page.next_cursor, limit: 1 });
     expect(rest.items.map((row) => row.session.id)).toEqual([second.id]);
     expect(rest.next_cursor).toBeNull();
-  });
-
-  it("the pool sheet lists its members from that read", async () => {
-    seedCheckout();
-    const pools = await loaded();
-    const { findAllByTestId, getAllByTestId } = render(<PoolSheet target={{ mode: "pool", poolId: "pool-checkout" }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
-    expect(await findAllByTestId("pool-member")).toHaveLength(2);
-    expect((getAllByTestId("pool-member-role")[0] as HTMLSelectElement).value).toBe("lead");
   });
 
   it("reads one session's place alone, and the rail's lookups see it", async () => {
@@ -231,25 +222,6 @@ describe("the pool sheets", () => {
     expect(getByTestId("pool-create-session").textContent).toContain("goes in it");
   });
 
-  it("a project's default pool keeps its name and can't be deleted", async () => {
-    const pools = await poolsList();
-    const { queryByTestId, getByText } = render(<PoolSheet target={{ mode: "pool", poolId: defaultPoolIdOf(first.project_id) }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
-    expect(queryByTestId("pool-name")).toBeNull();
-    expect(queryByTestId("pool-delete")).toBeNull();
-    expect(getByText("It's always here: every session of its project that isn't in another pool.")).toBeTruthy();
-  });
-
-  it("says what deleting does before it does it", async () => {
-    seedCheckout();
-    const pools = await poolsList();
-    const { getByTestId } = render(<PoolSheet target={{ mode: "pool", poolId: "pool-checkout" }} pools={pools} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />);
-    fireEvent.click(getByTestId("pool-delete"));
-    expect(getByTestId("pool-delete-confirm").textContent).toContain("Its 2 sessions go back to their projects' pools; nothing else changes.");
-    expect(calls()).toEqual([]);
-    fireEvent.click(getByTestId("pool-delete-yes"));
-    await waitFor(() => expect(calls()).toEqual(["delete:pool-checkout"]));
-  });
-
   it("opens from anywhere and closes", () => {
     act(() => openPoolSheet({ mode: "create" }));
     act(() => openPoolSheet(null));
@@ -275,7 +247,7 @@ describe("agent access", () => {
     };
     const pool = (await loaded()).pools[0]!;
     const { getByTestId } = render(<PoolAccessPanel pool={pool} />);
-    fireEvent.change(getByTestId("pool-hop-limit"), { target: { value: "3" } });
+    pick(getByTestId("pool-hop-limit"), "3");
     await waitFor(() => expect(calls()).toContain("delivery:pool-team:3:false"));
     expect(getByTestId("pool-rule").textContent).toContain("Give a task to someone else");
     fireEvent.click(getByTestId("pool-rule-revoke"));
@@ -336,7 +308,7 @@ describe("context cards", () => {
     account: "Work Max",
     state: "running",
     role: "lead",
-    task: { value: "aj-7f3c · Split the checkout (in progress)", unavailable: null },
+    task: { value: "Split the checkout (in progress)", unavailable: null },
     said: { value: "Split checkout into steps", unavailable: null },
     last_activity_ms: Date.now() - 120_000,
     files: ["src/cart.ts", "src/pay.ts"],
@@ -358,18 +330,22 @@ describe("context cards", () => {
 
   it("shows a row like Home's, and the rest behind its disclosure", () => {
     const { getByTestId, getByLabelText } = render(<PoolCardRows list={listOf([card({})])} sessions={MOCK_SESSIONS} now={Date.now()} />);
-    expect(getByTestId("pool-card").textContent).toContain("Split checkout");
+    // The session's one title, as the rail names it (not the card's own
+    // fallback, which said "its folder").
+    expect(getByTestId("pool-card-name").textContent).toBe(sessionTitle(first));
+    // Its state beside the name, outside the part that gives way.
+    expect(getByTestId("pool-card-name").contains(getByTestId("pool-card-state"))).toBe(false);
     // D-36: the rows' place line; the tool beside it (the line names the profile).
     expect(getByTestId("pool-card").textContent).toContain("shop · AI Juggler · Work Max");
     expect(getByTestId("pool-card").textContent).toContain("Claude Code");
     // AJ-E2104: the rail's one state vocabulary.
     expect(getByTestId("pool-card-state").textContent).toBe(sessionState(first).word);
-    const more = getByLabelText("Show what Split checkout is doing");
+    const more = getByLabelText(`Show what ${sessionTitle(first)} is doing`);
     expect(more.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(more);
     expect(getByTestId("pool-card-said").textContent).toBe("“Split checkout into steps”said by the agent");
     expect(getByTestId("pool-card-files").textContent).toBe("src/cart.tssrc/pay.ts");
-    expect(getByTestId("pool-card-detail").textContent).toContain("aj-7f3c · Split the checkout (in progress)");
+    expect(getByTestId("pool-card-detail").textContent).toContain("Split the checkout (in progress)");
   });
 
   it("says Unavailable and why, never an empty guess", () => {

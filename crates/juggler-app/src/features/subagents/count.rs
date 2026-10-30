@@ -133,9 +133,60 @@ pub fn counted_conversations(
 pub fn tick(state: &Arc<AppState>) -> Changed {
     let mut followed = live_sessions(state);
     followed.extend(live_conversations(state, &followed));
-    pass(&state.subagents, followed, &|tool, scope| {
-        reader_for(&state.registry, tool, scope)
-    })
+    let messages = crate::features::conversations::last_messages::enabled(state);
+    let dir = super::index_dir(state);
+    let cache = state.cache.gate();
+    let changed = pass(
+        &state.subagents,
+        followed,
+        &|tool, scope| reader_for(&state.registry, tool, scope),
+        Some((&cache, &dir, messages)),
+    );
+    let passes = state
+        .subagents
+        .passes
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    if passes.is_multiple_of(DETAILS_EVERY) {
+        follow_details(&state.subagents, &cache, &dir, messages);
+    }
+    changed
+}
+
+/// AJ-E1520 (0.3): every this many passes (10 s), a live session's
+/// subagents' own transcripts are read on (what they ran: the Processes
+/// view's "started by"), within [`LIVE_BUDGET`].
+const DETAILS_EVERY: u64 = 5;
+
+/// What one such read takes at most, per session.
+const LIVE_BUDGET: u64 = 8 * 1024 * 1024;
+
+/// Reads on each live session's subagents' own transcripts and keeps
+/// their commands (and the index) current.
+fn follow_details(
+    readers: &Readers,
+    cache: &crate::features::cache::Gate,
+    dir: &std::path::Path,
+    messages: bool,
+) {
+    let live: Vec<Arc<Entry>> = readers
+        .kept
+        .lock()
+        .map(|kept| kept.live.values().cloned().collect())
+        .unwrap_or_default();
+    for entry in live {
+        let Some(listed) = entry.list(LIVE_BUDGET) else {
+            continue;
+        };
+        let Ok(cleans) = entry
+            .clean
+            .lock()
+            .map(|mut cleaned| cleaned.all(&listed.agents, messages))
+        else {
+            continue;
+        };
+        entry.remember(&listed.agents, &cleans);
+        entry.save(cache, dir, messages);
+    }
 }
 
 /// The reader the count makes for `tool`'s conversation `scope`: its
@@ -229,7 +280,12 @@ fn live_conversations(state: &Arc<AppState>, own: &[Followed]) -> Vec<Followed> 
 /// it keeps one, else its own, made by `make`), publishes the counts and
 /// lets the readers of sessions no longer followed go. Says which lists'
 /// counts changed.
-pub(crate) fn pass(readers: &Readers, followed: Vec<Followed>, make: MakeReader<'_>) -> Changed {
+pub(crate) fn pass(
+    readers: &Readers,
+    followed: Vec<Followed>,
+    make: MakeReader<'_>,
+    saved: Option<(&crate::features::cache::Gate, &std::path::Path, bool)>,
+) -> Changed {
     let before: HashMap<Row, u64> = readers
         .counts
         .lock()
@@ -243,14 +299,19 @@ pub(crate) fn pass(readers: &Readers, followed: Vec<Followed>, make: MakeReader<
                 path: &one.key.2,
                 id: &one.key.1,
             };
-            make(&one.tool, scope).map(|reader| Entry::new(one.key.clone(), reader))
+            make(&one.tool, scope).map(|reader| match saved {
+                Some((cache, dir, messages)) => {
+                    Entry::resumed(cache, dir, messages, one.key.clone(), reader)
+                }
+                None => Entry::new(one.key.clone(), reader),
+            })
         });
         let Some(entry) = kept else {
             continue;
         };
-        match entry.read() {
-            Some((Ok(true), agents)) => {
-                counts.insert(one.row.clone(), running(&agents));
+        match entry.count() {
+            Some((Ok(true), running)) => {
+                counts.insert(one.row.clone(), running);
             }
             // Still catching up: the last count stands until it has.
             Some((Ok(false), _)) => {
@@ -349,6 +410,7 @@ mod tests {
                     depth: 1,
                     background: None,
                     transcript: None,
+                    details: juggler_adapter::subagents::SubagentDetails::default(),
                 })
                 .collect();
             Ok(caught_up)
@@ -413,7 +475,7 @@ mod tests {
         };
         let readers = Readers::default();
         assert!(
-            !pass(&readers, vec![followed("s1")], &make).any(),
+            !pass(&readers, vec![followed("s1")], &make, None).any(),
             "nothing read yet"
         );
         assert_eq!(
@@ -421,16 +483,16 @@ mod tests {
             None,
             "still catching up: never a guess"
         );
-        assert!(pass(&readers, vec![followed("s1")], &make).any());
+        assert!(pass(&readers, vec![followed("s1")], &make, None).any());
         assert_eq!(
             count(&readers, "s1"),
             Some(2),
             "done and unknown aren't running"
         );
-        assert!(pass(&readers, vec![followed("s1")], &make).any());
+        assert!(pass(&readers, vec![followed("s1")], &make, None).any());
         assert_eq!(count(&readers, "s1"), Some(1));
         assert!(
-            !pass(&readers, vec![followed("s1")], &make).any(),
+            !pass(&readers, vec![followed("s1")], &make, None).any(),
             "no change, no emit"
         );
         assert_eq!(made.get(), 1, "one reader, refreshed each pass");
@@ -446,10 +508,10 @@ mod tests {
             }))
         };
         let readers = Readers::default();
-        assert!(pass(&readers, vec![followed("s1"), followed("s2")], &make).any());
+        assert!(pass(&readers, vec![followed("s1"), followed("s2")], &make, None).any());
         assert_eq!(count(&readers, "s1"), Some(1));
         assert!(
-            pass(&readers, vec![followed("s2")], &make).any(),
+            pass(&readers, vec![followed("s2")], &make, None).any(),
             "s1 left the count"
         );
         assert_eq!(count(&readers, "s1"), None, "ended: unknown, not 0");
@@ -471,17 +533,17 @@ mod tests {
                 agents: Vec::new(),
             }),
         );
-        readers.used(&tab);
+        readers.used(&tab, super::super::READERS_KEPT);
         let never = |_: &str, _: SubagentScope<'_>| -> Option<Box<dyn SubagentReader>> {
             panic!("the tab's reader is reused, not a second one made")
         };
-        assert!(pass(&readers, vec![one], &never).any());
+        assert!(pass(&readers, vec![one], &never, None).any());
         assert_eq!(count(&readers, "s1"), Some(2));
         assert!(Arc::ptr_eq(
             &readers.kept.lock().unwrap().live[&Row::Session("s1".to_owned())],
             &tab
         ));
-        assert!(pass(&readers, Vec::new(), &never).any());
+        assert!(pass(&readers, Vec::new(), &never, None).any());
         assert_eq!(
             readers.kept.lock().unwrap().tab.len(),
             1,
@@ -503,7 +565,7 @@ mod tests {
         let readers = Readers::default();
         let mut other = followed("s2");
         other.tool = "keeps-none".to_owned();
-        assert!(!pass(&readers, vec![followed("s1"), other], &make).any());
+        assert!(!pass(&readers, vec![followed("s1"), other], &make, None).any());
         assert_eq!(count(&readers, "s1"), None, "unreadable: not a 0");
         assert_eq!(count(&readers, "s2"), None, "no reader: not a 0");
         let kept = readers.kept.lock().unwrap();
@@ -530,6 +592,7 @@ mod tests {
             &readers,
             vec![elsewhere("thread-1", "codex"), elsewhere("ses-2", "kimi")],
             &make,
+            None,
         );
         assert_eq!(
             changed,
@@ -563,6 +626,7 @@ mod tests {
                 followed("s1"),
             ],
             &make,
+            None,
         );
         assert_eq!(
             changed,

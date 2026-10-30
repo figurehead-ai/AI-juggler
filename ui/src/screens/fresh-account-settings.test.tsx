@@ -4,6 +4,7 @@ import * as bridge from "../lib/bridge";
 import * as copy from "../lib/ipc/accountSettings";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { FreshAccountStep } from "./FreshAccountStep";
+import { pick } from "../test/pick";
 
 /**
  * AJ-E1508: Add account's fresh account starts with the user's usual
@@ -155,7 +156,7 @@ describe("a fresh account's usual settings", () => {
       />,
     );
     await view.findByRole("button", { name: /Its MCP servers/ });
-    fireEvent.change(view.getByRole("combobox", { name: "Account to copy the settings from" }), { target: { value: "acc-personal" } });
+    pick(view.getByRole("button", { name: /^Account to copy the settings from/ }), "Personal");
     // Personal's permissions aren't ticked for the user: Work's ticks don't
     // come with the change.
     await view.findByRole("button", { name: /Nothing ticked/ });

@@ -129,3 +129,29 @@ it("keeps Open now's order: places as arranged, the user's pins first", () => {
   expect(work[0]!.key).toBe("c:claude-work/outside-1");
   expect(keys).toContain("c:claude-work/outside-3");
 });
+
+it("keeps one door to the grouping switch and View: Group and View shows the list", () => {
+  const onShowList = vi.fn();
+  seams().__AIJ_FIXTURE__ = { conversations: [] };
+  const view = render(
+    <ActionHostProvider host={{}}>
+      <ConversationsProvider>
+        <FoldedRail sessions={[]} projects={projects} now={NOW} selectedId={null} onSelect={() => {}} onShowList={onShowList} />
+      </ConversationsProvider>
+    </ActionHostProvider>,
+  );
+  const door = view.getByRole("button", { name: "Group and View: show the list" });
+  expect(door.getAttribute("aria-keyshortcuts")).toBe("Meta+B");
+  fireEvent.click(door);
+  expect(onShowList).toHaveBeenCalledTimes(1);
+  cleanup();
+  // Without a way to show the list, no door that does nothing.
+  const bare = render(
+    <ActionHostProvider host={{}}>
+      <ConversationsProvider>
+        <FoldedRail sessions={[]} projects={projects} now={NOW} selectedId={null} onSelect={() => {}} />
+      </ConversationsProvider>
+    </ActionHostProvider>,
+  );
+  expect(bare.queryByTestId("rail-folded-show-list")).toBeNull();
+});

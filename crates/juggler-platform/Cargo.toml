@@ -19,10 +19,12 @@ workspace = true
 # AsyncRead / AsyncWrite for the local connection's stream; the Unix
 # listener itself needs `net`.
 tokio = { version = "1.53.3", default-features = false, features = ["net"] }
+# This computer's memory, for the local cache's size (ADR-0023).
+sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 
 [target."cfg(unix)".dependencies]
 # The effective user id (safe bindings; no `unsafe` here).
-nix = { version = "0.31.3", features = ["user"] }
+nix = { version = "0.31.3", features = ["user", "fs"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"

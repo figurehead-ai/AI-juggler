@@ -6,7 +6,7 @@ travels **nightly → beta → stable**:
 
 | Channel | Who it's for | How a build gets there |
 |---|---|---|
-| **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day there's a new commit. No approval |
+| **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day something that ships has changed. No approval |
 | **Beta** | Newer features, a little less tested | `promote.yml`, once the build has had **3+ days of real use** as AI Juggler Nightly and **no `blocker` issue is open** (D-24), with the maintainer's approval (the `beta` environment) |
 | **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed, with the maintainer's approval (the `stable` environment) |
 
@@ -217,11 +217,42 @@ icon before the first public release.
 
 ## Each release
 
-**Nightly** needs nothing from you: every day with new commits on `main`,
+**Nightly** needs nothing from you: every day (03:00 UTC) that something
+that ships has changed on `main` since the newest `vX.Y.Z` tag,
 `nightly.yml` builds the next version. Its notes are generated from the
 commit subjects (`scripts/nightly_notes.py`; only `feat`, `perf` and `fix`
 commits, with task IDs and PR numbers removed). To build now, run
-**Nightly** by hand (`workflow_dispatch`, optionally with `force`).
+**Nightly** by hand (`workflow_dispatch`): it builds whatever changed, and
+only the very commit of the last nightly needs `force`.
+
+**What ships**, and so what makes a nightly, is one ordered list:
+`RULES` in `scripts/release_ships.py`. A day whose changes are all outside
+it (docs, release notes, tests, CI, gates) builds nothing, and the run's
+summary says "No nightly today" and why. Twice before this a build identical
+to the one before took the number the planned release needed (v0.1.5 changed
+only a test, v0.1.7 only release notes), and that release had to be renamed.
+
+| Ships (a change builds) | Why |
+|---|---|
+| `crates/**`, except the next row | The app: Rust code, build scripts, the Tauri configuration, capabilities, icons, `Info.plist`, entitlements |
+| `ui/**`, except the next row | What `pnpm build` bundles, with its packages and lockfile |
+| `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` | The version, the exact dependencies, the compiler |
+| `.github/workflows/build-macos.yml`, `nightly.yml`, and the scripts they run (`release_version.py`, `release_ships.py`, `sign_macos.sh`, `install_tauri_cli.sh`, `edition_icon.swift`, `apple_retry.py`, `updater_sig_check.py`, `release_seams_check.sh`, `nightly_notes.py`, `downgrade_note.py`, `release_notes_check.sh`) | How it's built, signed and published, and the notes its feed carries |
+
+| Doesn't ship | Why |
+|---|---|
+| `crates/*/tests/**`, `examples/**`, `benches/**`, in-source `tests.rs` | Only `cargo test`, `run --example` and `bench` build them |
+| `ui/tests/**` (Playwright, visual baselines), `ui/src/**/*.test.ts(x)`, `ui/src/test/**`, the Playwright and Vitest configs | Tests |
+| `**/*.md`, `docs/**` (including `docs/releases/`) | Documentation. A version's hand-written notes are picked up by its build |
+| `.github/**` (other workflows, templates, Dependabot), the other `scripts/**`, `justfile`, `deny.toml`, `rustfmt.toml`, `fuzz/**`, `stats/**` | CI, gates and tools; the app carries `juggler-stats`' generated copy of the schema |
+
+A file no rule names ships, so an unclassified file builds rather than
+being skipped, and `just release-selftest` (in CI) fails until every
+tracked file is classified. It also checks the list against the tree: no
+shipped Rust file `include_str!`s, and no shipped UI file imports, a file
+that doesn't ship; every script the two build workflows run ships; and every
+in-source `tests.rs` is declared `#[cfg(test)]`. To see why a file counts:
+`python3 scripts/release_ships.py explain <path>`.
 
 Signing talks to Apple's timestamp, notary and ticket services, which can
 fail for a few minutes. `scripts/apple_retry.py` wraps those steps: it
@@ -415,6 +446,7 @@ saved (it never risks it). So:
 | 0.0.13 | 30 (account rename, remove and default; account audit) | yes | **no** — downgrade note in 0.0.13's notes; 0.0.13 keeps a `before-v29` copy, so "Go back to an earlier version" can return to 0.0.12 |
 | 0.1.0 | 32 (31: session and project names, pins, forgotten projects, AJ-E1502; 32: other managers' worktree homes, AJ-E1519) | yes | **no** — downgrade note in 0.1.0's notes; 0.1.0 keeps a `before-v30` copy, so "Go back to an earlier version" can return to 0.0.17 |
 | 0.2.x | 37 (33: pools, AJ-E1702; 34: messages between agents, E18; 35: other apps' processes, D-41; 36: tasks shared by pools, E19; 37: the notification model's history and mutes, AJ-E2501) | yes | **no** — 0.2's notes need the downgrade note ("Going back to 0.1.0 or earlier…"); 0.2 keeps a `before-v32` copy, so "Go back to an earlier version" can return to 0.1.0 |
+| 0.3.x | 38 (the pool canvas: where you put each member on a pool's canvas, and an index for a pool's task events) | yes | **no** — 0.3's notes need the downgrade note ("Going back to 0.2.x or earlier…"); 0.3 keeps a `before-v37` copy, so "Go back to an earlier version" can return to 0.2 |
 
 Tests: `cargo test -p juggler-core --test pre_migration_copy` (the copy
 holds exactly the rows the database had, two are kept, a fresh database

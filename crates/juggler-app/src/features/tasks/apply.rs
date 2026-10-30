@@ -431,8 +431,9 @@ pub fn ask_for_session(
         actor_name: actor.name.clone(),
         change: note.clone(),
         summary: format!(
-            "«{}» asks for a new session for {} «{}»",
-            actor.name, task.id, task.title
+            "«{}» asks for a new session for {}",
+            actor.name,
+            super::words::quoted(&task.title)
         ),
         created_at: juggler_core::model::Timestamp::now().millis(),
     })?;

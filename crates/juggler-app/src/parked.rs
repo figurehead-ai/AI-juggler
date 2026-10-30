@@ -367,6 +367,21 @@ pub fn parked_resume_impl(
         });
     }
     let (session, account) = crate::commands::handover_source(state, session_id)?;
+    // 0.3: a session parked while open at its limit is still running:
+    // it carries on where it is (a second copy would write the same
+    // conversation), so resuming it only takes it off the queue.
+    if state.supervisor.is_supervised(&session.id) && !state.supervisor.is_finished(&session.id) {
+        let mut parked = load(state);
+        parked.remove(session_id);
+        save(state, &parked)?;
+        return Ok(crate::commands::LaunchResult {
+            session_id: session_id.to_owned(),
+            pid: state
+                .supervisor
+                .root_identity(&session.id)
+                .map_or(0, |identity| identity.pid),
+        });
+    }
     let reference: TranscriptRef =
         session
             .transcript_ref

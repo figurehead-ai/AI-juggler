@@ -35,7 +35,7 @@ const INTERPRETER_NAMES = new Set([
 const RUNNER_VERBS = new Set(["run", "exec", "dlx"]);
 
 /** The short process name for the consequence-named button (Req.1's
- * `Terminate vite (PID 8123) and free :5173`). */
+ * `Stop vite (PID 8123) and free :5173`). */
 export function killDisplayName(cmdline: string, exePath: string): string {
   const basename = (token: string) =>
     token.replaceAll("\\", "/").split("/").pop() ?? "";

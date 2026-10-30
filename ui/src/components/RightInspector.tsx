@@ -4,8 +4,7 @@ import { PageShell } from "../pages/PageShell";
 import { InspectorHeader, statusTone, toolRunning } from "../pages/ItemHeader";
 import { since } from "../lib/time-words";
 import { pageTabs, type PageKind, type PageTabId } from "../pages/registry";
-import { ProjectUsage } from "../pages/ProjectUsage";
-import { ProjectOverview, ProjectSessions } from "../pages/ProjectPage";
+import { ProjectTab, useProjectTabCounts } from "../pages/project/ProjectTabs";
 import { AccountOverview, AccountSessions } from "../pages/AccountPage";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
@@ -171,6 +170,7 @@ export function RightInspector({
 }) {
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
+  const projectCounts = useProjectTabCounts(data.project, sessions);
   const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
   useEffect(() => {
@@ -194,6 +194,7 @@ export function RightInspector({
     desktop: data.instance?.kind === "desktop",
     ...sessionTabs,
     hasUsage: projectUsage,
+    counts: projectCounts,
     hasSessions: data.account
       ? sessions.some((s) => s.account_id === data.account!.id) ||
         outside(conversations).some((c) => c.account_id === data.account!.id)
@@ -334,17 +335,8 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         default:
           return null;
       }
-    case "project":
-      switch (tab) {
-        case "sessions":
-          return props.data.project ? <ProjectSessions {...props} project={props.data.project} /> : null;
-        case "overview":
-          return props.data.project ? <ProjectOverview {...props} project={props.data.project} /> : null;
-        case "usage":
-          return <ProjectUsage projectId={props.data.project?.id ?? ""} sessions={props.sessions} />;
-        default:
-          return null;
-      }
+    case "project": // 0.3: its seven tabs (pages/project/ProjectTabs).
+      return props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null;
     case "account":
       switch (tab) {
         case "overview":
@@ -538,7 +530,7 @@ function InstanceOverview(props: PanelProps) {
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 {session.runtime?.fell_back && <p className="text-meta text-muted" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
                 <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-                  <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} />
+                  <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} rule={session.attention?.rule ?? null} />
                 </Card>
                 {!live && <p className="text-meta text-muted">{`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}</p>}
               </div>
@@ -996,7 +988,7 @@ function stuckRuleWords(rule: string): string {
       return "No output for a while";
     case "waiting_prompt":
       return "Waiting for your reply";
-    case "quota_exit":
+    case "quota_exit": case "limit_hit": // ended, or open at its limit (0.3)
       return "Hit its limit";
     default:
       return "Looks stuck";

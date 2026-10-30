@@ -13,7 +13,10 @@ import { Timeline } from "../../components/charts/Timeline";
 import { short } from "../../components/charts/scale";
 import { seriesColor } from "../../components/charts/colors";
 import { GRID, SPAN } from "../../components/usage/Dashboard";
-import { IconChart, IconClock, IconDonut, IconList, IconPlay, IconRoute, IconTokens, Segmented } from "../../components/usage/controls";
+import { IconChart, IconDonut, IconPlay, IconRoute, IconTokens, IconUser, Segmented } from "../../components/usage/controls";
+import { IconTasks } from "../../components/icons-places";
+import { openTasks, taskWords, type ProjectOpen } from "../../lib/project-summary";
+import { useProjectTasks } from "./useProjectTasks";
 import { chartSeries, shareItems, useUsageHistory } from "../../components/usage/useUsage";
 import { SwitchGraph } from "../../components/SwitchGraph";
 import { switchGraphOverview } from "../../lib/bridge";
@@ -31,6 +34,8 @@ export function ProjectOverviewView({
   sharedBy,
   accounts,
   checkouts,
+  open,
+  accountsUsed,
   onOpenSession,
   onAllSessions,
 }: {
@@ -43,15 +48,16 @@ export function ProjectOverviewView({
   accounts: ReactNode;
   /** The checkouts card, when there are several. */
   checkouts: ReactNode;
+  /** 0.3: its sessions open now (AI Juggler's and other apps'). */
+  open: ProjectOpen | undefined;
+  /** 0.3: every account that worked here. */
+  accountsUsed: string[];
   onOpenSession: (id: string) => void;
   onAllSessions: () => void;
 }): JSX.Element {
   const [split, setSplit] = useState<"profile" | "tool" | "model">("profile");
   const month = useUsageHistory("30d", split, { project: project.id }, 0);
   const week = useUsageHistory("7d", "profile", { project: project.id }, 0);
-  // History-wide numbers come from the summaries, never from the app's
-  // working set of sessions (it holds the open and the newest only).
-  const ever = useUsageHistory("all", "profile", { project: project.id }, 0);
   const data = month.data;
   const cut = month.cut;
   const series = useMemo(() => (data && data.edges_ms.length === cut.edges.length ? chartSeries(data, split, "tokens") : []), [data, split, cut.edges.length]);
@@ -60,38 +66,41 @@ export function ProjectOverviewView({
   const weekIo = week.data ? week.data.totals.tokens.input + week.data.totals.tokens.output : null;
   const live = rows.filter((row) => row.live);
   const needs = live.filter((row) => row.railState === "asks_you").length;
+  const taskCounts = useProjectTasks(project.id);
+  const tasks = openTasks(taskCounts);
   const last = lastWorked(project) || rows[0]?.last || 0;
-  const lastBy = rows[0]?.accountLabel;
+  const apps = open?.apps ?? 0;
   const daily = data ? data.edges_ms.slice(1).map((_, i) => data.series.reduce((sum, entry) => sum + (entry.io[i] ?? 0), 0)) : [];
   const empty = data !== null && data.totals.messages === 0;
   const words = bucketWords(cut.step);
   return (
     <div className="@container flex flex-col gap-grid" data-testid="project-visual-overview">
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4" data-testid="project-summary">
-        <StatTile label="Open now" icon={<IconPlay width={15} height={15} />} value={live.length} unit="count" note={live.length === 0 ? "Nothing running here" : [needs > 0 && `${needs} ${needs === 1 ? "needs" : "need"} you`, `${live.length - needs} working or idle`].filter(Boolean).join(" · ")} testId="tile-open" />
         <StatTile
-          label="Sessions this week"
-          icon={<IconList width={15} height={15} />}
-          value={week.data?.totals.sessions ?? null}
+          label="Open sessions"
+          icon={<IconPlay width={15} height={15} />}
+          value={open?.open ?? live.length}
           unit="count"
-          before={week.data?.previous.sessions ?? null}
-          period="last week"
-          note={
-            <span data-testid="project-sessions-ever">
-              {ever.data ? `${ever.data.session_count} with usage in all` : "Counting…"}
-            </span>
-          }
-          testId="tile-week-sessions"
+          note={(open?.open ?? live.length) === 0 ? `Nothing running here${last > 0 ? ` · last worked ${agoWords(last, now)}` : ""}` : [apps > 0 && `${apps} ${apps === 1 ? "app" : "apps"}`, needs > 0 && `${needs} ${needs === 1 ? "needs" : "need"} you`, open && open.working > 0 && `${open.working} working`].filter(Boolean).join(" · ")}
+          testId="tile-open"
+        />
+        <StatTile
+          label="Tasks"
+          icon={<IconTasks width={15} height={15} />}
+          value={tasks?.open ?? null}
+          unit="count"
+          note={<span data-testid="tile-tasks-note">{taskWords(taskCounts)}</span>}
+          testId="tile-tasks"
         />
         <StatTile label="Tokens this week" icon={<IconTokens width={15} height={15} />} value={weekIo} unit="tokens" before={week.data ? week.data.previous.tokens.input + week.data.previous.tokens.output : null} period="last week" trend={daily} testId="tile-week-tokens" />
-        <div className="sheen flex min-w-0 flex-col gap-1.5 rounded-card border border-hairline bg-surface px-5 pb-3.5 pt-4 shadow-card" data-testid="tile-last-worked">
-          <span className="flex items-center gap-1.5 text-meta text-muted">
-            <IconClock width={15} height={15} aria-hidden="true" />
-            Last worked
-          </span>
-          <span className="text-stat text-ink">{last > 0 ? agoWords(last, now) : "Not yet"}</span>
-          {lastBy && <span className="text-label text-muted">on {lastBy}</span>}
-        </div>
+        <StatTile
+          label="Accounts used"
+          icon={<IconUser width={15} height={15} />}
+          value={accountsUsed.length}
+          unit="count"
+          note={<span className="block truncate" title={accountsUsed.join(", ")}>{accountsUsed.length === 0 ? "None yet" : accountsUsed.join(", ")}</span>}
+          testId="tile-accounts"
+        />
       </div>
       <div className={GRID}>
         <Section

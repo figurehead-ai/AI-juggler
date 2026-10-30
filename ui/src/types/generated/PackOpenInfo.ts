@@ -62,6 +62,10 @@ not_carried: Array<string>,
  */
 withheld: Array<WithheldInfo>, 
 /**
+ * What it found and left as it was, as the user chose.
+ */
+kept: Array<WithheldInfo>, 
+/**
  * Its brief (`PACK.md`), to read in full.
  */
 brief: string, };

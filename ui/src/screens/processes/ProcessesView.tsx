@@ -26,6 +26,7 @@ import { CleanupStatus } from "./CleanupStatus";
 import { GroupCleanupSheet } from "./GroupCleanupSheet";
 import { HistoryView } from "./HistoryView";
 import { ProcessTree } from "./ProcessTree";
+import { clearProcess, onProcessAsk, openSubagents, peekProcess } from "../../lib/subagent-links";
 import { RowActions, canStop, isSessionItself, type RowHandlers } from "./RowActions";
 import { FiltersButton, NO_FILTERS, SearchBox, ViewTabs, filterCount, type Choice, type Filters, type ViewId } from "./Toolbar";
 import { useProcessRows } from "./useProcessRows";
@@ -90,6 +91,19 @@ export function ProcessesView({
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [stopping, setStopping] = useState<{ row: ProcessGraphRowInfo; trigger: HTMLElement | null } | null>(null);
   const [cleaning, setCleaning] = useState<ProcessGraphRowInfo | null>(null);
+  // AJ-E1520 (0.3): a subagent's process, asked for from its page.
+  const [selected, setSelected] = useState<string | null>(() => (embedded ? peekProcess() : null));
+  useEffect(() => {
+    if (!embedded) return;
+    return onProcessAsk(() => {
+      setView("running");
+      setSelected(peekProcess());
+    });
+  }, [embedded]);
+  const clearSelected = useCallback(() => {
+    clearProcess();
+    setSelected(null);
+  }, []);
   const words = useDebounced(search, 150);
 
   const query = useMemo(
@@ -227,6 +241,9 @@ export function ProcessesView({
           onNearEnd={loadMore}
           height={height}
           empty={empty}
+          onSubagent={embedded ? (id) => openSubagents({ subagent: id }) : undefined}
+          select={embedded ? selected : null}
+          onSelected={clearSelected}
         />
       )}
       {stopRow && stopRow.process && (
@@ -238,6 +255,13 @@ export function ProcessesView({
           trigger={stopping.trigger ?? undefined}
           bridge={stopRow.process.stop === "observed" ? observedBridge(stopRow.process.start_time) : undefined}
           onlyThisProcess={stopRow.process.stop === "observed" ? "Only this process: the app's session and its other processes are never touched." : undefined}
+          observed={stopRow.process.stop === "observed"}
+          sessionEnded={stopRow.state === "left_behind" || stopRow.state === "left_behind_closed" || stopSession?.state === "ended"}
+          onShowHistory={() => {
+            setStopping(null);
+            refresh();
+            chooseView("history");
+          }}
           onClose={() => {
             setStopping(null);
             refresh();

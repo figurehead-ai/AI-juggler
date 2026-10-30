@@ -62,6 +62,23 @@ pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
         }
         LifecycleEvent::Started { .. } | LifecycleEvent::HelperOrphaned { .. } => None,
     };
+    // 0.3: a session marked open at its limit that now ends (the user
+    // quit the tool) ended at its limit, whatever its exit code; a Stop
+    // from AI Juggler is still a stop.
+    let quota_blocked = match &event {
+        LifecycleEvent::Exited { session, .. } => {
+            let held = super::limits::at_exit(state, session);
+            quota_blocked.or_else(|| {
+                held.filter(|_| !stopped_by_user).map(|reason| {
+                    juggler_supervisor::AttentionTransition {
+                        status: juggler_core::model::SessionStatus::QuotaBlocked,
+                        reason,
+                    }
+                })
+            })
+        }
+        _ => quota_blocked,
+    };
     // AJ-E1509: how it ended, for the restarter (after the status
     // is stored, with storage free again).
     let ending = match &event {

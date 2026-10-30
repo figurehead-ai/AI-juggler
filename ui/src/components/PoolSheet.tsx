@@ -2,17 +2,18 @@ import { useState, type JSX } from "react";
 
 import { errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { poolCreate, poolMove, type PoolsInfo } from "../lib/ipc/pools";
-import { defaultPoolIdOf, hasUserPools, openPoolSheet, poolById, poolIdOf, setPools, usePoolPlace, type PoolSheetTarget } from "../lib/pools";
+import { defaultPoolIdOf, hasUserPools, openPoolSheet, poolIdOf, setPools, usePoolPlace, type PoolSheetTarget } from "../lib/pools";
 import { placeOf } from "../lib/project-words";
-import { Field, Input, Modal, Select } from "./form";
-import { PoolEditor } from "./PoolEditor";
+import { Field, Input, Modal } from "./form";
 import { useActionHost } from "./ItemMenu";
 import { Button } from "./primitives";
+import { Picker } from "./controls";
 
 /**
- * The pool sheet (AJ-E1702), loaded on first use: make a pool, move a
- * session to another, or open one pool ({@link PoolEditor}). The user
- * owns every pool; nothing here starts, stops or types into a session.
+ * The pool sheet (AJ-E1702), loaded on first use: make a pool, or move a
+ * session to another. A pool itself is changed on its canvas (0.3). The
+ * user owns every pool; nothing here starts, stops or types into a
+ * session.
  */
 export function PoolSheet({
   target,
@@ -26,17 +27,6 @@ export function PoolSheet({
   projects: ProjectInfo[];
 }): JSX.Element {
   const close = () => openPoolSheet(null);
-  if (target.mode === "pool") {
-    const pool = poolById(pools, target.poolId);
-    if (!pool) {
-      return (
-        <Modal title="Pool" onClose={close}>
-          <p className="text-sm text-muted">That pool isn't there any more.</p>
-        </Modal>
-      );
-    }
-    return <PoolEditor pool={pool} pools={pools} sessions={sessions} projects={projects} onClose={close} />;
-  }
   const session = sessions.find((row) => row.id === target.sessionId) ?? null;
   // With no pool of yours yet, moving a session means making one.
   if (target.mode === "move" && session && hasUserPools(pools)) {
@@ -112,14 +102,14 @@ function CreatePool({
         </Field>
         {projects.length > 0 && (
           <Field label="For" hint="A pool for one project takes only that project's sessions.">
-            <Select value={project} onChange={(event) => setProject(event.target.value)} data-testid="pool-create-project">
-              <option value="">Any project</option>
-              {projects.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.name}
-                </option>
-              ))}
-            </Select>
+            <Picker
+              ariaLabel="For"
+              value={project}
+              onChange={setProject}
+              testId="pool-create-project"
+              className="self-start"
+              options={[{ value: "", label: "Any project" }, ...projects.map((row) => ({ value: row.id, label: row.name }))]}
+            />
           </Field>
         )}
         {where && (

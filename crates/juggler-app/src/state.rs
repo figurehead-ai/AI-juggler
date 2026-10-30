@@ -76,6 +76,9 @@ pub struct AppState {
     /// E19: tasks shared by pools — what tells the window. The rest is
     /// storage.
     pub tasks: crate::features::tasks::Tasks,
+    /// 0.3: open sessions at their limit — each transcript's tail as last
+    /// read, and driven sessions' marks. Held in memory only.
+    pub limits: crate::features::sessions::limits::LimitWatch,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -137,6 +140,9 @@ pub struct AppState {
     /// D-38: the apps' icons read from their bundles, in memory and under
     /// `icons/` in the data folder.
     pub app_icons: crate::features::app_icons::IconCache,
+    /// ADR-0023: the local caches' registry, budget and switch, as
+    /// Settings left them.
+    pub cache: crate::features::cache::Manager,
     /// AJ-E1509: the restarts of crashed sessions so far, by lineage.
     pub restarts: std::sync::Mutex<crate::features::sessions::restart::Restarts>,
     /// AJ-E1509: what keeps the Mac awake and App Nap off for the sessions.
@@ -229,6 +235,7 @@ impl AppState {
     ///
     /// Returns [`crate::error::AppError`] when storage or the supervision
     /// journal cannot be opened.
+    #[allow(clippy::too_many_lines)] // one assembly of the app's state, field by field
     pub fn init_with_registry(
         data_dir: PathBuf,
         registry: AdapterRegistry,
@@ -315,6 +322,7 @@ impl AppState {
             load_thresholds(&data_dir),
             &storage,
         ));
+        let cache = crate::features::cache::Manager::from_settings(data_dir.clone(), &storage);
         Ok(Self {
             audit,
             cleanup_settings,
@@ -333,6 +341,7 @@ impl AppState {
             messages: crate::features::messages::Messages::default(),
             processes: crate::features::processes::Processes::default(),
             tasks: crate::features::tasks::Tasks::default(),
+            limits: crate::features::sessions::limits::LimitWatch::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),
@@ -352,7 +361,8 @@ impl AppState {
             conversations: crate::features::conversations::ConversationIndex::default(),
             outside_search: crate::features::outside_search::OutsideSearch::default(),
             project_icons: std::sync::Mutex::default(),
-            app_icons: crate::features::app_icons::IconCache::new(data_dir.join("icons")),
+            app_icons: crate::features::app_icons::IconCache::of(&cache),
+            cache,
             restarts: std::sync::Mutex::default(),
             awake: std::sync::Mutex::default(),
             ended_by_crash: std::sync::Mutex::new(ended_by_crash),

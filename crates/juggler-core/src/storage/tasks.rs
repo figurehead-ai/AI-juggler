@@ -29,6 +29,9 @@ use crate::error::CoreError;
 use crate::model::Timestamp;
 use crate::tasks::{LinkKind, Priority, TaskKind, TaskStatus, effective};
 
+/// 0.3: the reads across pools (the Tasks screen's counts).
+mod across;
+
 /// v36: the E19 tables.
 pub(super) const MIGRATION: &str = "
 CREATE TABLE tasks (
@@ -224,6 +227,10 @@ pub struct TaskQuery<'a> {
     pub words: Option<&'a str>,
     /// Those after this one in the list's order (the previous page's last).
     pub after: Option<TaskKey>,
+    /// 0.3: those in any of these pools (the Tasks screen, across pools).
+    pub pools: Option<&'a [String]>,
+    /// 0.3: only those no one holds (the Tasks screen's "No one yet").
+    pub unheld: bool,
 }
 
 /// A task's place in a list: ready work first (its honest status's rank),
@@ -452,6 +459,16 @@ fn task_of(row: &Row<'_>) -> rusqlite::Result<Task> {
     })
 }
 
+/// Words for a `LIKE … ESCAPE '\\'`: trimmed, its wildcards taken
+/// literally.
+fn like_words(words: &str) -> String {
+    words
+        .trim()
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
 fn json<T: serde::Serialize + ?Sized>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| "[]".to_owned())
 }
@@ -667,7 +684,9 @@ impl TasksRepo<'_> {
                 AND (?2 IS NULL OR t.assignee_ref IN (SELECT value FROM json_each(?2)))
                 AND (?4 IS NULL OR t.kind IN (SELECT value FROM json_each(?4)))
                 AND (?5 IS NULL OR (?5 = '' AND t.parent_id IS NULL) OR t.parent_id = ?5)
-                AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\')))
+                AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\')
+                AND (?11 IS NULL OR t.pool_id IN (SELECT value FROM json_each(?11)))
+                AND (?12 = 0 OR t.assignee_ref IS NULL)))
               WHERE (?3 IS NULL OR eff IN (SELECT value FROM json_each(?3)))
                 AND (?8 IS NULL OR (rk, priority, -seq) > (?8, ?9, ?10))
               ORDER BY rk, priority, seq DESC LIMIT ?7",
@@ -679,13 +698,7 @@ impl TasksRepo<'_> {
         let kinds = query
             .kinds
             .map(|list| json(&list.iter().map(|k| k.as_str()).collect::<Vec<_>>()));
-        let words = query.words.map(|words| {
-            words
-                .trim()
-                .replace('\\', "\\\\")
-                .replace('%', "\\%")
-                .replace('_', "\\_")
-        });
+        let words = query.words.map(like_words);
         let rows = stmt.query_map(
             params![
                 query.pool_id,
@@ -698,6 +711,8 @@ impl TasksRepo<'_> {
                 query.after.map(|key| key.rank),
                 query.after.map(|key| key.priority),
                 query.after.map(|key| -key.seq),
+                query.pools.map(json),
+                query.unheld,
             ],
             task_of,
         )?;

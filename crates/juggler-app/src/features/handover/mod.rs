@@ -7,18 +7,29 @@
 //! before (the conversation, redacted and quoted; what each tool call
 //! did; where the work stands), the rules files in play, when older
 //! turns don't fit, what they were about, and (D-51, when the user ticked
-//! them) this project's notes, quoted.
+//! them) this project's notes, quoted. `state.json` also records what the
+//! keys check hid and what was left out (kinds and counts, never a value),
+//! so the switch can say afterwards what the other tool was told
+//! ([`view`]).
 
 pub mod switch_words;
+pub mod view;
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::ToolSpec;
 use juggler_adapter::handover::TurnText;
+use juggler_handover::pack::RedactionCount;
 
 /// The handover's name in its folder.
 pub const FILE: &str = "HANDOVER.md";
+/// Its state's name in its folder.
+pub const STATE: &str = "state.json";
+/// What `state.json` calls its layout.
+pub const FORMAT: &str = "ai-juggler-handover";
+/// This layout's version: 2 records what was hidden and kept.
+pub const VERSION: u32 = 2;
 /// Where the switches' folders live in AI Juggler's data folder.
 pub const FOLDER: &str = "switches";
 /// How many earlier topics are named before "…and N more".
@@ -27,7 +38,7 @@ const TOPICS_SHOWN: usize = 40;
 const TOPIC_CHARS: usize = 100;
 
 /// A rules file in the session's folder, and whose it is.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RulesFile {
     /// Its name in the folder (`CLAUDE.md`).
     pub name: String,
@@ -36,10 +47,10 @@ pub struct RulesFile {
 }
 
 /// What the switch knows about itself, for `state.json`.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct HandoverState {
-    /// `ai-juggler-handover`.
-    pub format: &'static str,
+    /// `ai-juggler-handover` ([`FORMAT`]).
+    pub format: String,
     /// This layout's version.
     pub version: u32,
     /// The switch-graph edge.
@@ -60,16 +71,25 @@ pub struct HandoverState {
     pub rules_files: Vec<RulesFile>,
     /// D-51: this project's notes quoted in it (the user ticked them), by
     /// name.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes_quoted: Vec<String>,
     /// D-51: the notes left out of it (the keys check found something in
     /// them, or they didn't fit), by name.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes_left_out: Vec<String>,
+    /// What the keys check hid from it, by kind (`sk-key`, …), as a
+    /// pack's `redactions` count them: kinds and counts, never a value.
+    /// `None` in a handover written before this was recorded.
+    #[serde(default)]
+    pub withheld: Option<Vec<RedactionCount>>,
+    /// What it found and left as it was, because the user chose to, by
+    /// kind.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub kept: Vec<RedactionCount>,
 }
 
 /// One side of the switch.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Side {
     /// The tool's id.
     pub tool: String,
@@ -183,7 +203,7 @@ pub fn write(data_dir: &Path, brief: &str, state: &HandoverState) -> std::io::Re
     for (path, body) in [
         (file.clone(), brief.to_owned()),
         (
-            folder.join("state.json"),
+            folder.join(STATE),
             serde_json::to_string_pretty(state).unwrap_or_default(),
         ),
     ] {

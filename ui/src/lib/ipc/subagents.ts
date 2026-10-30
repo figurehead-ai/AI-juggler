@@ -1,68 +1,51 @@
 /**
- * AJ-E1520 (0.2) — the session page's Subagents tab (ENGINEERING-GUIDE
- * U3: the feature's calls). The backend asks the session's tool's
- * adapter: every tool answers whether it records subagents, and lists a
- * session's from its own records, read-only. A page at a time; a
- * subagent's conversation reads like the session's own last messages.
+ * AJ-E1520 — the Subagents tab's calls (ENGINEERING-GUIDE U3: the
+ * feature's calls). 0.2: a session's subagents and one's conversation;
+ * 0.3: a query (view, search, type, order, open groups) answered as rows
+ * of a grouped tree, one subagent's page, and a project's subagents.
+ * The backend asks the session's tool's adapter, read-only; a saved
+ * index makes a long session open at once.
  */
 import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { PageRequest } from "../../types/generated/PageRequest";
 import type { SubagentsInfo } from "../../types/generated/SubagentsInfo";
 import type { SubagentInfo } from "../../types/generated/SubagentInfo";
+import type { SubagentRowInfo } from "../../types/generated/SubagentRowInfo";
+import type { SubagentsQuery } from "../../types/generated/SubagentsQuery";
+import type { SubagentDetailInfo } from "../../types/generated/SubagentDetailInfo";
 import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
 import type { LastMessagesAsk } from "./conversations";
+import { previewDetail, previewList, previewProject, seededTurns } from "./subagents-preview";
 
-export type { SubagentsInfo, SubagentInfo };
+export type { SubagentsInfo, SubagentInfo, SubagentRowInfo, SubagentsQuery, SubagentDetailInfo };
 
-/** What a preview (or a spec) seeds, by conversation id. */
-type Seeded = {
-  state?: string;
-  reason?: string | null;
-  live?: boolean;
-  reading?: boolean;
-  conversations_note?: string | null;
-  items: SubagentInfo[];
-  /** Each subagent's turns, by its id. */
-  turns?: Record<string, LastMessagesInfo["turns"]>;
-};
+/** The query with nothing asked: All, newest first. */
+export const NO_QUERY: SubagentsQuery = { view: null, search: null, kind: null, sort: null, open: [], closed: [] };
 
-function fixture(): Record<string, Seeded> | undefined {
-  return (window as unknown as { __AIJ_FIXTURE__?: { subagents?: Record<string, Seeded> } }).__AIJ_FIXTURE__?.subagents;
+/** A session's subagents as rows: groups, then each group's tree. */
+export async function subagentsList(accountId: string, conversationId: string, page: PageRequest, query: SubagentsQuery = NO_QUERY): Promise<SubagentsInfo> {
+  if (!hasLiveBackend()) return previewList(conversationId, query, page);
+  return invoke<SubagentsInfo>("subagents_list", { accountId, conversationId, query, page });
 }
 
-/** The preview's paging: the same order and cursor shape as the backend's (rows in order, the cursor an index). */
-function previewList(conversationId: string, page: PageRequest): SubagentsInfo {
-  const seeded = fixture()?.[conversationId];
-  const empty = { items: [], next_cursor: null, total: 0 };
-  if (!seeded) return { state: "listed", reason: null, page: empty, running: 0, reading: false, live: false, conversations_note: null };
-  const start = page.cursor ? Number(page.cursor.replace("preview:", "")) : 0;
-  const limit = page.limit ?? 50;
-  const items = seeded.items.slice(start, start + limit);
-  const next = start + limit < seeded.items.length ? `preview:${start + limit}` : null;
-  return {
-    state: seeded.state ?? "listed",
-    reason: seeded.reason ?? null,
-    page: { items, next_cursor: next, total: seeded.items.length },
-    running: seeded.items.filter((item) => item.status === "running").length,
-    reading: seeded.reading ?? false,
-    live: seeded.live ?? false,
-    conversations_note: seeded.conversations_note ?? null,
-  };
+/** One subagent's own page. */
+export async function subagentsDetail(accountId: string, conversationId: string, subagentId: string): Promise<SubagentDetailInfo> {
+  if (!hasLiveBackend()) return previewDetail(conversationId, subagentId);
+  return invoke<SubagentDetailInfo>("subagents_detail", { accountId, conversationId, subagentId });
 }
 
-/** A session's subagents, a page at a time (newest first, each followed
- * by the ones it started). */
-export async function subagentsList(accountId: string, conversationId: string, page: PageRequest): Promise<SubagentsInfo> {
-  if (!hasLiveBackend()) return previewList(conversationId, page);
-  return invoke<SubagentsInfo>("subagents_list", { accountId, conversationId, page });
+/** A project's subagents: its newest sessions' together. */
+export async function subagentsProject(projectId: string, page: PageRequest, query: SubagentsQuery = NO_QUERY): Promise<SubagentsInfo> {
+  if (!hasLiveBackend()) return previewProject(projectId, query, page);
+  return invoke<SubagentsInfo>("subagents_project", { projectId, query, page });
 }
 
 /** One subagent's conversation: `before` pages back, `from` follows
  * along, `known` hears "unchanged" without a read. */
 export async function subagentsConversation(accountId: string, conversationId: string, subagentId: string, ask: LastMessagesAsk = {}): Promise<LastMessagesInfo> {
   if (!hasLiveBackend()) {
-    const turns = fixture()?.[conversationId]?.turns?.[subagentId];
+    const turns = seededTurns(conversationId, subagentId);
     if (!turns) return { state: "none", turns: [], redacted: 0, earlier: null, stamp: null };
     const stamp = `preview:${turns.length}`;
     if (ask.before == null && ask.known === stamp) return { state: "unchanged", turns: [], redacted: 0, earlier: null, stamp };

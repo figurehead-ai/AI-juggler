@@ -237,9 +237,11 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
         .into_iter()
         .find(|c| c.session_id == next)
         .unwrap();
+    // D-25: by its title, never its id.
+    let shown = card.task.value.unwrap();
     assert!(
-        card.task.value.unwrap().starts_with(&id),
-        "the card shows it"
+        shown.starts_with("Build the API") && !shown.contains(id.as_str()),
+        "the card shows it by its title"
     );
     let review = call(
         &state,
@@ -266,7 +268,8 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
             .unwrap_or_else(|| panic!("no node for {session}: {nodes:?}"));
         assert_eq!(
             node.task.as_deref(),
-            Some(format!("{id} · Build the API").as_str())
+            // D-25: its title, never its id.
+            Some("Build the API")
         );
     }
     let detail = views::detail(&state, &id, None).unwrap();

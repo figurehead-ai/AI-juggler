@@ -159,6 +159,8 @@ pub fn process_row(
             role_words: node.role.words().into(),
             role_sure: node.role.sure(),
             label: node.label.clone(),
+            subagent_id: node.subagent.as_ref().map(|(id, _)| id.clone()),
+            subagent_title: node.subagent.as_ref().map(|(_, title)| title.clone()),
             spark: node.spark.clone(),
             peak_rss: node.peak_rss,
             age_ms: node.age_ms,

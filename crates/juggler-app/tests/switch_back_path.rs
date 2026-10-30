@@ -227,6 +227,20 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
          arrives as one 'while you were away' update."
     );
     assert_eq!(suggestions[0].session_id, trip.away_session);
+    let work_max = trip
+        .state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|account| account.label == "Work Max")
+        .unwrap()
+        .id
+        .to_string();
+    assert_eq!(suggestions[0].original_account_id, work_max);
 
     // The plan: exact three-way counts, the file conflict, the
     // delta preview, S-F7 clean.
@@ -364,6 +378,90 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
             .unwrap()
             .is_empty()
     );
+}
+
+/// 0.3 (wf27): when the account the work left has room again, its notice
+/// offers the switch back for that work, not just its account page.
+#[test]
+fn the_room_again_notice_offers_the_switch_back() {
+    use juggler_app::features::notifications::{centre, sources};
+    use juggler_core::model::{Confidence, Timestamp};
+    use juggler_core::quota::{QuotaSample, WindowKind};
+
+    let work = tempfile::tempdir().unwrap();
+    let trip = switch_a_to_b(work.path());
+    let now = Timestamp::now().millis();
+    let earlier = |state: &Arc<AppState>| {
+        let storage = state.storage.lock().unwrap();
+        centre::page(
+            &storage,
+            "earlier",
+            &juggler_app::paging::PageRequest::first(50),
+            Timestamp::now().millis(),
+        )
+        .unwrap()
+        .items
+    };
+    let (work_max, personal) = {
+        let storage = trip.state.storage.lock().unwrap();
+        let accounts = storage.accounts().list().unwrap();
+        let id = |label: &str| {
+            accounts
+                .iter()
+                .find(|account| account.label == label)
+                .unwrap()
+                .id
+                .to_string()
+        };
+        (id("Work Max"), id("Personal"))
+    };
+    // Both ran low; both have room again now.
+    {
+        let storage = trip.state.storage.lock().unwrap();
+        for (id, label) in [(&work_max, "Work Max"), (&personal, "Personal")] {
+            let low = sources::low_notice(id, label, "5-hour", Some(96.0), None, 1, false);
+            centre::open_need(&storage, &low, now).unwrap();
+            storage
+                .usage()
+                .insert_sample(
+                    id,
+                    WindowKind::FiveHour,
+                    &QuotaSample {
+                        ts: now,
+                        used_pct: 10.0,
+                        resets_at: Some(now + 5 * 3_600_000),
+                        confidence: Confidence::Measured,
+                    },
+                )
+                .unwrap();
+        }
+    }
+    sources::quota_pass(&trip.state, &[]);
+    let told = earlier(&trip.state);
+    let reset = |label: &str| {
+        told.iter()
+            .find(|notice| notice.kind == "reset" && notice.title.starts_with(label))
+            .unwrap()
+            .clone()
+    };
+    // The work left Work Max: its notice offers the switch back.
+    let back = reset("Work Max");
+    assert_eq!(back.action.as_deref(), Some("switch-back"));
+    assert_eq!(
+        back.target.session_id.as_deref(),
+        Some(trip.away_session.as_str())
+    );
+    assert_eq!(back.target.account_id.as_deref(), Some(work_max.as_str()));
+    assert_eq!(back.facts.sessions, Some(1));
+    assert!(back.detail.ends_with("can switch back to it"));
+    assert!(
+        !back.detail.contains(&trip.away_session),
+        "an id reached the copy"
+    );
+    // Nothing left Personal: its notice opens the account, as before.
+    let plain = reset("Personal");
+    assert_eq!(plain.action.as_deref(), Some("open"));
+    assert_eq!(plain.target.session_id, None);
 }
 
 #[test]

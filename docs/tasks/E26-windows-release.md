@@ -93,7 +93,7 @@
 > | Signing | Authenticode with an OV or EV certificate, or a cloud signing service (AJ-E2614) |
 > | Scope | x64 only first, or x64 and ARM64; Windows 10 and 11 or 11 only; WSL sessions out of the first release (audit §4: recommended no) |
 > | Data folder | `%LOCALAPPDATA%` (local, never roams; the audit's recommendation) or `%APPDATA%` (Roaming, what `dirs::data_dir()` gives today); a move after the first release is a migration |
-> | Order and timing | Windows first, Linux first (E27), or both together; and when the bring-up starts (the standing plan, SPEC §15 decision 7, is after macOS 1.0) |
+> | Order and timing | Windows first, Linux first (E27), or both together; and when the bring-up starts (settled by D-53: Windows' first release comes before 1.0, and 1.0 waits for it) |
 >
 > **Shared seams, built once.** Some seams are the same shape on both
 > systems. Each is built once, in the task that reaches it first; the

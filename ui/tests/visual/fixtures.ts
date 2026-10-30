@@ -339,14 +339,21 @@ export async function settingsPane(page: import("@playwright/test").Page, name: 
 }
 
 /**
- * AJ-E2104: the rail's View (Group by, Show, Only) sits behind its View
- * button (⇧V); open it (once) before using it.
+ * AJ-E2104: the rail's View (Show, Only) sits behind its View button
+ * (⇧V); open it (once) before using it. 0.3: Group by is the rail's own
+ * switch (`groupBy`).
  */
 export async function openFilters(page: import("@playwright/test").Page): Promise<void> {
   const panel = page.getByTestId("rail-view");
   if (await panel.isVisible()) return;
   await page.getByTestId("rail-view-button").click();
   await panel.waitFor();
+}
+
+/** 0.3: the rail's grouping switch (App · Project · Account · Pool):
+ * one click. */
+export async function groupBy(page: import("@playwright/test").Page, name: "App" | "Project" | "Account" | "Pool"): Promise<void> {
+  await page.getByRole("radiogroup", { name: "Group sessions by" }).getByRole("radio", { name, exact: true }).click();
 }
 
 /** AJ-E2104: the rail's View as kept, then the page again. */
@@ -377,10 +384,20 @@ export async function projectLens(page: import("@playwright/test").Page): Promis
   await railViewAs(page, { group: "project" });
 }
 
+/** 0.3: choosing in a Picker (the shared control in place of the
+ * system select): open it, click the line with that label. */
+export async function pick(page: import("@playwright/test").Page, picker: import("@playwright/test").Locator, label: string | RegExp): Promise<void> {
+  const exact = typeof label === "string" ? new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) : label;
+  await picker.click();
+  await page.getByRole("menuitemradio").filter({ has: page.locator("[data-choice-label]", { hasText: exact }) }).first().click();
+}
+
 /** AJ-E2104: Only › Mac in the View ("all" puts it back). */
 export async function onlyMac(page: import("@playwright/test").Page, value: string): Promise<void> {
   await openFilters(page);
-  await page.getByLabel("Only this mac").selectOption(value === "all" ? "" : value);
+  // 0.3: Only › Mac is a submenu of values (never a system select).
+  await page.getByTestId("rail-view-only-mac").click();
+  await page.getByTestId(`rail-view-only-mac-${value}`).click();
 }
 
 /** AJ-E2104: a session started outside AI Juggler, by its page (its
@@ -436,7 +453,11 @@ export async function openRailList(page: import("@playwright/test").Page): Promi
   const rail = page.getByTestId("rail");
   await expect(rail).toBeVisible();
   if ((await rail.getAttribute("data-density")) === "minimal") {
-    await page.keyboard.press("ControlOrMeta+b");
+    // The folded column's own door to the list (the 0.3 re-render), as a
+    // user would find it; ⌘B where a test's rail has none.
+    const door = page.getByTestId("rail-folded-show-list");
+    if (await door.isVisible()) await door.click();
+    else await page.keyboard.press("ControlOrMeta+b");
     await expect(page.getByTestId("instance-board")).toBeVisible();
   }
 }

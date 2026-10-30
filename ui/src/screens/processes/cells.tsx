@@ -101,7 +101,19 @@ function Chevron({ row, open, onToggle }: { row: ProcessGraphRowInfo; open: bool
 
 /** The first cell: indented, a chevron for what it holds, then the name
  * and its second line. */
-export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; open: boolean; onToggle: () => void }): JSX.Element {
+export function NameCell({
+  row,
+  open,
+  onToggle,
+  onSubagent,
+}: {
+  row: ProcessGraphRowInfo;
+  open: boolean;
+  onToggle: () => void;
+  /** AJ-E1520 (0.3): opens the subagent that probably started it (a
+   * session's own Processes tab; elsewhere it is only said). */
+  onSubagent?: (id: string) => void;
+}): JSX.Element {
   const indent = { paddingLeft: `${Math.min(row.depth, 8) * 16}px` };
   if (row.kind === "program" && row.app) {
     const count = row.rollup?.processes ?? 1;
@@ -161,7 +173,10 @@ export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; op
   const zombie = row.state === "zombie";
   const second = zombie
     ? `Finished; only ${proc.waits_for_name ?? "its parent"}${proc.waits_for_pid ? ` (${proc.waits_for_pid})` : ""} can clear it`
-    : [roleWords(proc.role, proc.role_words, proc.role_sure), proc.label, proc.failed].filter(Boolean).join(" · ");
+    : // 0.3: the useful part first (what failed, what started it), the
+      // guess at its role last: a narrow column cuts the end, not the news.
+      [proc.failed, proc.subagent_title ? null : proc.label, roleWords(proc.role, proc.role_words, proc.role_sure)].filter(Boolean).join(" · ");
+  const by = proc.subagent_title && proc.subagent_id ? { id: proc.subagent_id, words: `probably started by subagent ‘${proc.subagent_title}’` } : null;
   return (
     <div role="gridcell" className="flex min-w-0 items-center gap-2" style={indent}>
       <Chevron row={row} open={open} onToggle={onToggle} />
@@ -169,8 +184,28 @@ export function NameCell({ row, open, onToggle }: { row: ProcessGraphRowInfo; op
         <span className="truncate text-body text-ink" title={`PID ${proc.pid}`}>
           {proc.name}
         </span>
-        <span className="truncate text-label text-muted" title={zombie ? ZOMBIE_WORDS : second}>
-          {second}
+        <span className="flex min-w-0 items-baseline gap-1 text-label text-muted" title={zombie ? ZOMBIE_WORDS : [by?.words, second].filter(Boolean).join(" · ")}>
+          {by &&
+            (onSubagent ? (
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSubagent(by.id);
+                }}
+                className="min-w-0 max-w-[60%] shrink truncate rounded text-accent-hi hover:underline"
+                data-testid="process-subagent"
+              >
+                {by.words} ›
+              </button>
+            ) : (
+              <span className="min-w-0 max-w-[60%] shrink truncate" data-testid="process-subagent">
+                {by.words}
+              </span>
+            ))}
+          {by && second && <span aria-hidden="true">·</span>}
+          <span className="min-w-0 truncate">{second}</span>
         </span>
       </span>
     </div>

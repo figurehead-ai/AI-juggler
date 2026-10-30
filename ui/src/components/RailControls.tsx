@@ -1,6 +1,6 @@
 /**
- * The rail's toolbar controls: a filter chip with its count, and a
- * compact native select (accessible and keyboard-ready in a narrow rail).
+ * The rail's toolbar controls: a filter chip with its count. (0.3: the
+ * compact select that was here is the shared Picker now.)
  */
 import type { ReactNode } from "react";
 
@@ -28,22 +28,5 @@ export function FilterChip({ active, onClick, count, children }: { active: boole
         </>
       )}
     </button>
-  );
-}
-
-export function Select({ ariaLabel, value, onChange, options }: { ariaLabel: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
-  return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="min-w-0 max-w-full truncate rounded-lg border border-hairline bg-surface/70 px-1.5 py-1 text-label text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
   );
 }

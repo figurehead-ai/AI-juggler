@@ -48,6 +48,9 @@ export function ProcessTree({
   empty,
   ended = false,
   testId = "process-tree",
+  onSubagent,
+  select = null,
+  onSelected,
 }: {
   rows: readonly ProcessGraphRowInfo[];
   /** Every row the view holds (for the reader: "row 12 of 340"). */
@@ -68,6 +71,12 @@ export function ProcessTree({
   /** The Ended view: Age reads as how long each ran. */
   ended?: boolean;
   testId?: string;
+  /** AJ-E1520 (0.3): opens the subagent that probably started a row. */
+  onSubagent?: (id: string) => void;
+  /** A row to select and scroll to once it is shown (a subagent's
+   * process), and when it was. */
+  select?: string | null;
+  onSelected?: () => void;
 }): JSX.Element {
   const [folded, setFolded] = useState<Set<string>>(() => new Set());
   const shown = useMemo(() => unfolded(rows, folded), [rows, folded]);
@@ -90,6 +99,17 @@ export function ProcessTree({
   useEffect(() => {
     if (hasMore && end >= shown.length - 20) onNearEnd();
   }, [end, shown.length, hasMore, onNearEnd]);
+
+  // A row asked for (a subagent's process): selected once it's here.
+  useEffect(() => {
+    if (!select) return;
+    const index = shown.findIndex((row) => row.key === select);
+    if (index < 0) return;
+    setFocus(index);
+    const element = scroller.current;
+    if (element) element.scrollTop = Math.max(0, index * ROW_HEIGHT - element.clientHeight / 2);
+    onSelected?.();
+  }, [select, shown, onSelected]);
 
   const open = useCallback(
     (row: ProcessGraphRowInfo) => (row.kind === "process" ? !folded.has(row.key) : row.kind === "session" ? isOpen(row) : true),
@@ -186,7 +206,7 @@ export function ProcessTree({
                     }`}
                     style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
                   >
-                    <NameCell row={row} open={rowOpen} onToggle={() => toggle(row, !rowOpen)} />
+                    <NameCell row={row} open={rowOpen} onToggle={() => toggle(row, !rowOpen)} onSubagent={onSubagent} />
                     {row.kind !== "app" && (
                       <div role="gridcell" className="min-w-0">
                         {row.kind !== "program" && <StateChip word={row.state} session={row.kind === "session"} />}

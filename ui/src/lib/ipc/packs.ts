@@ -35,6 +35,7 @@ const SAMPLE: PackOpenInfo = {
   carries: ["the conversation (24 turns)", "1 rules file", "the uncommitted changes"],
   not_carried: ["Subagents' work: the other tool can't run Claude's subagents"],
   withheld: [{ what: "API keys", count: 2 }],
+  kept: [],
   brief: "# Handover\n\nRefunds: the API is done, the webhook is next.\n",
 };
 

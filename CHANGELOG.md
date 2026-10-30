@@ -9,6 +9,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **One local cache, sized by your Mac** (0.3, ADR-0023): what AI Juggler
+  keeps to be quick (subagent lists, app icons, the search index) is one
+  system. Each entry carries its format, the settings that shaped it and
+  its source, and is dropped and rebuilt when any of them changes;
+  turning Last messages off drops the cached subagent prompts and results
+  at once. Its limit is 2 % of the free disk between 64 MB and 2 GB (or a
+  fixed 250 MB, 1 GB or 4 GB); on a nearly full disk it trims to 64 MB and
+  writes nothing new; on an 8 GB Mac it keeps less in memory. A cheap
+  background pass trims the least recently used first. Settings › Advanced
+  › Local cache shows each cache's size, clears it (saying what gets
+  slower) and turns it off; nothing in it is ever sent, and its files are
+  yours only (the app icons' were readable by other users of the Mac).
+- **Subagents: what's running, what failed, what it cost** (0.3): a
+  session's Subagents tab opens with a line like "437 subagents · 3
+  running · 2 failed · 41% of this session's tokens" (the counts are one
+  click to their view), then Running · Needs attention · All (it opens
+  on Running when anything runs), a search over each one's task, prompt,
+  result and files (`type:` and `file:` narrow it), a type and an order
+  (newest, most tokens, longest). They're grouped under the message you
+  sent that started them, older groups folded, with tree lines showing
+  which subagent started which; a parent's tokens include its children's.
+  Click one for its own page: the task it was given, its result (or why
+  it failed, in one line), its work (tool calls, lines changed, files),
+  its usage with an estimated cost and its share of the session, the
+  processes it probably started (one click selects it in the Processes
+  tab), and how to stop it in Claude Code (/tasks, select it, press x).
+  Esc goes back to where you were. The Usage tab says how much the
+  subagents used ("see which ›"), and a process a subagent probably
+  started says so on its row. Tokens per subagent are part of the
+  session's total for Claude Code and its own thread's for Codex; a tool
+  that doesn't record a part says "Not recorded by …". A long session
+  opens at once: AI Juggler keeps a small index of its subagents and
+  reads only what grew (a 437-subagent session reopens in tens of
+  milliseconds instead of re-reading its transcripts). A project's
+  subagents can be shown the same way across its sessions.
+- **Projects, Pools and Tasks in the header** (0.3): the header is now
+  Home · Projects · Pools · Tasks · Accounts · Usage · History, and the
+  lit tab is the page's title (the separate title is gone, so the header
+  no longer wraps at 1280 px). ⌘⇧P, ⌘⇧O and ⌘⇧T open them; ⌘K finds them.
+  **Projects** lists every project, the most recently worked first, with
+  what needs you there, its sessions working and open, its open tasks
+  (ready, in review) and this week's tokens; search by name or folder,
+  New project on the title. **Tasks** shows every pool's tasks at once,
+  as a Board (Ready · In progress · In review · Blocked) or the Plan
+  (each pool's epics, stories and tasks), filtered by project, pool and
+  who has it; a task opens beside the board with its own actions
+  (Approve, Send back…, Free it, Cancel task, Start a session for it…).
+  Agents still write the tasks; a task in review stays in Needs you too.
+- **A project's page has everything about it** (0.3): Overview · Sessions ·
+  Tasks · Pool · Subagents · Usage · History. Overview opens with open
+  sessions and their apps, open tasks, this week's tokens and the
+  accounts used; Tasks is the project's pool's plan and tasks; Pool sums
+  its pool up (who's in it, their states, what waits on you) with **Open
+  the pool ›**; History is the project's past sessions. Its crumb reads
+  Projects › its name, and what needs you there shows beside its name.
+- **Every door obvious** (0.3): a session in a pool shows the pool as a
+  chip in its header that opens the pool's page; the tool's chip moved
+  there from the top bar.
+- **Pools, one live canvas** (0.3): the Pools screen shows
+  every pool as a card — its members in small where they sit, the lead
+  and anything waiting on you in colour, "6 members · 1 needs you · 2
+  tasks moving" — and New pool. A pool's page is now its canvas: each
+  session a node (its tool, account, state, the task it holds, the lead
+  marked), messages and task hand-offs between them as arrows that light
+  up as they happen, an agent's ask answered right on its node (Allow
+  once, Always allow in this pool, Deny), a waiting message's Deliver and
+  a paused chain's Let it continue on its arrow. Drag a session in from
+  the side, drag a node where you like (kept per pool; Tidy up lays it
+  out again, with Undo), drag one out or press Delete to take it out
+  (Undo puts it back); ⋯ or a right-click makes it the lead, opens or
+  stops it. The panel on the right follows what you select — the pool's
+  settings, a member's asks, tasks, conversations and usage, or the
+  conversation between two — and shows the pool's live activity
+  otherwise. Tasks and Messages open over the canvas; List shows the same
+  as rows for the keyboard and screen readers. Rename the pool and change
+  what agents may do in its header. Links from Needs you still land on
+  the pool's Messages or Tasks. Going back to 0.2 after this needs the
+  copy 0.3 keeps of your data (Settings › About & updates).
+- **Group the session list with one click** (0.3): under the search, a
+  switch — App · Project · Account, and Pool once you've made a pool of
+  your own (a project's own pool doesn't count). Your choice is kept on
+  this Mac. The arrow keys move it; screen readers hear "Group sessions
+  by".
+- **What the other tool was told** (0.3): after a switch to another tool
+  (say Claude Code to Codex), the done screen says in one line what was
+  hidden from it and what was left out ("Hidden from Codex: 2 API keys ·
+  Left out: 12 earlier turns, 1 note") and offers **Open the handover**:
+  the handover, read-only, with the same rows as Start from a saved
+  handover… (where it came from, what it carries and doesn't, what was
+  withheld, and the handover itself). The switch's arrow in the Switch
+  Graph opens the same. A switch on the same tool copies the whole
+  session and writes no handover, so nothing shows there. Keys you chose
+  to send as they were are said so, never called hidden. Only kinds and
+  counts are kept, never a key itself.
+- **Save handover…** on a session's page (0.3), beside Continue on
+  another account: it saves the session's handover with keys and
+  passwords handled as you chose, then says where it went and what was
+  hidden, with **Open the handover** and **Reveal in Finder**. Save
+  handover… in the Switch Graph ends the same way.
+- **"Has room again" offers Switch back** (0.3): when an account you
+  moved work away from has room again, its notice names that work
+  ("“fix-auth-tests” can switch back to it") and its Switch back… opens the
+  switch back for it — the plan first; nothing runs until you choose. With
+  several, it names the newest and how many more; each keeps its own
+  switch-back card on its page.
 - **Notifications in one place** (0.2): a bell at the top right with one
   count — the same number as Needs you on Home, the Dock icon and a new
   menu-bar item. Click it (or press ⌥⌘N) for the notification centre:
@@ -92,6 +197,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The 0.3 screenshot review's follow-ups** (0.3): a pool's canvas reads
+  at any zoom — below 100 % each member keeps its place but draws its
+  name and state at full size (12 px and up), its waiting count is a
+  badge that opens what it asks with Allow once · Deny in place, and a
+  message waiting on an edge is a small badge ("1 waiting", "Paused")
+  that opens Deliver or Let it continue; full cards from 100 %. A window
+  under 1100 px opens a pool as its List until you choose (kept per
+  pool). A session's header has two chips, its state and an **Account**
+  menu (the account, profile and folder, and Open the profile's page);
+  where it runs moved onto the facts line. **⌘⇧Y** opens History (D-54
+  had said ⌘⇧H, which is Continue on another account), and every header
+  tab's tooltip names its key. The list's top is a shorter stack, and the
+  View's lines are one height, a hint on its label's line. History's
+  picker, open, is in the gallery; every gallery family has a design
+  critique beside its captures, checked by `scripts/critique_check.py`
+  in `just evidence` (AJ-E2814).
+- **The View menu, redone** (0.3): ⇧V or the View button opens a real
+  menu — "View" on top with **Reset** (only once something changed; your
+  grouping stays), then **Show** lines with an icon, what each one is
+  beside it and a ✓ (Inactive, Quiet ones, Ended today, Background runs,
+  Subagents, Other Macs, Archived), then **Only** lines showing their
+  value that open a list with a ✓ (App, Profile, Account, Project). Group
+  by moved to the list's own switch.
+- **One look for every choice** (0.3): checkboxes and radio buttons are
+  drawn the same everywhere, in the app's colour, with a clear focus ring
+  and a greyed state that says why; every drop-down (How it runs, History's
+  filters, Open projects in, launch settings, pools, messages, tasks,
+  accounts, Processes' filters) is the app's own picker with a ✓ on the
+  chosen line instead of the system's. Settings › General's theme,
+  density and order are rows of equal cards; the stop sheet's What to
+  stop says what each choice does under it.
+- **Menus from a button hang from it** (0.3): a page's ⋯ menu, a picker and
+  the View open under their button (or above it, near the bottom of the
+  window), never over it, and keep clear of the window's edge.
+- **New session** (0.3): why the suggested account is the one is a badge
+  beside its name; Customise and Expert setup… open with chevrons; the
+  footer has Close and **Launch on** the picked account.
+- **The limit dialog** (0.3) closes with × like every other dialog, and
+  "You can switch back after the reset" sits in the Wait card it belongs
+  to. The switch dialogs say **Cancel** (Escape still cancels), and their
+  Details, "What does this mean?" and Settings › Sessions' Terminal fold
+  with the app's chevron instead of the browser's triangle.
+- **Processes** (0.3): a process's second line says what started it first
+  ("Started by Bash: npm run dev") and the guess at its role last, so a
+  narrow column cuts the guess, not the news.
+- **The stop sheet says what it checked in one line** (0.3): "Checked: the
+  process AI Juggler started (same start time and program) · its session
+  has ended · stopping frees :5173". The command, program, folder and
+  ports are behind **Details**. Its words are the app's: **Stop vite?**,
+  **Stopped**, "Stopped when asked", "Needed a force stop", "Had already
+  ended" (no more "Terminate PID", "SIGKILL" or "TERM was sent"), and the
+  report ends with **Saved in Cleanup history**, a link to it.
+- **Stop on another Mac waits 5 s with Undo**, as a Stop on this Mac does.
 - **⌘N opens New session** (D-50, the maintainer's ruling of 2026-10-28,
   as the screen spec says); **New project** is ⌘⇧N, and the notification
   centre moved to ⌥⌘N to make room. The shortcuts list (?), ⌘K and the
@@ -349,6 +507,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A wider stop checks every process before it stops it** (0.3): "Whole
+  session tree" could stop a process whose number had been reused by
+  another program since AI Juggler recorded it. Each process is now
+  checked like the one you clicked (same start time, program and boot)
+  and left alone if it isn't the same; the report says so ("1 process
+  had already ended"). "This process and its helpers" stops only the
+  helpers AI Juggler started: one it didn't start is listed as left
+  running and never stopped.
+- **The unsaved-work warning shows for a single process**: stopping an
+  MCP server, a shell or a database warns that it may hold unsaved state
+  even when it is alone in its group, which is always so for another
+  app's leftover, and "Clean up what this session left" warns on each
+  line.
+- **Your Macs: "No access" can be chosen** in a paired Mac's Access sheet
+  ("sees nothing of this computer and can't act here"); before, only View
+  only and View + control were offered.
+- **A paired Mac's processes say where to clean them**: Processes › Your
+  other Macs, a link there, instead of a session's Processes tab, which
+  has no Clean.
+- **A saved handover is yours only** (0.3): its folder and files could be
+  read by other users of the Mac; now only you can open them, like the
+  rest of AI Juggler's data. Its Withheld line no longer counts keys you
+  chose to keep as they were.
+- **A session that hits its limit and stays open now says so** (0.3): a
+  Claude Code session in a terminal shows its limit and keeps running, so
+  AI Juggler only noticed once it ended. Now it reads the limit Claude
+  Code records in the session itself: the session reads "Limit reached"
+  at once, joins Needs you, and its page opens Continue on another
+  account; Home's limit row, the limit dialog and Park work for it, and
+  its terminal stays live. It clears when the session carries on or the
+  limit resets; a warning that the limit is near never marks it, and a
+  limit already in a resumed conversation never marks it again. A session
+  without a terminal is marked by its tool's own word. Quitting the tool
+  at its limit keeps it there, ready to continue elsewhere or be parked.
 - **Going back names the newest version that reads your data**: "Go back
   to an earlier version" offered 0.1.0 (and 0.0.13) where 0.1.9 (and
   0.0.17) read the same data; schema 37 is now listed as 0.2.0's.

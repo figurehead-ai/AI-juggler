@@ -20,6 +20,7 @@ import { originalWords, SwitchFreezeChoice, type FreezeChoice } from "../SwitchF
 import { SwitchSetupList } from "../SwitchSetupList";
 import { finishedByYou } from "../../lib/useSwitchSetup";
 import { CarryList } from "./CarryList";
+import { Disclosure } from "../controls";
 import { risky, RoomNote } from "./TargetRoom";
 import type { TargetRoom } from "../../lib/room-targets";
 
@@ -126,10 +127,9 @@ export function ConfirmBody({
         </section>
       )}
 
-      <details
+      <Disclosure
         open={open}
-        onToggle={(event) => {
-          const now = (event.target as HTMLDetailsElement).open;
+        onToggle={(now) => {
           setOpen(now);
           try {
             localStorage.setItem(DETAILS_KEY, now ? "open" : "closed");
@@ -137,10 +137,11 @@ export function ConfirmBody({
             /* this visit only */
           }
         }}
+        tone="title"
         className="border-t border-hairline pt-3"
-        data-testid="switch-details"
+        testId="switch-details"
+        summary="Details"
       >
-        <summary className="min-h-6 cursor-pointer rounded text-body font-semibold text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60">Details</summary>
         <div className="mt-3 flex flex-col gap-3">
           <p className="text-body text-ink" data-testid="switch-oneclick-carry">
             {preflight.experimental_copy}
@@ -153,7 +154,7 @@ export function ConfirmBody({
             </p>
           )}
         </div>
-      </details>
+      </Disclosure>
     </div>
   );
 }

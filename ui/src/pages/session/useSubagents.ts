@@ -12,8 +12,9 @@ import { subagentsList } from "../../lib/ipc/subagents";
 /** How often an open session is asked again. */
 export const SUBAGENTS_CHECK_MS = 15_000;
 
-/** How many subagents a session started, and how many run now. */
-export type SubagentCounts = { total: number; running: number };
+/** How many subagents a session started, how many run now, and (0.3)
+ * their share of the session's tokens, 0–100 (`null`: not known). */
+export type SubagentCounts = { total: number; running: number; share?: number | null };
 
 /** What was last heard, by session: a page shows the tab at once. */
 const heard = new Map<string, boolean>();
@@ -40,11 +41,12 @@ export function useHasSubagents(profileId: string | null, conversationId: string
     const read = () =>
       void subagentsList(profileId, conversationId, { cursor: null, limit: 1 }).then(
         (info) => {
-          const total = info.state === "listed" ? (info.page.total ?? info.page.items.length) : 0;
+          const total = info.state === "listed" ? info.summary.total : 0;
+          const share = info.state === "listed" ? info.summary.share_pct : null;
           heard.set(key, total > 0);
           const last = counted.get(key);
-          if (!last || last.total !== total || last.running !== info.running) {
-            counted.set(key, { total, running: info.running });
+          if (!last || last.total !== total || last.running !== info.running || last.share !== share) {
+            counted.set(key, { total, running: info.running, share });
             listeners.forEach((listener) => listener());
           }
           if (alive) setHas({ key, has: total > 0 });

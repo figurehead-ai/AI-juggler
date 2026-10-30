@@ -12,6 +12,7 @@ import type { PreflightInfoData } from "../../lib/bridge";
 import { toolSpec } from "../../lib/tools";
 import { foundWords, GUIDE, secretWords } from "../../lib/switch-words";
 import { Explain } from "./Explain";
+import { Checkbox, Radio } from "../controls";
 
 export type KeysAnswer = "strip" | "keep";
 
@@ -37,7 +38,7 @@ export function keysChoice(preflight: PreflightInfoData, answer: KeysAnswer | nu
   return answer ?? (preflight.redaction_items.length === 0 ? "strip" : null);
 }
 
-const radio = "mt-1 size-4 shrink-0 accent-[var(--color-accent)]";
+const radio = "mt-1 shrink-0";
 
 /** "Codex and OpenAI see", "Claude Code sees": the tool and the company
  * behind it, from its spec. */
@@ -104,7 +105,7 @@ export function KeysQuestion({
         {foundWords(items)} {reader} will read this conversation to pick up the work.
       </p>
       <label className="flex items-start gap-2.5 text-body text-ink">
-        <input type="radio" name="switch-keys" className={radio} checked={answer === "strip"} onChange={() => onAnswer("strip")} data-testid="switch-keys-hide" />
+        <Radio name="switch-keys" className={radio} checked={answer === "strip"} onChange={() => onAnswer("strip")} data-testid="switch-keys-hide" />
         <span>
           <span className="font-semibold">Hide them</span> <span className="text-label text-success">recommended</span>
           <span className="block text-meta">
@@ -113,7 +114,7 @@ export function KeysQuestion({
         </span>
       </label>
       <label className="flex items-start gap-2.5 text-body text-ink">
-        <input type="radio" name="switch-keys" className={radio} checked={answer === "keep"} onChange={() => onAnswer("keep")} data-testid="switch-keys-leave" />
+        <Radio name="switch-keys" className={radio} checked={answer === "keep"} onChange={() => onAnswer("keep")} data-testid="switch-keys-leave" />
         <span>
           <span className="font-semibold">Leave them in</span>
           <span className="block text-meta">{whoSees(preflight.target_tool)} the keys exactly as written. Use this only if the work needs them.</span>
@@ -124,7 +125,7 @@ export function KeysQuestion({
           <p>Show one anyway (this switch only):</p>
           {items.map((item, index) => (
             <label key={`${item.kind}-${index}`} className="flex items-center gap-2">
-              <input type="checkbox" checked={unhide.has(index)} onChange={() => onToggle(index)} />
+              <Checkbox checked={unhide.has(index)} onChange={() => onToggle(index)} />
               <span>
                 {secretWords(item.kind)} <span className="font-mono">{item.preview}</span>
               </span>
@@ -133,7 +134,7 @@ export function KeysQuestion({
         </div>
       )}
       <label className="flex items-start gap-2.5 text-body text-ink">
-        <input type="checkbox" className="mt-1" checked={remember} onChange={(event) => onRemember(event.target.checked)} data-testid="switch-keys-remember" />
+        <Checkbox className="mt-1" checked={remember} onChange={(event) => onRemember(event.target.checked)} data-testid="switch-keys-remember" />
         <span>
           Remember my choice
           <span className="block text-meta">Change it any time in Settings › Switching. Unticked, AI Juggler asks on every switch like this one.</span>

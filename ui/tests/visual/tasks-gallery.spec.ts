@@ -23,7 +23,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { openFilters, projectLens } from "./fixtures";
+import { groupBy, pick, projectLens } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/95-tasks");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -123,16 +123,16 @@ const DETAILS = {
 };
 
 const NEEDS = [
-  { id: "tneed-1", kind: "ask", pool_id: POOL, pool_name: "Checkout redesign", task_id: "aj-9e41", task_title: "Shipping rates from the carrier's API", title: "«Planner» wants to give aj-9e41 to Reviewer", detail: "Checkout redesign · above what the pool lets agents do", offer_always: true, project_id: null, at_ms: T0 - 4 * MIN },
-  { id: "tneed-2", kind: "launch", pool_id: POOL, pool_name: "Checkout redesign", task_id: "aj-7f3c", task_title: "Orders API: create and fetch an order", title: "«Planner» asks for a new session for aj-7f3c «Orders API: create and fetch an order»", detail: "«Builder is on the cart; this needs its own session»", offer_always: false, project_id: "proj-payments", at_ms: T0 - 3 * MIN },
+  { id: "tneed-1", kind: "ask", pool_id: POOL, pool_name: "Checkout redesign", task_id: "aj-9e41", task_title: "Shipping rates from the carrier's API", title: "«Planner» wants to give «Shipping rates from the carrier's API» to Reviewer", detail: "Checkout redesign · above what the pool lets agents do", offer_always: true, project_id: null, at_ms: T0 - 4 * MIN },
+  { id: "tneed-2", kind: "launch", pool_id: POOL, pool_name: "Checkout redesign", task_id: "aj-7f3c", task_title: "Orders API: create and fetch an order", title: "«Planner» asks for a new session for «Orders API: create and fetch an order»", detail: "«Builder is on the cart; this needs its own session»", offer_always: false, project_id: "proj-payments", at_ms: T0 - 3 * MIN },
 ];
 
 const GRAPH = [
   {
     title: "Cart endpoints",
     epochs: [
-      { id: "ep-1", provider: "claude-code", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-done-1", task: "aj-1a2b · Cart endpoints return an empty list, not 404" },
-      { id: "ep-2", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-live-1", task: "aj-1a2b · Cart endpoints return an empty list, not 404" },
+      { id: "ep-1", provider: "claude-code", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-done-1", task: "Cart endpoints return an empty list, not 404" },
+      { id: "ep-2", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-live-1", task: "Cart endpoints return an empty list, not 404" },
     ],
     edges: [{ from: "ep-1", to: "ep-2", label: "Continues exactly", switch_back: false }],
     collapsed: 0,
@@ -177,12 +177,12 @@ async function axe(page: Page, what: string) {
 }
 
 async function poolTab(page: Page, tab: string) {
-  await openFilters(page);
-  await page.getByTestId("rail-view").getByRole("radio", { name: /^Pool/ }).check();
-  await page.keyboard.press("Escape");
+  await groupBy(page, "Pool");
   await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
   await expect(page.getByTestId("pool-page")).toBeVisible();
-  await page.getByRole("tab", { name: tab }).click();
+  // 0.3: the members are the canvas's List; Tasks and Messages open over it.
+  if (tab === "Members") await page.getByTestId("pool-mode-list").click();
+  else await page.getByTestId(tab === "Tasks" ? "pool-panel-tasks" : "pool-panel-messages").click();
 }
 
 async function poolTasks(page: Page) {
@@ -212,7 +212,7 @@ for (const theme of ["dark", "light"] as const) {
       for (const story of ["Payment step", "Address step"]) {
         await tree.getByRole("button", { name: `Unfold ${story}` }).click();
       }
-      await expect(tree.getByTestId("task-row").filter({ hasText: "Orders API" })).toBeVisible();
+      await expect(tree.getByRole("button", { name: /^Orders API/ })).toBeVisible();
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `pool-plan-${size}-${theme}.png`) });
       await axe(page, `plan ${size} ${theme}`);
@@ -246,7 +246,7 @@ for (const theme of ["dark", "light"] as const) {
     await poolTasks(page);
     await page.getByTestId("task-start-open").click();
     await expect(page.getByTestId("task-start")).toBeVisible();
-    await page.getByTestId("task-start-profile").selectOption({ label: "Deep work · Work Max" });
+    await pick(page, page.getByTestId("task-start-profile"), "Deep work · Work Max");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `task-start-1680x1050-${theme}.png`) });
     await axe(page, `task start ${theme}`);
@@ -298,7 +298,7 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme, 1680, 1050, false);
     await poolTab(page, "Members");
     await page.getByTestId("pool-card-more").first().click();
-    await expect(page.getByTestId("pool-card-detail")).toContainText("aj-1a2b · Cart endpoints return an empty list, not 404 (in progress)");
+    await expect(page.getByTestId("pool-card-detail")).toContainText("Cart endpoints return an empty list, not 404 (in progress)");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `pool-card-task-1680x1050-${theme}.png`) });
     await axe(page, `card task ${theme}`);
@@ -313,7 +313,7 @@ test("keyboard: a held change answered with 1; a launch is started only by its b
   await expect(page.getByTestId("task-needs").getByTestId("ask-card")).toHaveCount(0);
   const start = page.getByTestId("task-needs").getByTestId("task-start-go");
   await expect(start).toBeDisabled();
-  await page.getByTestId("task-needs").getByTestId("task-start-profile").selectOption({ label: "Weekend build · Personal" });
+  await pick(page, page.getByTestId("task-needs").getByTestId("task-start-profile"), "Weekend build · Personal");
   await start.focus();
   await page.keyboard.press("Enter");
   const calls = await page.evaluate(() => (window as unknown as { __AIJ_TASKS_CALLS__?: string[] }).__AIJ_TASKS_CALLS__ ?? []);

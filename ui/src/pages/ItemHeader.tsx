@@ -26,8 +26,10 @@ import { useTools } from "../lib/tools";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
-import { GoToButton, SessionChips, SessionMark } from "./session/SessionHead";
+import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
 import { fromInstance } from "./session/model";
+import { Dot, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
+import { ProjectChips } from "./project/ProjectChips";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
   const props = { width: 16, height: 16 };
@@ -156,7 +158,9 @@ export function InspectorHeader({
       ? [{ label: project.name, onOpen: () => onOpenProject(project.id), testId: "crumb-project" }]
       : kind === "account" && tool
         ? [{ label: tool.display_name, onOpen: () => host.openTool?.(tool), testId: "crumb-tool" }]
-        : [];
+        : kind === "project"
+          ? [{ label: "Projects", onOpen: () => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "projects" } })), testId: "crumb-projects" }]
+          : [];
   const state = instance && kind === "instance" ? statusTone(instance.status) : null;
   // AJ-E2108: a session's page says where it runs (its conversation as
   // the tools' files show it: where it's open, when it was viewed).
@@ -187,6 +191,8 @@ export function InspectorHeader({
     <>
       {model ? (
         <SessionChips model={model} account={subscriptions ? accountOfProfile(subscriptions, model.profileId) : undefined} now={now} />
+      ) : kind === "project" && data.project ? (
+        <ProjectChips projectId={data.project.id} sessions={sessions} />
       ) : (
         state && <Chip tone={state.tone}>{state.label}</Chip>
       )}
@@ -206,11 +212,25 @@ export function InspectorHeader({
   const facts =
     kind === "instance" && instance ? (
       <>
-        <span data-testid="session-subline">{sessionFacts(instance, now)}</span>
+        {/* 0.3: its tool and its pool, one click away; where it runs
+            after its tool (the polish: it was a chip, beside a profile
+            chip that said the account again). */}
+        {model && <SessionToolChip tool={instance.provider} />}
+        {model && (
+          <>
+            <SessionWhere model={model} now={now} />
+            <Dot />
+          </>
+        )}
+        <span data-testid="session-subline">{sessionFacts(instance, now, model === null)}</span>
         {/* Once something's measured: never a line of dashes. */}
         {isActiveStatus(instance.status) && (instance.cpu_pct !== null || instance.rss_bytes !== null || instance.child_count !== null) && (
-          <SessionResources session={instance} />
+          <>
+            <Dot />
+            <SessionResources session={instance} />
+          </>
         )}
+        {model && <SessionPoolChip sessionId={instance.id} />}
       </>
     ) : kind === "project" && data.project ? (
       <ProjectFacts project={data.project} sessions={sessions} />
@@ -276,6 +296,7 @@ export function InspectorHeader({
     <PageHeader
       kind={page}
       layout={model ? "session" : "item"}
+      here={kind === "project" ? name : undefined}
       mark={mark}
       name={name}
       crumbs={crumbs}
@@ -291,10 +312,11 @@ export function InspectorHeader({
 /** A session that has ended (it can be relaunched). */
 const ENDED = ["finished", "stopped", "failed", "handed_over"];
 
-/** A session's facts: its account, how long, and how much is left once
- * that runs low (its project is the crumb above). */
-function sessionFacts(session: InstanceInfo, now: number): string {
-  return [session.account_label, `started ${since(session.started_at_ms, now)} ago`, lowLeftWords(session)]
+/** A session's facts: how long, and how much is left once that runs low
+ * (its project is the crumb above, its account the Account chip; the
+ * account leads only where there's no chip for it). */
+function sessionFacts(session: InstanceInfo, now: number, withAccount: boolean): string {
+  return [withAccount ? session.account_label : null, `started ${since(session.started_at_ms, now)} ago`, lowLeftWords(session)]
     .filter(Boolean)
     .join(" · ");
 }

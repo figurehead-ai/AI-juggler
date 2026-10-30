@@ -51,9 +51,9 @@ export function RecoverySummaryDialog({
           {summary.summary}
         </p>
         <p className="mt-2 text-label text-muted">
-          Sessions picked up again keep running, and Terminate… still stops them safely (in the
-          Cleanup Centre or their process tab). Automatic cleanup stays paused for 24 hours —
-          turn it back on in the Cleanup Centre when you are ready.
+          Sessions picked up again keep running, and Stop… still stops them safely (on the
+          Processes page or a session's Processes tab). Automatic cleanup stays paused for 24 hours —
+          turn it back on from the Processes page when you are ready.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button onClick={onDismiss} data-testid="recovery-summary-dismiss">

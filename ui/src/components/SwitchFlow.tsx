@@ -12,16 +12,18 @@
  * The maintainer's walk of 0.1.8 (2026-10-27): Cancel on every step and
  * a close × (but while the copy runs, §4.9: Esc and × wait, "Finishing
  * copy…"); the keys question only when the words go somewhere new; the
- * carry list in plain words; and a confirm screen to read.
+ * carry list in plain words; and a confirm screen to read. 0.3: done,
+ * what the other tool was told (`switch/DoneStep`).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
-import { outsideWords, type FreezeChoice } from "./SwitchFreezeChoice";
+import type { FreezeChoice } from "./SwitchFreezeChoice";
 import { SwitchSetupResults } from "./SwitchSetupList";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
 import { ConfirmBody } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
+import { DoneStep } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
 import { toolSpec } from "../lib/tools";
@@ -39,7 +41,7 @@ type Phase =
   | { kind: "preflight" }
   | { kind: "confirm"; preflight: PreflightInfoData }
   | { kind: "executing"; startedAt: number }
-  | { kind: "done"; sessionId: string; preflight: PreflightInfoData }
+  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData }
   // A failure keeps what it failed on: Retry runs the switch again from
   // there (or checks it again when the check itself failed).
   | { kind: "failed"; message: string; preflight: PreflightInfoData | null };
@@ -170,7 +172,7 @@ export function SwitchFlow({
         onSwitched(result.session_id, { edgeId: result.edge_id });
         return;
       }
-      setPhase({ kind: "done", sessionId: result.session_id, preflight });
+      setPhase({ kind: "done", sessionId: result.session_id, edgeId: result.edge_id, preflight });
     } catch (cause) {
       started.current = false;
       runningRef.current = false;
@@ -271,19 +273,7 @@ export function SwitchFlow({
       case "executing":
         return <Executing target={targetLabel} holding={holding} />;
       case "done":
-        return (
-          <div className="flex flex-col gap-4" data-testid="switch-done">
-            <h3 className="text-title text-ink">Switched to {targetLabel}</h3>
-            <p className="text-body text-ink" data-testid="switch-done-words">
-              {phase.preflight.source_outside
-                ? outsideWords(phase.preflight.source_app, phase.preflight.source_live, targetLabel)
-                : phase.preflight.source_keeps_running
-                  ? `${targetLabel} is picking up the conversation. The original keeps going in its app.`
-                  : `${targetLabel} is picking up the conversation. The original has stopped, and you can switch back to it any time.`}
-            </p>
-            <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
-          </div>
-        );
+        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} />;
       case "failed":
         // A short title, then the failure's own words: what happened and
         // what to do next, each said once (`SwitchFailure::words`; any
