@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 import { homeRelative } from "../lib/project-words";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
@@ -193,6 +193,20 @@ export function NewSessionModal({
     [projects],
   );
 
+  // Esc closes the sheet wherever focus is: on the sheet's own element it
+  // was lost while focus hadn't reached the sheet yet (an Esc right after
+  // ⌘N, #198). A layout effect, so it listens from the first paint; an
+  // Esc something inside already handled is left alone.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useLayoutEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) closeRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // ⌘↩ launches the preselected Launch settings (flow (e) HIG).
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -233,7 +247,6 @@ export function NewSessionModal({
       aria-label="New session"
       data-testid="new-session-sheet"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
-      onKeyDown={(event) => event.key === "Escape" && onClose()}
     >
       <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0">
         <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">
