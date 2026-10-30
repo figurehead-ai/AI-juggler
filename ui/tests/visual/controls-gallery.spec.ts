@@ -100,10 +100,17 @@ for (const theme of ["dark", "light"] as const) {
     test(`a Picker open: History's filter — ${tag}`, async ({ page }) => {
       await seed(page, theme, size);
       await goTo(page, "History");
-      const picker = page.locator("[data-testid^='history-filter']").first();
-      if ((await picker.count()) === 0) test.skip(true, "no filter with two values in this fixture");
+      // History loads when first opened: wait for it, then its Project
+      // filter (the fixture's three projects; it was counted before the
+      // screen had drawn, so the state was never captured).
+      await expect(page.getByTestId("history")).toBeVisible();
+      const picker = page.getByTestId("history-filter-project");
+      await expect(picker).toBeVisible();
       await picker.click();
-      await expect(page.getByRole("menuitemradio").first()).toBeVisible();
+      const menu = page.getByRole("menu", { name: "Project" });
+      await expect(menu.getByRole("menuitemradio")).toHaveCount(4);
+      await expect(menu.getByRole("menuitemradio", { name: "All" })).toHaveAttribute("aria-checked", "true");
+      await expect(menu.getByRole("menuitemradio", { name: "All" })).toBeFocused();
       await shoot(page, "picker-open-history", size, theme);
     });
 
