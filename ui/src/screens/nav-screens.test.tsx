@@ -24,7 +24,7 @@ import { ActionHostProvider } from "../components/ItemMenu";
 import type { ActionHost } from "../lib/action-host";
 import { MOCK_PROJECTS, MOCK_SESSIONS, type ProjectInfo } from "../lib/bridge";
 import { PRIMARY_NAV, PAGE_UNDER } from "../lib/nav";
-import { navLit } from "../components/MainNav";
+import { MainNav, navKeys, navLit } from "../components/MainNav";
 import { SHORTCUTS } from "../lib/shortcuts";
 import { appCommands } from "../lib/palette-commands";
 import { forgetPaged } from "../lib/paged";
@@ -120,6 +120,21 @@ describe("the header's doors", () => {
     expect(go("Go to Projects")?.keys).toBe("⌘⇧P");
     expect(go("Go to Pools")?.keys).toBe("⌘⇧O");
     expect(go("Go to Tasks")?.keys).toBe("⌘⇧T");
+    // 0.3 polish: History too, by letter like the others (⌘⇧H is
+    // Continue on another account; ⌘1–9 are the places).
+    expect(keys("go-history")).toBe("⌘⇧Y");
+    expect(go("Go to History")?.keys).toBe("⌘⇧Y");
+  });
+
+  it("each tab's tooltip names its key, from the one registry", () => {
+    const view = render(<MainNav primary={PRIMARY_NAV} global={null} page="none" pairedCount={1} onPick={() => undefined} />);
+    for (const [id, keys] of [["home", "⌘0"], ["projects", "⌘⇧P"], ["pools", "⌘⇧O"], ["tasks", "⌘⇧T"], ["accounts", "⌘⇧A"], ["usage", "⌘⇧U"], ["history", "⌘⇧Y"], ["fleet", "⌘⇧F"]] as const) {
+      const tab = view.getByTestId(`nav-${id}`);
+      expect(tab.getAttribute("title")).toContain(`(${keys})`);
+      expect(tab.getAttribute("aria-keyshortcuts")).toBeTruthy();
+    }
+    expect(navKeys("history")).toBe("⌘⇧Y");
+    expect(view.getByTestId("nav-history").getAttribute("aria-keyshortcuts")).toBe("Meta+Shift+Y");
   });
 });
 

@@ -8,6 +8,24 @@
  */
 import type { JSX } from "react";
 import { PAGE_UNDER } from "../lib/nav";
+import { SHORTCUTS } from "../lib/shortcuts";
+
+/** A tab's key from the one registry (0.3 polish: each tab's tooltip
+ * names it, so the keys are learnt where the tabs are): "⌘⇧P". */
+export function navKeys(id: string): string | null {
+  const entry = SHORTCUTS.find((shortcut) => shortcut.id === `go-${id}`);
+  return entry ? entry.keys[0]! : null;
+}
+
+/** "⌘⇧P" as aria-keyshortcuts reads it ("Meta+Shift+P"). */
+function ariaKeys(keys: string): string {
+  const parts: string[] = [];
+  if (keys.includes("⌘")) parts.push("Meta");
+  if (keys.includes("⌥")) parts.push("Alt");
+  if (keys.includes("⇧")) parts.push("Shift");
+  parts.push(keys.replace(/[⌘⌥⇧]/g, ""));
+  return parts.join("+");
+}
 
 // Snug below 1280 px, so the row fits at 1024 with the list open.
 const NAV_BUTTON = "rounded-md px-1.5 py-1.5 text-meta transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/60 xl:px-2.5 ";
@@ -40,8 +58,18 @@ export function MainNav<Id extends string>({
     <nav aria-label="Main" className="flex min-w-0 flex-wrap items-center gap-0.5 xl:gap-1" data-testid="main-nav">
       {items.map((item) => {
         const current = navLit(item.id, global, page);
+        const keys = navKeys(item.id);
         return (
-          <button key={item.id} type="button" aria-current={current ? "page" : undefined} onClick={() => onPick(item.id)} className={NAV_BUTTON + lit(current)} data-testid={`nav-${item.id}`}>
+          <button
+            key={item.id}
+            type="button"
+            aria-current={current ? "page" : undefined}
+            aria-keyshortcuts={keys ? ariaKeys(keys) : undefined}
+            title={keys ? `${item.label} (${keys})` : undefined}
+            onClick={() => onPick(item.id)}
+            className={NAV_BUTTON + lit(current)}
+            data-testid={`nav-${item.id}`}
+          >
             {item.label}
           </button>
         );

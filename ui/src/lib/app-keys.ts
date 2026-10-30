@@ -30,7 +30,7 @@ export interface AppKeyActions {
   toggleInspector: () => void;
   cycleDensity: () => void;
   goHome: () => void;
-  goTo: (screen: "projects" | "pools" | "tasks" | "accounts" | "usage" | "fleet" | "cleanup") => void;
+  goTo: (screen: "projects" | "pools" | "tasks" | "accounts" | "usage" | "history" | "fleet" | "cleanup") => void;
   openSettings: () => void;
   /** Whether the Cleanup Centre is the screen now. */
   onCleanup: () => boolean;
@@ -125,6 +125,10 @@ export function useAppKeys(actions: AppKeyActions): void {
     "go-usage": () => {
       shortcutUsed("other");
       d.goTo("usage");
+    },
+    "go-history": () => {
+      shortcutUsed("other");
+      d.goTo("history");
     },
     // AJ-E704: ⌘⇧F (and ⌘4) open Fleet from anywhere.
     "go-fleet": () => {
