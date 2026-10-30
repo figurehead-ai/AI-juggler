@@ -1,11 +1,15 @@
 /**
- * The 0.2 walk, F18 — a session's header folded its account and folder
- * behind a bare "+2" (its name said "its account and folder", the eye
- * saw a number). The chip now says what it holds.
+ * 0.3 polish — a session's header has two chips: its state, and one
+ * Account menu (the review: "Running in AI Juggler", "Profile: Work Max"
+ * and "Account ▾" beside a facts line that said the account again). The
+ * menu says which account, profile and folder, and opens the profile's
+ * page (the profile chip it replaced was no door). Where it runs is on
+ * the facts line.
  */
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
-import { SessionChips } from "./SessionHead";
+import { cleanup, fireEvent, render, within } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import { ActionHostProvider } from "../../components/ItemMenu";
+import { SessionChips, SessionWhere } from "./SessionHead";
 import type { SessionModel } from "./model";
 
 afterEach(cleanup);
@@ -18,20 +22,55 @@ const model = {
   sessionId: "s1",
   viewedMs: null,
   cwd: "/Users/you/Dev/ai-juggler",
+  profileId: "claude-work",
   profileLabel: "Work",
 } as unknown as SessionModel;
 
-it("names what the folded chip holds, in words, and opens it", () => {
-  const view = render(<SessionChips model={model} account={undefined} now={Date.now()} />);
-  const more = view.getByTestId("session-more-chips");
-  expect(more.textContent).toBe("Folder▾");
-  expect(more.getAttribute("aria-label")).toBeNull();
-  fireEvent.click(more);
-  expect(more.getAttribute("aria-expanded")).toBe("true");
+const signedIn = { state: "signed_in", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
+
+it("shows two chips: the state, and the Account menu named by its profile", () => {
+  const view = render(<SessionChips model={model} account={signedIn} now={Date.now()} />);
+  expect(view.getByTestId("session-state-chip").textContent).toBe("Idle");
+  const menu = view.getByTestId("session-account-menu");
+  expect(menu.getAttribute("aria-label")).toBe("Account: Work");
+  expect(menu.getAttribute("aria-haspopup")).toBe("menu");
+  for (const gone of ["session-where-chip", "session-profile-chip", "session-account-chip", "session-folder-chip", "session-more-chips"]) expect(view.queryByTestId(gone)).toBeNull();
 });
 
-it("with its account too: \"Account and folder\"", () => {
-  const account = { state: "signed_in", title: "Work Max", label: "Work Max", email: null, organisation: null, plan: null, service: null, profiles: [] } as never;
-  const view = render(<SessionChips model={model} account={account} now={Date.now()} />);
-  expect(view.getByTestId("session-more-chips").textContent).toBe("Account and folder▾");
+it("opens to the account, the profile, the folder and the door to the profile's page", () => {
+  const openAccountById = vi.fn();
+  const view = render(
+    <ActionHostProvider host={{ openAccountById }}>
+      <SessionChips model={model} account={signedIn} now={Date.now()} />
+    </ActionHostProvider>,
+  );
+  fireEvent.click(view.getByTestId("session-account-menu"));
+  const panel = view.getByTestId("session-account-panel");
+  expect(panel.getAttribute("role")).toBe("menu");
+  expect(panel.textContent).toContain("Work Max");
+  expect(panel.textContent).toContain("you@example.com · max-20x");
+  // The account's name isn't the profile's here: both are said.
+  expect(within(panel).getByTestId("session-account-profile").textContent).toBe("ProfileWork");
+  expect(within(panel).getByTestId("session-account-folder").textContent).toContain("ai-juggler");
+  fireEvent.click(within(panel).getByTestId("session-account-open"));
+  expect(openAccountById).toHaveBeenCalledWith("claude-work");
+  expect(view.queryByTestId("session-account-panel")).toBeNull();
+});
+
+it("says a profile once when the account is named for it, and works before sign-in is known", () => {
+  const same = { ...(signedIn as object), profiles: [{ id: "claude-work", label: "Work" }] } as never;
+  let view = render(<SessionChips model={model} account={same} now={Date.now()} />);
+  fireEvent.click(view.getByTestId("session-account-menu"));
+  expect(view.queryByTestId("session-account-profile")).toBeNull();
+  cleanup();
+  view = render(<SessionChips model={model} account={undefined} now={Date.now()} />);
+  fireEvent.click(view.getByTestId("session-account-menu"));
+  expect(view.getByTestId("session-account-profile").textContent).toBe("ProfileWork");
+  // No host door: no line that does nothing.
+  expect(view.queryByTestId("session-account-open")).toBeNull();
+});
+
+it("says where it runs on the facts line", () => {
+  const view = render(<SessionWhere model={{ ...model, live: true, places: [] } as SessionModel} now={Date.now()} />);
+  expect(view.getByTestId("session-where").textContent).toBe("Running in AI Juggler");
 });
