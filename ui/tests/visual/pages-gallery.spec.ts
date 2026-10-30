@@ -74,7 +74,8 @@ async function openSession(page: Page) {
 async function openProject(page: Page) {
   await projectLens(page);
   await page.getByTestId("rail").getByTestId("rail-project").filter({ hasText: PROJECT.name }).first().click();
-  await expect(page.getByTestId("page-type")).toHaveText("Project");
+  // 0.3: a project's crumb is "Projects › its name".
+  await expect(page.getByTestId("crumb-projects")).toBeVisible();
 }
 
 for (const viewport of VIEWPORTS) {

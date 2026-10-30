@@ -244,7 +244,8 @@ pub(super) fn card_for(
     )
 }
 
-/// The task a session's member is on (E19), as `aj-7f3c · title`.
+/// The task a session's member is on (E19), as `title (in progress)`
+/// (D-25: the card is on screen, never its id).
 fn task_of(state: &Arc<AppState>, session: &str) -> CardField {
     let Ok(storage) = state.storage.lock() else {
         return CardField::unavailable(NO_TASKS);
@@ -252,8 +253,7 @@ fn task_of(state: &Arc<AppState>, session: &str) -> CardField {
     let refs = crate::features::messages::refs_of(&storage, &SessionId::new(session));
     match storage.tasks().held_by(&refs) {
         Ok(Some(task)) => CardField::known(format!(
-            "{} · {} ({})",
-            task.id,
+            "{} ({})",
             task.title,
             task.status.words().to_lowercase()
         )),

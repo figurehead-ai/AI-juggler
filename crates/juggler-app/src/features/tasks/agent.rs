@@ -396,6 +396,8 @@ fn hold(
     };
     let id = crate::features::messages::new_id("tneed");
     let storage = lock_storage_arc(state)?;
+    // D-25: the user reads it: each task by its title, never its id.
+    let what = super::words::name_tasks(&storage, &what);
     storage.tasks().insert_need(&TaskNeed {
         id: id.clone(),
         pool_id: caller.pool_id.clone(),

@@ -7,7 +7,7 @@ import type { JSX } from "react";
 import { Pill } from "../../components/Pill";
 import { ago } from "../../lib/time-words";
 import type { TaskInfo } from "../../lib/ipc/tasks";
-import { KIND_WORDS, PRIORITY_WORDS, STATUS_TONE, STATUS_WORDS, itemsWords } from "./words";
+import { KIND_WORDS, PRIORITY_WORDS, STATUS_TONE, STATUS_WORDS, itemsWords, waitsOnWords } from "./words";
 
 export function TaskStatus({ status }: { status: string }): JSX.Element {
   return (
@@ -20,6 +20,7 @@ export function TaskStatus({ status }: { status: string }): JSX.Element {
 export function TaskRow({ task, selected, now, onOpen, indent = 0 }: { task: TaskInfo; selected: boolean; now: number; onOpen: () => void; indent?: number }): JSX.Element {
   const items = itemsWords(task.items, task.items_done);
   const urgent = task.priority === "urgent" || task.priority === "high";
+  const waits = waitsOnWords(task.waits_on);
   return (
     <li>
       <button
@@ -42,7 +43,6 @@ export function TaskRow({ task, selected, now, onOpen, indent = 0 }: { task: Tas
         </span>
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <TaskStatus status={task.status} />
-          <span className="font-mono text-label text-muted">{task.id}</span>
           {task.holder ? (
             <span className="min-w-0 truncate text-meta text-muted">
               {task.holder === "You" ? "Yours" : task.holder}
@@ -50,7 +50,8 @@ export function TaskRow({ task, selected, now, onOpen, indent = 0 }: { task: Tas
           ) : (
             task.status === "ready" && task.kind === "task" && <span className="text-meta text-muted">Anyone can take it</span>
           )}
-          {task.blocked_by.length > 0 && <span className="truncate text-meta text-danger">Waits on {task.blocked_by.join(", ")}</span>}
+          {/* D-25: what it waits on by its title, never its id. */}
+          {waits && <span className="truncate text-meta text-danger">Waits on {waits}</span>}
           {items && <span className="text-meta text-muted">{items}</span>}
           {urgent && <span className="text-label font-semibold text-warning">{PRIORITY_WORDS[task.priority]}</span>}
           {task.issue_label && <span className="truncate font-mono text-label text-muted">{task.issue_label}</span>}

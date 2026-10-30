@@ -12,7 +12,7 @@ import { takeSubagentsAsk } from "../../lib/subagent-links";
 import { NameCell } from "../../screens/processes/cells";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
 import { useHasSubagents } from "../session/useSubagents";
-import { ProjectSubagents } from "./ProjectSubagents";
+import { ProjectSubagentsView as ProjectSubagents } from "./ProjectSubagentsView";
 import { SubagentsShareLine } from "./ShareLine";
 import { kindWords, modelWords, shareWords, tokenWords, treeLines } from "./words";
 

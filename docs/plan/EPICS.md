@@ -41,7 +41,7 @@ This is the execution companion to the [spec](../SPEC.md): the spec defines *wha
 > and the [legacy→canonical glossary in SPEC §3](../SPEC.md).
 
 The canonical task breakdown is now the **E-catalog**
-(`docs/tasks/E1..E27`, 318 tasks, evidence-gated). The M-milestones
+(`docs/tasks/E1..E28`, 332 tasks, evidence-gated). The M-milestones
 below retain their IDs for tracking continuity; their *scope text* is
 re-sequenced around the settled thesis **Switch → See → Clean**, with
 Fleet integrated at launch (D-13), not deferred:
