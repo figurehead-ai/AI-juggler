@@ -19,6 +19,14 @@ fn state_in(data: &Path) -> Arc<AppState> {
     let state =
         Arc::new(AppState::init_with_registry(data.to_path_buf(), AdapterRegistry::new()).unwrap());
     cache::register_defaults(&state);
+    // A roomy disk, whatever the machine's: on a nearly full CI disk the
+    // cache rightly writes nothing, and these tests write.
+    state.cache.read_disk_with(|_| {
+        Some(juggler_platform::room::DiskSpace {
+            free: 500 << 30,
+            total: 1000 << 30,
+        })
+    });
     state
 }
 

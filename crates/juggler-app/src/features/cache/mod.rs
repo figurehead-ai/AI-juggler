@@ -238,10 +238,14 @@ pub struct Manager {
     seen: Mutex<Seen>,
     /// The next pass walks, whatever the time.
     force: AtomicBool,
-    /// Reads the free space of the disk the cache is on (the platform's,
-    /// or a fixed one in tests, so a full CI disk doesn't turn writes off).
-    disk: fn(&Path) -> Option<DiskSpace>,
+    /// Reads the free space of the disk the cache is on: the platform's,
+    /// or a fixed one in tests (a nearly full CI disk would rightly stop
+    /// every write, and a test of writing would fail).
+    disk: RwLock<DiskReader>,
 }
+
+/// Reads the free space of the disk a path is on.
+pub type DiskReader = fn(&Path) -> Option<DiskSpace>;
 
 /// The free space of the disk `path` is on, as the platform reads it.
 fn platform_disk(path: &Path) -> Option<DiskSpace> {
@@ -280,22 +284,33 @@ impl Manager {
                 disk: None,
             }),
             force: AtomicBool::new(false),
-            disk: platform_disk,
+            disk: RwLock::new(platform_disk),
         }
     }
 
     /// The same manager, reading the disk's free space with `disk`.
-    #[cfg(test)]
     #[must_use]
-    pub(crate) fn with_disk(mut self, disk: fn(&Path) -> Option<DiskSpace>) -> Self {
-        self.disk = disk;
+    pub fn with_disk(self, disk: DiskReader) -> Self {
+        self.read_disk_with(disk);
         self
+    }
+
+    /// Reads the disk's free space with `disk` from now on (tests: a fixed
+    /// disk, whatever the machine's).
+    pub fn read_disk_with(&self, disk: DiskReader) {
+        if let Ok(mut reader) = self.disk.write() {
+            *reader = disk;
+        }
     }
 
     /// The free space of the disk the cache is on, now.
     #[must_use]
     pub fn disk_space(&self) -> Option<DiskSpace> {
-        (self.disk)(&self.data_dir)
+        let reader = self
+            .disk
+            .read()
+            .map_or(platform_disk as DiskReader, |reader| *reader);
+        reader(&self.data_dir)
     }
 
     /// The manager as the stored settings say, on this Mac.
