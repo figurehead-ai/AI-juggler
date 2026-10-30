@@ -11,7 +11,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | Hierarchy | Section title "Local cache", then each row's name over its one-line explanation; the footnote under the card says where it lives. |
 | Spacing | Rows on the settings cards' rhythm; What's in it's rows carry name, size · items on the right, one line of what it speeds up. |
 | Icons | Clear cache… carries the broom; the warning carries the app's warning icon; "Turn it on in Privacy" carries the link-out mark. |
-| Shared controls | The shared switch, the shared Picker for Size limit (with a hint on each choice), the shared sheet for Clear the cache?. |
+| Shared controls | The shared switch, the shared Picker for Size limit (a hint under Automatic only), the shared sheet for Clear the cache?. |
 | Disabled reasons | Off: "Turn the cache on to set its limit", "Nothing to clear: the cache is empty" beside greyed controls. |
 | Plain words | "Using 47 MB of 1.3 GB. Subagent lists and app icons open without re-reading files."; "Nothing of yours is lost." |
 | Type sizes | Row names 14 px, explanations and hints 13 and 12 px. |
@@ -26,14 +26,14 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 ## Weak
 
-- "Search the words of every session answers at once." names Privacy's switch without quotes, so it reads as a broken sentence; the wording comes from the Rust side (crates/juggler-app/src/features/outside_search/cache.rs), listed for the maintainer.
-- Size limit's menu repeats "Trims the least recently used first" under each fixed size; once would do.
 - The card above (Data: backup & restore) says its purpose twice, inside and under the card.
-- The low-disk state warns "Your disk is nearly full" while the header still says "This Mac · Plenty of room" (that line is about memory, but the two read as a contradiction).
 
 ## Fixed
 
 - Second re-render (seen by eye): an empty cache said "Using 0 B of 1.3 GB. Search index opens without re-reading files." (a machine's "0 B", and a claim that something is faster while nothing is kept). It now says "Empty for now. It fills as you use AI Juggler, up to 1.3 GB." Vitest: "summarises off and on in one line" and the clear test.
+- The search index's line read "Search the words of every session answers at once.", a broken sentence. It is now "A search of every session's words answers at once." (the Rust registry, the preview and this gallery).
+- Size limit's menu said "Trims the least recently used first" under each of 250 MB, 1 GB and 4 GB. Only Automatic has a hint now; once a size is picked, its row says "The least recently used goes first."
+- The low-disk capture warned "Your disk is nearly full" under a header saying "This Mac · Plenty of room". The gallery seeded only the cache. A real disk that full (under 5 GB) also makes This Mac say "Under pressure", so the capture now seeds the machine with the same short disk, and the two agree.
 
 ## Captures
 
