@@ -217,7 +217,7 @@ function LastMessages(): JSX.Element {
     <PaneSection
       id="last-messages"
       title="Last messages"
-      footer="Read from the session's transcript on this computer when you open it; nothing is kept or sent."
+      footer="Read from the session's transcript on this computer when you open it, and never sent. Only its subagents' prompts and results are kept, in the local cache."
     >
       {on !== null && (
         <SwitchRow

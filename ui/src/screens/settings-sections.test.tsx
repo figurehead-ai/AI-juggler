@@ -149,7 +149,8 @@ describe("AJ-E2110 — Settings panes", () => {
     const { findByTestId } = render(<SettingsScreen focusSection="advanced" />);
     const pane = await findByTestId("settings-pane-advanced");
     const sections = pane.querySelectorAll("section[data-settings-section]");
-    expect(sections.length).toBe(6);
+    // ADR-0023: Local cache, after the Data sections.
+    expect(sections.length).toBe(7);
     for (const section of sections) {
       expect(section.querySelector("h3")?.textContent).toBeTruthy();
       expect(section.lastElementChild?.tagName).toBe("P");

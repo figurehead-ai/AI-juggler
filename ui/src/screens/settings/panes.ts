@@ -70,6 +70,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   notifications: { pane: "notifications" },
   fleet: { pane: "macs", anchor: "fleet" },
   data: { pane: "advanced", anchor: "data" },
+  // ADR-0023: what AI Juggler keeps on this Mac to be quick.
+  "local-cache": { pane: "advanced", anchor: "local-cache" },
   diagnostics: { pane: "advanced", anchor: "diagnostics" },
   uninstall: { pane: "advanced", anchor: "uninstall" },
   privacy: { pane: "privacy" },

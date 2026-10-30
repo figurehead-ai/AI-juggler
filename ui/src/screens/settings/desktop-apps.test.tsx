@@ -152,7 +152,7 @@ describe("Last messages", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     const why = document.getElementById(toggle.getAttribute("aria-describedby")!)!.textContent!;
     expect(why).toContain("Never in the rail, the menu bar or notifications");
-    expect(toggle.closest("section")!.textContent).toContain("Read from the session's transcript on this computer when you open it; nothing is kept or sent.");
+    expect(toggle.closest("section")!.textContent).toContain("Read from the session's transcript on this computer when you open it, and never sent. Only its subagents' prompts and results are kept, in the local cache.");
     await act(async () => {
       fireEvent.click(toggle);
     });
