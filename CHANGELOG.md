@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **One local cache, sized by your Mac** (0.3, ADR-0023): what AI Juggler
+  keeps to be quick (subagent lists, app icons, the search index) is one
+  system. Each entry carries its format, the settings that shaped it and
+  its source, and is dropped and rebuilt when any of them changes;
+  turning Last messages off drops the cached subagent prompts and results
+  at once. Its limit is 2 % of the free disk between 64 MB and 2 GB (or a
+  fixed 250 MB, 1 GB or 4 GB); on a nearly full disk it trims to 64 MB and
+  writes nothing new; on an 8 GB Mac it keeps less in memory. A cheap
+  background pass trims the least recently used first. Settings › Advanced
+  › Local cache shows each cache's size, clears it (saying what gets
+  slower) and turns it off; nothing in it is ever sent, and its files are
+  yours only (the app icons' were readable by other users of the Mac).
 - **Subagents: what's running, what failed, what it cost** (0.3): a
   session's Subagents tab opens with a line like "437 subagents · 3
   running · 2 failed · 41% of this session's tokens" (the counts are one

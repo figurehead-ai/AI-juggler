@@ -26,5 +26,6 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0020](./0020-agent-bridge.md) | The agent bridge: `juggler-agent`, a per-edition socket, a per-epoch key (live spike pending) | Accepted |
 | [0021](./0021-hand-built-svg-chart-kit.md) | A hand-built SVG chart kit, no charting library | Accepted |
 | [0022](./0022-session-runtime.md) | How AI Juggler runs the sessions it starts: a runtime per tool (D-40) | Accepted |
+| [0023](./0023-local-cache.md) | One local cache system: sized by the machine, invalidated by stamp, the user's to clear (D-58) | Accepted |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

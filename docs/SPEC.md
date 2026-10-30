@@ -692,10 +692,23 @@ One data folder per edition (D-23): `AI Juggler`, `AI Juggler Nightly` or
 ├── packs/                  # context packs + lineage metadata
 ├── fleet/                  # node identity keypair + paired-peer registry
 ├── logs/                   # rotated app logs (redaction-aware)
-└── cache/                  # parser fixtures cache, rollups
+├── subagents/              # local cache: subagent lists (ADR-0023)
+├── icons/                  # local cache: app icons (ADR-0023)
+└── outside-search.sqlite   # local cache: the opt-in search index (ADR-0023)
 ```
 
 AI Juggler writes nothing of its own inside `~/.claude`, `~/.codex`, `~/.zcode` or any other setup the user brings in (ADR-0018). Bringing one in either **uses it where it is** (the default: an in-place account whose folder is the user's own; per-launch settings go in as `--model` / `--settings` flags and AI Juggler's capture lives under `overlays/`) or makes **a separate copy** under `accounts/` (ADR-0006). Claude Code itself still writes to a folder it runs on, as it always does.
+
+### 12.0 Local cache (ADR-0023, D-58)
+
+What AI Juggler keeps to be quick is one system, `features/cache`:
+
+- **Local only, rebuildable.** Never sent; every entry is rebuilt from its source, so none is a record. Owner-only files, written whole; words redacted first (D-14).
+- **A registry** of caches behind `LocalCache` (name, place, size, trim an entry at a time or only whole, clear). Today: subagent lists (200 sessions, shaped by Last messages), app icons, and the search index (whole only, its own switch).
+- **Invalidation by stamp.** Each entry names its cache, format, a print of the settings that shaped it and its source's identity; any difference, or a corrupt file, drops it. A setting change drops what it shaped at once (Last messages off: the cached subagent prompts and results go).
+- **Budget from the machine.** 2 % of free disk between 64 MB and 2 GB, or a fixed 250 MB, 1 GB or 4 GB. Under 5 GB free (or 5 % of a small disk) it trims to 64 MB and writes nothing new. Memory caches scale with the Mac's memory (8 GB and less: half).
+- **Cheap monitoring.** A pass a minute; folders walked every 30 minutes or soon after writes; bounded work per pass; least recently used first across caches; the whole-only search index only on low disk.
+- **The user's.** Settings › Advanced › Local cache: the switch (off removes the files), the limit, Clear cache… and each cache's size.
 
 ### 12.1 Onboarding workflow (smart onboarding, ADR-0006; cross-Provider per pass2/03)
 

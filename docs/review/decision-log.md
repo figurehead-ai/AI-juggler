@@ -1910,3 +1910,51 @@ disabled option that looked selected, and it wasn't even captured.
   touched screen.
 - Evidence: `docs/plan/QUALITY.md` §2; E28's AJ-E2801, AJ-E2802, AJ-E2813
   and AJ-E2814, with their evidence under `docs/qa/evidence/<id>/`.
+
+### D-58 One local cache, sized by the machine, invalidated by stamp, the user's to clear — SETTLED (2026-10-30)
+
+**Ruling.** The maintainer, 2026-10-30: "remember our tool is installed
+on users machines. We are not exporting that data. So if you need to
+store certain data for local caching purposes so our app is faster or
+more capable, so be it. We can always options in settings where users
+can disable that if they choose or if they want clear cache. But we
+should be caching as much as possible to provide smooth experience, but
+at the same time we need to have solid invalidation system of updating
+it and managing. Like if our cache files get too big, our system should
+automatically monitor that. Our system is going to be used on multiple
+types of machines some lots of resource some very little so our system
+should be smart about the usage of resources."
+
+**What changed (0.3, ADR-0023).**
+
+- **One cache system** (`features/cache`): a registry of local caches
+  behind one trait, each with its plain name, place, size, and whether it
+  can be trimmed an entry at a time or only whole. Registered: subagent
+  lists, app icons, the search index. Never sent, every entry rebuilt
+  from its source, owner-only, redacted first (D-14).
+- **Invalidation by stamp:** each entry names its cache, format, the
+  settings that shaped it and its source; any difference or a corrupt
+  file drops it. Turning Last messages off drops the cached subagent
+  prompts and results at once.
+- **Sized by the machine:** 2 % of free disk between 64 MB and 2 GB (or a
+  fixed 250 MB, 1 GB, 4 GB); under 5 GB free (or 5 % of a small disk) it
+  trims to 64 MB and writes nothing new; memory caches scale with the
+  Mac's memory. A cheap background pass a minute, least recently used
+  first across caches; the whole-only search index only on low disk.
+- **Settings › Advanced › Local cache:** the switch (off removes the
+  files), the limit, Clear cache… (it says what gets slower) and each
+  cache's size. Privacy's wording and claims say exactly what is kept.
+
+**Why.** Three features kept files their own way, none measured
+together, none aware of the machine, and Settings said "kept nowhere"
+about text the subagent index kept.
+
+- Risk: a cache that outlives a format or a setting shows stale words.
+  Every read checks the stamp and drops a mismatch; a setting change
+  purges what it shaped at once.
+- Risk: monitoring costs more than it saves on a small Mac. One disk
+  reading a minute; folder walks every 30 minutes or soon after writes,
+  bounded per pass.
+- Evidence: `crates/juggler-app/src/features/cache/tests.rs`,
+  `crates/juggler-app/tests/local_cache.rs`; the gallery's
+  `98-local-cache`.
