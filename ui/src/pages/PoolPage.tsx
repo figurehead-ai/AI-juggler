@@ -14,9 +14,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "rea
 import { Card } from "../components/primitives";
 import { AgentToolsQuestion } from "../components/AgentTools";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
-import { FOCUS_THREAD } from "../lib/ipc/messages";
-import { FOCUS_TASK, focusTask, type TaskInfo } from "../lib/ipc/tasks";
-import { poolById, poolIdOf, usePools } from "../lib/pools";
+import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
+import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
+import { needWords, poolById, poolIdOf, poolNeedCount, usePools } from "../lib/pools";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
 import { lazyNamed } from "../lib/lazy";
@@ -73,6 +73,8 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
   const pool = poolById(pools, poolId)!;
   const host = useActionHost();
   const { all } = useConversations();
+  const messageNeeds = useMessageNeeds();
+  const taskNeeds = useTaskNeeds();
   const data = useCanvas(poolId, sessions);
   const first = useMemo(arrival, []);
   const [panel, setPanelState] = useState<Panel>(first.panel);
@@ -132,9 +134,15 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
     },
     [setPanel],
   );
-  const asks = data.canvas?.asks.length ?? 0;
+  // What needs you, counted as its Pools card counts it.
+  const needs = poolNeedCount(
+    pool.id,
+    messageNeeds,
+    taskNeeds,
+    sessions.filter((session) => sessionState(session).state !== "ended" && poolIdOf(pools, session) === pool.id),
+  );
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
-  const facts = [poolCountWords(pool.members, elsewhere), project ? `for ${project.name}` : null, asks > 0 ? `${asks} ${asks === 1 ? "asks" : "ask"} you` : null].filter(Boolean).join(" · ");
+  const facts = [poolCountWords(pool.members, elsewhere), project ? `for ${project.name}` : null, needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name }));
 

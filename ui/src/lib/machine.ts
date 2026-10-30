@@ -21,7 +21,7 @@ import type { ToolTotalsInfo } from "../types/generated/ToolTotalsInfo";
 export type { MachineHealthInfo, MachinePointInfo, RoomReasonInfo };
 
 /** `others`: the 0.1.4 review's Mac, other apps holding most of the memory. */
-export type MachineFixture = "plenty" | "tight" | "pressure" | "others" | "unsampled";
+export type MachineFixture = "plenty" | "tight" | "pressure" | "others" | "disk" | "unsampled";
 
 interface MachineSeams {
   __AIJ_MACHINE__?: MachineFixture | MachineHealthInfo;
@@ -72,6 +72,14 @@ export function mockMachineHealth(fixture: MachineFixture, now = Date.now()): Ma
       return base;
     case "others":
       return othersFillIt(base);
+    case "disk":
+      // Only the disk is short (3.1 GB free): what the Local cache's
+      // nearly-full warning sits under, so the two agree.
+      return {
+        ...base,
+        volumes: [{ name: "Macintosh HD", total_bytes: 994 * GB, available_bytes: 3.1 * GB }],
+        summary: { level: "pressure", words: "Under pressure", reasons: [{ kind: "disk", level: "pressure", words: "Macintosh HD has only 3.1 GB free" }] },
+      };
     case "tight":
       return {
         ...base,
@@ -148,7 +156,7 @@ function previewAlerts(sessionId: string | null): OverloadAlertInfo[] {
   return [];
 }
 
-const FIXTURES: readonly MachineFixture[] = ["plenty", "tight", "pressure", "others", "unsampled"];
+const FIXTURES: readonly MachineFixture[] = ["plenty", "tight", "pressure", "others", "disk", "unsampled"];
 
 /** A preview URL's fixture name, only when it is one we know. */
 function asFixture(value: string | undefined): MachineFixture | undefined {

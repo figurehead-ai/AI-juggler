@@ -28,12 +28,12 @@ import { pick } from "../../test/pick";
 import { rememberTab } from "../registry";
 import { PoolPage } from "../PoolPage";
 import { forgetCanvasViews } from "./Canvas";
-import { cardOrder, cardWords, newPoolName } from "../../screens/pools/PoolsScreen";
+import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
 import { deliveryWords } from "./InspectPool";
 import { CanvasEdges } from "./CanvasEdges";
 import { CompactNode } from "./CompactNode";
 import type { ContextCard } from "../../types/generated/ContextCard";
-import { edgeCurve, fitView, layout, neighbour, NODE_H, NODE_W, nodeForm, zoomAt } from "./layout";
+import { curvePoint, edgeCurve, fitView, nodeMiddle, layout, neighbour, NODE_H, NODE_W, nodeForm, zoomAt } from "./layout";
 
 type Seams = Record<string, unknown> & { __AIJ_POOL_CALLS__?: string[]; __AIJ_MESSAGES_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;
@@ -116,6 +116,54 @@ describe("the canvas's geometry", () => {
   });
 });
 
+describe("an edge never runs behind a node (the 0.3 review: Fix → Review behind Checkout copy pass)", () => {
+  const a = { x: 0, y: 0 };
+  const between = { x: 300, y: 0 };
+  const b = { x: 600, y: 0 };
+  const inside = (p: { x: number; y: number }, box: { x: number; y: number }) => p.x > box.x && p.x < box.x + NODE_W && p.y > box.y && p.y < box.y + NODE_H;
+  const runsThrough = (curve: ReturnType<typeof edgeCurve>, box: { x: number; y: number }) =>
+    Array.from({ length: 49 }, (_, n) => curvePoint(curve.start, curve.control, curve.end, n / 48)).some((p) => inside(p, box));
+
+  it("bends round a node in its way, and its middle (its label) is off that node", () => {
+    expect(runsThrough(edgeCurve(a, b, false), between)).toBe(true);
+    const routed = edgeCurve(a, b, false, [between]);
+    expect(runsThrough(routed, between)).toBe(false);
+    expect(inside(routed.mid, between)).toBe(false);
+  });
+
+  it("keeps its gentle arc when nothing is in the way", () => {
+    expect(edgeCurve(a, b, false, [{ x: 300, y: 600 }]).d).toBe(edgeCurve(a, b, false).d);
+  });
+
+  it("at fit, a badge sits on its own line, not where another edge's line runs", () => {
+    // The review's row: A, M and B side by side, C under M. A → B goes
+    // round M on the side M → C leaves free, so its badge, on its own
+    // line, is off M → C's.
+    const row = { a: { x: 0, y: 0 }, m: { x: 268, y: 0 }, b: { x: 536, y: 0 }, c: { x: 268, y: 212 } };
+    const points = new Map(Object.entries(row));
+    const at = Date.now();
+    const waiting = [{ message_id: "m-1", thread_id: "thr", subject: "Totals", recipient: "session:b", kind: "waiting" as const, ask_id: null, at_ms: at }];
+    const edges = [
+      { from_session_id: "a", to_session_id: "b", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr", pending: waiting },
+      { from_session_id: "m", to_session_id: "c", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr2", pending: [] },
+    ];
+    const view = render(<CanvasEdges edges={edges} points={points} names={new Map()} selected={null} pulses={new Map()} reducedMotion scale={0.6} onSelect={() => {}} />);
+    const label = view.getAllByTestId("edge-label").find((one) => one.dataset.edge === "a>b")!;
+    const [x, y] = label.style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/)!.slice(1).map(Number) as [number, number];
+    const own = edgeCurve(row.a, row.b, false, [row.m, row.c], [[nodeMiddle(row.m), nodeMiddle(row.c)]]);
+    // It goes round M on the side M → C doesn't use (above).
+    expect(own.mid.y).toBeLessThan(row.m.y);
+    expect(runsThrough(own, row.m)).toBe(false);
+    const onOwn = Array.from({ length: 101 }, (_, n) => curvePoint(own.start, own.control, own.end, n / 100)).some((p) => Math.hypot(p.x - x, p.y - y) < 4);
+    expect(onOwn).toBe(true);
+    // Clear of M → C's line: no point of it under the badge (110 × 26 at
+    // screen size, so 183 × 43 canvas units at 60 %).
+    const other = edgeCurve(row.m, row.c, false, [row.a, row.b]);
+    const under = Array.from({ length: 49 }, (_, n) => curvePoint(other.start, other.control, other.end, n / 48)).filter((p) => Math.abs(p.x - x) < 110 / 0.6 / 2 && Math.abs(p.y - y) < 26 / 0.6 / 2);
+    expect(under).toEqual([]);
+  });
+});
+
 describe("the Pools screen's words", () => {
   it("names a new pool so it's never taken", () => {
     expect(newPoolName(["Docs"])).toBe("New pool");
@@ -168,6 +216,22 @@ async function openPage(poolId = "pool-team") {
   await waitFor(() => expect(view.getAllByTestId("canvas-node").length).toBeGreaterThan(0));
   return view;
 }
+
+describe("one count of what needs you", () => {
+  it("the pool's header says what its Pools card says (the 0.3 review: \"1 asks you\" beside \"4 need you\")", async () => {
+    seedTeam();
+    const page = await openPage();
+    await waitFor(() => expect(page.getByTestId("pool-page-count").textContent).toMatch(/\d+ needs? you/));
+    const header = page.getByTestId("pool-page-count").textContent!.match(/(\d+ needs? you)/)![1];
+    page.unmount();
+    const screen = render(
+      <ActionHostProvider host={{}}>
+        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />
+      </ActionHostProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByTestId("pool-card-words").some((line) => line.textContent!.includes(header!))).toBe(true));
+  });
+});
 
 describe("a pool's page: its canvas", () => {
   it("draws its members as nodes, the lead marked, and answers an ask on its node", async () => {

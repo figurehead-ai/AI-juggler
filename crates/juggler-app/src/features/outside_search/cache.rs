@@ -23,7 +23,7 @@ pub fn local_cache(state: &Arc<AppState>) -> Arc<dyn LocalCache> {
         about: About {
             id: "search-index",
             name: "Search index",
-            speeds_up: "Search the words of every session answers at once.",
+            speeds_up: "A search of every session's words answers at once.",
             slower: "The index is built again in the background; until it's done, search finds less.",
             trim: Trim::WholeOnly,
             own_switch: Some(OwnSwitch {

@@ -14,6 +14,9 @@ import { useEffect, useSyncExternalStore } from "react";
 import { onSessionsUpdated, type InstanceInfo } from "./bridge";
 import { NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
 import { refreshPaged, usePagedList, type PagedList } from "./paged";
+import type { MessageNeedInfo } from "./ipc/messages";
+import type { TaskNeedInfo } from "./ipc/tasks";
+import { sessionState } from "./rail-items";
 
 export { NO_PROJECT_POOL_ID, defaultPoolIdOf };
 export type { PoolRole };
@@ -86,6 +89,24 @@ export function hasUserPools(pools: PoolsInfo | null): boolean {
 
 export function poolById(pools: PoolsInfo | null, id: string): PoolInfo | undefined {
   return pools?.pools.find((pool) => pool.id === id);
+}
+
+/** What in a pool needs you, counted one way for its Pools card and its
+ * page's header (the 0.3 review: the header said "1 asks you" beside a
+ * card's "4 need you"): its messages that wait on you (an ask, a delivery,
+ * an agent's question), its tasks that do, and its open sessions whose
+ * state needs you. `open` is the pool's open sessions. */
+export function poolNeedCount(poolId: string, messages: readonly MessageNeedInfo[], tasks: readonly TaskNeedInfo[], open: readonly InstanceInfo[]): number {
+  return (
+    messages.filter((need) => need.pool_id === poolId && (need.kind === "ask" || need.kind === "deliver" || need.kind === "question")).length +
+    tasks.filter((need) => need.pool_id === poolId).length +
+    open.filter((session) => sessionState(session).needs).length
+  );
+}
+
+/** "1 needs you", "4 need you". */
+export function needWords(count: number): string {
+  return `${count} ${count === 1 ? "needs" : "need"} you`;
 }
 
 /**

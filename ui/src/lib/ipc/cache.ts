@@ -61,7 +61,7 @@ export const SAMPLE_CACHE: CacheInfo = {
     {
       key: "search-index",
       name: "Search index",
-      speeds_up: "Search the words of every session answers at once.",
+      speeds_up: "A search of every session's words answers at once.",
       slower: "The index is built again in the background; until it's done, search finds less.",
       bytes: 0,
       entries: 0,

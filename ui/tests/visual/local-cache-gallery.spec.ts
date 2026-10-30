@@ -21,7 +21,7 @@ const MB = 1_000_000;
 const SEARCH = {
   key: "search-index",
   name: "Search index",
-  speeds_up: "Search the words of every session answers at once.",
+  speeds_up: "A search of every session's words answers at once.",
   slower: "The index is built again in the background; until it's done, search finds less.",
   bytes: 0,
   entries: 0,
@@ -37,17 +37,18 @@ const SIZES: Size[] = [
   { width: 1024, height: 700 },
 ];
 
-async function open(page: Page, theme: "dark" | "light", size: Size, cache?: Record<string, unknown>) {
+async function open(page: Page, theme: "dark" | "light", size: Size, cache?: Record<string, unknown>, machine?: string) {
   await page.addInitScript(
-    ([theme, cache]) => {
+    ([theme, cache, machine]) => {
       localStorage.setItem("aij.theme", theme as string);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => 1_728_800_000_000;
       if (cache) (window as unknown as Record<string, unknown>).__AIJ_CACHE__ = cache;
+      if (machine) (window as unknown as Record<string, unknown>).__AIJ_MACHINE__ = machine;
     },
-    [theme, cache ?? null] as const,
+    [theme, cache ?? null, machine ?? null] as const,
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize(size);
@@ -189,8 +190,11 @@ for (const theme of ["dark", "light"] as const) {
             own_switch_section: null,
           },
         ],
-      });
+      }, "disk");
       await expect(page.getByTestId("cache-switch-row").locator('[data-tone="warning"]')).toContainText("Your disk is nearly full");
+      // This Mac (in the header from 1280) says the same disk is short,
+      // never "Plenty of room".
+      await expect(page.getByText("Plenty of room")).toHaveCount(0);
       await painted(page);
       await page.screenshot({ path: resolve(OUT, `low-disk-${at}-${theme}.png`) });
       await axe(page, `nearly full disk ${at} ${theme}`);

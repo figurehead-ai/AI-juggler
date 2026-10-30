@@ -6,12 +6,12 @@
  * sits on it with its answer: Deliver for a message waiting for a session
  * run here; Let it continue or Don't deliver for a chain at the hop limit.
  */
-import { memo, useEffect, useRef, useState, type JSX } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
 
 import { errorText } from "../../lib/bridge";
 import { messagesAnswer, messagesDeliver } from "../../lib/ipc/messages";
 import type { CanvasEdgeInfo, PendingInfo } from "../../lib/ipc/pool-canvas";
-import { edgeCurve, NODE_H, NODE_W, nodeForm, type Point } from "./layout";
+import { curvePoint, edgeCurve, labelOnNode, nodeForm, nodeMiddle, type LabelRoom, type Point } from "./layout";
 import { edgeKey } from "./useCanvas";
 
 export type EdgeWords = { count: string; aria: string };
@@ -95,32 +95,38 @@ export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; c
 /** A label's room in canvas units: the full card's chip (about 120 × 48;
  * a node grows below its box with an ask), or a compact badge at screen
  * size (about 110 × 26, so larger in canvas units the further out). */
-type LabelRoom = { w: number; h: number; below: number };
 const FULL_ROOM: LabelRoom = { w: 120, h: 48, below: 60 };
 
-/** Where an edge's label goes: at its middle unless that covers a node
- * or another label, else the nearest free place above or below it. */
-function apart<T extends { mid: Point }>(labels: T[], nodes: Iterable<Point>, room: LabelRoom = FULL_ROOM): T[] {
+/** Where an edge's label goes: on its own line, at its middle or further
+ * along, where it covers no node, no other label and no other edge's line
+ * (so it never reads as another edge's); else the nearest free place
+ * above or below its middle. */
+function apart<T extends { key: string; mid: Point; along: Point[] }>(labels: T[], nodes: Iterable<Point>, lines: readonly { key: string; points: Point[] }[], room: LabelRoom = FULL_ROOM): T[] {
   const boxes = [...nodes];
   const placed: Point[] = [];
-  const { w, h, below } = room;
-  const onNode = (at: Point) => boxes.some((node) => at.x > node.x - w / 2 && at.x < node.x + NODE_W + w / 2 && at.y > node.y - h / 2 && at.y < node.y + NODE_H + below);
+  const { w, h } = room;
+  const onNode = (at: Point) => labelOnNode(at, boxes, room);
   const onLabel = (at: Point) => placed.some((other) => Math.abs(other.x - at.x) < w + 40 && Math.abs(other.y - at.y) < h + 10);
   const sx = w * 0.75;
   const sy = h * 1.25;
   return labels.map((label) => {
+    const onLine = (at: Point) => lines.some((line) => line.key !== label.key && line.points.some((p) => Math.abs(p.x - at.x) < w / 2 && Math.abs(p.y - at.y) < h / 2));
+    const free = (spot: Point) => !onNode(spot) && !onLabel(spot);
     const tries = [[0, 0], [0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1], [0, -2], [0, 2]].map(([dx, dy]) => ({ x: label.mid.x + dx! * sx, y: label.mid.y + dy! * sy }));
-    const at = tries.find((spot) => !onNode(spot) && !onLabel(spot)) ?? tries.find((spot) => !onLabel(spot)) ?? label.mid;
+    const at = label.along.find((spot) => free(spot) && !onLine(spot)) ?? tries.find(free) ?? tries.find((spot) => !onLabel(spot)) ?? label.mid;
     placed.push(at);
     return { ...label, mid: at };
   });
 }
 
+/** Where along its own line an edge's label may sit, best first. */
+const ALONG = [0.5, 0.4, 0.6, 0.3, 0.7];
+
 /** `waits`: something waits on the edge (it draws dashed); `answers`: it
  * carries an answer here (a badge or chip). An agent's ask waits on its
  * sender's node, so its edge is dashed but has no label: it must not
  * take a label's room and push another edge's badge off its line. */
-type Drawn = { edge: CanvasEdgeInfo; key: string; d: string; mid: Point; width: number; waits: boolean; answers: boolean; tasksOnly: boolean };
+type Drawn = { edge: CanvasEdgeInfo; key: string; d: string; mid: Point; along: Point[]; line: Point[]; width: number; waits: boolean; answers: boolean; tasksOnly: boolean };
 
 export const CanvasEdges = memo(function CanvasEdges({
   edges,
@@ -146,18 +152,33 @@ export const CanvasEdges = memo(function CanvasEdges({
   const [hover, setHover] = useState<string | null>(null);
   const compact = !nodeForm(scale).full;
   const unit = compact ? 1 / scale : 1;
-  const room: LabelRoom = compact ? { w: 110 * unit, h: 26 * unit, below: 13 * unit } : FULL_ROOM;
-  const keys = new Set(edges.map((edge) => edgeKey(edge.from_session_id, edge.to_session_id)));
-  const drawn: Drawn[] = [];
-  for (const edge of edges) {
-    const from = points.get(edge.from_session_id);
-    const to = points.get(edge.to_session_id);
-    if (!from || !to) continue;
-    const key = edgeKey(edge.from_session_id, edge.to_session_id);
-    const curve = edgeCurve(from, to, keys.has(edgeKey(edge.to_session_id, edge.from_session_id)));
-    const total = edge.messages + edge.tasks;
-    drawn.push({ edge, key, d: curve.d, mid: curve.mid, width: Math.min(4, 1.5 + Math.log2(1 + total) * 0.6), waits: edge.pending.length > 0, answers: pendingWords(edge) !== null, tasksOnly: edge.messages === 0 && edge.tasks > 0 });
-  }
+  const room: LabelRoom = useMemo(() => (compact ? { w: 110 * unit, h: 26 * unit, below: 13 * unit } : FULL_ROOM), [compact, unit]);
+  // The routes and their label spots: again only when the nodes, the edges
+  // or the zoom change, not on hover or selection.
+  const drawn = useMemo(() => {
+    const keys = new Set(edges.map((edge) => edgeKey(edge.from_session_id, edge.to_session_id)));
+    // Each edge's line from middle to middle: a detour's label keeps off them.
+    const lines = edges.flatMap((edge) => {
+      const from = points.get(edge.from_session_id);
+      const to = points.get(edge.to_session_id);
+      return from && to ? [{ key: edgeKey(edge.from_session_id, edge.to_session_id), line: [nodeMiddle(from), nodeMiddle(to)] as const }] : [];
+    });
+    const out: Drawn[] = [];
+    for (const edge of edges) {
+      const from = points.get(edge.from_session_id);
+      const to = points.get(edge.to_session_id);
+      if (!from || !to) continue;
+      const key = edgeKey(edge.from_session_id, edge.to_session_id);
+      const back = edgeKey(edge.to_session_id, edge.from_session_id);
+      const around = [...points].filter(([id]) => id !== edge.from_session_id && id !== edge.to_session_id).map(([, at]) => at);
+      const busy = lines.filter((other) => other.key !== key && other.key !== back).map((other) => other.line);
+      const curve = edgeCurve(from, to, keys.has(back), around, busy, room);
+      const total = edge.messages + edge.tasks;
+      const at = (t: number) => curvePoint(curve.start, curve.control, curve.end, t);
+      out.push({ edge, key, d: curve.d, mid: curve.mid, along: ALONG.map(at), line: Array.from({ length: 17 }, (_, n) => at(n / 16)), width: Math.min(4, 1.5 + Math.log2(1 + total) * 0.6), waits: edge.pending.length > 0, answers: pendingWords(edge) !== null, tasksOnly: edge.messages === 0 && edge.tasks > 0 });
+    }
+    return out;
+  }, [edges, points, room]);
   return (
     <>
       <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1" aria-hidden="true" data-testid="canvas-edges">
@@ -204,7 +225,12 @@ export const CanvasEdges = memo(function CanvasEdges({
           );
         })}
       </svg>
-      {apart(drawn.filter(({ key, answers }) => answers || selected === key || hover === key), points.values(), room).map(({ edge, key, mid, answers }) => {
+      {apart(
+        drawn.filter(({ key, answers }) => answers || selected === key || hover === key),
+        points.values(),
+        drawn.map(({ key, line }) => ({ key, points: line })),
+        room,
+      ).map(({ edge, key, mid, answers }) => {
           const from = names.get(edge.from_session_id) ?? "A member";
           const words = edgeWords(edge, from, names.get(edge.to_session_id) ?? "a member");
           return (

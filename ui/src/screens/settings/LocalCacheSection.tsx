@@ -23,18 +23,16 @@ export function cacheSize(bytes: number): string {
   return byteSize(bytes).replace(/\.0 /, " ");
 }
 
-/** The limit picker's choices: Automatic, then the fixed sizes. */
+/** The limit picker's choices: Automatic, then the fixed sizes. A fixed
+ * size needs no hint (every limit trims the least recently used first;
+ * the row says so once a size is picked). */
 const LIMITS: PickerOption[] = [
   {
     value: "auto",
     label: "Automatic",
     hint: "2% of this computer's free space, between 64 MB and 2 GB",
   },
-  ...CACHE_LIMITS_MB.map((mb) => ({
-    value: String(mb),
-    label: cacheSize(mb * MB),
-    hint: "Trims the least recently used first",
-  })),
+  ...CACHE_LIMITS_MB.map((mb) => ({ value: String(mb), label: cacheSize(mb * MB) })),
 ];
 
 /** "a, b and c". */

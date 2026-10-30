@@ -20,7 +20,7 @@ import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolCreate, type PoolInfo } from "../../lib/ipc/pools";
-import { poolIdOf, setPools, usePools } from "../../lib/pools";
+import { needWords, poolIdOf, poolNeedCount, setPools, usePools } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { editNameOf } from "../../pages/pool/PoolHeader";
 import { PoolMini, type MiniNode } from "./PoolMini";
@@ -52,7 +52,7 @@ export function cardOrder(pools: PoolInfo[], open: ReadonlyMap<string, number>):
 /** A card's line: "3 members · 1 needs you · 2 tasks moving", or quiet. */
 export function cardWords(members: number, asks: number, moving: number): string {
   const parts = [`${members} ${members === 1 ? "member" : "members"}`];
-  if (asks > 0) parts.push(`${asks} ${asks === 1 ? "needs" : "need"} you`);
+  if (asks > 0) parts.push(needWords(asks));
   if (moving > 0) parts.push(`${moving} ${moving === 1 ? "task" : "tasks"} moving`);
   if (asks === 0 && moving === 0 && members > 0) parts.push("quiet");
   return parts.join(" · ");
@@ -112,10 +112,7 @@ export function PoolsScreen({ sessions, projects }: { sessions: InstanceInfo[]; 
     };
   }, [visibleKey]);
 
-  const asksOf = (poolId: string) =>
-    messageNeeds.filter((need) => need.pool_id === poolId && (need.kind === "ask" || need.kind === "deliver" || need.kind === "question")).length +
-    taskNeeds.filter((need) => need.pool_id === poolId).length +
-    (byPool.get(poolId) ?? []).filter((session) => sessionState(session).needs).length;
+  const asksOf = (poolId: string) => poolNeedCount(poolId, messageNeeds, taskNeeds, byPool.get(poolId) ?? []);
 
   const create = async () => {
     setBusy(true);

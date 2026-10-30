@@ -153,26 +153,94 @@ function boxEdge(corner: Point, toward: Point, room = 6): Point {
   return { x: cx + dx * s, y: cy + dy * s };
 }
 
+/** A point `t` (0–1) along a quadratic curve. */
+export function curvePoint(start: Point, control: Point, end: Point, t: number): Point {
+  const u = 1 - t;
+  return { x: u * u * start.x + 2 * u * t * control.x + t * t * end.x, y: u * u * start.y + 2 * u * t * control.y + t * t * end.y };
+}
+
+/** The bends tried, in order, when an edge's own arc would cross a node:
+ * its own side first, then the other, a little further each time. */
+const DETOURS = [90, 140, 190, 250, 320];
+
+/** Whether a curve runs through any of these boxes (by their corners),
+ * with a little air around each. */
+function crosses(start: Point, control: Point, end: Point, boxes: readonly Point[]): boolean {
+  for (let step = 1; step < 24; step++) {
+    const at = curvePoint(start, control, end, step / 24);
+    if (boxes.some((box) => at.x > box.x - 10 && at.x < box.x + NODE_W + 10 && at.y > box.y - 10 && at.y < box.y + NODE_H + 10)) return true;
+  }
+  return false;
+}
+
+/** The room an edge's label takes in canvas units: its width and height,
+ * and how far below its box a node may grow (a full card's ask). */
+export type LabelRoom = { w: number; h: number; below: number };
+
+/** Whether a label at `at` would cover any of these boxes. */
+export function labelOnNode(at: Point, boxes: readonly Point[], { w, h, below }: LabelRoom): boolean {
+  return boxes.some((box) => at.x > box.x - w / 2 && at.x < box.x + NODE_W + w / 2 && at.y > box.y - h / 2 && at.y < box.y + NODE_H + below);
+}
+
+/** How far a point is from a straight segment. */
+function fromSegment(at: Point, [p, q]: readonly [Point, Point]): number {
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+  const t = Math.max(0, Math.min(1, ((at.x - p.x) * dx + (at.y - p.y) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(at.x - (p.x + t * dx), at.y - (p.y + t * dy));
+}
+
+/** A node's middle, from its corner. */
+export function nodeMiddle(corner: Point): Point {
+  return { x: corner.x + NODE_W / 2, y: corner.y + NODE_H / 2 };
+}
+
 /**
  * An edge's curve from one box to another: a gentle arc, bent to one side
  * when the two talk both ways (so the two edges don't sit on each other),
  * leaving and reaching each box at its border. `mid` is where its label
  * sits.
+ *
+ * `around`: the other nodes. An arc that would run behind one bends
+ * round it instead (the 0.3 review: Fix → Review ran straight behind the
+ * node between them, and its "Paused" badge read as that node's). Of the
+ * ways round, the first whose middle has room for its label (`room`) and
+ * is clear of `busy`, the other edges' lines from middle to middle, wins;
+ * then the first with room; then the first round at all.
  */
-export function edgeCurve(from: Point, to: Point, bothWays: boolean): { d: string; mid: Point; end: Point; start: Point } {
-  const a = { x: from.x + NODE_W / 2, y: from.y + NODE_H / 2 };
-  const b = { x: to.x + NODE_W / 2, y: to.y + NODE_H / 2 };
+export function edgeCurve(
+  from: Point,
+  to: Point,
+  bothWays: boolean,
+  around: readonly Point[] = [],
+  busy: readonly (readonly [Point, Point])[] = [],
+  room: LabelRoom = { w: 60, h: 60, below: 30 },
+): { d: string; mid: Point; end: Point; start: Point; control: Point } {
+  const a = nodeMiddle(from);
+  const b = nodeMiddle(to);
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const length = Math.hypot(dx, dy) || 1;
-  const bend = bothWays ? 36 : Math.min(28, length * 0.08);
   // To the right of the travel: each direction of a pair bends its own way.
-  const control = { x: (a.x + b.x) / 2 - (dy / length) * bend, y: (a.y + b.y) / 2 + (dx / length) * bend };
-  const start = boxEdge(from, control);
-  const end = boxEdge(to, control, 10);
-  const mid = { x: 0.25 * start.x + 0.5 * control.x + 0.25 * end.x, y: 0.25 * start.y + 0.5 * control.y + 0.25 * end.y };
+  const arc = (bend: number) => {
+    const control = { x: (a.x + b.x) / 2 - (dy / length) * bend, y: (a.y + b.y) / 2 + (dx / length) * bend };
+    return { control, start: boxEdge(from, control), end: boxEdge(to, control, 10) };
+  };
+  const bend = bothWays ? 36 : Math.min(28, length * 0.08);
+  let path = arc(bend);
+  if (around.length > 0 && crosses(path.start, path.control, path.end, around)) {
+    const clear = DETOURS.flatMap((size) => [size, -size])
+      .map(arc)
+      .filter((next) => !crosses(next.start, next.control, next.end, around));
+    const middle = (next: (typeof clear)[number]) => curvePoint(next.start, next.control, next.end, 0.5);
+    const fits = clear.filter((next) => !labelOnNode(middle(next), around, room));
+    const quiet = (next: (typeof clear)[number]) => busy.every((line) => fromSegment(middle(next), line) > room.w / 2);
+    path = fits.find(quiet) ?? fits[0] ?? clear[0] ?? path;
+  }
+  const { start, control, end } = path;
+  const mid = curvePoint(start, control, end, 0.5);
   const r = (n: number) => Math.round(n * 10) / 10;
-  return { d: `M ${r(start.x)} ${r(start.y)} Q ${r(control.x)} ${r(control.y)} ${r(end.x)} ${r(end.y)}`, mid, end, start };
+  return { d: `M ${r(start.x)} ${r(start.y)} Q ${r(control.x)} ${r(control.y)} ${r(end.x)} ${r(end.y)}`, mid, end, start, control };
 }
 
 /** The node the arrow keys move to from `from`: the nearest one whose
