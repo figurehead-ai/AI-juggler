@@ -43,6 +43,7 @@ pub mod needs;
 pub mod oversight;
 pub mod switched;
 pub mod views;
+pub mod words;
 
 use std::sync::{Arc, Mutex};
 

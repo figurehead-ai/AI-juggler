@@ -25,7 +25,7 @@ import type { TaskNeedInfo } from "../../types/generated/TaskNeedInfo";
 import type { TaskStartedInfo } from "../../types/generated/TaskStartedInfo";
 
 /** AJ-E1904: what a switch-history epoch adds for tasks: its session's
- * task (`aj-7f3c · title`), from the backend's `task` field. */
+ * task (its title, never its id: D-25), from the backend's `task` field. */
 export type EpochTask = { task?: string | null };
 
 export type { TaskInfo, TaskCounts, TaskDetail, TaskActions, TaskNeedInfo, TaskStartedInfo };
@@ -76,11 +76,11 @@ const answered = (task: TaskInfo): TaskInfo => ({
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((fn) => fn());
 
-/** The preview's card line for a session's task (`aj-7f3c · title (in
+/** The preview's card line for a session's task (`title (in
  * progress)`), or `None`, as the backend's card says it. */
 export function previewHeldBy(sessionId: string): string {
   const task = preview().tasks.find((t) => t.holder_session_id === sessionId && ["in_progress", "in_review", "blocked"].includes(t.status));
-  return task ? `${task.id} · ${task.title} (${task.status.replace("_", " ")})` : "None";
+  return task ? `${task.title} (${task.status.replace("_", " ")})` : "None";
 }
 
 /** Tests: forget the preview's tasks between cases. */

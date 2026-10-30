@@ -79,7 +79,7 @@ const need = (over: Partial<TaskNeedInfo>): TaskNeedInfo => ({
   pool_name: "Checkout redesign",
   task_id: "aj-7f3c",
   task_title: "Build the orders API",
-  title: "«Planner» wants to give aj-7f3c to Builder",
+  title: "«Planner» wants to give «Build the orders API» to Builder",
   detail: "Checkout redesign · above what the pool lets agents do",
   offer_always: false,
   project_id: "p-shop",
@@ -365,7 +365,7 @@ describe("Needs you", () => {
   });
 
   it("an agent's request for a session: you start it on your pick, or leave it", async () => {
-    const launch = need({ id: "tneed-2", kind: "launch", title: "«Planner» asks for a new session for aj-7f3c «Build the orders API»", detail: "«Use the Work account»" });
+    const launch = need({ id: "tneed-2", kind: "launch", title: "«Planner» asks for a new session for «Build the orders API»", detail: "«Use the Work account»" });
     const { getByTestId, findByTestId } = render(<TaskNeeds needs={[launch]} projects={[project]} />);
     const row = getByTestId("task-need-launch");
     expect(row.textContent).toContain("in shop");
@@ -390,8 +390,8 @@ describe("a session's tasks and the pages", () => {
       {
         title: "Orders API",
         epochs: [
-          { id: "ep-1", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-a", task: "aj-7f3c · Build the orders API" },
-          { id: "ep-2", provider: "codex", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b", task: "aj-7f3c · Build the orders API" },
+          { id: "ep-1", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-a", task: "Build the orders API" },
+          { id: "ep-2", provider: "codex", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b", task: "Build the orders API" },
         ],
         edges: [{ from: "ep-1", to: "ep-2", label: "Full story, fresh start", switch_back: false }],
         collapsed: 0,
@@ -400,7 +400,7 @@ describe("a session's tasks and the pages", () => {
     ];
     const { findAllByTestId } = render(<SwitchGraph projectId="p-shop" onOpenSession={() => undefined} />);
     const tasks = await findAllByTestId("node-task");
-    expect(tasks.map((t) => t.textContent)).toEqual(["aj-7f3c · Build the orders API", "aj-7f3c · Build the orders API"]);
+    expect(tasks.map((t) => t.textContent)).toEqual(["Build the orders API", "Build the orders API"]);
     delete (window as unknown as { __AIJ_SWITCH_GRAPH__?: unknown }).__AIJ_SWITCH_GRAPH__;
   });
 

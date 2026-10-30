@@ -358,7 +358,12 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
         ask.title.ends_with("to Builder") && !ask.title.contains(builder_id.as_str()),
         "the ask names the member"
     );
-    let named = format!("give {id} to Builder");
+    // D-25: and the task by its title, never its id.
+    assert!(
+        ask.title.contains("«Build the API»") && !ask.title.contains("aj-"),
+        "the ask names the task by its title"
+    );
+    let named = "give «Build the API» to Builder".to_owned();
     let history = views::detail(&lab.state, &id, None).unwrap().history;
     assert!(
         history.iter().any(|e| e.what.contains(&named)),
@@ -367,6 +372,10 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
     assert!(
         !history.iter().any(|e| e.what.contains(builder_id.as_str())),
         "no session id in the history"
+    );
+    assert!(
+        !history.iter().any(|e| e.what.contains("aj-")),
+        "no task id in the history"
     );
     let stranger = assign(&lab, &lead, &id, "s-nobody-here");
     assert_eq!(stranger.refused, Some(Refusal::Deny), "not in the pool");
@@ -495,6 +504,11 @@ fn an_agent_asks_for_a_session_and_only_the_user_starts_it() {
     let waiting = needs::needs(&lab.state).unwrap();
     assert_eq!(waiting.len(), 1);
     assert_eq!(waiting[0].kind, "launch");
+    // D-25: the request names the task by its title, never its id.
+    assert!(
+        waiting[0].title.contains("«Write the release notes»") && !waiting[0].title.contains("aj-"),
+        "the request names the task by its title"
+    );
     // The user starts it, on the launch settings they pick.
     let started = launch::start(&lab.state, &id, &lab.profile, Some(&waiting[0].id)).unwrap();
     let session = SessionId::new(started.session_id.as_str());
@@ -547,7 +561,8 @@ fn a_card_shows_its_members_task() {
     assert!(claim(&lab, &a, &id).result.is_some());
     assert_eq!(
         card(&lab).value.as_deref(),
-        Some(format!("{id} · Build the API (in progress)").as_str())
+        // D-25: its title, never its id.
+        Some("Build the API (in progress)")
     );
     let mine = views::of_session(&lab.state, a_id.as_str(), &first_page()).unwrap();
     assert_eq!(mine.items[0].id, id);

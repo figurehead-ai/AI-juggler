@@ -123,16 +123,16 @@ const DETAILS = {
 };
 
 const NEEDS = [
-  { id: "tneed-1", kind: "ask", pool_id: POOL, pool_name: "Checkout redesign", task_id: "aj-9e41", task_title: "Shipping rates from the carrier's API", title: "«Planner» wants to give aj-9e41 to Reviewer", detail: "Checkout redesign · above what the pool lets agents do", offer_always: true, project_id: null, at_ms: T0 - 4 * MIN },
-  { id: "tneed-2", kind: "launch", pool_id: POOL, pool_name: "Checkout redesign", task_id: "aj-7f3c", task_title: "Orders API: create and fetch an order", title: "«Planner» asks for a new session for aj-7f3c «Orders API: create and fetch an order»", detail: "«Builder is on the cart; this needs its own session»", offer_always: false, project_id: "proj-payments", at_ms: T0 - 3 * MIN },
+  { id: "tneed-1", kind: "ask", pool_id: POOL, pool_name: "Checkout redesign", task_id: "aj-9e41", task_title: "Shipping rates from the carrier's API", title: "«Planner» wants to give «Shipping rates from the carrier's API» to Reviewer", detail: "Checkout redesign · above what the pool lets agents do", offer_always: true, project_id: null, at_ms: T0 - 4 * MIN },
+  { id: "tneed-2", kind: "launch", pool_id: POOL, pool_name: "Checkout redesign", task_id: "aj-7f3c", task_title: "Orders API: create and fetch an order", title: "«Planner» asks for a new session for «Orders API: create and fetch an order»", detail: "«Builder is on the cart; this needs its own session»", offer_always: false, project_id: "proj-payments", at_ms: T0 - 3 * MIN },
 ];
 
 const GRAPH = [
   {
     title: "Cart endpoints",
     epochs: [
-      { id: "ep-1", provider: "claude-code", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-done-1", task: "aj-1a2b · Cart endpoints return an empty list, not 404" },
-      { id: "ep-2", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-live-1", task: "aj-1a2b · Cart endpoints return an empty list, not 404" },
+      { id: "ep-1", provider: "claude-code", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-done-1", task: "Cart endpoints return an empty list, not 404" },
+      { id: "ep-2", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-live-1", task: "Cart endpoints return an empty list, not 404" },
     ],
     edges: [{ from: "ep-1", to: "ep-2", label: "Continues exactly", switch_back: false }],
     collapsed: 0,
@@ -296,7 +296,7 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme, 1680, 1050, false);
     await poolTab(page, "Members");
     await page.getByTestId("pool-card-more").first().click();
-    await expect(page.getByTestId("pool-card-detail")).toContainText("aj-1a2b · Cart endpoints return an empty list, not 404 (in progress)");
+    await expect(page.getByTestId("pool-card-detail")).toContainText("Cart endpoints return an empty list, not 404 (in progress)");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `pool-card-task-1680x1050-${theme}.png`) });
     await axe(page, `card task ${theme}`);
