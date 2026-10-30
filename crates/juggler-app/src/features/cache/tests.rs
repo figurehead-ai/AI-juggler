@@ -213,7 +213,8 @@ fn entries_are_owner_only_and_written_whole() {
 fn trimming_lets_the_least_recently_used_go_first_across_caches() {
     let tmp = tempfile::tempdir().unwrap();
     let (a, b) = (tmp.path().join("a"), tmp.path().join("b"));
-    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Fixed(2_000), None);
+    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Fixed(2_000), None)
+        .with_disk(|_| plenty());
     manager.register(folder("a", &a));
     manager.register(folder("b", &b));
     let gate = manager.gate();
@@ -245,7 +246,8 @@ fn trimming_lets_the_least_recently_used_go_first_across_caches() {
 fn a_whole_only_cache_is_never_trimmed_partly_or_for_the_limit() {
     let tmp = tempfile::tempdir().unwrap();
     let parts = tmp.path().join("parts");
-    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Fixed(1_000), None);
+    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Fixed(1_000), None)
+        .with_disk(|_| plenty());
     manager.register(folder("parts", &parts));
     manager.register(whole(tmp.path(), budget::FLOOR + 5_000));
     let gate = manager.gate();
@@ -267,7 +269,8 @@ fn a_whole_only_cache_is_never_trimmed_partly_or_for_the_limit() {
 fn a_nearly_full_disk_trims_to_the_floor_and_stops_writes_until_there_is_room() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("c");
-    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None);
+    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None)
+        .with_disk(|_| plenty());
     manager.register(folder("c", &dir));
     let gate = manager.gate();
     entry(&gate, &dir, "c", "kept", 100, 10);
@@ -289,7 +292,8 @@ fn a_nearly_full_disk_trims_to_the_floor_and_stops_writes_until_there_is_room() 
 fn clear_removes_every_caches_files_and_they_are_rebuilt_as_used() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("c");
-    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None);
+    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None)
+        .with_disk(|_| plenty());
     manager.register(folder("c", &dir));
     manager.register(whole(tmp.path(), 100));
     let gate = manager.gate();
@@ -307,7 +311,8 @@ fn clear_removes_every_caches_files_and_they_are_rebuilt_as_used() {
 fn turning_it_off_stops_writes_and_reads_and_removes_its_files() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("c");
-    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None);
+    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None)
+        .with_disk(|_| plenty());
     manager.register(folder("c", &dir));
     manager.register(whole(tmp.path(), 100));
     let gate = manager.gate();
@@ -339,7 +344,8 @@ fn a_setting_change_drops_the_entries_it_shaped_at_once() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("c");
     let other = tmp.path().join("o");
-    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None);
+    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None)
+        .with_disk(|_| plenty());
     let settings = Arc::new(std::sync::atomic::AtomicU64::new(7));
     let now = Arc::clone(&settings);
     manager.register(Arc::new(FolderCache::new(
@@ -374,7 +380,8 @@ fn a_setting_change_drops_the_entries_it_shaped_at_once() {
 fn the_entry_cap_keeps_the_newest_and_old_formats_go_on_the_first_walk() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("c");
-    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None);
+    let manager = Manager::new(tmp.path().to_path_buf(), true, Limit::Automatic, None)
+        .with_disk(|_| plenty());
     manager.register(Arc::new(FolderCache::new(
         About {
             max_entries: Some(2),
@@ -412,7 +419,8 @@ fn settings_shows_each_cache_with_its_size_and_words() {
         true,
         Limit::from_mb(512),
         Some(8 << 30),
-    );
+    )
+    .with_disk(|_| plenty());
     manager.register(folder("c", &dir));
     manager.register(whole(tmp.path(), 1_000));
     let gate = manager.gate();

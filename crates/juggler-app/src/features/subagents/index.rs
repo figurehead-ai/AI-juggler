@@ -164,7 +164,13 @@ mod tests {
             true,
             cache::Limit::Automatic,
             None,
-        );
+        )
+        .with_disk(|_| {
+            Some(juggler_platform::room::DiskSpace {
+                free: 500 << 30,
+                total: 1000 << 30,
+            })
+        });
         manager.register(Arc::new(FolderCache::new(
             About {
                 max_entries: Some(3),

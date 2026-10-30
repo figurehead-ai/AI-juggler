@@ -36,7 +36,7 @@ pub mod stamp;
 mod tests;
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
@@ -238,6 +238,14 @@ pub struct Manager {
     seen: Mutex<Seen>,
     /// The next pass walks, whatever the time.
     force: AtomicBool,
+    /// Reads the free space of the disk the cache is on (the platform's,
+    /// or a fixed one in tests, so a full CI disk doesn't turn writes off).
+    disk: fn(&Path) -> Option<DiskSpace>,
+}
+
+/// The free space of the disk `path` is on, as the platform reads it.
+fn platform_disk(path: &Path) -> Option<DiskSpace> {
+    juggler_platform::room::disk_space(path).ok()
 }
 
 impl std::fmt::Debug for Manager {
@@ -272,7 +280,22 @@ impl Manager {
                 disk: None,
             }),
             force: AtomicBool::new(false),
+            disk: platform_disk,
         }
+    }
+
+    /// The same manager, reading the disk's free space with `disk`.
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn with_disk(mut self, disk: fn(&Path) -> Option<DiskSpace>) -> Self {
+        self.disk = disk;
+        self
+    }
+
+    /// The free space of the disk the cache is on, now.
+    #[must_use]
+    pub fn disk_space(&self) -> Option<DiskSpace> {
+        (self.disk)(&self.data_dir)
     }
 
     /// The manager as the stored settings say, on this Mac.
@@ -431,8 +454,7 @@ impl Manager {
             });
         if stale {
             self.force.store(true, Ordering::Release);
-            let disk = juggler_platform::room::disk_space(&self.data_dir).ok();
-            self.pass(disk);
+            self.pass(self.disk_space());
         }
         let Ok(seen) = self.seen.lock() else {
             return (Vec::new(), budget::budget(self.limit(), None, false), None);
@@ -558,8 +580,7 @@ pub fn start(state: &Arc<AppState>) {
         let Some(state) = weak.upgrade() else {
             return false;
         };
-        let disk = juggler_platform::room::disk_space(&state.data_dir).ok();
-        state.cache.pass(disk);
+        state.cache.pass(state.cache.disk_space());
         true
     });
 }
