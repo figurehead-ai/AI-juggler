@@ -23,6 +23,7 @@ export function ChoiceLine({
   checked,
   end,
   strong,
+  hintInline = false,
 }: {
   /** The line's icon; `null` keeps its column empty so the labels still
    * line up with lines that have one; leave it out for no column. */
@@ -30,6 +31,10 @@ export function ChoiceLine({
   label: ReactNode;
   /** One line on what it does, under the label. */
   hint?: ReactNode;
+  /** The hint on the label's line, muted, after it (a menu where some
+   * lines have one and some don't: every line stays one height, 0.3's
+   * View). */
+  hintInline?: boolean;
   /** Why it can't be chosen now (a greyed line says why). */
   reason?: ReactNode;
   reasonId?: string;
@@ -53,12 +58,12 @@ export function ChoiceLine({
           {Icon && <Icon width={15} height={15} className="shrink-0" />}
         </span>
       )}
-      <span className="flex min-w-0 flex-col">
-        <span id={labelId} data-choice-label className={strong ? "font-semibold" : undefined}>
+      <span className={hintInline ? "flex min-w-0 items-baseline gap-2" : "flex min-w-0 flex-col"}>
+        <span id={labelId} data-choice-label className={(strong ? "font-semibold " : "") + (hintInline ? "shrink-0" : "")}>
           {label}
         </span>
         {hint && (
-          <span id={hintId} className="text-label leading-snug text-muted">
+          <span id={hintId} className={"text-label leading-snug text-muted " + (hintInline ? "min-w-0 truncate" : "")}>
             {hint}
           </span>
         )}

@@ -27,18 +27,22 @@ import { ToastHost, resetToasts } from "../../components/Toast";
 import { pick } from "../../test/pick";
 import { rememberTab } from "../registry";
 import { PoolPage } from "../PoolPage";
+import { forgetCanvasViews } from "./Canvas";
 import { cardOrder, cardWords, newPoolName } from "../../screens/pools/PoolsScreen";
 import { deliveryWords } from "./InspectPool";
-import { edgeCurve, fitView, layout, neighbour, NODE_H, NODE_W, zoomAt } from "./layout";
+import { edgeCurve, fitView, layout, neighbour, NODE_H, NODE_W, nodeForm, zoomAt } from "./layout";
 
 type Seams = Record<string, unknown> & { __AIJ_POOL_CALLS__?: string[]; __AIJ_MESSAGES_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;
 const [first, second, third] = MOCK_SESSIONS as [InstanceInfo, InstanceInfo, InstanceInfo];
 
 beforeEach(() => {
+  // A desktop window: under 1100 px a pool starts in the List view.
+  Object.defineProperty(window, "innerWidth", { value: 1280, configurable: true, writable: true });
   resetPreviewPools();
   resetPreviewMessages();
   resetPreviewCanvas();
+  forgetCanvasViews();
   resetPools();
   forgetPaged();
   resetToasts();
@@ -237,5 +241,129 @@ describe("a pool's page: its canvas", () => {
     expect(deliveryWords(pool)).toBe("When you click Deliver");
     expect(deliveryWords({ ...pool, access: { ...pool.access, level: "full" } })).toBe("By themselves, between turns");
     expect(deliveryWords({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped: nothing goes into a session");
+  });
+});
+
+describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
+  it("draws full cards from 100 %, and below it as many screen-size lines as the box holds", () => {
+    expect(nodeForm(1)).toEqual({ full: true });
+    expect(nodeForm(1.4)).toEqual({ full: true });
+    // A zoom's rounding a hair under 100 % is still 100 %.
+    expect(nodeForm(0.999).full).toBe(true);
+    expect(nodeForm(0.9)).toMatchObject({ full: false, lines: 3 });
+    expect(nodeForm(0.6)).toMatchObject({ full: false, lines: 2 });
+    expect(nodeForm(0.3)).toMatchObject({ full: false, lines: 1 });
+    // Fit's floor leaves a node room for its name and its state.
+    expect(nodeForm(0.45)).toMatchObject({ full: false, lines: 2 });
+  });
+
+  const zoomOut = (view: ReturnType<typeof render>, times: number) => {
+    for (let i = 0; i < times; i += 1) fireEvent.click(view.getByRole("button", { name: "Zoom out" }));
+  };
+
+  it("below 100 % keeps the node's name, keys and description, and its badge opens the ask to answer in place", async () => {
+    seedTeam();
+    const view = await openPage();
+    const asker = () => view.container.querySelector(`[data-node="${second.id}"]`) as HTMLElement;
+    await waitFor(() => expect(within(asker()).getByTestId("node-ask")).toBeTruthy());
+    expect(asker().dataset.form).toBe("full");
+    zoomOut(view, 3);
+    expect(asker().dataset.form).toBe("compact");
+    // No inline answers on the small node; the same tab stop and words.
+    expect(within(asker()).queryByTestId("node-ask")).toBeNull();
+    const name = asker().querySelector(`[data-node-name="${second.id}"]`) as HTMLElement;
+    expect(name.getAttribute("aria-keyshortcuts")).toBe("Enter Delete ArrowUp ArrowDown ArrowLeft ArrowRight");
+    expect(name.getAttribute("aria-description")).toContain("waiting on you");
+    const badge = within(asker()).getByTestId("node-badge");
+    expect(badge.tagName).toBe("BUTTON");
+    fireEvent.click(badge);
+    const panel = within(asker()).getByTestId("node-popover");
+    expect(panel.getAttribute("role")).toBe("dialog");
+    expect(within(panel).getByTestId("node-ask").textContent).toContain("B wants to message A");
+    fireEvent.click(within(panel).getByTestId("node-ask-once"));
+    await waitFor(() => expect(seams().__AIJ_MESSAGES_CALLS__).toContain("answer:ask-1:once"));
+  });
+
+  it("Esc closes the badge's panel and gives the keyboard back to the badge", async () => {
+    seedTeam();
+    const view = await openPage();
+    const asker = () => view.container.querySelector(`[data-node="${second.id}"]`) as HTMLElement;
+    await waitFor(() => expect(within(asker()).getByTestId("node-ask")).toBeTruthy());
+    zoomOut(view, 2);
+    fireEvent.click(within(asker()).getByTestId("node-badge"));
+    const panel = within(asker()).getByTestId("node-popover");
+    fireEvent.keyDown(panel, { key: "Escape" });
+    expect(within(asker()).queryByTestId("node-popover")).toBeNull();
+    expect(document.activeElement).toBe(within(asker()).getByTestId("node-badge"));
+  });
+
+  it("below 100 % what waits on an edge is a badge that opens its answer", async () => {
+    seedTeam();
+    seams().__AIJ_POOL_CANVAS__ = {
+      "pool-team": {
+        edges: [
+          {
+            from_session_id: first.id,
+            to_session_id: second.id,
+            messages: 2,
+            tasks: 0,
+            last_at_ms: Date.now() - 1000,
+            thread_id: "thr-1",
+            pending: [{ message_id: "m-9", thread_id: "thr-1", subject: "Totals", recipient: `session:${second.id}`, kind: "waiting", ask_id: null, at_ms: Date.now() - 1000 }],
+          },
+        ],
+      },
+    };
+    const view = await openPage();
+    await waitFor(() => expect(view.getByTestId("edge-pending")).toBeTruthy());
+    zoomOut(view, 2);
+    expect(view.queryByTestId("edge-pending")).toBeNull();
+    const badge = view.getByTestId("edge-badge");
+    expect(badge.textContent).toBe("1 waiting");
+    expect(badge.getAttribute("aria-label")).toMatch(/^1 waiting: 1 message waiting, /);
+    fireEvent.click(badge);
+    expect(badge.getAttribute("aria-expanded")).toBe("true");
+    expect(within(view.getByTestId("edge-badge-panel")).getByTestId("edge-deliver").textContent).toBe("Deliver");
+  });
+
+  it("back at 100 % the cards are whole again", async () => {
+    seedTeam();
+    const view = await openPage();
+    zoomOut(view, 2);
+    expect(view.container.querySelector("[data-form='compact']")).toBeTruthy();
+    fireEvent.click(view.getByTestId("canvas-zoom"));
+    expect(view.container.querySelector("[data-form='compact']")).toBeNull();
+    expect(view.getByTestId("canvas-zoom").textContent).toBe("100%");
+  });
+});
+
+describe("the List view under 1100 px", () => {
+  it("a narrow window opens a pool as rows; the view you choose is kept for that pool", async () => {
+    window.innerWidth = 1024;
+    seedTeam();
+    await act(async () => {
+      await refreshPools();
+    });
+    const page = () => (
+      <ConversationsProvider want={null}>
+        <ActionHostProvider host={{}}>
+          <PoolPage poolId="pool-team" sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} now={Date.now()} />
+        </ActionHostProvider>
+      </ConversationsProvider>
+    );
+    let view = render(page());
+    await waitFor(() => expect(view.getAllByTestId("pool-card").length).toBeGreaterThan(0));
+    expect(view.queryByTestId("pool-canvas")).toBeNull();
+    fireEvent.click(view.getByTestId("pool-mode-canvas"));
+    await waitFor(() => expect(view.getAllByTestId("canvas-node").length).toBeGreaterThan(0));
+    cleanup();
+    view = render(page());
+    await waitFor(() => expect(view.getAllByTestId("canvas-node").length).toBeGreaterThan(0));
+    // A wide window with nothing chosen: the canvas.
+    cleanup();
+    localStorage.clear();
+    window.innerWidth = 1280;
+    view = render(page());
+    await waitFor(() => expect(view.getAllByTestId("canvas-node").length).toBeGreaterThan(0));
   });
 });

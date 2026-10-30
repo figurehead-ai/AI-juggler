@@ -85,7 +85,7 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
           else show();
         }}
         className={
-          "relative flex size-[30px] shrink-0 items-center justify-center rounded-lg border outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+          "relative flex size-7 shrink-0 items-center justify-center rounded-lg border outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
           (open || changed ? "border-accent/40 bg-accent-soft text-accent-hi" : "border-hairline text-muted hover:bg-surface hover:text-ink")
         }
       >
@@ -158,7 +158,8 @@ export function ViewPopover({ options }: { options: Record<OnlyKey, { value: str
 }
 
 /** One Show line: it turns on and off, the menu stays open. Named by
- * its label; what it is, under it, is its description. */
+ * its label; what it is, muted on the same line, is its description
+ * (0.3 polish: one height for every line, hint or none). */
 function ShowLine({ which, on }: { which: ShowKey; on: boolean }): JSX.Element {
   const note = SHOW_NOTES[which];
   const noteId = `rail-view-note-${which}`;
@@ -173,6 +174,7 @@ function ShowLine({ which, on }: { which: ShowKey; on: boolean }): JSX.Element {
       <ChoiceLine
         icon={SHOW_ICONS[which]}
         label={SHOW_LABELS[which]}
+        hintInline
         hint={
           note && (
             <span id={noteId} aria-hidden="true">

@@ -17,6 +17,7 @@
 - [ ] Layering respected, nothing tool-specific outside an adapter, no new duplication ([engineering guide](../docs/engineering/ENGINEERING-GUIDE.md))
 - [ ] No new `unsafe`; `cargo deny check` clean; any new attack surface has its threat-model row and tests ([security guidelines](../docs/engineering/SECURITY-GUIDELINES.md))
 - [ ] Interface changes: both themes checked, `pnpm --dir ui exec playwright test` and `just visual-gate` pass, and an accessibility scan covers the new state
+- [ ] Design quality (D-57): each new or changed screen's gallery family has its critique (`docs/qa/evidence/_gallery/<family>/critique.md`) against the checklist and the reference screens (the row menus, the rail's order menu, Usage, Processes): one grid, a clear hierarchy, consistent spacing, icons on menu and action lines, the shared controls, disabled states that say why, plain words, nothing under 12 px, both themes at 1280×800 and 1024×700; every new popover, menu and sheet captured; what it found is fixed; `python3 scripts/critique_check.py` passes
 - [ ] An ADR when this makes an architecture decision
 
 </details>

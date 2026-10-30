@@ -101,6 +101,10 @@ jobs:
         run: cargo doc --workspace --no-deps
       - name: Evidence store (AJ-E801 gate)
         run: ./scripts/evidence_check.sh
+      - name: A design critique beside every gallery family's captures (AJ-E2814, D-57)
+        run: |
+          python3 scripts/critique_check.py --selftest
+          python3 scripts/critique_check.py
       - name: Terminology and plain words (AJ-E108, AJ-E1535 gates)
         run: |
           ./scripts/terminology_lint.sh

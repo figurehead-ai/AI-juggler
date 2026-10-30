@@ -116,6 +116,7 @@ describe("AJ-E1504 the typing rule", () => {
       "go-tasks": { key: "T", shiftKey: true },
       "go-accounts": { key: "A", shiftKey: true },
       "go-usage": { key: "U", shiftKey: true },
+      "go-history": { key: "Y", shiftKey: true },
       "go-fleet": { key: "F", shiftKey: true },
       settings: { key: "," },
       notifications: { key: "˜", code: "KeyN", altKey: true },

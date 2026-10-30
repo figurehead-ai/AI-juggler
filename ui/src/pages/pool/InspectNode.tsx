@@ -18,7 +18,7 @@ import type { CanvasEdgeInfo, NodeAskInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { sessionState } from "../../lib/rail-items";
 import { TaskRow } from "../tasks/TaskRow";
-import { answerAsk, sessionAlert } from "./CanvasNode";
+import { answerAsk, sessionAlert } from "./NodeParts";
 import { edgeWords } from "./CanvasEdges";
 import { Section } from "./InspectPool";
 import { makeLead, nameOf } from "./actions";

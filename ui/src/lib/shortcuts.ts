@@ -142,6 +142,10 @@ export const SHORTCUTS = [
   { id: "go-tasks", owner: "app", area: "Screens", keys: ["⌘⇧T"], label: "Tasks", match: cmd("t", { shift: true }) },
   { id: "go-accounts", owner: "app", area: "Screens", keys: ["⌘⇧A"], label: "Accounts", match: cmd("a", { shift: true }) },
   { id: "go-usage", owner: "app", area: "Screens", keys: ["⌘⇧U"], label: "Usage", match: cmd("u", { shift: true }) },
+  // 0.3 polish: History joins the header's letter keys (⌘⇧H is Continue
+  // on another account; numbered tabs would take ⌘1–9 from the places).
+  // Y as browsers' History (⌘Y).
+  { id: "go-history", owner: "app", area: "Screens", keys: ["⌘⇧Y"], label: "History", match: cmd("y", { shift: true }) },
   { id: "go-fleet", owner: "app", area: "Screens", keys: ["⌘⇧F"], label: "Fleet", match: cmd("f", { shift: true }), fleet: true },
   { id: "settings", owner: "app", area: "Screens", keys: ["⌘,"], label: "Settings", match: cmd(",") },
   { id: "processes", owner: "app", area: "Screens", keys: ["⌘⇧C"], label: "Processes", match: cmd("c", { shift: true }) },

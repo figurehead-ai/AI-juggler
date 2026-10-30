@@ -20,8 +20,8 @@ import { ToolMark } from "../../components/ToolMark";
 const DOOR =
   "inline-flex min-w-0 max-w-full items-center gap-1 whitespace-nowrap rounded text-meta text-ink/85 outline-none decoration-hairline underline-offset-2 transition-colors hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60";
 
-/** The facts line's separator before a door. */
-const Dot = (): JSX.Element => (
+/** The facts line's separator. */
+export const Dot = (): JSX.Element => (
   <span aria-hidden="true" className="text-muted">
     ·
   </span>

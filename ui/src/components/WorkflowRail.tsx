@@ -45,6 +45,7 @@ import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
 import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrder } from "./RailSections";
 import { RailToolbar } from "./RailToolbar";
+import { RailSignIns } from "./RailSignIns";
 import { PlaceBoard } from "./PlaceBoard";
 import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
@@ -490,32 +491,12 @@ export function InstanceBoard({
 
   return (
     <ActionHostProvider host={host}>
-    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="instance-board">
+    <div className="flex min-h-0 flex-1 flex-col gap-0.5" data-testid="instance-board">
       {/* AJ-E2104: search (the View's words too) and the View. */}
       <RailToolbar query={query} onQuery={setQuery} searchRef={searchRef} sessions={sessions} projects={projects} machines={remoteMachines} />
 
       {/* Sign-ins ride above the board on the Sessions tab. */}
-      {loginTerminals.length > 0 && (
-        <ListSection label="Sign-ins">
-          {loginTerminals.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onSelect(t.id)}
-              className={
-                "relative flex min-w-0 w-full items-center gap-2 rounded-lg py-[7px] pl-3 pr-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                (t.id === selectedId ? "bg-surface" : "hover:bg-surface/60")
-              }
-            >
-              {t.id === selectedId && (
-                <span className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />
-              )}
-              <span className={"size-1.5 shrink-0 rounded-full " + (t.ended ? "bg-faint" : "bg-live animate-breathe")} />
-              <span className="min-w-0 flex-1 truncate text-meta">{t.title}</span>
-            </button>
-          ))}
-        </ListSection>
-      )}
+      <RailSignIns terminals={loginTerminals} selectedId={selectedId} onSelect={onSelect} />
 
       <div
         ref={scrollRef}
@@ -917,13 +898,3 @@ function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean
   return group === "project" && filters.chips.length === 0 && filters.provider === null && filters.account === null && filters.project === null && query.trim() === "";
 }
 
-function ListSection({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-muted">
-        {label}
-      </p>
-      {children}
-    </div>
-  );
-}

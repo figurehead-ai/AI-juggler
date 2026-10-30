@@ -3,7 +3,7 @@
 Task: `docs/tasks/E17-agent-pools.md` AJ-E1703, context cards (P1).
 Status: **DONE-EVIDENCED** (IN-REVIEW until the release PR). 2026-10-24, claude-opus.
 
-Gallery: `docs/qa/evidence/_gallery/91-pools/` (`pool-cards-*`, `pool-access-*`; both themes, axe 0 critical or serious).
+Gallery: `docs/qa/evidence/_gallery/97-pool-canvas/` (`pools-screen-*`, `canvas-*`, `inspect-member-*`, `list-*`; 1280×800 and 1024×700, both themes, axe 0 critical or serious), rendered by `ui/tests/visual/pool-canvas-gallery.spec.ts`. The 0.2 captures of the pool page's cards and access (`91-pools/pool-cards-*`, `pool-access-*`, `pool-sheet-*`) were retired with the 0.3 canvas (AJ-E2808): a member's context card is the inspector's member view now, and the List view keeps its rows.
 
 ## What exists now
 
@@ -22,12 +22,12 @@ Gallery: `docs/qa/evidence/_gallery/91-pools/` (`pool-cards-*`, `pool-access-*`;
 | Requirement | Proof | Result |
 |---|---|---|
 | Req.1 built only from what AI Juggler knows | `crates/juggler-app/tests/pool_cards.rs::a_card_says_what_ai_juggler_knows_and_unavailable_for_the_rest`, `the_tick_reads_the_transcript_and_the_card_says_whose_words_they_are`; adapters `activity::tests` (5, Claude Code and Codex lines, the tail) | PASS |
-| Req.1 the agent's own line, marked as said by the agent | vitest `pools.test.tsx` › context cards ("said by the agent"); gallery `pool-cards-*` | PASS |
+| Req.1 the agent's own line, marked as said by the agent | vitest `pools.test.tsx` › context cards ("said by the agent"); gallery `97-pool-canvas/inspect-member-*` (the member's card in the inspector, its line marked as said by the agent) | PASS |
 | Req.2 missing data says "Unavailable" | `pool_cards.rs` (before the tick, no transcript, the task); vitest "says Unavailable and why, never an empty guess" | PASS |
 | Req.2 account details never shown (D-33: the label only) | `pool_cards.rs::a_card_carries_the_account_label_and_never_an_email_or_plan` (no id, plan, `@`, launch settings; none for an email label) | PASS |
 | Performance: built within the read model's tick | the tick reads only appended bytes of live sessions (16 MiB at most per read); `cards_impl` only joins the tick's view with the sessions list | PASS |
 | Quality gate: honest-field tests (D-06) | the four `pool_cards.rs` tests | PASS |
-| Visual: the pool view with cards | gallery `pool-cards-1280x800-{dark,light}.png`; keyboard walk in `pools-gallery.spec.ts` (Enter unfolds and folds a card) | PASS |
+| Visual: the pool view with cards | gallery `97-pool-canvas/` `canvas-*`, `inspect-member-*` and `list-*` (both sizes and themes; until 0.3, `91-pools/pool-cards-*`); keyboard walk in `pool-canvas-gallery.spec.ts` (arrows between members, Enter opens one in the inspector) | PASS |
 
 ## Not covered here
 

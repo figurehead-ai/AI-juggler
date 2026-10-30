@@ -124,7 +124,7 @@
 2. The header's separate `<h1>` title SHALL go; the highlighted tab carries `aria-current="page"`, and each screen keeps a visually hidden `<h1>` with its name.
 3. A page below a screen (a project, a pool, a session, a subagent) SHALL show its breadcrumb in the page ("Projects › storefront"), each step a link, the last one plain.
 4. The window's title SHALL be "AI Juggler · <screen>" ("AI Juggler · Projects").
-5. Keys SHALL be added to the shortcut registry: ⌘⇧P Projects, ⌘⇧O Pools, ⌘⇧T Tasks (the agents' choice, free today; the maintainer to confirm, D-54); the ? sheet and ⌘K list them.
+5. Keys SHALL be added to the shortcut registry: ⌘⇧P Projects, ⌘⇧O Pools, ⌘⇧T Tasks, and ⌘⇧Y History (the 0.3 polish: ⌘⇧H is Continue on another account) (the agents' choice, free today; the maintainer to confirm, D-54); the ? sheet, ⌘K and each tab's tooltip list them.
 6. Processes, This Mac and Settings SHALL stay in your menu (AJ-E2507); New session, the bell and the avatar stay on the right.
 7. The header SHALL NOT wrap at 1024×700, and no tab label SHALL truncate.
 **UI/UX reasoning**: Nielsen #1 (visibility of system status: where am I) and #6 (recognition: the doors are visible); Apple HIG "Tab bars" (the selected tab is the location); WCAG 2.4.8 (location) and 2.4.6 (headings). States: each screen's tab highlighted; a page below a screen with its parent tab highlighted. Copy as the requirement; keys as listed.

@@ -71,7 +71,10 @@ export function RailToolbar({
   const { all } = useConversations();
   const options = useMemo(() => onlyOptions(sessions, projects, all, machines), [sessions, projects, all, machines]);
   return (
-    <div className="flex flex-col gap-2" data-testid="rail-toolbar">
+    // 0.3 polish: a shorter stack before the first session (the review:
+    // ~150 px of search, switch and heads), every control kept, each
+    // target 24 px or more.
+    <div className="flex flex-col gap-1.5" data-testid="rail-toolbar">
       <div className="flex items-center gap-1.5">
         <div className="relative min-w-0 flex-1">
           <span aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted">
@@ -90,7 +93,7 @@ export function RailToolbar({
             }}
             placeholder="Search ⌘K"
             aria-label="Search sessions: words, or is:ended, app:, profile:, account:, project:, mac:"
-            className="h-[30px] w-full rounded-lg border border-hairline bg-surface/70 pl-6 pr-2 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-1 focus-visible:ring-accent/60"
+            className="h-7 w-full rounded-lg border border-hairline bg-surface/70 pl-6 pr-2 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-1 focus-visible:ring-accent/60"
           />
         </div>
         <ViewPopover options={options} />

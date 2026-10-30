@@ -44,13 +44,14 @@ export const SHOW_LABELS: Record<ShowKey, string> = {
   archived: "Archived",
 };
 
-/** What each one is, under it (the 0.2 walk, F18: "Quiet ones" and
- * "Inactive" said nothing of the difference). */
+/** What each one is, beside it, only where the label needs it (the 0.2
+ * walk, F18: "Quiet ones" and "Inactive" said nothing of the difference;
+ * 0.3 polish: short, on the label's line, so every line is one height). */
 export const SHOW_NOTES: Partial<Record<ShowKey, string>> = {
-  inactive: "In an app's list, not running",
-  quiet: "Idle sessions a place folds away",
-  background: "Headless runs, from scripts",
-  subagents: "How many each session runs",
+  inactive: "in an app's list, not running",
+  quiet: "idle ones, folded away",
+  background: "from scripts",
+  subagents: "a count on each session",
 };
 
 const KEY = "aij.rail.view.v1";

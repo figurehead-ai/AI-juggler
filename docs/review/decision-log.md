@@ -1649,9 +1649,14 @@ Also Where is tasks/ epics ???" On the approved design
   "AI Juggler · Projects"). A page below a screen (a project, a pool, a
   session, a subagent) names where it is in its own breadcrumb
   ("Projects › storefront"). Processes, This Mac and Settings stay in your
-  menu (AJ-E2507). Keys: ⌘⇧P Projects, ⌘⇧O Pools, ⌘⇧T Tasks, beside the
-  existing ⌘0, ⌘⇧A, ⌘⇧U and ⌘⇧H. *The keys are the agents' choice (free in
-  `ui/src/lib/shortcuts.ts`), the maintainer to confirm.* (AJ-E2803)
+  menu (AJ-E2507). Keys: ⌘⇧P Projects, ⌘⇧O Pools, ⌘⇧T Tasks and ⌘⇧Y
+  History, beside the existing ⌘0 Home, ⌘⇧A Accounts and ⌘⇧U Usage; each
+  tab's tooltip names its key. *Corrected 2026-10-30 (the 0.3 polish):
+  this line listed ⌘⇧H for History, but ⌘⇧H is Continue on another
+  account; History takes ⌘⇧Y, a letter like the other tabs (numbered tabs
+  would take ⌘1–9 from the list's places, AJ-E2104).* *The keys are the
+  agents' choice (free in `ui/src/lib/shortcuts.ts`), the maintainer to
+  confirm.* (AJ-E2803)
 - **The rail's grouping is a visible switch**, App · Project · Account ·
   Pool, above Needs you, in place of the unlabelled icon and the View
   menu's Group by. App (the place: an app and its profile) stays the

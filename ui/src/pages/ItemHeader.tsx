@@ -26,9 +26,9 @@ import { useTools } from "../lib/tools";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
-import { GoToButton, SessionChips, SessionMark } from "./session/SessionHead";
+import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
 import { fromInstance } from "./session/model";
-import { SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
+import { Dot, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
 import { ProjectChips } from "./project/ProjectChips";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
@@ -212,12 +212,23 @@ export function InspectorHeader({
   const facts =
     kind === "instance" && instance ? (
       <>
-        {/* 0.3: its tool and its pool, one click away. */}
+        {/* 0.3: its tool and its pool, one click away; where it runs
+            after its tool (the polish: it was a chip, beside a profile
+            chip that said the account again). */}
         {model && <SessionToolChip tool={instance.provider} />}
-        <span data-testid="session-subline">{sessionFacts(instance, now)}</span>
+        {model && (
+          <>
+            <SessionWhere model={model} now={now} />
+            <Dot />
+          </>
+        )}
+        <span data-testid="session-subline">{sessionFacts(instance, now, model === null)}</span>
         {/* Once something's measured: never a line of dashes. */}
         {isActiveStatus(instance.status) && (instance.cpu_pct !== null || instance.rss_bytes !== null || instance.child_count !== null) && (
-          <SessionResources session={instance} />
+          <>
+            <Dot />
+            <SessionResources session={instance} />
+          </>
         )}
         {model && <SessionPoolChip sessionId={instance.id} />}
       </>
@@ -301,10 +312,11 @@ export function InspectorHeader({
 /** A session that has ended (it can be relaunched). */
 const ENDED = ["finished", "stopped", "failed", "handed_over"];
 
-/** A session's facts: its account, how long, and how much is left once
- * that runs low (its project is the crumb above). */
-function sessionFacts(session: InstanceInfo, now: number): string {
-  return [session.account_label, `started ${since(session.started_at_ms, now)} ago`, lowLeftWords(session)]
+/** A session's facts: how long, and how much is left once that runs low
+ * (its project is the crumb above, its account the Account chip; the
+ * account leads only where there's no chip for it). */
+function sessionFacts(session: InstanceInfo, now: number, withAccount: boolean): string {
+  return [withAccount ? session.account_label : null, `started ${since(session.started_at_ms, now)} ago`, lowLeftWords(session)]
     .filter(Boolean)
     .join(" · ");
 }

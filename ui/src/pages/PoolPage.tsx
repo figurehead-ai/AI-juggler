@@ -27,7 +27,8 @@ import { pageTabs, rememberTab, rememberedTab } from "./registry";
 import { Canvas, type Selection } from "./pool/Canvas";
 import { Inspector } from "./pool/Inspector";
 import { MemberList } from "./pool/MemberList";
-import { PoolHeader, type Mode, type Panel } from "./pool/PoolHeader";
+import { PoolHeader, type Panel } from "./pool/PoolHeader";
+import { usePoolMode } from "./pool/mode";
 import { addToPool, cannotJoin, nameOf } from "./pool/actions";
 import { useCanvas } from "./pool/useCanvas";
 import type { Point } from "./pool/layout";
@@ -76,7 +77,8 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
   const first = useMemo(arrival, []);
   const [panel, setPanelState] = useState<Panel>(first.panel);
   const [taskKey, setTaskKey] = useState(0);
-  const [mode, setMode] = useState<Mode>("canvas");
+  // Under 1100 px a pool starts as rows, unless you chose (kept per pool).
+  const [mode, setMode] = usePoolMode(poolId);
   const [selection, setSelection] = useState<Selection>(first.settings ? { kind: "pool" } : { kind: "none" });
   const inspectorTitle = useRef<HTMLHeadingElement | null>(null);
   const setPanel = useCallback((next: Panel) => {

@@ -12,7 +12,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo, terminalDrawn } from "./fixtures";
+import { allStatuses, goTo, openRailList, terminalDrawn } from "./fixtures";
 import { askingTurns, workingTurns } from "./fixtures/session-chat";
 
 const PAGES = resolve(process.cwd(), "../docs/qa/evidence/_gallery/92-session-pages");
@@ -187,7 +187,9 @@ for (const theme of ["dark", "light"] as const) {
       await seed(page, PAGE_FIXTURE, theme, {}, size);
       await openConversation(page, "Fix the flaky checkout test");
       await expect(page.getByTestId("session-state-chip")).toContainText("Asks you · 3 min");
-      await expect(page.getByTestId("session-where-chip")).toContainText("Running in the Claude app · viewed 2 min ago");
+      // 0.3 polish: two chips (state, Account); where it runs on the facts line.
+      await expect(page.getByTestId("session-where")).toContainText("Running in the Claude app · viewed 2 min ago");
+      await expect(page.getByTestId("page-chips").locator("> *")).toHaveCount(2);
       await expect(page.getByTestId("last-turn")).toHaveCount(30);
       await expect(page.locator("[data-testid='last-turn'][data-asks='true']")).toContainText("asks you");
       await expect(page.getByTestId("last-messages-question")).toContainText("rebase onto main first");
@@ -246,6 +248,8 @@ for (const theme of ["dark", "light"] as const) {
     // Its project's page lists it (AJ-E1533); its row opens its page.
     await openConversation(page, "Fix the flaky checkout test");
     await page.getByTestId("crumb-project").click();
+    // 0.3: a project opens on its Overview; its Sessions are the next tab.
+    await page.getByTestId("page-tab-sessions").click();
     await page.getByTestId("page-panel-sessions").locator('[data-testid="page-session-row"][data-outside="true"]').filter({ hasText: "Move the orders API to v2" }).first().click();
     await expect(page.getByTestId("conversation-page")).toBeVisible();
     await expect(page.getByTestId("last-messages-none")).toBeVisible();
@@ -265,6 +269,20 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("handover-teaser")).toBeVisible();
     await shoot(page, PAGES, "own-overview", theme);
   });
+
+  for (const size of [BASE, { width: 1024, height: 700, tag: "1024x700" }] as Size[]) {
+    test(`a session's Account menu open — ${size.tag} — ${theme}`, async ({ page }) => {
+      await seed(page, PAGE_FIXTURE, theme, {}, size);
+      if (size.width < 1100) await openRailList(page);
+      await openConversation(page, "Fix the flaky checkout test");
+      await page.getByTestId("session-account-menu").click();
+      const menu = page.getByTestId("session-account-panel");
+      await expect(menu).toBeVisible();
+      await expect(menu.getByTestId("session-account-folder")).toContainText("web-app");
+      await expect(menu.getByTestId("session-account-open")).toBeFocused();
+      await shoot(page, PAGES, "account-menu-open", theme, size);
+    });
+  }
 
   test(`last messages turned off — ${theme}`, async ({ page }) => {
     await seed(page, PAGE_FIXTURE, theme, { show_last_messages: "0" });
