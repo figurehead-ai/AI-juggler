@@ -11,7 +11,7 @@ page is the order and the reason.
 |---|---|---|
 | 0.1 | Beta | Accounts and profiles, sessions, switching A→B→Codex→A with history, tasks and context kept, honest usage, This Mac, onboarding |
 | 0.2 | Beta | Switching to the account with the most room, one Needs you, notifications, pools with messages and tasks between agents, OpenCode, Grok Build and Kimi Code, Processes |
-| 0.3 | Beta (2026-10-30) | Projects, Pools and Tasks in the header, the pool canvas, Subagents, the local cache (D-58), the redesign (E28) |
+| 0.3 | Beta (2026-10-30) | Projects, Pools and Tasks in the header, the pool canvas, Subagents, the local cache (D-58), the redesign (E28). 0.3.1, in preparation: deleting launch settings keeps their sessions (D-60), Esc on New session, steadier tests |
 
 Nothing is on Stable yet: the first Stable is 0.6.
 
@@ -52,7 +52,7 @@ proof on real accounts of what has so far been proven with fakes.
 | Notifications tuned to you | A waiting threshold, quota at 80 and 95 %, per-project mute, Send test; a failed save puts the setting back | E29 |
 | Settings that fit your hands | Search across Settings; shortcuts you can rebind, with a conflict check and reset | E29 |
 | A first run that shows its confidence | Found, Likely and Guessed, with where each guess came from; Rescan at any time | E29 |
-| Safe edges | A confirm before deleting launch settings; Resume, Archive, Replay and Copy ID on an ended session; a keyboard-operable rail splitter; Home's filter chips and keys | E29 |
+| Safe edges | Resume, Archive, Replay and Copy ID on an ended session; a keyboard-operable rail splitter; Home's filter chips and keys. (Deleting launch settings without losing their sessions ships earlier, in 0.3.1, D-60.) | E29 |
 | Proven on real tools | Codex on real accounts; the runtime lab on real tools; the switching-fidelity matrix; Fleet on two Macs | AJ-E1305, AJ-E2301, AJ-E808, AJ-E710 |
 | An honest picture | The shipped work of E21, E23, E24 and E25 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, E23, E24, E25 |
 | Releases that don't stall | `just preflight`, the pre-push hook, CI parity, deterministic tests (already on `release/0.4`) | #198's follow-up |

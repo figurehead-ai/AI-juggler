@@ -334,5 +334,15 @@
 | AJ-E2812 | Cross-links: the session's Usage and Processes, and the project's subagents | E28-finding-your-way.md | P1 | S | AJ-E2809, AJ-E2811 |
 | AJ-E2813 | The sweep's smaller fixes | E28-finding-your-way.md | P1 | S | AJ-E2801 |
 | AJ-E2814 | The design-quality review: a critique beside every new or changed screen, and every popover captured | E28-finding-your-way.md | P0 | S | — |
-Total: 332 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2901 | The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | E29-trust-and-the-finished-basics.md | P0 | L | AJ-E2801 |
+| AJ-E2902 | Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | E29-trust-and-the-finished-basics.md | P0 | L | AJ-E2801 |
+| AJ-E2903 | Quality per account: errors and retries, stuck episodes, context at finish, tokens per finished task | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2902 |
+| AJ-E2904 | Notifications tuned to you: a waiting threshold, quota warnings at 80 and 95 %, Send test | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2801 |
+| AJ-E2905 | Settings you can search, and shortcuts you can rebind with a conflict check and reset | E29-trust-and-the-finished-basics.md | P1 | L | AJ-E2801 |
+| AJ-E2906 | First run shows its confidence: Found, Likely, Guessed, where each came from, and Look again at any time | E29-trust-and-the-finished-basics.md | P0 | M | AJ-E2801 |
+| AJ-E2907 | A confirm before deleting launch settings, and no delete while they're in use | E29-trust-and-the-finished-basics.md | P0 | S | — |
+| AJ-E2908 | An ended session's page: Resume, Archive, Replay and Copy ID | E29-trust-and-the-finished-basics.md | P1 | M | — |
+| AJ-E2909 | A keyboard-operable rail splitter | E29-trust-and-the-finished-basics.md | P0 | S | — |
+| AJ-E2910 | Home: filter chips, the r / h / s / e keys, and Mark all finished as reviewed | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2801 |
+Total: 342 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
