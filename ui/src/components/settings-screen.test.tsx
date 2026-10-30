@@ -89,7 +89,7 @@ describe("Settings — Account & Cloud", () => {
     });
     expect((await view.findByTestId("cloud-user-code")).textContent).toBe("QVM3-GABM");
     w().__AIJ_FIGUREHEAD_APPROVE__ = "denied";
-    const failed = await view.findByTestId("cloud-link-failed", {}, { timeout: 3000 });
+    const failed = await view.findByTestId("cloud-link-failed");
     expect(failed.getAttribute("data-phase")).toBe("denied");
     expect(failed.textContent).toContain("nothing was linked");
     expect(view.getByTestId("cloud-retry")).toBeTruthy();
