@@ -31,6 +31,7 @@ export function PageHeader({
   folded = false,
   onToggleFold,
   layout = "item",
+  here,
 }: {
   kind: PageKind;
   mark: ReactNode;
@@ -47,6 +48,9 @@ export function PageHeader({
   /** AJ-E2108: a session's page: a large mark, a larger name, and its
    * chips on their own line under it. */
   layout?: "item" | "session";
+  /** 0.3: the breadcrumb's last step, when not the type's word
+   * ("Projects › storefront"). */
+  here?: string;
 }) {
   const session = layout === "session";
   const title = (
@@ -76,7 +80,7 @@ export function PageHeader({
           </span>
         ))}
         <span className="font-medium" data-testid="page-type">
-          {PAGE_LABELS[kind]}
+          {here ?? PAGE_LABELS[kind]}
         </span>
       </nav>
       <div className={session ? "flex items-start gap-4 pt-1" : "flex flex-wrap items-center gap-3"}>
@@ -256,6 +260,7 @@ export function PageShell({
               }
             >
               {entry.label}
+              {entry.count !== undefined && entry.count > 0 && <span className="ml-1 tabular-nums opacity-70"> {entry.count}</span>}
             </button>
           ))}
         </div>

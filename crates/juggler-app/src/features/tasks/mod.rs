@@ -24,13 +24,15 @@
 //!   item once it has one), so a switch keeps it, and every session that
 //!   worked it is linked (the switch history shows it); a switch is a line
 //!   in its history ([`switched`]).
-//! - The user's reads ([`views`]), the issue a task comes from
+//! - The user's reads ([`views`]; across pools, the Tasks screen's:
+//!   [`across`]), the issue a task comes from
 //!   ([`issues`]) and the **commands** ([`commands`]) the window calls.
 //!
 //! Hard lines (D-28): nothing here changes a pool, a level or a rule for
 //! an agent, starts a session for an agent, picks an account, reads a
 //! credential or quota, or answers a tool's own prompt.
 
+pub mod across;
 pub mod agent;
 pub mod apply;
 pub mod commands;
@@ -41,6 +43,7 @@ pub mod needs;
 pub mod oversight;
 pub mod switched;
 pub mod views;
+pub mod words;
 
 use std::sync::{Arc, Mutex};
 

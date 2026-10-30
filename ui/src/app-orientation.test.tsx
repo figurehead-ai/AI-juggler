@@ -71,8 +71,12 @@ it("an account's page is under Accounts; the open project's rail heading is sele
 
   const heading = within(rail).getAllByTestId("rail-project")[0]!;
   await user.click(heading);
-  await waitFor(() => expect(view.getByTestId("page-type").textContent).toBe("Project"));
+  // 0.3: a project's page is under Projects (its lit tab), its crumb
+  // "Projects › its name".
+  await waitFor(() => expect(view.getByTestId("crumb-projects").textContent).toBe("Projects"));
+  expect(view.getByTestId("page-type").textContent).toBe(view.getByTestId("page-name").textContent);
   expect(heading.getAttribute("aria-current")).toBe("true");
+  expect(navItem(view, "Projects").getAttribute("aria-current")).toBe("page");
   expect(navItem(view, "Accounts").getAttribute("aria-current")).toBeNull();
   expect(within(view.getByTestId("page-header")).getByTestId("mark-project")).toBeTruthy();
 });

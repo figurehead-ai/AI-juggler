@@ -1002,7 +1002,7 @@ shows "Last reading 13 h ago: 40% used; that window has reset since".
   The plugin stays unpublished until then.
 - D-01..D-15 were marked Final on maintainer instruction
   (2026-10-13); D-16 and D-17 were settled by maintainer instruction
-  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26, D-44..D-49 on 2026-10-27, D-50..D-51 on 2026-10-28 and D-52..D-53 on 2026-10-29. All follow the same law.
+  on 2026-10-13, D-18 on 2026-10-17, D-19 on 2026-10-18, D-20..D-25 on 2026-10-19, D-26 on 2026-10-22, D-27 on 2026-10-23, D-28..D-37 on 2026-10-24, D-38..D-41 on 2026-10-25, D-42..D-43 on 2026-10-26, D-44..D-49 on 2026-10-27, D-50..D-51 on 2026-10-28 and D-52..D-57 on 2026-10-29. All follow the same law.
 
 ### D-42 Messages between agents: secrets, reading, where they show, and four smaller points — SETTLED (2026-10-26)
 
@@ -1629,3 +1629,284 @@ the people it's for; a version that can't run on Windows isn't that yet.
   0.x line keeps shipping meanwhile (D-52: a macOS release never waits
   for Windows work), so users don't wait; only the number does.
 - Evidence: this entry; `python3 scripts/check_task_counts.py`.
+
+### D-54 Finding your way: Projects, Pools and Tasks in the header, a visible grouping switch, a Projects screen and a Tasks screen — SETTLED (2026-10-29)
+
+**Ruling.** The maintainer, 2026-10-29, on the 0.2.0 walk: "Also where is
+the projects ??? … We should have some way to group sessions also by
+projects. maybe that is what we are missing a top filter or a tab or flag,
+that switching grouping between : Account, App (current) and project …
+Also Where is tasks/ epics ???" On the approved design
+([`docs/design/finding-your-way-2026-10-29.html`](../design/finding-your-way-2026-10-29.html),
+§1, §3 and §4): "Put the whole redesign in 0.3. Header: OK as proposed."
+
+**What changed (E28, 0.3).**
+
+- **The header** is **Home · Projects · Pools · Tasks · Accounts · Usage ·
+  History** (was Home · Accounts · Usage · History: D-25 as amended by
+  AJ-E1021 and AJ-E2507). The separate page title goes: the highlighted
+  tab is the title (`aria-current="page"`, and the window's title says
+  "AI Juggler · Projects"). A page below a screen (a project, a pool, a
+  session, a subagent) names where it is in its own breadcrumb
+  ("Projects › storefront"). Processes, This Mac and Settings stay in your
+  menu (AJ-E2507). Keys: ⌘⇧P Projects, ⌘⇧O Pools, ⌘⇧T Tasks, beside the
+  existing ⌘0, ⌘⇧A, ⌘⇧U and ⌘⇧H. *The keys are the agents' choice (free in
+  `ui/src/lib/shortcuts.ts`), the maintainer to confirm.* (AJ-E2803)
+- **The rail's grouping is a visible switch**, App · Project · Account ·
+  Pool, above Needs you, in place of the unlabelled icon and the View
+  menu's Group by. App (the place: an app and its profile) stays the
+  default (D-36). The switch remembers the choice per Mac. Pool shows
+  once any pool has members besides a project's own (before, Group by
+  Pool was greyed out "once you make a pool", though every project
+  already has one, D-33). (AJ-E2802)
+- **A Projects screen**: each project on one line, the same way: name,
+  folder, what needs you, sessions working, open tasks, this week's
+  tokens. Sorted by recent activity, searchable, paged. (AJ-E2804)
+- **A project page with everything about it**: "Projects › storefront",
+  its folder and branch, what asks you and what works, and the tabs
+  **Overview · Sessions · Tasks · Pool · Subagents · Usage · History**
+  (each with its count where it has one), Overview first with its four
+  figures (open sessions and apps, tasks by state, this week's tokens,
+  accounts used). Before: Sessions · Overview · Usage. (AJ-E2805)
+- **A Tasks screen across every project**: by state (Ready, In progress,
+  In review, Blocked; To do, Done and Cancelled one click away) as a
+  Board, and the plan (epics → stories → tasks) as a second view,
+  filtered by project, pool or holder, searchable. D-44 stands: agents
+  write tasks; the screen shows and tracks them and offers only the four
+  basic actions. Review items stay in Needs you too. (AJ-E2806)
+
+**Why.** Things existed but had no door (the design's §0): grouping by
+project, pool or account hid behind an unlabelled icon; projects had no
+header entry (only that grouping or ⌘K); a pool's page opened from
+Settings › Agent access or a Needs you card; tasks and epics lived only on
+a pool's page. Folding the title into the tab makes room for three more
+doors in a header that already wrapped at 1280 px.
+
+- Risk: seven tabs, New session, the bell and the avatar at 1024 px. The
+  header must not wrap at 1024×700 (the Tauri minimum is 1024×680); the
+  nav's labels never truncate, and the gallery captures it at 1024 and
+  1280 in both themes.
+- Risk: a screen reader no longer hears a separate heading for the
+  screen. Each screen keeps a visually hidden `<h1>` with its name, so
+  the heading outline is unchanged.
+- Risk: a list across every pool's tasks grows without end. It is paged
+  by keyset cursor like the pool's own list (`tasks_list`), never
+  loaded whole.
+- Evidence: this entry and the approval record; E28's AJ-E2802–E2806,
+  each with its evidence path under `docs/qa/evidence/<id>/`;
+  `python3 scripts/check_task_counts.py`.
+
+### D-55 A pool is one live canvas you watch and edit in place; a Pools screen; your layout is remembered — SETTLED (2026-10-29)
+
+**Ruling.** The maintainer, 2026-10-29: "we need to have dedicated section
+for pools. BEcause pool page should have dual purpose, a view of all of
+the apps in pools, showing them, their statuses, and configuration of
+pools. Pools requires a really very interactive view. I am not saying you
+shouldn't have group by pools, keep that … if someone creates a pool, they
+want to see interactions, how they configured in the pool, alerts within
+the pool" and "In same place where you view you should create, edit
+manage pool items and same view, there is no reason to have different
+screens. Think how diagram dashboards are." On the approved design (§5):
+"Pool canvas: I arrange nodes and it remembers, with an automatic first
+layout."
+
+**What changed (E28, 0.3).**
+
+- **A Pools screen** (the header's Pools): a card per pool with a small
+  map of its members, its name, how many members, what asks you and how
+  many tasks move; a project's own pool says "(project pool)". New pool
+  is on the screen. (AJ-E2807)
+- **A pool's page is its canvas.** No separate view and setup screens:
+  members are nodes (the session's name, Lead when it leads, account ·
+  app, its state and what it's on); interactions are edges (a task given,
+  messages, an ask), each drawn its own way and named for screen readers;
+  alerts sit on the node or edge they concern, with their answers right
+  there (an ask: Allow once · Always · Deny, the same answer as in Needs
+  you, D-28; a held message: Deliver). The page's tabs are Canvas · Tasks ·
+  Messages; the members and access tabs fold into the canvas and its
+  inspector. (AJ-E2808)
+- **Edit in place.** Drag a session from the palette ("Add a session")
+  onto the canvas to add it, or onto empty space to start a new pool.
+  Select the pool, a member or an edge and the inspector shows it and
+  changes it: the pool's members and lead, what agents may do (D-28's
+  level), delivery (D-29), the rules you granted (each one can be taken
+  back), what notifies you, and a live feed; a member's tasks, messages,
+  usage and rules; an edge's messages and tasks. Settings › Agent access
+  stays the one page of every pool's levels and rules (D-28).
+- **Your layout is remembered.** The first layout is automatic (the lead
+  on top, members below, the same input always giving the same picture);
+  nodes you drag stay where you put them, across restarts; a member who
+  joins later is placed automatically without moving the ones you placed;
+  "Arrange automatically" starts over, with Undo. *The agents' reading,
+  the maintainer to confirm:* positions are kept per Mac, like Your order
+  (D-47), since a pool that spans Macs (D-32) is drawn on screens of
+  different sizes.
+- **Group by Pool stays** in the rail (D-54's switch).
+- The hard lines stand: only the user changes pools, levels and rules
+  (D-28); adding a session to a pool never starts one, and agents never
+  start sessions (D-31).
+
+**Why.** Someone who makes a pool wants to see who is in it, what they do
+to each other, how it is set up and what waits on them, and change it
+where they see it, as a diagram dashboard does; two screens for the same
+pool split that.
+
+- Risk: the canvas is the largest piece of the redesign. It is built on
+  the existing pool, message and task commands; what it adds is the
+  layout store and the edges' read.
+- Risk: dragging is not accessible to everyone (WCAG 2.2, 2.5.7 Dragging
+  Movements). Every drag has a keyboard and menu equivalent (move a
+  node with ⌥ and the arrows; "Add to this pool…" and "Move to pool…" in
+  menus), and the canvas has a list view of the same members and edges.
+- Risk: a busy pool draws many edges. Edges between the same two members
+  merge into one with a count; the canvas holds 50 members within its
+  frame budget.
+- Evidence: the approval record; E28's AJ-E2807 and AJ-E2808, with their
+  evidence under `docs/qa/evidence/<id>/`.
+
+### D-56 Subagents, around what users want from them: what runs, what failed, what it cost — SETTLED (2026-10-29)
+
+**Ruling.** The maintainer, 2026-10-29: "Subagents are really poorly
+implemented … it is listing 437 subagents … it makes no sense to show all
+of them as one. We need to have filters for currently active, history of,
+search them … some of the subagents are indented ??? what does that mean
+??? … if so we should have tree like lines. Also we should have better
+breadcrumbs for subagent, also we should have section for subagent usage
+and processes too … Remember these subagents need to be useful, for users,
+think why would users want to view subagents in our app ?? Possibly to see
+token usage, resource usage, what processes each subagent started. Also we
+should have a summary of subagent is doing. maybe original prompt given."
+On the approved design (§6, §7): "Put the whole redesign in 0.3."
+
+**What changed (E28, 0.3).**
+
+- **Why someone opens it** sets the order: something still running or
+  stuck after the session looks idle; why the session is expensive; what
+  got delegated and what failed; what a background subagent produced;
+  which one started a process. Claude Code forgets finished subagents
+  after 30 seconds and shows no cost per subagent, so the lasting record
+  is AI Juggler's reason to show them.
+- **The Subagents tab** opens with one line ("437 subagents · 3 running ·
+  2 failed · 41% of this session's tokens") and the filters **Running ·
+  Needs attention · All**, a search (task, prompt, result, file), Type and
+  Sort; it opens on Running when anything runs. Subagents are **grouped
+  under the message that started them** ("You asked: "fix the totals…" ·
+  14:02 · 6 subagents · 2 running · 1.2M"); older groups fold. **Tree
+  lines** (├ └ │) show who started whom, in place of the unexplained
+  indent; a parent's tokens include its children's, its own on hover.
+  Windowed and paged: never all 437 at once. (AJ-E2810)
+- **A subagent's detail**, with a breadcrumb back through its parents
+  ("Fix the cart totals › Subagents › Audit the cart store › Read the tax
+  tables", Esc goes back): the task it was given (its whole prompt one
+  click away), its result (or "It's still running…", or its failure in one
+  line), its work (tool uses by kind, lines added and removed, files, its
+  conversation), its usage (tokens, an estimated cost, its share of the
+  session) and the processes it started, marked **probably** (matched from
+  the commands it ran). Stop says honestly what AI Juggler can't do: it
+  can't stop one subagent inside a Claude Code session it doesn't drive,
+  and says how to in Claude Code. (AJ-E2811)
+- **An incremental index.** The 437-subagent session has about 700 MB of
+  subagent records, and today each page re-reads them (the readers are
+  kept in memory for the last 8 sessions and lost on restart). A small
+  saved index, updated as the files grow, makes the tab open at once and
+  page. (AJ-E2809)
+- **Honest data per tool**, said on screen where it differs (the design's
+  §7): task, state, times and who started it are exact for every tool;
+  prompt and result exact for Claude Code and Codex, where recorded for
+  Kimi Code, Grok Build and OpenCode; tokens, model and cost exact for
+  Claude Code, part of the session's total for Codex (shown as such),
+  exact and separate where recorded for the others; tools, lines and files
+  exact for Claude Code and derived for the others; processes "probably"
+  everywhere; the CPU and memory of a subagent itself is not possible
+  (every subagent runs inside its tool's one process), and the screen says
+  so instead of showing a number.
+- **No double counting**: a subagent's tokens are a split of its session's
+  total and show as a share of it. **"Running" stays truthful**: a
+  subagent with no end record after its session ends reads "Unknown",
+  never a guess (D-06, as `SubagentStatus` already says); a quiet one
+  shows its last activity.
+- **Cross-links**: the session's Usage tab shows the subagents' share and
+  their most expensive; its Processes tab names the subagent that probably
+  started a process; the project page has a Subagents tab across its
+  sessions. (AJ-E2812)
+- The adapter contract grows (`juggler_adapter::subagents`): each tool's
+  details, in its adapter only (ADR-0002), with the conformance kit
+  checking that every adapter answers each new capability. D-48 stands:
+  one Subagents view, one reader for the row's count and the tab.
+
+**Why.** A flat list of 437 rows answers none of the questions people
+open it with. What they want is what is still running, what failed, what
+it cost, what it was asked and what it left behind, and the record
+outlives the tool's own memory of it.
+
+- Risk: a prompt or a result can hold a key or a password. Both are
+  redacted (D-14) before they are indexed or shown, and the index keeps
+  only what the screen shows.
+- Risk: "probably" is wrong sometimes (two subagents ran the same
+  command). It is a label, never a basis for an action: nothing is stopped
+  because of the match, and the Processes tab stops processes as it does
+  today.
+- Risk: the index grows with every session. It is bounded (one row per
+  subagent, prompt and result clipped), pruned with the session's own
+  records, and rebuilt from the tools' files if it is lost.
+- Evidence: the approval record; E28's AJ-E2809–E2812, with their
+  evidence under `docs/qa/evidence/<id>/`.
+
+### D-57 Every new or changed screen is critiqued for design quality, with shared controls and every popover captured — SETTLED (2026-10-29)
+
+**Ruling.** The maintainer, 2026-10-29, on the rail's View menu: "this
+screen is to bland, I mean look at it, ugly what happened with UI/UX
+quality reviews ??" On the approved design (§2, §8): "Put the whole
+redesign in 0.3."
+
+**What changed (E28, 0.3).**
+
+- **A design critique is part of done.** Every new or changed screen gets
+  a short written critique next to its screenshots on the gallery's review
+  page, against the app's best screens (the row menus, the rail's order
+  menu, Usage and Processes), before the maintainer sees it. Its
+  checklist: one alignment grid; a clear hierarchy (section titles,
+  options, hints); consistent spacing; icons on menu and action lines; the
+  shared controls, no system select, radio or checkbox; disabled states
+  that say why; plain words, no internal ids; body 14 px and nothing under
+  12 px; both themes, at 1280×800 and 1024×700. What it finds is fixed
+  before the screen is called done. `docs/plan/QUALITY.md` §2 has the
+  line. (AJ-E2814)
+- **Shared controls** (AJ-E2801): one **choice line** (icon, label, hint
+  under it, ✓ on the right), promoted from the order menu, for the View
+  menu, the stop sheet's "What to stop" and Settings' choices; one
+  **checkbox** and one **radio** in the accent colour with a clear
+  disabled state, replacing the mix of system blue and purple in about 38
+  files; one **picker** (the value and a chevron, opening a menu with ✓)
+  replacing about 21 system selects (How it runs, History's filters, Open
+  projects in, Add account). *The agents' addition:* a lint keeps native
+  ones from coming back, with an allowlist that only shrinks.
+- **The View menu, rebuilt** with them (AJ-E2802): Show (Quiet ones,
+  Ended today, Subagents, Other Macs) and Only (App, Account, Project,
+  each a sub-menu, never a system select), every line icon · label · hint
+  · ✓, and Reset only when something changed. Group by moved to the rail's
+  switch (D-54).
+- **Every popover is captured** in the gallery, so none escapes review
+  again; one that can't be is listed in the gallery's not-captured list
+  with the reason.
+- **The sweep's smaller fixes** (AJ-E2813): the limit dialog's orphan line
+  and missing ×; New session's wrapped "Suggested" and text triangles;
+  the tool menu covering its own button; Settings › General's squeezed
+  card; Home's misaligned app buttons.
+
+**Why.** Our gates checked "unchanged" (the visual baselines) and
+"accessible" (the a11y gate), never "good": the View menu passed both
+with two hint layouts, 12 px everywhere, system radios and selects and a
+disabled option that looked selected, and it wasn't even captured.
+
+- Risk: a critique is a judgement. The checklist and the named reference
+  screens anchor it; the maintainer's review of the gallery stays the
+  last word.
+- Risk: replacing the native checkboxes, radios and selects (about 38
+  files and 21 selects) can break keyboard and screen-reader behaviour
+  the browser gave for free. The
+  shared controls carry the roles and keys (radio groups move with the
+  arrows, a picker is a menu button), and the a11y gate runs over every
+  touched screen.
+- Evidence: `docs/plan/QUALITY.md` §2; E28's AJ-E2801, AJ-E2802, AJ-E2813
+  and AJ-E2814, with their evidence under `docs/qa/evidence/<id>/`.

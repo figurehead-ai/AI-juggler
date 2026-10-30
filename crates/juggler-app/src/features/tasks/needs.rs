@@ -52,9 +52,9 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
                     >= 1
             });
         let detail = match need.kind.as_str() {
-            "launch" => need.change.clone().map_or_else(
+            "launch" => need.change.as_deref().map_or_else(
                 || "You pick the account and start it; nothing starts by itself.".to_owned(),
-                |note| format!("«{note}»"),
+                |note| format!("«{}»", super::words::name_tasks(&storage, note)),
             ),
             _ => format!(
                 "{} · above what the pool lets agents do",
@@ -69,7 +69,8 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<TaskNeedInfo>> {
             pool_id: need.pool_id,
             task_title: task.as_ref().map(|t| t.title.clone()),
             task_id: need.task_id,
-            title: need.summary,
+            // D-25: tasks by their titles (a line held before named its ids).
+            title: super::words::name_tasks(&storage, &need.summary),
             detail,
             offer_always,
             at_ms: need.created_at,

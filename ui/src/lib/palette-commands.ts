@@ -11,7 +11,7 @@
 import { GLOBAL_NAV, type GlobalId } from "./nav";
 import { SHORTCUTS, type ShortcutId } from "./shortcuts";
 
-export type PaletteCommandIcon = "home" | "screen" | "accounts" | "usage" | "history" | "processes" | "computer" | "settings" | "privacy" | "fleet" | "new" | "project" | "bell" | "keyboard" | "list" | "search";
+export type PaletteCommandIcon = "home" | "pool" | "tasks" | "screen" | "accounts" | "usage" | "history" | "processes" | "computer" | "settings" | "privacy" | "fleet" | "new" | "project" | "bell" | "keyboard" | "list" | "search";
 
 export interface PaletteCommand {
   id: string;
@@ -42,8 +42,10 @@ export interface AppDoings {
 
 const SCREEN_ICON: Record<GlobalId | "home", PaletteCommandIcon> = {
   home: "home",
+  projects: "project",
+  pools: "pool",
+  tasks: "tasks",
   history: "history",
-  pools: "screen",
   accounts: "accounts",
   usage: "usage",
   fleet: "fleet",
@@ -53,14 +55,16 @@ const SCREEN_ICON: Record<GlobalId | "home", PaletteCommandIcon> = {
   privacy: "privacy",
 };
 
-const SCREEN_KEY: Partial<Record<GlobalId | "home", ShortcutId>> = { home: "go-home", accounts: "go-accounts", usage: "go-usage", fleet: "go-fleet", settings: "settings", cleanup: "processes" };
+const SCREEN_KEY: Partial<Record<GlobalId | "home", ShortcutId>> = { home: "go-home", projects: "go-projects", pools: "go-pools", tasks: "go-tasks", accounts: "go-accounts", usage: "go-usage", fleet: "go-fleet", settings: "settings", cleanup: "processes" };
 
 const SCREEN_WORDS: Partial<Record<GlobalId | "home", string>> = {
   home: "needs you inbox start",
+  projects: "folders repos work",
+  pools: "agents teams members together",
+  tasks: "work board plan epics stories review ready",
   accounts: "profiles subscriptions limits switch sign in",
   usage: "tokens cost limits charts",
   history: "ended past sessions transcripts search",
-  pools: "agents work together canvas lead members",
   cleanup: "processes stop kill leftovers cleanup",
   thismac: "memory processor computer machine",
   settings: "preferences options",

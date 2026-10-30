@@ -79,11 +79,14 @@ fn thread_info(storage: &Storage, thread: Thread, pool_name: &str) -> ThreadInfo
         hop_cap: MAX_THREAD_HOPS,
         state: thread.state.as_str().to_owned(),
         last_from: last.map(|m| m.sender_name.clone()).unwrap_or_default(),
-        last_line: last.map(|m| first_line(&m.body)).unwrap_or_default(),
+        // D-25: a task an agent names by its id reads as its title.
+        last_line: last
+            .map(|m| crate::features::tasks::words::name_tasks(storage, &first_line(&m.body)))
+            .unwrap_or_default(),
         unread,
         id: thread.id,
         pool_id: thread.pool_id,
-        subject: thread.subject,
+        subject: crate::features::tasks::words::name_tasks(storage, &thread.subject),
         count: thread.count,
         hop: thread.hop,
         state_reason: thread.state_reason,
@@ -169,8 +172,9 @@ fn message_info(
         .to_owned(),
         from_session_id: from_session,
         kind: message.kind,
-        subject: message.subject,
-        body: message.body,
+        // D-25: on screen, tasks by their titles (the agent got the ids).
+        subject: crate::features::tasks::words::name_tasks(storage, &message.subject),
+        body: crate::features::tasks::words::name_tasks(storage, &message.body),
         hop: message.hop,
         redacted: message.redacted,
         to_all: message.to_all,

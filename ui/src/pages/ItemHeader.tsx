@@ -28,6 +28,8 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark } from "./session/SessionHead";
 import { fromInstance } from "./session/model";
+import { SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
+import { ProjectChips } from "./project/ProjectChips";
 
 function KindIcon({ kind }: { kind: InspectorKind }) {
   const props = { width: 16, height: 16 };
@@ -156,7 +158,9 @@ export function InspectorHeader({
       ? [{ label: project.name, onOpen: () => onOpenProject(project.id), testId: "crumb-project" }]
       : kind === "account" && tool
         ? [{ label: tool.display_name, onOpen: () => host.openTool?.(tool), testId: "crumb-tool" }]
-        : [];
+        : kind === "project"
+          ? [{ label: "Projects", onOpen: () => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "projects" } })), testId: "crumb-projects" }]
+          : [];
   const state = instance && kind === "instance" ? statusTone(instance.status) : null;
   // AJ-E2108: a session's page says where it runs (its conversation as
   // the tools' files show it: where it's open, when it was viewed).
@@ -187,9 +191,14 @@ export function InspectorHeader({
     <>
       {model ? (
         <SessionChips model={model} account={subscriptions ? accountOfProfile(subscriptions, model.profileId) : undefined} now={now} />
+      ) : kind === "project" && data.project ? (
+        <ProjectChips projectId={data.project.id} sessions={sessions} />
       ) : (
         state && <Chip tone={state.tone}>{state.label}</Chip>
       )}
+      {/* 0.3: its pool, one click away. */}
+      {model && instance && <SessionPoolChip sessionId={instance.id} />}
+      {model && instance && <SessionToolChip tool={instance.provider} />}
       {/* AJ-E510: re-adopted after a crash; its earlier output is gone. */}
       {kind === "instance" && instance?.adopted && (
         <span data-testid="instance-adopted-chip">
@@ -276,6 +285,7 @@ export function InspectorHeader({
     <PageHeader
       kind={page}
       layout={model ? "session" : "item"}
+      here={kind === "project" ? name : undefined}
       mark={mark}
       name={name}
       crumbs={crumbs}

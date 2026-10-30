@@ -145,13 +145,15 @@ fn tell_holder(state: &Arc<AppState>, task: &Task, note: &str) {
             to: member.session_id,
             thread_id: None,
             kind: Some("note".to_owned()),
+            // D-25: the subject by its title; the body's hint names the
+            // id for the agent's own tool.
             subject: Some(format!(
-                "{} sent back · {}",
-                task.id,
+                "Sent back · {}",
                 juggler_core::messaging::one_line(&task.title, 80)
             )),
             body: format!(
-                "{note}\n\n(The user sent {id} back to in progress: it's still yours. task_get {id} has it.)",
+                "{note}\n\n(The user sent {title} back to in progress: it's still yours. task_get {id} has it.)",
+                title = super::words::quoted(&task.title),
                 id = task.id
             ),
             deliver: true,

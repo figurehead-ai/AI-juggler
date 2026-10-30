@@ -122,7 +122,8 @@ pub fn start(
                 to: session.to_string(),
                 thread_id: None,
                 kind: Some("handoff".to_owned()),
-                subject: Some(format!("{} · {}", task.id, task.title)),
+                // D-25: its title on screen; the brief names its id for the agent.
+                subject: Some(juggler_core::messaging::one_line(&task.title, 80)),
                 body: brief,
                 deliver: true,
             },

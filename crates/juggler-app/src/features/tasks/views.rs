@@ -14,7 +14,7 @@ use juggler_core::tasks::{TaskKind, TaskStatus, UserAction, may_user};
 
 use super::dto::{
     TaskActions, TaskCounts, TaskDetail, TaskEventInfo, TaskInfo, TaskIssueInfo, TaskLinkInfo,
-    TaskSessionInfo, TaskThreadInfo,
+    TaskRefInfo, TaskSessionInfo, TaskThreadInfo,
 };
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
@@ -56,6 +56,14 @@ pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
             .map(|who| you(who, task.assignee_name.as_deref().unwrap_or("someone"))),
         holder_session_id,
         blocked_by: task.blocked_by.clone(),
+        waits_on: task
+            .blocked_by
+            .iter()
+            .map(|id| TaskRefInfo {
+                id: id.clone(),
+                title: storage.tasks().get(id).ok().flatten().map(|t| t.title),
+            })
+            .collect(),
         items: task.children.0,
         items_done: task.children.1,
         written_by: you(&task.created_by, &task.created_by_name),
@@ -70,7 +78,7 @@ pub(crate) fn info(storage: &Storage, task: &Task) -> TaskInfo {
 }
 
 /// A task's place as the IPC's keyset cursor names it (`paging.rs`).
-fn sort_key(task: &Task) -> SortKey {
+pub(crate) fn sort_key(task: &Task) -> SortKey {
     let key = task.key();
     SortKey::new(
         [i64::from(key.rank), i64::from(key.priority), -key.seq],
@@ -79,7 +87,7 @@ fn sort_key(task: &Task) -> SortKey {
 }
 
 /// The task a cursor starts after.
-fn after_of(request: &PageRequest) -> AppResult<Option<TaskKey>> {
+pub(crate) fn after_of(request: &PageRequest) -> AppResult<Option<TaskKey>> {
     Ok(request
         .start_after()?
         .and_then(|key| match key.ranks.as_slice() {
@@ -177,18 +185,22 @@ pub fn counts(state: &Arc<AppState>, pool_id: &str) -> AppResult<TaskCounts> {
         .tasks()
         .counts(pool_id, Some(&[TaskKind::Task]))?
     {
-        let slot = match status {
-            TaskStatus::Ready => &mut out.ready,
-            TaskStatus::InProgress => &mut out.in_progress,
-            TaskStatus::InReview => &mut out.in_review,
-            TaskStatus::Blocked => &mut out.blocked,
-            TaskStatus::Todo => &mut out.todo,
-            TaskStatus::Done => &mut out.done,
-            TaskStatus::Cancelled => &mut out.cancelled,
-        };
-        *slot = count;
+        *slot(&mut out, status) = count;
     }
     Ok(out)
+}
+
+/// The count `status` goes in.
+pub(crate) fn slot(out: &mut TaskCounts, status: TaskStatus) -> &mut u32 {
+    match status {
+        TaskStatus::Ready => &mut out.ready,
+        TaskStatus::InProgress => &mut out.in_progress,
+        TaskStatus::InReview => &mut out.in_review,
+        TaskStatus::Blocked => &mut out.blocked,
+        TaskStatus::Todo => &mut out.todo,
+        TaskStatus::Done => &mut out.done,
+        TaskStatus::Cancelled => &mut out.cancelled,
+    }
 }
 
 /// One page of the pool's plan: its epics and stories (the tree's folds).
@@ -275,28 +287,25 @@ pub fn of_session(
     page(keyed, |(key, _)| key.clone(), request).map(|page| page.map(|(_, row)| row))
 }
 
-/// AJ-E1904: a switch history node's task, as `aj-7f3c · title`: the
+/// AJ-E1904: a switch history node's task, as its title (D-25: never its id): the
 /// task its session worked (the newest), else — for the line of work's
 /// newest session — the one its Work item holds now (a switch keeps it).
 #[must_use]
 pub fn epoch_task(storage: &Storage, session: &str, newest: bool) -> Option<String> {
     let repo = storage.tasks();
-    if let Some((_, id, title, _)) = repo
+    if let Some((_, _, title, _)) = repo
         .of_sessions(&[session.to_owned()])
         .ok()?
         .into_iter()
         .next()
     {
-        return Some(format!("{id} · {title}"));
+        return Some(title);
     }
     if !newest {
         return None;
     }
     let refs = crate::features::messages::refs_of(storage, &SessionId::new(session));
-    repo.held_by(&refs)
-        .ok()
-        .flatten()
-        .map(|task| format!("{} · {}", task.id, task.title))
+    repo.held_by(&refs).ok().flatten().map(|task| task.title)
 }
 
 /// An event in words.
@@ -388,7 +397,10 @@ fn sessions_of(
 }
 
 /// A page of history in words, and the cursor for older events.
-fn history_of(events: &[juggler_core::storage::TaskEvent]) -> (Vec<TaskEventInfo>, Option<String>) {
+fn history_of(
+    storage: &Storage,
+    events: &[juggler_core::storage::TaskEvent],
+) -> (Vec<TaskEventInfo>, Option<String>) {
     let next = (events.len() > HISTORY as usize)
         .then(|| {
             events
@@ -408,7 +420,9 @@ fn history_of(events: &[juggler_core::storage::TaskEvent]) -> (Vec<TaskEventInfo
                 e.actor_name.clone()
             },
             by_agent: e.actor_ref != TASK_USER,
-            what: what(&e.verb, e.detail.as_deref()),
+            // D-25: each task in it by its title, named as it's read
+            // (lines kept before name ids).
+            what: super::words::name_tasks(storage, &what(&e.verb, e.detail.as_deref())),
         })
         .collect();
     (page, next)
@@ -461,7 +475,8 @@ pub fn detail(state: &Arc<AppState>, task_id: &str, cursor: Option<&str>) -> App
     let before = cursor
         .and_then(|c| c.strip_prefix('h'))
         .and_then(|n| n.parse().ok());
-    let (history, history_next) = history_of(&repo.events(&task.id, before, HISTORY + 1)?);
+    let (history, history_next) =
+        history_of(&storage, &repo.events(&task.id, before, HISTORY + 1)?);
     let children = repo.list(
         &TaskQuery {
             pool_id: Some(&task.pool_id),

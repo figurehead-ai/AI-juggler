@@ -17,7 +17,7 @@ import { prefetchLazy } from "./lib/lazy";
 import {
   ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
-  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage, PoolsScreen,
+  SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage, NavScreen,
 } from "./lazyParts";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
@@ -569,23 +569,8 @@ export default function App() {
   // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
   useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.machine_id ? inspectRemote(open.machine_id, open.session_id) : open.session_id ? selectSession(open.session_id) : open.page === "notifications" ? setCentreOpen(true) : setGlobal("thismac")) });
 
-  // The Provider of what's selected — never a fixed label.
-  const remoteInstanceProvider =
-    selection.kind === "remote" && selection.instanceId
-      ? (remoteMachines
-          ?.find((machine) => machine.machine_id === selection.machineId)
-          ?.instances.find((row) => row.id === selection.instanceId)?.provider ?? null)
-      : null;
   // E14: This Mac — one subscription for Home, the rail and the header.
   const thisMacInfo = useThisMac(sessions);
-  const contextProviderId =
-    global !== null
-      ? null
-      : (selectedSession?.provider ??
-        selectedAccount?.provider ??
-        remoteInstanceProvider ??
-        (selection.kind === "provider" ? selection.id : null));
-  const contextProvider = contextProviderId ? providerDisplayName(contextProviderId) : null;
 
   const contextTitle =
     global !== null
@@ -595,7 +580,7 @@ export default function App() {
         : selection.kind === "project"
         ? (selectedProject?.name ?? "Project")
         : selection.kind === "provider"
-        ? (contextProvider ?? "Tool")
+        ? providerDisplayName(selection.id)
         : selection.kind === "account"
         ? (selectedAccount?.label ?? "Account")
         : selectedSession
@@ -676,13 +661,11 @@ export default function App() {
         {/* Glass status bar: work context left, global oversight right */}
         <AppHeader
           title={contextTitle}
-          tool={contextProvider && contextProviderId && selection.kind !== "provider" ? { id: contextProviderId, name: contextProvider } : null}
           global={global}
           page={selection.kind}
           pairedCount={pairedCount}
           cleanupCount={cleanupCount}
           sessions={sessions}
-          onOpenTool={() => openToolInSettings()}
           onOpenThisMac={() => setGlobal("thismac")}
           onNewSession={() => setNewSession(true)}
           onPick={(id) => {
@@ -698,7 +681,11 @@ export default function App() {
         <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 outline-none">
           <OfflineBanner onRetry={() => void refresh()} />
           <div className="min-h-0 flex-1">
-          {global === "cleanup" ? (
+          {global === "projects" || global === "pools" || global === "tasks" ? (
+            <ScrollingScreen key={global} screen={global} label={GLOBAL_NAV.find((entry) => entry.id === global)!.label}>
+              <NavScreen id={global} projects={shownProjects} sessions={sessions} loading={!loaded} now={now} onNewProject={() => setNewProjectDir((current) => current ?? "")} />
+            </ScrollingScreen>
+          ) : global === "cleanup" ? (
             <ScrollingScreen key="cleanup" screen="cleanup" label="Processes">
               <ProcessesScreen
                 onOpenSession={selectSession}
@@ -751,8 +738,9 @@ export default function App() {
                 onOpenCleanup={() => setGlobal("cleanup")}
               />
             </ScrollingScreen>
-          ) : global === "privacy" ? null /* Settings › Privacy, a frame from now (the redirect above). */ : global === "pools" ? (
-            <ScrollingScreen key="pools" screen="pools-screen" label="Pools"><PoolsScreen sessions={railSessions} projects={projects} /></ScrollingScreen>
+          ) : global === "privacy" ? (
+            // Settings › Privacy, a frame from now (the redirect above).
+            null
           ) : global === "settings" ? (
             <ScrollingScreen key="settings" screen="settings" label="Settings">
               <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />

@@ -9,7 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Pools, one live canvas** (0.3): a Pools screen in the header shows
+- **Projects, Pools and Tasks in the header** (0.3): the header is now
+  Home · Projects · Pools · Tasks · Accounts · Usage · History, and the
+  lit tab is the page's title (the separate title is gone, so the header
+  no longer wraps at 1280 px). ⌘⇧P, ⌘⇧O and ⌘⇧T open them; ⌘K finds them.
+  **Projects** lists every project, the most recently worked first, with
+  what needs you there, its sessions working and open, its open tasks
+  (ready, in review) and this week's tokens; search by name or folder,
+  New project on the title. **Tasks** shows every pool's tasks at once,
+  as a Board (Ready · In progress · In review · Blocked) or the Plan
+  (each pool's epics, stories and tasks), filtered by project, pool and
+  who has it; a task opens beside the board with its own actions
+  (Approve, Send back…, Free it, Cancel task, Start a session for it…).
+  Agents still write the tasks; a task in review stays in Needs you too.
+- **A project's page has everything about it** (0.3): Overview · Sessions ·
+  Tasks · Pool · Subagents · Usage · History. Overview opens with open
+  sessions and their apps, open tasks, this week's tokens and the
+  accounts used; Tasks is the project's pool's plan and tasks; Pool sums
+  its pool up (who's in it, their states, what waits on you) with **Open
+  the pool ›**; History is the project's past sessions. Its crumb reads
+  Projects › its name, and what needs you there shows beside its name.
+- **Every door obvious** (0.3): a session in a pool shows the pool as a
+  chip in its header that opens the pool's page; the tool's chip moved
+  there from the top bar.
+- **Pools, one live canvas** (0.3): the Pools screen shows
   every pool as a card — its members in small where they sit, the lead
   and anything waiting on you in colour, "6 members · 1 needs you · 2
   tasks moving" — and New pool. A pool's page is now its canvas: each
@@ -29,7 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   what agents may do in its header. Links from Needs you still land on
   the pool's Messages or Tasks. Going back to 0.2 after this needs the
   copy 0.3 keeps of your data (Settings › About & updates).
-
 - **Group the session list with one click** (0.3): under the search, a
   switch — App · Project · Account, and Pool once you've made a pool of
   your own (a project's own pool doesn't count). Your choice is kept on

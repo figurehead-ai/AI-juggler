@@ -5,11 +5,14 @@
 import { useEffect } from "react";
 
 export const GLOBAL_NAV = [
+  // 0.3 (the redesign, §1): every project, every pool and every task,
+  // each with a door in the header.
+  { id: "projects", label: "Projects" },
+  { id: "pools", label: "Pools" },
+  { id: "tasks", label: "Tasks" },
   // D-25 amendment (AJ-E1021): Triage and Overview folded into Home.
   // AJ-E1007: every ended Instance — search, archive, replay.
   { id: "history", label: "History" },
-  // 0.3 (redesign §5): every pool, each opening its canvas.
-  { id: "pools", label: "Pools" },
   { id: "accounts", label: "Accounts" },
   { id: "usage", label: "Usage" },
   { id: "fleet", label: "Fleet" },
@@ -31,6 +34,11 @@ export type GlobalId = (typeof GLOBAL_NAV)[number]["id"];
 export function globalId(id: unknown): GlobalId | null {
   return GLOBAL_NAV.find((entry) => entry.id === id)?.id ?? null;
 }
+
+/** The header's tab an item's page sits under (its lit tab, the page's
+ * title): a project's page under Projects, a pool's under Pools, an
+ * account's under Accounts. A session's page names its own place. */
+export const PAGE_UNDER: Partial<Record<string, GlobalId>> = { project: "projects", pool: "pools", account: "accounts" };
 
 /** Opens a global screen and brings one of its sections into view
  * (`anchor`: the section's element id), focused for the keyboard. The
@@ -76,10 +84,14 @@ export function useSettingsLinks(global: GlobalId | null, setGlobal: (id: Global
 /** D-25: the header's destinations (Fleet joins them once a Mac is
  * paired; Cleanup shows as a pill while something is left behind).
  * AJ-E2507: Settings, This Mac, Processes, your other computers and
- * Privacy are one click away in your menu, behind the avatar. */
+ * Privacy are one click away in your menu, behind the avatar. 0.3 (the
+ * maintainer's ruling, 2026-10-29): exactly Home · Projects · Pools ·
+ * Tasks · Accounts · Usage · History, the lit one the page's title. */
 export const PRIMARY_NAV: Array<{ id: GlobalId | "home"; label: string }> = [
   { id: "home", label: "Home" },
+  { id: "projects", label: "Projects" },
   { id: "pools", label: "Pools" },
+  { id: "tasks", label: "Tasks" },
   { id: "accounts", label: "Accounts" },
   // The review of 0.1.4: the page with the most to show, out of More.
   { id: "usage", label: "Usage" },

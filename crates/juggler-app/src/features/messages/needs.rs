@@ -100,12 +100,19 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             detail: if deliver {
                 format!(
                     "«{}» · {} agent messages in a row without you",
-                    message.subject, message.hop
+                    crate::features::tasks::words::name_tasks(&storage, &message.subject),
+                    message.hop
                 )
             } else {
-                format!("«{}» · above what the pool lets agents do", message.subject)
+                format!(
+                    "«{}» · above what the pool lets agents do",
+                    crate::features::tasks::words::name_tasks(&storage, &message.subject)
+                )
             },
-            preview: Some(preview(&message.body)),
+            preview: Some(preview(&crate::features::tasks::words::name_tasks(
+                &storage,
+                &message.body,
+            ))),
             at_ms: ask.created_at,
         });
     }
@@ -134,7 +141,10 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             key: format!("thread:{}", thread.id),
             kind: "thread_paused".to_owned(),
             pool_name: name_of(&thread.pool_id),
-            title: format!("«{}» is paused", thread.subject),
+            title: format!(
+                "«{}» is paused",
+                crate::features::tasks::words::name_tasks(&storage, &thread.subject)
+            ),
             pool_id: thread.pool_id,
             thread_id: Some(thread.id),
             message_id: None,
@@ -163,12 +173,15 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             title: format!("«{}» asks you", row.message.sender_name),
             detail: format!(
                 "«{}» · {}",
-                row.message.subject,
+                crate::features::tasks::words::name_tasks(&storage, &row.message.subject),
                 name_of(&row.message.pool_id)
             ),
             pool_id: row.message.pool_id,
             thread_id: Some(row.message.thread_id),
-            preview: Some(preview(&row.message.body)),
+            preview: Some(preview(&crate::features::tasks::words::name_tasks(
+                &storage,
+                &row.message.body,
+            ))),
             message_id: Some(row.message.id),
             session_id: None,
             ask_id: None,
@@ -211,7 +224,10 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             session_id: Some(record.id.to_string()),
             ask_id: None,
             offer_always: false,
-            preview: Some(preview(&newest.message.body)),
+            preview: Some(preview(&crate::features::tasks::words::name_tasks(
+                &storage,
+                &newest.message.body,
+            ))),
             at_ms: newest.message.created_at,
         });
     }

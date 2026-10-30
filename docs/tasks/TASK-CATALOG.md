@@ -320,5 +320,19 @@
 | AJ-E2713 | Linux packages, signing and updates | E27-linux-release.md | P0 | L | AJ-E2701, AJ-E2614 |
 | AJ-E2714 | Linux's dedicated first release (its first Beta) | E27-linux-release.md | P0 | M | AJ-E2702, AJ-E2703, AJ-E2704, AJ-E2705, AJ-E2706, AJ-E2707, AJ-E2708, AJ-E2709, AJ-E2710, AJ-E2711, AJ-E2712, AJ-E2713 |
 | AJ-E2715 | Linux in every release: the shared flow and every shipped OS | E27-linux-release.md | P0 | M | AJ-E2714 |
-Total: 318 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E2801 | Shared controls: choice line, checkbox, radio and picker | E28-finding-your-way.md | P0 | M | — |
+| AJ-E2802 | The rail's grouping switch and a real View menu | E28-finding-your-way.md | P0 | M | AJ-E2801 |
+| AJ-E2803 | The header: Home · Projects · Pools · Tasks · Accounts · Usage · History | E28-finding-your-way.md | P0 | S | — |
+| AJ-E2804 | The Projects screen | E28-finding-your-way.md | P0 | M | AJ-E2803 |
+| AJ-E2805 | The project page: Overview · Sessions · Tasks · Pool · Subagents · Usage · History | E28-finding-your-way.md | P0 | M | AJ-E2803, AJ-E2804 |
+| AJ-E2806 | The Tasks screen: a board and the plan across every project | E28-finding-your-way.md | P0 | M | AJ-E2801, AJ-E2803 |
+| AJ-E2807 | The Pools screen | E28-finding-your-way.md | P0 | S | AJ-E2803 |
+| AJ-E2808 | The pool canvas: nodes, edges, alerts, edit in place, an inspector and a remembered layout | E28-finding-your-way.md | P0 | XL | AJ-E2801, AJ-E2807 |
+| AJ-E2809 | A subagent index and the adapter contract for subagent details | E28-finding-your-way.md | P0 | L | — |
+| AJ-E2810 | The Subagents tab: running, failed and cost first, grouped by the message that started them, with tree lines | E28-finding-your-way.md | P0 | L | AJ-E2801, AJ-E2809 |
+| AJ-E2811 | A subagent's detail: its prompt, result, work, usage and processes | E28-finding-your-way.md | P0 | M | AJ-E2809, AJ-E2810 |
+| AJ-E2812 | Cross-links: the session's Usage and Processes, and the project's subagents | E28-finding-your-way.md | P1 | S | AJ-E2809, AJ-E2811 |
+| AJ-E2813 | The sweep's smaller fixes | E28-finding-your-way.md | P1 | S | AJ-E2801 |
+| AJ-E2814 | The design-quality review: a critique beside every new or changed screen, and every popover captured | E28-finding-your-way.md | P0 | S | — |
+Total: 332 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

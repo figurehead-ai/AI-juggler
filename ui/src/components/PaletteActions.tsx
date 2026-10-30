@@ -15,8 +15,8 @@ import { conversationTitle } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { PaletteCommand, PaletteCommandIcon } from "../lib/palette-commands";
 import { IconFleet, IconProfiles, IconProjects, IconShield, IconUsage } from "./icons";
-import { IconHistory, IconView } from "./icons-places";
-import { IconBell, IconBroom, IconComputer, IconPage, IconPlus } from "./icons-actions";
+import { IconHistory, IconTasks, IconView } from "./icons-places";
+import { IconBell, IconBroom, IconComputer, IconPage, IconPlus, IconPool } from "./icons-actions";
 import { IconGear, IconKeyboard } from "./icons-menu";
 import type { SVGProps } from "react";
 
@@ -101,6 +101,8 @@ const COMMAND_ICONS: Record<PaletteCommandIcon, (props: SVGProps<SVGSVGElement>)
   fleet: IconFleet,
   new: IconPlus,
   project: IconProjects,
+  pool: IconPool,
+  tasks: IconTasks,
   bell: IconBell,
   keyboard: IconKeyboard,
   list: IconView,

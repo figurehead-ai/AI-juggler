@@ -27,6 +27,7 @@ import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, t
 import { PagedSessions, useSessionRows } from "./SessionsList";
 import { sessionsQuery } from "../lib/ipc/sessions";
 import { launchSettingsName } from "../lib/account-words";
+import { openByProject } from "../lib/project-summary";
 
 export type ProjectPanelProps = {
   project: ProjectInfo;
@@ -290,6 +291,8 @@ export function ProjectOverview(props: ProjectPanelProps) {
           </>
         }
         checkouts={checkoutsCard}
+        open={openByProject(props.sessions, conversations).get(project.id)}
+        accountsUsed={accountsUsed}
         onOpenSession={props.onOpenSession}
         onAllSessions={() => document.getElementById("page-tab-sessions")?.click()}
       />

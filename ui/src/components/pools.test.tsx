@@ -307,7 +307,7 @@ describe("context cards", () => {
     account: "Work Max",
     state: "running",
     role: "lead",
-    task: { value: "aj-7f3c · Split the checkout (in progress)", unavailable: null },
+    task: { value: "Split the checkout (in progress)", unavailable: null },
     said: { value: "Split checkout into steps", unavailable: null },
     last_activity_ms: Date.now() - 120_000,
     files: ["src/cart.ts", "src/pay.ts"],
@@ -340,7 +340,7 @@ describe("context cards", () => {
     fireEvent.click(more);
     expect(getByTestId("pool-card-said").textContent).toBe("“Split checkout into steps”said by the agent");
     expect(getByTestId("pool-card-files").textContent).toBe("src/cart.tssrc/pay.ts");
-    expect(getByTestId("pool-card-detail").textContent).toContain("aj-7f3c · Split the checkout (in progress)");
+    expect(getByTestId("pool-card-detail").textContent).toContain("Split the checkout (in progress)");
   });
 
   it("says Unavailable and why, never an empty guess", () => {
