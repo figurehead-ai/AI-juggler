@@ -205,6 +205,14 @@ mod tests {
         let home = crate::commands::create_account(&state, tool, "Home", None).unwrap();
         let home_recipe =
             crate::commands::create_profile(&state, &home.id, "Main", None, None).unwrap();
+        // Home is set up, as a signed-in account is (a switch checks, 0.3.2).
+        let home_dir = state.accounts_dir().join(tool).join(&home.id);
+        std::fs::create_dir_all(&home_dir).unwrap();
+        std::fs::write(
+            home_dir.join(".claude.json"),
+            r#"{"hasCompletedOnboarding":true}"#,
+        )
+        .unwrap();
         let folder = root.join("site");
         std::fs::create_dir_all(&folder).unwrap();
         let transcripts = state

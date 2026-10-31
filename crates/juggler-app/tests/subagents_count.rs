@@ -102,7 +102,9 @@ fn lab() -> Lab {
     std::fs::write(config.join("settings.json"), "{}").unwrap();
     let folder = config
         .join("projects")
-        .join(cwd.to_string_lossy().replace('/', "-"));
+        .join(juggler_adapter::handover::mangled_dir(
+            &cwd.to_string_lossy(),
+        ));
     std::fs::create_dir_all(&folder).unwrap();
     let transcript = folder.join(format!("{CONVERSATION}.jsonl"));
     append(&transcript, &line(&cwd, "\"Fix the parser\"", "user"));

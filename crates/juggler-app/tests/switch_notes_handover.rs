@@ -120,7 +120,9 @@ fn lab() -> Lab {
     let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
     let _ = args_of(&a_home);
     // The conversation the switch replays.
-    let dir = a_home.join("projects").join(cwd.replace('/', "-"));
+    let dir = a_home
+        .join("projects")
+        .join(juggler_adapter::handover::mangled_dir(&cwd));
     std::fs::create_dir_all(&dir).unwrap();
     let transcript = dir.join("claude-sess-1.jsonl");
     std::fs::write(

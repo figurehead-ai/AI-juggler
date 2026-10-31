@@ -14,6 +14,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -54,8 +57,14 @@ fn seeded_session(state: &Arc<AppState>, work: &Path) -> (String, String) {
     let project_dir = work.join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
-    let account_a = commands::create_account(state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let account_b = commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(state, &account_b.id, "Main", None, None).unwrap();
 
@@ -70,7 +79,7 @@ fn seeded_session(state: &Arc<AppState>, work: &Path) -> (String, String) {
     }
     let transcript = config_dir_of(state, &account_a.id)
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join("native-77.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     std::fs::write(

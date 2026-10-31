@@ -25,10 +25,8 @@ pub fn folder_names(project: &Path) -> Vec<String> {
     let root = juggler_core::storage::project_root(project);
     let text = root.to_string_lossy();
     let mut names = vec![
-        text.chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-            .collect::<String>(),
         juggler_adapter::handover::mangled_dir(&text),
+        text.replace(['/', '\\'], "-"),
     ];
     names.dedup();
     names

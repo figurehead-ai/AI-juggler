@@ -14,6 +14,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -117,7 +120,10 @@ fn world(dir: &Path) -> World {
     let project = root.join("storefront");
     std::fs::create_dir_all(project.join(".git")).unwrap();
     let account = |tool: &str, label: &str| {
-        let account = commands::create_account(&state, tool, label, None).unwrap();
+        let account = set_up::set_up(
+            &state,
+            commands::create_account(&state, tool, label, None).unwrap(),
+        );
         let recipe = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
         (account.id, recipe.id)
     };

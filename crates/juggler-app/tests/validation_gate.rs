@@ -67,7 +67,7 @@ fn launched_source(state: &Arc<AppState>, work: &Path) -> String {
     }
     let transcript = config
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join("native-9.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     std::fs::write(&transcript, String::new()).unwrap();

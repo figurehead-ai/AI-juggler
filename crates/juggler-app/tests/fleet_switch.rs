@@ -146,7 +146,7 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
         .join(CLAUDE_CODE_ID)
         .join(&account.id)
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join("native-5.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     append_turn(&transcript, "u1", "user", "add the checkout page", &cwd);

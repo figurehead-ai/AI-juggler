@@ -226,7 +226,8 @@ export function SwitchFlow({
       className={keysPending ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
-      {risky(room) ? "Switch anyway" : "Switch now"}
+      {/* 0.3.2: from another app's session, the button says where it goes on. */}
+      {preflight.source_outside ? (risky(room) ? "Continue here anyway" : "Continue here in AI Juggler") : risky(room) ? "Switch anyway" : "Switch now"}
     </button>
   );
   const cancelButton = <CancelButton onClick={cancel} testId="switch-cancel" />;

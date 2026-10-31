@@ -12,6 +12,7 @@
 //! so the switch can say afterwards what the other tool was told
 //! ([`view`]).
 
+pub mod access;
 pub mod switch_words;
 pub mod view;
 

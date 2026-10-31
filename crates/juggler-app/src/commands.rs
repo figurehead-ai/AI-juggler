@@ -5356,6 +5356,7 @@ pub(crate) fn preflight_with(
         message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
             .into(),
     })?;
+    crate::features::handover::access::check_switch_access(state, &reference.path, &account_b)?;
     // (No compaction scan: a compacted source loses nothing in a switch —
     // D-03 amendment, 2026-10-27.)
 
@@ -5991,6 +5992,11 @@ fn switch_execute_core(
 
     let freeze = freeze_of(freeze_choice);
     let sides = switch_sides(state, session_id, target_profile_id)?;
+    crate::features::handover::access::check_switch_access(
+        state,
+        &sides.reference.path,
+        &sides.account_b,
+    )?;
     // AJ-E1304 (D-11): across Providers the conversation REPLAYS into a
     // primed session — one vendor's file is never installed into the
     // other's home.

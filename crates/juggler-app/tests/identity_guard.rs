@@ -14,6 +14,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -55,7 +58,7 @@ fn sign_in(state: &Arc<AppState>, account: &str, uuid: &str, email: &str) {
     std::fs::write(
         dir.join(".claude.json"),
         format!(
-            r#"{{"numStartups":2,"oauthAccount":{{"accountUuid":"{uuid}","emailAddress":"{email}","organizationName":"Acme"}}}}"#
+            r#"{{"numStartups":2,"hasCompletedOnboarding":true,"oauthAccount":{{"accountUuid":"{uuid}","emailAddress":"{email}","organizationName":"Acme"}}}}"#
         ),
     )
     .unwrap();
@@ -75,8 +78,14 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
     let cwd = work.path().to_string_lossy().into_owned();
-    let work_max = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let personal = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let work_max = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let personal = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let work_recipe = commands::create_profile(&state, &work_max.id, "Main", None, None).unwrap();
     let personal_recipe =
         commands::create_profile(&state, &personal.id, "Main", None, None).unwrap();
@@ -178,7 +187,10 @@ fn a_signed_out_dir_launches_honestly_and_forgetting_relearns() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
     let cwd = work.path().to_string_lossy().into_owned();
-    let account = commands::create_account(&state, CLAUDE_CODE_ID, "Fresh", None).unwrap();
+    let account = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Fresh", None).unwrap(),
+    );
     let recipe = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
     let launched = commands::launch_profile(&state, &recipe.id, Some(cwd.clone())).unwrap();
     assert_eq!(
@@ -206,8 +218,14 @@ fn a_switch_to_a_mismatched_target_is_refused_before_anything_moves() {
     let project = work.path().join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
     let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
     sign_in(&state, &b.id, "acct-b", "b@example.com");
@@ -217,7 +235,7 @@ fn a_switch_to_a_mismatched_target_is_refused_before_anything_moves() {
     let source = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
     let transcript = config_dir(&state, &a.id)
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join("native-1.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     std::fs::write(
@@ -255,7 +273,7 @@ fn a_switch_to_a_mismatched_target_is_refused_before_anything_moves() {
     assert!(
         !config_dir(&state, &b.id)
             .join("projects")
-            .join(cwd.replace('/', "-"))
+            .join(juggler_adapter::handover::mangled_dir(&cwd))
             .join("native-1.jsonl")
             .exists()
     );
