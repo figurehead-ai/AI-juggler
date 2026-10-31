@@ -63,9 +63,9 @@ function SkeletonCards(): JSX.Element {
     <PageGrid min={280} testId="pools-loading">
       {Array.from({ length: 3 }, (_, n) => (
         <div key={n} className="flex flex-col gap-3 rounded-card border border-hairline bg-surface p-3" role="status" aria-label="Reading the pools">
-          <span className="h-[92px] rounded-lg bg-surface-3 motion-safe:animate-pulse" />
-          <span className="h-4 w-2/3 rounded bg-surface-3 motion-safe:animate-pulse" />
-          <span className="h-3 w-1/2 rounded bg-surface-3 motion-safe:animate-pulse" />
+          <span className="h-[92px] rounded-lg bg-skeleton motion-safe:animate-pulse" />
+          <span className="h-4 w-2/3 rounded bg-skeleton motion-safe:animate-pulse" />
+          <span className="h-3 w-1/2 rounded bg-skeleton motion-safe:animate-pulse" />
         </div>
       ))}
     </PageGrid>

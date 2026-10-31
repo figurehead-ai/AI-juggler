@@ -12,10 +12,12 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md";
 
+/** The primary's fill (0.3.2, D-62 decision 23: one solid colour), for
+ * the few primaries drawn without `Button` (the switch dialogs). */
+export const PRIMARY_FILL = "border border-accent-hi/40 bg-accent-fill text-white hover:brightness-110";
+
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary:
-    "bg-accent-fill text-white hover:brightness-110 \
-     active:translate-y-px shadow-glow-accent border border-accent-hi/40",
+  primary: `${PRIMARY_FILL} active:translate-y-px shadow-glow-accent`,
   secondary:
     "bg-surface-2 text-ink border border-hairline hover:bg-surface-3 \
      hover:border-muted/30 active:translate-y-px",

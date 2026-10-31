@@ -106,7 +106,8 @@ export function alertNextStep(alert: OverloadAlertInfo, nameOf: (sessionId: stri
   if (memory && alert.other_apps.length > 0) return `To make room, quit ${alert.other_apps[0]!.name} or another app you aren't using. ${slower}`;
   const session = alert.session_id ? nameOf(alert.session_id) : null;
   if (session) return `If you don't need ${session} now, stop it from its page. ${slower}`;
-  if (alert.place && alert.subject_name) return `Close the ${alert.subject_name} windows you aren't using. ${slower}`;
+  // "The Claude app" names itself with its article: never "Close the The…".
+  if (alert.place && alert.subject_name) return `Close the ${alert.subject_name.replace(/^the\s+/i, "")} windows you aren't using. ${slower}`;
   if (alert.kind === "thermal") return `Give it a break from heavy work, or quit apps you aren't using. ${slower}`;
   return `Quit apps you aren't using to ${memory ? "make room" : "free the processor"}. ${slower}`;
 }

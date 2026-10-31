@@ -166,7 +166,7 @@ export function MessagesView({
           {page === null ? (
             <div className="flex flex-col gap-2" role="status" aria-label="Loading the threads">
               {[0, 1, 2].map((n) => (
-                <span key={n} className="h-14 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
+                <span key={n} className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
               ))}
             </div>
           ) : shown.length === 0 ? (

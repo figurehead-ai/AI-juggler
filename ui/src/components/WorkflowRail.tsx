@@ -853,7 +853,9 @@ export function RailRow({
           {density === "compact" && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
         </span>
         {density === "comfortable" && (
-          <span className="flex min-w-0 items-center gap-1 overflow-hidden text-label text-muted">
+          // One line: what doesn't fit wraps onto a second, hidden line,
+          // so the time shows whole or not at all (0.3.2: never "· 7 …").
+          <span className="flex h-[1.4em] min-w-0 flex-wrap items-center gap-x-1 overflow-hidden text-label text-muted">
             <span
               title={parked ? parked.long : attentionTooltip(session)}
               data-testid={parked ? "rail-parked" : "rail-state-word"}
@@ -870,7 +872,7 @@ export function RailRow({
             <RailQuietNotes session={session} />
             <StaleChip caption={stale} />
             {/* The time yields first: the notes above matter more. */}
-            <span className="min-w-0 truncate">· {when}</span>
+            <span className="whitespace-nowrap">· {when}</span>
           </span>
         )}
         <span className="sr-only">

@@ -51,7 +51,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
       </Section>
       <Section title="Live" testId="inspect-stream">
         {canvas === null ? (
-          <span className="h-16 rounded-lg bg-surface-3 motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
+          <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
         ) : canvas.stream.length === 0 ? (
           <p className="text-label text-muted">Nothing yet. Messages and task changes between its agents show here as they happen.</p>
         ) : (

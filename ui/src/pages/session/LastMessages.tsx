@@ -145,9 +145,9 @@ function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: Chat; mode
   if (chat.state === "loading") {
     return (
       <div className="flex flex-1 flex-col gap-5 px-5 py-6" aria-label="Loading the conversation" role="status">
-        <span className="ml-auto h-10 w-1/2 rounded-2xl bg-surface-3 motion-safe:animate-pulse" />
-        <span className="h-16 w-3/4 rounded-2xl bg-surface-3 motion-safe:animate-pulse" />
-        <span className="ml-auto h-8 w-1/3 rounded-2xl bg-surface-3 motion-safe:animate-pulse" />
+        <span className="ml-auto h-10 w-1/2 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
+        <span className="h-16 w-3/4 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
+        <span className="ml-auto h-8 w-1/3 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
       </div>
     );
   }

@@ -155,7 +155,7 @@ export function AppIconTile({ appId, appPid = null, name, size, alt = "", classN
     );
   }
   if (!done) {
-    return <span ref={box} aria-hidden="true" className={`inline-flex shrink-0 bg-surface-3 motion-safe:animate-pulse ${className}`} style={{ ...frame, borderRadius: radius }} data-testid="app-icon" data-app={appId ?? undefined} data-state="loading" />;
+    return <span ref={box} aria-hidden="true" className={`inline-flex shrink-0 bg-skeleton motion-safe:animate-pulse ${className}`} style={{ ...frame, borderRadius: radius }} data-testid="app-icon" data-app={appId ?? undefined} data-state="loading" />;
   }
   const own = appId === OWN_APP_ID;
   const glyph = Math.round(size * 0.7);

@@ -87,8 +87,8 @@ export function ConversationPage({
   if (!row) {
     return (
       <div className="m-6 flex flex-col gap-3" role="status" aria-label="Loading the session" data-testid="conversation-loading">
-        <span className="h-12 w-2/3 rounded-xl bg-surface-3 motion-safe:animate-pulse" />
-        <span className="h-64 rounded-xl bg-surface-3 motion-safe:animate-pulse" />
+        <span className="h-12 w-2/3 rounded-xl bg-skeleton motion-safe:animate-pulse" />
+        <span className="h-64 rounded-xl bg-skeleton motion-safe:animate-pulse" />
       </div>
     );
   }

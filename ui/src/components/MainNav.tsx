@@ -9,6 +9,7 @@
 import type { JSX } from "react";
 import { PAGE_UNDER } from "../lib/nav";
 import { SHORTCUTS } from "../lib/shortcuts";
+import { IconBroom } from "./icons-actions";
 
 /** A tab's key from the one registry (0.3 polish: each tab's tooltip
  * names it, so the keys are learnt where the tabs are): "⌘⇧P". */
@@ -81,14 +82,20 @@ export function MainNav<Id extends string>({
 /** What's left to clean up, one click from Processes (AJ-E2404). */
 export function CleanupPill({ count, shown, onOpen }: { count: number; shown: boolean; onOpen: () => void }): JSX.Element | null {
   if (count <= 0 || !shown) return null;
+  const words = `${count} to clean up`;
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="whitespace-nowrap rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-meta font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      title={words}
+      className="flex shrink-0 items-center whitespace-nowrap rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-meta font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       data-testid="nav-cleanup-pill"
     >
-      {count === 1 ? "1 to clean up" : `${count} to clean up`}
+      {/* 0.3.2: a narrow bar (1024 px, the list open, Fleet's tab too)
+          shows a broom and the count, so the bar stays one row. */}
+      <IconBroom width={13} height={13} aria-hidden="true" className="mr-1 hidden @max-[780px]/header:block" />
+      {`${count} `}
+      <span className="ml-1 @max-[780px]/header:sr-only">to clean up</span>
     </button>
   );
 }

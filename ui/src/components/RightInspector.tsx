@@ -419,10 +419,14 @@ function InstanceOverview(props: PanelProps) {
             </span>
           ) : null}
           {identityWords(session) && (
-            <span data-testid="instance-identity" data-state={identityWords(session)!.state}>
-              <Chip tone={identityWords(session)!.state === "verified" ? "success" : "neutral"}>
-                {identityWords(session)!.text}
-              </Chip>
+            <span data-testid="instance-identity" data-state={identityWords(session)!.state} className="min-w-0">
+              {/* A verified sign-in is a chip; the longer sentences wrap as
+                  a line (0.3.2: one ran past the card's edge). */}
+              {identityWords(session)!.state === "verified" ? (
+                <Chip tone="success">{identityWords(session)!.text}</Chip>
+              ) : (
+                <span className="text-label text-ink-2">{identityWords(session)!.text}</span>
+              )}
             </span>
           )}
         </div>

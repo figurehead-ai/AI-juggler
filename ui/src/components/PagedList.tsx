@@ -174,9 +174,9 @@ export function PagedList<T>({
       <ul aria-label={label} aria-busy="true" className={"overflow-hidden rounded-xl border border-hairline bg-surface " + className} data-testid={`${testId}-skeleton`}>
         {Array.from({ length: skeletonRows }, (_, i) => (
           <li key={i} aria-hidden="true" className="flex items-center gap-3 border-t border-hairline/60 px-4 first:border-t-0" style={{ height: rowHeight }}>
-            <span className="size-2 shrink-0 animate-pulse rounded-full bg-surface-2" />
-            <span className="h-3 flex-1 animate-pulse rounded bg-surface-2" style={{ maxWidth: `${60 + ((i * 17) % 30)}%` }} />
-            <span className="h-3 w-14 shrink-0 animate-pulse rounded bg-surface-2" />
+            <span className="size-2 shrink-0 animate-pulse rounded-full bg-skeleton" />
+            <span className="h-3 flex-1 animate-pulse rounded bg-skeleton" style={{ maxWidth: `${60 + ((i * 17) % 30)}%` }} />
+            <span className="h-3 w-14 shrink-0 animate-pulse rounded bg-skeleton" />
           </li>
         ))}
         <li className="sr-only" role="status">

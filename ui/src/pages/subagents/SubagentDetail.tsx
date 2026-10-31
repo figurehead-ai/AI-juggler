@@ -96,8 +96,8 @@ export function SubagentDetail({
       </nav>
       {detail === null ? (
         <div className="flex flex-col gap-3" role="status" aria-label="Loading the subagent">
-          <span className="h-8 w-2/3 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
-          <span className="h-40 rounded-card bg-surface-3 motion-safe:animate-pulse" />
+          <span className="h-8 w-2/3 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+          <span className="h-40 rounded-card bg-skeleton motion-safe:animate-pulse" />
         </div>
       ) : !agent ? (
         <p className="text-body text-ink-2" data-testid="subagent-detail-missing">

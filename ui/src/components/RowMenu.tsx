@@ -142,7 +142,7 @@ export function RowMenu({
       // 0.3: a press inside the menu is never "outside" to the popover
       // or sheet it opened from (a Picker in the Filters panel).
       onMouseDown={(event) => event.stopPropagation()}
-      className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card " + (wide ? "w-80" : "w-64")}
+      className={"fixed z-50 flex max-h-[calc(100vh-8px)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-hairline bg-surface p-1.5 shadow-card " + (wide ? "w-80" : "w-max min-w-64 max-w-80")}
     >
       {heading && <span className="truncate px-2 pb-1 pt-0.5 text-label font-semibold text-muted">{heading}</span>}
       {children}

@@ -153,7 +153,7 @@ export function InspectNode({
 
       <Section title="Tasks" testId="inspect-node-tasks">
         {tasks === null ? (
-          <span className="h-10 rounded-lg bg-surface-3 motion-safe:animate-pulse" role="status" aria-label="Reading its tasks" />
+          <span className="h-10 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading its tasks" />
         ) : tasks.length === 0 ? (
           <p className="text-label text-muted">It hasn't held or worked a task here.</p>
         ) : (

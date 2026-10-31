@@ -340,7 +340,7 @@ export function HomeScreen({
   if (loading && accounts.length === 0 && sessions.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-content flex-col gap-6 pb-10" data-testid="home-loading">
-        <span className="block h-7 w-64 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
+        <span className="block h-7 w-64 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
         <RowPlaceholders shape="home" rows={3} label="Loading Home" />
       </div>
     );

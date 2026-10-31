@@ -49,7 +49,7 @@ function Skeleton({ label, rows }: { label: string; rows: number }): JSX.Element
   return (
     <div className="flex flex-col gap-2" role="status" aria-label={label}>
       {Array.from({ length: rows }, (_, n) => (
-        <span key={n} className="h-16 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
+        <span key={n} className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" />
       ))}
     </div>
   );
@@ -192,7 +192,7 @@ export function SessionTasks({ session, now }: { session: InstanceInfo; now: num
     <div className="flex w-full min-w-0 max-w-[960px] flex-col gap-3" data-testid="session-tasks">
       <p className="text-meta text-ink-2">The tasks this session holds or worked, in its pool. A switch keeps them: its next session holds them too.</p>
       {tasks.loading ? (
-        <span className="h-16 rounded-lg bg-surface-3 motion-safe:animate-pulse" role="status" aria-label="Loading its tasks" />
+        <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Loading its tasks" />
       ) : (
         <ul className="flex flex-col gap-0.5">
           {tasks.items.map((task) => (

@@ -165,7 +165,7 @@ export function SubagentsView({
       {list.loading && rows.length === 0 ? (
         <div className="flex flex-col gap-1.5" role="status" aria-label="Loading its subagents" data-testid="subagents-loading">
           {[0, 1, 2, 3].map((row) => (
-            <span key={row} className="h-11 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
+            <span key={row} className="h-11 rounded-lg bg-skeleton motion-safe:animate-pulse" />
           ))}
         </div>
       ) : meta && meta.state !== "listed" ? (

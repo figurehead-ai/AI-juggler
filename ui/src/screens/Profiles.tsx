@@ -144,7 +144,7 @@ export function ProfilesScreen({
     // AJ-E1503 Req.4: card-shaped placeholders while the accounts load.
     return (
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-        <span className="block h-6 w-32 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
+        <span className="block h-6 w-32 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
         <RowPlaceholders shape="card" rows={3} label="Loading accounts" />
       </div>
     );

@@ -42,7 +42,7 @@ function Skeleton({ rows }: { rows: number }): JSX.Element {
   return (
     <>
       {Array.from({ length: rows }, (_, n) => (
-        <li key={n} aria-hidden="true" className="h-[4.5rem] rounded-lg bg-surface-3 motion-safe:animate-pulse" />
+        <li key={n} aria-hidden="true" className="h-[4.5rem] rounded-lg bg-skeleton motion-safe:animate-pulse" />
       ))}
     </>
   );

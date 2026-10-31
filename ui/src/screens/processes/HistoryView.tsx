@@ -59,7 +59,7 @@ export function HistoryView({
   };
 
   if (error) return <p className="px-4 py-6 text-body text-danger">Couldn't read the history: {error}</p>;
-  if (items === null) return <div className="h-40 animate-pulse rounded-card bg-surface-2" aria-label="Loading the history" />;
+  if (items === null) return <div className="h-40 animate-pulse rounded-card bg-skeleton" aria-label="Loading the history" />;
   if (items.length === 0) {
     return <p className="rounded-card border border-hairline bg-surface px-4 py-10 text-center text-body text-ink-2">Nothing was stopped in the last 7 days.</p>;
   }

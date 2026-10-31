@@ -20,6 +20,8 @@
   --color-surface-2: #1e2430;
   --color-surface-3: #242935; /* not #282e3b: a profile badge (white letters, AA) must also stand 3:1 off it */
   --color-hairline: #2f3645;
+  /* 0.3.2: loading placeholders, seen on the page and on a card alike. */
+  --color-skeleton: #242935;
 
   /* Text: four levels. ink for headings and values, ink-2 for sentences,
      muted for labels, faint for hints. Each clears AA on every surface,
@@ -30,7 +32,8 @@
   --color-faint: #8e97a6;
 
   /* Identity: electric violet primary, cyan for live data */
-  --color-accent: #7c7cf4;
+  /* 0.3.2: #8787f6 (was #7c7cf4: 4.19:1 on surface-3 once the surfaces lifted) — ≥ 4.7:1 on every surface. */
+  --color-accent: #8787f6;
   --color-accent-hi: #a9a9ff;
   /* The primary button's fill: white on it is 5.09:1. */
   --color-accent-fill: #5b5bea;
@@ -122,6 +125,7 @@ body {
   --color-surface-2: #f5f6f9;
   --color-surface-3: #e6e9ef;
   --color-hairline: #d3d8e2;
+  --color-skeleton: #dce0e8; /* surface-3 vanished on the grey page */
 
   --color-ink: #0e1219;
   --color-ink-2: #2c3341;
