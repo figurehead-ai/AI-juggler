@@ -89,13 +89,13 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     let work_recipe = commands::create_profile(&state, &work_max.id, "Main", None, None).unwrap();
     let personal_recipe =
         commands::create_profile(&state, &personal.id, "Main", None, None).unwrap();
-    sign_in(&state, &work_max.id, "acct-work", "olivia@work.example");
-    sign_in(&state, &personal.id, "acct-home", "olivia@home.example");
+    sign_in(&state, &work_max.id, "acct-work", "sam@work.example");
+    sign_in(&state, &personal.id, "acct-home", "sam@home.example");
 
     // First sight: remembered, shown as first seen, before any prompt.
     let check = identity::identity_check_impl(&state, &work_recipe.id).unwrap();
     assert_eq!(check.state, "first_seen");
-    assert_eq!(check.detected.as_deref(), Some("o…@work.example · Acme"));
+    assert_eq!(check.detected.as_deref(), Some("s…@work.example · Acme"));
     // Each of the three launches below runs the identity probe; the budget
     // holds for the best of them (wall time: the launch spans processes, so
     // a busy machine's turns land in any one reading).
@@ -119,11 +119,11 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     assert_eq!(verified.identity_state.as_deref(), Some("verified"));
     assert_eq!(
         verified.identity_label.as_deref(),
-        Some("o…@work.example · Acme")
+        Some("s…@work.example · Acme")
     );
 
     // Someone signs Work Max's config dir into the HOME account.
-    sign_in(&state, &work_max.id, "acct-home", "olivia@home.example");
+    sign_in(&state, &work_max.id, "acct-home", "sam@home.example");
     // The earlier launches' stubs record their argv asynchronously —
     // wait for that write, then clear it.
     let args = config_dir(&state, &work_max.id).join("last-args");
@@ -136,8 +136,8 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     let _ = std::fs::remove_file(&args);
     let check = identity::identity_check_impl(&state, &work_recipe.id).unwrap();
     assert_eq!(check.state, "mismatch");
-    assert_eq!(check.expected.as_deref(), Some("o…@work.example · Acme"));
-    assert_eq!(check.detected.as_deref(), Some("o…@home.example · Acme"));
+    assert_eq!(check.expected.as_deref(), Some("s…@work.example · Acme"));
+    assert_eq!(check.detected.as_deref(), Some("s…@home.example · Acme"));
     assert_eq!(
         check
             .alternatives

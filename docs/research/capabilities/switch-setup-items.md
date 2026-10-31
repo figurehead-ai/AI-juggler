@@ -17,7 +17,7 @@ the rest) and Fix 2 (say what this conversation actually used).
 
 **What was run, and what wasn't:**
 - Read-only, metadata only, in the maintainer's Claude profiles (the lab
-  profile `bookauth-luka`; for the comparison, names and `source` values only
+  profile `lab-profile-1`; for the comparison, names and `source` values only
   from three other profiles of the same organization and one personal Max
   profile): folder listings,
   `skills/synced/<set>/manifest.json` (name, source, dates), and each
@@ -195,7 +195,7 @@ Add, on the target account; then restart or `/reload-plugins`
 
 ## 2. Local evidence (lab profiles, metadata only)
 
-`bookauth-luka` (the lab profile), 2026-10-27:
+`lab-profile-1` (the lab profile), 2026-10-27:
 
 ```
 skills/
