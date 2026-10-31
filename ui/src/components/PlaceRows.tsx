@@ -96,8 +96,10 @@ export function RowProject({ item, rest, whole = false }: { item: RailItem; rest
   const host = useActionHost();
   // `whole`: the rest (a time) stays whole and the project gives way —
   // "ai-jug… · 3 h ago", never "ai-juggler · 3 …" (0.3.2). The project
-  // keeps 4ch of the line (a short one leaves no gap), the rest the others.
-  const fit = whole ? "min-w-0 shrink" : "max-w-[65%] shrink-0";
+  // keeps 2.5ch of the line, the time the rest. The two numbers must match
+  // (and the project no side margins): the time's cap is measured against
+  // the line as wide as both need.
+  const fit = whole ? "min-w-[2.5ch] shrink" : "-mx-0.5 px-0.5 max-w-[65%] shrink-0";
   const id = item.projectId;
   const linked = item.project !== null && id !== null && !!host.openProjectById;
   // Its 24 px target reaches down from the line, never up over the row's
@@ -113,7 +115,7 @@ export function RowProject({ item, rest, whole = false }: { item: RailItem; rest
             event.stopPropagation();
             host.openProjectById!(id!);
           }}
-          className={`pointer-events-auto relative z-10 -mx-0.5 -mb-2.5 min-h-6 ${fit} truncate rounded px-0.5 pb-2.5 text-left leading-[14px] text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60`}
+          className={`pointer-events-auto relative z-10 -mb-2.5 min-h-6 ${fit} truncate rounded pb-2.5 text-left leading-[14px] text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60`}
         >
           {item.project}
         </button>
@@ -125,7 +127,7 @@ export function RowProject({ item, rest, whole = false }: { item: RailItem; rest
         )
       )}
       {rest && (
-        <span aria-hidden="true" className={(whole ? "min-w-0 max-w-[calc(100%-4ch)] shrink-0" : "min-w-0") + " truncate whitespace-pre"}>
+        <span aria-hidden="true" className={(whole ? "min-w-0 max-w-[calc(100%-2.5ch)] shrink-0" : "min-w-0") + " truncate whitespace-pre"}>
           {item.project ? ` · ${rest}` : rest}
         </span>
       )}
