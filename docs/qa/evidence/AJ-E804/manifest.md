@@ -62,7 +62,9 @@ target size and 6 states failed scrollable-region-focusable.
    for the page behind. Tab now cycles inside the sheet.
 5. **Cancelling the switch dropped focus on the page (2.4.3).** It now
    returns to the row that opened the switch. A completed switch hands
-   focus to the undo toast's Undo, never the page body.
+   focus to the undo toast's Undo, never the page body. 0.3.2: the rows
+   sit in Continue on another account's dialog, gone once one is picked,
+   so Cancel returns focus to whatever opened that dialog.
 6. **Target size (2.5.8, WCAG 2.2).** Native radios and checkboxes are
    16 px with a 5 px margin, so neighbours keep 24 px of clear space. The
    rail's row-actions ⋯ button, the inline "copy", "project" and "Why

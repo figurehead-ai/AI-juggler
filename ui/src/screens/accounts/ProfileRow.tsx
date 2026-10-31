@@ -23,7 +23,7 @@ import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
 import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
 
-/** A folder, short: home as ~, the middle folded ("~/…/bookauth-olivia"); the full path is on hover. */
+/** A folder, short: home as ~, the middle folded ("~/…/studio-main"); the full path is on hover. */
 export function shortPath(path: string): string {
   const home = path.replace(/^\/Users\/[^/]+/, "~");
   const parts = home.split("/").filter(Boolean);
