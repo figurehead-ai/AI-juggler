@@ -24,7 +24,9 @@ ALLOW_HARNESS='HarnessId|HarnessAdapter|harness binaries|harness\.state|vendor|u
 # D-35 (ADR-0008 A-2): a profile is the setup an app runs on, never an
 # account. The docs may say so where they cite D-35 or name the place
 # grammar ("app + profile", "profile badge"); anything else still trips.
-ALLOW_PROFILE='ProfileInfo|ProfileId|profile_create|profile_delete|[Ll]aunch settings|LaunchRecipe|profiles table|glossary|Legacy term|isolated profile directory|profile: &Profile|launch spec for a profile|profile roots|as-account-glossary-row|\(D-35\)|profile badge|app \+ profile'
+# D-62: an App is "app · profile"; the word survives only inside an
+# App's name ("one of its profiles", "*app* · *profile*").
+ALLOW_PROFILE='ProfileInfo|ProfileId|profile_create|profile_delete|[Ll]aunch settings|LaunchRecipe|profiles table|glossary|Legacy term|isolated profile directory|profile: &Profile|launch spec for a profile|profile roots|as-account-glossary-row|\(D-35\)|profile badge|app \+ profile|one of\s+its profiles|\*profile\*|"Profile" appears only|App.s name'
 for f in docs/SPEC.md docs/PROPOSAL.md docs/plan/EPICS.md; do
   check "$f" '\bharness(es)?\b' "$ALLOW_HARNESS" "user-facing harness (use Provider)"
   check "$f" '\bprofiles?\b' "$ALLOW_PROFILE" "profile-as-account (use Account/Launch settings)"

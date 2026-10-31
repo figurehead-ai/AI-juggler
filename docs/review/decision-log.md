@@ -726,6 +726,10 @@
   complaint).
 - Consequences: AJ-E2109; the terminology lint learns the new meaning.
   (D-28 to D-34 are above.)
+- **Superseded in part by D-62 (2026-10-30):** the noun on screen is
+  **App** ("Claude app · b-work", "Claude Code · Work Max"), not
+  "profile"; the word survives only inside an App's name. Account stays
+  the subscription.
 
 ### D-36 Desktop first: the rail shows what is open, in every app — SETTLED (2026-10-24)
 
@@ -745,6 +749,9 @@
   ADR-0007 decisions 0 and 2 (projects as the anchor): projects become
   one lens, Place is the default.
 - Consequences: E21; the approved "desktop first" canvas.
+- **Amended by D-62 (2026-10-30):** a place is an App; a CLI App is its
+  tool plus its folder, so CLI sessions group by App, and the terminal
+  they run in is a detail of the session.
 
 ### D-37 Knowing what is open without reading secrets — SETTLED (2026-10-24)
 

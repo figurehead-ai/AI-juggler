@@ -104,6 +104,23 @@ project; a **Session** is the conversation inside an Instance. "Profile"
 is demoted to **launch settings** — a per-Account overlay used at launch;
 it is never a rail noun and never means Account (D-02/D-10).
 
+> **Amended by D-62 (one word per thing, 2026-10-30; supersedes D-35's
+> noun):** on screen there are five things. An **Account** is a
+> subscription (a Claude Max plan, a team seat, a ChatGPT plan, a key
+> through a service), with its own name. An **App** is one app in one of
+> its profiles, named "*app* · *profile*": "Claude app · b-work",
+> "Claude Code · Work Max" (a CLI App is its tool plus its config
+> folder; the terminal it runs in is a detail of a session, never its
+> name), "Codex · ~/.codex", "ChatGPT · Codex". A **Tool** is the product
+> family (Claude Code, Codex; "Provider" in the code). A **Project** is a
+> code project, and a **Session** a chat in an App, and through it on an
+> Account. Several Apps can share one Account; the Claude app and Claude
+> Code on the same folder are two Apps. "Profile" appears only inside an
+> App's name or as a fact on its page; the config folder is the App's
+> **folder**. Launch settings stay launch settings, under a CLI App. In
+> the code an `Account` row is still one config folder (a CLI App) until
+> the stored Account and App land (AJ-E3202).
+
 ```rust
 // crates/juggler-core/src/model.rs (sketch; aliases noted are the
 // migration path — wire values never change)
@@ -551,6 +568,12 @@ session → any managed Provider) unchanged (T4).
 > The go-to hotkey has no default now: the user picks one in Settings ›
 > Desktop apps, and ⌥Space is refused because ChatGPT uses it.
 
+> **Amended by D-62 (words):** a place is an **App** (§3): "Claude app ·
+> b-work", "Claude Code · Work Max". CLI sessions group by their App,
+> not by the terminal they run in; the terminal is a detail on the row.
+> The Account lens groups by subscription, and its header names the
+> Account.
+
 Left rail = the work surface: **Projects / Instances / Sessions** (three
 tabs; the list lives in the rail; collapse to icons; ⌘B; New session at
 its foot — recents + native folder picker + drag-drop, never typed
@@ -587,6 +610,10 @@ loading, error, stale/offline.
 > everywhere; an inferred state says "probably". Runway shows on a row
 > only when low; limits and money show per account (D-35). The fuller
 > state list below stays the domain model.
+
+> **Amended by D-62 (words):** the place line reads project · App ·
+> window or tab ("Claude Code · Work Max · in Terminal"); limits and
+> money show per Account.
 
 Every Instance row carries, with text+icon redundancy (never colour
 alone — WCAG 1.4.1): Provider, Account, running model, state
