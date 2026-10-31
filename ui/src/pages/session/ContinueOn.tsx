@@ -9,7 +9,7 @@
  * and continues as a new session here while it stays open in its app.
  * 0.3: Save handover… at its foot, ending with Reveal in Finder.
  */
-import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useEffect, useMemo, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
 import { AccountAvatar } from "../../components/Avatar";
 import { Button, Card } from "../../components/primitives";
@@ -21,6 +21,7 @@ import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/
 import { appWords, type SessionModel } from "./model";
 import { CardTitle } from "./CardTitle";
 import { SaveHandover } from "../../components/HandoverView";
+import { ContinueDialog } from "../../components/ContinueDialog";
 
 /** A target profile, as the page shows it. */
 export type Target = {
@@ -150,117 +151,116 @@ export function ContinueOn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, others.length]);
 
-  // ⌘⇧H, the row menu, Switch account… (F8): the Suggested target takes
-  // the keyboard, else the first that can be picked, else the card (its
-  // words say why there's none).
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  // Asked while the targets still load: the card holds the keyboard, and
-  // hands it to the best target once they're in.
-  const waiting = useRef(false);
-  const takeFocus = () => {
-    const card = cardRef.current;
-    const buttons = card?.querySelectorAll<HTMLButtonElement>("[data-testid='continue-target']:not(:disabled)");
-    const best = card?.querySelector<HTMLButtonElement>("[data-testid='continue-target'][data-suggested='true']:not(:disabled)");
-    (best ?? buttons?.[0] ?? card)?.focus();
-    return Boolean(best ?? buttons?.[0]);
-  };
-  useHandoverFocus(() => {
-    cardRef.current?.scrollIntoView?.({ block: "center" });
-    waiting.current = !takeFocus() && rows === null;
-  });
-  useEffect(() => {
-    if (rows === null || !waiting.current) return;
-    waiting.current = false;
-    if (document.activeElement === cardRef.current) requestAnimationFrame(() => void takeFocus());
-  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ⌘⇧H, the row menu, Switch account…, a banner's or Home's "Continue
+  // on another account…" (F8, 0.3.2): the list opens in a dialog over the
+  // page, its Suggested account holding the keyboard.
+  const [dialog, setDialog] = useState(false);
+  useHandoverFocus(() => setDialog(true));
+  const pick = onPick && ((recipeId: string, label: string) => (setDialog(false), onPick(recipeId, label)));
   // Where the original stays, for a session another app runs.
   const app = appWords(model.places[0], model.tool);
-  return (
-    <Card ref={cardRef} tabIndex={-1} className="flex flex-col gap-3 p-5 outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="continue-on">
-      <CardTitle>Continue on another account</CardTitle>
-      {switchBack && onSwitchBack && (
-        <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
-          <span className="block">{switchBack.copy}</span>
-          <span className="text-muted">Go back to where it came from ▸</span>
-        </button>
-      )}
-      {rows === null ? (
-        <p className="text-meta text-muted" role="status">Looking for room…</p>
-      ) : others.length === 0 ? (
-        <p className="text-meta text-muted" data-testid="continue-none">No other account to continue on.</p>
-      ) : (
-        <ul className="flex flex-col gap-3" aria-label="Accounts to continue on">
-          {others.map((group) => {
-            const name = group.account ? accountName(group.account) : group.targets[0]!.label;
-            const room = group.targets[0]!.room;
-            return (
-              <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account" data-room={room?.kind}>
-                <span className="flex items-baseline justify-between gap-2 text-meta">
-                  <span className="truncate font-medium text-ink">{name}</span>
-                  <RoomFigure room={room} />
-                </span>
-                {room && <RoomLine name={name} room={room} testId="continue-room" />}
-                {group.targets.map((target) => {
-                  const words = target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
-                  return (
-                    <div key={target.profileId + target.recipeId} className="flex flex-col gap-0.5">
-                      <Button
-                        size="md"
-                        variant="secondary"
-                        className="justify-start"
-                        disabled={!onPick || target.blocked !== null}
-                        title={target.blocked ?? `Continue on ${target.label}`}
-                        onClick={() => onPick?.(target.recipeId, target.label)}
-                        data-testid="continue-target"
-                        data-cross-tool={target.crossTool ? "true" : undefined}
-                        data-suggested={target.suggested ? "true" : undefined}
-                      >
-                        <AccountAvatar accountId={target.profileId} label={target.label} size={14} />
-                        <span className="truncate">{target.label}</span>
-                        {target.suggested && <SuggestedMark className="ml-auto" />}
-                      </Button>
-                      {(target.blocked || words || (target.crossTool && target.badge)) && (
-                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-1 text-label text-muted" data-testid="continue-check">
-                          {target.crossTool && target.badge && <FidelityBadge badge={target.badge.words} validated={target.badge.validated} />}
-                          {target.blocked ?? words}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {sameAccount.map((target) => (
-        <p key={target.profileId} className="text-label text-muted" data-testid="continue-no-room">
-          {target.label} shares this account, so it gives no new room.
+  const list = (
+    <>
+    {switchBack && onSwitchBack && (
+      <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+        <span className="block">{switchBack.copy}</span>
+        <span className="text-muted">Go back to where it came from ▸</span>
+      </button>
+    )}
+    {rows === null ? (
+      <p className="text-meta text-muted" role="status">Looking for room…</p>
+    ) : others.length === 0 ? (
+      <p className="text-meta text-muted" data-testid="continue-none">No other account to continue on.</p>
+    ) : (
+      <ul className="flex flex-col gap-3" aria-label="Accounts to continue on">
+        {others.map((group) => {
+          const name = group.account ? accountName(group.account) : group.targets[0]!.label;
+          const room = group.targets[0]!.room;
+          return (
+            <li key={group.account?.key ?? group.targets[0]!.profileId} className="flex flex-col gap-1.5" data-testid="continue-account" data-room={room?.kind}>
+              <span className="flex items-baseline justify-between gap-2 text-meta">
+                <span className="truncate font-medium text-ink">{name}</span>
+                <RoomFigure room={room} />
+              </span>
+              {room && <RoomLine name={name} room={room} testId="continue-room" />}
+              {group.targets.map((target) => {
+                const words = target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
+                return (
+                  <div key={target.profileId + target.recipeId} className="flex flex-col gap-0.5">
+                    <Button
+                      size="md"
+                      variant="secondary"
+                      className="justify-start"
+                      disabled={!pick || target.blocked !== null}
+                      title={target.blocked ?? `Continue on ${target.label}`}
+                      onClick={() => pick?.(target.recipeId, target.label)}
+                      data-testid="continue-target"
+                      data-cross-tool={target.crossTool ? "true" : undefined}
+                      data-suggested={target.suggested ? "true" : undefined}
+                    >
+                      <AccountAvatar accountId={target.profileId} label={target.label} size={14} />
+                      <span className="truncate">{target.label}</span>
+                      {target.suggested && <SuggestedMark className="ml-auto" />}
+                    </Button>
+                    {(target.blocked || words || (target.crossTool && target.badge)) && (
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-1 text-label text-muted" data-testid="continue-check">
+                        {target.crossTool && target.badge && <FidelityBadge badge={target.badge.words} validated={target.badge.validated} />}
+                        {target.blocked ?? words}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </li>
+          );
+        })}
+      </ul>
+    )}
+    {sameAccount.map((target) => (
+      <p key={target.profileId} className="text-label text-muted" data-testid="continue-no-room">
+        {target.label} shares this account, so it gives no new room.
+      </p>
+    ))}
+    {outside && (
+      <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
+        <p className="text-meta leading-[1.5] text-muted">
+          {model.live
+            ? `Picking one continues it as a new session here in AI Juggler. The original stays open in ${app ?? "its app"}, untouched.`
+            : "Picking one continues it as a new session here in AI Juggler. The original stays as it is."}
         </p>
-      ))}
-      {outside && (
-        <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
-          <p className="text-meta leading-[1.5] text-muted">
-            {model.live
-              ? `Picking one continues it as a new session here in AI Juggler. The original stays open in ${app ?? "its app"}, untouched.`
-              : "Picking one continues it as a new session here in AI Juggler. The original stays as it is."}
+        {model.live ? (
+          <p className="text-label text-muted" data-testid="continue-same-profile">
+            To carry on with it on {model.profileLabel} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
           </p>
-          {model.live ? (
-            <p className="text-label text-muted" data-testid="continue-same-profile">
-              To carry on with it on {model.profileLabel} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
-            </p>
-          ) : (
-            onCarryIn && (
-              <Button size="md" variant="secondary" onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
-                Continue in AI Juggler
-              </Button>
-            )
-          )}
-        </div>
+        ) : (
+          onCarryIn && (
+            <Button size="md" variant="secondary" onClick={onCarryIn} data-testid="continue-carry-in" className="w-fit">
+              Continue in AI Juggler
+            </Button>
+          )
+        )}
+      </div>
+    )}
+    </>
+  );
+  return (
+    <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
+      <CardTitle>Continue on another account</CardTitle>
+      {dialog ? (
+        <p className="text-meta text-muted" data-testid="continue-in-dialog">
+          Choosing in the dialog…
+        </p>
+      ) : (
+        list
       )}
       {/* 0.3: save its handover, beside the switch actions (a session
           another app runs is only read for it). */}
       <SaveHandover sessionId={source} />
+      {dialog && (
+        <ContinueDialog title="Continue on another account" detail={`Now on ${model.profileLabel}`} onClose={() => setDialog(false)}>
+          {list}
+        </ContinueDialog>
+      )}
     </Card>
   );
 }

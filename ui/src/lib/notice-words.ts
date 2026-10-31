@@ -80,12 +80,14 @@ export function primaryLabel(notice: NoticeInfo): string | null {
   return PRIMARY[notice.action] ?? "Open";
 }
 
-export type Second = "snooze-hour" | "queue-reset" | "mark-reviewed";
+export type Second = "snooze-hour" | "remind-reset" | "mark-reviewed";
 
 /** Its second action beside the primary, when the design gives it one. */
 export function secondOf(notice: NoticeInfo): { id: Second; label: string } | null {
   if (!notice.needs) return null;
-  if (notice.kind === "quota") return { id: "queue-reset", label: "Queue for the reset" };
+  // 0.3.2: "Queue for the reset" said nothing about what it does. A
+  // reminder at the reset, offered only when the reset time is known.
+  if (notice.kind === "quota") return notice.facts.resets_at_ms != null ? { id: "remind-reset", label: remindLabel(notice.facts.resets_at_ms) } : null;
   if (notice.kind === "review" && notice.target.session_id) return { id: "mark-reviewed", label: "Mark reviewed" };
   if (!notice.snoozed && ["asks", "stuck", "message", "task"].includes(notice.kind)) return { id: "snooze-hour", label: "Snooze 1 h" };
   return null;
@@ -95,6 +97,11 @@ export function secondOf(notice: NoticeInfo): { id: Second; label: string } | nu
  * (0.3.2), it doesn't warn. */
 export function noticeTone(notice: Pick<NoticeInfo, "kind" | "facts">): ReturnType<typeof toneOf> {
   return notice.kind === "quota" && notice.facts.credits != null ? "info" : toneOf(notice.kind);
+}
+
+/** "Remind me at 9:40 PM": what the reminder button says. */
+export function remindLabel(resetsAtMs: number, now: number = Date.now()): string {
+  return `Remind me at ${whenWords(resetsAtMs, now)}`;
 }
 
 /** A row's look: what its mark says. */

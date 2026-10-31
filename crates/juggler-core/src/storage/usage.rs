@@ -696,6 +696,31 @@ impl UsageRepo<'_> {
             .map_err(CoreError::Storage)
     }
 
+    /// The reminders still to act on (0.3.2): queued ones, and due ones
+    /// already notified, until the user opens or closes them; soonest
+    /// first.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn open_reminders(&self) -> Result<Vec<(String, String, String, i64)>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session, account, resume_at FROM reset_queue
+             WHERE state IN ('queued', 'notified')
+             ORDER BY resume_at",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+            ))
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
+    }
+
     /// Advances a reset-queue row (`queued|notified|resumed|dismissed`).
     ///
     /// # Errors

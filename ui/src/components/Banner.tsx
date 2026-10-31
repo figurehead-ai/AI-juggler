@@ -34,7 +34,7 @@ const TONES: Record<BannerTone, { box: string; mark: string; meter: string }> = 
 
 function Mark({ tone }: { tone: BannerTone }): JSX.Element {
   return (
-    <span aria-hidden="true" className={"flex size-8 shrink-0 items-center justify-center rounded-lg " + TONES[tone].mark}>
+    <span aria-hidden="true" className={"flex size-7 shrink-0 items-center justify-center rounded-lg " + TONES[tone].mark}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         {tone === "warning" ? (
           <>
@@ -93,7 +93,7 @@ export function Banner({
 }): JSX.Element {
   const look = TONES[tone];
   return (
-    <div role={role} data-testid={testId} data-tone={tone} className={"flex flex-wrap items-start gap-3 rounded-xl border px-3.5 py-3 " + look.box}>
+    <div role={role} data-testid={testId} data-tone={tone} className={"flex flex-wrap items-center gap-3 rounded-xl border px-3.5 py-2 " + look.box}>
       <Mark tone={tone} />
       <div className="min-w-[14rem] flex-1">
         <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-ink">

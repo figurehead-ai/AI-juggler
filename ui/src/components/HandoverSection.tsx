@@ -17,6 +17,7 @@ import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
 import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
 import { SaveHandover } from "./HandoverView";
+import { ContinueDialog } from "./ContinueDialog";
 import {
   fleetDivergences,
   fleetSwitchBackPlan,
@@ -58,7 +59,6 @@ export function HandoverSection({
   onSwitchBack?: (sessionId: string) => void;
   onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
 }): JSX.Element {
-  const handoverRef = useRef<HTMLDetailsElement | null>(null);
   const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked");
   // 0.3: a session open on its page that hits its limit now (it stays
   // open, its status changes under the page) opens its switch list too.
@@ -67,15 +67,11 @@ export function HandoverSection({
     if (session.status === "quota_blocked" && statusBefore.current !== "quota_blocked") setSwitchOpen(true);
     statusBefore.current = session.status;
   }, [session.status]);
-  useHandoverFocus(() => {
-    setSwitchOpen(true);
-    // jsdom has no scrollIntoView; the guard keeps tests honest.
-    requestAnimationFrame(() => {
-      handoverRef.current?.scrollIntoView?.({ block: "center" });
-      // ⌘⇧H "focuses the hand-over section": its summary takes focus.
-      handoverRef.current?.querySelector<HTMLElement>("summary")?.focus();
-    });
-  });
+  // ⌘⇧H, the row menu, Switch account…, a banner's or Home's "Continue
+  // on another account…" (0.3.2): the list opens in a dialog over the
+  // page, its Suggested account holding the keyboard.
+  const [dialog, setDialog] = useState(false);
+  useHandoverFocus(() => setDialog(true));
   // Refetched when the session or its live state changes: the ranker's
   // inputs (quota, sessions) move with them.
   const [rows, setRows] = useState<SwitchTargetData[] | null>(null);
@@ -119,10 +115,72 @@ export function HandoverSection({
   }, [instanceId, session.status, crossTick]);
   const suggestions = switchBackSuggestions.filter((suggestion) => suggestion.session_id === session.id);
   const open = switchOpen || Boolean(backPlan) || suggestions.length > 0;
+  const list = (
+    <div className="mt-3 flex flex-col gap-2">
+      {/* AJ-E207 Req.3: the reset-trigger suggestion — suggested,
+          never executed; the user clicks. */}
+      {suggestions.map((suggestion) => (
+        <button
+          key={suggestion.session_id}
+          type="button"
+          onClick={() => onSwitchBack?.(suggestion.session_id)}
+          data-testid="switch-back-card"
+          className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi transition-colors hover:border-accent/60"
+        >
+          <span className="block" data-testid="switch-back-card-copy">
+            {suggestion.copy}
+          </span>
+          <span className="text-muted">Resume the original conversation ▸</span>
+        </button>
+      ))}
+      {backPlan && (
+        <button
+          type="button"
+          onClick={() => setBackOpen(true)}
+          data-testid={divergence ? "cross-back-diverged-card" : "cross-back-card"}
+          className={
+            "rounded-lg border px-3 py-2 text-left text-meta transition-colors " +
+            (divergence ? "border-warning/50 text-ink hover:border-warning" : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
+          }
+        >
+          <span className="block">
+            {divergence ? (
+              <>
+                <span aria-hidden="true">⚠ </span>Diverged — {divergence.turns_since} new {divergence.turns_since === 1 ? "turn" : "turns"} on{" "}
+                {divergence.machine_label} since the work left. Choose what to keep.
+              </>
+            ) : (
+              <>
+                Came from {backPlan.original_machine_label} ({backPlan.original_account_label}) — {backPlan.new_turns} new{" "}
+                {backPlan.new_turns === 1 ? "turn" : "turns"} here.
+              </>
+            )}
+          </span>
+          <span className="text-muted">{divergence ? "Review the conflict ▸" : `Switch back to ${backPlan.original_machine_label} ▸`}</span>
+        </button>
+      )}
+      {targets === null ? (
+        <p className="text-meta text-muted" data-testid="handover-targets-loading">
+          Ranking destinations…
+        </p>
+      ) : targets.length === 0 ? (
+        <p className="text-meta text-muted" data-testid="handover-targets-empty">
+          Add another account to juggle between them.
+        </p>
+      ) : (
+        <SwitchTargetRows targets={targets} onPick={(target) => (setDialog(false), onHandover(session.id, target.recipe_id, target.account_label))} />
+      )}
+      {remoteTargets.length > 0 && (
+        <>
+          <p className="mt-1 text-section font-semibold text-ink">Continue on another machine</p>
+          <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
+        </>
+      )}
+    </div>
+  );
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="handover-card">
       <details
-        ref={handoverRef}
         open={open}
         onToggle={(event) => setSwitchOpen((event.currentTarget as HTMLDetailsElement).open)}
         className="group"
@@ -134,67 +192,13 @@ export function HandoverSection({
             <path d="M9 6l6 6-6 6" />
           </svg>
         </summary>
-        <div className="mt-3 flex flex-col gap-2">
-          {/* AJ-E207 Req.3: the reset-trigger suggestion — suggested,
-              never executed; the user clicks. */}
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion.session_id}
-              type="button"
-              onClick={() => onSwitchBack?.(suggestion.session_id)}
-              data-testid="switch-back-card"
-              className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi transition-colors hover:border-accent/60"
-            >
-              <span className="block" data-testid="switch-back-card-copy">
-                {suggestion.copy}
-              </span>
-              <span className="text-muted">Resume the original conversation ▸</span>
-            </button>
-          ))}
-          {backPlan && (
-            <button
-              type="button"
-              onClick={() => setBackOpen(true)}
-              data-testid={divergence ? "cross-back-diverged-card" : "cross-back-card"}
-              className={
-                "rounded-lg border px-3 py-2 text-left text-meta transition-colors " +
-                (divergence ? "border-warning/50 text-ink hover:border-warning" : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
-              }
-            >
-              <span className="block">
-                {divergence ? (
-                  <>
-                    <span aria-hidden="true">⚠ </span>Diverged — {divergence.turns_since} new {divergence.turns_since === 1 ? "turn" : "turns"} on{" "}
-                    {divergence.machine_label} since the work left. Choose what to keep.
-                  </>
-                ) : (
-                  <>
-                    Came from {backPlan.original_machine_label} ({backPlan.original_account_label}) — {backPlan.new_turns} new{" "}
-                    {backPlan.new_turns === 1 ? "turn" : "turns"} here.
-                  </>
-                )}
-              </span>
-              <span className="text-muted">{divergence ? "Review the conflict ▸" : `Switch back to ${backPlan.original_machine_label} ▸`}</span>
-            </button>
-          )}
-          {targets === null ? (
-            <p className="text-meta text-muted" data-testid="handover-targets-loading">
-              Ranking destinations…
-            </p>
-          ) : targets.length === 0 ? (
-            <p className="text-meta text-muted" data-testid="handover-targets-empty">
-              Add another account to juggle between them.
-            </p>
-          ) : (
-            <SwitchTargetRows targets={targets} onPick={(target) => onHandover(session.id, target.recipe_id, target.account_label)} />
-          )}
-          {remoteTargets.length > 0 && (
-            <>
-              <p className="mt-1 text-section font-semibold text-ink">Continue on another machine</p>
-              <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
-            </>
-          )}
-        </div>
+        {dialog ? (
+          <p className="mt-3 text-meta text-muted" data-testid="handover-in-dialog">
+            Choosing in the dialog…
+          </p>
+        ) : (
+          list
+        )}
       </details>
       {!open && (
         <p className="text-meta leading-[1.5] text-muted" data-testid="handover-teaser">
@@ -203,6 +207,11 @@ export function HandoverSection({
       )}
       {/* 0.3: save its handover, beside the switch actions. */}
       <SaveHandover sessionId={session.id} />
+      {dialog && (
+        <ContinueDialog title="Continue on another account" detail={`Now on ${session.account_label}`} onClose={() => setDialog(false)}>
+          {list}
+        </ContinueDialog>
+      )}
       {/* Out to the body: the page's column is a size container, which
           would hold a fixed sheet inside it. */}
       {crossTarget &&

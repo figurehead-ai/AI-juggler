@@ -81,7 +81,8 @@ describe("nothing internal on screen (D-25)", () => {
     expect(text).toMatch(/7% of its 5-hour window left · resets at .+ · 1 session uses it/);
     // F16: its session is open, so the button continues it elsewhere.
     expect(view.getByTestId("quota-banner-hand-over").textContent).toBe("Continue on another account…");
-    expect(view.getByTestId("quota-banner-queue").textContent).toBe("Queue for the reset");
+    // 0.3.2: the reminder names its time ("Queue for the reset" said nothing).
+    expect(view.getByTestId("quota-banner-remind").textContent).toMatch(/^Remind me at .+$/);
     delete seams.__AIJ_NOTICES__;
     resetNoticeStandIn();
   });

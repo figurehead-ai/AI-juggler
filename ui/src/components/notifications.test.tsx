@@ -254,7 +254,9 @@ describe("the notification centre", () => {
   it("words: the digest, and the second actions the design gives", () => {
     expect(digestLine({ finished: 4, restarted: 1, resets: 0, updates: 1, next_reset_account: "Work Max", next_reset_ms: T0 + 60_000 }, T0)).toMatch(/^Today: 4 finished · 1 restarted · 1 update · Work Max resets .+$/);
     expect(digestLine({ finished: 0, restarted: 0, resets: 0, updates: 0, next_reset_account: null, next_reset_ms: null }, T0)).toBeNull();
-    expect(secondOf(quota)?.label).toBe("Queue for the reset");
+    // 0.3.2: a reminder at the reset, named by its time; none when the reset isn't known.
+    expect(secondOf(quota)?.label).toMatch(/^Remind me at .+$/);
+    expect(secondOf({ ...quota, facts: { ...quota.facts, resets_at_ms: null } })).toBeNull();
     expect(secondOf(notice({ kind: "asks", needs: true }))?.label).toBe("Snooze 1 h");
     expect(secondOf(notice({ kind: "review", needs: true, target: { ...target, session_id: "s" } }))?.label).toBe("Mark reviewed");
     expect(secondOf(notice({ kind: "update" }))).toBeNull();

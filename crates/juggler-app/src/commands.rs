@@ -566,6 +566,9 @@ pub fn alerts_tick_inner(
     out
 }
 
+/// A reset reminder for a session another app runs: `conv:<conversation>`.
+const REMINDER_CONVERSATION: &str = "conv:";
+
 /// AJ-E611 Req.4/6 tail of the alert pass: reset-queue notifications
 /// (due items notify ONCE — `notified`; broken lineage goes `stale`,
 /// explained) plus the hourly digest flush (muted keys drop; quiet
@@ -588,7 +591,9 @@ fn queue_and_digest_events(
         .collect();
     let usage = storage.usage();
     for (id, session, account, _resume_at) in usage.pending_resumes(now).unwrap_or_default() {
-        if !session_ids.contains(&session) {
+        // 0.3.2: a reminder for a session another app runs is keyed by its
+        // conversation (`conv:…`); AI Juggler doesn't own its lineage.
+        if !session.starts_with(REMINDER_CONVERSATION) && !session_ids.contains(&session) {
             let _ = usage.set_reset_state(&id, "stale");
             continue;
         }
@@ -718,9 +723,11 @@ pub async fn reset_queue_list(
             return Ok(Vec::new());
         };
         let now = juggler_core::model::Timestamp::now().millis();
+        // 0.3.2: a due reminder stays (ready) until the user opens or
+        // closes it; the alert pass's "notified" no longer hides it.
         Ok(storage
             .usage()
-            .pending_resumes(now + 365 * 24 * 3_600_000)
+            .open_reminders()
             .unwrap_or_default()
             .into_iter()
             .map(|(id, session, account, resume_at)| ResetQueueInfo {
