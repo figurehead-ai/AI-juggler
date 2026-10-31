@@ -21,6 +21,10 @@ import {
   type FleetSwitchBackPlanInfo,
 } from "../lib/bridge";
 import { Checkbox, Radio } from "./controls";
+import { PRIMARY_FILL } from "./primitives";
+
+/** The dialog's go button: the one primary fill (0.3.2), faded while it can't go. */
+const GO = `rounded-lg px-3 py-1.5 text-xs font-semibold ${PRIMARY_FILL} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100`;
 
 type Choice = "keep_mine" | "keep_theirs" | "keep_both";
 
@@ -222,10 +226,7 @@ export function CrossMachineSwitchBack({
                 type="button"
                 disabled={choice === null}
                 onClick={() => void apply()}
-                className={
-                  "rounded-lg border px-3 py-1.5 text-xs " +
-                  (choice ? "border-accent/40 bg-accent-soft text-accent-hi" : "border-hairline text-muted")
-                }
+                className={GO}
                 data-testid="conflict-apply"
               >
                 {choice === "keep_theirs" ? "Keep both as they are" : choice ? `Apply on ${machine}` : "Choose one"}
@@ -277,12 +278,7 @@ export function CrossMachineSwitchBack({
                     type="button"
                     disabled={plan.blockers.length > 0}
                     onClick={() => void run("")}
-                    className={
-                      "rounded-lg border px-3 py-1.5 text-xs " +
-                      (plan.blockers.length === 0
-                        ? "border-accent/40 bg-accent-soft text-accent-hi"
-                        : "border-hairline text-muted")
-                    }
+                    className={GO}
                     data-testid="cross-back-go"
                   >
                     Switch back to {machine}…
