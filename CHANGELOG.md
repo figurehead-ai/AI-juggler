@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   racing it (a CI flake on #201).
 - The pools access test waits for the panel to finish saving before it
   clicks Revoke (a CI flake on #202).
+- The Needs you count test waits for the counts to meet at their full
+  value, not the moment they agree at 1 while the preview still loads.
 - A lab test's profiles and a design mock use neutral names ("Lab A",
   "Lab B", "work-b"); evidence of past runs keeps what those runs printed.
 

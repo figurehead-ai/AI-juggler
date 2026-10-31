@@ -246,6 +246,10 @@ read_routes! {
     "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
     "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
+    // 0.3.3: the apps and profiles remembered (reads only; Open and Keep
+    // alive start apps, so they never come over the bridge).
+    "places_list" => async_result features::places::commands::places_list(state; page: Option<crate::paging::PageRequest>);
+    "places_find" => async_result features::places::commands::places_find(state; tool: String, conversation_id: String);
     "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
