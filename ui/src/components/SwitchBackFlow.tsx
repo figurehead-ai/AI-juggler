@@ -282,7 +282,7 @@ export function SwitchBackFlow({
                 // while a conflict waits on a choice.
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${PRIMARY_FILL} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100`}
               >
-                Resume {plan.original_account} ▸ {armed && <span className="opacity-80">(⏎)</span>}
+                Resume {plan.original_account} ▸ {armed && <span>(⏎)</span>}
               </button>
             </div>
           </div>
