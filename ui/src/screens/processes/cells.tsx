@@ -17,7 +17,7 @@ import { untitledName } from "../../lib/session-titles";
  * show once it's 56rem wide, Owner at 72rem (whatever the window and the
  * rail) — 0.3.2: at 1024 px the row's Stop… was cut off on the right. */
 export const COLUMNS =
-  "gap-2 grid-cols-[minmax(10rem,1fr)_8.5rem_3.5rem_4.75rem_4.5rem_7.5rem] @min-[56rem]:grid-cols-[minmax(12rem,1fr)_9rem_6rem_5rem_4.5rem_3.5rem_8rem] @min-[72rem]:gap-3 @min-[72rem]:grid-cols-[minmax(18rem,1fr)_11.5rem_7.5rem_6rem_6rem_4.5rem_12rem_9rem]";
+  "gap-2 grid-cols-[minmax(10rem,1fr)_8.5rem_3.5rem_4.75rem_4.5rem_7.5rem] @min-[56rem]:grid-cols-[minmax(12rem,1fr)_11rem_6rem_5rem_4.5rem_3.5rem_8rem] @min-[72rem]:gap-3 @min-[72rem]:grid-cols-[minmax(18rem,1fr)_11.5rem_7.5rem_6rem_6rem_4.5rem_12rem_9rem]";
 
 /** The Age column and CPU's line: from a 56rem table. */
 export const AGE_CELL = "hidden @min-[56rem]:block";
@@ -33,12 +33,13 @@ const TONE: Record<ProcessTone, string> = {
   accent: "text-accent-hi",
 };
 
-/** A state as an icon and a word, with what it means on hover. */
+/** A state as an icon and a word, with what it means on hover (its
+ * words too: a narrow table ends a long one with "…"). */
 export function StateChip({ word, session = false }: { word: string; session?: boolean }): JSX.Element {
   const state = session ? sessionState(word) : processState(word);
   const Icon = state.Icon;
   return (
-    <span className={`inline-flex min-w-0 items-center gap-1.5 text-meta font-medium ${TONE[state.tone]}`} title={state.hint} data-testid="process-state" data-state={word}>
+    <span className={`inline-flex min-w-0 max-w-full items-center gap-1.5 text-meta font-medium ${TONE[state.tone]}`} title={`${state.label}: ${state.hint}`} data-testid="process-state" data-state={word}>
       <Icon width={14} height={14} aria-hidden="true" className="shrink-0" />
       <span className="truncate">{state.label}</span>
     </span>

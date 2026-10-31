@@ -95,8 +95,9 @@ function RowSubagents({ item, words, onSelect }: { item: RailItem; words: string
 export function RowProject({ item, rest, whole = false }: { item: RailItem; rest: string; whole?: boolean }): JSX.Element {
   const host = useActionHost();
   // `whole`: the rest (a time) stays whole and the project gives way —
-  // "ai-jug… · 3 h ago", never "ai-juggler · 3 …" (0.3.2).
-  const fit = whole ? "min-w-[4ch] shrink" : "max-w-[65%] shrink-0";
+  // "ai-jug… · 3 h ago", never "ai-juggler · 3 …" (0.3.2). The project
+  // keeps 4ch of the line (a short one leaves no gap), the rest the others.
+  const fit = whole ? "min-w-0 shrink" : "max-w-[65%] shrink-0";
   const id = item.projectId;
   const linked = item.project !== null && id !== null && !!host.openProjectById;
   // Its 24 px target reaches down from the line, never up over the row's
@@ -124,7 +125,7 @@ export function RowProject({ item, rest, whole = false }: { item: RailItem; rest
         )
       )}
       {rest && (
-        <span aria-hidden="true" className={(whole ? "shrink-0" : "min-w-0 truncate") + " whitespace-pre"}>
+        <span aria-hidden="true" className={(whole ? "min-w-0 max-w-[calc(100%-4ch)] shrink-0" : "min-w-0") + " truncate whitespace-pre"}>
           {item.project ? ` · ${rest}` : rest}
         </span>
       )}
