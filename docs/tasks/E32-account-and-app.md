@@ -119,12 +119,13 @@
 **Requirements**:
 1. The rail's grouping headers, chips, "Where it runs", runway names, notices, ⌘K results and pickers SHALL follow the rule.
 2. One mark and one colour per App (today one folder can get two marks and three colours).
+3. Settings › Accounts › "Tools on this computer": each tool's row SHALL open that Tool's page (AJ-E3104). Today the row shows the install and its account count, but nothing opens from it (found in the 0.3.3 walk).
 **UI/UX reasoning**: one rule everywhere.
 **Performance budget**: n/a.
 **Quality gates**: a test over every link component's target; L3 pairs.
 **Evidence/validation proof**: scenarios A1–A3, K1.
 **Visual testing**: the rail in each grouping.
-**Files to touch**: `ui/src/components/PlaceBoard.tsx`, `rail-items.ts`, `WhereItRuns.tsx`, `Avatar.tsx`, `ProfileBadge.tsx`.
+**Files to touch**: `ui/src/components/PlaceBoard.tsx`, `rail-items.ts`, `WhereItRuns.tsx`, `Avatar.tsx`, `ProfileBadge.tsx`, `ui/src/screens/settings/AccountsPane.tsx`.
 **Research basis**: the audit's top gaps.
 **Handover note**: —
 
