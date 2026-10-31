@@ -359,7 +359,8 @@ export function HomeScreen({
   const sessionNeeds = allNeeds.filter(isSessionNeed).length;
   const otherNeeds = allNeeds.length - sessionNeeds + capNeeds.caps.length + messageNeeds.length + taskNeeds.length;
   const headline = needsHeading({ sessions: sessionNeeds, others: otherNeeds }, {
-    runOut: runway.filter((r) => r.left === 0).map((r) => r.account.label),
+    // 0.3.2: one carrying on with its credits hasn't run out.
+    runOut: runway.filter((r) => r.left === 0 && !r.credits).map((r) => r.account.label),
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,
   });
@@ -372,7 +373,7 @@ export function HomeScreen({
   ].filter((part) => !part.words.startsWith("0 "));
   const runwayFor = (accountId: string | null) => {
     const row = runway.find((r) => r.account.id === accountId);
-    return row ? { left: row.left, words: row.left !== null ? `${row.account.label} · ${row.left}% left` : `${row.account.label} · not measured yet` } : null;
+    return row ? { left: row.left, words: row.credits ? `${row.account.label} · ${row.words}` : row.left !== null ? `${row.account.label} · ${row.left}% left` : `${row.account.label} · not measured yet` } : null;
   };
 
   return (

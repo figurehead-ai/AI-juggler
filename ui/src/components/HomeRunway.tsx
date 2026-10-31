@@ -13,6 +13,7 @@ import { SectionTitle } from "./SectionTitle";
 import { useActionHost } from "./ItemMenu";
 import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
 import { runwayOf } from "./AccountRunway";
+import type { CreditsCover } from "../lib/credits";
 import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 
 export interface AccountGroup {
@@ -46,6 +47,8 @@ export interface RunwayLine {
   left: number | null;
   words: string;
   resets: string | null;
+  /** A used-up window its credits carry on past (0.3.2). */
+  credits?: CreditsCover | null;
 }
 
 export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; sessions: InstanceInfo[]; advice: string | null }): JSX.Element {
@@ -64,6 +67,8 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
           const first = group.profiles[0]!;
           const row = lineOf(group);
           const low = row.left !== null && row.left <= 25;
+          // 0.3.2: used up, but its credits carry its work on.
+          const credits = row.credits != null;
           return (
             <div key={group.key} className="flex flex-col gap-1.5 border-t border-hairline/60 py-3 first:border-t-0" data-testid="home-runway-account">
               <div className="flex items-center justify-between gap-3 text-sm">
@@ -75,7 +80,7 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
                   </span>
                 </span>
                 <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : row.left !== null ? "text-ink" : "text-muted")}>
-                  {row.left !== null ? `${row.left}% left` : "—"}
+                  {credits ? "On credits" : row.left !== null ? `${row.left}% left` : "—"}
                 </span>
               </div>
               {row.left !== null && (
@@ -84,7 +89,12 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
                 </div>
               )}
               <span className="text-label text-muted">Profiles: {group.profiles.map((profile) => profile.label).join(", ")}</span>
-              {row.left !== null ? (
+              {credits ? (
+                <span className="flex flex-col text-label" data-testid="home-runway-credits">
+                  <span className="text-ink">{row.words}</span>
+                  {row.resets && <span className="text-muted">{row.resets}</span>}
+                </span>
+              ) : row.left !== null ? (
                 <span className="text-label text-muted">{row.resets ?? row.words}</span>
               ) : (
                 <span className="flex flex-wrap items-baseline gap-x-2 text-label text-muted">

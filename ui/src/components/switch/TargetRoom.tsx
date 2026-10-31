@@ -8,6 +8,7 @@
  */
 import type { JSX } from "react";
 import { lowRoomWords, outOfRoomConsequence, outOfRoomWords, roomKind } from "../../lib/room";
+import { creditsConsequence, usingCreditsWords } from "../../lib/credits";
 import { roomOfProfile, type TargetRoom } from "../../lib/room-targets";
 import { GUIDE } from "../../lib/switch-words";
 import { useSubscriptions } from "../../lib/subscriptions";
@@ -20,7 +21,7 @@ export function useTargetRoom(accountId: string | undefined): TargetRoom | null 
   const displays = useRunways();
   if (!accountId) return null;
   const room = roomOfProfile(accountId, accounts, displays);
-  return { ...room, kind: roomKind(room.left) };
+  return { ...room, kind: roomKind(room.left, true, room.credits !== null) };
 }
 
 /** A switch there walks into a limit: the last button says so. */
@@ -32,6 +33,14 @@ export function risky(room: TargetRoom | null): boolean {
  * or low. */
 export function RoomNote({ room, target }: { room: TargetRoom | null; target: string }): JSX.Element | null {
   if (room === null) return null;
+  // 0.3.2: its window is used up, but its credits carry a session on.
+  if (room.kind === "credits" && room.credits) {
+    return (
+      <p className="text-body text-ink" data-testid="switch-room" data-room="credits">
+        Room on {target}: {usingCreditsWords(room.credits)}. {creditsConsequence(room.resetsAtMs)}
+      </p>
+    );
+  }
   if (!risky(room)) {
     return (
       <p className="text-body text-ink" data-testid="switch-room" data-room={room.kind}>

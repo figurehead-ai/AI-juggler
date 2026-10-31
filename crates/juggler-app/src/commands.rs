@@ -221,10 +221,6 @@ fn rank_candidates_for(
             .flatten()
             .filter_map(|window| window.percentage.map(|pct| 100.0 - pct))
             .reduce(f64::min);
-        let exhausted_no_reset = [display.five_hour.as_ref(), display.weekly.as_ref()]
-            .into_iter()
-            .flatten()
-            .any(|window| window.state == "exhausted" && window.resets_at_ms.is_none());
         let confidence = match display
             .five_hour
             .as_ref()
@@ -330,7 +326,9 @@ fn rank_candidates_for(
                 |ready| !ready,
             ),
             wrong_provider: false, // request-restriction surface rides E210's pair gating
-            exhausted_no_reset,
+            exhausted_no_reset: display.exhausted_no_reset(),
+            // 0.3.2: a used-up window its credits carry on past.
+            credits_cover: display.using_credits().is_some(),
             headroom_pct,
             headroom_confidence: confidence,
             affinity,
@@ -5552,7 +5550,7 @@ fn pair_validated_now(state: &Arc<AppState>, from: &str, to: &str) -> AppResult<
 fn quota_gate_of(storage: &Storage, account: &Account, now: i64) -> (bool, Option<(u32, u32)>) {
     let target_display = quota_display_inner(storage, account, now);
     match target_display.five_hour.as_ref().map(|w| w.state.as_str()) {
-        Some("exhausted") => (true, None),
+        Some("exhausted") => (target_display.using_credits().is_none(), None), // 0.3.2: or credits
         Some(_) => {
             let used = target_display
                 .five_hour

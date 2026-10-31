@@ -28,6 +28,7 @@ fn candidate(account: &str, headroom: Option<f64>, confidence: Confidence) -> Ca
         logged_out: false,
         wrong_provider: false,
         exhausted_no_reset: false,
+        credits_cover: false,
         headroom_pct: headroom,
         headroom_confidence: confidence,
         affinity: Some(0.5),
@@ -51,6 +52,51 @@ fn weights_sum_to_one_and_match_the_spec() {
     assert_eq!(ranking::W_HEADROOM, 0.45);
     assert_eq!(ranking::W_AFFINITY, 0.20);
     assert_eq!(ranking::W_FIDELITY, 0.15);
+}
+
+/// The maintainer's report (0.3.2): a used-up account carrying on with
+/// its credits counts a small, documented room — never filtered as
+/// exhausted, below any real window room above it, above one truly out.
+#[test]
+fn credits_count_as_a_little_room_and_say_so() {
+    assert_eq!(ranking::CREDITS_HEADROOM_PCT, 10.0);
+    let on_credits = |name: &str| Candidate {
+        credits_cover: true,
+        exhausted_no_reset: true,
+        ..candidate(name, Some(0.0), Confidence::Measured)
+    };
+    let rows = ranking::rank(&[
+        on_credits("credits"),
+        Candidate {
+            exhausted_no_reset: true,
+            ..candidate("spent", Some(0.0), Confidence::Measured)
+        },
+        candidate("out-with-reset", Some(0.0), Confidence::Measured),
+        candidate("some-room", Some(15.0), Confidence::Measured),
+        candidate("room", Some(60.0), Confidence::Measured),
+    ]);
+    let order: Vec<&str> = rows.iter().map(|row| row.account.as_str()).collect();
+    assert_eq!(
+        order,
+        ["room", "some-room", "credits", "out-with-reset", "spent"],
+        "real room first, then credits, then out; the hard-filtered last"
+    );
+    let credits = rows.iter().find(|row| row.account == "credits").unwrap();
+    assert!(credits.score.is_some(), "never hard-filtered as exhausted");
+    assert_eq!(credits.filtered_reason, None);
+    assert!(!credits.headroom_unknown);
+    // No score without an explanation: it says why it ranks there, first.
+    assert_eq!(credits.top_factors[0], ranking::USING_CREDITS);
+    assert!(credits.top_factors.len() >= 2);
+    let headroom = credits
+        .factors
+        .iter()
+        .find(|(words, _)| words == ranking::USING_CREDITS)
+        .unwrap();
+    assert!((headroom.1 - ranking::W_HEADROOM * 0.10).abs() < 1e-12);
+    // Without credits the same account is filtered, as before.
+    let spent = rows.iter().find(|row| row.account == "spent").unwrap();
+    assert_eq!(spent.score, None);
 }
 
 #[test]
