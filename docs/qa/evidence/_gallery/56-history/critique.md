@@ -1,11 +1,11 @@
-<!-- captures: 2e93733f267e -->
+<!-- captures: af775c77d7d6 -->
 # 56-history: History of ended and archived sessions, its search, a read-only replay, delete, and the retention dry run
 
-Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now.
+Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
 
 ## 0.3.2
 
-History reads cleanly: the subtitle is brighter, the Yesterday card stands off the canvas, and in search a strong violet focus ring marks the field while the matched sentence sits in a tinted strip under the row. Delete and the dry run are careful dialogs. Delete needs "delete" typed before "Delete permanently" wakes. The dry run lists what goes, what is kept and why, and gives "Remove 2 records" a red outline. The replay dialog is unchanged and still hard-wraps the transcript mid-word ("the firs / t delivery") at 1024 wide. Its Processes times also wrap to a lone "PM". The retention captures open scrolled, with the "Default for new accounts · Notify only" row cut under the top of the settings column. The storage & retention section, the point of the capture, sits at the bottom. All 24 captures were re-rendered.
+History reads cleanly: the subtitle is bright, the Yesterday card stands off the canvas, and in search a strong violet focus ring marks the field while the matched sentence sits in a tinted strip under the row. In dark that ring, the delete dialog's focused field and the bar's New session now use the lighter violet, which stands out more on the near-black. The rail's ai-juggler row now reads "Stopped with an error" whole instead of ending in a cut "· 7…". Delete and the dry run are careful dialogs. Delete needs "delete" typed before "Delete permanently" wakes. The dry run lists what goes, what is kept and why, and gives "Remove 2 records" a red outline. The replay dialog is unchanged and still hard-wraps the transcript mid-word ("the firs / t delivery") at 1024 wide. Its Processes times also wrap to a lone "PM". The retention captures still open scrolled, with the "Default for new accounts · Notify only" row cut under the top of the settings column, and the storage & retention section, the point of the capture, sits at the bottom.
 
 ## Weak
 

@@ -1,4 +1,4 @@
-<!-- captures: 0839e4dbb572 -->
+<!-- captures: d15b01fdf1ad -->
 # 93-accounts-profiles: Accounts with one, two and six profiles
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good. Written at the 0.3 second re-render, the first time these captures were taken since 0.1 (the spec lives in session-pages-gallery.spec.ts).
@@ -28,7 +28,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 - "Work, Work 2 and 1 more" as an account's name is built from its profiles' names; the address under it is what tells two accounts apart.
 - With nothing open, the rail shows "Also: History ›" above "Nothing open yet", the footnote before the message.
 - The ring with "–" for an unmeasured window is a large empty mark; the words beside it ("Not measured yet") carry the meaning.
-- The explanation under the chart is one long line that runs to the card's edge at 1280, its link at the very end.
+- The explanation under the chart is one long line that runs to the card's edge at 1280, its link at the very end and cut to "Measure its limits…" (accounts-one-profile, accounts-two-profiles, accounts-six-profiles).
 
 ## Fixed
 
@@ -44,4 +44,4 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 ## 0.3.2
 
-The account cards now stand off the page in both themes: in dark the card is a clear step lighter than the near-black canvas, and in light the white cards with a soft shadow sit on the grey canvas, so the one-, two- and three-profile cards (accounts-one-profile, accounts-two-profiles, accounts-six-profiles) read as separate objects without needing their borders. Add an account in the header is now one solid violet fill and is the obvious primary on the page; the rail's New session stays the pale secondary, which is right beside it. The explainer sentence under "Accounts" and the "No current reading…" line are brighter than the dim labels ("Last 7 days, in and out", "Not measured yet"), so the sentence level is visible. The "No current reading…" line still runs the full card width at 1280 and ends in the truncated link "Measure its limits…", the same as the 0.3.1 render. In accounts-six-profiles the second account's card is cut by the fold, which is the scroll position, not a layout fault. All six captures were re-rendered.
+The account cards stand off the page in both themes: in dark the card is a clear step lighter than the near-black canvas, and in light the white cards with a soft shadow sit on the grey canvas, so the one-, two- and three-profile cards (accounts-one-profile, accounts-two-profiles, accounts-six-profiles) read as separate objects. Add an account is one solid violet fill and the obvious primary on the page; the rail's New session stays the pale secondary beside it. After the design fixes the dark captures carry the lighter accent on the logo mark, Add an account and the top bar's New session, which now read a touch brighter; the light captures changed only in the top bar, where "This Mac · Plenty of room" moved by a sub-pixel and the bar stays one row with the whole "7 to clean up" pill. The explainer sentence under "Accounts" and the "No current reading…" line are brighter than the dim labels ("Last 7 days, in and out", "Not measured yet"), so the sentence level is visible. The "No current reading…" line still runs the full card width at 1280 and ends in the truncated link "Measure its limits…", and the rail still puts "Also: History ›" above "Nothing open yet". In accounts-six-profiles the second account's card is cut by the fold, which is the scroll position, not a layout fault.

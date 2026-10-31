@@ -1,4 +1,4 @@
-<!-- captures: dc1ffebb6b15 -->
+<!-- captures: 860e8475b5df -->
 # 68-accounts: Accounts, Usage, the limit decision, and an account on its credits
 
 Design critique (D-57, AJ-E2814). Written at 0.3.2 for the four new captures of the maintainer's report: a Codex account whose week is used up while its pre-bought credits carry the work on. Before 0.3.2 it was called "out of room". The family's other captures were not re-taken this round, and this critique doesn't judge them.
@@ -26,9 +26,12 @@ Design critique (D-57, AJ-E2814). Written at 0.3.2 for the four new captures of 
 
 ## Weak
 
-- The switch row on credits is the tallest in the list: badge, forecast, two credits lines, the "Doesn't carry" line and the factors. At 1280×800, the out-of-room row below it falls under "More below".
+- The switch row on credits is the tallest in the list: badge, forecast, two credits lines, the "Doesn't carry" line and the factors. In the Continue on another account dialog all three rows still fit at 1280×800.
 - "using its credits" in the factors repeats the room line above it. It's kept because it explains the order, but it's the second time the row says it.
 - The card's ring still reads "0%". The words beside it carry the credits truth; the ring alone doesn't.
+- accounts-credits-1280x800 (both themes): the page opens scrolled, so the Fake Desk card's header (name and email) is cut under the top bar.
+- switch-credits-1280x800-dark: the rail is captured scrolled; its search, the App / Project / Account switch, the Needs you heading and the first "Personal · Asks you" row are off the top, so the list starts at "Personal · Limit reached" right under the logo.
+- switch-credits-1280x800-dark, accounts-full-1280x800-dark, accounts-credits-1280x800-dark: the rail's feat/read-model row under Open now reads "ai-jugg… · 3 …", cut twice.
 
 ## Fixed
 
@@ -43,4 +46,4 @@ Design critique (D-57, AJ-E2814). Written at 0.3.2 for the four new captures of 
 
 ## 0.3.2
 
-The credits work now reads better in its new home. In switch-credits the list sits in the "Continue on another account · Now on Work Max" dialog, which opens at its top. All three rows fit inside it: Personal (Suggested, violet outline), Codex on its credits, and Fake Desk out of room in red. So the out-of-room row no longer falls under "More below". On Accounts (accounts-full, accounts-placement, accounts-signed-out), the account cards lift off the darker or grey canvas, the intro is the brighter sentence level with bold "account" and "profile", and "Add an account" is a solid violet fill. In limit-decision, the full-width solid "Continue on Work Max" clearly outranks the outlined "Park until 4:13 AM". In accounts-credits the amber 0% ring beside "Used up, on credits" still tells it apart from Fake Desk's red ring. The page opens scrolled, though, with the Fake Desk card's header cut under the bar. add-accounts (dark and light) was not re-rendered: it still shows the pale gradient "Bring in 2 accounts" and a filled white dot on the unselected radio.
+The credits work reads well in its new home. In switch-credits the list sits in the "Continue on another account · Now on Work Max" dialog, which opens at its top, and all three rows fit inside it: Personal (Suggested, violet outline), Codex on its credits, and Fake Desk out of room in red. On Accounts (accounts-full, accounts-placement, accounts-signed-out), the account cards lift off the darker or grey canvas, the intro is the brighter sentence with bold "account" and "profile", and "Add an account" is a solid violet fill. In limit-decision, the full-width solid "Continue on Work Max" clearly outranks the outlined "Park until 4:13 AM". After the design fixes the dark accent is lighter: it shows on the 58% and 82% rings in accounts-full, the four Usage sparklines in usage-full, the Suggested card's outline in limit-decision and the stepper and checkboxes in first-run-codex; the top bar stays one row everywhere. add-accounts (dark and light) is now re-rendered: it says "setups on this computer", "Bring in 2 accounts" is solid violet instead of the pale gradient, the unselected radio is an empty ring instead of a filled white dot, a terms note sits under the footer, and in light the canvas is grey with white cards. In accounts-credits the amber 0% ring beside "Used up, on credits" still tells it apart from Fake Desk's red ring, but the page still opens scrolled with the Fake Desk card's header cut under the bar. In the dark switch-credits the rail behind the dialog is captured scrolled past its search, switch and Needs you heading.

@@ -1,4 +1,4 @@
-<!-- captures: 6b735bb7be72 -->
+<!-- captures: bfd0d2d6844a -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -9,7 +9,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 |---|---|
 | Grid | The tab is a table: Subagent · State · Time · Tokens · Model, groups as header rows on the same columns. |
 | Hierarchy | The summary line first ("10 subagents · 3 running · 1 failed · 38 % of this session's tokens"), then the views, then the groups. |
-| Spacing | Rows on the table's rhythm; the filter bar's pickers leave a gap at 1280. |
+| Spacing | Rows on the table's rhythm; the search stretches so the filter bar has no gap at 1280. |
 | Icons | The state pills carry their marks; the subagent page's cards use the app's card titles. |
 | Shared controls | Running · Needs attention · All is the shared Segmented; Type and Sort are the shared Picker. |
 | Disabled reasons | Type: All types is disabled with its reason when every subagent is one type. |
@@ -26,8 +26,11 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 ## Weak
 
-- Type and Sort sit far right of the search with an empty gap; Type: All types shows even when every subagent is one type.
+- Type: All types shows even when every subagent is one type.
 - Detail cards at 1280 put Usage and Processes in a right column that ends long before the left.
+- tab-*-1280x800, detail-*-1280x800, row-count-1280x800 (both themes): the rail opens scrolled past its search, switch and Needs you header.
+- tab-most-tokens-1280x800 (both themes): one row under "6 subagents" with All selected; the sort looks like a filter.
+- row-count-1280x800 (both themes): the "+3 agents" row's meta is cut to "ai-jug… · 1 …".
 
 ## Fixed
 
@@ -53,4 +56,4 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 ## 0.3.2
 
-The subagents table is now a raised card on the darker canvas (white on grey in light), and the state pills (Running cyan, Done green, Failed red, each with its mark) stay readable in both themes; the failed reason in detail-failed is a red-bordered box that reads in both. The old gap between search and the Type and Sort pickers is gone: the search field now stretches, so tab-all-grouped, tab-running and tab-none-match line the controls up edge to edge. The detail pages still end their right column (Usage, Processes) long before the left one in detail-done and detail-failed. On every tab-* and detail-* capture at 1280 the rail is scrolled so its search box, the App/Project/Account switch and the Needs you header are out of view and the first row is "Personal · Limit reached", which makes the rail look headless. row-count no longer shows what it is for: the "+N agents" mark was on a row in the previous render, but the Open now group now has six rows and the one carrying it is below the rail's edge. tab-most-tokens shows a single row under a group that says "6 subagents" with All selected, so the sort reads like a filter. Only row-count has an earlier committed render to compare against; the tab-*, detail-* and usage-line captures are committed for the first time in this round.
+The subagents table is a raised card on the darker canvas (white on grey in light), and the state pills (Running cyan, Done green, Failed red, each with its mark) stay readable in both themes; the failed reason in detail-failed is a red-bordered box that reads in both. The search field stretches, so tab-all-grouped, tab-running and tab-none-match line the controls up edge to edge. After the design fixes the dark accent is lighter: it shows on the logo mark, New session, the selected Subagents or Usage tab, tab-search's focused field ring, usage-line's Input bar and dot and the "see which ›" link, a little brighter on the dark cards; the light captures are unchanged apart from the header. The detail pages still end their right column (Usage, Processes) long before the left one in detail-done and detail-failed. On every tab-* and detail-* capture at 1280 the rail is still scrolled so its search box, the App/Project/Account switch and the Needs you header are out of view and the first row is "Personal · Limit reached", which makes the rail look headless. row-count shows its subject again: the fifth Open now row carries "+3 agents" beside Working, though to fit it the row's meta is squeezed to "ai-jug… · 1 …", losing the age, and the same headless rail applies. tab-most-tokens still shows a single row under a group that says "6 subagents" with All selected, so the sort reads like a filter. Only row-count has an earlier committed render to compare against; the tab-*, detail-* and usage-line captures are committed for the first time in this round.

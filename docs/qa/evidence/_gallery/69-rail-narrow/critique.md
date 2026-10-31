@@ -1,4 +1,4 @@
-<!-- captures: 6c266fa5b7b8 -->
+<!-- captures: cbf86497c13b -->
 # 69-rail-narrow: the narrow window
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -25,7 +25,9 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 ## Weak
 
 - At 390 px the icons-only rail is the whole navigation; fine for a desktop minimum.
-- At 390 px the header takes three rows (the tabs wrap after Accounts, the actions on their own row), about 150 px before the page starts.
+- At 390 px the header still takes two rows (the tabs wrap after Accounts; Usage and History share the second row with the actions), about 120 px before the page starts.
+- opened-860x700 (both themes): with the list open, the header still wraps its actions (broom pill, New session, bell, avatar) onto a second row under the tabs.
+- folded-390x844 (both themes): the Needs you rows cut their status to "Limit reach…" and "Stopped wi…".
 
 ## Fixed
 
@@ -44,4 +46,4 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 ## 0.3.2
 
-The folded column is unchanged: the View door, the needs count and the app marks with their amber or brown "!" badges. The page beside it gains the most. In folded-860 and folded-390 the Needs you and Runway cards lift off the darker canvas (white on grey in light), and "Open its page" and New session are solid violet against the outlined row buttons. At 390 the Needs you rows cut their status to "Limit reach…" and "Stopped wi…", because each row's button takes about half the card's width. With the list opened at 860 (opened-860), the header still wraps its actions onto a second row under the tabs, as it did in 0.3.1. All six captures were re-rendered.
+The folded column is unchanged: the View door, the needs count and the app marks with their amber or brown "!" badges. The page beside it lifts its Needs you and Runway cards off the darker canvas (white on grey in light), and "Open its page" and New session are solid violet against the outlined row buttons. After the design fixes the cleanup pill is a broom with "7" in every capture here, the dark accent is lighter on the logo mark, the rail's New session outline and the Work Max runway bar, and at 390 the header drops from three rows to two, so "5 sessions need you" starts about 35 px higher. At 860 with the folded column the header is one row. With the list opened at 860 (opened-860), the header still wraps the broom, New session, bell and avatar onto a second row under the tabs, even with the shorter pill. At 390 the Needs you rows still cut their status to "Limit reach…" and "Stopped wi…", because each row's button takes about half the card's width.

@@ -1,4 +1,4 @@
-<!-- captures: 82e4118882aa -->
+<!-- captures: 5c587160818f -->
 # 41-policy: a profile's launch settings, its keys and passwords choice, and deleting launch settings
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), Settings' cards (98-local-cache) and the remove-account sheet. The baseline note says what changed on purpose; this says whether it is good. First critique of this family: its captures were last taken at 0.1 and were re-rendered for 0.3.1 (D-60).
@@ -27,6 +27,9 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 - The per-tool choice lists the preview's stand-in tool by its id ("fake-desktop"). Real tools show their names (`providerDisplayName`); only the preview's fixture lacks one.
 - The confirm says nothing about the profile's other launch settings, so deleting the last one leaves the profile with none and its Start disabled ("Add launch settings first"). That is said on the profile afterwards, not before.
+- accounts-pack-secrets-*: four solid violet buttons in one view at 1280 (New session, Add an account, and Launch on Deep work and on Quick fixes; three at 1024), so none of them reads as the page's primary.
+- accounts-pack-secrets-*: the disabled "Save overrides" under the env override is a pale violet that reads as pressed, not unavailable.
+- accounts-pack-secrets-1280x800-*: the rail rows read "Working · 748 d" and "Ended · 748 d ago"; the fixture's clock makes the ages look broken.
 
 ## Fixed
 
@@ -42,4 +45,4 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 ## 0.3.2
 
-The dark Accounts page (accounts-pack-secrets) now separates its layers: the Work Max account card stands off the canvas and the Launch settings box sits a step lighter inside it, and in light the white card has a soft edge on the grey canvas. The cost is four solid violet buttons in one view at 1280 (New session, Add an account and a Launch per settings set), so the one primary per screen is gone and Launch competes with Add an account. The disabled "Save overrides" is a pale violet that reads like a pressed button rather than an unavailable one. In settings-pack-secrets the three option boxes under "Your choice (all tools)" are a step apart from their card, the hints under each label are readable, and the per-tool pickers still list the preview tool as "fake-desktop". The delete confirm keeps its plain wording with a red-tinted Delete, but the 1024 Settings capture still shows no "Switching" page title, only the card heading. The rail row at 1280 reads "Stopped with an error · 7…", the age cut off. All captures were re-rendered.
+The dark Accounts page (accounts-pack-secrets) separates its layers: the Work Max account card stands off the canvas and the Launch settings box sits a step lighter inside it, and in light the white card has a soft edge on the grey canvas. The lighter dark accent shows on New session, Add an account and both Launch buttons, which makes the remaining problem plainer: four solid violet buttons in one view at 1280, so there is no single primary and Launch competes with Add an account. The disabled "Save overrides" is still a pale violet that reads like a pressed button rather than an unavailable one. Settings at 1024 (settings-pack-secrets-1024x680) now has its "Switching" page title above "Handovers and keys", as the 1280 capture already did, so the first pass's missing title is fixed; the three option boxes under "Your choice (all tools)" are a step apart from their card, the hints under each label are readable, and the per-tool pickers still list the preview tool as "fake-desktop". The rail at 1280 now shows "Stopped with an error" whole, without the cut-off age, but the fixture's other rows read "Working · 748 d" and "Ended · 748 d ago", an age no real session has. The delete confirm keeps its plain wording with a red-tinted Delete. All captures were re-rendered.
