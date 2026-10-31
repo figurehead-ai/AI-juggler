@@ -1,4 +1,4 @@
-<!-- captures: 6938533e2315 -->
+<!-- captures: 203de1e036c4 -->
 # 80-marks: telling sixteen projects apart
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -38,3 +38,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | history-1280x800 | History's rows with each row's tool, project and account. | The 0.3 header. |
 | sheet-1280x800, sheet-emoji-1280x800 | The mark sheet, then an emoji chosen on its colour. | × to close (AJ-E2813). |
 | rail-emoji-1280x800 | The rail with the emoji mark. | The 0.3 header. |
+
+## 0.3.2
+
+The marks themselves are unchanged and still easy to tell apart: in rail-emoji and rail-folded each project's coloured square sits in the same column, the folded payments-api row keeps its coloured stripe, and History's rows keep project and account marks in fixed columns with the dates right-aligned. The mark sheet (sheet, sheet-emoji) now sits a step above the dimmed page in dark and as a white sheet with a shadow in light; Save is the solid violet primary, the chosen colour has a clear ring, and the emoji field shows its focus ring. The home behind rail-emoji and rail-folded has cards that lift off the canvas, but in light the dashed "Show 2 more apps" card almost disappears on the grey canvas. Every capture in this family was re-rendered.

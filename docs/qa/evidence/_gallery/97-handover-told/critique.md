@@ -1,4 +1,4 @@
-<!-- captures: none -->
+<!-- captures: adfeadab61e7 -->
 # 97-handover-told: what the other tool was told
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -37,3 +37,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | done-line | The switch's last step: "Switched to Personal", "Hidden from Codex: 2 API keys · Left out: 12 earlier turns, 1 note", Open the handover. | New. |
 | done-open | The same step with the handover opened below it. | New. |
 | graph-edge | The Switch Graph with an edge opened: the same line and link. | New. |
+
+## 0.3.2
+
+done-line and done-open read in a clean order: the "Switched to Personal" title, the sentence in the brighter body level, then "Hidden from Codex: 2 API keys · Left out: 12 earlier turns, 1 note" a step quieter, and the violet Open / Hide the handover link last; in done-open the handover's From / To / Carries / Doesn't carry / Withheld table sits on a raised card with dim labels and brighter values, the 0.3.2 hierarchy working as meant. graph-edge is weaker: the element crop catches the screen's footer, so its first word is cut to "ed 1s ago · from AI Juggler's projects…" at the left edge, and the "What Codex was told" card runs into that footer without its bottom edge or padding. On the two node cards "Claude · Terminal" is set in the monospace face while "Codex · Terminal" beside it is in the body face, so the twin labels don't match. The selected edge pill ("Full story, fresh start") has a clear violet outline in both themes. Every capture was re-rendered this round.

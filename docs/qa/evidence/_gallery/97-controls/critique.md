@@ -1,4 +1,4 @@
-<!-- captures: a8e30ac1825e -->
+<!-- captures: 44ba084b2bbc -->
 # 97-controls: the shared controls and the rail's View
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -47,3 +47,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | view-changed-only-open-1280x800, -1024x700 | Quiet ones turned on, Reset shown, Only › Account's submenu open with ✓ on All. | New. This branch: one row height. |
 | picker-open-history-1280x800, -1024x700 | History with its Project filter open: "Project" over All ✓ (focused), ai-juggler, storefront, sacrificial, under the Project: All and Profile: All chips. | New state (this branch): the spec counted the filters before History had drawn and skipped. |
 | settings-general-cards-1280x800, -1024x700 | Settings › General: theme, density and order as equal cards with the shared radio. | New (AJ-E2813). |
+
+## 0.3.2
+
+The View menu (view-open, view-changed-only-open) and History's Project picker (picker-open-history) now float on a lifted surface over the darker canvas, and in light the white menus finally separate from the grey page instead of melting into a white one; the picker shows "All" pinned on top with its ✓, then ai-juggler, storefront and sacrificial, with no search on four options, as intended. New session is one solid violet in every header, so the primary action is clear without competing with the menus. In settings-general-cards the chosen Dark or Light, Comfortable and Your order cards are a clearly tinted, outlined step above their neighbours in both themes, but at 1024×700 the three order cards squeeze their hints to one or two words a line ("Stays put. / New ones / join at the / end.") and "Reset my order" wraps onto two lines inside its pill, unchanged from before. rail-group-switch still cuts the Project rail's "Stopped with an error · 7…" and "Limit reached · 0% left · …", so the age never shows, and in the View captures the page heading "5 sessions need you" peeks out half-covered above the menu's top edge, both as in the previous render. Every capture was re-rendered this round.

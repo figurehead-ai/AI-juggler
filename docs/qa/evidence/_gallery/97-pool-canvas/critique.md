@@ -1,4 +1,4 @@
-<!-- captures: 0a698059c359 -->
+<!-- captures: cd43e80a77db -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -59,3 +59,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | list-1280x800 | The List view: six member rows and seven lines of who talks to whom. | New. |
 | messages-panel-1280x800 | Messages over the canvas, the page's width. | New; re-render fix. |
 | new-pool-1280x800 | A new, empty pool: its name field focused ("New pool"), "No one in this pool yet". | New. |
+
+## 0.3.2
+
+The canvas gains the most from the new surfaces: in dark the dotted board, the nodes and the inspector are now three distinct steps, so Planner's violet frame and the amber "needs you" frames on Checkout copy pass, Review the checkout steps and Tax rules research read at a glance in canvas and pools-screen; in light the white nodes and Pools cards finally sit on a grey ground instead of white on white. The primary actions are clear and few: New session and New pool are solid violet, the inspector's "1 Allow once" is the one filled button beside a quiet "2 Deny" in inspect-member, and New message leads messages-panel. The inspector's section labels (THIS POOL, LIVE, WAITING ON YOU) sit dimmer than their values, which makes inspect-pool's long settings column easier to scan. The old overlaps are all still there, unchanged from the previous render: in canvas-badge-open and canvas-edge-badge-open the open panel covers Tax rules research's name (and, at 1024, cuts "Spike: payment sandbox" to "Spike: paym"); in canvas-full the ADD A SESSION palette sits over Planner's card ("lanner", "ead"), the 1024 zoom bar lies over the bottom row's text, and edge nodes are cut at the board's left edge; in inspect-member the selected node's ⋯ button covers the end of "Checkout copy pass". The List view's times ("2 min ago") are in the monospace face, as before. Every capture was re-rendered this round.

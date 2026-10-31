@@ -1,4 +1,4 @@
-<!-- captures: 9c478ca959ce -->
+<!-- captures: a8345af59cbe -->
 # 97-nav: the header, Projects, a project's page, Tasks
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -54,3 +54,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | tasks-holder-menu-1280x800 | The Holder picker open on the board. | New. |
 | pools-1280x800 | The Pools screen's cards. | New. |
 | session-pool-chip-1280x800, -1024x700 | feat/read-model's header: its chips, the facts line with Claude Code and Pool as doors. | Re-render fix. This branch: state chip and Account menu only; where it runs on the facts line. |
+
+## 0.3.2
+
+Across the family the darker canvas puts every card a clear step above the page: the Pools cards, Projects' list, a project's four Overview figures and its Activity chart, the Tasks board's cards and the open review panel all read as surfaces now, and in light the grey canvas finally separates the white cards that used to merge with the page. New session, New pool, New project and the review panel's Approve are one solid violet, so each screen has one obvious primary while New session here, Switch account… and Send back… stay quiet outlines. The ink levels work too: the Tasks plan's EPIC and STORY labels and the board's breadcrumbs ("Checkout v2 › Totals") sit dimmer than the titles, and Projects' "Nothing waiting" and "Nothing open" read as values without shouting. session-pool-chip-1280x800 still shows an empty terminal card in both themes while the 1024 capture draws its terminal, and its rail's feat/read-model row shows the hover buttons over "Working"; both match the previous render. project-pool sets its times in the monospace face ("2 h ago") where every other list uses the body face, also as before. Every capture was re-rendered this round.

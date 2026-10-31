@@ -1,4 +1,4 @@
-<!-- captures: 289a7b8c4a80 -->
+<!-- captures: dc1ffebb6b15 -->
 # 68-accounts: Accounts, Usage, the limit decision, and an account on its credits
 
 Design critique (D-57, AJ-E2814). Written at 0.3.2 for the four new captures of the maintainer's report: a Codex account whose week is used up while its pre-bought credits carry the work on. Before 0.3.2 it was called "out of room". The family's other captures were not re-taken this round, and this critique doesn't judge them.
@@ -40,3 +40,7 @@ Design critique (D-57, AJ-E2814). Written at 0.3.2 for the four new captures of 
 |---|---|---|
 | accounts-credits-1280x800 (dark, light) | Accounts, scrolled to the Codex card (c…@example.com · pro): 5-hour window not measured; This week 0% left · resets Tue 7:13 AM · "Used up, on credits · back in 2 days" with an amber track; "Using credits · 14,150 left" and "Sessions on it go on with its credits until the window resets Tue 7:13 AM."; above it, Fake Desk at 0% with a red track and "Limit hit". | New capture. |
 | switch-credits-1280x800 (dark, light) | A Work Max session's page with "Ranked for you": Personal (Suggested, 60% left), Codex ("Using credits · 14,150 left", "A session there goes on with its credits until the window resets Tue 7:13 AM.", "using its credits · quiet"), then Fake Desk ("Out of room until Tue 7:13 AM", credits at 0). | New capture. |
+
+## 0.3.2
+
+The credits work now reads better in its new home. In switch-credits the list sits in the "Continue on another account · Now on Work Max" dialog, which opens at its top. All three rows fit inside it: Personal (Suggested, violet outline), Codex on its credits, and Fake Desk out of room in red. So the out-of-room row no longer falls under "More below". On Accounts (accounts-full, accounts-placement, accounts-signed-out), the account cards lift off the darker or grey canvas, the intro is the brighter sentence level with bold "account" and "profile", and "Add an account" is a solid violet fill. In limit-decision, the full-width solid "Continue on Work Max" clearly outranks the outlined "Park until 4:13 AM". In accounts-credits the amber 0% ring beside "Used up, on credits" still tells it apart from Fake Desk's red ring. The page opens scrolled, though, with the Fake Desk card's header cut under the bar. add-accounts (dark and light) was not re-rendered: it still shows the pale gradient "Bring in 2 accounts" and a filled white dot on the unselected radio.

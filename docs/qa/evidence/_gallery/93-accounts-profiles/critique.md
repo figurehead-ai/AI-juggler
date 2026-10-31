@@ -1,4 +1,4 @@
-<!-- captures: 046034084ffd -->
+<!-- captures: 0839e4dbb572 -->
 # 93-accounts-profiles: Accounts with one, two and six profiles
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good. Written at the 0.3 second re-render, the first time these captures were taken since 0.1 (the spec lives in session-pages-gallery.spec.ts).
@@ -41,3 +41,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | accounts-one-profile-1280x800 | One account "Work" (o…@work.com · Max), not measured, 64M tokens in 7 days, one profile row "Work · Claude Code ~/…/w1". | The 0.3 header and rail; the runway ring and 7-day chart replace two empty bars; the profile's folder is shortened to ~/…/w1. |
 | accounts-two-profiles-1280x800 | "Work and Work 2" (o…@work.com · Max): 2 profiles share this account, 102M tokens in 7 days, rows Work (~/…/w1) and Work 2 (~/…/w2). | Same. |
 | accounts-six-profiles-1280x800 | Three accounts: "Work, Work 2 and 1 more" (Acme · Team, 3 profiles share it), "Personal and Weekend" (2), and one more below the fold. | Same. |
+
+## 0.3.2
+
+The account cards now stand off the page in both themes: in dark the card is a clear step lighter than the near-black canvas, and in light the white cards with a soft shadow sit on the grey canvas, so the one-, two- and three-profile cards (accounts-one-profile, accounts-two-profiles, accounts-six-profiles) read as separate objects without needing their borders. Add an account in the header is now one solid violet fill and is the obvious primary on the page; the rail's New session stays the pale secondary, which is right beside it. The explainer sentence under "Accounts" and the "No current reading…" line are brighter than the dim labels ("Last 7 days, in and out", "Not measured yet"), so the sentence level is visible. The "No current reading…" line still runs the full card width at 1280 and ends in the truncated link "Measure its limits…", the same as the 0.3.1 render. In accounts-six-profiles the second account's card is cut by the fold, which is the scroll position, not a layout fault. All six captures were re-rendered.

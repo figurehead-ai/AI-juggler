@@ -1,4 +1,4 @@
-<!-- captures: 9921ef05b246 -->
+<!-- captures: 98cea3d90c06 -->
 # 92-session-pages: a session's page, for each kind of session
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -50,3 +50,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | last-messages-off-1280x800 | The page with last messages turned off. | Same header change. |
 | usage-1280x800, usage-not-measured-1280x800 | The Usage tab with its counts, and with none of its own. | Same header change. |
 | before/* | The 0.2 page before the AJ-E2108 redesign, kept for comparison. | Unchanged. |
+
+## 0.3.2
+
+Go to it is now solid violet in the header, and the "Claude asks you" band below carries a second solid violet Go to it, so outside-asks, outside-steps-open, last-messages-off and account-menu-open show two equal primaries on one screen where the pale header button used to defer. Cards stand off the canvas in both themes, the band is a warm amber (dark) or peach (light) well, and outside-ended's "Continue in AI Juggler" is the single primary beside an outlined Copy resume command. The right column's "Continue on another account" card ends under the "More below" fade, which in outside-working-1280x800 slices "Week resets Thu 2:13 AM" in half, and at 200 % zoom (outside-asks-2000x1100-zoom200) the conversation shrinks to the cut bottom of one line above the asks band; both were already so in the last render. On the Usage tab the chart legend and the By kind list give different totals for the same session (Input 5.3M and Output 1.2M against 6.2M and 1.4M; 1.3M and 282k against 1.4M and 301k in usage-not-measured) without saying why. The sixteen before/* captures were not re-rendered and keep the 0.3.1 colours.

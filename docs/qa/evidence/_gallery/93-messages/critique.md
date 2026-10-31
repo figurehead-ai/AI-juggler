@@ -1,4 +1,4 @@
-<!-- captures: c87aa9af9c4d -->
+<!-- captures: 042bfd6e9ac5 -->
 # 93-messages: a pool's Messages and messages in Needs you
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -39,3 +39,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | pool-paused-1280x800 | The pool's messages paused (two agents kept answering each other): the banner and Resume. | The 0.3 header and pool page. |
 | session-messages-1680x1050 | A session's own Messages tab. | The 0.3 header. |
 | needs-you-1280x800, -1680x1050, -2000x1250 | Home's Needs you: an agent's held message and a chain at the hop limit as approval cards, a question to you, messages waiting. | The 0.3 header. |
+
+## 0.3.2
+
+Every capture was re-rendered, and the messages panel, the open thread and the shared-document cards now stand a step lighter off the dark canvas; in light the panel is a white sheet on grey. New message (pool-messages, pool-paused, session-messages) and Allow once / Deliver in Needs you are solid violet and are the only filled buttons on each screen, so the next action is unambiguous; the disabled Send stays pale and reads as off. The yellow outline on the Builder's question bubble and the pale amber "agent that isn't on the canvas" strip keep the "this one is for you" signal in both themes. pool-docs at all three sizes opens scrolled to the documents, so the reply box above is cut at its top edge, as it was in the previous render. At 2000 wide the open thread in pool-messages and pool-docs stops about a tenth short of the Messages card's right edge, leaving an empty strip, and the bubbles stay narrow (the weakness already noted). needs-you at 2000 holds its content in a centred column with wide empty margins, which is fine.

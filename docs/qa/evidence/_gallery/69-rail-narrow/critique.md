@@ -1,4 +1,4 @@
-<!-- captures: 833dc79d5a14 -->
+<!-- captures: 6c266fa5b7b8 -->
 # 69-rail-narrow: the narrow window
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -41,3 +41,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | folded-860x700 | Home at 860: the folded column (Group and View door, needs count 5, six places) beside the 0.3 header. | The door (re-render fix). |
 | folded-390x844 | The same at 390. | The door. |
 | opened-860x700 | The list opened with ⌘B while narrow: search, View, the grouping switch, Needs you. | The 0.3 switch. This branch: the tighter top. |
+
+## 0.3.2
+
+The folded column is unchanged: the View door, the needs count and the app marks with their amber or brown "!" badges. The page beside it gains the most. In folded-860 and folded-390 the Needs you and Runway cards lift off the darker canvas (white on grey in light), and "Open its page" and New session are solid violet against the outlined row buttons. At 390 the Needs you rows cut their status to "Limit reach…" and "Stopped wi…", because each row's button takes about half the card's width. With the list opened at 860 (opened-860), the header still wraps its actions onto a second row under the tabs, as it did in 0.3.1. All six captures were re-rendered.

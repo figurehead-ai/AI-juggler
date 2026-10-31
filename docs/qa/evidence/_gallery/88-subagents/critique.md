@@ -1,4 +1,4 @@
-<!-- captures: 35965d7468a0 -->
+<!-- captures: 6b735bb7be72 -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -50,3 +50,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | detail-conversation-1280x800 | A subagent's conversation. | New. |
 | usage-line-1024x700 | The session's Usage tab with "Subagents used" and its door to the tab. | New. |
 | row-count-1280x800 | The rail with View › Subagents on: "+3 agents" on the session's row. | Header and switch only. |
+
+## 0.3.2
+
+The subagents table is now a raised card on the darker canvas (white on grey in light), and the state pills (Running cyan, Done green, Failed red, each with its mark) stay readable in both themes; the failed reason in detail-failed is a red-bordered box that reads in both. The old gap between search and the Type and Sort pickers is gone: the search field now stretches, so tab-all-grouped, tab-running and tab-none-match line the controls up edge to edge. The detail pages still end their right column (Usage, Processes) long before the left one in detail-done and detail-failed. On every tab-* and detail-* capture at 1280 the rail is scrolled so its search box, the App/Project/Account switch and the Needs you header are out of view and the first row is "Personal · Limit reached", which makes the rail look headless. row-count no longer shows what it is for: the "+N agents" mark was on a row in the previous render, but the Open now group now has six rows and the one carrying it is below the rail's edge. tab-most-tokens shows a single row under a group that says "6 subagents" with All selected, so the sort reads like a filter. Only row-count has an earlier committed render to compare against; the tab-*, detail-* and usage-line captures are committed for the first time in this round.

@@ -1,4 +1,4 @@
-<!-- captures: 11d8ddc0a5ef -->
+<!-- captures: e98db6e4ab14 -->
 # 98-local-cache: Settings › Advanced › Local cache, and Privacy's line about it
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good. New family (ADR-0023, D-58).
@@ -47,3 +47,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | off-1280x800, -1024x700 | The cache off: "Off: nothing is kept…", the limit and Clear cache greyed with their reasons. |
 | low-disk-1280x800, -1024x700 | A nearly full disk: 12 MB of 64 MB and the warning "Your disk is nearly full, so the cache keeps to 64 MB and adds nothing until there's room." |
 | privacy | Privacy › What AI Juggler reads: To know what's open, For Last messages, What it keeps to be quick (with Local cache… as its door). |
+
+## 0.3.2
+
+The Local cache card now stands clearly off the page in both themes (a lighter card on the darker canvas, a white card on grey), and its rows read in three levels: the row titles, the brighter sentence beneath ("Using 47 MB of 1.3 GB…"), and the quieter figures on the right ("45 MB · 126 items", "Off", "Empty"). The clear-sheet's "Clear cache" is now one solid violet next to a plain Cancel, so the dialog's one real action is obvious over the blurred page. low-disk is the strongest capture: the amber warning sits inside the toggle's row, and the header's "This Mac · Under pressure" with its red dot and the rail's "Your Mac is under pressure" agree with it. In off and search-empty the disabled Size limit and Clear cache… are faint, which reads as unavailable, though in light the off toggle's white track on a white card is the lightest thing on the page. In limit-menu the menu covers the end of the card's footnote ("Everything in it can b…") while open, and the 1024 captures open scrolled so the backup card's first line is cut at the top; both as before. Every capture was re-rendered this round.

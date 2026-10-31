@@ -1,4 +1,4 @@
-<!-- captures: 6a10f76ada3b -->
+<!-- captures: d8e10086bd31 -->
 # 95-tasks: tasks on a pool, a session and in Needs you
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -43,3 +43,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | session-tasks-1680x1050 | A session's Tasks tab. | The 0.3 header. |
 | switch-graph-tasks-1680x1050, history-switch-1280x900 | The switch history with each session's task. | The 0.3 header. |
 | pool-card-task-1680x1050 | A member's card with its task. | The 0.3 inspector. |
+
+## 0.3.2
+
+All captures were re-rendered. The Tasks panel and its open task now stand a step off the dark canvas (in light, a white sheet on grey), and each screen has one solid violet action that matches the state: "Start a session for it…" on a ready task (pool-tasks, pool-plan), Approve on a task in review (task-review), Send back once its note is open (task-send-back), Start session in the launch row (task-start) and Allow once in Needs you. The state pills stay easy to scan in both themes (teal In progress, amber In review, red Blocked with its red "Waits on…" line), and the brighter sentence text makes What it asks and Done when read as body copy under the small-capital section titles. switch-graph-tasks opens scrolled past the top of the project page, so the Open sessions, checkout and Accounts cards show only their last rows under the tabs; the previous render was also scrolled, but less far. At 2000 wide (pool-tasks, pool-plan) the open task stops short of the Tasks panel's right edge, leaving an empty strip, and session-tasks puts its one task row across the full width with "6 min" far from the title and nothing else on the page. In pool-card-task the two ended members are titled "Untitled session · ai-juggler", which says little about what they did.
