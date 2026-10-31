@@ -85,6 +85,17 @@ pub fn quota_alert_words(kind: &str, quota: &AlertQuotaInfo, now: i64) -> String
     }
 }
 
+/// A used-up alert for an account its credits carry on (0.3.2): "Codex
+/// has used up its weekly window; it resets in 3 d — it carries on with
+/// its credits (14,150 credits left)".
+#[must_use]
+pub fn on_credits_words(used_up: &str, cover: super::CreditsCover) -> String {
+    match cover.left_words() {
+        Some(left) => format!("{used_up} — it carries on with its credits ({left})"),
+        None => format!("{used_up} — it probably carries on with its credits"),
+    }
+}
+
 /// A queued resume came due, in plain words (never the session's id):
 /// its account and the folder it works in.
 #[must_use]
@@ -113,6 +124,20 @@ pub fn reset_reached_words(storage: &Storage, account: &str, session: &str) -> S
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_used_up_alert_on_credits_says_it_carries_on() {
+        use crate::features::quota::CreditsCover;
+        let base = "Codex has used up its weekly window; it resets in 3 d";
+        assert_eq!(
+            on_credits_words(base, CreditsCover::Balance(14_150.16)),
+            "Codex has used up its weekly window; it resets in 3 d — it carries on with its credits (14,150 credits left)"
+        );
+        assert_eq!(
+            on_credits_words(base, CreditsCover::Probably),
+            "Codex has used up its weekly window; it resets in 3 d — it probably carries on with its credits"
+        );
+    }
 
     const NOW: i64 = 1_800_000_000_000;
 

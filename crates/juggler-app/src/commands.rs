@@ -496,7 +496,18 @@ fn step_account_alerts(
                 minutes_left: display.forecast.tte_min,
                 resets_at_ms: window.resets_at_ms,
             };
-            let text = crate::features::quota::alert_words::quota_alert_words(kind, &quota, now);
+            let mut text =
+                crate::features::quota::alert_words::quota_alert_words(kind, &quota, now);
+            // 0.3.2: a paired console reads this text as it is; used up
+            // while its credits cover, it carries on, so say so.
+            if kind == "exhausted"
+                && let Some(cover) = display
+                    .credits
+                    .as_ref()
+                    .and_then(crate::features::quota::CreditsDisplay::cover)
+            {
+                text = crate::features::quota::alert_words::on_credits_words(&text, cover);
+            }
             (kind, text, quota)
         });
         if let Some((kind, text, quota)) = event {

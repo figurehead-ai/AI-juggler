@@ -285,3 +285,14 @@ describe("the notice", () => {
     expect(screen.getByTestId("notification-region").textContent).not.toMatch(/run out of room/);
   });
 });
+
+describe("0.3.2 a credits reading's age", () => {
+  it("a balance read over 6 hours ago covers only probably, and the words say how old a reading is", async () => {
+    const { creditsCover, usingCreditsWords } = await import("./lib/credits");
+    const now = Date.UTC(2026, 9, 30, 20, 0);
+    expect(creditsCover({ has_credits: true, unlimited: false, balance: "120", as_of_ms: now, source: "Codex" })).toEqual({ kind: "balance", balance: 120 });
+    expect(creditsCover({ has_credits: true, unlimited: false, balance: "120", as_of_ms: now, source: "Codex", stale: true })).toEqual({ kind: "probably" });
+    expect(usingCreditsWords({ kind: "balance", balance: 14150 }, now - 10 * 60_000, now)).toBe("Using credits · 14,150 left");
+    expect(usingCreditsWords({ kind: "balance", balance: 14150 }, now - 2 * 3_600_000, now)).toMatch(/^Using credits · 14,150 left \(as of .+\)$/);
+  });
+});

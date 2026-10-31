@@ -9,7 +9,7 @@
  */
 import type { CreditsDisplay, QuotaDisplayData, WindowDisplay } from "./ipc/quota";
 import { measured } from "./quotaWindow";
-import { resetsWords } from "./time-words";
+import { resetsWords, whenWords } from "./time-words";
 
 /** Credits that cover: a balance, unlimited, or only probably. */
 export type CreditsCover = { kind: "balance"; balance: number } | { kind: "unlimited" } | { kind: "probably" };
@@ -22,7 +22,9 @@ export function creditsCover(credits: CreditsDisplay | null | undefined): Credit
   const raw = credits.balance?.trim() ?? "";
   if (raw === "") return { kind: "probably" };
   const balance = Number(raw);
-  return Number.isFinite(balance) && balance > 0 ? { kind: "balance", balance } : null;
+  if (!Number.isFinite(balance) || balance <= 0) return null;
+  // 0.3.2: a balance read hours ago may have run out since.
+  return credits.stale ? { kind: "probably" } : { kind: "balance", balance };
 }
 
 /** A window used up: spent until its reset, or no whole percent left
@@ -60,11 +62,16 @@ function leftWords(cover: CreditsCover): string | null {
   return null;
 }
 
+/** A reading's age worth saying (0.3.2): past an hour, "as of 2:10 PM". */
+export const AS_OF_AFTER_MS = 3_600_000;
+
 /** The room, in plain short words: "Using credits · 14,150 left", or
- * "Probably using credits" when the balance isn't reported. */
-export function usingCreditsWords(cover: CreditsCover): string {
+ * "Probably using credits" when the balance isn't reported or is old;
+ * with "as of …" once the reading is over an hour old. */
+export function usingCreditsWords(cover: CreditsCover, asOfMs?: number | null, now: number = Date.now()): string {
   const left = leftWords(cover);
-  return left ? `Using credits · ${left}` : "Probably using credits";
+  const words = left ? `Using credits · ${left}` : "Probably using credits";
+  return asOfMs != null && asOfMs > 0 && now - asOfMs > AS_OF_AFTER_MS ? `${words} (as of ${whenWords(asOfMs, now)})` : words;
 }
 
 /** What a session there does, in one line: "A session there goes on with

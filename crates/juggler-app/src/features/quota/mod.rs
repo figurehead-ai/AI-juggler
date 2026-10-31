@@ -239,7 +239,15 @@ pub struct CreditsDisplay {
     pub as_of_ms: i64,
     /// Who reported it: the tool's name ("Codex").
     pub source: String,
+    /// 0.3.2: read longer ago than [`CREDITS_STALE_MS`]: its balance is
+    /// no longer trusted (it may have run out since), so it covers only
+    /// "probably".
+    pub stale: bool,
 }
+
+/// A credits reading older than this (6 h) no longer vouches for its
+/// balance (0.3.2). The UI keeps the same (`lib/credits`).
+pub const CREDITS_STALE_MS: i64 = 6 * 3_600_000;
 
 /// Whether an account's credits carry its work on once a window is used
 /// up (the maintainer's report, 0.3.2: Codex kept working on pre-bought
@@ -296,8 +304,8 @@ pub fn whole_number(value: f64) -> String {
 
 impl CreditsDisplay {
     /// Whether the credits carry the account's work on: unlimited, or a
-    /// balance above zero; credits with no balance reported, probably. A
-    /// balance of zero, or no credits, don't.
+    /// balance above zero; credits with no balance reported, or a balance
+    /// read too long ago, probably. A balance of zero, or no credits, don't.
     #[must_use]
     pub fn cover(&self) -> Option<CreditsCover> {
         if self.unlimited {
@@ -312,7 +320,13 @@ impl CreditsDisplay {
                 .parse::<f64>()
                 .ok()
                 .filter(|balance| balance.is_finite() && *balance > 0.0)
-                .map(CreditsCover::Balance),
+                .map(|balance| {
+                    if self.stale {
+                        CreditsCover::Probably
+                    } else {
+                        CreditsCover::Balance(balance)
+                    }
+                }),
         }
     }
 }
@@ -351,6 +365,7 @@ impl QuotaDisplayInfo {
 fn credits_of(
     storage: &juggler_core::storage::Storage,
     account: &juggler_core::model::Account,
+    now: i64,
 ) -> Option<CreditsDisplay> {
     let id = account.id.as_str();
     let raw = storage
@@ -368,6 +383,7 @@ fn credits_of(
         balance: snapshot.balance,
         as_of_ms: snapshot.ts,
         source: provider_name(account.harness.as_str()),
+        stale: now.saturating_sub(snapshot.ts) > CREDITS_STALE_MS,
     })
 }
 
@@ -756,7 +772,7 @@ pub fn quota_display_inner(
         renewal,
         forecast,
         unavailable_reason,
-        credits: credits_of(storage, account),
+        credits: credits_of(storage, account, now_ms),
         model_weeks,
         history_reading: false,
     }
@@ -843,6 +859,7 @@ mod credits_tests {
             unlimited,
             balance: balance.map(str::to_owned),
             as_of_ms: 0,
+            stale: false,
             source: "A tool".to_owned(),
         }
     }

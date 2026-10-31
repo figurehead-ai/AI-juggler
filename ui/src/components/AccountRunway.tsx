@@ -97,7 +97,7 @@ export function runwayOf(
     const credits = usingCredits(display);
     return {
       left,
-      words: credits ? usingCreditsWords(credits) : `${left}% left ${tightest.phrase}${modelWeekNote(display, left)}`,
+      words: credits ? usingCreditsWords(credits, display?.credits?.as_of_ms) : `${left}% left ${tightest.phrase}${modelWeekNote(display, left)}`,
       resets: words ? `${tightest.label} ${words}` : null,
       resetsAtMs: tightest.window.resets_at_ms ?? null,
       credits,
