@@ -5,7 +5,9 @@
 #
 # - The tree must be clean: what passes is exactly the commit (HEAD).
 # - Every step runs, failed or not, and the summary names each failure.
-# - Steps: CI's verify job (`just verify`, kept in step by
+# - Steps: the release notes changed against the base, as the nightly
+#   and promote check them (0.3.2's nightly stopped on its notes), CI's
+#   verify job (`just verify`, kept in step by
 #   scripts/ci_parity.py), CI's ui job (vitest, the build), Linux clippy
 #   in a container (CI's Linux jobs), and, when ui/ changed against the
 #   base as CI decides it, the visual gate in CI's pinned container and
@@ -70,6 +72,12 @@ if [ -n "${CARGO_TARGET_DIR:-}" ]; then
     cargo clean -q -p "$pkg" 2>/dev/null
   done
 fi
+step "release notes (as the nightly checks them)" bash -c '
+  for file in $(git diff --name-only "$1" HEAD -- "docs/releases/*.md"); do
+    version=$(basename "$file" .md)
+    [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+    ./scripts/release_notes_check.sh "$version" || exit 1
+  done' notes "$BASE"
 step "verify (CI's verify job)" just verify
 step "ui: vitest" bash -c 'cd ui && pnpm test'
 step "ui: build" bash -c 'cd ui && pnpm build'
