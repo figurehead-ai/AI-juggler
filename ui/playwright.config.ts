@@ -15,6 +15,9 @@ export default defineConfig({
   retries: 0,
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // 0.3.2: no WebGL, so the terminal keeps its DOM renderer (its
+    // fallback): captures stay deterministic and its rows readable.
+    launchOptions: { args: ["--disable-3d-apis"] },
   },
   webServer: {
     command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,

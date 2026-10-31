@@ -17,7 +17,7 @@ import { resolve } from "node:path";
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
-import { allStatuses, honestEmpty, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX } from "./fixtures";
+import { allStatuses, honestEmpty, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -2219,9 +2219,7 @@ for (const theme of THEMES) {
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await terminalDrawn(page);
       await openSwitch(page);
-      await page.getByTestId("handover-section")
-        // AJ-E209: the ranked, badged row is the switch entry point.
-        .locator("button[data-row]:not(:disabled)")
+      await switchRows(page)
         .first()
         .click();
       await expect(page.getByTestId("switch-flow")).toBeVisible();
@@ -2407,9 +2405,7 @@ for (const theme of THEMES) {
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await terminalDrawn(page);
       await openSwitch(page);
-      await page.getByTestId("handover-section")
-        // AJ-E209: the ranked, badged row is the switch entry point.
-        .locator("button[data-row]:not(:disabled)")
+      await switchRows(page)
         .first()
         .click();
       await expect(page.getByTestId("switch-flow")).toBeVisible();
@@ -2650,9 +2646,7 @@ for (const theme of THEMES) {
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await terminalDrawn(page);
       await openSwitch(page);
-      await page.getByTestId("handover-section")
-        // AJ-E209: the ranked, badged row is the switch entry point.
-        .locator("button[data-row]:not(:disabled)")
+      await switchRows(page)
         .first()
         .click();
       await expect(page.getByTestId("switch-flow")).toBeVisible();
@@ -3220,8 +3214,7 @@ for (const theme of THEMES) {
       await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click(); // the running one (AJ-E2104: starting says Working too)
       await terminalDrawn(page);
       await openSwitch(page);
-      await page.getByTestId("handover-section")
-        .locator("button[data-row]:not(:disabled)")
+      await switchRows(page)
         .first()
         .click();
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
@@ -4649,11 +4642,13 @@ for (const theme of THEMES) {
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/wizard-t2-ready-1280x800-${theme}.png`) });
     await page.keyboard.press("Escape");
 
+    await openSwitch(page); // 0.3.2: the list is Switch account…'s dialog
     await page.getByTestId("remote-switch-target").nth(1).click();
     await expect(page.getByTestId("cross-switch-t3")).toBeChecked();
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/wizard-t2-blocked-1280x800-${theme}.png`) });
     await page.keyboard.press("Escape");
 
+    await openSwitch(page);
     await page.getByTestId("remote-switch-target").nth(2).click();
     await page.getByTestId("cross-switch-next").click();
     await page.getByTestId("cross-switch-project-option").first().check();
@@ -5922,7 +5917,7 @@ async function openSwitchWith(page: import("@playwright/test").Page, theme: (typ
 
 /** Picks the switch target named `name` in the open switch list. */
 async function pickTarget(page: import("@playwright/test").Page, name: RegExp | null) {
-  const rows = page.getByTestId("handover-section").locator("button[data-row]:not(:disabled)");
+  const rows = switchRows(page);
   await (name ? rows.filter({ hasText: name }).first() : rows.first()).click();
   await expect(page.getByTestId("switch-flow")).toBeVisible();
 }
@@ -6002,7 +5997,8 @@ for (const theme of THEMES) {
 
   test(`28 switch — targets with one out of room — ${theme}`, async ({ page }) => {
     await openSwitchWith(page, theme, roomSeams);
-    const section = page.getByTestId("handover-section");
+    // 0.3.2: the list shows in Switch account…'s dialog.
+    const section = page.getByTestId("continue-dialog");
     const rows = section.locator("button[data-row]");
     await expect(rows.last()).toContainText("Personal");
     await expect(section.getByTestId("target-room").last()).toContainText(/Out of room until .+You can still pick it/);

@@ -173,7 +173,7 @@ export function HandoverSection({
       {remoteTargets.length > 0 && (
         <>
           <p className="mt-1 text-section font-semibold text-ink">Continue on another machine</p>
-          <RemoteSwitchTargets targets={remoteTargets} onPick={setCrossTarget} />
+          <RemoteSwitchTargets targets={remoteTargets} onPick={(target) => (setDialog(false), setCrossTarget(target))} />
         </>
       )}
     </div>

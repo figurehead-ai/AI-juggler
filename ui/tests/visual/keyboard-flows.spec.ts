@@ -270,13 +270,14 @@ async function toSwitchRow(page: Page, stops: Stop[]) {
   await arrowTo(page, stops, /Work Max/);
   await page.keyboard.press("Enter");
   await leaveTerminalIfFocused(page, stops);
-  // D-25: the ranked list is folded; ⌘⇧H opens it and focuses it.
+  // D-25, 0.3.2: ⌘⇧H opens the ranked list in a dialog, the Suggested
+  // (else the first) account holding the keyboard once the rows load.
   await page.keyboard.press("ControlOrMeta+Shift+H");
-  await expect(page.locator("[data-testid='handover-section'] > summary")).toBeFocused();
+  await expect(page.getByTestId("continue-dialog")).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(document.activeElement?.closest("[data-testid='continue-dialog']") && document.activeElement?.hasAttribute("data-row"))))
+    .toBe(true);
   stops.push(await focused(page));
-  // The ranked rows load asynchronously; tab once they are there.
-  await expect(page.locator("[data-testid='handover-section'] button[data-row]:not(:disabled)").first()).toBeVisible();
-  await tabToEl(page, stops, "[data-testid='handover-section'] button[data-row]:not(:disabled)", { max: 120 });
 }
 
 test("switch, 1-click — popover, confirm, undo window", async ({ page }) => {

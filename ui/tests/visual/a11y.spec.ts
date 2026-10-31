@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault } from "./fixtures";
+import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, switchRows } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -678,9 +678,7 @@ for (const theme of ["dark", "light"] as const) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
-    await page.getByTestId("handover-section")
-      // AJ-E209: the ranked, badged row is the switch entry point.
-      .locator("button[data-row]:not(:disabled)")
+    await switchRows(page)
       .first()
       .click();
     await expect(page.getByTestId("switch-flow")).toBeVisible();
@@ -753,9 +751,7 @@ for (const theme of ["dark", "light"] as const) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
-    await page.getByTestId("handover-section")
-      // AJ-E209: the ranked, badged row is the switch entry point.
-      .locator("button[data-row]:not(:disabled)")
+    await switchRows(page)
       .first()
       .click();
     await expect(page.getByTestId("switch-oneclick")).toBeVisible();
@@ -904,9 +900,7 @@ for (const theme of ["dark", "light"] as const) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page.getByRole("button", { name: /Work Max/ }).first().click();
     await openSwitch(page);
-    await page.getByTestId("handover-section")
-      // AJ-E209: the ranked, badged row is the switch entry point.
-      .locator("button[data-row]:not(:disabled)")
+    await switchRows(page)
       .first()
       .click();
     // Step 2 asks about the keys (another tool reads the words).
@@ -986,7 +980,7 @@ for (const theme of ["dark", "light"] as const) {
     await openSwitch(page);
     await expect(page.getByTestId("switch-target-rows")).toBeVisible();
     const rowsScan = await new AxeBuilder({ page })
-      .include("[data-testid='handover-section']")
+      .include("[data-testid='continue-dialog']") // 0.3.2: the list's dialog
       .analyze();
 
     // The graph: scoped scan on the project panel.
