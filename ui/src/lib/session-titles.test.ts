@@ -72,8 +72,8 @@ describe("recentRows", () => {
 describe("handoverTeaser", () => {
   it("says how many can take it, and the suggestion", () => {
     const target = { recipe_id: "r", account_id: "a", account_label: "Personal", badge: "", validated: false, cross_provider: false, drops: [], score: 1, filtered_reason: null, top_factors: ["80% headroom"], factors: [], confidence: "", tte_min: null, suggested: true };
-    expect(handoverTeaser([target, { ...target, account_label: "Work", suggested: false }])).toBe("2 accounts can take it over. Suggested: Personal, 80% headroom.");
-    expect(handoverTeaser([])).toBe("Add another account to juggle between them.");
-    expect(handoverTeaser(null)).toBe("Ranking the other accounts…");
+    expect(handoverTeaser([target, { ...target, account_label: "Work", suggested: false }])).toBe("2 apps can take it over. Suggested: Personal, 80% headroom.");
+    expect(handoverTeaser([])).toBe("Add another app to juggle between them.");
+    expect(handoverTeaser(null)).toBe("Ranking the other apps…");
   });
 });

@@ -52,7 +52,7 @@ export function UninstallCard(): JSX.Element {
           <section className="flex flex-col gap-1">
             <h4 className="font-medium text-ink">Status lines</h4>
             {done.status_lines.length === 0 ? (
-              <p className="text-ink-2">None to put back: no account's status line points at AI Juggler.</p>
+              <p className="text-ink-2">None to put back: no app's status line points at AI Juggler.</p>
             ) : (
               <ul className="flex flex-col gap-0.5">
                 {done.status_lines.map((line) => (
@@ -69,7 +69,7 @@ export function UninstallCard(): JSX.Element {
             <ul className="flex list-disc flex-col gap-1 pl-4 text-muted">
               <li>
                 AI Juggler's data folder: <span className="break-all font-mono text-ink">{done.data_folder}</span>. It holds its database, backups, logs and the
-                account copies it made. Your own account folders were never moved.
+                app copies it made. Your own app folders were never moved.
               </li>
               <li>
                 In Keychain Access, the items named{" "}

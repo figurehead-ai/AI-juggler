@@ -87,9 +87,9 @@ export function RulesPanel({ policy: seeded }: { policy?: CleanupPolicyInfo | nu
         )}
       </div>
       <p className="text-meta text-ink-2">
-        Off unless you turn it on, per account. It only ever tidies dev servers and watchers AI Juggler started, after their session ended, and never another app's.
+        Off unless you turn it on, per app. It only ever tidies dev servers and watchers AI Juggler started, after their session ended, and never another app's.
       </p>
-      {policy?.paused && <p className="text-meta font-medium text-warning">Paused for every account.</p>}
+      {policy?.paused && <p className="text-meta font-medium text-warning">Paused for every app.</p>}
       {policy?.suspended_until_ms && <p className="text-meta font-medium text-warning">Held after a restart until you confirm it in Settings › Advanced.</p>}
       {error && <p className="text-meta text-danger">Couldn't read the rules: {error}</p>}
       <ul className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))" }}>

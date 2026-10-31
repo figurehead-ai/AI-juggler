@@ -65,12 +65,12 @@ describe("⌘K's own actions", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("\"switch\" finds the selected session's Continue on another account…, and Accounts", () => {
+  it("\"switch\" finds the selected session's Continue in another app…, and Accounts", () => {
     const host: ActionHost = { continueSession: vi.fn(), openSession: vi.fn() };
     const { options, type } = open({ selected: live(), host });
     type("switch");
     const names = options().map((option) => option.textContent ?? "");
-    expect(names[0]).toContain("Continue on another account…");
+    expect(names[0]).toContain("Continue in another app…");
     expect(names.some((name) => name.includes("Go to Accounts"))).toBe(true);
     fireEvent.click(options()[0]!);
     expect(host.continueSession).toHaveBeenCalled();

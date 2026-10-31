@@ -9,6 +9,7 @@ import { Field, Input, Modal } from "../components/form";
 import { accountRemove, accountRename, accountSetDefault, errorText, type AccountInfo, type InstanceInfo } from "../lib/bridge";
 import type { ActionHost } from "../lib/actions";
 import { Radio } from "../components/controls";
+import { cliAppName } from "../lib/app-name";
 
 /** A home-relative path, for display. */
 export function shortPath(path: string): string {
@@ -33,7 +34,7 @@ export function RenameAccountModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={`Rename ${account.label}`} onClose={onClose}>
+    <Modal title={`Rename ${cliAppName(account.provider, account.label)}`} onClose={onClose}>
       <form
         className="flex flex-col gap-4"
         data-testid="rename-account"
@@ -96,17 +97,17 @@ export function RemoveAccountModal({
   const names = [...new Set(open.map((session) => session.git_branch ?? ((session.cwd ?? "").replace(/\/+$/, "").split("/").pop() || session.account_label)))];
   const where = account.import_source_path ? shortPath(account.import_source_path) : null;
   return (
-    <Modal title={`Remove ${account.label}?`} onClose={onClose}>
+    <Modal title={`Remove ${cliAppName(account.provider, account.label)}?`} onClose={onClose}>
       <div className="flex flex-col gap-4 text-sm" data-testid="remove-account" data-kind={account.in_place ? "in-place" : "copy"}>
         {open.length > 0 ? (
           <p className="leading-relaxed text-ink-2" data-testid="remove-account-open">
-            {account.label} has {open.length === 1 ? "a session" : `${open.length} sessions`} open: <span className="text-ink">{names.join(", ")}</span>.
-            Stop {open.length === 1 ? "it" : "them"} first, then remove the account.
+            {cliAppName(account.provider, account.label)} has {open.length === 1 ? "a session" : `${open.length} sessions`} open: <span className="text-ink">{names.join(", ")}</span>.
+            Stop {open.length === 1 ? "it" : "them"} first, then remove the app.
           </p>
         ) : account.in_place ? (
           <>
             <p className="leading-relaxed text-ink-2">
-              AI Juggler forgets this account. Your folder stays exactly as it is: nothing in it is moved or changed.
+              AI Juggler forgets this app. Your folder stays exactly as it is: nothing in it is moved or changed.
             </p>
             {where && (
               <p className="truncate font-mono text-xs text-ink" title={account.import_source_path ?? undefined}>
@@ -117,7 +118,7 @@ export function RemoveAccountModal({
         ) : (
           <>
             <p className="leading-relaxed text-ink-2">
-              AI Juggler forgets this account.{" "}
+              AI Juggler forgets this app.{" "}
               {where ? (
                 <>
                   It's a copy of <span className="font-mono text-xs text-ink">{where}</span>, which stays as it is. What should happen to the copy?
@@ -126,7 +127,7 @@ export function RemoveAccountModal({
                 "What should happen to its folder in AI Juggler's data?"
               )}
             </p>
-            <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="The account's folder">
+            <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="The app's folder">
               {(
                 [
                   { id: "keep", label: "Keep the folder", what: "It stays in AI Juggler's data. Nothing is deleted." },
@@ -178,10 +179,10 @@ export function RemoveAccountModal({
                   const done = await accountRemove(account.id, folder);
                   await onDone(
                     done.folder === "trashed"
-                      ? `Removed ${done.label}. Its folder is in the Trash.`
+                      ? `Removed ${cliAppName(account.provider, done.label)}. Its folder is in the Trash.`
                       : done.folder === "kept"
-                        ? `Removed ${done.label}. Its folder was kept.`
-                        : `Removed ${done.label}. Your folder wasn't touched.`,
+                        ? `Removed ${cliAppName(account.provider, done.label)}. Its folder was kept.`
+                        : `Removed ${cliAppName(account.provider, done.label)}. Your folder wasn't touched.`,
                   );
                 } catch (cause) {
                   setError(errorText(cause));
@@ -223,8 +224,8 @@ export function useAccountManage({
         await accountSetDefault(wasDefault ? null : account.id);
         await changed(
           wasDefault
-            ? `${account.label} is no longer the default. New sessions start with the account you used last.`
-            : `New sessions start with ${account.label}, unless a project picks its own.`,
+            ? `${cliAppName(account.provider, account.label)} is no longer the default. New sessions start with the app you used last.`
+            : `New sessions start with ${cliAppName(account.provider, account.label)}, unless a project picks its own.`,
         );
       } catch (cause) {
         failed(errorText(cause));
@@ -248,7 +249,7 @@ export function useAccountManage({
           account={copyFor}
           onClose={async (copied) => {
             setCopyFor(null);
-            if (copied > 0) await changed(copied === 1 ? `Copied 1 setting into ${copyFor.label}.` : `Copied ${copied} settings into ${copyFor.label}.`);
+            if (copied > 0) await changed(copied === 1 ? `Copied 1 setting into ${cliAppName(copyFor.provider, copyFor.label)}.` : `Copied ${copied} settings into ${cliAppName(copyFor.provider, copyFor.label)}.`);
           }}
         />
       )}

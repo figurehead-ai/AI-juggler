@@ -54,7 +54,7 @@ export function loginStateCopy(state: string | null | undefined): {
     case "api_key":
       return {
         headline: "API key account",
-        detail: "This account runs on an API key — no vendor sign-in needed.",
+        detail: "This app runs on an API key — no vendor sign-in needed.",
       };
     case "unknown":
       return {

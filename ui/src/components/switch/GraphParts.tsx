@@ -6,6 +6,7 @@
 import type { JSX } from "react";
 import { kindWords } from "../../lib/status-words";
 import { providerDisplayName } from "../../lib/providers";
+import { cliAppName } from "../../lib/app-name";
 import type { EpochTask } from "../../lib/ipc/tasks";
 import type { EpochNodeData, GraphEdgeData } from "../../lib/bridge";
 import { providerMark } from "../indicator";
@@ -35,7 +36,7 @@ export function GraphNode({
       aria-pressed={open}
       aria-expanded={open}
       onClick={onToggle}
-      title={`${epoch.account_label} on ${providerDisplayName(epoch.provider)}${epoch.resumable ? " — resumable" : ""}`}
+      title={`${cliAppName(epoch.provider, epoch.account_label)}${epoch.resumable ? " — resumable" : ""}`}
       className={
         "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-2.5 py-2 text-center text-label transition-colors focus:outline-none focus:ring-2 focus:ring-accent " +
         (open

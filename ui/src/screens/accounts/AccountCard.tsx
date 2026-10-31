@@ -52,7 +52,7 @@ export function unmeasuredWords(tool: string): string {
   const spec = toolSpec(tool);
   // Only a tool whose app keeps a meter AI Juggler reads says so (the
   // Codex app's limits come in Codex's own records).
-  const app = spec.desktop_app && spec.supports.app_meter ? `the ${spec.desktop_app} app's meter while it's open on this profile` : null;
+  const app = spec.desktop_app && spec.supports.app_meter ? `the ${spec.desktop_app} app's meter while it's open on this account` : null;
   const name = providerDisplayName(tool);
   return app
     ? `No current reading. Limits come from ${app}, and from ${name} when it hits a limit.`
@@ -116,7 +116,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           </h3>
           <p className="truncate text-meta text-ink-2" data-testid="account-line">
             {signedOut
-              ? `${profiles.length === 1 ? "This profile isn't" : "These profiles aren't"} signed in, so ${profiles.length === 1 ? "its" : "their"} account isn't known yet.`
+              ? `${profiles.length === 1 ? "This app isn't" : "These apps aren't"} signed in, so ${profiles.length === 1 ? "its" : "their"} account isn't known yet.`
               : sub.state === "unverified" && !service
                 ? `${providerDisplayName(sub.tool)} · ${sub.reason ?? "its sign-in can't be read"}`
                 : line.join(" · ") || providerDisplayName(sub.tool)}
@@ -129,7 +129,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         )}
         {profiles.length > 1 && !signedOut && (
           <span className="text-meta text-muted" data-testid="account-profiles-count">
-            {profiles.length} profiles share this account
+            {profiles.length} apps share this account
           </span>
         )}
         {service && first && (
@@ -175,7 +175,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           )}
         </div>
       )}
-      <ul className="divide-y divide-hairline border-t border-hairline" aria-label={`Profiles on ${accountName(sub)}`}>
+      <ul className="divide-y divide-hairline border-t border-hairline" aria-label={`Apps on ${accountName(sub)}`}>
         {profiles.map((profile) => {
           const open = openOn(profile.id, props.sessions, props.conversations);
           return (

@@ -104,7 +104,7 @@ describe("Home, desktop first", () => {
     const first = needs.querySelector<HTMLElement>("[data-first='true']")!;
     expect(first.textContent).toContain("payments-api · Claude app · Work");
     expect(within(first).getByRole("button", { name: /^Open its page/ })).toBeTruthy();
-    expect(within(first).getByRole("button", { name: /^Continue on another account/ })).toBeTruthy();
+    expect(within(first).getByRole("button", { name: /^Continue in another app/ })).toBeTruthy();
     const limit = view.getByTestId("home-need-limit");
     fireEvent.click(within(limit).getByRole("button", { name: /^Continue elsewhere/ }));
     expect(onLimit).toHaveBeenCalledWith("lim");
@@ -147,7 +147,7 @@ describe("Home, desktop first", () => {
   it("Runway by account: each with its profiles; the way to measure one that isn't", async () => {
     const view = home([], []);
     const rows = await view.findAllByTestId("home-runway-account");
-    expect(rows[0]!.textContent).toContain("Profiles: Work Max");
+    expect(rows[0]!.textContent).toContain("Apps: Work Max");
     expect(rows[1]!.textContent).toContain("Not measured yet");
     expect(within(rows[1]!).getByRole("button", { name: /^Measure its limits/ })).toBeTruthy();
   });
@@ -168,7 +168,7 @@ describe("Home, desktop first", () => {
     );
     await waitFor(() => expect(view.getAllByTestId("home-runway-account")).toHaveLength(1));
     const row = view.getByTestId("home-runway-account");
-    expect(row.textContent).toContain("Profiles: Work Max, Personal");
+    expect(row.textContent).toContain("Apps: Work Max, Personal");
     expect(row.textContent).toContain("o@work.com");
   });
 

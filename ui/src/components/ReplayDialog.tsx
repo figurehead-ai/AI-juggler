@@ -11,7 +11,7 @@ import { lazyNamed } from "../lib/lazy";
 // xterm loads with the first replay, not at start.
 const ReplayTerminal = lazyNamed(() => import("./ReplayTerminal"), "ReplayTerminal");
 import { errorText, instanceReplay, type ReplayInfo } from "../lib/bridge";
-import { toolSpec } from "../lib/tools";
+import { cliAppName } from "../lib/app-name";
 import { byteSize } from "../lib/compact";
 
 function when(ms: number): string {
@@ -105,7 +105,7 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
                   <ul className="flex flex-col gap-0.5" data-testid="replay-lineage-list">
                     {replay.lineage.map((step, index) => (
                       <li key={index} className="text-ink">
-                        {step.direction === "in" ? "Arrived from" : "Moved to"} {step.other_account} ({toolSpec(step.other_provider).display_name})
+                        {step.direction === "in" ? "Arrived from" : "Moved to"} {cliAppName(step.other_provider, step.other_account)}
                         <span className="text-muted">
                           {" "}
                           · {step.state}

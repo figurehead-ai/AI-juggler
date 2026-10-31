@@ -1,5 +1,5 @@
 /**
- * Continue on another account, for a session AI Juggler runs in its
+ * Continue in another app, for a session AI Juggler runs in its
  * terminal: a card in its page's side column. D-25: the ranked switch list
  * is one step away: folded, with one line of what it holds, opened by
  * "Switch account…" (the header) or ⌘⇧H, and open by itself when the
@@ -18,6 +18,7 @@ import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
 import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
 import { SaveHandover } from "./HandoverView";
 import { ContinueDialog } from "./ContinueDialog";
+import { cliAppName } from "../lib/app-name";
 import {
   fleetDivergences,
   fleetSwitchBackPlan,
@@ -38,10 +39,10 @@ import { useRunways } from "../pages/session/data";
 /** What the folded list holds, in one line: the Suggested one (most
  * room, `lib/room`) with its room, or that none has much room. */
 export function handoverTeaser(targets: Array<SwitchTargetData & { room?: TargetRoom }> | null): string {
-  if (targets === null) return "Ranking the other accounts…";
+  if (targets === null) return "Ranking the other apps…";
   const open = targets.filter((target) => target.filtered_reason == null);
-  if (open.length === 0) return targets.length === 0 ? "Add another account to juggle between them." : "No other account can take it now.";
-  const count = open.length === 1 ? "1 account can take it over" : `${open.length} accounts can take it over`;
+  if (open.length === 0) return targets.length === 0 ? "Add another app to juggle between them." : "No other app can take it now.";
+  const count = open.length === 1 ? "1 app can take it over" : `${open.length} apps can take it over`;
   const best = open.find((target) => target.suggested);
   if (!best) return `${count}, but none has much room left now.`;
   const why = best.room?.left != null ? `${best.room.left}% left` : best.top_factors[0];
@@ -68,7 +69,7 @@ export function HandoverSection({
     statusBefore.current = session.status;
   }, [session.status]);
   // ⌘⇧H, the row menu, Switch account…, a banner's or Home's "Continue
-  // on another account…" (0.3.2): the list opens in a dialog over the
+  // in another app…" (0.3.2): the list opens in a dialog over the
   // page, its Suggested account holding the keyboard.
   const [dialog, setDialog] = useState(false);
   useHandoverFocus(() => setDialog(true));
@@ -165,7 +166,7 @@ export function HandoverSection({
         </p>
       ) : targets.length === 0 ? (
         <p className="text-meta text-ink-2" data-testid="handover-targets-empty">
-          Add another account to juggle between them.
+          Add another app to juggle between them.
         </p>
       ) : (
         <SwitchTargetRows targets={targets} onPick={(target) => (setDialog(false), onHandover(session.id, target.recipe_id, target.account_label))} />
@@ -187,7 +188,7 @@ export function HandoverSection({
         data-testid="handover-section"
       >
         <summary className="-m-1 flex cursor-pointer list-none items-center justify-between gap-2 rounded p-1 text-section font-semibold text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden">
-          Continue on another account
+          Continue in another app
           <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">
             <path d="M9 6l6 6-6 6" />
           </svg>
@@ -208,7 +209,7 @@ export function HandoverSection({
       {/* 0.3: save its handover, beside the switch actions. */}
       <SaveHandover sessionId={session.id} />
       {dialog && (
-        <ContinueDialog title="Continue on another account" detail={`Now on ${session.account_label}`} onClose={() => setDialog(false)}>
+        <ContinueDialog title="Continue in another app" detail={`Now in ${cliAppName(session.provider, session.account_label)}`} onClose={() => setDialog(false)}>
           {list}
         </ContinueDialog>
       )}

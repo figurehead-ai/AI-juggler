@@ -62,7 +62,7 @@ const SCREEN_WORDS: Partial<Record<GlobalId | "home", string>> = {
   projects: "folders repos work",
   pools: "agents teams members together",
   tasks: "work board plan epics stories review ready",
-  accounts: "profiles subscriptions limits switch sign in",
+  accounts: "apps subscriptions limits switch sign in",
   usage: "tokens cost limits charts",
   history: "ended past sessions transcripts search",
   cleanup: "processes stop kill leftovers cleanup",

@@ -15,7 +15,7 @@ export const PAGE_LABELS: Record<PageKind, string> = {
   session: "Session",
   conversation: "Session",
   project: "Project",
-  account: "Account",
+  account: "App",
   tool: "Tool",
   machine: "Machine",
   "remote-session": "Session",
@@ -94,8 +94,8 @@ export type TabFacts = {
  * source named for all). */
 const OVERVIEW_SOURCE: Partial<Record<PageKind, string>> = {
   project: "AI Juggler's projects and the tools' session files",
-  account: "the account's settings and usage tracking",
-  tool: "the tool's install and its accounts",
+  account: "the app's settings and usage tracking",
+  tool: "the tool's install and its apps",
   // AJ-E2108: where it runs, and its last messages from its transcript's end.
   session: "the apps' own session files and the end of its transcript",
   conversation: "the apps' own session files and the end of its transcript",

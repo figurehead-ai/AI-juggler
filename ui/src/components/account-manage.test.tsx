@@ -129,7 +129,7 @@ describe("AJ-E1501 the account card's menu", () => {
     fireEvent.click((await openMenu(view, 0)).querySelector("[data-testid='action-default']")!);
     await waitFor(() => expect(view.getByTestId("account-default")).toBeTruthy());
     expect(setDefault).toHaveBeenCalledWith("acc-own");
-    expect(view.getByTestId("accounts-notice").textContent).toContain("New sessions start with Mine");
+    expect(view.getByTestId("accounts-notice").textContent).toContain("New sessions start with Claude Code · Mine");
     const menu = await openMenu(view, 0);
     expect(menu.querySelector("[data-testid='action-default']")!.textContent).toBe("Stop being the default");
   });
@@ -148,7 +148,7 @@ describe("AJ-E1501 the remove sheet", () => {
     expect(view.queryByTestId("remove-folder-trash")).toBeNull();
     fireEvent.click(view.getByTestId("remove-account-confirm"));
     await waitFor(() => expect(remove).toHaveBeenCalledWith("acc-own", "keep"));
-    await waitFor(() => expect(view.getByTestId("accounts-notice").textContent).toBe("Removed Mine. Your folder wasn't touched."));
+    await waitFor(() => expect(view.getByTestId("accounts-notice").textContent).toBe("Removed Claude Code · Mine. Your folder wasn't touched."));
   });
 
   it("a copy: keep its folder by default, or move it to the Trash when chosen", async () => {
@@ -160,7 +160,7 @@ describe("AJ-E1501 the remove sheet", () => {
     fireEvent.click(view.getByTestId("remove-folder-trash"));
     fireEvent.click(view.getByTestId("remove-account-confirm"));
     await waitFor(() => expect(remove).toHaveBeenCalledWith("acc-copy", "trash"));
-    await waitFor(() => expect(view.getByTestId("accounts-notice").textContent).toBe("Removed personal-max. Its folder is in the Trash."));
+    await waitFor(() => expect(view.getByTestId("accounts-notice").textContent).toBe("Removed Claude Code · personal-max. Its folder is in the Trash."));
   });
 
   it("open sessions keep the account: they are named and there is no Remove button", async () => {

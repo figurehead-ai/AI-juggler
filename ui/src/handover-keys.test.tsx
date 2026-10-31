@@ -1,6 +1,6 @@
 /**
  * The 0.2 walk, F8 and F16 — the switch from anywhere a session is:
- * "Continue on another account…" on another app's session's row menu (and
+ * "Continue in another app…" on another app's session's row menu (and
  * so ⌘K, the same registry) with ⌘⇧H; ⌘⇧H takes the open session's switch
  * list, whatever its kind, or says why not; an out-of-room banner
  * continues the account's open session, never its account page.
@@ -24,13 +24,13 @@ const conversation = (overrides: Partial<ConversationInfo> = {}): ConversationIn
   ({ id: "c-1", tool: "claude-code", account_id: "f", account_label: "Account F", project_id: null, live: true, session_id: null, started_ms: 1, last_activity_ms: 10, places: [] , ...overrides }) as unknown as ConversationInfo;
 
 describe("F8 the row menu of another app's session", () => {
-  it("offers Continue on another account… with ⌘⇧H, before Continue in AI Juggler", () => {
+  it("offers Continue in another app… with ⌘⇧H, before Continue in AI Juggler", () => {
     const host: ActionHost = { continueConversationElsewhere: vi.fn(), continueConversation: vi.fn() };
     const actions = resolveActions("conversation", conversation(), host);
     const ids = actions.map((action) => action.id);
     expect(ids.indexOf("continue-elsewhere")).toBeLessThan(ids.indexOf("continue"));
     const action = actions.find((entry) => entry.id === "continue-elsewhere")!;
-    expect(action.label).toBe("Continue on another account…");
+    expect(action.label).toBe("Continue in another app…");
     expect(action.shortcut).toBe("⌘⇧H");
     expect(action.reason).toBeUndefined();
     void action.run();
@@ -94,7 +94,7 @@ describe("F16 an out-of-room account's banner", () => {
     expect(openOnAccount("f", [session({ last_activity_ms: 99 })], [newer])).toMatchObject({ session: { id: "s-1" } });
   });
 
-  it("finds nothing (and the button says Open its account) when no session of it is open", () => {
+  it("finds nothing (and the button says Open its app) when no session of it is open", () => {
     expect(openOnAccount("f", [session({ status: "finished" })], [conversation({ live: false })])).toBeNull();
     // AI Juggler's own copy of a conversation is its session, not counted twice.
     expect(openOnAccount("f", [], [conversation({ session_id: "s-9" })])).toBeNull();

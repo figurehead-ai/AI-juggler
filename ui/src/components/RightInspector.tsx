@@ -36,6 +36,7 @@ import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { installWords, providerDisplayName } from "../lib/providers";
+import { cliAppName } from "../lib/app-name";
 import { useToolInstall } from "../lib/useToolInstall";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
@@ -714,7 +715,7 @@ function InstanceOverview(props: PanelProps) {
                 className="flex items-center gap-2 rounded-lg border border-hairline px-3 py-2.5 text-left transition-colors hover:border-accent/40 hover:bg-surface"
               >
                 <span className="dot-live size-1.5 rounded-full bg-live" />
-                <span className="text-sm">{project.active_instance.account_label}</span>
+                <span className="text-sm">{cliAppName(project.active_instance.provider, project.active_instance.account_label)}</span>
                 <Chip tone={statusTone(project.active_instance.status).tone}>
                   {statusTone(project.active_instance.status).label}
                 </Chip>
@@ -726,7 +727,7 @@ function InstanceOverview(props: PanelProps) {
               <p className="text-xs text-ink-2">No live session — free to juggle.</p>
             )}
             <p className="mt-2 text-section font-semibold text-ink">
-              Launch with another account
+              Launch with another app
             </p>
             <div className="flex flex-col gap-1.5">
               {profiles.slice(0, 5).map((recipe) => {
@@ -736,7 +737,7 @@ function InstanceOverview(props: PanelProps) {
                     key={recipe.id}
                     type="button"
                     disabled={!ready}
-                    title={ready ? undefined : "Needs sign-in first: sign in from its account on Accounts"}
+                    title={ready ? undefined : "Needs sign-in first: sign in to its app on Accounts"}
                     onClick={() => props.onLaunch(recipe, project)}
                     className={
                       "flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-left text-xs transition-colors " +
@@ -744,7 +745,7 @@ function InstanceOverview(props: PanelProps) {
                     }
                   >
                     <IconTerminal width={13} height={13} />
-                    <span className="font-medium">{recipe.account_label}</span>
+                    <span className="font-medium">{cliAppName(recipe.provider, recipe.account_label)}</span>
                     <span className="text-muted">·</span>
                     <span className="text-muted">{launchSettingsName(recipe.name)}</span>
                     {recipe.model && <span className="ml-auto font-mono text-label text-muted">{recipe.model}</span>}
@@ -753,7 +754,7 @@ function InstanceOverview(props: PanelProps) {
                 );
               })}
               {profiles.length === 0 && (
-                <p className="text-xs text-ink-2">No launch settings yet — add an account first.</p>
+                <p className="text-xs text-ink-2">No launch settings yet — add an app first.</p>
               )}
             </div>
           </Card>
@@ -770,7 +771,7 @@ function InstanceOverview(props: PanelProps) {
                     onClick={() => props.onOpenSession(s.id)}
                     className="flex items-center gap-2.5 py-2 text-left text-xs"
                   >
-                    <span className="min-w-0 flex-1 truncate font-medium">{s.account_label}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{cliAppName(s.provider, s.account_label)}</span>
                     <Chip tone={statusTone(s.status).tone}>{statusTone(s.status).label}</Chip>
                   </button>
                 ))}
@@ -788,7 +789,7 @@ function InstanceOverview(props: PanelProps) {
     return (
       <div className="flex flex-col gap-3">
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-section font-semibold text-ink">Account</p>
+          <p className="text-section font-semibold text-ink">App</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-meta">
             <span>
               tool: <span className="text-muted">{providerDisplayName(account.provider)}</span>
@@ -802,7 +803,7 @@ function InstanceOverview(props: PanelProps) {
           </div>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-section font-semibold text-ink">Sessions on this account</p>
+          <p className="text-section font-semibold text-ink">Sessions in this app</p>
           {rows.length === 0 ? (
             <p className="text-xs text-ink-2">No sessions recorded yet.</p>
           ) : (
@@ -831,12 +832,12 @@ function InstanceOverview(props: PanelProps) {
           <p className="text-section font-semibold text-ink">Tool</p>
           <p className="font-mono text-meta">{data.provider.id}</p>
           <p className="text-meta text-ink-2">
-            {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"} ·{" "}
+            {providerAccounts.length} app{providerAccounts.length === 1 ? "" : "s"} ·{" "}
             {providerAccounts.filter((a) => signedIn(a.login_state)).length} signed in
           </p>
         </Card>
         <Card className="flex flex-col gap-2 p-4">
-          <p className="text-section font-semibold text-ink">Accounts</p>
+          <p className="text-section font-semibold text-ink">Apps</p>
           {providerAccounts.map((account) => (
             <p key={account.id} className="flex items-center gap-2 py-1 text-xs">
               <span className="min-w-0 flex-1 truncate font-medium">{account.label}</span>
@@ -846,7 +847,7 @@ function InstanceOverview(props: PanelProps) {
             </p>
           ))}
           {providerAccounts.length === 0 && (
-            <p className="text-xs text-ink-2">No accounts for this tool yet.</p>
+            <p className="text-xs text-ink-2">No apps for this tool yet.</p>
           )}
         </Card>
       </div>
@@ -932,7 +933,7 @@ function ProviderOverview(props: PanelProps) {
       <Card className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-2 text-meta">
           <span className="text-ink">
-            {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"}
+            {providerAccounts.length} app{providerAccounts.length === 1 ? "" : "s"}
           </span>
           <span className="text-muted">· {running} running</span>
         </div>
@@ -948,7 +949,7 @@ function ProviderOverview(props: PanelProps) {
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
         <p className="text-section font-semibold text-ink">Runway, least left first</p>
         {perAccount.length === 0 ? (
-          <p className="text-meta text-ink-2">No accounts for this tool yet.</p>
+          <p className="text-meta text-ink-2">No apps for this tool yet.</p>
         ) : (
           perAccount.map(({ account, display, sessions }) => (
             <div key={account.id} className="flex flex-col gap-1.5 py-1">

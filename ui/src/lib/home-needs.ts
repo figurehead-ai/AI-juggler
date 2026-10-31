@@ -85,7 +85,7 @@ export function needsHeading(count: number | { sessions: number; others: number 
   if (others > 0) return others === 1 ? "1 thing needs you" : `${others} things need you`;
   // QA batch 9: never "All clear" while an account has run out.
   if (calm.runOut.length === 1) return `${calm.runOut[0]} has run out`;
-  if (calm.runOut.length > 1) return `${calm.runOut.length} accounts have run out`;
+  if (calm.runOut.length > 1) return `${calm.runOut.length} apps have run out`;
   return calm.running ? "All clear — nothing needs you" : calm.anything ? "All clear" : "Ready when you are";
 }
 
@@ -109,6 +109,6 @@ export function primaryWords(need: HomeNeed): string {
     // AJ-E2501: an account almost out of room (the notification model's own).
     // F16: its open session's switch, else its account, named so.
     case "quota":
-      return need.sessionId || need.conversation ? "Continue on another account…" : "Open its account";
+      return need.sessionId || need.conversation ? "Continue in another app…" : "Open its app";
   }
 }

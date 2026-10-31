@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import { IconView, IconWindow } from "./icons-places";
 import { IconArchive, IconComputer, IconKey, IconReplay } from "./icons-actions";
-import { IconProfiles, IconProjects, IconSubtasks } from "./icons";
+import { IconProjects, IconSubtasks } from "./icons";
 import { IconBackground, IconChevronRight, IconEnded, IconInactive, IconQuiet } from "./icons-controls";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, type MenuAt } from "./RowMenu";
 import { ChoiceLine, type ControlIcon } from "./controls";
@@ -26,8 +26,13 @@ const SHOW_ICONS: Record<ShowKey, ControlIcon> = {
   archived: IconArchive,
 };
 
-const ONLY_LABELS: Record<OnlyKey, string> = { app: "App", profile: "Profile", account: "Account", project: "Project", mac: "Mac" };
-const ONLY_ICONS: Record<OnlyKey, ControlIcon> = { app: IconWindow, profile: IconProfiles, account: IconKey, project: IconProjects, mac: IconComputer };
+/** D-62: the Only choices shown. An App already is one app in one of its
+ * profiles, so "profile" is no choice of its own here; a typed `profile:`
+ * still filters (`lib/rail-view`). "Account" is the subscription. */
+type ShownOnlyKey = Exclude<OnlyKey, "profile">;
+const ONLY_LABELS: Record<ShownOnlyKey, string> = { app: "App", account: "Account", project: "Project", mac: "Mac" };
+const ONLY_ICONS: Record<ShownOnlyKey, ControlIcon> = { app: IconWindow, account: IconKey, project: IconProjects, mac: IconComputer };
+const shownOnly = (key: OnlyKey): key is ShownOnlyKey => key !== "profile";
 
 /** A section's name in the menu: small, muted, never a line you pick. */
 function Section({ children }: { children: string }): JSX.Element {
@@ -58,7 +63,7 @@ export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey
   // A press on the button while it's open closes it (the menu's own
   // outside press already did); the click that follows doesn't reopen.
   const closing = useRef(false);
-  const onlyKeys = ONLY_KEYS.filter((key) => options[key].length > 1 || view.only[key] !== undefined);
+  const onlyKeys = ONLY_KEYS.filter(shownOnly).filter((key) => options[key].length > 1 || view.only[key] !== undefined);
   const setOnly = (key: OnlyKey, value: string | null) =>
     setRailView((current) => {
       const only = { ...current.only };

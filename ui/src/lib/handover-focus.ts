@@ -1,7 +1,7 @@
 /**
- * "Continue on another account" for the session whose page is open: ⌘⇧H,
+ * "Continue in another app" for the session whose page is open: ⌘⇧H,
  * the row menu, the header's Switch account…, an out-of-room banner and
- * Home's "Continue on another account…" all ask through here (the 0.2
+ * Home's "Continue in another app…" all ask through here (the 0.2
  * walk, F8 and F16: ⌘⇧H did nothing on another app's session, and the
  * banner's Hand over… opened the account page).
  *
@@ -32,7 +32,7 @@ export function focusHandover(): boolean {
 
 /** What ⌘⇧H says where no switch list is (Home, a project, an account,
  * another computer's session). */
-export const NO_SESSION_OPEN = "Nothing here to continue on another account: ⌘⇧H works on the page of a session on this computer.";
+export const NO_SESSION_OPEN = "Nothing here to continue in another app: ⌘⇧H works on the page of a session on this computer.";
 
 /** The same, for a page that is only opening now (after selecting it). */
 export function focusHandoverSoon(): void {

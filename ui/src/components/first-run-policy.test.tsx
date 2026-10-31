@@ -65,7 +65,7 @@ describe("D-14 — first run never asks about pack secrets", () => {
 
     const fresh = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await fresh.findByTestId("first-run-found");
-    fireEvent.click(fresh.getByRole("button", { name: "Add a fresh account instead" }));
+    fireEvent.click(fresh.getByRole("button", { name: "Add a fresh app instead" }));
     await fresh.findByTestId("first-run-fresh");
     expect(fresh.container.textContent).not.toMatch(PACK_QUESTION);
     await act(async () => {
@@ -98,7 +98,7 @@ describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials
     cleanup();
     const fresh = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await fresh.findByTestId("first-run-found");
-    fireEvent.click(fresh.getByRole("button", { name: "Add a fresh account instead" }));
+    fireEvent.click(fresh.getByRole("button", { name: "Add a fresh app instead" }));
     await act(async () => {
       fireEvent.click(await fresh.findByTestId("first-run-fresh-create"));
     });

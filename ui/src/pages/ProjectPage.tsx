@@ -27,6 +27,7 @@ import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, t
 import { PagedSessions, useSessionRows } from "./SessionsList";
 import { sessionsQuery } from "../lib/ipc/sessions";
 import { launchSettingsName } from "../lib/account-words";
+import { cliAppName } from "../lib/app-name";
 import { openByProject } from "../lib/project-summary";
 
 export type ProjectPanelProps = {
@@ -223,12 +224,12 @@ export function ProjectOverview(props: ProjectPanelProps) {
     });
   const sharedBy = Math.max(0, ...[...checkouts.values()].map((entry) => entry.live.length));
   const accountsCard = (
-    <Section title="Accounts" icon={<IconUser />} sub="who starts work here" testId="project-accounts">
+    <Section title="Apps" icon={<IconUser />} sub="who starts work here" testId="project-accounts">
       <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
       {/* Ranked only by what's known (P21): no headroom read yet, no claim. */}
       {ranked.length > 0 && (
         <p className="text-meta text-ink-2">
-          {ranked.some((entry) => Number.isFinite(entry.left)) ? "Or start one on another account, most room first" : "Or start one on another account"}
+          {ranked.some((entry) => Number.isFinite(entry.left)) ? "Or start one in another app, most room first" : "Or start one in another app"}
         </p>
       )}
       <ul className="flex flex-col gap-1.5">
@@ -245,8 +246,8 @@ export function ProjectOverview(props: ProjectPanelProps) {
               >
                 <AccountAvatar accountId={recipe.account_id} label={recipe.account_label} size={20} />
                 <span className="min-w-0 flex-1 truncate font-medium">
-                  {recipe.account_label}
-                  {/* An account with several launch settings: say which. */}
+                  {cliAppName(recipe.provider, recipe.account_label)}
+                  {/* An app with several launch settings: say which. */}
                   {ranked.filter((other) => other.recipe.account_id === recipe.account_id).length > 1 && <span className="font-normal text-muted"> · {launchSettingsName(recipe.name)}</span>}
                 </span>
                 {usual && <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-label font-semibold text-accent-hi">Usual</span>}
@@ -256,7 +257,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
           );
         })}
       </ul>
-      {ranked.length === 0 && <p className="text-meta text-ink-2">No launch settings yet: add an account first.</p>}
+      {ranked.length === 0 && <p className="text-meta text-ink-2">No launch settings yet: add an app first.</p>}
     </Section>
   );
   const checkoutsCard =

@@ -1,7 +1,7 @@
 /**
  * AJ-E2105 — Home's Needs you card: the first thing that waits on the
  * user, large (its title, where it is, and its primary: "Open its page ↵"
- * for a session, with "Continue on another account…" beside it), then the
+ * for a session, with "Continue in another app…" beside it), then the
  * rest, one line each with its own primary. A session another app runs
  * has its ↗ too, the way to its app (⌘↩ on it; the maintainer's review of
  * 0.1.4), and its menu on a right-click or ⇧F10. Every kind of item sits here
@@ -56,7 +56,7 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
       case "failed":
         if (conversation) {
           markSeen(conversation.account_id, conversation.id);
-          // Its page here ("Continue on another account…" lives there,
+          // Its page here ("Continue in another app…" lives there,
           // AJ-E2108); its ↗ goes to its app.
           host.openConversation?.(conversation);
         } else if (session) {
@@ -120,7 +120,7 @@ function SessionBox({ item, tag: Tag, className, data, children }: BoxProps & { 
 
 /** Its second choice, when it has one. */
 function secondWords(need: HomeNeed): string | null {
-  if (need.kind === "session" && need.item?.need === "asks") return "Continue on another account…";
+  if (need.kind === "session" && need.item?.need === "asks") return "Continue in another app…";
   if (need.kind === "limit") return "Wait";
   return null;
 }

@@ -26,16 +26,19 @@ import { chartSeries, shareItems, useUsageHistory, type Scope } from "./useUsage
 export type DashboardKind = "all" | "project" | "profile";
 type Split = GroupBy | "account";
 
+/** A split in a sentence ("split by app"): D-62, a profile row is an App. */
+const splitWord = (split: Split): string => (split === "profile" ? "app" : split);
+
 const SPLITS: Record<DashboardKind, { id: Split; label: string }[]> = {
   all: [
     { id: "account", label: "Account" },
-    { id: "profile", label: "Profile" },
+    { id: "profile", label: "App" },
     { id: "tool", label: "Tool" },
     { id: "model", label: "Model" },
     { id: "project", label: "Project" },
   ],
   project: [
-    { id: "profile", label: "Profile" },
+    { id: "profile", label: "App" },
     { id: "account", label: "Account" },
     { id: "tool", label: "Tool" },
     { id: "model", label: "Model" },
@@ -196,17 +199,17 @@ export function UsageDashboard({
               series={series}
               unit={unit}
               height={280}
-              label={`${metric === "usd" ? "Estimated cost" : "Tokens"} ${perWords(view.cut.step)}, split by ${split}`}
+              label={`${metric === "usd" ? "Estimated cost" : "Tokens"} ${perWords(view.cut.step)}, split by ${splitWord(split)}`}
               bucketWords={words}
               tickWords={tickWords(view.cut.step)}
               shade={weekend(view.cut.step)}
-              markers={(data?.switches ?? []).map((move) => ({ at: move.at_ms, label: "Work moved to another account" }))}
+              markers={(data?.switches ?? []).map((move) => ({ at: move.at_ms, label: "Work moved to another app" }))}
             />
           </ChartBody>
         </Section>
         <Section title={whoBy === "project" ? "By project" : whoBy === "account" ? "By account" : "Who did the work"} icon={<IconDonut />} busy={busy} testId="usage-by-who">
           <ChartBody empty={data === null || empty} emptyWords={emptyWords} height={176} table={{ columns: [], rows: [] }} showTable={false} caption="">
-            <Donut items={whoItems} unit="tokens" label={`Tokens by ${whoBy}`} centre={{ value: short(io ?? 0, "tokens"), words: "tokens" }} onPick={whoBy === "account" ? undefined : openWho} />
+            <Donut items={whoItems} unit="tokens" label={`Tokens by ${splitWord(whoBy)}`} centre={{ value: short(io ?? 0, "tokens"), words: "tokens" }} onPick={whoBy === "account" ? undefined : openWho} />
           </ChartBody>
         </Section>
         {runway}

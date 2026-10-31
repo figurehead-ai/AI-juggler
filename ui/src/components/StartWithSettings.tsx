@@ -106,7 +106,7 @@ export function StartWithSettings({
             size="sm"
             value={source}
             onChange={setChosen}
-            ariaLabel="Account to copy the settings from"
+            ariaLabel="App to copy the settings from"
             options={sources.map((account) => ({ value: account.id, label: account.label }))}
           />
         ) : (

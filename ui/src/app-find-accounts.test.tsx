@@ -37,10 +37,10 @@ afterEach(() => {
   delete (window as unknown as Record<string, unknown>).__AIJ_PROVIDER_INSTALLS__;
 });
 
-it("Find my accounts on an empty Home reopens first run, not one tool's Add account", async () => {
+it("Find my apps on an empty Home reopens first run, not one tool's Add account", async () => {
   const user = userEvent.setup();
   const view = render(<App />);
-  const find = await view.findByRole("button", { name: "Find my accounts" });
+  const find = await view.findByRole("button", { name: "Find my apps" });
   await user.click(find);
   const frame = await view.findByTestId("first-run");
   expect(frame.getAttribute("data-mode")).toBe("first-run");

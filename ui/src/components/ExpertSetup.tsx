@@ -155,9 +155,9 @@ export function ExpertSetup({
           )}
           {accounts.length > 1 && (
             <div className="flex items-center gap-2 text-muted">
-              <span aria-hidden="true">Account</span>
+              <span aria-hidden="true">App</span>
               <Picker
-                ariaLabel="Account"
+                ariaLabel="App"
                 size="sm"
                 value={accountId ?? ""}
                 onChange={(next) => setAccountId(next)}
@@ -225,8 +225,8 @@ export function ExpertSetup({
                   </>
                 ) : (
                   <p className="leading-relaxed text-ink-2" data-testid="expert-snippet-pending">
-                    The shell line appears once the account exists — it points the vendor's CLI at
-                    that account's own folder.
+                    The shell line appears once the app exists — it points the vendor's CLI at
+                    that app's own folder.
                   </p>
                 )}
               </div>
@@ -260,13 +260,13 @@ export function ExpertSetup({
                   </>
                 ) : accountId !== null ? (
                   <p className="leading-relaxed text-ink-2" data-testid="expert-env-pending">
-                    This account has no Launch settings yet — add some in Accounts and their
+                    This app has no Launch settings yet — add some in Accounts and their
                     overrides edit here.
                   </p>
                 ) : (
                   <p className="leading-relaxed text-ink-2" data-testid="expert-env-pending">
-                    Overrides belong to an account's Launch settings — edit them here once the
-                    account exists, or anytime in Accounts.
+                    Overrides belong to an app's Launch settings — edit them here once the
+                    app exists, or anytime in Accounts.
                   </p>
                 )}
                 {onManageLaunchSettings && (

@@ -238,7 +238,7 @@ export function NewProjectSheet({
           {directory !== null && (
             <>
               <p className="mt-5 text-section font-semibold text-ink">
-                Step 2 — which account?
+                Step 2 — which app?
               </p>
               <div className="mt-2 flex flex-col gap-1.5" data-testid="project-account">
                 {recipes === null && <p className="py-3 text-xs text-ink-2">Loading…</p>}
@@ -248,11 +248,11 @@ export function NewProjectSheet({
                     data-testid="no-account-detour"
                   >
                     <p className="text-xs text-ink-2">
-                      No account set up yet — add one and your project launch picks up right
+                      No app set up yet — add one and your project launch picks up right
                       where it left off.
                     </p>
                     <Button size="sm" variant="primary" onClick={() => setDetour(true)}>
-                      Add an account
+                      Add an app
                     </Button>
                   </div>
                 )}
@@ -291,7 +291,7 @@ export function NewProjectSheet({
                     </div>
                     {!signedIn(loginByAccount.get(recommended.account_id)) && (
                       <p className="text-label text-muted">
-                        This account needs sign-in — pick another or sign in first.
+                        This app needs sign-in — pick another or sign in first.
                       </p>
                     )}
                   </>

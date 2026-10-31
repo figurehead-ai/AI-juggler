@@ -5,6 +5,7 @@ import { Field, Input, Modal } from "../components/form";
 import { IconProfiles } from "../components/icons";
 import { LoginQueueCard } from "../components/LoginQueueCard";
 import { launchTitle } from "../lib/account-words";
+import { cliAppName } from "../lib/app-name";
 import { useConversations } from "../lib/conversations";
 import { BetaMatrix } from "../components/BetaMatrix";
 import { newWorkAdvice } from "../components/AccountRunway";
@@ -168,9 +169,9 @@ export function ProfilesScreen({
         <div className="flex flex-col gap-1">
           <h2 className="text-title text-ink">Accounts</h2>
           <p className="max-w-[70ch] text-meta text-ink-2" data-testid="accounts-definition">
-            An <strong className="font-semibold text-ink">account</strong> is a subscription you pay for. A{" "}
-            <strong className="font-semibold text-ink">profile</strong> is a setup an app runs on: a Claude app profile or a Claude Code folder.
-            One account can have several profiles.
+            An <strong className="font-semibold text-ink">account</strong> is a subscription you pay for. An{" "}
+            <strong className="font-semibold text-ink">app</strong> is one app in one profile, like Claude app · b-work or Claude Code · Work;
+            one account can have several apps.
           </p>
           {newWorkAdvice(accounts, displays, sessions).words && (
             <p className="text-meta text-ink" data-testid="accounts-summary">
@@ -181,7 +182,7 @@ export function ProfilesScreen({
         <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
           <Button variant="primary" size="sm" onClick={onAddAccounts} data-testid="add-account">
             <IconProfiles width={14} height={14} />
-            Add an account
+            Add an app
           </Button>
         </div>
       </header>
@@ -226,7 +227,7 @@ export function ProfilesScreen({
       {/* D-25: the pack-secrets policy lives in Settings; the matrix of
           proven switches is one click away, not on every visit. */}
       <p className="text-xs text-ink-2">
-        What happens to keys and passwords in a conversation you carry to another account is in{" "}
+        What happens to keys and passwords in a conversation you carry to another app is in{" "}
         <button
           type="button"
           data-testid="accounts-pack-settings"
@@ -239,7 +240,7 @@ export function ProfilesScreen({
       </p>
       <details className="group" data-testid="accounts-beta-matrix">
         <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-          Which switches between accounts are proven
+          Which switches between apps are proven
         </summary>
         <div className="mt-3">
           <BetaMatrix />
@@ -286,11 +287,11 @@ function EmptyAccounts({ onAdd }: { onAdd: () => void }) {
         <IconProfiles width={22} height={22} />
       </span>
       <p className="max-w-sm text-center text-sm text-ink-2">
-        No accounts yet. Add your first one: AI Juggler keeps each account's sign-in in its
+        No apps yet. Add your first one: AI Juggler keeps each app's sign-in in its
         own folder, apart from anything you already use.
       </p>
       <Button variant="primary" size="sm" onClick={onAdd} data-testid="finish-setup">
-        {dismissed ? "Finish setting up AI Juggler" : "Add account"}
+        {dismissed ? "Finish setting up AI Juggler" : "Add app"}
       </Button>
     </Card>
   );
@@ -329,15 +330,15 @@ function NewProfileModal({
 
   return (
     <Modal
-      title={`Launch settings · ${account.label}`}
-      subtitle="Launch settings applied when this account starts (model, environment)."
+      title={`Launch settings · ${cliAppName(account.provider, account.label)}`}
+      subtitle="Launch settings applied when this app starts (model, environment)."
       onClose={onClose}
     >
       <div className="flex flex-col gap-4">
         <Field label="Name">
           <Input autoFocus value={name} placeholder="Deep work" onChange={(event) => setName(event.target.value)} />
         </Field>
-        <Field label="Model (optional)" hint="Written to the account's managed settings">
+        <Field label="Model (optional)" hint="Written to the app's managed settings">
           <Input value={model} placeholder="opus" onChange={(event) => setModel(event.target.value)} />
         </Field>
         <Field label="Default folder (optional)">
@@ -385,7 +386,7 @@ function LoginModal({
 }) {
   return (
     <Modal
-      title={`Log in · ${account.label}`}
+      title={`Log in · ${cliAppName(account.provider, account.label)}`}
       subtitle={`${ownSignIn(account.provider)}, opened for you — AI Juggler never sees your credentials.`}
       onClose={onClose}
     >
@@ -397,7 +398,7 @@ function LoginModal({
         providerName={providerDisplayName(account.provider)}
         initialState={account.login_state}
         onSpawned={(terminalId) => {
-          openTerminal(terminalId, `Sign in · ${account.label}`);
+          openTerminal(terminalId, `Sign in · ${cliAppName(account.provider, account.label)}`);
           onClose();
         }}
         onDone={onClose}

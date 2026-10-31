@@ -65,7 +65,7 @@ for (const theme of ["dark", "light"] as const) {
     const sheet = page.getByTestId("cap-sheet");
     await sheet.getByTestId("cap-name").fill("Acme");
     await sheet.getByTestId("cap-amount").fill("300");
-    await sheet.getByLabel("A group of projects, on any account").check();
+    await sheet.getByLabel("A group of projects, in any app").check();
     await sheet.getByTestId("cap-projects").getByRole("checkbox").first().check();
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `cap-sheet-1280x800-${theme}.png`) });

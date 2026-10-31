@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { IconTerminal } from "./icons";
 import { errorText } from "../lib/bridge";
+import { appName } from "../lib/app-name";
 import { fleetLaunchOptions, fleetLaunchStart, type LaunchMachineInfo } from "../lib/ipc/fleet-launch";
 
 export interface Where {
@@ -123,14 +124,13 @@ export function RemoteSessionSheet({ where, onClose }: { where: Where; onClose: 
                   <span className="text-label text-muted">where it starts by default</span>
                 </button>
               </div>
-              <p className="mt-5 text-section font-semibold text-ink">Which account?</p>
+              <p className="mt-5 text-section font-semibold text-ink">Which app?</p>
               <div className="mt-2 flex flex-col gap-1.5" data-testid="remote-recipes">
                 {machine.recipes.map((r) => (
                   <button key={r.id} type="button" aria-pressed={recipe === r.id} onClick={() => setRecipe(r.id)} className={choice(recipe === r.id)}>
-                    <span className="font-medium">{r.account}</span>
-                    <span className="text-label text-muted">
-                      {r.tool} · Launch settings: {r.name}
-                    </span>
+                    {/* D-62: the row is an App, its tool on its folder; `tool` comes as its display name. */}
+                    <span className="font-medium">{appName(r.tool, r.account)}</span>
+                    <span className="text-label text-muted">Launch settings: {r.name}</span>
                   </button>
                 ))}
               </div>

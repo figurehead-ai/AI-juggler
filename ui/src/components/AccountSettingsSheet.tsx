@@ -83,7 +83,7 @@ export function AccountSettingsSheet({
     <Modal title={`Copy settings into ${account.label}`} onClose={() => onClose(copied)} wide testId="account-settings">
       <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1 text-sm">
         {sources !== null && sources.length === 0 && (
-          <p className="text-ink-2">There's no other account of this tool to copy from.</p>
+          <p className="text-ink-2">There's no other app of this tool to copy from.</p>
         )}
         {sources !== null && sources.length > 0 && !results && (
           <>
@@ -94,7 +94,7 @@ export function AccountSettingsSheet({
                   size="sm"
                   value={source ?? ""}
                   onChange={(value) => setChosen(value)}
-                  ariaLabel="Account to copy the settings from"
+                  ariaLabel="App to copy the settings from"
                   options={sources.map((row) => ({ value: row.id, label: row.label }))}
                 />
               ) : (

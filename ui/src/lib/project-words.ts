@@ -20,7 +20,7 @@ export function projectStats(project: ProjectInfo, now: number): string[] {
   const conversations = project.history_sessions + project.instance_count;
   if (conversations > 0) parts.push(conversations === 1 ? "1 conversation" : `${conversations} conversations`);
   const accounts = project.accounts_used.length;
-  if (accounts > 1) parts.push(`${accounts} accounts`);
+  if (accounts > 1) parts.push(`${accounts} apps`);
   else if (accounts === 1) parts.push(project.accounts_used[0]!);
   return parts;
 }

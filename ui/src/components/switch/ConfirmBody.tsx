@@ -100,7 +100,7 @@ export function ConfirmBody({
           <li data-testid="switch-summary-needs">
             {needs === 0
               ? setup && offers === 0
-                ? `${target} has everything this account has set up.${tight ? "" : " Nothing needs you."}`
+                ? `${target} has everything this app has set up.${tight ? "" : " Nothing needs you."}`
                 : tight
                   ? "Nothing else needs you."
                   : "Nothing needs you."
@@ -154,7 +154,7 @@ export function ConfirmBody({
           {(preflight.carry_items?.length ?? 0) > 0 && <CarryList items={preflight.carry_items} target={target} tool={tool} setup={setup} picked={picked} />}
           {setup && setup.already_there > 0 && (
             <p className="text-body text-ink">
-              {target} already has {setup.already_there} of the {setup.already_there + offers} things this account has set up
+              {target} already has {setup.already_there} of the {setup.already_there + offers} things this app has set up
               {offers > 0 ? `; the other ${offers} are listed under Before you switch.` : "."}
             </p>
           )}

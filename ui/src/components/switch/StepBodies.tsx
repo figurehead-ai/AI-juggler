@@ -59,7 +59,7 @@ export function OtherStep({ step }: { step: "Conflicts" | "Rules & diff" }): JSX
     <div className="flex flex-col gap-2" data-testid="switch-step-rules">
       <h3 className="text-title text-ink">Rules and changes differ</h3>
       <p className="text-body text-ink">
-        The project's rules or its uncommitted changes differ between the two accounts. A copy of the changes goes along, and the difference is recorded.
+        The project's rules or its uncommitted changes differ between the two apps. A copy of the changes goes along, and the difference is recorded.
       </p>
     </div>
   );

@@ -89,13 +89,13 @@ describe("AJ-E2109 the Accounts screen", () => {
     // The team is the second line, never the title (the 0.2 walk, F3).
     expect(cards[0]!.querySelector("[data-testid='account-line']")?.textContent).toBe("Acme · o…@work.com · Team");
     expect(within(cards[0]!).getAllByTestId("account-label").map((n) => n.textContent)).toEqual(["Work", "Work 2", "Client"]);
-    expect(within(cards[0]!).getByTestId("account-profiles-count").textContent).toBe("3 profiles share this account");
+    expect(within(cards[0]!).getByTestId("account-profiles-count").textContent).toBe("3 apps share this account");
     // One runway per account, none for profiles that aren't signed in.
     expect(within(cards[0]!).getAllByTestId("account-runway")).toHaveLength(1);
     expect(within(cards[2]!).queryByTestId("account-runway")).toBeNull();
     expect(within(cards[2]!).getByTestId("profile-signed-out").textContent).toBe("Not signed in");
     expect(within(cards[1]!).getAllByTestId("profile-folder").map((n) => n.textContent)).toEqual(["~/p/p1", "~/p/p2"]);
-    expect(screen.getByTestId("accounts-definition").textContent).toContain("One account can have several profiles.");
+    expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can have several apps.");
   });
 
   it("one profile: one account; nothing measured says so and still shows its usage", async () => {

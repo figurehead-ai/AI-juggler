@@ -112,7 +112,7 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
             <Donut items={models} unit="tokens" label="Tokens by model" centre={{ value: String(models.length), words: models.length === 1 ? "model" : "models" }} />
           </ChartBody>
         </Section>
-        <Section title="Its share of the limits" icon={<IconGauge />} sub={`of ${profileLabel ?? "its profile"}'s use`} className="@min-[900px]:col-span-2" busy={busy} testId="session-usage-share">
+        <Section title="Its share of the limits" icon={<IconGauge />} sub={`of ${profileLabel ?? "its app"}'s use`} className="@min-[900px]:col-span-2" busy={busy} testId="session-usage-share">
           {(detail?.windows ?? []).length === 0 ? (
             <p className="text-meta text-ink-2">{detail === null ? "Reading…" : "Nothing measured in its windows."}</p>
           ) : (

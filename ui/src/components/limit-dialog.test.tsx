@@ -141,7 +141,7 @@ describe("D-25 limit decision — the dialog", () => {
     w().__AIJ_SWITCH_TARGETS__ = [];
     const onParked = vi.fn();
     const { findByTestId, getByTestId } = renderIt({ onParked });
-    expect((await findByTestId("limit-no-target")).textContent).toContain("No other account can take this session");
+    expect((await findByTestId("limit-no-target")).textContent).toContain("No other app can take this session");
     await act(async () => {
       fireEvent.click(within(getByTestId("limit-wait")).getByRole("button", { name: /^Park until/ }));
     });

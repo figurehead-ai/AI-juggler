@@ -53,7 +53,7 @@ function SeeAll({ count, noun, onOpen }: { count: number; noun: string; onOpen: 
 const TH = "sticky top-0 bg-surface px-2.5 pb-2 text-meta font-semibold text-muted";
 
 function profileParts(share: UsageShareInfo, labels: Map<string, string>) {
-  return share.profiles.map((part) => ({ key: part.profile, label: labels.get(part.profile) ?? "A profile", value: part.io, color: accountColor(part.profile) }));
+  return share.profiles.map((part) => ({ key: part.profile, label: labels.get(part.profile) ?? "An app", value: part.io, color: accountColor(part.profile) }));
 }
 
 export function TopProjects({ data, busy, className = "" }: { data: UsageHistoryInfo | null; busy: boolean; className?: string }): JSX.Element {
@@ -73,7 +73,7 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
           <span className="text-body font-semibold text-muted">{share.label}</span>
         )}
         <span className="block truncate text-meta text-muted">
-          {share.sessions} {share.sessions === 1 ? "session" : "sessions"} · {share.profiles.map((part) => labels.get(part.profile) ?? "A profile").join(", ")}
+          {share.sessions} {share.sessions === 1 ? "session" : "sessions"} · {share.profiles.map((part) => labels.get(part.profile) ?? "An app").join(", ")}
         </span>
       </td>
       <td className="px-2.5 py-2 text-right text-body tabular-nums" title={exact(share.io, "tokens")}>
@@ -131,7 +131,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
   const conversation = row.session_id ? null : all.find((entry) => entry.account_id === row.profile && entry.id === row.id);
   const open = row.session_id ? () => host.openSessionById?.(row.session_id!) : conversation ? () => host.openConversation?.(conversation) : null;
   const name = sessionName(row, projects);
-  const profile = labels.get(row.profile) ?? "A profile";
+  const profile = labels.get(row.profile) ?? "An app";
   const where = [row.project_id ? projects.get(row.project_id) : null, whenWords(row.last_ms)].filter(Boolean).join(" · ");
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_5rem_4.5rem] items-center gap-3 px-2.5 py-2 hover:bg-surface-2" data-testid="top-session">
@@ -153,7 +153,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
       <span className="flex min-w-0 items-center gap-2 text-meta text-ink">
         <AccountAvatar accountId={row.profile} label={profile} size={20} />
         <span className="truncate">
-          <span className="sr-only">on </span>
+          <span className="sr-only">in </span>
           {profile}
         </span>
       </span>
@@ -173,7 +173,7 @@ function Header(): JSX.Element {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_5rem_4.5rem] gap-3 border-b border-hairline px-2.5 pb-2 text-meta font-semibold text-muted" aria-hidden="true">
       <span>Session</span>
-      <span>Ran on</span>
+      <span>Ran in</span>
       <span className="text-right">Tokens</span>
       <span className="text-right">Cost</span>
     </div>

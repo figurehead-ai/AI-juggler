@@ -1,5 +1,6 @@
 /**
- * An account's page (AJ-E1533): its Overview — its limits and usage
+ * An App's page (AJ-E1533; D-62: the `account` page kind is one config
+ * folder, one CLI App, until an App page of its own lands): its Overview — its limits and usage
  * first (0.1.5), what runs on it now and where it works, then its
  * settings (renewal, fee, cleanup and preview opt-ins) — and its Sessions. Moved from RightInspector (the size budget);
  * the cleanup toggles serve Settings too.
@@ -54,7 +55,7 @@ export function AccountOverview(props: AccountPanelProps) {
         <p className="text-[13px] font-medium text-ink">{account.label} is signed out</p>
         <p className="max-w-xs text-meta leading-relaxed text-ink-2">
           Sign in from the Accounts screen to see quota, usage and launch controls again. Nothing is
-          deleted — the isolated account state is kept.
+          deleted — this app's own folder is kept.
         </p>
         <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))}>
           Open Accounts to sign in
@@ -72,7 +73,7 @@ export function AccountOverview(props: AccountPanelProps) {
         {/* AJ-E1529: AI Juggler's and those started outside it — the same
             rows as the account's Sessions and a project's (AJ-E1533). */}
         <AccountRunning {...props} />
-        <Section title="Usual projects" icon={<IconFolder />} sub="where this profile works" testId="account-affinity">
+        <Section title="Usual projects" icon={<IconFolder />} sub="where this app works" testId="account-affinity">
           {usualProjects.length === 0 ? (
             <p className="text-meta text-ink-2">No project affinity yet.</p>
           ) : (
@@ -116,7 +117,7 @@ function AccountRunning(props: AccountPanelProps) {
         listKey={`account-open:${props.account.id}`}
         query={sessionsQuery({ account_id: props.account.id, which: "open" })}
         local={() => rows}
-        empty="Nothing running on this profile now."
+        empty="Nothing running in this app now."
         onOpenSession={props.onOpenSession}
         onTotal={setOpen}
         counted
@@ -134,7 +135,7 @@ export function AccountSessions(props: AccountPanelProps) {
       listKey={`account-sessions:${props.account.id}`}
       query={sessionsQuery({ account_id: props.account.id })}
       local={() => rows}
-      empty="No sessions on this account yet."
+      empty="No sessions in this app yet."
       onOpenSession={props.onOpenSession}
     />
   );

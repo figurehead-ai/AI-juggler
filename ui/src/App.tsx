@@ -1,4 +1,5 @@
 import { AppActions } from "./components/AppActions";
+import { cliAppName } from "./lib/app-name";
 import { AppHeader } from "./components/AppHeader";
 import { NoticeOpeners } from "./components/NoticeOpeners";
 import { OfflineBanner } from "./components/OfflineBanner";
@@ -582,7 +583,7 @@ export default function App() {
         : selection.kind === "provider"
         ? providerDisplayName(selection.id)
         : selection.kind === "account"
-        ? (selectedAccount?.label ?? "Account")
+        ? (selectedAccount?.label ?? "App")
         : selectedSession
           ? // D-25: the session's project (the view below names its place).
             (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
@@ -694,7 +695,7 @@ export default function App() {
                   setGlobal(null);
                   setSelection({ kind: "conversation", accountId, id, projectId: null });
                 }}
-                accounts={accounts.map((account) => ({ id: account.id, label: account.label }))}
+                accounts={accounts.map((account) => ({ id: account.id, label: cliAppName(account.provider, account.label) }))}
                 projects={projects.map((project) => ({ id: project.id, label: project.name }))}
               />
             </ScrollingScreen>

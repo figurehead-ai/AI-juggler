@@ -45,7 +45,7 @@ export function StorageRetentionCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-storage">
       <CardTitle>Storage &amp; retention</CardTitle>
       <p className="text-label text-muted">
-        What AI Juggler keeps for each account. Retention only ever removes AI Juggler's own records, and only after you
+        What AI Juggler keeps for each app. Retention only ever removes AI Juggler's own records, and only after you
         review the list. The tools' own transcripts are theirs and stay where they are.
       </p>
       {error && (
@@ -53,7 +53,7 @@ export function StorageRetentionCard(): JSX.Element {
           {error}
         </p>
       )}
-      {rows?.length === 0 && <p className="text-label text-muted">No Accounts yet.</p>}
+      {rows?.length === 0 && <p className="text-label text-muted">No apps yet.</p>}
       <ul className="flex flex-col gap-2">
         {rows?.map((row) => (
           <li

@@ -71,7 +71,7 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
           const display = sub ? accountDisplay(sub, displays) : displays.find((entry) => entry.account === group.profiles[0]);
           const measuredProfile = display && runwayOf(display).left !== null ? display.account : null;
           const first = accounts.find((account) => account.id === group.profiles[0]);
-          const names = group.profiles.map((id) => labels.get(id) ?? "A profile");
+          const names = group.profiles.map((id) => labels.get(id) ?? "An app");
           return (
             <li key={group.key} className="@container sheen flex min-w-0 flex-col gap-3.5 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-account">
               <div className="flex items-center gap-3">
@@ -91,7 +91,7 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
               {/* AJ-E1512: each window's sessions left and its burn-down. */}
               <BurnDowns display={display} />
               {group.profiles.length > 0 && (
-                <ul className="flex flex-wrap gap-1.5" aria-label={`Profiles on ${group.label}`}>
+                <ul className="flex flex-wrap gap-1.5" aria-label={`Apps on ${group.label}`}>
                   {names.map((name, index) => (
                     <li key={group.profiles[index]} className="rounded-md border border-hairline bg-surface-2 px-2 py-0.5 text-label text-ink">
                       {name}

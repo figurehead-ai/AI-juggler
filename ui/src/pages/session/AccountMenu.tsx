@@ -1,9 +1,10 @@
 /**
- * 0.3 polish — a session header's one Account chip (the review: the
- * header said its profile twice and its place three times): its profile's
- * badge and name, ▾. It opens a menu that says which account and profile
- * the session uses and in which folder, with the door to the profile's
- * page (the chip it replaced opened nothing; the rail's profile header
+ * 0.3 polish — a session header's one App chip (the review: the header
+ * said its profile twice and its place three times): its profile's badge
+ * and its App's name (D-62: "Claude Code · Work Max", "Claude app ·
+ * b-work"), ▾. It opens a menu that says which App, which account (the
+ * subscription behind it) and which working folder, with the door to the
+ * App's page (the chip it replaced opened nothing; the rail's App header
  * and Accounts lead to the same page).
  */
 import { useRef, useState, type JSX } from "react";
@@ -17,7 +18,7 @@ import { useActionHost } from "../../components/ItemMenu";
 import { profileColor } from "../../lib/profile-marks";
 import { shortPath } from "../../screens/AccountManage";
 import { accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
-import type { SessionModel } from "./model";
+import { sessionAppName, type SessionModel } from "./model";
 
 /** The profile's name as the rail's badge reads it (its place's, else
  * its folder's): one colour and monogram everywhere. */
@@ -50,6 +51,7 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
   const button = useRef<HTMLButtonElement | null>(null);
   const badge = profileName(model);
   const words = accountWordsOf(account);
+  const app = sessionAppName(model);
   const open = () => {
     const rect = button.current?.getBoundingClientRect();
     if (rect) setAt({ x: rect.left, y: rect.bottom + 6, above: rect.top - 6, right: rect.right });
@@ -62,33 +64,32 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
         type="button"
         aria-haspopup="menu"
         aria-expanded={at !== null}
-        aria-label={`Account: ${model.profileLabel}`}
-        title={words ? `Account: ${words}` : `Profile: ${model.profileLabel}`}
+        aria-label={`App: ${app}`}
+        title={words ? `${app}\nAccount: ${words}` : app}
         onClick={() => (at ? setAt(null) : open())}
         className="inline-flex min-w-0 max-w-full shrink items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-meta font-medium leading-5 text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
         style={{ borderColor: profileColor(badge) }}
         data-testid="session-account-menu"
       >
         <ProfileBadge name={badge} size={16} />
-        <span className="truncate">{model.profileLabel}</span>
+        <span className="truncate">{app}</span>
         <IconChevronDown width={12} height={12} aria-hidden="true" className="shrink-0 text-muted" />
       </button>
       {at && (
-        <RowMenu heading="Account" ariaLabel={`Account: ${model.profileLabel}`} at={at} onClose={() => setAt(null)} wide testId="session-account-panel">
-          {/* The account: its name, then its sign-in and plan; on the
-              menu's one text column (the profile's badge is the chip's). */}
+        <RowMenu heading="App" ariaLabel={`App: ${app}`} at={at} onClose={() => setAt(null)} wide testId="session-account-panel">
+          {/* The App: its name (its profile is inside it), on the menu's
+              one text column (the profile's badge is the chip's). */}
           <span className="flex min-w-0 flex-col px-2 py-1">
-            <span className="truncate text-meta font-semibold text-ink">{account && words ? accountName(account) : model.profileLabel}</span>
-            {account && words && accountLine(account) && <span className="truncate text-label text-muted">{accountLine(account)}</span>}
+            <span className="truncate text-meta font-semibold text-ink" data-testid="session-account-profile">{app}</span>
           </span>
-          {/* Its profile, when the account's name doesn't already say it. */}
-          {(!account || !words || accountName(account) !== model.profileLabel) && <Fact label="Profile" value={model.profileLabel} testId="session-account-profile" />}
-          {model.cwd && <Fact label="Folder" value={shortPath(model.cwd)} mono testId="session-account-folder" />}
+          {/* Its account: the subscription behind it, once signed in. */}
+          {account && words && <Fact label="Account" value={words} testId="session-account-account" />}
+          {model.cwd && <Fact label="Working folder" value={shortPath(model.cwd)} mono testId="session-account-folder" />}
           {openPage && (
             <>
               <MenuSeparator />
               <MenuItem onClick={() => (setAt(null), openPage())} testId="session-account-open">
-                <ChoiceLine icon={IconProfiles} label={`Open ${model.profileLabel}'s page`} />
+                <ChoiceLine icon={IconProfiles} label={`Open ${app}'s page`} />
               </MenuItem>
             </>
           )}

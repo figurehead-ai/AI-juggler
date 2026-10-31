@@ -122,10 +122,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("add-account").click();
     // AJ-E1601: a found tool with a service it runs through: Add account
     // asks which tool first.
-    const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+    const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
     await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
-    const dialog = page.getByRole("dialog", { name: "Add accounts" });
-    await expect(dialog.getByTestId("first-run-bring-in")).toHaveText("Bring in 2 accounts");
+    const dialog = page.getByRole("dialog", { name: "Add apps" });
+    await expect(dialog.getByTestId("first-run-bring-in")).toHaveText("Bring in 2 apps");
     await page.screenshot({ path: resolve(OUT, `add-accounts-1280x800-${theme}.png`) });
     await axeClean(page, "add accounts");
     await page.keyboard.press("Escape");
@@ -170,7 +170,7 @@ for (const theme of ["dark", "light"] as const) {
     const found = page.getByTestId("first-run-found");
     await expect(found.getByTestId("first-run-group-codex")).toBeVisible();
     await expect(found.getByTestId("first-run-no-codex")).toBeVisible();
-    await expect(found.getByTestId("first-run-bring-in")).toHaveText("Bring in 3 accounts");
+    await expect(found.getByTestId("first-run-bring-in")).toHaveText("Bring in 3 apps");
     await page.screenshot({ path: resolve(OUT, `first-run-codex-1280x800-${theme}.png`) });
     await axeClean(page, "first run with Codex");
   });

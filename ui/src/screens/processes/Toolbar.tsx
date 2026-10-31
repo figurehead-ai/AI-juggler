@@ -150,8 +150,8 @@ export function FiltersButton({ filters, onChange, apps, accounts, projects }: {
           <Check on={filters.showInternal} label="Show AI Juggler's own" onChange={(showInternal) => onChange({ ...filters, showInternal })} testId="filter-internal" />
           <Check on={filters.others} label="Include other apps" onChange={(others) => onChange({ ...filters, others })} testId="filter-others" />
           <p className="px-2 pb-1 pl-9 text-label text-muted">The rest of this computer, in Everything running: names and memory only.</p>
-          <Pick label="App" value={filters.app} choices={apps} onChange={(app) => onChange({ ...filters, app })} testId="filter-app" />
-          <Pick label="Profile" value={filters.account} choices={accounts} onChange={(account) => onChange({ ...filters, account })} testId="filter-account" />
+          <Pick label="Runs in" value={filters.app} choices={apps} onChange={(app) => onChange({ ...filters, app })} testId="filter-app" />
+          <Pick label="App" value={filters.account} choices={accounts} onChange={(account) => onChange({ ...filters, account })} testId="filter-account" />
           <Pick label="Project" value={filters.project} choices={projects} onChange={(project) => onChange({ ...filters, project })} testId="filter-project" />
           {count > 0 && (
             <Button variant="ghost" size="sm" className="mt-1 self-start" onClick={() => onChange(NO_FILTERS)}>

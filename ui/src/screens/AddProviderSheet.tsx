@@ -102,7 +102,7 @@ export function AddProviderSheet({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 outline-none backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Add an account: which tool?"
+      aria-label="Add an app: which tool?"
       ref={frameRef}
       tabIndex={-1}
     >
@@ -111,7 +111,7 @@ export function AddProviderSheet({
           <span className="text-accent">
             <IconJuggler width={16} height={16} />
           </span>
-          <h3 className="text-sm font-semibold">Add an account</h3>
+          <h3 className="text-sm font-semibold">Add an app</h3>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5" data-testid="provider-cards">

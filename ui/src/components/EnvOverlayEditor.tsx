@@ -30,7 +30,7 @@ const CREDENTIAL_SEGMENTS = new Set([
 export function envRowProblem(key: string, value: string, protectedKeys: string[]): string | null {
   if (key.length === 0) return value.length > 0 ? "Name the variable" : null;
   if (!/^[A-Z_][A-Z0-9_]{0,63}$/.test(key)) return "Use capitals, digits and _ (e.g. MY_FLAG)";
-  if (protectedKeys.includes(key)) return "Managed by AI Juggler — it keeps this account isolated";
+  if (protectedKeys.includes(key)) return "Managed by AI Juggler — it keeps this app isolated";
   if (key.split("_").some((segment) => CREDENTIAL_SEGMENTS.has(segment))) {
     return "Looks like a credential — sign in with the vendor's own flow instead";
   }
@@ -101,7 +101,7 @@ export function EnvOverlayEditor({
       const next = Object.entries(stored).map(([key, value]) => ({ key, value }));
       setRows(next);
       setSaved(next);
-      setNotice("Saved — applies the next time this account starts.");
+      setNotice("Saved — applies the next time this app starts.");
       onSaved?.(stored);
     } catch (cause) {
       setError(errorText(cause));

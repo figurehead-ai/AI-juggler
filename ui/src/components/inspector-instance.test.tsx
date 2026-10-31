@@ -184,7 +184,7 @@ describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () =
     expect(container.querySelector("#page-tab-actions")).toBeNull();
   });
 
-  it("a running session's header offers Switch account…; an ended one's, Relaunch", () => {
+  it("a running session's header offers Continue in another app…; an ended one's, Relaunch", () => {
     const running = shell(mk());
     expect(running.queryByTestId("header-switch")).not.toBeNull();
     expect(running.queryByTestId("header-relaunch")).toBeNull();

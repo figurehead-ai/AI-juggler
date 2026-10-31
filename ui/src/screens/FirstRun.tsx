@@ -574,7 +574,7 @@ function FoundStep({
               </Button>
             )}
             <Button variant="primary" onClick={continueNow} data-testid="first-run-continue" ref={continueRef}>
-              {doneCount === 0 ? (failedRows.length > 0 || waiting.length > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 account" : `Continue with ${doneCount} accounts`}
+              {doneCount === 0 ? (failedRows.length > 0 || waiting.length > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 app" : `Continue with ${doneCount} apps`}
             </Button>
           </div>
         </div>
@@ -583,7 +583,7 @@ function FoundStep({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-5 text-sm">
           <button type="button" className="text-accent-hi hover:underline" onClick={onAddFresh}>
-            {installs.length === 0 ? "Add an account" : "Add a fresh account instead"}
+            {installs.length === 0 ? "Add an app" : "Add a fresh app instead"}
           </button>
           <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
             Import from another folder…
@@ -611,8 +611,8 @@ function FoundStep({
               {busy
                 ? "Bringing them in…"
                 : chosen.length === 1
-                  ? "Bring in 1 account"
-                  : `Bring in ${chosen.length} accounts`}
+                  ? "Bring in 1 app"
+                  : `Bring in ${chosen.length} apps`}
             </Button>
           </div>
         )}
@@ -788,8 +788,8 @@ function SigninStep({
           {left.length === 0
             ? "Everyone's signed in."
             : left.length === 1
-              ? "One account needs a quick sign-in."
-              : `${left.length} accounts need a quick sign-in.`}
+              ? "One app needs a quick sign-in."
+              : `${left.length} apps need a quick sign-in.`}
         </h1>
         <p className="max-w-2xl text-section leading-relaxed text-ink-2">
           {(() => {
@@ -797,8 +797,8 @@ function SigninStep({
             // (AJ-E1301): each account opens its own tool's sign-in.
             const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
             return tools.length > 1
-              ? `Each opens its own tool's sign-in — ${tools.map(shortSignIn).join(" or ")} — for that account's folder; AI Juggler never sees your password and notices when you're done.`
-              : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that account's folder; AI Juggler never sees your password and notices when you're done.`;
+              ? `Each opens its own tool's sign-in — ${tools.map(shortSignIn).join(" or ")} — for that app's folder; AI Juggler never sees your password and notices when you're done.`
+              : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that app's folder; AI Juggler never sees your password and notices when you're done.`;
           })()}
         </p>
       </div>
@@ -999,7 +999,7 @@ function FolderStep({
       {usable && large && (
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" role="status" data-testid="first-run-folder-large">
           Its session history is large ({byteSize(inspect.total_bytes)}). Bring in the settings only, or add a fresh
-          account instead.
+          app instead.
         </p>
       )}
       {usable && (
@@ -1033,7 +1033,7 @@ function FolderStep({
           </button>
           {large && (
             <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onAddFresh}>
-              Add a fresh account instead
+              Add a fresh app instead
             </button>
           )}
         </div>
@@ -1204,7 +1204,7 @@ export function FirstRun({
       className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-canvas text-ink outline-none"
       role="dialog"
       aria-modal="true"
-      aria-label={mode === "add" ? "Add accounts" : "Set up AI Juggler"}
+      aria-label={mode === "add" ? "Add apps" : "Set up AI Juggler"}
       data-testid="first-run"
       data-mode={mode}
       ref={frameRef}
@@ -1212,7 +1212,7 @@ export function FirstRun({
     >
       <div data-tauri-drag-region className="flex h-11 shrink-0 items-center justify-end px-4">
         {/* Always a visible way out (0.0.7 dogfood: "no way to close"):
-            first run → Home, which offers "Find my accounts" to come back. */}
+            first run → Home, which offers "Find my apps" to come back. */}
         <Button
           size="sm"
           variant="secondary"

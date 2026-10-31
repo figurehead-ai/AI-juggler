@@ -94,7 +94,7 @@ export function ProjectOverviewView({
         />
         <StatTile label="Tokens this week" icon={<IconTokens width={15} height={15} />} value={weekIo} unit="tokens" before={week.data ? week.data.previous.tokens.input + week.data.previous.tokens.output : null} period="last week" trend={daily} testId="tile-week-tokens" />
         <StatTile
-          label="Accounts used"
+          label="Apps used"
           icon={<IconUser width={15} height={15} />}
           value={accountsUsed.length}
           unit="count"
@@ -115,7 +115,7 @@ export function ProjectOverviewView({
               label="Split by"
               size="sm"
               options={[
-                { id: "profile", label: "Profile" },
+                { id: "profile", label: "App" },
                 { id: "tool", label: "Tool" },
                 { id: "model", label: "Model" },
               ]}
@@ -131,7 +131,7 @@ export function ProjectOverviewView({
         </Section>
         <Section title="Who did the work" icon={<IconDonut />} sub="last 30 days" testId="project-who">
           <ChartBody empty={data === null || empty} emptyWords={data === null ? "Reading usage…" : "No usage yet"} height={168} table={{ columns: [], rows: [] }} showTable={false} caption="">
-            <Donut items={who} unit="tokens" label={`Tokens on ${project.name} by profile`} centre={{ value: short(io, "tokens"), words: "tokens" }} />
+            <Donut items={who} unit="tokens" label={`Tokens on ${project.name} by app`} centre={{ value: short(io, "tokens"), words: "tokens" }} />
           </ChartBody>
         </Section>
         <OpenSessions projectId={project.id} rows={rows} onAll={onAllSessions} onOpenSession={onOpenSession} className="@min-[1400px]:col-span-2" />
@@ -164,17 +164,17 @@ function Travelled({ project, data, cut, onOpenSession }: { project: ProjectInfo
   const moves = (data?.switches ?? []).map((move) => ({ at: move.at_ms, from: move.from_profile, to: move.to_profile, words: move.state }));
   const only = lanes[0]?.label;
   return (
-    <Section title="How this work travelled" icon={<IconRoute />} sub="who worked here, day by day; arrows are moves between accounts" className={SPAN.full} testId="project-switch-graph-card">
+    <Section title="How this work travelled" icon={<IconRoute />} sub="who worked here, day by day; arrows are moves between apps" className={SPAN.full} testId="project-switch-graph-card">
       {lanes.length === 0 || lanes.every((lane) => lane.values.length === 0) ? (
         <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-meta text-ink-2">
-          {data === null ? "Reading usage…" : "No work here in the last 30 days. When a session here moves to another account, the move shows on this line."}
+          {data === null ? "Reading usage…" : "No work here in the last 30 days. When a session here moves to another app, the move shows on this line."}
         </p>
       ) : (
         <Timeline lanes={lanes} edges={cut.edges} moves={moves} label={`Who worked on ${project.name}, day by day`} bucketWords={bucketWords(cut.step)} tickWords={tickWords(cut.step)} />
       )}
       {data && moves.length === 0 && lanes.length > 0 && (
         <p className="text-label text-muted" data-testid="travelled-none">
-          {lanes.length === 1 ? `No moves yet: all work here ran on ${only}.` : `No moves between accounts in this range: ${lanes.length} profiles worked here side by side.`} A move to another account, with its history and tasks, shows as an arrow.
+          {lanes.length === 1 ? `No moves yet: all work here ran on ${only}.` : `No moves between apps in this range: ${lanes.length} apps worked here side by side.`} A move to another app, with its history and tasks, shows as an arrow.
         </p>
       )}
       {moved && (

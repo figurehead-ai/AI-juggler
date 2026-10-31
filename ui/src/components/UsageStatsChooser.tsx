@@ -15,7 +15,7 @@ export const USAGE_STATS_OPTIONS: { value: UsageStatsMode; title: string; conseq
     value: "share",
     title: "Share weekly usage stats",
     consequence:
-      "Once a week, send Figurehead counts of which features you used. No code, prompts, paths, project or account names, and no ID.",
+      "Once a week, send Figurehead counts of which features you used. No code, prompts, paths, project, app or account names, and no ID.",
   },
   {
     value: "local",

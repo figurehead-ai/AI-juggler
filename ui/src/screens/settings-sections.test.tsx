@@ -159,7 +159,7 @@ describe("AJ-E2110 — Settings panes", () => {
 });
 
 describe("wireframe 26 — the policies the user owns", () => {
-  it("D-08: the cleanup default is notify-only until chosen, and says existing Accounts keep theirs", async () => {
+  it("D-08: the cleanup default is notify-only until chosen, and says existing apps keep theirs", async () => {
     const { findByTestId, findAllByTestId, getByTestId } = render(<SettingsScreen focusSection="cleanup" />);
     const select = (await findByTestId("cleanup-default")) as HTMLButtonElement;
     await waitFor(() => expect(select.disabled).toBe(false));
@@ -170,7 +170,7 @@ describe("wireframe 26 — the policies the user owns", () => {
       fireEvent.click(screen.getByTestId("cleanup-default-tidy"));
     });
     expect(w().__AIJ_CLEANUP_DEFAULT__).toBe(true);
-    expect(getByTestId("settings-cleanup").textContent).toContain("Existing Accounts keep their own choice");
+    expect(getByTestId("settings-cleanup").textContent).toContain("Existing apps keep their own choice");
   });
 
   it("AJ-E508 Req.4: Settings › Cleanup has the global pause switch, off by default, and pausing says so", async () => {

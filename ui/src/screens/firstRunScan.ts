@@ -45,13 +45,13 @@ export function foundWords(
     const why = scanError.trim();
     return {
       heading: "AI Juggler couldn't look for your setups.",
-      lead: `${/[.!?…]$/.test(why) ? why : `${why}.`} Try again, or add an account or import a folder yourself.`,
+      lead: `${/[.!?…]$/.test(why) ? why : `${why}.`} Try again, or add an app or import a folder yourself.`,
     };
   }
   if (count === 0) {
     return {
       heading: `No ${toolName} setups found yet.`,
-      lead: `Add your first account and AI Juggler sets it up in its own folder. You'll sign in with ${ownSignIn(provider)}.`,
+      lead: `Add your first app and AI Juggler sets it up in its own folder. You'll sign in with ${ownSignIn(provider)}.`,
     };
   }
   if (count === 1) {

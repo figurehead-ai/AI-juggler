@@ -44,7 +44,7 @@ it("Add account offers a tool whose version check failed, in plain words", async
   const view = render(<App />);
   await user.click(await view.findByRole("button", { name: "Accounts" }));
   await user.click(await view.findByTestId("add-account"));
-  const chooser = await view.findByRole("dialog", { name: "Add an account: which tool?" });
+  const chooser = await view.findByRole("dialog", { name: "Add an app: which tool?" });
   const cards = await within(chooser).findAllByTestId("provider-card");
   const codex = cards.find((card) => card.textContent?.includes("Codex"))!;
   expect(within(codex).getByTestId("provider-state").textContent).toBe("Found; couldn't check its version");

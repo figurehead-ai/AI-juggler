@@ -49,7 +49,7 @@ export function notesConsequence(to: string): string {
 /** "What does this mean?" for the notes: what they are, and an example. */
 export function notesMeaning(from: string, to: string): { text: string; example: string } {
   return {
-    text: `The tool keeps notes it wrote for itself about this project (what it learned, what you asked it to remember) in each account's own folder, so ${to} starts without ${from}'s. Ticked, AI Juggler copies the ones ${to} doesn't have and adds them to ${to}'s list of notes. A note ${to} has with other words is kept as it is. Undo takes out what was copied while it's unchanged.`,
+    text: `The tool keeps notes it wrote for itself about this project (what it learned, what you asked it to remember) in each app's own folder, so ${to} starts without ${from}'s. Ticked, AI Juggler copies the ones ${to} doesn't have and adds them to ${to}'s list of notes. A note ${to} has with other words is kept as it is. Undo takes out what was copied while it's unchanged.`,
     example: `a note that the project's codename is Bluebird is copied, so ${to} knows it too.`,
   };
 }

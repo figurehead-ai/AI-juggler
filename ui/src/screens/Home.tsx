@@ -423,7 +423,7 @@ export function HomeScreen({
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-section font-semibold text-ink">Start your first session</h2>
           <p className="max-w-xl text-body text-ink-2">
-            Pick a project folder and an account. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
+            Pick a project folder and an app. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
           </p>
           <Button variant="primary" onClick={onNewSession}>New session</Button>
         </section>

@@ -374,7 +374,7 @@ export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
           <dd className="text-muted">a reading stopped updating</dd>
         </div>
       </dl>
-      <span className="border-t border-hairline pt-1.5 text-muted">A row's left edge is its profile's colour.</span>
+      <span className="border-t border-hairline pt-1.5 text-muted">A row's left edge is its app's colour.</span>
     </div>
   );
 }

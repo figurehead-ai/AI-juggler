@@ -153,7 +153,7 @@ for (const theme of THEMES) {
       // (RightInspector, Req.4) — never a blank panel.
       // D-25: with no accounts, Home is one plain next step.
       await expect(page.getByTestId("home-empty-accounts")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Find my accounts" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Find my apps" })).toBeVisible();
       // AJ-E1527: the optional permissions, early and never required.
       await expect(page.getByTestId("smoother")).toBeVisible();
       await page.screenshot({
@@ -3764,7 +3764,7 @@ for (const theme of THEMES) {
       });
       await expect(page.getByTestId("first-run-folder-large")).toBeVisible();
       await expect(page.getByTestId("first-run-folder-bring-in")).toHaveText("Bring in settings only");
-      await expect(page.getByRole("button", { name: "Add a fresh account instead" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Add a fresh app instead" })).toBeVisible();
       await expect(page.getByTestId("first-run-folder")).not.toContainText("ceiling");
       await page.screenshot({
         path: resolve(GALLERY, `39-import/f-oversize-${vp.name}-${theme}.png`),
@@ -3887,7 +3887,7 @@ for (const theme of THEMES) {
       await page.getByTestId("add-account").click();
       // AJ-E1601: a service the found tool runs through puts the chooser
       // (its More) first; the tool itself opens the fresh account.
-      const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+      const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
       await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
       await expect(page.getByTestId("first-run-fresh")).toBeVisible();
       await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);

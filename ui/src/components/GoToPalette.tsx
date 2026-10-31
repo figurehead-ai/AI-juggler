@@ -7,7 +7,7 @@ import { ProjectMark } from "./ProjectMark";
 import { homeRelative } from "../lib/project-words";
 import { AppIcon, OWN_APP_ID } from "./AppIcon";
 import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
-import { OWN_APP } from "../lib/rail-items";
+import { OWN_APP, conversationItem, placeWords, sessionItem } from "../lib/rail-items";
 import { useActionHost } from "./ItemMenu";
 import { ActionOption, CommandOption, paletteSelection, usePaletteActions, type PaletteSelection } from "./PaletteActions";
 import { appCommands, commandsFor, type AppDoings, type PaletteCommand } from "../lib/palette-commands";
@@ -319,12 +319,12 @@ export function GoToPalette({
                 {entry.where === "outside" ? (
                   <>
                     <span className="min-w-0 shrink truncate">{conversationTitle(entry.conversation)}</span>
-                    <span className="min-w-0 shrink truncate text-muted">{entry.conversation.account_label} · in {paletteApp(entry).name}</span>
+                    <span className="min-w-0 shrink truncate text-muted">{placeLine(entry)}</span>
                   </>
                 ) : (
                   <>
                     <span className="min-w-0 shrink truncate">{entry.where === "local" ? sessionTitle(entry.row) : entry.row.account_label}</span>
-                    <span className="min-w-0 shrink truncate text-muted">{entry.where === "local" ? `${entry.row.account_label} · ${providerDisplayName(entry.row.provider)}` : providerDisplayName(entry.row.provider)}</span>
+                    <span className="min-w-0 shrink truncate text-muted">{entry.where === "local" ? placeLine(entry) : providerDisplayName(entry.row.provider)}</span>
                   </>
                 )}
                 {entry.where === "remote" && (
@@ -374,6 +374,14 @@ function paletteApp(entry: Extract<PaletteRow, { where: "local" | "outside" | "r
   if (entry.where === "outside") return appOfConversation(entry.conversation);
   if (entry.where === "local" && !entry.desktop) return { appId: OWN_APP_ID, appPid: null, name: OWN_APP };
   return appOfSession(entry.row);
+}
+
+/** D-62: a session's App first, then where its window is, as the rail
+ * says it ("Claude Code · Work Max · in Terminal", "Claude app ·
+ * b-work"); AI Juggler's own terminal isn't said. */
+function placeLine(entry: Extract<PaletteRow, { where: "local" | "outside" }>): string {
+  const item = entry.where === "outside" ? conversationItem(entry.conversation, () => null, null) : sessionItem(entry.row, () => null, false);
+  return placeWords(item.place).join(" · ");
 }
 
 /** AJ-E2106: the palette's sections — the selected item's actions, then

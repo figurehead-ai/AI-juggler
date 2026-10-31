@@ -51,7 +51,7 @@ export function UsageScreen({
           <p className="mt-1 max-w-[70ch] text-meta text-ink-2">
             {profiles === 0
               ? "What your sessions use, measured on this computer."
-              : `What your sessions used on ${profiles} ${profiles === 1 ? "profile" : "profiles"}, measured on this computer from each session's own files.`}
+              : `What your sessions used in ${profiles} ${profiles === 1 ? "app" : "apps"}, measured on this computer from each session's own files.`}
           </p>
         </div>
         {profiles > 0 && (
@@ -72,7 +72,7 @@ export function UsageScreen({
             windows with their history, and when you work.
           </p>
           <Button size="sm" variant="primary" onClick={onAddAccounts}>
-            Find my accounts
+            Find my apps
           </Button>
           {onOpenHome && <WelcomePointer onOpenHome={onOpenHome} />}
         </Card>

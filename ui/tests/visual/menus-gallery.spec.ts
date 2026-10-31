@@ -78,7 +78,7 @@ for (const theme of ["dark", "light"] as const) {
     const fromButton = await labels(page);
     // AJ-E2106: getting there first, each line with its icon.
     expect(fromButton.slice(0, 3)).toEqual(["Go to it", "Open its page", "Show its project"]);
-    expect(fromButton).toContain("Continue on another account…");
+    expect(fromButton).toContain("Continue in another app…");
     // Stop, the session being live, is last and alone, in red.
     expect(fromButton.at(-1)).toBe("Stop this session");
     await expect(page.getByRole("menu").locator("svg[data-icon]")).toHaveCount(fromButton.length);
@@ -173,7 +173,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`an account card — ${theme}`, async ({ page }) => {
     await seed(page, theme, MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code · personal-max", exact: true }).click();
     const items = await labels(page);
     expect(items.slice(-4)).toEqual(["Rename…", "Copy settings from…", "Make the default", "Remove…"]);
     await shoot(page, "account-menu", theme);

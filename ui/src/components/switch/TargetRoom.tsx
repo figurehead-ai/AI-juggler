@@ -63,7 +63,7 @@ export function RoomNote({ room, target }: { room: TargetRoom | null; target: st
         tips={[
           "Each account has its own limits: a 5-hour window and a week. When one runs out, that account answers nothing more until it resets.",
           `Example: switching to ${target} while it's out of room starts the conversation there, but the first message stops at the limit and waits for the reset.`,
-          "To keep working now, Cancel and pick the account marked Suggested: it has the most room.",
+          "To keep working now, Cancel and pick the app marked Suggested: it has the most room.",
         ]}
       />
     </div>

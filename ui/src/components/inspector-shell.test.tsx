@@ -132,7 +132,7 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Usage", "Processes"] },
     // A tool's page is its body alone: no tab strip.
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
-    { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "Account", tabs: ["Overview", "Sessions"] },
+    { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "App", tabs: ["Overview", "Sessions"] },
     // Nothing measured yet: no Usage tab (no empty tabs).
     // 0.3: a project's seven doors (Usage once something is measured);
     // its crumb's last step is its name ("Projects › alpha").
@@ -239,23 +239,23 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
     expect(container.querySelector('[data-testid="instance-terminal"]')!.closest("section")!.hasAttribute("hidden")).toBe(true);
   });
 
-  it("the session header says on which account and since when, and offers Switch account…", () => {
+  it("the session header says on which account and since when, and offers Continue in another app…", () => {
     const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
     // 0.3 polish: the account is its Account chip, said once.
     expect(getByTestId("session-account-menu").textContent).toContain("Work Max");
     expect(getByTestId("session-subline").textContent).not.toContain("Work Max");
     expect(getByTestId("session-subline").textContent).toMatch(/started .+ ago/);
-    expect(getByTestId("header-switch").textContent).toBe("Switch account…");
+    expect(getByTestId("header-switch").textContent).toBe("Continue in another app…");
   });
 
-  it("the switch list is one step away: closed, Switch account… opens it in a dialog (0.3.2); open when the limit hit", async () => {
+  it("the switch list is one step away: closed, Continue in another app… opens it in a dialog (0.3.2); open when the limit hit", async () => {
     const { getByTestId, queryByTestId } = shell({ kind: "instance", id: "sess-1" });
     const section = getByTestId("handover-section") as HTMLDetailsElement;
     expect(section.open).toBe(false);
     await act(async () => {
       fireEvent.click(getByTestId("header-switch"));
     });
-    expect(getByTestId("continue-dialog").textContent).toContain("Continue on another account");
+    expect(getByTestId("continue-dialog").textContent).toContain("Continue in another app");
     fireEvent.click(getByTestId("continue-dialog-close"));
     expect(queryByTestId("continue-dialog")).toBeNull();
     cleanup();

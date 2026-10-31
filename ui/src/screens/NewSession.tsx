@@ -319,7 +319,7 @@ export function NewSessionModal({
               <RankedRows rows={ranked} leftOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).left} creditsOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).credits !== null} activeAccount={preselected?.account_id} onPick={setPickedAccount} />
             </div>
           )}
-          <p className="mt-5 text-section font-semibold text-ink">Which account?</p>
+          <p className="mt-5 text-section font-semibold text-ink">Which app?</p>
           <div className="mt-2 flex flex-col gap-1.5" data-testid="launch-sheet-accounts">
             {profiles !== null && profiles.length > 0 && preselected !== null && !customiseOpen && (
               <div
@@ -428,7 +428,7 @@ export function NewSessionModal({
               })}
             {profiles !== null && profiles.length === 0 && (
               <p className="py-3 text-center text-xs text-ink-2">
-                No launch settings yet — add an account first (Accounts, top right).
+                No launch settings yet — add an app first (Accounts, top right).
               </p>
             )}
             {profiles === null && (

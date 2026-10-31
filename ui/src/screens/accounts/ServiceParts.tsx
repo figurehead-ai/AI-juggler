@@ -70,7 +70,7 @@ export function ReplaceKeyModal({ profileId, service, onClose, onDone }: { profi
     }
   };
   return (
-    <Modal title={`New key · ${service.name}`} subtitle="Every profile on this account starts with it from now on." onClose={onClose} testId="service-key-modal">
+    <Modal title={`New key · ${service.name}`} subtitle="Every app on this account starts with it from now on." onClose={onClose} testId="service-key-modal">
       <div className="flex flex-col gap-4">
         <Field label={service.key_name} hint="Paste it once. It's kept in the macOS Keychain and never shown again.">
           <Input type="password" value={key} onChange={(event) => setKey(event.target.value)} autoComplete="off" spellCheck={false} placeholder="Paste it here" data-autofocus data-testid="service-new-key" />

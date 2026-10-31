@@ -149,7 +149,7 @@ export function InspectorHeader({
       : kind === "provider"
         ? (data.provider?.name ?? "Tool")
         : kind === "account"
-          ? (account?.label ?? "Account")
+          ? (account?.label ?? "App")
           : kind === "project"
             ? (data.project?.name ?? "Project")
             : "Machine";
@@ -249,7 +249,7 @@ export function InspectorHeader({
       {/* Only with a conversation to carry over: the menu's own rule. */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
         <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover()}>
-          Switch account…
+          Continue in another app…
         </Button>
       )}
       {kind === "project" && data.project && host.openProjectIn && (
@@ -270,7 +270,7 @@ export function InspectorHeader({
       )}
       {kind === "provider" && (
         <Button size="sm" variant="secondary" data-testid="header-add-account" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))}>
-          Add account…
+          Add app…
         </Button>
       )}
       {relaunch && instance && (

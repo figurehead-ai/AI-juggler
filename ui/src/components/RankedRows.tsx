@@ -68,7 +68,7 @@ export function RankedRows({
       <ul
         ref={listRef}
         onKeyDown={onKeyDown}
-        aria-label="Suggested accounts"
+        aria-label="Suggested apps"
         className="flex flex-col gap-1.5"
       >
         {rows.map((row) => {

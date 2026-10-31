@@ -100,7 +100,7 @@ function TerminalCapture({ accountId }: { accountId: string }): JSX.Element | nu
       ) : (
         <p className="text-label text-muted" data-testid="account-capture-words">
           For sessions you start with claude in a terminal: Claude Code reports their limits only to its status line.
-          AI Juggler can add its capture to this profile's status line, with your consent; your own still shows. The
+          AI Juggler can add its capture to this app's status line, with your consent; your own still shows. The
           Claude app's sessions don't need this: they're measured from the app's own meter.
         </p>
       )}

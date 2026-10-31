@@ -23,6 +23,7 @@ import { sessionsQuery, type SessionsCountsInfo } from "../lib/ipc/sessions";
 import { refreshPaged } from "../lib/paged";
 import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
+import { cliAppName } from "../lib/app-name";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
 import {
   errorText,
@@ -112,7 +113,7 @@ function FilterChip({ label, value, options, onChange, testId }: { label: string
       <Picker
         look="quiet"
         size="sm"
-        // Its name as it reads on screen ("Profile: All"), so the button's
+        // Its name as it reads on screen ("App: All"), so the button's
         // name contains what it shows (axe: label-content-name-mismatch).
         prefix={`${label}:`}
         ariaLabel={label}
@@ -316,8 +317,9 @@ export function History({
             data-testid="history-search"
           />
           {!fixedProject && <FilterChip label="Project" value={projectId} options={projects.map((project) => ({ id: project.id, label: project.name }))} onChange={setProjectId} testId="history-filter-project" />}
-          <FilterChip label="Profile" value={accountId} options={accounts.map((account) => ({ id: account.id, label: account.label }))} onChange={setAccountId} testId="history-filter-account" />
-          <FilterChip label="App" value={tool} options={tools.map((entry) => ({ id: entry.id, label: entry.display_name }))} onChange={setTool} testId="history-filter-app" />
+          {/* D-62: each folder is one App ("Claude Code · Work"); the tool is its own filter. */}
+          <FilterChip label="App" value={accountId} options={accounts.map((account) => ({ id: account.id, label: cliAppName(account.provider, account.label) }))} onChange={setAccountId} testId="history-filter-account" />
+          <FilterChip label="Tool" value={tool} options={tools.map((entry) => ({ id: entry.id, label: entry.display_name }))} onChange={setTool} testId="history-filter-app" />
           {(fixedProject ? accountId !== null || tool !== null : filtered) && (
             <button
               type="button"

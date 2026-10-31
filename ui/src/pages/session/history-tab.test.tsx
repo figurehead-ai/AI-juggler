@@ -39,9 +39,9 @@ describe("a session's history in words", () => {
   it("says what happened, never a status id", () => {
     const origin = { provider: "claude-code", account: "Work" };
     const words = EVENTS.map((event, index) => historyWords(event, index === 0, origin));
-    expect(words[0]).toMatch(/^Started on .+ · Work$/);
+    expect(words[0]).toBe("Started in Claude Code · Work");
     expect(words[1]).toBe("Hit its usage limit");
-    expect(words[2]).toMatch(/^Switched to Personal \(/);
+    expect(words[2]).toMatch(/^Switched to .+ · Personal$/);
     expect(words[3]).toBe("Archived");
     expect(words.join(" ")).not.toMatch(/quota_blocked|claude-code|confirmed/);
   });

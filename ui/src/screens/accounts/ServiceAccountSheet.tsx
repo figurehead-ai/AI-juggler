@@ -172,7 +172,7 @@ export function ServiceAccountSheet({
                         <Input value={modelOf(tool)} onChange={(event) => set(tool.tool, { model: event.target.value })} placeholder={`As ${service.service.name} names it`} spellCheck={false} data-testid="service-model" />
                       )}
                     </Field>
-                    <Field label="Profile name">
+                    <Field label="App name">
                       <Input value={names[tool.tool] ?? ""} onChange={(event) => set(tool.tool, { label: event.target.value })} data-testid="service-profile-name" />
                     </Field>
                   </div>

@@ -17,6 +17,7 @@ import { ExpertSetup } from "../../components/ExpertSetup";
 import { RecipeOptions } from "../../components/RecipeOptions";
 import { launchSettingsName } from "../../lib/account-words";
 import { providerDisplayName } from "../../lib/providers";
+import { cliAppName } from "../../lib/app-name";
 import { signedIn, type AccountInfo, type LaunchRecipeInfo } from "../../lib/bridge";
 import { renewalLabel } from "../../lib/renewal";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
@@ -80,6 +81,8 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
     differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null,
   ].filter(Boolean);
   const tool = service ? `${providerDisplayName(account.provider)} through ${service}` : providerDisplayName(account.provider);
+  // D-62: the row is an App; its full name where the tool isn't beside it.
+  const name = cliAppName(account.provider, account.label);
   const where = [props.apps.length > 0 ? props.apps.map((app) => app.name).join(", ") : tool, ...perProfile].join(" · ");
   return (
     <li className="flex flex-col" data-testid="profile-row" data-profile={account.id}>
@@ -88,11 +91,11 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-2">
             {service && <ToolMark tool={account.provider} size={13} className="text-muted" />}
-            <button type="button" onClick={props.onInspect} title={`Open ${account.label}'s page`} className="truncate rounded text-body font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
+            <button type="button" onClick={props.onInspect} title={`Open ${name}`} className="truncate rounded text-body font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
               {account.label}
             </button>
             {account.is_default && (
-              <span title="New sessions start with this profile, unless a project picks its own" data-testid="account-default">
+              <span title="New sessions start with this app, unless a project picks its own" data-testid="account-default">
                 <Chip tone="neutral">Default</Chip>
               </span>
             )}
@@ -147,9 +150,9 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
           )}
           <Button size="sm" variant="secondary" onClick={props.onInspect} disabled={!props.onInspect} data-testid="profile-open">
             Open
-            <span className="sr-only"> {account.label}</span>
+            <span className="sr-only"> {name}</span>
           </Button>
-          {menu.button({ label: `Profile actions for ${account.label}`, shown: true, testId: "account-menu" })}
+          {menu.button({ label: `App actions for ${name}`, shown: true, testId: "account-menu" })}
         </div>
       </div>
       {menu.element}
@@ -180,7 +183,7 @@ function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnv
   return (
     <div className="mx-5 mb-3 divide-y divide-hairline rounded-xl border border-hairline bg-surface-2/40" data-testid="profile-launch-settings">
       <div className="flex items-center justify-between px-4 py-2">
-        <span className="text-meta font-semibold text-ink">Launch settings <span className="font-normal text-muted">· used when you start on this profile</span></span>
+        <span className="text-meta font-semibold text-ink">Launch settings <span className="font-normal text-muted">· used when this app starts</span></span>
         <span className="flex items-center gap-1">
           <button type="button" className="rounded-md px-2 py-1 text-label text-muted hover:bg-surface hover:text-ink" onClick={props.onNewRecipe}>
             ＋ New settings set

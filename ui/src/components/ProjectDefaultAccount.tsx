@@ -2,6 +2,7 @@
  * AJ-E1501 — a project's own account for new sessions (the project page).
  */
 import { useEffect, useState } from "react";
+import { cliAppName } from "../lib/app-name";
 import { Picker } from "./controls";
 import { errorText, projectSetDefaultAccount, type AccountInfo, type ProjectInfo } from "../lib/bridge";
 
@@ -43,8 +44,8 @@ export function ProjectDefaultAccount({
             }
           }}
           options={[
-            { value: "", label: fallback ? `Your default (${fallback.label})` : "The account used last" },
-            ...accounts.map((account) => ({ value: account.id, label: account.label })),
+            { value: "", label: fallback ? `Your default (${cliAppName(fallback.provider, fallback.label)})` : "The app used last" },
+            ...accounts.map((account) => ({ value: account.id, label: cliAppName(account.provider, account.label) })),
           ]}
         />
       </div>

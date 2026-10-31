@@ -87,7 +87,7 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   await page.screenshot({ path: `${OUT}/found-1280x800-dark.png` });
   await axeClean(page, "what's here");
   await expect(found).toContainText("You already have 6 Claude Code setups on this computer.");
-  await expect(page.getByTestId("first-run-bring-in")).toHaveText("Bring in 6 accounts");
+  await expect(page.getByTestId("first-run-bring-in")).toHaveText("Bring in 6 apps");
   const looked = page.getByRole("button", { name: "Where we looked" });
   if (await looked.count()) await looked.click();
   await page.screenshot({ path: `${OUT}/where-we-looked-1280x800-dark.png`, fullPage: true });
@@ -169,7 +169,7 @@ for (const theme of ["dark", "light"] as const) {
     const outcome = page.getByTestId("first-run-outcome");
     await expect(outcome).toContainText("5 brought in. 1 couldn't come in.");
     await expect(outcome.getByRole("button", { name: "Use it where it is instead" })).toBeVisible();
-    await expect(outcome.getByRole("button", { name: "Continue with 5 accounts" })).toBeVisible();
+    await expect(outcome.getByRole("button", { name: "Continue with 5 apps" })).toBeVisible();
     await page.screenshot({ path: `${OUT}/one-failed-1280x800-${theme}.png`, fullPage: true });
     await axeClean(page, `one failed (${theme})`);
   });

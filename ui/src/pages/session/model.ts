@@ -10,6 +10,7 @@ import type { InstanceInfo } from "../../lib/bridge";
 import { stateWord } from "../../components/OutsideConversations";
 import { statusTone } from "../ItemHeader";
 import { toolSpec } from "../../lib/tools";
+import { appName, cliAppName, desktopAppWord } from "../../lib/app-name";
 
 export type SessionModel = {
   /** Its tool. */
@@ -35,6 +36,8 @@ export type SessionModel = {
   viewedMs: number | null;
   cwd: string | null;
   model: string | null;
+  /** AI Juggler started it in a tool's own desktop app (not a terminal). */
+  desktop?: boolean;
 };
 
 const TONE: Record<string, ChipTone> = { asks_you: "warning", working: "live", idle: "neutral", done_review: "accent" };
@@ -81,6 +84,7 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     viewedMs: seen?.viewed_ms ?? null,
     cwd: s.cwd,
     model: s.running_model ?? s.model ?? null,
+    desktop: s.kind === "desktop",
   };
 }
 
@@ -89,6 +93,28 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
 export function appWords(place: PlaceInfo | undefined, tool: string): string | null {
   if (!place || place.app === "") return null;
   return toolSpec(tool).desktop_app === place.app ? `the ${place.app} app` : place.app;
+}
+
+/** D-62: the session's App in words, built as the rail builds it: a
+ * desktop app in its instance ("Claude app · b-work"), else its tool on
+ * its folder ("Claude Code · Work Max"). The terminal it runs in is never
+ * part of it (`sessionHost`). */
+export function sessionAppName(model: SessionModel): string {
+  const place = model.places[0];
+  if (place && place.app !== "" && (place.kind === "desktop" || isDesktopApp(place, model.tool))) return appName(desktopAppWord(place.app, model.tool), place.instance);
+  const own = model.desktop ? toolSpec(model.tool).desktop_app : null;
+  if (own) return appName(desktopAppWord(own, model.tool), model.profileLabel);
+  return cliAppName(model.tool, model.profileLabel);
+}
+
+/** Where a CLI session's window is: its terminal or editor ("Terminal"),
+ * or AI Juggler's own terminal; `null` for a desktop App's session (its
+ * window is the App) or when no place is known. */
+export function sessionHost(model: SessionModel): string | null {
+  const place = model.places[0];
+  if (place && place.app !== "") return place.kind === "desktop" || isDesktopApp(place, model.tool) ? null : place.app;
+  if (model.desktop) return null;
+  return model.sessionId && model.live ? "AI Juggler's terminal" : null;
 }
 
 /** Whether a place is a tool's own desktop app (it has a sidebar of

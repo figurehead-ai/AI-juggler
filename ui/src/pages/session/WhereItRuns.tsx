@@ -1,13 +1,15 @@
 /**
- * AJ-E2108 — a session page's "Where it runs": its app, window, profile,
- * account, model and folder, only the ones it knows; then whatever the
- * page adds (a session AI Juggler runs: its project and its details).
+ * AJ-E2108 — a session page's "Where it runs": its App (D-62: the app in
+ * its profile, or the tool on its folder), the terminal or editor a CLI
+ * one runs in, its window, account, model and working folder, only the
+ * ones it knows; then whatever the page adds (a session AI Juggler runs:
+ * its project and its details).
  */
 import type { JSX, ReactNode } from "react";
 import { Card } from "../../components/primitives";
 import { shortPath } from "../../screens/AccountManage";
 import { CardTitle } from "./CardTitle";
-import { appWords, type SessionModel } from "./model";
+import { sessionAppName, sessionHost, type SessionModel } from "./model";
 import { useLastPlace } from "../../lib/places";
 
 export function WhereItRuns({
@@ -26,17 +28,21 @@ export function WhereItRuns({
   children?: ReactNode;
 }): JSX.Element {
   const place = model.places[0];
-  const app = appWords(place, model.tool) ?? (model.sessionId && model.live ? "AI Juggler's terminal" : null);
+  const host = sessionHost(model);
+  const desktop = host === null && ((place !== undefined && place.app !== "") || model.desktop === true);
   // 0.3.3: an ended session of another app names where it was last open
   // (its header's Open in starts that app).
   const last = useLastPlace(model.tool, model.conversationId ?? "", outside && !model.live && model.conversationId !== null);
+  // Where its window is: a CLI App's terminal or editor; not open now, the
+  // last one known. A desktop App's window is the App itself.
+  const runsIn = host ?? (desktop ? null : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now");
   const rows: [string, string, boolean?][] = [
-    ["App", app ? app.replace(/^the /, "") : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now"],
+    ["App", sessionAppName(model)],
+    ...(runsIn ? ([["Runs in", runsIn]] as [string, string][]) : []),
     ...(place?.instance ? ([["Window", place.label]] as [string, string][]) : []),
-    ["Profile", model.profileLabel],
     ...(accountWords ? ([["Account", accountWords]] as [string, string][]) : []),
     ...(model.model ? ([["Model", model.model, true]] as [string, string, boolean][]) : []),
-    ...(model.cwd ? ([["Folder", shortPath(model.cwd), true]] as [string, string, boolean][]) : []),
+    ...(model.cwd ? ([["Working folder", shortPath(model.cwd), true]] as [string, string, boolean][]) : []),
   ];
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="where-it-runs">

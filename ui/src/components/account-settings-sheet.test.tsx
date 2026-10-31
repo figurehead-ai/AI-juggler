@@ -44,7 +44,7 @@ describe("copy settings into an account", () => {
   it("says so when there's no other account of the tool", async () => {
     vi.spyOn(bridge, "accountsList").mockResolvedValue([PERSONAL, CODEX]);
     const view = render(<AccountSettingsSheet account={PERSONAL} onClose={() => undefined} />);
-    expect(await view.findByText("There's no other account of this tool to copy from.")).toBeTruthy();
+    expect(await view.findByText("There's no other app of this tool to copy from.")).toBeTruthy();
     expect(view.queryByTestId("account-settings-apply")).toBeNull();
   });
 

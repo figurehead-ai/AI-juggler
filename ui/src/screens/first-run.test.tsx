@@ -142,9 +142,9 @@ describe("D-25 first run — the flow", () => {
     expect(getByTestId("first-run-group-default").textContent).toContain("Default");
     expect(getByTestId("first-run-group-other").textContent).toContain("claude-old");
     expect(list.textContent).toContain("Already in AI Juggler");
-    expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 3 accounts");
+    expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 3 apps");
     fireEvent.click(within(getByTestId("first-run-group-other")).getByRole("checkbox"));
-    expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 4 accounts");
+    expect(getByTestId("first-run-bring-in").textContent).toBe("Bring in 4 apps");
   });
 
   it("shows where it looked, on request", async () => {
@@ -166,7 +166,7 @@ describe("D-25 first run — the flow", () => {
     const signin = await findByTestId("first-run-signin");
     const rows = await findAllByTestId("first-run-signin-row");
     expect(rows.length).toBeGreaterThan(0);
-    expect(signin.textContent).toMatch(/need a quick sign-in|needs a quick sign-in/);
+    expect(signin.textContent).toMatch(/apps? needs? a quick sign-in/);
     const all = within(signin).queryByRole("button", { name: /Sign in to all/ });
     if (rows.length > 1) expect(all).not.toBeNull();
     await act(async () => {
@@ -380,7 +380,7 @@ describe("D-25 first run — the flow", () => {
       <FirstRun mode="add" onDone={onDone} openLoginTerminal={() => null} />,
     );
     expect((await findByTestId("first-run-found")).textContent).toContain("You already have 5 Claude Code setups");
-    expect(getByTestId("first-run").getAttribute("aria-label")).toBe("Add accounts");
+    expect(getByTestId("first-run").getAttribute("aria-label")).toBe("Add apps");
     fireEvent.click(getByTestId("first-run-close"));
     expect(onDone).toHaveBeenCalledOnce();
   });
@@ -421,7 +421,7 @@ describe("D-25 first run — the flow", () => {
   it("add mode with nothing new to bring in goes straight to a fresh account", async () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [found(`${PROFILES}/already`, "manager-tool", { managed: true })] };
     const { findByTestId, queryByRole } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
-    expect((await findByTestId("first-run-fresh")).textContent).toContain("Add a fresh account.");
+    expect((await findByTestId("first-run-fresh")).textContent).toContain("Add a fresh app.");
     // Nothing to go back to; a folder is still one link away.
     expect(queryByRole("button", { name: "Back" })).toBeNull();
     expect(queryByRole("button", { name: "Import from a folder instead…" })).not.toBeNull();
@@ -445,7 +445,7 @@ describe("D-25 first run — the flow", () => {
     w().__AIJ_SCAN_REPORT__ = { ...SCAN, installs: [], probes: [] };
     const { findByTestId, getByRole } = renderIt();
     expect((await findByTestId("first-run-found")).textContent).toContain("No Claude Code setups found yet.");
-    fireEvent.click(getByRole("button", { name: "Add an account" }));
+    fireEvent.click(getByRole("button", { name: "Add an app" }));
     expect(await findByTestId("first-run-fresh")).toBeTruthy();
   });
 
@@ -454,7 +454,7 @@ describe("D-25 first run — the flow", () => {
     const { findByTestId, getByTestId } = renderIt();
     const step = await findByTestId("first-run-found");
     expect(step.textContent).toContain("AI Juggler couldn't look for your setups.");
-    expect(step.textContent).toContain("The scan timed out. Try again, or add an account or import a folder yourself.");
+    expect(step.textContent).toContain("The scan timed out. Try again, or add an app or import a folder yourself.");
     expect(step.textContent).not.toContain("No Claude Code setups found yet.");
     delete w().__AIJ_SCAN_FAILS__;
     fireEvent.click(getByTestId("first-run-scan-again"));
@@ -464,7 +464,7 @@ describe("D-25 first run — the flow", () => {
 
   it("a failure without a full stop still reads as a sentence", () => {
     expect(foundWords("Read-only test bridge — not available", 0, "Claude Code", "Claude Code", false, "claude-code").lead).toBe(
-      "Read-only test bridge — not available. Try again, or add an account or import a folder yourself.",
+      "Read-only test bridge — not available. Try again, or add an app or import a folder yourself.",
     );
   });
 });
@@ -483,7 +483,7 @@ describe("AJ-E1022 a fresh account", () => {
       <FirstRun mode="add" onDone={() => null} onAccountsChanged={changed} openLoginTerminal={(_id, title) => opened.push(title)} />,
     );
     await findByTestId("first-run-found");
-    fireEvent.click(getByRole("button", { name: "Add a fresh account instead" }));
+    fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
     const name = (await findByTestId("first-run-fresh-name")) as HTMLInputElement;
     await waitFor(() => expect(name.value).toMatch(/^Claude Code/));
     expect(document.activeElement).toBe(name);
@@ -504,7 +504,7 @@ describe("AJ-E1022 a fresh account", () => {
   it("an empty name can't be created", async () => {
     const { findByTestId, getByRole, getByTestId } = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await findByTestId("first-run-found");
-    fireEvent.click(getByRole("button", { name: "Add a fresh account instead" }));
+    fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
     fireEvent.change(await findByTestId("first-run-fresh-name"), { target: { value: "  " } });
     expect((getByTestId("first-run-fresh-create") as HTMLButtonElement).disabled).toBe(true);
   });
@@ -574,7 +574,7 @@ describe("AJ-E1022 another folder", () => {
     const view = await openFolder();
     expect((await view.findByTestId("first-run-folder-large")).textContent).toContain("Bring in the settings only");
     expect(view.getByTestId("first-run-folder-bring-in").textContent).toBe("Bring in settings only");
-    fireEvent.click(view.getByRole("button", { name: "Add a fresh account instead" }));
+    fireEvent.click(view.getByRole("button", { name: "Add a fresh app instead" }));
     expect(await view.findByTestId("first-run-fresh")).toBeTruthy();
   });
 

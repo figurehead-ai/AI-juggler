@@ -14,7 +14,7 @@ import { Checkbox } from "../../components/controls";
 export function AccountSettingsSection({ account, now, resetsAtMs }: { account: AccountInfo; now: number; resetsAtMs: number | null }) {
   const label = renewalLabel(account.renewal_date, now);
   return (
-    <Section title="Settings" icon={<IconSettings />} sub="for this profile" testId="account-settings">
+    <Section title="Settings" icon={<IconSettings />} sub="for this app" testId="account-settings">
         <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-body @min-[700px]:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <dt className="text-meta font-semibold text-ink">Plan and renewal</dt>
@@ -242,7 +242,7 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
       </label>
       {props.explain !== false && (
         <span className="text-label leading-relaxed text-muted">
-          Both off by default — only verified dev servers and watchers of this account's clean
+          Both off by default — only verified dev servers and watchers of this app's clean
           exits are tidied; shells, MCP servers and databases are never touched automatically
           and every stop is written to the log. Crash tidies wait 5 minutes and ask first
           with an Undo window.

@@ -10,6 +10,7 @@ import { Button } from "../../components/primitives";
 import { errorText, launchRecipesList, type LaunchRecipeInfo } from "../../lib/bridge";
 import { tasksStart, type TaskStartedInfo } from "../../lib/ipc/tasks";
 import { Picker } from "../../components/controls";
+import { cliAppName } from "../../lib/app-name";
 
 export function StartSession({
   taskId,
@@ -87,7 +88,7 @@ export function StartSession({
         placeholder={profiles === null ? "Loading…" : "Pick launch settings"}
         disabled={profiles === null || busy}
         onChange={(next) => setChosen(next)}
-        options={(profiles ?? []).map((profile) => ({ value: profile.id, label: `${profile.name} · ${profile.account_label}` }))}
+        options={(profiles ?? []).map((profile) => ({ value: profile.id, label: `${profile.name} · ${cliAppName(profile.provider, profile.account_label)}` }))}
         className="max-w-[280px] flex-1"
         testId="task-start-profile"
       />
@@ -99,7 +100,7 @@ export function StartSession({
           Cancel
         </Button>
       )}
-      {!compact && <p className="basis-full text-label text-muted">It starts in the pool's project with the task as its first prompt, and the task is its own. You pick the account; nothing starts by itself.</p>}
+      {!compact && <p className="basis-full text-label text-muted">It starts in the pool's project with the task as its first prompt, and the task is its own. You pick the app; nothing starts by itself.</p>}
       {error && (
         <p role="alert" className="basis-full text-meta text-danger">
           {error}

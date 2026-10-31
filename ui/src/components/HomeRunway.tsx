@@ -88,7 +88,7 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
                   <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />
                 </div>
               )}
-              <span className="text-label text-muted">Profiles: {group.profiles.map((profile) => profile.label).join(", ")}</span>
+              <span className="text-label text-muted">Apps: {group.profiles.map((profile) => profile.label).join(", ")}</span>
               {credits ? (
                 <span className="flex flex-col text-label" data-testid="home-runway-credits">
                   <span className="text-ink">{row.words}</span>

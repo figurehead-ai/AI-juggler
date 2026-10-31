@@ -39,9 +39,9 @@ export function onlyOptions(
 
 /** The switch's choices, in its order ("place" is said "App"). */
 const GROUP_SEGMENTS: Segment<GroupBy>[] = [
-  { value: "place", label: "App", title: "Each app and its profiles" },
+  { value: "place", label: "App", title: "Each app" },
   { value: "project", label: "Project", title: "Each project's sessions together" },
-  { value: "account", label: "Account", title: "Each subscription, its profiles together" },
+  { value: "account", label: "Account", title: "Each subscription, its apps together" },
   { value: "pool", label: "Pool", title: "Each pool of yours" },
 ];
 
@@ -98,7 +98,7 @@ export function RailToolbar({
               }
             }}
             placeholder="Search ⌘K"
-            aria-label="Search sessions: words, or is:ended, app:, profile:, account:, project:, mac:"
+            aria-label="Search sessions: words, or is:ended, app:, account:, project:, mac:"
             className="h-7 w-full rounded-lg border border-hairline bg-surface/70 pl-6 pr-2 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-1 focus-visible:ring-accent/60"
           />
         </div>

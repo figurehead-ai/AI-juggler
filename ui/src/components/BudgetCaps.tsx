@@ -10,11 +10,13 @@ import { Field, Input, Modal } from "./form";
 import { errorText, type AccountInfo, type ProjectInfo } from "../lib/bridge";
 import { budgetRemove, budgetSave, budgetsList, dollars, percentOf, type BudgetInfo } from "../lib/ipc/budgets";
 import { Checkbox, Picker, Radio } from "./controls";
+import { cliAppName } from "../lib/app-name";
 
 /** What a cap counts, in words: an account's name, or its projects'. */
 export function scopeWords(cap: BudgetInfo, accounts: AccountInfo[], projects: ProjectInfo[]): string {
   if (cap.account_id !== null) {
-    return accounts.find((account) => account.id === cap.account_id)?.label ?? "An account that's been removed";
+    const app = accounts.find((account) => account.id === cap.account_id);
+    return app ? cliAppName(app.provider, app.label) : "An app that's been removed";
   }
   const names = cap.project_ids.map((id) => projects.find((project) => project.id === id)?.name).filter(Boolean);
   return names.length === 0 ? "Projects that have been removed" : names.join(", ");
@@ -50,7 +52,7 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
       </div>
       {caps.length === 0 ? (
         <p className="max-w-[70ch] text-meta text-ink-2">
-          A cap tells you in Needs you when an account or a group of projects reaches 80 % and 100 % of an amount a month.
+          A cap tells you in Needs you when an app or a group of projects reaches 80 % and 100 % of an amount a month.
           Nothing is ever stopped.
         </p>
       ) : (
@@ -163,21 +165,21 @@ export function BudgetSheet({
           <legend className="mb-1.5 text-meta font-semibold text-ink">Counts</legend>
           <label className="flex items-center gap-2 text-sm">
             <Radio name="cap-kind" checked={kind === "account"} onChange={() => setKind("account")} />
-            One account
+            One app
           </label>
           {kind === "account" && (
             <Picker
-              ariaLabel="Account"
+              ariaLabel="App"
               value={account}
               onChange={setAccount}
               testId="cap-account"
               className="self-start"
-              options={accounts.map((option) => ({ value: option.id, label: option.label }))}
+              options={accounts.map((option) => ({ value: option.id, label: cliAppName(option.provider, option.label) }))}
             />
           )}
           <label className="flex items-center gap-2 text-sm">
             <Radio name="cap-kind" checked={kind === "projects"} onChange={() => setKind("projects")} />
-            A group of projects, on any account
+            A group of projects, in any app
           </label>
           {kind === "projects" && (
             <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-xl border border-hairline p-2" data-testid="cap-projects">

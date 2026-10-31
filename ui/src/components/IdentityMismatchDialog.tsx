@@ -15,6 +15,7 @@ import {
   type IdentityMismatchRequest,
 } from "../lib/bridge";
 import { launchSettingsName } from "../lib/account-words";
+import { cliAppName } from "../lib/app-name";
 import { PRIMARY_FILL } from "./primitives";
 
 export function IdentityMismatchDialog(): JSX.Element | null {
@@ -77,10 +78,10 @@ export function IdentityMismatchDialog(): JSX.Element | null {
         className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-warning/50 bg-surface p-5 shadow-card"
       >
         <h3 id="identity-title" className="text-sm font-semibold">
-          <span aria-hidden="true">⚠ </span>Wrong account for «{check.account_label}»
+          <span aria-hidden="true">⚠ </span>Wrong account for {cliAppName(check.provider, check.account_label)}
         </h3>
         <div id="identity-body" className="flex flex-col gap-1.5 text-label text-ink">
-          <p>Nothing has launched. This account's {check.provider} sign-in changed:</p>
+          <p>Nothing has launched. This app's sign-in changed:</p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border border-hairline p-2.5">
             <dt className="text-muted">Expected</dt>
             <dd data-testid="identity-expected">{check.expected ?? "—"}</dd>
@@ -104,7 +105,7 @@ export function IdentityMismatchDialog(): JSX.Element | null {
               className={"rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-accent/40 bg-accent-soft text-accent-hi")}
               data-testid="identity-switch"
             >
-              Use «{alternative.account_label}» ({launchSettingsName(alternative.recipe_name)}) — it is signed in as{" "}
+              Use {cliAppName(check.provider, alternative.account_label)} ({launchSettingsName(alternative.recipe_name)}) — it is signed in as{" "}
               {check.detected}
             </button>
           ))}

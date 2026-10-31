@@ -156,7 +156,7 @@ describe("a fresh account's usual settings", () => {
       />,
     );
     await view.findByRole("button", { name: /Its MCP servers/ });
-    pick(view.getByRole("button", { name: /^Account to copy the settings from/ }), "Personal");
+    pick(view.getByRole("button", { name: /^App to copy the settings from/ }), "Personal");
     // Personal's permissions aren't ticked for the user: Work's ticks don't
     // come with the change.
     await view.findByRole("button", { name: /Nothing ticked/ });

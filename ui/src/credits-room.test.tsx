@@ -262,13 +262,13 @@ describe("the notice", () => {
     expect(noticeTone({ kind: "quota", facts: { ...facts, credits: null } })).toBe("warn");
   });
 
-  it("the centre lists it under Earlier with Continue on another account…, never as Needs you", async () => {
+  it("the centre lists it under Earlier with Continue in another app…, never as Needs you", async () => {
     w().__AIJ_NOTICES__ = { earlier: [onCredits] };
     render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={() => {}} />);
     const row = (await screen.findAllByTestId("notice-earlier"))[0]!;
     expect(row.textContent).toContain("Codex is using its credits");
     expect(row.textContent).toMatch(/Its weekly window is used up until .+ · 14,150 credits left/);
-    expect(within(row).getByRole("button", { name: /^(Continue on another account…|Open its account)/ })).toBeTruthy();
+    expect(within(row).getByRole("button", { name: /^(Continue in another app…|Open its app)/ })).toBeTruthy();
     expect(row.textContent).not.toMatch(/out of room/i);
     expect(screen.queryAllByTestId("notice-need")).toHaveLength(0);
   });

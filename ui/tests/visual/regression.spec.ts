@@ -224,7 +224,7 @@ for (const theme of THEMES) {
         await goTo(page, "Accounts");
         await page.getByTestId("add-account").click();
         // AJ-E1601: with more than one tool found, Add account asks which first.
-        const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+        const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
         await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
         await expect(page.getByTestId("first-run-fresh-name")).toHaveValue(/^Claude Code/);
         await page.mouse.move(0, 0);
@@ -390,7 +390,7 @@ for (const theme of THEMES) {
   test(`account menu — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code · personal-max", exact: true }).click();
     await expect(page.getByRole("menu", { name: "Actions for personal-max" })).toBeVisible();
     await page.mouse.move(0, 0);
     await settle(page);
@@ -400,7 +400,7 @@ for (const theme of THEMES) {
   test(`remove account — a copy — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "Profile actions for personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code · personal-max", exact: true }).click();
     await page.getByRole("menuitem", { name: "Remove…" }).click();
     await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
     await page.mouse.move(0, 0);

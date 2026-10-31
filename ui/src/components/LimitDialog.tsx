@@ -201,7 +201,7 @@ export function LimitDialog({
           <>
             <section className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-4" data-testid="limit-continue">
               {targets === null ? (
-                <p className="text-xs text-ink-2">Finding the best account for this…</p>
+                <p className="text-xs text-ink-2">Finding the best app for this…</p>
               ) : target ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
@@ -246,7 +246,7 @@ export function LimitDialog({
                 </>
               ) : (
                 <p className="text-xs text-ink-2" data-testid="limit-no-target">
-                  No other account can take this session right now. Wait for the reset, or add an account.
+                  No other app can take this session right now. Wait for the reset, or add an account.
                 </p>
               )}
             </section>
@@ -281,7 +281,7 @@ export function LimitDialog({
                 onClick={onChooseAnother}
                 className="text-xs text-muted underline decoration-hairline underline-offset-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
               >
-                Choose another account or tool…
+                Choose another app or tool…
               </button>
               <Button size="sm" variant="ghost" onClick={close}>
                 Not now

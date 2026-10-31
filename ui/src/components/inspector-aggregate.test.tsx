@@ -140,7 +140,7 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
   it("Overview: counts, worst-first aggregate, what's installed (no placeholders)", async () => {
     const { container } = shell("provider", "claude-code");
     expect(container.querySelector('[data-testid="provider-overview"]')).not.toBeNull();
-    expect(container.textContent).toContain("2 accounts");
+    expect(container.textContent).toContain("2 apps");
     expect(container.textContent).toContain("1 running");
     // D-25: the installed version and tested range, read from this Mac —
     // not "version: No data".
@@ -165,9 +165,9 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     expect(aggregate.textContent).toContain("45% left");
   });
 
-  it("Add account is a header button; actions not built yet aren't shown (D-25)", () => {
+  it("Add app is a header button; actions not built yet aren't shown (D-25)", () => {
     const { getByTestId, container } = shell("provider", "claude-code");
-    expect(getByTestId("header-add-account").textContent).toBe("Add account…");
+    expect(getByTestId("header-add-account").textContent).toBe("Add app…");
     expect(container.querySelector("#page-tab-actions")).toBeNull();
     expect(container.textContent).not.toMatch(/Check for an update|Open tool settings/);
   });

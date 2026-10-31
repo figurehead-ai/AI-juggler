@@ -1,5 +1,5 @@
 /**
- * AJ-E2108 — Continue on another account, on a session's page: the
+ * AJ-E2108 — Continue in another app (D-62), on a session's page: the
  * accounts with their profiles beneath, of every tool, how much each has
  * left, the move's badge and a one-line check of what the profile lacks.
  * A profile on the session's own account gives no new room (one runway),
@@ -18,15 +18,20 @@ import { switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, ty
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { rankTargets, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
 import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
-import { appWords, type SessionModel } from "./model";
+import { appWords, sessionAppName, type SessionModel } from "./model";
+import { cliAppName } from "../../lib/app-name";
 import { CardTitle } from "./CardTitle";
 import { SaveHandover } from "../../components/HandoverView";
 import { ContinueDialog } from "../../components/ContinueDialog";
 
-/** A target profile, as the page shows it. */
+/** A target App (D-62: a tool on one of its folders), as the page shows
+ * it. */
 export type Target = {
   profileId: string;
   label: string;
+  /** The App's name ("Codex · Personal"), as the rail says it; its
+   * label when its tool isn't known. */
+  name?: string;
   recipeId: string;
   blocked: string | null;
   /** What the move carries ("Full story, fresh start · Beta"), when known. */
@@ -84,6 +89,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
       suggested: "room" in row ? row.suggested : false,
       profileId: row.account_id,
       label: row.account_label,
+      name: row.provider ? cliAppName(row.provider, row.account_label) : row.account_label,
       recipeId: row.recipe_id,
       blocked: row.filtered_reason,
       badge: row.badge ? { words: row.badge, validated: row.validated } : null,
@@ -170,9 +176,9 @@ export function ContinueOn({
     {rows === null ? (
       <p className="text-meta text-ink-2" role="status">Looking for room…</p>
     ) : others.length === 0 ? (
-      <p className="text-meta text-ink-2" data-testid="continue-none">No other account to continue on.</p>
+      <p className="text-meta text-ink-2" data-testid="continue-none">No other app to continue in.</p>
     ) : (
-      <ul className="flex flex-col gap-3" aria-label="Accounts to continue on">
+      <ul className="flex flex-col gap-3" aria-label="Apps to continue in">
         {others.map((group) => {
           const name = group.account ? accountName(group.account) : group.targets[0]!.label;
           const room = group.targets[0]!.room;
@@ -192,14 +198,14 @@ export function ContinueOn({
                       variant="secondary"
                       className="justify-start"
                       disabled={!pick || target.blocked !== null}
-                      title={target.blocked ?? `Continue on ${target.label}`}
+                      title={target.blocked ?? `Continue in ${target.name ?? target.label}`}
                       onClick={() => pick?.(target.recipeId, target.label)}
                       data-testid="continue-target"
                       data-cross-tool={target.crossTool ? "true" : undefined}
                       data-suggested={target.suggested ? "true" : undefined}
                     >
                       <AccountAvatar accountId={target.profileId} label={target.label} size={14} />
-                      <span className="truncate">{target.label}</span>
+                      <span className="truncate">{target.name ?? target.label}</span>
                       {target.suggested && <SuggestedMark className="ml-auto" />}
                     </Button>
                     {(target.blocked || words || (target.crossTool && target.badge)) && (
@@ -218,7 +224,7 @@ export function ContinueOn({
     )}
     {sameAccount.map((target) => (
       <p key={target.profileId} className="text-label text-muted" data-testid="continue-no-room">
-        {target.label} shares this account, so it gives no new room.
+        {target.name ?? target.label} shares this account, so it gives no new room.
       </p>
     ))}
     {outside && (
@@ -230,7 +236,7 @@ export function ContinueOn({
         </p>
         {model.live ? (
           <p className="text-label text-muted" data-testid="continue-same-profile">
-            To carry on with it on {model.profileLabel} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
+            To carry on with it in {sessionAppName(model)} itself, close it in {app ?? "its app"} first: one conversation can't have two writers.
           </p>
         ) : (
           onCarryIn && (
@@ -245,7 +251,7 @@ export function ContinueOn({
   );
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
-      <CardTitle>Continue on another account</CardTitle>
+      <CardTitle>Continue in another app</CardTitle>
       {dialog ? (
         <p className="text-meta text-ink-2" data-testid="continue-in-dialog">
           Choosing in the dialog…
@@ -257,7 +263,7 @@ export function ContinueOn({
           another app runs is only read for it). */}
       <SaveHandover sessionId={source} />
       {dialog && (
-        <ContinueDialog title="Continue on another account" detail={`Now on ${model.profileLabel}`} onClose={() => setDialog(false)}>
+        <ContinueDialog title="Continue in another app" detail={`Now in ${sessionAppName(model)}`} onClose={() => setDialog(false)}>
           {list}
         </ContinueDialog>
       )}

@@ -207,7 +207,7 @@ export function TerminalView({
         [
           "\u001b[1;38;5;140m" + title + "\u001b[0m",
           "",
-          "  ? Ask anything — this terminal is isolated to its account",
+          "  ? Ask anything — this terminal is isolated to its app",
           "  and project.",
           "",
           "\u001b[38;5;245m(preview — run the app for a live terminal)\u001b[0m",

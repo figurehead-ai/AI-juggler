@@ -12,7 +12,7 @@ export type Step = "found" | "fresh" | "folder" | "signin" | "access" | "account
 /** D-46: first run (not Add account) ends with the optional account. */
 export function StepMarks({ step, skipAccess, withAccount = false }: { step: Step; skipAccess: boolean; withAccount?: boolean }): JSX.Element {
   // The fresh-account and folder steps are the first step's other doors.
-  const first = step === "fresh" ? "Name the account" : step === "folder" ? "Check the folder" : "Bring in your accounts";
+  const first = step === "fresh" ? "Name the app" : step === "folder" ? "Check the folder" : "Bring in your apps";
   const steps: Array<{ id: Step; label: string }> = [
     { id: step === "fresh" || step === "folder" ? step : "found", label: first },
     { id: "signin", label: "Sign in where needed" },

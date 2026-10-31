@@ -59,7 +59,7 @@ describe("the words for a place", () => {
   });
 });
 
-describe("Settings › Desktop apps: your apps and profiles", () => {
+describe("Settings › Desktop apps: your apps", () => {
   it("lists each with Start or Open, and Keep alive turns on and off", async () => {
     seams().__AIJ_PLACES__ = { places: [place({}), place({ id: "codex-app|", app_id: "codex-app", app: "ChatGPT", instance: null, profile: null, label: "ChatGPT", app_pid: 20 })] };
     render(

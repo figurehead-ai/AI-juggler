@@ -35,7 +35,7 @@ function ShowSessionsFrom(): JSX.Element {
     <PaneSection
       id="show-from"
       title="Show sessions from"
-      footer="AI Juggler reads which sessions each app has open from the apps' own files. It never types into them."
+      footer="AI Juggler reads which sessions each app has open from the tools' own files. It never types into them."
     >
       {found.map((entry) => (
         <SwitchRow
@@ -80,7 +80,7 @@ function ExactWindowRow(): JSX.Element {
   return (
     <SettingRow
       title="Bring the exact window to the front"
-      description="Needs Accessibility. Without it, Go to it brings the right app and profile forward, and you pick the window."
+      description="Needs Accessibility. Without it, Go to it brings the right app forward, and you pick the window."
       testId="desktop-exact-window"
       control={
         entry === null ? (
@@ -273,12 +273,12 @@ function YourApps(): JSX.Element | null {
   return (
     <PaneSection
       id="keep-alive"
-      title="Your apps and profiles"
-      footer="Start opens an app or profile that isn't running, on the same profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
+      title="Your apps"
+      footer="Start opens an app that isn't running, in its own profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
     >
       {places.length === 0 ? (
         <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
-          Apps and profiles show here once AI Juggler has seen them running.
+          Apps show here once AI Juggler has seen them running.
         </li>
       ) : (
         places.map((place) => <PlaceRow key={place.id} place={place} />)
@@ -324,7 +324,7 @@ export function DesktopAppsPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection
         id="go-to"
         title="Going to a session"
-        footer="Go to it always brings the session's app and profile forward. These go further, and only once you turn them on here."
+        footer="Go to it always brings the session's app forward. These go further, and only once you turn them on here."
       >
         <ExactWindowRow />
         <TerminalTabsRow />
