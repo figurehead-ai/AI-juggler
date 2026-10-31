@@ -39,7 +39,7 @@ tries: number | null,
 account: string | null, 
 /**
  * A used-up window the account's credits carry on past (the
- * maintainer's report, 0.3.1): what's left of them in words ("14,150
+ * maintainer's report, 0.3.2): what's left of them in words ("14,150
  * credits left"), or empty when the tool didn't say (it probably
  * does). `None`: not a credits notice.
  */

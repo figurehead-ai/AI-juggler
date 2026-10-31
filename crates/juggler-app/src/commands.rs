@@ -496,18 +496,8 @@ fn step_account_alerts(
                 minutes_left: display.forecast.tte_min,
                 resets_at_ms: window.resets_at_ms,
             };
-            let mut text =
-                crate::features::quota::alert_words::quota_alert_words(kind, &quota, now);
-            // 0.3.2: a paired console reads this text as it is; used up
-            // while its credits cover, it carries on, so say so.
-            if kind == "exhausted"
-                && let Some(cover) = display
-                    .credits
-                    .as_ref()
-                    .and_then(crate::features::quota::CreditsDisplay::cover)
-            {
-                text = crate::features::quota::alert_words::on_credits_words(&text, cover);
-            }
+            let words = crate::features::quota::alert_words::alert_text;
+            let text = words(kind, &quota, display.credits.as_ref(), now);
             (kind, text, quota)
         });
         if let Some((kind, text, quota)) = event {
@@ -577,9 +567,6 @@ pub fn alerts_tick_inner(
     out
 }
 
-/// A reset reminder for a session another app runs: `conv:<conversation>`.
-const REMINDER_CONVERSATION: &str = "conv:";
-
 /// AJ-E611 Req.4/6 tail of the alert pass: reset-queue notifications
 /// (due items notify ONCE — `notified`; broken lineage goes `stale`,
 /// explained) plus the hourly digest flush (muted keys drop; quiet
@@ -602,9 +589,8 @@ fn queue_and_digest_events(
         .collect();
     let usage = storage.usage();
     for (id, session, account, _resume_at) in usage.pending_resumes(now).unwrap_or_default() {
-        // 0.3.2: a reminder for a session another app runs is keyed by its
-        // conversation (`conv:…`); AI Juggler doesn't own its lineage.
-        if !session.starts_with(REMINDER_CONVERSATION) && !session_ids.contains(&session) {
+        // 0.3.2: another app's session (`conv:…`) has no lineage here.
+        if !session.starts_with("conv:") && !session_ids.contains(&session) {
             let _ = usage.set_reset_state(&id, "stale");
             continue;
         }
@@ -734,11 +720,9 @@ pub async fn reset_queue_list(
             return Ok(Vec::new());
         };
         let now = juggler_core::model::Timestamp::now().millis();
-        // 0.3.2: a due reminder stays (ready) until the user opens or
-        // closes it; the alert pass's "notified" no longer hides it.
         Ok(storage
             .usage()
-            .open_reminders()
+            .open_reminders() // 0.3.2: a due one stays until opened or closed
             .unwrap_or_default()
             .into_iter()
             .map(|(id, session, account, resume_at)| ResetQueueInfo {

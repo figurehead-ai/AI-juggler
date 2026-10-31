@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
+import { loadGlyphRenderer, TERMINAL_FONTS } from "../lib/terminal-render";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
@@ -131,7 +132,7 @@ export function TerminalView({
       scrollback: SCROLLBACK_LINES,
       cursorBlink: true,
       fontSize: SESSION_PREFS_DEFAULT.terminal_font_size,
-      fontFamily: "'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, monospace",
+      fontFamily: TERMINAL_FONTS,
       allowProposedApi: true,
       theme: {
         background: "#05070b",
@@ -149,6 +150,7 @@ export function TerminalView({
     term.loadAddon(new WebLinksAddon((event, uri) => (event.metaKey || event.ctrlKey) && openLink(uri), { hover: (_event, uri) => setLinkHint(uri), leave: () => setLinkHint(null) }));
     term.registerLinkProvider(pathLinkProvider(term, openLink, setLinkHint));
     term.open(host);
+    loadGlyphRenderer(term, () => termRef.current === term);
     term.attachCustomKeyEventHandler((event) => {
       if (event.key === "Tab" && event.ctrlKey) {
         if (event.type === "keydown") {

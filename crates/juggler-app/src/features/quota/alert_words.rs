@@ -85,6 +85,23 @@ pub fn quota_alert_words(kind: &str, quota: &AlertQuotaInfo, now: i64) -> String
     }
 }
 
+/// The alert's text as every surface shows it as it is (a paired
+/// console): used up while its credits cover, it says it carries on
+/// (0.3.2).
+#[must_use]
+pub fn alert_text(
+    kind: &str,
+    quota: &AlertQuotaInfo,
+    credits: Option<&super::CreditsDisplay>,
+    now: i64,
+) -> String {
+    let text = quota_alert_words(kind, quota, now);
+    match credits.and_then(super::CreditsDisplay::cover) {
+        Some(cover) if kind == "exhausted" => on_credits_words(&text, cover),
+        _ => text,
+    }
+}
+
 /// A used-up alert for an account its credits carry on (0.3.2): "Codex
 /// has used up its weekly window; it resets in 3 d — it carries on with
 /// its credits (14,150 credits left)".

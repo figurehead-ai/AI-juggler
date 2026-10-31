@@ -8,6 +8,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import type { ReplayEntryInfo } from "../lib/bridge";
+import { TERMINAL_FONTS } from "../lib/terminal-render";
 
 const ROLE_COLOUR: Record<string, string> = {
   user: "\x1b[36m",
@@ -26,7 +27,7 @@ export function ReplayTerminal({ entries }: { entries: ReplayEntryInfo[] }): JSX
       scrollback: 50_000,
       // The same look as a live Instance's terminal (TerminalView).
       fontSize: 12.5,
-      fontFamily: "'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, monospace",
+      fontFamily: TERMINAL_FONTS,
       cursorStyle: "underline",
       cursorBlink: false,
       theme: {
