@@ -23,7 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shorten first; a broom and count on a narrow bar); the re-render's
   findings (rail age whole or not at all, menus fit their labels, the
   identity line wraps, crash report lines wrap, the port warning's
-  background, skeletons on the grey page, "Close the The…").
+  background, skeletons on the grey page, "Close the The…"); the second
+  look's: Processes fits at 1024 (Age and the CPU line give way first),
+  the terminal's margin is dark, rail times stay whole, Home's first need
+  wraps to two lines, commands wrap between words, the shortcut sheet
+  says More below, darker light-theme placeholders.
 
 ### Changed (0.3.2)
 
