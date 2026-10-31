@@ -1990,3 +1990,46 @@ does to tidy their setup should erase it.
   ("deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones"),
   `ui/src/screens/accounts/delete-launch-settings.test.tsx`, the
   gallery's `41-policy`.
+
+### D-63 Open starts an app that isn't running; Keep alive per app and profile — SETTLED (2026-10-31, 0.3.3)
+
+*D-61 and D-62 (0.4's pools and designs) are recorded on the 0.4 line; this one ships first, in 0.3.3.*
+
+**Ruling.** The maintainer, 2026-10-31: "Clicking on the open in the app
+should start the app if its not running", and each app gets a setting
+"like a keep alive" that restarts it when it isn't running, crashed or
+was shut down. Investigated first: it was never built. `desktop_launch`
+(AJ-E413) had no caller, Home's Open and the rail's only brought a running
+app forward, and crash restarts covered only AI Juggler's own sessions
+(AJ-E1509). "Both for 0.3.3."
+
+**What changed (0.3.3).**
+- AI Juggler remembers the desktop apps and profiles it sees running
+  (`features::places`; the live view's full scan, at most once a minute):
+  the bundle, the instance folder it was given, the sessions open in it.
+  At most 32; forgotten after 90 days unseen unless kept alive. The
+  window's setting writer can't change the record (it names a program).
+- **Open** starts one that isn't running, on the same profile, in front:
+  Home (a tile for each kept-alive app that's down), Settings › Desktop
+  apps, an ended session's page ("Open in {app}"; Codex opens the thread
+  by its link).
+- **Keep alive** (Settings › Desktop apps, the rail's place menu) starts
+  it again when it stops, behind the app in front. SPEC §1's third
+  recorded amendment says when it never does.
+
+**Why.** The desktop is where the work runs; an app that quit or crashed
+unnoticed is work stopped. A relaunch changes no account and no content:
+it is the app the user had open, the way they had it.
+
+- Risk: an app whose executable was swapped is started by AI Juggler.
+  Every start checks the bundle is still that app's and its executable
+  is one no other user can change (`juggler-platform::file_trust`).
+- Risk: a relaunch fights the user (they quit it on purpose). It is off
+  until turned on per app; every start is a notice with the way to turn
+  it off; three in 10 minutes pause it; a stop in AI Juggler pauses it.
+- Not done: a desktop app's own sign-in isn't read (its data is the
+  app's); a signed-out profile starts and shows its own sign-in.
+- Evidence: `crates/juggler-app/src/features/places/` (tests),
+  `crates/juggler-platform/src/apps.rs`,
+  `ui/src/screens/settings/keep-alive.test.tsx`, the hand walk in
+  `docs/qa/0.3.3-walk.md`.

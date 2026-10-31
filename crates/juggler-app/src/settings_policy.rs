@@ -23,6 +23,13 @@ use crate::state::AppState;
 ///
 /// Storage errors.
 pub fn app_setting_set_impl(state: &Arc<AppState>, key: &str, value: &str) -> AppResult<()> {
+    // 0.3.3: a remembered place names a program AI Juggler may start;
+    // only the places module writes them.
+    if key.starts_with(crate::features::places::book::RESERVED_PREFIX) {
+        return Err(AppError::Refused(
+            "that setting is changed from Settings › Desktop apps".to_owned(),
+        ));
+    }
     crate::commands::lock_storage_arc(state)?
         .app_settings()
         .set(key, value)

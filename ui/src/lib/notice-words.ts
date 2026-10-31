@@ -71,6 +71,8 @@ const PRIMARY: Record<string, string> = {
   // D-05 (0.3, wf27): an account with room again, for the work that left it.
   "switch-back": "Switch back…",
   pool: "Open",
+  // 0.3.3: an app kept alive was started again, or keep alive paused.
+  "keep-alive": "Keep alive settings",
 };
 
 /** The one primary action's name. */
@@ -107,7 +109,7 @@ export function remindLabel(resetsAtMs: number, now: number = Date.now()): strin
 /** A row's look: what its mark says. */
 export function toneOf(kind: string): "ask" | "warn" | "ok" | "err" | "info" {
   if (kind === "asks" || kind === "message" || kind === "task" || kind === "signin") return "ask";
-  if (kind === "quota" || kind === "stuck" || kind === "limit" || kind === "room" || kind === "heavy" || kind === "leftovers" || kind === "cap") return "warn";
+  if (kind === "quota" || kind === "stuck" || kind === "limit" || kind === "room" || kind === "heavy" || kind === "leftovers" || kind === "cap" || kind === "keep-alive-paused") return "warn";
   if (kind === "review" || kind === "finished") return "ok";
   if (kind === "failed" || kind === "restarted") return "err";
   return "info";

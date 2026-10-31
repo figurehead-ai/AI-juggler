@@ -545,6 +545,75 @@ pub fn finished(state: &Arc<AppState>, session_id: &str) {
     }
 }
 
+/// 0.3.3: an app or profile kept alive stopped and was started again
+/// (`attempt` of the tries keep alive allows): told once per start, under
+/// Earlier; its action opens Settings › Desktop apps, where keep alive is
+/// turned off.
+pub fn app_started_again(state: &Arc<AppState>, place_id: &str, label: &str, attempt: usize) {
+    let now = crate::commands::now_millis();
+    let attempt = u32::try_from(attempt).unwrap_or(u32::MAX);
+    let tries = u32::try_from(crate::features::sessions::restart::TRIES).unwrap_or(u32::MAX);
+    keep_alive_notice(
+        state,
+        &NewNotice {
+            key: format!("app-started:{place_id}:{now}"),
+            kind: "app-started".to_owned(),
+            title: format!("{label} stopped and was started again"),
+            detail: format!("Keep alive · try {attempt} of {tries} in 10 minutes"),
+            data: centre::data_of(
+                &NoticeTarget {
+                    page: Some("desktop_apps".to_owned()),
+                    ..NoticeTarget::default()
+                },
+                &NoticeFacts {
+                    attempt: Some(attempt),
+                    tries: Some(tries),
+                    ..NoticeFacts::default()
+                },
+            ),
+            action: Some("keep-alive".to_owned()),
+            ..NewNotice::default()
+        },
+        now,
+    );
+}
+
+/// 0.3.3: keep alive stopped starting an app or profile, and why (it
+/// stopped too often, it couldn't start, the user stopped it here).
+pub fn keep_alive_paused(state: &Arc<AppState>, place_id: &str, label: &str, why: &str) {
+    let now = crate::commands::now_millis();
+    keep_alive_notice(
+        state,
+        &NewNotice {
+            key: format!("keep-alive-paused:{place_id}:{now}"),
+            kind: "keep-alive-paused".to_owned(),
+            title: format!("Keep alive paused for {label}"),
+            detail: format!("Not started again: {why}. Open it to start it and keep it alive again."),
+            data: centre::data_of(
+                &NoticeTarget {
+                    page: Some("desktop_apps".to_owned()),
+                    ..NoticeTarget::default()
+                },
+                &NoticeFacts::default(),
+            ),
+            action: Some("keep-alive".to_owned()),
+            ..NewNotice::default()
+        },
+        now,
+    );
+}
+
+fn keep_alive_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
+    let recorded = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| centre::record(&storage, notice, now).ok().flatten());
+    if recorded.is_some() {
+        super::changed(state);
+    }
+}
+
 /// A session crashed and was started again (`attempt` of `tries`): told
 /// once per try, under Earlier; its action opens the new session.
 pub fn restarted(

@@ -1,8 +1,10 @@
 /**
  * AJ-E2105 — Home's "Your apps": one tile per running app and profile
  * (a place): the app's own icon (D-38) and the profile's badge, with how many sessions are open there, a needs-you badge,
- * the runway of the account it runs on, and Open (the app forward, never
- * launched). At most six, then "+n".
+ * the runway of the account it runs on, and Open (the app forward). 0.3.3:
+ * an app or profile kept alive has a tile too when no session tile shows
+ * it: down (why, and Start, which starts it) or running with nothing open
+ * yet (Open). At most six, then "+n".
  */
 import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
@@ -11,6 +13,8 @@ import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
 import { showToast } from "./Toast";
 import { conversationsBringForward } from "../lib/ipc/conversations";
+import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
+import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
 import { groupItems, type RailGroup } from "../lib/rail-places";
 import { OWN_PLACE, type RailItem } from "../lib/rail-items";
 
@@ -40,7 +44,54 @@ function bringForward(group: RailGroup): void {
   );
 }
 
-function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): JSX.Element {
+/** 0.3.3: an app or profile kept alive that no session tile shows: down
+ * (why, and Start) or running with nothing open yet (Open). */
+function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
+  const running = place.app_pid !== null;
+  const verb = running ? "Open" : "Start";
+  const start = () => {
+    showToast({ id: "go-to", message: running ? `Bringing ${place.label} forward…` : `Starting ${place.label}…` });
+    placesOpen(place.id).then(
+      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      () => showToast({ id: "go-to", message: running ? `Couldn't bring ${place.label} forward` : `Couldn't start ${place.label}` }),
+    );
+  };
+  return (
+    <li
+      className={"flex min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 " + (running ? "shadow-card" : "border-dashed")}
+      data-testid={running ? "home-app-kept" : "home-app-closed"}
+      data-place={place.id}
+    >
+      <div className="flex min-w-0 items-start gap-3">
+        <AppIcon appId={place.app_id} appPid={null} name={place.app} size={32} />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-body font-semibold text-ink">{place.app}</span>
+          {place.profile && (
+            <span className="flex min-w-0 items-center gap-1 text-meta font-semibold text-ink">
+              <ProfileBadge name={place.profile} />
+              <span className="truncate">{place.profile}</span>
+            </span>
+          )}
+        </div>
+      </div>
+      <span className={"text-meta " + (place.paused ? "text-warning" : "text-muted")}>{placeWords(place)}</span>
+      <div className="mt-auto flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={start}
+          disabled={!running && place.cannot_start !== null}
+          title={running ? undefined : (place.cannot_start ?? undefined)}
+          aria-label={`${verb} ${place.label}`}
+          className="rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {verb} {place.app}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function Tile({ group, runway, kept }: { group: RailGroup; runway: Runway | null; kept: boolean }): JSX.Element {
   const place = group.place!;
   const needs = group.items.filter((item) => item.need !== null).length;
   const count = group.items.length;
@@ -63,6 +114,13 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
             )}
             {place.profile ? <span>·</span> : null}
             <span className="whitespace-nowrap">{count === 1 ? "1 session" : `${count} sessions`}</span>
+            {/* A pill, not "· kept alive": wrapped under the count, a line
+                that starts with a dot read as a fragment. */}
+            {kept && (
+              <span className="whitespace-nowrap rounded-full bg-accent/10 px-1.5 text-label font-medium text-accent-hi" data-testid="home-app-kept-mark" title="Keep alive: AI Juggler starts it again if it stops">
+                kept alive
+              </span>
+            )}
           </span>
         </div>
       </div>
@@ -104,20 +162,31 @@ function Tile({ group, runway }: { group: RailGroup; runway: Runway | null }): J
 
 export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (accountId: string | null) => Runway | null }): JSX.Element | null {
   const [all, setAll] = useState(false);
+  const known = useKnownPlaces();
   const places = appPlaces(items);
-  if (places.length === 0) return null;
+  // Kept alive with no session tile (down, starting, paused, or running
+  // with nothing open yet): after the session tiles, never gone after a
+  // start.
+  const shownPids = new Set(places.map((group) => group.place?.appPid ?? null));
+  const kept = (known ?? []).filter((place) => place.keep_alive && (place.app_pid === null || !shownPids.has(place.app_pid)));
+  const tiles: ({ group: RailGroup } | { kept: KnownPlaceInfo })[] = [...places.map((group) => ({ group })), ...kept.map((place) => ({ kept: place }))];
+  if (tiles.length === 0) return null;
   // Never a tile that hides a single app behind "+1" (the 0.2 walk, F18):
   // seven show as seven; past that, six and a tile that says how many more.
-  const cut = places.length > TILES_SHOWN + 1;
-  const shown = all || !cut ? places : places.slice(0, TILES_SHOWN);
-  const more = places.length - TILES_SHOWN;
+  const cut = tiles.length > TILES_SHOWN + 1;
+  const shown = all || !cut ? tiles : tiles.slice(0, TILES_SHOWN);
+  const more = tiles.length - TILES_SHOWN;
   return (
     <section aria-labelledby="home-apps" className="flex flex-col gap-2.5" data-testid="home-apps">
       <SectionTitle id="home-apps">Your apps</SectionTitle>
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-grid">
-        {shown.map((group) => (
-          <Tile key={group.key} group={group} runway={runwayOf(group.items[0]?.accountId ?? null)} />
-        ))}
+        {shown.map((tile) =>
+          "group" in tile ? (
+            <Tile key={tile.group.key} group={tile.group} runway={runwayOf(tile.group.items[0]?.accountId ?? null)} kept={placeFor(known, tile.group.place?.appPid ?? null)?.keep_alive === true} />
+          ) : (
+            <KeptTile key={tile.kept.id} place={tile.kept} />
+          ),
+        )}
         {cut && (
           <li className="flex">
             <button

@@ -4,8 +4,10 @@
  * the terminal's tab with Automation, the key that opens AI Juggler from
  * anywhere) and the session page's Last messages. Every permission is
  * offered here and nowhere else: a click on Go to it never raises one.
+ * 0.3.3: the apps and profiles AI Juggler has seen, each with Start (or
+ * Open, while it runs) and Keep alive.
  */
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useId, useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
 import { appSettingGet, appSettingSet, errorText, goToHotkeySet, osAccessList, osAccessOpenSettings, osAccessRequest, type OsAccessInfo } from "../../lib/bridge";
 import { useConversations } from "../../lib/conversations";
@@ -15,7 +17,10 @@ import { setShowLastMessages, showLastMessages } from "../../lib/last-messages";
 import { accessCard, watchAccess } from "../../lib/osAccess";
 import { GO_TO_HOTKEY_EVENT } from "../../lib/outside";
 import { AppIcon } from "../../components/AppIcon";
-import { Pane, PaneSection, SettingRow, SwitchRow } from "./parts";
+import { showToast } from "../../components/Toast";
+import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
+import { placeWords, useKnownPlaces } from "../../lib/places";
+import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
  * off until turned on here. */
@@ -207,6 +212,81 @@ function HotkeyRow(): JSX.Element {
   );
 }
 
+/** One app or profile: what it is now, Start (Open while it runs), and
+ * Keep alive. */
+function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
+  const id = useId();
+  const [error, setError] = useState<string | null>(null);
+  const running = place.app_pid !== null;
+  const open = () => {
+    setError(null);
+    showToast({ id: "go-to", message: running ? `Bringing ${place.label} forward…` : `Starting ${place.label}…` });
+    placesOpen(place.id).then(
+      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      (cause) => setError(errorText(cause)),
+    );
+  };
+  return (
+    <SettingRow
+      title={place.label}
+      titleId={`${id}-title`}
+      description={placeWords(place)}
+      icon={<AppIcon appId={place.app_id} appPid={place.app_pid} name={place.app} size={24} />}
+      testId={`desktop-place-${place.app_id}${place.instance ? `-${place.instance}` : ""}`}
+      control={
+        <>
+          {!running && !place.keep_alive && (
+            <Button size="sm" variant="ghost" onClick={() => void placesForget(place.id).catch((cause) => setError(errorText(cause)))} aria-label={`Forget ${place.label}`} data-testid="desktop-place-forget">
+              Forget
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" onClick={open} disabled={!running && place.cannot_start !== null} title={running ? undefined : (place.cannot_start ?? undefined)} aria-label={`${running ? "Open" : "Start"} ${place.label}`} data-testid="desktop-place-open">
+            {running ? "Open" : "Start"}
+          </Button>
+          <span id={`${id}-keep`} className="ml-1 text-xs font-medium text-muted">
+            Keep alive
+          </span>
+          <Switch
+            checked={place.keep_alive}
+            disabled={!place.keep_alive && place.cannot_start !== null}
+            labelledBy={`${id}-keep ${id}-title`}
+            testId="desktop-place-keep"
+            onChange={(on) => {
+              setError(null);
+              void placesKeepAlive(place.id, on).catch((cause) => setError(errorText(cause)));
+            }}
+          />
+        </>
+      }
+    >
+      {place.paused && <RowNote tone="warning">Open it to start it and keep it alive again.</RowNote>}
+      {place.cannot_start && <RowNote tone="warning">{`Can't be started from here: ${place.cannot_start}.`}</RowNote>}
+      {error && <RowNote tone="warning">{error}</RowNote>}
+    </SettingRow>
+  );
+}
+
+/** 0.3.3: the apps and profiles seen running, with Start and Keep alive. */
+function YourApps(): JSX.Element | null {
+  const places = useKnownPlaces();
+  if (places === null) return null;
+  return (
+    <PaneSection
+      id="keep-alive"
+      title="Your apps and profiles"
+      footer="Start opens an app or profile that isn't running, on the same profile. Keep alive starts it again whenever it stops (a crash, ⌘Q or Force Quit), behind the app you're in, at most 3 times in 10 minutes. Never while the screen is locked, never on another account; a stop in AI Juggler pauses it until you open it."
+    >
+      {places.length === 0 ? (
+        <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
+          Apps and profiles show here once AI Juggler has seen them running.
+        </li>
+      ) : (
+        places.map((place) => <PlaceRow key={place.id} place={place} />)
+      )}
+    </PaneSection>
+  );
+}
+
 function LastMessages(): JSX.Element {
   const [on, setOn] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -240,6 +320,7 @@ export function DesktopAppsPane({ anchor }: { anchor?: string }): JSX.Element {
   return (
     <Pane id="desktop-apps" title="Desktop apps" anchor={anchor}>
       <ShowSessionsFrom />
+      <YourApps />
       <PaneSection
         id="go-to"
         title="Going to a session"

@@ -3,6 +3,7 @@
 //! "where does the Windows version go?" has one answer.
 //!
 //! - [`user`]: who this process runs as.
+//! - [`apps`]: starting an installed app (one of its instances).
 //! - [`file_trust`]: whose a file is, and whether a program is safe to run.
 //! - [`private_fs`]: folders and files only this user can open.
 //! - [`local_ipc`]: a local connection only this user can make.
@@ -26,6 +27,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod apps;
 pub mod file_trust;
 pub mod local_ipc;
 pub mod private_fs;

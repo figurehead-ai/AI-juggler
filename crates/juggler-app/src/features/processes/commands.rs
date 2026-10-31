@@ -276,6 +276,9 @@ pub async fn processes_observed_stop(
     attempt: String,
 ) -> AppResult<KillExecuteInfo> {
     crate::ipc::blocking(state.inner(), "the process's stop", move |state| {
+        // 0.3.3: an app kept alive that the user stops here stays stopped
+        // (keep alive pauses first, until its next Open).
+        crate::features::places::stopped_here(state, pid);
         let flag = state.register_kill_cancel(&attempt);
         let result = super::stop::execute(state, state.audit.as_ref(), pid, start_time, &flag);
         state.unregister_kill_cancel(&attempt);

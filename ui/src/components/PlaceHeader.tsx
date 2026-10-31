@@ -5,7 +5,8 @@
  * forward (never launches it). D-47: in Your order its handle shows on
  * hover and focus; ⌥⌘↑ and ⌥⌘↓ move it. 0.3.2: a right-click (or
  * Shift+F10) opens its own menu: its page, Bring it forward, Fold — never
- * the web view's (Reload).
+ * the web view's (Reload). 0.3.3: a desktop app's menu also turns its Keep
+ * alive on and off.
  */
 import { useState, type JSX, type MouseEvent, type ReactNode } from "react";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
@@ -32,6 +33,7 @@ export function PlaceHeader({
   shortcut,
   arrange = null,
   children,
+  keepAlive = null,
 }: {
   place: RailPlace | null;
   label: string;
@@ -50,6 +52,8 @@ export function PlaceHeader({
   arrange?: Arrangeable | null;
   /** A header of another lens (an account's avatar). */
   children?: ReactNode;
+  /** 0.3.3: a desktop app AI Juggler remembers: its Keep alive. */
+  keepAlive?: { on: boolean; toggle: () => void } | null;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
   const [menu, setMenu] = useState<MenuAt | null>(null);
@@ -137,6 +141,17 @@ export function PlaceHeader({
           {onOpen && (
             <MenuItem onClick={run(onOpen)} testId="place-header-menu-open">
               {openWords}
+            </MenuItem>
+          )}
+          {keepAlive && (
+            <MenuItem onClick={run(keepAlive.toggle)} checked={keepAlive.on} multi testId="place-header-menu-keep">
+              {/* Its tick drawn as the rail's order menu draws one. */}
+              <span className="flex items-center gap-2">
+                <span className="flex-1">Keep alive</span>
+                <span aria-hidden="true" className={"shrink-0 text-accent-hi " + (keepAlive.on ? "" : "invisible")}>
+                  ✓
+                </span>
+              </span>
             </MenuItem>
           )}
           <MenuItem onClick={run(onToggle)} testId="place-header-menu-fold">

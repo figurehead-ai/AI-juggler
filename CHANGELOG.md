@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (0.3.3)
+
+- **Open starts an app or profile that isn't running; Keep alive per app
+  and profile** (D-63, SPEC §1 amendment 3, docs/releases/0.3.3.md): AI
+  Juggler remembers the desktop apps and profiles it sees running
+  (`features::places`, at most 32); Start and Open in Settings › Desktop
+  apps, Home's tiles and an ended session's "Open in {app}" (Codex at the
+  thread by its link); Keep alive starts one again when it stops, behind
+  the app in front, never while locked, settling, or quitting, at most 3
+  times in 10 minutes, paused by a stop in AI Juggler; every start checks
+  the bundle and that no other user can change it; the record is reserved
+  from the window's setting writer.
+
+### Fixed (0.3.3)
+
+- `worktree_isolation` waits out the 2-second git status cache instead of
+  racing it (a CI flake on #201).
+- A lab test's profiles and a design mock use neutral names ("Lab A",
+  "Lab B", "work-b"); evidence of past runs keeps what those runs printed.
+
 ### Fixed (0.3.2)
 
 - **The maintainer's 0.3.0 findings, batched** (docs/releases/0.3.2.md):
