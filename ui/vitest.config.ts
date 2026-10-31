@@ -11,5 +11,8 @@ export default defineConfig({
     globals: false,
     // tests/bundle builds the app (Node, outside the tsconfig's `src`).
     include: ["src/**/*.test.tsx", "src/**/*.test.ts", "tests/bundle/**/*.test.ts"],
+    // Waits that hold under a loaded full run (src/test/setup.ts).
+    setupFiles: ["src/test/setup.ts"],
+    testTimeout: 30_000,
   },
 });

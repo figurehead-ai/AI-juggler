@@ -150,6 +150,7 @@ fn wait_for(what: &str, secs: u64, mut done: impl FnMut() -> bool) {
 fn a_session_and_what_it_leaves_behind_on_the_one_model() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("web-app")).unwrap();
+    let go = dir.path().join("go");
     let state = seeded_state(dir.path());
     state.supervisor.set_orphan_grace("fake-harness", 1);
     let session = SessionId::new("sess-e24");
@@ -172,8 +173,10 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
                     dir.path().join("transcripts").to_str().unwrap(),
                     "--turns",
                     "3",
-                    "--delay-ms",
-                    "1500",
+                    // Ends when the test has seen the child (a timer's
+                    // window can be missed under load).
+                    "--exit-when",
+                    go.to_str().unwrap(),
                     "--spawn-child",
                     "/bin/sleep",
                     "--child-args",
@@ -212,6 +215,7 @@ fn a_session_and_what_it_leaves_behind_on_the_one_model() {
     });
     assert!(changed, "the graph said it changed");
     let child = reap.0;
+    std::fs::write(&go, b"").unwrap();
     assert!(matches!(
         child_state(&state, child),
         Some(ProcState::Working | ProcState::Idle)

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useEscapeCloses } from "../lib/use-escape-closes";
 import { homeRelative } from "../lib/project-words";
 import { Button, Card, Chip } from "../components/primitives";
 import { IconProjects, IconTerminal } from "../components/icons";
@@ -193,6 +194,8 @@ export function NewSessionModal({
     [projects],
   );
 
+  useEscapeCloses(onClose);
+
   // ⌘↩ launches the preselected Launch settings (flow (e) HIG).
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -233,7 +236,6 @@ export function NewSessionModal({
       aria-label="New session"
       data-testid="new-session-sheet"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
-      onKeyDown={(event) => event.key === "Escape" && onClose()}
     >
       <Card className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden p-0">
         <div className="flex items-center gap-3 border-b border-hairline/60 px-6 py-4">

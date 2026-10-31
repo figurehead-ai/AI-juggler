@@ -8,6 +8,9 @@
 //!   stays, or goes to the Trash when the user chooses that. An account
 //!   with open sessions is refused, naming them. Its sessions' history
 //!   stays readable, marked "removed account".
+//! - Deleting launch settings (D-60) works the same way: refused while
+//!   one of their sessions is open, then marked removed; the sessions
+//!   made with them stay in History.
 //! - The default: a project's own pick, else the global one, else the
 //!   most recently used account (the UI's rule, as before).
 //! - Every change is an audit row (who, what, when).
@@ -114,6 +117,55 @@ fn session_place(cwd: &Path) -> String {
             |name| name.to_string_lossy().into_owned(),
         )
     })
+}
+
+/// Removes launch settings (D-60): refused while a session made with them
+/// is open, naming it; otherwise they're marked removed. They leave every
+/// list and start nothing; the sessions made with them stay in History.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for open sessions; [`AppError::NotFound`] for
+/// launch settings that don't exist or were already removed; storage
+/// errors.
+pub fn launch_settings_remove_impl(state: &Arc<AppState>, profile_id: &str) -> AppResult<()> {
+    let storage = lock_storage_arc(state)?;
+    let id = juggler_core::model::ProfileId::new(profile_id);
+    let recipe = match storage.profiles().get(&id) {
+        Ok(recipe) if !storage.profiles().is_removed(&id)? => recipe,
+        Ok(_) | Err(juggler_core::CoreError::NotFound { .. }) => {
+            return Err(AppError::NotFound {
+                entity: "profile",
+                id: profile_id.to_owned(),
+            });
+        }
+        Err(other) => return Err(other.into()),
+    };
+    let mut open: Vec<String> = storage
+        .sessions()
+        .list(None)?
+        .into_iter()
+        .filter(|record| record.profile == id && is_open(record.status))
+        .map(|record| session_place(&record.cwd))
+        .collect();
+    let count = open.len();
+    open.sort();
+    open.dedup();
+    if count > 0 {
+        return Err(AppError::Refused(format!(
+            "«{}» has {} open: {}. Stop {} first, then delete the launch settings",
+            recipe.name,
+            if count == 1 {
+                "a session".to_owned()
+            } else {
+                format!("{count} sessions")
+            },
+            open.join(", "),
+            if count == 1 { "it" } else { "them" },
+        )));
+    }
+    storage.profiles().mark_removed(&id)?;
+    Ok(())
 }
 
 /// An active (not removed) account, or a refusal in words.

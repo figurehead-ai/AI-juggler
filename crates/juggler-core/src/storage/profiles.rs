@@ -84,36 +84,77 @@ impl ProfilesRepo<'_> {
             .ok_or_else(|| super::accounts::not_found("profile", id.as_str()))
     }
 
-    /// Lists profiles, optionally filtered by account, oldest first.
+    /// Lists an account's launch settings in use, oldest first. Removed
+    /// ones (D-60) are not among them; [`Self::get`] still finds them, so
+    /// their sessions' history keeps a name.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures or
     /// [`CoreError::Serialization`] for corrupt stored settings.
     pub fn list_by_account(&self, account: &AccountId) -> Result<Vec<Profile>, CoreError> {
-        let mut stmt = self.conn.prepare(
+        self.query(
+            "SELECT * FROM launch_recipes WHERE account_id = ?1 AND removed_at IS NULL ORDER BY created_at, id",
+            account,
+        )
+    }
+
+    /// Lists every launch setting of an account, removed ones too, oldest
+    /// first — for what must cover all of them (history joins).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures or
+    /// [`CoreError::Serialization`] for corrupt stored settings.
+    pub fn list_all_by_account(&self, account: &AccountId) -> Result<Vec<Profile>, CoreError> {
+        self.query(
             "SELECT * FROM launch_recipes WHERE account_id = ?1 ORDER BY created_at, id",
+            account,
+        )
+    }
+
+    /// Whether launch settings were removed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn is_removed(&self, id: &ProfileId) -> Result<bool, CoreError> {
+        self.conn
+            .query_row(
+                "SELECT removed_at IS NOT NULL FROM launch_recipes WHERE id = ?1",
+                params![id.as_str()],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?
+            .ok_or_else(|| super::accounts::not_found("profile", id.as_str()))
+    }
+
+    /// Removes launch settings (D-60): they leave [`Self::list_by_account`]
+    /// and start nothing, while the sessions made with them stay in
+    /// history. (Deleting the row took every one of those sessions with
+    /// it: the sessions table cascades.)
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::NotFound`] when missing or already removed, or
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn mark_removed(&self, id: &ProfileId) -> Result<(), CoreError> {
+        let changed = self.conn.execute(
+            "UPDATE launch_recipes SET removed_at = ?2 WHERE id = ?1 AND removed_at IS NULL",
+            params![id.as_str(), crate::model::Timestamp::now().millis()],
         )?;
+        super::accounts::require_changed(changed, "profile", id.as_str())
+    }
+
+    fn query(&self, sql: &str, account: &AccountId) -> Result<Vec<Profile>, CoreError> {
+        let mut stmt = self.conn.prepare(sql)?;
         let rows = stmt.query_map(params![account.as_str()], map_profile)?;
         let mut out = Vec::new();
         for row in rows {
             out.push(row?);
         }
         Ok(out)
-    }
-
-    /// Deletes a profile by id (cascades to sessions).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::NotFound`] when missing, or
-    /// [`CoreError::Storage`] on SQLite failures.
-    pub fn delete(&self, id: &ProfileId) -> Result<(), CoreError> {
-        let changed = self.conn.execute(
-            "DELETE FROM launch_recipes WHERE id = ?1",
-            params![id.as_str()],
-        )?;
-        super::accounts::require_changed(changed, "profile", id.as_str())
     }
 }
 

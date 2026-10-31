@@ -2687,7 +2687,9 @@ pub fn create_profile(
     })
 }
 
-/// Deletes a profile (cascades to its session records).
+/// Deletes launch settings (D-60): refused while one of their sessions is
+/// open; the sessions made with them stay in History
+/// ([`crate::manage::launch_settings_remove_impl`]).
 #[tauri::command]
 ///
 /// # Errors
@@ -2698,10 +2700,7 @@ pub async fn profile_delete(
     profile_id: String,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "profile delete", move |state| {
-        lock_storage_arc(state)?
-            .profiles()
-            .delete(&ProfileId::new(profile_id))?;
-        Ok(())
+        crate::manage::launch_settings_remove_impl(state, &profile_id)
     })
     .await
 }
@@ -2902,6 +2901,16 @@ pub fn launch_profile_primed(
         return Err(AppError::Refused(format!(
             "«{}» was removed — add it again to start a session on it",
             account.label
+        )));
+    }
+    // D-60: nor do deleted launch settings.
+    if lock_storage_arc(state)?
+        .profiles()
+        .is_removed(&profile.id)?
+    {
+        return Err(AppError::Refused(format!(
+            "«{}» was deleted — pick other launch settings to start a session",
+            profile.name
         )));
     }
     // The profile's model goes in as `claude --model` (the adapter's
@@ -4613,9 +4622,10 @@ pub(crate) fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex
         .collect();
     let mut recipe_index: RecipeIndex = std::collections::BTreeMap::new();
     for (account_id, (_, harness)) in &account_index {
+        // D-60: removed launch settings too, so their sessions keep a name.
         for recipe in storage
             .profiles()
-            .list_by_account(&AccountId::new(account_id.as_str()))?
+            .list_all_by_account(&AccountId::new(account_id.as_str()))?
         {
             recipe_index.insert(
                 recipe.id.to_string(),

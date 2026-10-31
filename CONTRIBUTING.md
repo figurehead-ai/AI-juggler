@@ -86,6 +86,27 @@ pnpm --dir ui build                      # typecheck + production bundle
 pnpm --dir ui exec playwright test       # visual states + a11y (for UI changes)
 ```
 
+Before a push to `main` or a `release/*` branch, run them all at once on
+the commit you're pushing:
+
+```bash
+just hooks       # once: pushes to main and release/* need a passed preflight
+just preflight   # the whole of CI here: verify, the UI job, Linux clippy, visual and a11y when ui/ changed
+```
+
+`just preflight` needs a clean tree (it checks the commit, not your
+edits), runs every step even after a failure, and names each failure at
+the end. When it passes it stamps the commit, and the pre-push hook lets
+that commit through. `scripts/ci_parity.py` keeps `just verify` in step
+with CI's verify job.
+
+- **Tests are deterministic.** A test never waits on a timer for
+  something it can be told (the fake harness's `--exit-when`), and never
+  depends on this machine's disk, memory or load: code that reads them
+  takes them from a seam a test can replace (`scripts/machine_state_lint.py`).
+  A test that fails once is fixed, or quarantined with an issue; "passes
+  alone" is not a fix.
+
 - **Rust:** typed errors, no `unwrap`/`expect`/`panic!` in production
   paths, documented public items, `unsafe` is forbidden (two audited
   exceptions, each its own small crate: D-17 and D-26). Rustdoc runs with warnings as errors —

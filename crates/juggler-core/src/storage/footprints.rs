@@ -203,7 +203,7 @@ impl FootprintsRepo<'_> {
 
 impl FootprintsRepo<'_> {
     /// Deletes the footprints of launch settings and Accounts that no
-    /// longer exist; returns how many went.
+    /// longer exist or were removed; returns how many went.
     ///
     /// # Errors
     ///
@@ -211,7 +211,7 @@ impl FootprintsRepo<'_> {
     pub fn forget_deleted(&self) -> Result<usize, CoreError> {
         Ok(self.conn.execute(
             "DELETE FROM footprints
-             WHERE (key LIKE 'recipe:%' AND substr(key, 8) NOT IN (SELECT id FROM launch_recipes))
+             WHERE (key LIKE 'recipe:%' AND substr(key, 8) NOT IN (SELECT id FROM launch_recipes WHERE removed_at IS NULL))
                 OR (account_id IS NOT NULL AND account_id NOT IN (SELECT id FROM accounts))",
             [],
         )?)

@@ -43,7 +43,11 @@ fn upgrading_from_notices_keeps_a_copy_and_adds_the_canvas() {
     let db = dir.path().join("juggler.sqlite");
     database_at(&db, 37);
     let storage = Storage::open(&db).unwrap();
-    assert_eq!(storage.user_version().unwrap(), 38);
+    // To the newest schema (v38 added the canvas; later ones come too).
+    assert_eq!(
+        storage.user_version().unwrap(),
+        i64::try_from(Storage::migrations().len()).unwrap()
+    );
     assert_eq!(pre_migration_copies(&db)[0].0, 37);
     assert_eq!(storage.pools().get("pool-team").unwrap().name, "Team");
     assert!(

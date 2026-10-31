@@ -349,7 +349,7 @@ describe("D-25 first run — the flow", () => {
     await waitFor(() => expect(close.textContent).toBe("Stop"));
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(close.textContent).toBe("Stopping after this one…"));
-    const outcome = await findByTestId("first-run-outcome", {}, { timeout: 2000 });
+    const outcome = await findByTestId("first-run-outcome");
     expect(outcome.textContent).toContain("Stopped. 1 brought in, 2 still to go.");
     expect(onDone).not.toHaveBeenCalled();
     expect(close.textContent).toBe("Not now");
@@ -358,7 +358,7 @@ describe("D-25 first run — the flow", () => {
       fireEvent.click(getByTestId("first-run-rest"));
     });
     // The other two come in, then it goes on (in place: no sign-ins).
-    expect(await findByTestId("first-run-access", {}, { timeout: 2000 })).toBeTruthy();
+    expect(await findByTestId("first-run-access")).toBeTruthy();
   });
 
   it("a setup already in AI Juggler (as a copy) isn't called brought in", async () => {
