@@ -334,7 +334,10 @@ Your own `~/.claude` and `~/.codex` folders are otherwise left as they are.
 - **0.4:** trust and the finished basics: a security pass, a real
   command palette, cost per finished task and wasted spend, notification
   and shortcut settings that fit you, and every core feature checked on
-  real tools.
+  real tools. Also accounts and apps each with their own page, every page
+  leading to everything related, pools redesigned around how people run
+  several agents, and a simpler New session, all walked through as real
+  use cases before release.
 - **0.5:** more tools (ZCode, Kiro, Hermes, Muse, Cursor, Antigravity),
   pools across your Macs, and handing work to a colleague.
 - **0.6:** the first Stable release.

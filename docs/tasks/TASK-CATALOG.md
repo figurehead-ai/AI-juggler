@@ -345,6 +345,31 @@
 | AJ-E2909 | A keyboard-operable rail splitter | E29-trust-and-the-finished-basics.md | P0 | S | — |
 | AJ-E2910 | Home: filter chips, the r / h / s / e keys, and Mark all finished as reviewed | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2801 |
 | AJ-E3001 | Pools from real use: research, the model and a proposal for review | E30-pools-redesign.md | P0 | L | — |
+| AJ-E3002 | Labs: talk enforced per session, Claude's own channel, OpenCode and Grok tools per launch | E30-pools-redesign.md | P0 | M | AJ-E3001 |
+| AJ-E3003 | The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | E30-pools-redesign.md | P0 | L | AJ-E3202, AJ-E3002 |
+| AJ-E3004 | Membership resolved: who is in which pool, how, and with what role and level | E30-pools-redesign.md | P0 | L | AJ-E3003 |
+| AJ-E3005 | Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | E30-pools-redesign.md | P0 | L | AJ-E3004, AJ-E3002 |
+| AJ-E3006 | Sessions other apps run, as Watched members, and Continue in AI Juggler | E30-pools-redesign.md | P0 | M | AJ-E3004 |
+| AJ-E3007 | New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | E30-pools-redesign.md | P0 | L | AJ-E3005, AJ-E3105 |
+| AJ-E3008 | Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | E30-pools-redesign.md | P0 | L | AJ-E3005 |
+| AJ-E3009 | Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | E30-pools-redesign.md | P1 | M | AJ-E3005 |
 | AJ-E3101 | What relates to what: the map, each page's tabs, and one list for all of them | E31-everything-links.md | P0 | M | — |
-Total: 344 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3102 | Relations made cheap: instance and conversation indexes, and a relation-count cache | E31-everything-links.md | P0 | M | AJ-E3202 |
+| AJ-E3103 | One related-items list and one row, everywhere | E31-everything-links.md | P0 | L | AJ-E3102 |
+| AJ-E3104 | Every page leads to what's related: header chips and counted tabs on project, session, App, Account, pool, Mac and Tool | E31-everything-links.md | P0 | L | AJ-E3103, AJ-E3204, AJ-E3205 |
+| AJ-E3105 | Every picker: suggested for where you are, then All, with search | E31-everything-links.md | P0 | M | AJ-E3102 |
+| AJ-E3201 | One word per thing: Account, App, Tool, Project, Session, on screen, in the spec and in the guide | E32-account-and-app.md | P0 | M | — |
+| AJ-E3202 | Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | E32-account-and-app.md | P0 | L | AJ-E3201 |
+| AJ-E3203 | Claude app profiles found when they aren't running | E32-account-and-app.md | P1 | M | AJ-E3202 |
+| AJ-E3204 | The App page | E32-account-and-app.md | P0 | L | AJ-E3202 |
+| AJ-E3205 | The Account page | E32-account-and-app.md | P0 | M | AJ-E3202 |
+| AJ-E3206 | Every name opens its own page | E32-account-and-app.md | P0 | M | AJ-E3204, AJ-E3205 |
+| AJ-E3207 | New session: the usual choice made and said, one button, the rest a step away | E32-account-and-app.md | P0 | M | AJ-E3202 |
+| AJ-E3301 | The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | E33-validated-by-use.md | P0 | L | — |
+| AJ-E3302 | Account and App validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3207 |
+| AJ-E3303 | Links validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3105 |
+| AJ-E3304 | Pools validated: the exhaustive tables, the pairs, and P1–P11 by hand | E33-validated-by-use.md | P0 | L | AJ-E3301, AJ-E3009 |
+| AJ-E3305 | Every 0.4 screen scored against the 14 principles | E33-validated-by-use.md | P1 | M | AJ-E3301 |
+| AJ-E3306 | The release candidate walked whole: every scenario again, a day in the life, the load | E33-validated-by-use.md | P0 | L | AJ-E3302, AJ-E3303, AJ-E3304, AJ-E3305 |
+Total: 369 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

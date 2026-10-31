@@ -45,7 +45,7 @@ kept for tracking continuity.
 > and the [legacy→canonical glossary in SPEC §3](../SPEC.md).
 
 The canonical task breakdown is now the **E-catalog**
-(`docs/tasks/E1..E31`, 344 tasks, evidence-gated). The M-milestones
+(`docs/tasks/E1..E33`, 369 tasks, evidence-gated). The M-milestones
 below retain their IDs for tracking continuity; their *scope text* is
 re-sequenced around the settled thesis **Switch → See → Clean**, with
 Fleet integrated at launch (D-13), not deferred:

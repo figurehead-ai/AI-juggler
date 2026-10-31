@@ -12,10 +12,10 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-61. Do not re-litigate them; supersede only via a
+   decisions D-01..D-62. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E31 below).
+4. The epic file for the task you claim (E1-E33 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -52,8 +52,10 @@
 | [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: a dedicated first release, then every release (D-52) | AJ-E2701-E2715 |
 | [E28-finding-your-way.md](E28-finding-your-way.md) | Finding your way: projects, pools, tasks and subagents (D-54..D-57) | AJ-E2801-E2814 |
 | [E29-trust-and-the-finished-basics.md](E29-trust-and-the-finished-basics.md) | Trust and the finished basics: what the spec promised for the daily loop (0.4, D-59) | AJ-E2901-E2910 |
-| [E30-pools-redesign.md](E30-pools-redesign.md) | Pools, redesigned from how people work (0.4, D-61) | AJ-E3001-E3001 |
-| [E31-everything-links.md](E31-everything-links.md) | Everything links to everything: each page leads to what's related (0.4, D-61) | AJ-E3101-E3101 |
+| [E30-pools-redesign.md](E30-pools-redesign.md) | Pools, redesigned from how people work (0.4, D-61) | AJ-E3001-E3009 |
+| [E31-everything-links.md](E31-everything-links.md) | Everything links to everything: each page leads to what's related (0.4, D-61) | AJ-E3101-E3105 |
+| [E32-account-and-app.md](E32-account-and-app.md) | Account and App: one word per thing, stored, each with its page; New session redesigned (0.4, D-62) | AJ-E3201-E3207 |
+| [E33-validated-by-use.md](E33-validated-by-use.md) | 0.4 validated by use: every combination, every real use case (0.4, D-62) | AJ-E3301-E3306 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

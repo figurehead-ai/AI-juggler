@@ -2047,3 +2047,105 @@ settled their model (AJ-E1701): members are single sessions AI Juggler
 started, the add list hides why others can't join, and nothing helps a
 user start.
 
+
+### D-62 The 0.4 designs are approved, and every combination is validated by real use — SETTLED (2026-10-30)
+
+**Ruling.** The maintainer reviewed the 0.4 design review (pools, links,
+Account and App, design principles; the research is in
+`docs/research/pools-model.md`, `relations-map.md`,
+`entity-model-audit.md` and `docs/design/PRINCIPLES.md`) and approved
+all 24 recommendations: "Yes 0.4 designs are approved." In the same
+message: "When you start implementing, it will be very important to
+validate and test every combination of those options. So make sure you
+systematically validate them, you should have a comprehensive process to
+validate them, not just in automated way, but from user workflow
+perspective. Real example use cases of how user would use it, this needs
+to be part of your plan for 0.4."
+
+**What is settled.**
+
+*Account and App (amends D-35, D-36, SPEC §3 and §9.1, the guide).*
+1. One word per thing: Account is a subscription; App is a desktop or CLI
+   app, or one of its profiles ("Claude app · b-work"); Tool is the
+   product (Claude Code, Codex); Project is a code project; Session is a
+   chat in an App, and through it on an Account.
+2. A CLI App is its tool plus its folder; the terminal it runs in is a
+   detail of a session.
+3. The Claude app and Claude Code on the same folder are two Apps on one
+   Account.
+4. Accounts and Apps are stored (two additive tables, 0.4). An Account is
+   keyed by the vendor's sign-in, so one plan never splits in two.
+5. Claude app profiles that aren't running are found by listing their
+   folder names, never their contents; asked once on the App page, with a
+   line on the Privacy page.
+6. An Account has its own name, renamable: by default its team, else its
+   plan, else the masked email.
+7. An App page and an Account page; every name on screen opens its own
+   page (the App grouping opens the App, an account name the Account).
+
+*Pools (E30; the proposal's "Profile" member is App, its "App" member is
+Tool).*
+8. Scope: every project, or one or several picked.
+9. Six member types: Session, App (its future sessions join by
+   themselves), Account, Tool, Mac, everyone in scope. Mac members go
+   live with pools across Macs (AJ-E1705).
+10. A session can be in several pools.
+11. Overlap: inside one pool the most specific member wins (Session, App,
+    Account, Tool, Mac, everyone); across pools each pool's rules govern
+    what happens in it; a sealed pool beats them all.
+12. Roles Lead, Member, Reviewer (new) and Observer; D-28's levels per
+    pool, and a member may carry its own level. No free-form roles yet.
+13. Who may talk to whom: allowed, ask first or blocked, per role pair,
+    any single connection changeable; built after a lab proves it can be
+    enforced per session.
+14. Sealed: its sessions are in no other pool and nothing leaves
+    (messages, docs), Claude's own cross-session messages included.
+15. Sessions other apps run can be members marked Watched: shown, with no
+    tools or rules, and a "Continue in AI Juggler" action. Joining from
+    anywhere comes later, after its own design record.
+16. Today's pools move over with nothing lost (project pools become that
+    project's scope with everyone in scope; messages, tasks, rules,
+    history and layouts stay).
+17. OpenCode and Grok Build get the agent tools through their own
+    per-launch config once a lab proves it loads without prompts; Kimi
+    Code stays on its shell.
+18. New pool opens a wizard with templates (writer and reviewer, feature
+    team, across repositories, a reviewer for everything, rules by
+    account, a build Mac, a sealed client project, scouts, blank); "Set
+    up by hand" is one click away and the empty canvas teaches the first
+    step.
+
+*Everything links (E31).*
+19. A relation to one thing is a chip in the page header; a relation to
+    many is a tab with a count.
+20. One list and one row everywhere for related items, kept fast by new
+    indexes and a relation-count cache (D-58).
+21. Default order: needs you, working, open, active in the last 7 days,
+    then the rest; search past 8 items; pickers show Open now, Recent and
+    In this project before All.
+
+*Design.*
+22. The 14 principles in `docs/design/PRINCIPLES.md` are adopted; every
+    UI change is scored against them.
+23. New colours for both themes (cards apart from the page, four text
+    levels, labels dimmer than values, every level contrast-checked) ship
+    in 0.3.2, since they fix readability on every screen.
+24. New session is redesigned in 0.4: it opens with the usual choice made
+    and stated, one button, Change folder and Change app one step away,
+    rare options folded.
+
+*Validation.* 0.4 is validated by the process in
+`docs/qa/0.4-validation-plan.md`: every option combination that changes
+behaviour is run against an independent expectation, and every approved
+decision is walked by hand as a real user's use case in the Dev edition
+app, scored, before its task is done and again on the release candidate.
+E33 holds that work as tasks.
+
+**Order.** The words and the stored Account and App (E32), then the pages
+and links (E31), then pools (E30); validation (E33) runs with each, not
+after.
+
+**Why.** The proposal answered the maintainer's questions from real use
+and each tool's documented capability. The validation clause exists
+because 0.3's pools, banners and switch from the Claude app passed their
+suites and still failed the maintainer's first real use.

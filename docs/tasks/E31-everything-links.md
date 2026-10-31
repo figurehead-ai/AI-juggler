@@ -25,10 +25,16 @@
 > wireframes, and goes to the maintainer with E30's pool proposal (pools
 > are among the linked entities). The build tasks are written from what's
 > approved.
+>
+> **Approved** on 2026-10-30 (D-62, decisions 19–21). The build tasks
+> follow E32's stored Account and App and come before E30's screens,
+> which use the one list and the pickers. Each names its scenarios in
+> [`docs/qa/0.4-validation-plan.md`](../qa/0.4-validation-plan.md)
+> (K1–K4) and isn't done until they pass by hand, scored (D-62).
 
 ## Step 1 — the map and the pages
 
-### AJ-E3101 What relates to what: the map, each page's tabs, and one list for all of them | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E3101 What relates to what: the map, each page's tabs, and one list for all of them | Status: DONE (2026-10-30: `docs/research/relations-map.md`, the review page, approved as D-62) | Priority P0 | Effort M | Depends: —
 **Goal**: A reviewed plan for how every page leads to everything related, before any page changes.
 **User story**: As someone on a project's page, I see its apps, accounts, pools and sessions, each a click away, active ones first, with search when there are many; on an app's page I see its projects and sessions the same way, and so on from every page.
 **Requirements**:
@@ -45,3 +51,69 @@
 **Files to touch**: `docs/research/relations-map.md` (new), this epic (the build tasks, once approved).
 **Research basis**: E28 (projects, project page, subagents), E21 (places, rows), E22 (usage), E30 (pools); `ui/src/pages/registry.ts` (today's tabs).
 **Handover note**: The pickers rule (suggested first, then All, search when long) applies to every picker these pages add.
+
+## Step 2 — build
+
+### AJ-E3102 Relations made cheap: instance and conversation indexes, and a relation-count cache | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3202
+**Goal**: Every count and related list on every page comes from an index or the cache, never from a scan or a transcript.
+**User story**: As someone with thousands of sessions, a project's tabs show their counts at once.
+**Requirements**:
+1. Indexes SHALL be added on instances (project, launch settings, App, Mac) and a conversation index by project, App and Tool.
+2. A relation-count entry in D-58's cache SHALL hold each entity's counts per relation, invalidated by stamp on change events, cleared by the user's cache clear (the page shows at once, counts a moment later).
+3. Counts SHALL agree with the lists they head.
+**UI/UX reasoning**: instant and paged.
+**Performance budget**: any count ≤ 5 ms from cache; a cold rebuild for 10 000 sessions ≤ 1 s, off the main thread.
+**Quality gates**: L2: counts equal the reference on the replica; a property test that every event kind invalidates what it should.
+**Evidence/validation proof**: scenarios K1, K2, X1 (cache cleared mid-walk).
+**Visual testing**: n/a.
+**Files to touch**: `crates/juggler-core/src/storage/`, `crates/juggler-app/src/cache/`.
+**Research basis**: `docs/research/relations-map.md` (cost column).
+**Handover note**: —
+
+### AJ-E3103 One related-items list and one row, everywhere | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3102
+**Goal**: Every related tab, the rail and Home use one list and one row, so a session looks and behaves the same wherever it's seen.
+**User story**: As someone moving between pages, a session's row always shows its app, state, App badge, project and when, in the same places.
+**Requirements**:
+1. `RelatedList` SHALL open on needs you, working, open, active in the last 7 days, then the rest; search past 8 items; filter chips (state, App, Account, project, Mac when paired); keyset paging; new rows wait behind "N new".
+2. One row SHALL replace SessionRowBody, the rail's PlaceRow and Home's tiles.
+3. Empty states SHALL teach (what would appear here, and the step that brings it).
+**UI/UX reasoning**: one row anatomy (D-47); the 14 principles.
+**Performance budget**: a tab opens ≤ 150 ms from cache; scrolling 1 000 rows stays at 60 fps.
+**Quality gates**: L3 all pairs over page × tab × size × filter; gallery unchanged where only the row moved, critique where it changed.
+**Evidence/validation proof**: scenario K2.
+**Visual testing**: every page's lists, both themes, 1024 and 1280.
+**Files to touch**: `ui/src/components/RelatedList.tsx` (new), `ui/src/components/SessionRow*.tsx`, `WorkflowRail.tsx`, `Home*.tsx`.
+**Research basis**: `docs/research/relations-map.md` "One list".
+**Handover note**: —
+
+### AJ-E3104 Every page leads to what's related: header chips and counted tabs on project, session, App, Account, pool, Mac and Tool | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3103, AJ-E3204, AJ-E3205
+**Goal**: From any page, every related thing is one click away, and it links back.
+**User story**: On a project I open Apps (5), then an App's Sessions, then a session's Account chip, then that Account's Pools, each in one click, and back again.
+**Requirements**:
+1. A relation to one thing SHALL be a header chip; a relation to many SHALL be a tab with its count, per the tab table in `docs/research/relations-map.md` (the project's Pool tab becomes Pools).
+2. Every notice SHALL open the right page and tab; Needs you counts the same notices as the bell.
+3. A session's Pools tab SHALL say how it got into each pool and which it's skipped from (needs AJ-E3004; until then, its one pool).
+**UI/UX reasoning**: desktop-first navigation: what is open, where, one click to it.
+**Performance budget**: every hop ≤ 150 ms.
+**Quality gates**: L2 counts; L3 pairs; the chain walked both ways.
+**Evidence/validation proof**: scenarios K1, K2, K3.
+**Visual testing**: each page's header and tabs, both themes.
+**Files to touch**: `ui/src/pages/registry.ts`, `ui/src/pages/*`, `ui/src/pages/ItemHeader.tsx`.
+**Research basis**: `docs/research/relations-map.md`; the review's page wireframes.
+**Handover note**: —
+
+### AJ-E3105 Every picker: suggested for where you are, then All, with search | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3102
+**Goal**: Each picker's top group is what you'd most likely choose here.
+**User story**: Choosing a project from a session page, the session's project and the open ones come first, then All, and I can type to filter.
+**Requirements**:
+1. Every entity picker SHALL use the shared Picker's suggested-then-All form (built in 0.3.2) with its call site supplying Open now, Recent and In this project as fit.
+2. Empty or irrelevant items SHALL go last or behind "Show empty".
+3. Type-to-filter, arrows and Return SHALL work in every one.
+**UI/UX reasoning**: `docs/plan/QUALITY.md` "Finding things".
+**Performance budget**: opens ≤ 100 ms with 1 000 items (windowed).
+**Quality gates**: a lint listing pickers without a top group; L3 pairs.
+**Evidence/validation proof**: scenario K4.
+**Visual testing**: each picker open, both themes.
+**Files to touch**: `ui/src/components/controls/Picker.tsx` call sites.
+**Research basis**: D-62 decision 21.
+**Handover note**: —
