@@ -22,9 +22,9 @@ import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesKeepAlive } from "../lib/ipc/places";
 import { placeFor, useKnownPlaces } from "../lib/places";
-import { itemsOf, openNow, OWN_PLACE } from "../lib/rail-items";
+import { itemsOf, openNow } from "../lib/rail-items";
 import { buildLines, foldSections, lineHeights, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
-import type { RailGroup } from "../lib/rail-places";
+import { renamedPlaces, type RailGroup } from "../lib/rail-places";
 import { dayOf, lensOf, LONG_GROUP, rankOf } from "../lib/rail-order";
 import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
 import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
@@ -35,7 +35,7 @@ import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
 import { useSeen } from "../lib/seen";
 import { moveLine, onLine, roveKey } from "../lib/roving";
-import { accountName, useSubscriptions } from "../lib/subscriptions";
+import { useRailAccountOf } from "../lib/rail-accounts";
 import { railPoolOf, usePools } from "../lib/pools";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 
@@ -84,12 +84,9 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // Rows hold still while the pointer or focus is in the list.
   const last = useRef<Map<string, string[]>>(new Map());
   const [frozen, setFrozen] = useState<Map<string, string[]> | null>(null);
-  // The Account lens groups by subscription (AJ-E2109), read only for it.
-  const subscriptions = useSubscriptions(0, view.group === "account");
-  const accountOf = useMemo(() => {
-    const byProfile = new Map((subscriptions ?? []).flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row) }] as const)));
-    return (profileId: string | null) => (profileId === null ? null : (byProfile.get(profileId) ?? null));
-  }, [subscriptions]);
+  // The Account lens groups by subscription (AJ-E2109), and `account:`
+  // means one (D-62): read only for them.
+  const accountOf = useRailAccountOf(view.group === "account" || view.only.account !== undefined || parsed.only.account !== undefined);
   // AJ-E1702: the Pool lens, once a pool of yours exists (places before).
   const pools = usePools();
   const poolOf = useMemo(() => railPoolOf(pools), [pools]);
@@ -103,9 +100,13 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   const stable = order.mode !== "latest";
   // New rows and places join the end of the record; gone ones are pruned.
   const groupKeys = built.groups.map((group) => group.key).join("\n");
+  // D-62: a place kept by 0.3's key (app and profile) is the App it became.
+  // (As words, so the record is brought up to date only when they change.)
+  const renamed = lens === "place" ? [...renamedPlaces(built.groups)].map(([old, now]) => `${old}\t${now}`).join("\n") : "";
   useEffect(() => {
-    reconcileOrder({ known: items.map((item) => item.key), open: items.filter(openNow), lens: orderLens, groups: groupKeys === "" ? [] : groupKeys.split("\n"), today: dayOf(now) });
-  }, [items, orderLens, groupKeys, now]);
+    const pairs = renamed === "" ? [] : renamed.split("\n").map((line) => line.split("\t") as [string, string]);
+    reconcileOrder({ known: items.map((item) => item.key), open: items.filter(openNow), lens: orderLens, groups: groupKeys === "" ? [] : groupKeys.split("\n"), today: dayOf(now), renamed: new Map(pairs) });
+  }, [items, orderLens, groupKeys, now, renamed]);
   // Needs you and Open now fold in place from their heads.
   const [closed, setClosed] = useState<ReadonlySet<"needs" | "open">>(new Set());
   const lines = foldSections(built.lines, closed);
@@ -136,7 +137,6 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       const pool = group.poolId;
       return pool !== null && host.openPool ? () => host.openPool!(pool) : undefined;
     }
-    if (lens !== "account" && group.key === OWN_PLACE) return host.openHome;
     const id = group.accountId ?? group.items[0]?.accountId ?? null;
     return id !== null && host.openAccountById ? () => host.openAccountById!(id) : undefined;
   };
@@ -146,12 +146,15 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       host.openPool?.(group.poolId);
       return;
     }
-    if (group.key === OWN_PLACE) {
-      const first = group.items.find((item) => item.session);
-      if (first?.session) onSelect(first.session.id);
+    // A CLI App's sessions may be in AI Juggler and in a terminal: the
+    // first one leads. In AI Juggler it's selected; elsewhere, its window
+    // comes forward.
+    const first = group.items[0];
+    if (first?.session && first.place.kind === "own") {
+      onSelect(first.session.id);
       return;
     }
-    const pid = group.place?.appPid;
+    const pid = group.items.find((item) => item.place.appPid !== null)?.place.appPid;
     if (pid === null || pid === undefined) return;
     showToast({ id: "go-to", message: "Bringing it forward…" });
     conversationsBringForward(pid).then(
@@ -265,12 +268,11 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} />;
       case "header": {
         const group = line.group;
-        const own = group.key === OWN_PLACE;
         const known = lens === "place" && group.place?.kind === "desktop" ? placeFor(places, group.place.appPid) : null;
         const opens =
           lens === "pool"
             ? group.poolId !== null && host.openPool !== undefined
-            : lens !== "account" && (own ? group.items.some((item) => item.session) : group.place?.appPid !== null && group.place?.appPid !== undefined);
+            : lens !== "account" && group.items.some((item) => (item.session !== null && item.place.kind === "own") || item.place.appPid !== null);
         return (
           <PlaceHeader
             place={lens === "account" || lens === "pool" ? null : group.place}

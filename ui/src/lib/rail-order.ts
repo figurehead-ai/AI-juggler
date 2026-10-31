@@ -102,6 +102,9 @@ export interface Present {
   lens: OrderLens;
   groups: readonly string[];
   today: number;
+  /** Groups known by another key now (an old place key and the App it
+   * became, D-62): the order and the folds follow them. */
+  renamed?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -143,6 +146,20 @@ export function reconcile(order: RailOrder, present: Present): { order: RailOrde
   }
   if (kept.length !== rows.length || pins.length !== order.pins.length) changed = true;
   let lensGroups = [...order.groups[present.lens]];
+  let folded = order.folded;
+  const renamed = present.renamed;
+  if (renamed && renamed.size > 0 && lensGroups.some((key) => renamed.has(key))) {
+    lensGroups = [...new Set(lensGroups.map((key) => renamed.get(key) ?? key))];
+    changed = true;
+  }
+  if (renamed && renamed.size > 0) {
+    const prefix = `${present.lens}:`;
+    const next = [...new Set(folded.map((key) => (key.startsWith(prefix) ? foldKey(present.lens, renamed.get(key.slice(prefix.length)) ?? key.slice(prefix.length)) : key)))];
+    if (next.length !== folded.length || next.some((key, at) => key !== folded[at])) {
+      folded = next;
+      changed = true;
+    }
+  }
   for (const key of present.groups) {
     if (!lensGroups.includes(key)) {
       lensGroups.push(key);
@@ -153,7 +170,7 @@ export function reconcile(order: RailOrder, present: Present): { order: RailOrde
     const at = lensGroups.findIndex((key) => !present.groups.includes(key));
     lensGroups = at < 0 ? lensGroups.slice(1) : [...lensGroups.slice(0, at), ...lensGroups.slice(at + 1)];
   }
-  return { order: { ...order, rows: kept, pins, seen, groups: { ...order.groups, [present.lens]: lensGroups } }, changed };
+  return { order: { ...order, rows: kept, pins, seen, folded, groups: { ...order.groups, [present.lens]: lensGroups } }, changed };
 }
 
 /** Each key's place in a list (missing ones are not in it). */

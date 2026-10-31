@@ -110,7 +110,7 @@ const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded:
 
 export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [] }: LineInputs): Lines {
   const searching = isSearching(query);
-  const shown = items.filter((item) => matches(item, view.only, query));
+  const shown = items.filter((item) => matches(item, view.only, query, accountOf));
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
   const keep = (list: string, rows: RailItem[]) => (frozen?.has(list) ? frozenOrder(rows, frozen.get(list)!, (item) => item.key) : rows);
 

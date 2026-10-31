@@ -10,7 +10,8 @@
  * project: mac:`, then free text.
  */
 import { useSyncExternalStore } from "react";
-import type { GroupBy } from "./rail-places";
+import type { AccountOf, GroupBy } from "./rail-places";
+import { appName } from "./app-name";
 import { itemsOf, type RailItem } from "./rail-items";
 import type { InstanceInfo, ProjectInfo } from "./bridge";
 import type { ConversationInfo } from "./ipc/conversations";
@@ -192,15 +193,18 @@ export function isSearching(query: RailQuery): boolean {
   return query.text !== "" || query.is.size > 0 || Object.keys(query.only).length > 0;
 }
 
-/** An item's value for an Only key (a Mac is "this-mac" here). */
-export function onlyValue(item: RailItem, key: OnlyKey): string {
+/** An item's value for an Only key (a Mac is "this-mac" here). D-62:
+ * `app` is the App ("Claude Code · Work Max"); `account` the Account
+ * (subscription) it's signed in to, once `accountOf` knows it; `profile`
+ * stays the App's profile, so a View kept with it still works. */
+export function onlyValue(item: RailItem, key: OnlyKey, accountOf?: AccountOf): string {
   switch (key) {
     case "app":
-      return item.place.app;
+      return appName(item.place.app, item.place.profile);
     case "profile":
       return item.place.profile ?? "";
     case "account":
-      return item.accountLabel;
+      return accountOf?.(item.accountId)?.label ?? item.accountLabel;
     case "project":
       return item.project ?? "";
     case "mac":
@@ -230,17 +234,20 @@ export function paletteMatches(
 }
 
 /** Whether an item passes the View's Only and the query's words (`app:`
- * matches the start of a word; free text anywhere in what the row says). */
-export function matches(item: RailItem, only: RailView["only"], query: RailQuery): boolean {
+ * matches the start of a word, of the App or of where its window is
+ * (`app:terminal`); free text anywhere in what the row says). */
+export function matches(item: RailItem, only: RailView["only"], query: RailQuery, accountOf?: AccountOf): boolean {
   for (const key of ONLY_KEYS) {
     const picked = only[key];
-    if (picked !== undefined && onlyValue(item, key) !== picked) return false;
+    if (picked !== undefined && onlyValue(item, key, accountOf) !== picked) return false;
     const typed = query.only[key];
-    if (typed !== undefined && !onlyValue(item, key).toLowerCase().split(/[\s·/_-]+/).some((word) => word.startsWith(typed)) && !onlyValue(item, key).toLowerCase().startsWith(typed)) return false;
+    if (typed === undefined) continue;
+    const value = (key === "app" ? [onlyValue(item, key), item.place.host ?? ""].join(" ") : onlyValue(item, key, accountOf)).toLowerCase();
+    if (!value.split(/[\s·/_-]+/).some((word) => word.startsWith(typed)) && !value.startsWith(typed)) return false;
   }
   if (query.is.has("asks") && item.need === null) return false;
   if (query.text === "") return true;
-  const haystack = [item.title, item.project ?? "", item.place.app, item.place.profile ?? "", item.accountLabel, item.tool, item.session?.git_branch ?? item.conversation?.git_branch ?? "", item.session?.model ?? ""]
+  const haystack = [item.title, item.project ?? "", item.place.app, item.place.profile ?? "", item.place.host ?? "", item.accountLabel, accountOf?.(item.accountId)?.label ?? "", item.tool, item.session?.git_branch ?? item.conversation?.git_branch ?? "", item.session?.model ?? ""]
     .join(" ")
     .toLowerCase();
   return query.text.split(" ").every((word) => haystack.includes(word));

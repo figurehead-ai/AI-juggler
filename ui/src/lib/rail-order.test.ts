@@ -8,7 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { conversationItem, needsYou, openNow, sessionItem, type RailItem } from "./rail-items";
 import { buildLines, type Line, type OrderInputs } from "./rail-lines";
-import { groupItems } from "./rail-places";
+import { groupItems, renamedPlaces } from "./rail-places";
 import {
   arrangeGroup,
   arrangeGroups,
@@ -35,8 +35,14 @@ const none = () => null;
 const TODAY = dayOf(NOW);
 
 function place(app: string, profile: string): PlaceInfo {
-  return { app, app_id: app.toLowerCase(), profile, instance: profile, pid: 10, kind: "desktop", app_pid: 11, label: `${app} · ${profile}` };
+  // Terminal is where a CLI session's window is; the Claude app runs its own.
+  const terminal = app === "Terminal";
+  return { app, app_id: app.toLowerCase(), profile, instance: terminal ? null : profile, pid: 10, kind: terminal ? "terminal" : "desktop", app_pid: 11, label: `${app} · ${profile}` };
 }
+
+/** The Apps (D-62) the tests' places are in. */
+const CLAUDE_WORK = "app|claude|Work";
+const CODE_WORK = "cli|claude-code|a1";
 
 function talk(id: string, over: Partial<ConversationInfo> = {}): ConversationInfo {
   return {
@@ -135,7 +141,7 @@ describe("Your order: nothing moves by itself (D-47)", () => {
     const lines = (folded: Set<string>) =>
       buildLines({ items: quiet, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null, order: { mode: "yours", rows: new Map(), groups: [], folded } }).lines;
     expect(lines(new Set()).filter((line) => line.kind === "row")).toHaveLength(4);
-    const folded = lines(new Set(["place:Claude|Work"]));
+    const folded = lines(new Set([`place:${CLAUDE_WORK}`]));
     expect(folded.filter((line) => line.kind === "row")).toHaveLength(0);
     expect(folded.find((line) => line.kind === "header")).toMatchObject({ folded: "Work · 4 idle" });
   });
@@ -162,13 +168,29 @@ describe("arranging: drags and the keyboard twin", () => {
     const moved: RailOrder = { ...order, rows: moveIn(order.rows, ["c:a1/a", "c:a1/b", "c:a1/c", "c:a1/d"], 3, 0) };
     expect(drawn(items, yours(moved)).slice(0, 4)).toEqual(["d", "a", "b", "c"]);
     const groups = groupItems(items, "place");
-    expect(arrangeGroups(groups, "yours", order.groups.place).map((g) => g.key)).toEqual(["Claude|Work", "Terminal|Work"]);
-    const swapped = moveIn(order.groups.place, ["Claude|Work", "Terminal|Work"], 1, 0);
+    expect(arrangeGroups(groups, "yours", order.groups.place).map((g) => g.key)).toEqual([CLAUDE_WORK, CODE_WORK]);
+    const swapped = moveIn(order.groups.place, [CLAUDE_WORK, CODE_WORK], 1, 0);
     const built = buildLines({ items, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null, order: { mode: "yours", rows: rankOf(moved.rows), groups: swapped, folded: new Set() } });
-    expect(built.groups.map((g) => g.key)).toEqual(["Terminal|Work", "Claude|Work"]);
+    expect(built.groups.map((g) => g.key)).toEqual([CODE_WORK, CLAUDE_WORK]);
     expect(built.lines.filter((line) => line.kind === "header").map((line) => (line as { digit: number | null }).digit)).toEqual([1, 2]);
     // Latest activity and Name keep the usual place order.
-    expect(arrangeGroups(groups, "latest", swapped).map((g) => g.key)).toEqual(["Claude|Work", "Terminal|Work"]);
+    expect(arrangeGroups(groups, "latest", swapped).map((g) => g.key)).toEqual([CLAUDE_WORK, CODE_WORK]);
+  });
+
+  it("an order and a fold kept by 0.3's place keys follow the App each place became (D-62), once", () => {
+    const items = [...four(), conversationItem(talk("t", { places: [place("Terminal", "Work")] }), none, null), sessionItem(own("mine"), none, false)];
+    const groups = groupItems(items.filter(openNow), "place");
+    const renamed = renamedPlaces(groups);
+    expect(Object.fromEntries(renamed)).toEqual({ "Claude|Work": CLAUDE_WORK, "Terminal|Work": CODE_WORK, "ai-juggler": CODE_WORK });
+    const old: RailOrder = { ...EMPTY_ORDER, groups: { place: ["Terminal|Work", "ai-juggler", "Claude|Work"], account: [], pool: [] }, folded: ["place:Claude|Work", "account:x"] };
+    const present = { known: items.map((item) => item.key), open: items.filter(openNow), lens: "place" as const, groups: groups.map((g) => g.key), today: TODAY, renamed };
+    const { order, changed } = reconcile(old, present);
+    expect(changed).toBe(true);
+    // Terminal's and AI Juggler's places are one App now: it keeps the
+    // first one's spot; the user's fold stays on the App it became.
+    expect(order.groups.place).toEqual([CODE_WORK, CLAUDE_WORK]);
+    expect(order.folded).toEqual([`place:${CLAUDE_WORK}`, "account:x"]);
+    expect(reconcile(order, present).order.groups.place).toEqual(order.groups.place);
   });
 
   it("Reset my order forgets the arrangement, keeping pins, folds and the order picked", () => {
@@ -190,7 +212,7 @@ describe("the other orders", () => {
     const items = four({ a: { last_activity_ms: NOW - 9_000 }, b: { last_activity_ms: NOW - 1_000 }, c: { state: "working" }, d: { last_activity_ms: NOW - 5_000 } });
     // Working first, then the newest event first.
     expect(drawn(items, { mode: "latest" })).toEqual(["c", "b", "d", "a"]);
-    const frozen = new Map([["group:Claude|Work", ["d", "c", "b", "a"].map((id) => `c:a1/${id}`)]]);
+    const frozen = new Map([[`group:${CLAUDE_WORK}`, ["d", "c", "b", "a"].map((id) => `c:a1/${id}`)]]);
     expect(drawn(items, { mode: "latest" }, frozen)).toEqual(["d", "c", "b", "a"]);
     // Your order isn't frozen: it never re-sorts, and a drag shows at once.
     expect(drawn(items, { mode: "yours" }, frozen)).toEqual(["a", "b", "c", "d"]);

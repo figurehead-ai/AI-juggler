@@ -181,7 +181,7 @@ describe("D-38 ProfileBadge and PlaceMark", () => {
   it("puts the profile's dot at the icon's corner, ringed, small, never over the icon's middle", async () => {
     seam({ "claude-app": TEST_ICON });
     for (const size of [20, 24, 32]) {
-      render(<PlaceMark place={{ key: "Claude|Work", app: "Claude", appId: "claude-app", kind: "desktop", profile: "Work Max", appPid: 1 }} size={size} />);
+      render(<PlaceMark place={{ key: "Claude|Work", app: "Claude", appId: "claude-app", kind: "desktop", profile: "Work Max", appPid: 1, host: null }} size={size} />);
       await flush();
       const corner = screen.getByTestId("place-mark-profile");
       const dot = screen.getByTestId("profile-badge");

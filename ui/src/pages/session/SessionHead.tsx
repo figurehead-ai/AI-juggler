@@ -30,7 +30,7 @@ export function SessionAppIcon({ model, size = 48 }: { model: SessionModel; size
   return (
     <span className="inline-flex" data-testid="session-app-icon">
       {(() => {
-        const place = markPlace(model.places[0], model.sessionId !== null);
+        const place = markPlace(model.places[0], model.sessionId !== null, model.tool, model.profileLabel);
         return <AppIconTile appId={place.appId} appPid={place.appPid} name={place.app} size={size} />;
       })()}
     </span>

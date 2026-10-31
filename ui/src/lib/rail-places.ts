@@ -1,19 +1,21 @@
 /**
- * AJ-E2104 — Open now's groups. By place (app + profile, the default), by
+ * AJ-E2104 — Open now's groups. By App (D-62: "Claude app · b-work",
+ * "Claude Code · Work Max"; the default), by
  * project, or by account (the subscription a profile is signed in to,
  * AJ-E2109; a profile no account lists stands for itself), or by pool
  * (AJ-E1702: offered once you've made one; a session another app runs is
  * in no pool).
  *
  * The order is stable (⌘1–9 go to places, so a place never moves because
- * a row changed): AI Juggler's own place first, then by app and profile.
+ * a row changed): the Apps with AI Juggler's own sessions first, then by
+ * app and profile.
  * That is the default; in Your order the user's arrangement comes first
  * (`rail-order.ts`, D-47). In Latest activity (`foldGroup`), a quiet
  * place (nothing working) folds to one header ("Work · 4 idle"), and a
  * place shows its working rows and the 3 most recent others, then
  * "+n quiet".
  */
-import { OWN_PLACE, type RailItem, type RailPlace } from "./rail-items";
+import { OWN_PLACE, SOME_APP, type RailItem, type RailPlace } from "./rail-items";
 
 export type GroupBy = "place" | "project" | "account" | "pool";
 
@@ -71,8 +73,8 @@ export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf 
     }
     group.items.push(item);
   }
-  // AI Juggler's own place leads; the items in no pool come last.
-  const rank = (group: RailGroup) => (group.key === OWN_PLACE ? 0 : group.key === NO_POOL ? 2 : 1);
+  // The Apps AI Juggler runs sessions in lead; the items in no pool come last.
+  const rank = (group: RailGroup) => (group.key === NO_POOL ? 2 : group.place !== null && ownIn(group) ? 0 : 1);
   return [...groups.values()].sort(
     (a, b) =>
       rank(a) - rank(b) ||
@@ -80,6 +82,34 @@ export function groupItems(items: RailItem[], by: GroupBy, accountOf: AccountOf 
       (a.place?.profile ?? "").localeCompare(b.place?.profile ?? "") ||
       a.key.localeCompare(b.key),
   );
+}
+
+/** 0.3's key for an item's place (the app, then its instance or the
+ * profile; AI Juggler's own sessions one place), so an order or a fold
+ * kept then finds the App it became (D-62). */
+export function legacyPlaceKey(item: RailItem): string {
+  if (item.session) return OWN_PLACE;
+  const first = item.conversation?.places?.[0];
+  if (first) return `${first.app || SOME_APP}|${first.instance ?? first.profile ?? ""}`;
+  return `${SOME_APP}|${item.accountLabel}`;
+}
+
+/** Each old place key and the App its sessions are in now; where an old
+ * place's sessions went to several Apps, the first one drawn. */
+export function renamedPlaces(groups: readonly RailGroup[]): Map<string, string> {
+  const renamed = new Map<string, string>();
+  for (const group of groups) {
+    for (const item of group.items) {
+      const old = legacyPlaceKey(item);
+      if (old !== group.key && !renamed.has(old)) renamed.set(old, group.key);
+    }
+  }
+  return renamed;
+}
+
+/** It holds a session AI Juggler runs (its window is AI Juggler's own). */
+export function ownIn(group: Pick<RailGroup, "items">): boolean {
+  return group.items.some((item) => item.place.kind === "own");
 }
 
 /** A session the user pinned (AJ-E1502): it leads its place in every

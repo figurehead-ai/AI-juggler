@@ -105,19 +105,19 @@ describe("arranging from the keyboard (the drag's twin)", () => {
   it("⌥⌘↓ and ⌥⌘↑ move the focused row within its place, said politely, focus kept", async () => {
     const view = board();
     const list = await view.findByTestId("place-board");
-    await waitFor(() => expect(rowsIn(list, "Claude|Work")).toEqual(["c:claude-work/outside-1", "c:claude-work/outside-3"]));
+    await waitFor(() => expect(rowsIn(list, "app|claude-app|Work")).toEqual(["c:claude-work/outside-1", "c:claude-work/outside-3"]));
     const first = list.querySelector<HTMLElement>('[data-order-row="c:claude-work/outside-1"] [data-rail-item]')!;
     expect(first.getAttribute("aria-keyshortcuts")).toBe("Alt+Meta+ArrowUp Alt+Meta+ArrowDown");
     first.focus();
     fireEvent.keyDown(first, { key: "ArrowDown", metaKey: true, altKey: true });
-    await waitFor(() => expect(rowsIn(list, "Claude|Work")).toEqual(["c:claude-work/outside-3", "c:claude-work/outside-1"]));
+    await waitFor(() => expect(rowsIn(list, "app|claude-app|Work")).toEqual(["c:claude-work/outside-3", "c:claude-work/outside-1"]));
     const said = view.getByTestId("rail-order-said");
     expect(said.getAttribute("aria-live")).toBe("polite");
     expect(said.textContent).toBe("Moved to position 2 of 2");
     await waitFor(() => expect(document.activeElement?.getAttribute("data-rail-item")).toBe("c:claude-work/outside-1"));
     // Ctrl+Alt does the same off a Mac.
     fireEvent.keyDown(document.activeElement!, { key: "ArrowUp", ctrlKey: true, altKey: true });
-    await waitFor(() => expect(rowsIn(list, "Claude|Work")).toEqual(["c:claude-work/outside-1", "c:claude-work/outside-3"]));
+    await waitFor(() => expect(rowsIn(list, "app|claude-app|Work")).toEqual(["c:claude-work/outside-1", "c:claude-work/outside-3"]));
     // Kept for the next start.
     await waitFor(() => expect(seams().__AIJ_APP_SETTINGS__?.[ORDER_KEY]).toContain("c:claude-work/outside-1"));
   });
@@ -126,13 +126,13 @@ describe("arranging from the keyboard (the drag's twin)", () => {
     const view = board();
     const list = await view.findByTestId("place-board");
     const heads = () => [...list.querySelectorAll<HTMLElement>("[data-order-head]")].map((head) => head.dataset.orderHead);
-    await waitFor(() => expect(heads()).toEqual(["ChatGPT|Codex", "Claude|Personal", "Claude|Work", "Terminal|Work Max"]));
-    const terminal = list.querySelector<HTMLElement>('[data-order-head="Terminal|Work Max"] [data-testid="place-page"]')!;
+    await waitFor(() => expect(heads()).toEqual(["app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work", "cli|claude-code|claude-work"]));
+    const terminal = list.querySelector<HTMLElement>('[data-order-head="cli|claude-code|claude-work"] [data-testid="place-page"]')!;
     terminal.focus();
     fireEvent.keyDown(terminal, { key: "ArrowUp", metaKey: true, altKey: true });
-    await waitFor(() => expect(heads()).toEqual(["ChatGPT|Codex", "Claude|Personal", "Terminal|Work Max", "Claude|Work"]));
+    await waitFor(() => expect(heads()).toEqual(["app|codex-app|", "app|claude-app|Personal", "cli|claude-code|claude-work", "app|claude-app|Work"]));
     expect(view.getByTestId("rail-order-said").textContent).toBe("Moved to position 3 of 4");
-    expect(list.querySelector('[data-order-head="Terminal|Work Max"] [data-testid="place-page"]')!.getAttribute("aria-keyshortcuts")).toContain("Meta+3");
+    expect(list.querySelector('[data-order-head="cli|claude-code|claude-work"] [data-testid="place-page"]')!.getAttribute("aria-keyshortcuts")).toContain("Meta+3");
   });
 
   it("outside Your order, the keys say how to arrange instead of moving", async () => {
@@ -160,11 +160,11 @@ describe("rows in Your order", () => {
   it("pins a session another app runs: it leads its place, and stays pinned", async () => {
     const view = board();
     const list = await view.findByTestId("place-board");
-    await waitFor(() => expect(rowsIn(list, "Claude|Personal")).toEqual(["c:claude-personal/outside-4", "c:claude-personal/outside-5"]));
+    await waitFor(() => expect(rowsIn(list, "app|claude-app|Personal")).toEqual(["c:claude-personal/outside-4", "c:claude-personal/outside-5"]));
     const pin = list.querySelector<HTMLElement>('[data-order-row="c:claude-personal/outside-5"] [data-testid="row-pin"]')!;
     expect(pin.getAttribute("aria-pressed")).toBe("false");
     act(() => pin.click());
-    await waitFor(() => expect(rowsIn(list, "Claude|Personal")).toEqual(["c:claude-personal/outside-5", "c:claude-personal/outside-4"]));
+    await waitFor(() => expect(rowsIn(list, "app|claude-app|Personal")).toEqual(["c:claude-personal/outside-5", "c:claude-personal/outside-4"]));
     expect(railOrder().pins).toEqual(["c:claude-personal/outside-5"]);
     const pinned = list.querySelector<HTMLElement>('[data-order-row="c:claude-personal/outside-5"] [data-testid="row-pin"]')!;
     expect(pinned.getAttribute("aria-pressed")).toBe("true");
@@ -187,11 +187,11 @@ describe("rows in Your order", () => {
   it("a place folds when the user folds it, and stays folded", async () => {
     const view = board();
     const list = await view.findByTestId("place-board");
-    const codex = await waitFor(() => list.querySelector<HTMLElement>('[data-order-head="ChatGPT|Codex"]')!);
+    const codex = await waitFor(() => list.querySelector<HTMLElement>('[data-order-head="app|codex-app|"]')!);
     // A quiet place stays open in Your order.
     expect(within(codex).getByTestId("rail-fold").getAttribute("aria-expanded")).toBe("true");
     fireEvent.click(within(codex).getByTestId("rail-fold"));
     await waitFor(() => expect(list.querySelector("[data-conversation-id='outside-10']")).toBeNull());
-    expect(railOrder().folded).toEqual(["place:ChatGPT|Codex"]);
+    expect(railOrder().folded).toEqual(["place:app|codex-app|"]);
   });
 });

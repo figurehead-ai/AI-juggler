@@ -4,6 +4,7 @@
  * difference; and "An app" offered as an app to pick.
  */
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
+import { cliAppName } from "../lib/app-name";
 import { afterEach, expect, it } from "vitest";
 import { ViewPopover } from "./ViewPopover";
 import { onlyOptions } from "./RailToolbar";
@@ -46,9 +47,9 @@ it("draws every Show line one height: a hint sits on its label's line (0.3 polis
   expect(view.getByTestId("rail-view-show-ended").querySelectorAll("[data-choice-label] ~ span")).toHaveLength(0);
 });
 
-it("never offers \"An app\" as an app to pick", () => {
+it("never offers \"An app\" as an app to pick: a session no app shows is in its App (D-62)", () => {
   const conversations = placesConversations(Date.now()).map((c, index) => (index === 0 ? { ...c, places: [], live: true } : c));
   const apps = onlyOptions([], [], conversations, []).app;
   expect(apps.map((option) => option.label)).not.toContain("An app");
-  expect(apps.some((option) => option.label === "Not open in an app")).toBe(true);
+  expect(apps.map((option) => option.label)).toContain(cliAppName(conversations[0]!.tool, conversations[0]!.account_label));
 });

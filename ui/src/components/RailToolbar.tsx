@@ -5,14 +5,15 @@
  * Pool once a pool of yours exists (a project's own pool doesn't count)
  * — one click, kept per Mac with the rest of the View.
  */
-import { useMemo, type JSX, type RefObject } from "react";
+import { useMemo, useState, type JSX, type RefObject } from "react";
+import { useRailAccountOf } from "../lib/rail-accounts";
 import { ViewPopover } from "./ViewPopover";
 import { Segmented, type Segment } from "./controls";
 import { useConversations } from "../lib/conversations";
 import { SOME_APP, itemsOf } from "../lib/rail-items";
 import { ONLY_KEYS, onlyValue, setGroupBy, useRailView, type OnlyKey } from "../lib/rail-view";
 import { hasUserPools, usePools } from "../lib/pools";
-import type { GroupBy } from "../lib/rail-places";
+import type { AccountOf, GroupBy } from "../lib/rail-places";
 import type { InstanceInfo, ProjectInfo, RemoteMachineInfo } from "../lib/bridge";
 
 /** Each Only list: the values the rail has now, sorted. */
@@ -21,11 +22,12 @@ export function onlyOptions(
   projects: ProjectInfo[],
   conversations: Parameters<typeof itemsOf>[0]["conversations"],
   machines: RemoteMachineInfo[],
+  accountOf?: AccountOf,
 ): Record<OnlyKey, { value: string; label: string }[]> {
   const items = itemsOf({ sessions, conversations: conversations.filter((c) => c.live || c.inactive), projects, seen: {} });
   const out = {} as Record<OnlyKey, { value: string; label: string }[]>;
   for (const key of ONLY_KEYS) {
-    const values = [...new Set(items.map((item) => onlyValue(item, key)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const values = [...new Set(items.map((item) => onlyValue(item, key, accountOf)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     // The 0.2 walk (F18): "An app" as an app to pick meant nothing.
     out[key] = values.map((value) => ({ value, label: value === "this-mac" ? "This Mac" : key === "app" && value === SOME_APP ? "Not open in an app" : value }));
   }
@@ -69,7 +71,11 @@ export function RailToolbar({
   machines: RemoteMachineInfo[];
 }): JSX.Element {
   const { all } = useConversations();
-  const options = useMemo(() => onlyOptions(sessions, projects, all, machines), [sessions, projects, all, machines]);
+  // The Accounts to pick from are read once the View opens (or one is picked).
+  const [viewOpen, setViewOpen] = useState(false);
+  const picked = useRailView().only.account;
+  const accountOf = useRailAccountOf(viewOpen || picked !== undefined);
+  const options = useMemo(() => onlyOptions(sessions, projects, all, machines, accountOf), [sessions, projects, all, machines, accountOf]);
   return (
     // 0.3 polish: a shorter stack before the first session (the review:
     // ~150 px of search, switch and heads), every control kept, each
@@ -96,7 +102,7 @@ export function RailToolbar({
             className="h-7 w-full rounded-lg border border-hairline bg-surface/70 pl-6 pr-2 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-1 focus-visible:ring-accent/60"
           />
         </div>
-        <ViewPopover options={options} />
+        <ViewPopover options={options} onOpenChange={setViewOpen} />
       </div>
       <GroupSwitch />
     </div>

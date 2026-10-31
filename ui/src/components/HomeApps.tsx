@@ -16,7 +16,7 @@ import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
 import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
 import { groupItems, type RailGroup } from "../lib/rail-places";
-import { OWN_PLACE, type RailItem } from "../lib/rail-items";
+import type { RailItem } from "../lib/rail-items";
 
 /** Tiles shown before "+n". */
 export const TILES_SHOWN = 6;
@@ -29,7 +29,7 @@ export interface Runway {
 /** The places with something open, AI Juggler's own left out (it's here). */
 export function appPlaces(items: RailItem[]): RailGroup[] {
   return groupItems(
-    items.filter((item) => item.live && item.place.key !== OWN_PLACE),
+    items.filter((item) => item.live && item.place.kind !== "own"),
     "place",
   );
 }
