@@ -4,19 +4,24 @@
  * An App is one app in one of its profiles: "Claude app · b-work",
  * "Claude Code · Work Max", "Codex · ~/.codex", "ChatGPT".
  * - A desktop app is named by its app and its instance (the profile it
- *   runs in). A tool's own desktop app gets "app" after its name ("Claude
- *   app"), so it never reads as the tool ("Claude Code"). That comes from
- *   the tool's spec (`desktop_app`), never from a branch on a tool's id.
+ *   runs in). Its name on screen is the adapter's (`PlaceInfo.shown`:
+ *   "Claude app", so it never reads as the tool Claude Code). Without one
+ *   (an older reader, or a session AI Juggler started in the app), the
+ *   same rule from the tool's spec: its desktop app gets "app" when the
+ *   tool's own name starts with it. Never a branch on a tool's id.
  * - A CLI App is its tool plus its folder. The terminal or editor it runs
  *   in is where its window is, a detail of the session, never its name.
  */
 import { toolSpec } from "./tools";
 
-/** "Claude app" for a tool's own desktop app (`Claude` for Claude Code),
- * else the app's name as the Dock shows it. */
-export function desktopAppWord(app: string, tool: string | null): string {
-  if (app === "") return app;
-  return tool !== null && toolSpec(tool).desktop_app === app ? `${app} app` : app;
+/** A desktop app's name on screen: the adapter's (`shown`) when given;
+ * else "Claude app" for a tool's own desktop app whose name the tool's
+ * starts with (`Claude`, Claude Code), else the Dock's. */
+export function desktopAppWord(app: string, tool: string | null, shown?: string | null): string {
+  if (shown) return shown;
+  if (app === "" || tool === null) return app;
+  const spec = toolSpec(tool);
+  return spec.desktop_app === app && spec.display_name.startsWith(app) ? `${app} app` : app;
 }
 
 /** An App's name: its app, then its profile when it has one. */

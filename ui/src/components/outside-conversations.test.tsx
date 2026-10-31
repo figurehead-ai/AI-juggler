@@ -53,7 +53,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
 function place(label: string, pid: number): ConversationInfo["places"][number] {
   // "Claude · Work": the Claude app in its profile Work; a bare name is a terminal.
   const [app, instance] = label.split(" · ");
-  return { app: app!, app_id: instance ? "claude-app" : app!.toLowerCase(), profile: null, instance: instance ?? null, pid, kind: instance ? "desktop" : "terminal", app_pid: null, label };
+  return { app: app!, shown: app === "Claude" ? "Claude app" : app!, app_id: instance ? "claude-app" : app!.toLowerCase(), profile: null, instance: instance ?? null, pid, kind: instance ? "desktop" : "terminal", app_pid: null, label };
 }
 
 function withFixture(conversations: ConversationInfo[], children: ReactNode, host: ActionHost = {}): JSX.Element {

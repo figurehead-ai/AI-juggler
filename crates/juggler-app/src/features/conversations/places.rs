@@ -69,6 +69,8 @@ pub struct Host {
     pub app_id: Option<String>,
     /// The app's name (the Dock's, or its bundle's).
     pub name: String,
+    /// D-62: its name on screen ("Claude app"); words only, `name` matches.
+    pub shown: String,
     /// What kind of app, when known.
     pub kind: Option<HostKind>,
     /// The app's process on the chain (the one to bring forward).
@@ -170,6 +172,10 @@ pub fn host_of(pid: u32, table: &Table, hosts: &HostRegistry, home: &Path) -> Op
         name: app.map_or_else(
             || bundle.trim_end_matches(".app").to_owned(),
             |app| app.name.clone(),
+        ),
+        shown: app.map_or_else(
+            || bundle.trim_end_matches(".app").to_owned(),
+            |app| app.shown_name().to_owned(),
         ),
         kind: app.map(|app| app.kind),
         pid: main.pid,
@@ -325,6 +331,7 @@ mod tests {
             folder_link: None,
             folder_command: None,
             tab_script: None,
+            shown: None,
         }])
     }
 

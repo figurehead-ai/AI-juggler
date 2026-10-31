@@ -192,9 +192,20 @@ pub struct HostApp {
     /// user allowed terminal tabs in Settings.
     #[serde(default)]
     pub tab_script: Option<String>,
+    /// D-62: its name on screen, when the Dock's would read as a tool's
+    /// ("Claude app", beside the tool Claude Code). Words only: matching
+    /// and grouping keep [`HostApp::name`].
+    #[serde(default)]
+    pub shown: Option<String>,
 }
 
 impl HostApp {
+    /// Its name on screen: [`HostApp::shown`], else the Dock's.
+    #[must_use]
+    pub fn shown_name(&self) -> &str {
+        self.shown.as_deref().unwrap_or(&self.name)
+    }
+
     /// The link that opens session `id` in it, when it has one. An id that
     /// isn't plain letters, digits, `-` and `_` gets none (never passed).
     #[must_use]
@@ -316,6 +327,7 @@ mod tests {
             folder_link: None,
             folder_command: None,
             tab_script: None,
+            shown: None,
         };
         assert_eq!(
             app.thread_link_for("0199-ab_c").as_deref(),

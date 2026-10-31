@@ -69,7 +69,7 @@ function previewConversations(): ConversationInfo[] {
       title: "Refactor the settings screen",
       last_activity_ms: NOW - 60_000,
       live: true,
-      places: [{ app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude · Work" }],
+      places: [{ app: "Claude", shown: "Claude app", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude app · Work" }],
       pid: 4242,
       state: "working",
       viewed_ms: NOW - 120_000,

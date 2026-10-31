@@ -74,6 +74,8 @@ pub struct PlaceInfo {
     /// The app's name as the Dock shows it (`Claude`, `Terminal`,
     /// `ChatGPT`); empty when its parent chain names no app.
     pub app: String,
+    /// D-62: its name on screen ("Claude app"); `app` is the Dock's.
+    pub shown: String,
     /// The host registry's id for the app, when it knows it.
     pub app_id: Option<String>,
     /// The profile it runs in: its account's name, else its folder's.

@@ -37,7 +37,7 @@ const TODAY = dayOf(NOW);
 function place(app: string, profile: string): PlaceInfo {
   // Terminal is where a CLI session's window is; the Claude app runs its own.
   const terminal = app === "Terminal";
-  return { app, app_id: app.toLowerCase(), profile, instance: terminal ? null : profile, pid: 10, kind: terminal ? "terminal" : "desktop", app_pid: 11, label: `${app} · ${profile}` };
+  return { app, shown: app === "Claude" ? "Claude app" : app, app_id: app.toLowerCase(), profile, instance: terminal ? null : profile, pid: 10, kind: terminal ? "terminal" : "desktop", app_pid: 11, label: `${app} · ${profile}` };
 }
 
 /** The Apps (D-62) the tests' places are in. */

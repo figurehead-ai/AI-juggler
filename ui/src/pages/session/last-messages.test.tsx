@@ -29,7 +29,7 @@ const model = (overrides: Partial<SessionModel> = {}, state: Partial<SessionMode
   switchSource: "conversation:work:c1",
   live: true,
   state: { words: "Asks you", tone: "warning", asks: true, working: false, since: 0, ...state },
-  places: [{ app: "Claude", app_id: "claude-app", profile: "Work", instance: "Work", pid: 42, kind: "desktop", app_pid: 41, label: "Claude · Work" }],
+  places: [{ app: "Claude", shown: "Claude app", app_id: "claude-app", profile: "Work", instance: "Work", pid: 42, kind: "desktop", app_pid: 41, label: "Claude app · Work" }],
   viewedMs: null,
   cwd: "/w/app",
   model: null,

@@ -66,7 +66,7 @@ function elsewhere(id: string, tool: string, over: Partial<ConversationInfo> = {
   return {
     id, tool, account_id: "acc-1", account_label: "Work Max", project_id: "proj-payments", cwd: "/Users/you/Dev/payments-api", title: `Talk ${id}`,
     git_branch: "main", started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null, live: true, session_id: null,
-    places: [{ app: "Terminal", app_id: "terminal", profile: "Work Max", instance: null, pid: 77, kind: "terminal", app_pid: 70, label: "Terminal" }],
+    places: [{ app: "Terminal", shown: "Terminal", app_id: "terminal", profile: "Work Max", instance: null, pid: 77, kind: "terminal", app_pid: 70, label: "Terminal" }],
     pid: 77, state: "working", probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null, ...over,
   };
 }
@@ -87,7 +87,7 @@ describe("the rail by place", () => {
     expect(names).toEqual(["cli|claude-code|claude-work", "app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work"]);
     expect(headers(view.getByTestId("place-board")).map((h) => within(h).getByTestId("place-open").getAttribute("aria-label"))).toEqual([
       "Open Claude Code · Work Max",
-      "Open ChatGPT app",
+      "Open ChatGPT",
       "Open Claude app · Personal",
       "Open Claude app · Work",
     ]);
@@ -115,7 +115,7 @@ describe("the rail by place", () => {
     const codex = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "app|codex-app|")!;
     const toggle = within(codex).getByTestId("rail-fold");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(toggle.getAttribute("aria-label")).toBe("Unfold ChatGPT app");
+    expect(toggle.getAttribute("aria-label")).toBe("Unfold ChatGPT");
     expect(within(codex).getByTestId("place-page").textContent).toContain("1 idle");
     fireEvent.click(toggle);
     await waitFor(() => expect(view.getByTestId("place-board").querySelector("[data-conversation-id='outside-10']")).not.toBeNull());
