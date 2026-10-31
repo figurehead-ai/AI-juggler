@@ -91,8 +91,10 @@ impl KnownPlace {
     /// `Claude · Work Max`: the app, then [`KnownPlace::profile`].
     #[must_use]
     pub fn named(&self, account: Option<&str>) -> String {
-        self.profile(account)
-            .map_or_else(|| self.name.clone(), |profile| format!("{} · {profile}", self.name))
+        self.profile(account).map_or_else(
+            || self.name.clone(),
+            |profile| format!("{} · {profile}", self.name),
+        )
     }
 
     /// Kept alive and watching (not paused).
@@ -107,7 +109,9 @@ impl KnownPlace {
 pub fn place_id(app_id: &str, instance_dir: Option<&Path>) -> String {
     format!(
         "{app_id}|{}",
-        instance_dir.map(|dir| dir.to_string_lossy()).unwrap_or_default()
+        instance_dir
+            .map(|dir| dir.to_string_lossy())
+            .unwrap_or_default()
     )
 }
 
@@ -339,9 +343,13 @@ mod tests {
             .find(|place| place.instance.is_none())
             .unwrap();
         assert_eq!(default.label(), "Claude");
-        assert_eq!(default.given, None, "the default instance is started plainly");
         assert_eq!(
-            book.place_of("claude-code", "s-1").map(|(_, place)| place.label()),
+            default.given, None,
+            "the default instance is started plainly"
+        );
+        assert_eq!(
+            book.place_of("claude-code", "s-1")
+                .map(|(_, place)| place.label()),
             Some("Claude · b-work".to_owned())
         );
         // The same again a minute later: nothing to write.
@@ -360,10 +368,19 @@ mod tests {
         let home = Path::new("/Users/you");
         for at in 0..MAX + 3 {
             let dir = format!("/Users/you/Profiles/p{at}");
-            book.observe(&[running(Some(&dir), true)], &[], &hosts(), home, i64::try_from(at).unwrap());
+            book.observe(
+                &[running(Some(&dir), true)],
+                &[],
+                &hosts(),
+                home,
+                i64::try_from(at).unwrap(),
+            );
         }
         assert_eq!(book.places.len(), MAX, "the oldest went to make room");
-        assert!(!book.places.contains_key(&place_id("claude-app", Some(Path::new("/Users/you/Profiles/p0")))));
+        assert!(!book.places.contains_key(&place_id(
+            "claude-app",
+            Some(Path::new("/Users/you/Profiles/p0"))
+        )));
         let kept = place_id("claude-app", Some(Path::new("/Users/you/Profiles/p5")));
         book.places.get_mut(&kept).unwrap().keep_alive = true;
         book.tidy(FORGET_MS + 1_000);
@@ -375,7 +392,13 @@ mod tests {
         assert_eq!(Book::parse(Some("{not json")), Book::default());
         assert_eq!(Book::parse(None), Book::default());
         let mut book = Book::default();
-        book.observe(&[running(None, false)], &[], &hosts(), Path::new("/Users/you"), 5);
+        book.observe(
+            &[running(None, false)],
+            &[],
+            &hosts(),
+            Path::new("/Users/you"),
+            5,
+        );
         assert_eq!(Book::parse(Some(&book.to_json())), book);
     }
 }

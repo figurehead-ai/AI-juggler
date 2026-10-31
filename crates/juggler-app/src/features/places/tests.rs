@@ -120,16 +120,32 @@ fn open_starts_a_profile_that_isnt_running_with_only_its_folder() {
     let root = tempfile::tempdir().unwrap();
     let (state, work, _) = state_with_places(root.path());
     let starter = Arc::new(Recorder::default());
-    let said = open(&state, &work, Some("s-1"), Arc::new(Links::default()), starter.clone()).unwrap();
+    let said = open(
+        &state,
+        &work,
+        Some("s-1"),
+        Arc::new(Links::default()),
+        starter.clone(),
+    )
+    .unwrap();
     assert_eq!(said.reached, "started");
-    assert_eq!(said.outcome, "Starting Claude · b-lab; pick the session in its sidebar");
+    assert_eq!(
+        said.outcome,
+        "Starting Claude · b-lab; pick the session in its sidebar"
+    );
     let starts = starter.starts.lock().unwrap();
     let (bundle, how, args) = &starts[0];
     assert_eq!(bundle, &root.path().join("Claude.app"));
-    assert!(how.new_instance && !how.background, "in front, beside other profiles");
+    assert!(
+        how.new_instance && !how.background,
+        "in front, beside other profiles"
+    );
     assert_eq!(
         args,
-        &[format!("--user-data-dir={}", root.path().join("Profiles/b-lab").display())]
+        &[format!(
+            "--user-data-dir={}",
+            root.path().join("Profiles/b-lab").display()
+        )]
     );
 }
 
@@ -144,7 +160,10 @@ fn open_in_codex_opens_the_thread_by_its_link_and_starts_nothing_else() {
     assert_eq!(*links.0.lock().unwrap(), ["codex://threads/t-1"]);
     assert!(starter.starts.lock().unwrap().is_empty());
     // The session's place is found by its tool and id.
-    let found = with_book(&state, |book| book.place_of("codex", "t-1").map(|(id, _)| id.clone())).unwrap();
+    let found = with_book(&state, |book| {
+        book.place_of("codex", "t-1").map(|(id, _)| id.clone())
+    })
+    .unwrap();
     assert_eq!(found, Some(chat));
 }
 
@@ -173,11 +192,21 @@ fn keep_alive_starts_a_stopped_place_behind_then_pauses_after_three() {
         now += 2_000;
         tick_with(&state, now, &starter, &unlocked);
     }
-    assert_eq!(starter.starts.lock().unwrap().len(), crate::features::sessions::restart::TRIES);
+    assert_eq!(
+        starter.starts.lock().unwrap().len(),
+        crate::features::sessions::restart::TRIES
+    );
     let paused = with_book(&state, |book| book.places[&work].paused.clone()).unwrap();
     assert_eq!(paused.as_deref(), Some("it stopped 3 times in 10 minutes"));
     // Open ends the pause.
-    open(&state, &work, None, Arc::new(Links::default()), Arc::new(Recorder::default())).unwrap();
+    open(
+        &state,
+        &work,
+        None,
+        Arc::new(Links::default()),
+        Arc::new(Recorder::default()),
+    )
+    .unwrap();
     let paused = with_book(&state, |book| book.places[&work].paused.clone()).unwrap();
     assert_eq!(paused, None);
 }
@@ -201,7 +230,12 @@ fn a_stop_from_ai_juggler_pauses_keep_alive() {
     let root = tempfile::tempdir().unwrap();
     let (state, work, _) = state_with_places(root.path());
     set_keep_alive(&state, &work, true).unwrap();
-    state.places.watch.lock().unwrap().found(&work, 4242, Some(7));
+    state
+        .places
+        .watch
+        .lock()
+        .unwrap()
+        .found(&work, 4242, Some(7));
     stopped_here(&state, 4242);
     let paused = with_book(&state, |book| book.places[&work].paused.clone()).unwrap();
     assert_eq!(paused.as_deref(), Some("you stopped it in AI Juggler"));
@@ -211,11 +245,8 @@ fn a_stop_from_ai_juggler_pauses_keep_alive() {
 fn the_windows_setting_writer_cant_name_a_program() {
     let root = tempfile::tempdir().unwrap();
     let (state, _, _) = state_with_places(root.path());
-    let refused = crate::settings_policy::app_setting_set_impl(
-        &state,
-        book::KEY,
-        r#"{"places":{}}"#,
-    );
+    let refused =
+        crate::settings_policy::app_setting_set_impl(&state, book::KEY, r#"{"places":{}}"#);
     assert!(refused.is_err());
     let kept = with_book(&state, |book| book.places.len()).unwrap();
     assert_eq!(kept, 2, "the book is untouched");

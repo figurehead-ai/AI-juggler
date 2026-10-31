@@ -153,7 +153,8 @@ mod tests {
 
     #[test]
     fn a_profile_starts_with_only_its_folder_as_a_further_instance() {
-        let (bundle, how, args) = plan(&place(Some("/Users/you/P/b-work")), &hosts(), true).unwrap();
+        let (bundle, how, args) =
+            plan(&place(Some("/Users/you/P/b-work")), &hosts(), true).unwrap();
         assert_eq!(bundle, PathBuf::from("/Applications/Claude.app"));
         assert!(how.new_instance && how.background);
         assert_eq!(args, ["--user-data-dir=/Users/you/P/b-work"]);
@@ -167,13 +168,22 @@ mod tests {
         let mut moved = place(None);
         moved.bundle = PathBuf::from("/tmp/Evil.app");
         moved.exe = PathBuf::from("/tmp/Evil.app/Contents/MacOS/Claude");
-        assert!(plan(&moved, &hosts(), false).is_err(), "another bundle's name");
+        assert!(
+            plan(&moved, &hosts(), false).is_err(),
+            "another bundle's name"
+        );
         let mut outside = place(None);
         outside.exe = PathBuf::from("/tmp/Claude");
-        assert!(plan(&outside, &hosts(), false).is_err(), "an executable outside the bundle");
+        assert!(
+            plan(&outside, &hosts(), false).is_err(),
+            "an executable outside the bundle"
+        );
         let mut relative = place(Some("P/b-work"));
         relative.given = Some(PathBuf::from("P/b-work"));
-        assert!(plan(&relative, &hosts(), false).is_err(), "a relative folder");
+        assert!(
+            plan(&relative, &hosts(), false).is_err(),
+            "a relative folder"
+        );
         let mut unknown = place(None);
         unknown.app_id = "nope".into();
         assert!(plan(&unknown, &hosts(), false).is_err());

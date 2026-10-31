@@ -588,7 +588,9 @@ pub fn keep_alive_paused(state: &Arc<AppState>, place_id: &str, label: &str, why
             key: format!("keep-alive-paused:{place_id}:{now}"),
             kind: "keep-alive-paused".to_owned(),
             title: format!("Keep alive paused for {label}"),
-            detail: format!("Not started again: {why}. Open it to start it and keep it alive again."),
+            detail: format!(
+                "Not started again: {why}. Open it to start it and keep it alive again."
+            ),
             data: centre::data_of(
                 &NoticeTarget {
                     page: Some("desktop_apps".to_owned()),

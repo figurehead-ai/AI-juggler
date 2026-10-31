@@ -247,14 +247,21 @@ mod tests {
     fn a_stopped_app_starts_after_the_wait_and_once() {
         let now = 1_000_000;
         let mut watch = settled(now);
-        assert!(watch.step(now, &[down("a")], &unlocked).is_empty(), "it waits first");
+        assert!(
+            watch.step(now, &[down("a")], &unlocked).is_empty(),
+            "it waits first"
+        );
         assert!(watch.step(now + 4_000, &[down("a")], &unlocked).is_empty());
         assert_eq!(
             watch.step(now + WAIT_MS, &[down("a")], &unlocked),
             [Act::Start("a".into(), 1)]
         );
         // Still coming up: never a second start meanwhile.
-        assert!(watch.step(now + WAIT_MS + 2_000, &[down("a")], &unlocked).is_empty());
+        assert!(
+            watch
+                .step(now + WAIT_MS + 2_000, &[down("a")], &unlocked)
+                .is_empty()
+        );
     }
 
     #[test]
@@ -282,20 +289,33 @@ mod tests {
         let now = 1_000_000;
         let mut watch = settled(now);
         watch.step(now, &[down("a")], &unlocked);
-        assert!(watch.step(now + WAIT_MS, &[down("a")], &|| true).is_empty(), "locked");
+        assert!(
+            watch.step(now + WAIT_MS, &[down("a")], &|| true).is_empty(),
+            "locked"
+        );
         // The computer slept: a minute's quiet from waking.
         let woke = now + 3_600_000;
         watch.clock(woke);
         assert!(watch.step(woke, &[down("a")], &unlocked).is_empty());
-        assert!(watch.step(woke + SETTLE_MS - 1, &[down("a")], &unlocked).is_empty());
-        assert_eq!(watch.step(woke + SETTLE_MS, &[down("a")], &unlocked).len(), 1);
+        assert!(
+            watch
+                .step(woke + SETTLE_MS - 1, &[down("a")], &unlocked)
+                .is_empty()
+        );
+        assert_eq!(
+            watch.step(woke + SETTLE_MS, &[down("a")], &unlocked).len(),
+            1
+        );
     }
 
     #[test]
     fn a_fresh_start_waits_a_minute_and_an_interactive_only_account_pauses() {
         let mut watch = Watch::default();
         watch.clock(0);
-        assert!(watch.step(WAIT_MS, &[down("a")], &unlocked).is_empty(), "AI Juggler just started");
+        assert!(
+            watch.step(WAIT_MS, &[down("a")], &unlocked).is_empty(),
+            "AI Juggler just started"
+        );
         let mut only = down("b");
         only.only_by_you = Some("its tool's terms allow interactive use only".into());
         watch.clock(2_000);

@@ -68,7 +68,11 @@ fn changed(state: &Arc<AppState>) {
 ///
 /// A poisoned lock; storage errors.
 pub fn with_book<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Book) -> T) -> AppResult<T> {
-    let mut slot = state.places.book.lock().map_err(|_| AppError::StatePoisoned)?;
+    let mut slot = state
+        .places
+        .book
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?;
     if slot.is_none() {
         let stored = crate::commands::lock_storage_arc(state)?
             .app_settings()
@@ -242,9 +246,9 @@ pub fn tick_with(
     for (id, place) in &kept {
         let running = match watch.pid_of(id) {
             Some((pid, start)) => {
-                let same = alive.get(&pid).is_some_and(|process| {
-                    juggler_adapter::live::same_start(start, process.start)
-                });
+                let same = alive
+                    .get(&pid)
+                    .is_some_and(|process| juggler_adapter::live::same_start(start, process.start));
                 watch.seen(id, same)
             }
             None => {
@@ -263,7 +267,11 @@ pub fn tick_with(
         places.push(Kept {
             id: id.clone(),
             running,
-            only_by_you: if running { None } else { only_by_you(state, place) },
+            only_by_you: if running {
+                None
+            } else {
+                only_by_you(state, place)
+            },
         });
     }
     let acts = watch.step(now, &places, locked);
@@ -488,7 +496,8 @@ pub fn open(
     let still = label.clone();
     Ok(goto::within(goto::LIMIT, move || {
         if let Some((pid, start)) = running_now(&state, &id) {
-            let mut said = goto::bring_forward(&host_of(&place, profile, pid, start), desktop.as_ref());
+            let mut said =
+                goto::bring_forward(&host_of(&place, profile, pid, start), desktop.as_ref());
             if said.reached == "app" {
                 said.outcome.push_str(pick);
             }

@@ -74,7 +74,11 @@ fn reap(state: &Arc<AppState>, lab: &Path) {
 }
 
 /// Keep alive's tick, every 2 s, until `done` or `limit`.
-fn tick_until(state: &Arc<AppState>, limit: Duration, mut done: impl FnMut() -> bool) -> Option<Duration> {
+fn tick_until(
+    state: &Arc<AppState>,
+    limit: Duration,
+    mut done: impl FnMut() -> bool,
+) -> Option<Duration> {
     let started = Instant::now();
     while started.elapsed() < limit {
         places::tick(state);
@@ -94,7 +98,9 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
         return;
     }
     let root = tempfile::tempdir().unwrap();
-    let lab: PathBuf = std::fs::canonicalize(root.path()).unwrap().join("Lab Claude profile");
+    let lab: PathBuf = std::fs::canonicalize(root.path())
+        .unwrap()
+        .join("Lab Claude profile");
     std::fs::create_dir_all(&lab).unwrap();
     let state = Arc::new(AppState::init(root.path().join("data")).unwrap());
     let id = book::place_id("claude-app", Some(&lab));
@@ -131,10 +137,15 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
         )
         .unwrap();
         let answered = clicked.elapsed();
-        println!("Open (closed): {:?} in {answered:?}: {}", said.reached, said.outcome);
+        println!(
+            "Open (closed): {:?} in {answered:?}: {}",
+            said.reached, said.outcome
+        );
         assert_eq!(said.reached, "started");
-        let up = wait_for(Duration::from_secs(30), || !lab_pids(&state, &lab).is_empty())
-            .expect("the lab profile never came up");
+        let up = wait_for(Duration::from_secs(30), || {
+            !lab_pids(&state, &lab).is_empty()
+        })
+        .expect("the lab profile never came up");
         println!("  its main process seen after {up:?}");
         let first = lab_pids(&state, &lab);
         assert_eq!(first.len(), 1, "one instance: {first:?}");
@@ -149,7 +160,12 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
             Arc::new(places::start::System),
         )
         .unwrap();
-        println!("Open (running): {:?} in {:?}: {}", said.reached, clicked.elapsed(), said.outcome);
+        println!(
+            "Open (running): {:?} in {:?}: {}",
+            said.reached,
+            clicked.elapsed(),
+            said.outcome
+        );
         assert_ne!(said.reached, "started");
         std::thread::sleep(Duration::from_secs(2));
         assert_eq!(lab_pids(&state, &lab), first, "never a second instance");
@@ -171,7 +187,10 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
             lab_pids(&state, &lab).iter().any(|pid| *pid != first[0])
         })
         .expect("keep alive never started it again");
-        println!("Keep alive: quit → running again after {:?}", quit.elapsed());
+        println!(
+            "Keep alive: quit → running again after {:?}",
+            quit.elapsed()
+        );
         let _ = back;
         let second = lab_pids(&state, &lab);
         assert_eq!(second.len(), 1, "one instance again: {second:?}");
@@ -184,12 +203,21 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
             lab_pids(&state, &lab).iter().any(|pid| *pid != second[0])
         });
         let paused = places::with_book(&state, |book| book.places[&id].paused.clone()).unwrap();
-        println!("Stopped from AI Juggler: paused {paused:?}; started again: {}", restarted.is_some());
-        assert!(restarted.is_none(), "a stop from AI Juggler must stay stopped");
+        println!(
+            "Stopped from AI Juggler: paused {paused:?}; started again: {}",
+            restarted.is_some()
+        );
+        assert!(
+            restarted.is_none(),
+            "a stop from AI Juggler must stay stopped"
+        );
         assert_eq!(paused.as_deref(), Some("you stopped it in AI Juggler"));
     }));
     reap(&state, &lab);
-    assert!(lab_pids(&state, &lab).is_empty(), "a lab process outlived the walk");
+    assert!(
+        lab_pids(&state, &lab).is_empty(),
+        "a lab process outlived the walk"
+    );
     if let Err(panic) = outcome {
         std::panic::resume_unwind(panic);
     }

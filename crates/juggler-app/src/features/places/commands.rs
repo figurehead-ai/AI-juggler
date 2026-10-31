@@ -127,7 +127,12 @@ pub async fn places_list(
         let rows = known(state)?;
         crate::paging::page(
             rows,
-            |row| SortKey::new(vec![i64::from(!row.keep_alive)], format!("{}\u{0}{}", row.label, row.id)),
+            |row| {
+                SortKey::new(
+                    vec![i64::from(!row.keep_alive)],
+                    format!("{}\u{0}{}", row.label, row.id),
+                )
+            },
             &page.unwrap_or_default(),
         )
     })
@@ -148,7 +153,8 @@ pub async fn places_find(
 ) -> AppResult<Option<KnownPlaceInfo>> {
     crate::ipc::blocking(state.inner(), "the session's app", move |state| {
         let id = super::with_book(state, |book| {
-            book.place_of(&tool, &conversation_id).map(|(id, _)| id.clone())
+            book.place_of(&tool, &conversation_id)
+                .map(|(id, _)| id.clone())
         })?;
         Ok(id.and_then(|id| known(state).ok()?.into_iter().find(|row| row.id == id)))
     })
