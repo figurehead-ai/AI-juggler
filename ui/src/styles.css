@@ -125,7 +125,7 @@ body {
   --color-surface-2: #f5f6f9;
   --color-surface-3: #e6e9ef;
   --color-hairline: #d3d8e2;
-  --color-skeleton: #dce0e8; /* surface-3 vanished on the grey page */
+  --color-skeleton: #ced3dd; /* surface-3 vanished on the grey page; 0.3.2: darker, 1.3:1 on the page */
 
   --color-ink: #0e1219;
   --color-ink-2: #2c3341;

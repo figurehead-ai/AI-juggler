@@ -13,10 +13,14 @@ import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
 import { untitledName } from "../../lib/session-titles";
 
 /** The table's columns: Process, State, CPU, Memory, Ports, Age, Owner,
- * and the row's actions. The table is a container: Owner shows once the
- * table itself is wide enough (whatever the window and the rail). */
+ * and the row's actions. The table is a container: Age and CPU's line
+ * show once it's 56rem wide, Owner at 72rem (whatever the window and the
+ * rail) — 0.3.2: at 1024 px the row's Stop… was cut off on the right. */
 export const COLUMNS =
-  "grid-cols-[minmax(13.5rem,1fr)_10.5rem_7rem_5.5rem_5rem_4rem_9rem] @min-[72rem]:grid-cols-[minmax(18rem,1fr)_11.5rem_7.5rem_6rem_6rem_4.5rem_12rem_9rem]";
+  "gap-2 grid-cols-[minmax(10rem,1fr)_8.5rem_3.5rem_4.75rem_4.5rem_7.5rem] @min-[56rem]:grid-cols-[minmax(12rem,1fr)_9rem_6rem_5rem_4.5rem_3.5rem_8rem] @min-[72rem]:gap-3 @min-[72rem]:grid-cols-[minmax(18rem,1fr)_11.5rem_7.5rem_6rem_6rem_4.5rem_12rem_9rem]";
+
+/** The Age column and CPU's line: from a 56rem table. */
+export const AGE_CELL = "hidden @min-[56rem]:block";
 
 /** The Owner column: only in a wide table. */
 export const OWNER_CELL = "hidden @min-[72rem]:block";
@@ -221,7 +225,11 @@ export function NumberCells({ row }: { row: ProcessGraphRowInfo }): JSX.Element 
     <>
       <div role="gridcell" className="flex items-center gap-2 text-body tabular-nums text-ink">
         <span className="w-12 text-right">{row.kind === "app" || row.kind === "program" || ended ? "" : cpuWords(row.cpu_pct)}</span>
-        {proc && !ended && <CpuLine samples={proc.spark} />}
+        {proc && !ended && (
+          <span className="hidden @min-[56rem]:inline-flex">
+            <CpuLine samples={proc.spark} />
+          </span>
+        )}
       </div>
       {ended ? (
         <div role="gridcell" className="text-right text-body tabular-nums text-muted" title={proc && proc.peak_rss > 0 ? "The most it used" : undefined}>
@@ -232,10 +240,10 @@ export function NumberCells({ row }: { row: ProcessGraphRowInfo }): JSX.Element 
           {row.kind === "app" || (row.rss_bytes === 0 && row.state === "zombie") ? "" : row.rss_bytes > 0 ? memorySize(row.rss_bytes) : "—"}
         </div>
       )}
-      <div role="gridcell" className="truncate text-body tabular-nums text-ink">
+      <div role="gridcell" className="truncate pl-2 text-body tabular-nums text-ink">
         {row.kind === "process" ? portWords(row.ports) : ""}
       </div>
-      <div role="gridcell" className="text-right text-body tabular-nums text-muted" title={ended && age > 0 ? `Ran for ${ageWords(age)}` : undefined}>
+      <div role="gridcell" className={`${AGE_CELL} text-right text-body tabular-nums text-muted`} title={ended && age > 0 ? `Ran for ${ageWords(age)}` : undefined}>
         {proc && age > 0 ? ageWords(age) : ""}
       </div>
       <div role="gridcell" className={`${OWNER_CELL} truncate text-meta text-muted`} title={row.owner_words}>

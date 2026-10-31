@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
 import { treeKey, windowRows } from "../../lib/tree-grid";
-import { COLUMNS, NameCell, NumberCells, OWNER_CELL, StateChip } from "./cells";
+import { AGE_CELL, COLUMNS, NameCell, NumberCells, OWNER_CELL, StateChip } from "./cells";
 
 /** Every row's height, px (two lines of text). */
 export const ROW_HEIGHT = 48;
@@ -158,13 +158,13 @@ export function ProcessTree({
   return (
     <div className="@container flex min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid={testId}>
       <div role="treegrid" aria-label={label} aria-rowcount={total + 1} className="flex min-h-0 flex-col" onKeyDown={onKey}>
-        <div role="row" aria-rowindex={1} className={`grid ${COLUMNS} items-center gap-3 border-b border-hairline bg-surface-2 px-3 py-2 text-meta font-medium text-muted`}>
+        <div role="row" aria-rowindex={1} className={`grid ${COLUMNS} items-center border-b border-hairline bg-surface-2 px-3 py-2 text-meta font-medium text-muted`}>
           <div role="columnheader">Process</div>
           <div role="columnheader">State</div>
           <div role="columnheader" className="pl-2">CPU</div>
           <div role="columnheader" className="text-right">{ended ? "Peak" : "Memory"}</div>
-          <div role="columnheader">Ports</div>
-          <div role="columnheader" className="text-right">{ended ? "Ran for" : "Age"}</div>
+          <div role="columnheader" className="pl-2">Ports</div>
+          <div role="columnheader" className={`${AGE_CELL} text-right`}>{ended ? "Ran for" : "Age"}</div>
           <div role="columnheader" className={OWNER_CELL}>
             Owner
           </div>
@@ -200,7 +200,7 @@ export function ProcessTree({
                     data-kind={row.kind}
                     onFocus={() => setFocus(index)}
                     onClick={() => setFocus(index)}
-                    className={`absolute inset-x-0 grid ${COLUMNS} items-center gap-3 border-b border-hairline/60 px-3 outline-none focus-visible:bg-accent-soft/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+                    className={`absolute inset-x-0 grid ${COLUMNS} items-center border-b border-hairline/60 px-3 outline-none focus-visible:bg-accent-soft/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
                       row.kind === "app" ? "bg-surface-2/60" : "hover:bg-surface-2/50"
                     }`}
                     style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}

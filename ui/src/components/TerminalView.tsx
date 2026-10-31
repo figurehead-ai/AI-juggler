@@ -349,7 +349,7 @@ export function TerminalView({
       />
       {searchOpen && search && <TerminalSearch search={search} onClose={closeSearch} />}
       <div className="group/term relative min-h-0 flex-1">
-        <div ref={hostRef} className="h-full w-full px-3 pt-2" data-terminal-host={id} />
+        <div ref={hostRef} className="h-full w-full bg-[#05070b] px-3 pt-2" data-terminal-host={id} />
         {/* Shown only while the terminal has focus; always read with it. */}
         <p
           id={hintId}

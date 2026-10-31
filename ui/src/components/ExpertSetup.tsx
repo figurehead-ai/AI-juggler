@@ -204,7 +204,7 @@ export function ExpertSetup({
                 {info.shell_snippet !== null ? (
                   <>
                     <code
-                      className="block break-all rounded-lg border border-hairline bg-surface px-2.5 py-2 font-mono text-label leading-relaxed text-ink"
+                      className="block break-words rounded-lg border border-hairline bg-surface px-2.5 py-2 font-mono text-label leading-relaxed text-ink"
                       data-testid="expert-snippet"
                     >
                       {info.shell_snippet}

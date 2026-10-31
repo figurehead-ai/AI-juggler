@@ -92,8 +92,11 @@ function RowSubagents({ item, words, onSelect }: { item: RailItem; words: string
 
 /** A row's project, its own way in: the project's page here. Text only
  * when it has no page (a folder no project holds). */
-export function RowProject({ item, rest }: { item: RailItem; rest: string }): JSX.Element {
+export function RowProject({ item, rest, whole = false }: { item: RailItem; rest: string; whole?: boolean }): JSX.Element {
   const host = useActionHost();
+  // `whole`: the rest (a time) stays whole and the project gives way —
+  // "ai-jug… · 3 h ago", never "ai-juggler · 3 …" (0.3.2).
+  const fit = whole ? "min-w-[4ch] shrink" : "max-w-[65%] shrink-0";
   const id = item.projectId;
   const linked = item.project !== null && id !== null && !!host.openProjectById;
   // Its 24 px target reaches down from the line, never up over the row's
@@ -109,19 +112,19 @@ export function RowProject({ item, rest }: { item: RailItem; rest: string }): JS
             event.stopPropagation();
             host.openProjectById!(id!);
           }}
-          className="pointer-events-auto relative z-10 -mx-0.5 -mb-2.5 min-h-6 max-w-[65%] shrink-0 truncate rounded px-0.5 pb-2.5 text-left leading-[14px] text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+          className={`pointer-events-auto relative z-10 -mx-0.5 -mb-2.5 min-h-6 ${fit} truncate rounded px-0.5 pb-2.5 text-left leading-[14px] text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60`}
         >
           {item.project}
         </button>
       ) : (
         item.project && (
-          <span aria-hidden="true" className="max-w-[65%] shrink-0 truncate">
+          <span aria-hidden="true" className={`${fit} truncate`}>
             {item.project}
           </span>
         )
       )}
       {rest && (
-        <span aria-hidden="true" className="min-w-0 truncate whitespace-pre">
+        <span aria-hidden="true" className={(whole ? "shrink-0" : "min-w-0 truncate") + " whitespace-pre"}>
           {item.project ? ` · ${rest}` : rest}
         </span>
       )}
@@ -343,7 +346,7 @@ export function PlaceRow({ compact = false, ...props }: RowProps & { edge: strin
         </span>
         <span className="flex min-w-0 items-center gap-2 text-label text-muted">
           <span className="flex min-w-0 flex-1 items-center">
-            <RowProject item={item} rest={when} />
+            <RowProject item={item} rest={when} whole />
             {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
             {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
           </span>
