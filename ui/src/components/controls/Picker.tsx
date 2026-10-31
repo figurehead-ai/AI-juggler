@@ -7,9 +7,16 @@
  * Keyboard: Enter, Space, ↓ or ↑ open it on the chosen line; the arrows
  * move; Enter picks; Escape closes it (only it, never the sheet it is
  * in), and focus comes back to the button.
+ *
+ * 0.3.2, the pickers rule (docs/plan/QUALITY.md "Finding things"): the
+ * call site may name groups to show first ("Open now", "Recent", "In this
+ * project"), then All; options that would show nothing (`empty`) go last;
+ * past 8 options a search field sits on top, the arrows going on from it
+ * and Enter picking the first match; at most 60 lines are drawn, the rest
+ * found by typing.
  */
 import { useId, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
-import { MenuItem, RowMenu, type MenuAt } from "../RowMenu";
+import { MenuItem, MenuSeparator, RowMenu, type MenuAt } from "../RowMenu";
 import { IconChevronDown } from "../icons-controls";
 import { ChoiceLine, type ControlIcon } from "./ChoiceLine";
 
@@ -22,7 +29,20 @@ export interface PickerOption<T extends string = string> {
   disabled?: boolean;
   /** Why it is greyed (shown under it). */
   reason?: string;
+  /** It would show nothing (an empty pool in a filter): listed last. */
+  empty?: boolean;
 }
+
+/** A group shown before All: its words and the values in it, in order. */
+export interface PickerGroup<T extends string = string> {
+  label: string;
+  values: readonly T[];
+}
+
+/** Past this many options the menu has a search field. */
+export const SEARCH_FROM = 9;
+/** At most this many lines are drawn; typing finds the rest. */
+const DRAWN = 60;
 
 const SIZES = {
   sm: "h-7 gap-1.5 rounded-lg px-2.5 text-xs",
@@ -52,9 +72,15 @@ export function Picker<T extends string>({
   testId,
   id,
   describedBy,
+  groups = [],
+  searchLabel = "Search",
 }: {
   value: T | null | undefined;
   options: readonly PickerOption<T>[];
+  /** Shown before All: the most used and most related here. */
+  groups?: readonly PickerGroup<T>[];
+  /** The search field's name ("Search pools"). */
+  searchLabel?: string;
   onChange: (value: T) => void;
   /** What it picks ("Sort by"); with the value, the button's name. */
   ariaLabel?: string;
@@ -75,6 +101,7 @@ export function Picker<T extends string>({
 }): JSX.Element {
   const button = useRef<HTMLButtonElement | null>(null);
   const [at, setAt] = useState<(MenuAt & { width: number }) | null>(null);
+  const [query, setQuery] = useState("");
   // A press on the button while it's open closes it (the menu's own
   // outside-press already did): the click that follows doesn't reopen.
   const closing = useRef(false);
@@ -86,6 +113,7 @@ export function Picker<T extends string>({
     const box = button.current?.getBoundingClientRect();
     if (!box) return;
     button.current?.focus();
+    setQuery("");
     setAt({ x: box.left, y: box.bottom + 4, above: box.top - 4, right: box.right, width: box.width });
   };
   const onKey = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -93,6 +121,10 @@ export function Picker<T extends string>({
       event.preventDefault();
       open();
     }
+  };
+  const pick = (option: PickerOption<T>) => {
+    setAt(null);
+    if (option.value !== value) onChange(option.value);
   };
   const why = disabled && reason ? `${base}-why` : undefined;
   const Icon = chosen?.icon;
@@ -135,18 +167,40 @@ export function Picker<T extends string>({
         </span>
       )}
       {at && (
-        <RowMenu heading={heading ?? ""} ariaLabel={heading ?? ariaLabel ?? "Choices"} at={at} minWidth={at.width} onClose={() => setAt(null)}>
-          {options.map((option, index) => (
+        <RowMenu
+          heading={heading ?? ""}
+          ariaLabel={heading ?? ariaLabel ?? "Choices"}
+          at={at}
+          minWidth={at.width}
+          onClose={() => setAt(null)}
+          focusFirst={options.length >= SEARCH_FROM ? "input[data-picker-search]" : undefined}
+        >
+          {options.length >= SEARCH_FROM && (
+            <input
+              data-picker-search
+              type="search"
+              value={query}
+              aria-label={searchLabel}
+              placeholder={`${searchLabel}…`}
+              data-testid={testId ? `${testId}-search` : undefined}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                const first = sections(options, groups, query).flatMap((section) => section.options).find((option) => !option.disabled);
+                if (first) pick(first);
+              }}
+              className="mx-0.5 mb-1 h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-body text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent/60"
+            />
+          )}
+          {lines(sections(options, groups, query), (option, key, index) => (
             <MenuItem
-              key={option.value}
+              key={key}
               checked={option.value === value}
               disabled={option.disabled}
               describedBy={option.disabled && option.reason ? `${base}-r${index}` : undefined}
               testId={testId ? `${testId}-${option.value || "none"}` : undefined}
-              onClick={() => {
-                setAt(null);
-                if (option.value !== value) onChange(option.value);
-              }}
+              onClick={() => pick(option)}
             >
               <ChoiceLine
                 icon={withIcons ? (option.icon ?? null) : undefined}
@@ -163,4 +217,43 @@ export function Picker<T extends string>({
       )}
     </>
   );
+}
+
+interface Section<T extends string> {
+  label: string | null;
+  options: PickerOption<T>[];
+  /** Matches left undrawn (typing finds them). */
+  more: number;
+}
+
+/** What the menu lists: the groups (not while searching), then All with
+ * the empty ones last; a search keeps what matches its words. */
+export function sections<T extends string>(options: readonly PickerOption<T>[], groups: readonly PickerGroup<T>[], query: string): Section<T>[] {
+  const words = query.trim().toLowerCase();
+  const matches = (option: PickerOption<T>) => words === "" || `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(words);
+  const byValue = new Map(options.map((option) => [option.value, option]));
+  const out: Section<T>[] = [];
+  if (words === "")
+    for (const group of groups) {
+      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined);
+      if (shown.length > 0) out.push({ label: group.label, options: shown, more: 0 });
+    }
+  const all = [...options.filter((option) => !option.empty), ...options.filter((option) => option.empty)].filter(matches);
+  out.push({ label: out.length > 0 ? "All" : null, options: all.slice(0, DRAWN), more: Math.max(0, all.length - DRAWN) });
+  return out;
+}
+
+/** The sections as menu lines: a quiet heading for each group and All,
+ * a separator between them, "Nothing matches", and "N more: type to find". */
+function lines<T extends string>(list: Section<T>[], line: (option: PickerOption<T>, key: string, index: number) => JSX.Element): JSX.Element[] {
+  const out: JSX.Element[] = [];
+  let index = 0;
+  list.forEach((section, at) => {
+    if (at > 0) out.push(<MenuSeparator key={`sep-${at}`} />);
+    if (section.label) out.push(<span key={`head-${at}`} className="px-2 pt-0.5 text-label font-semibold text-muted">{section.label}</span>);
+    for (const option of section.options) out.push(line(option, `${at}-${option.value}`, index++));
+    if (section.options.length === 0) out.push(<span key={`none-${at}`} className="px-2 py-1 text-meta text-muted">Nothing matches</span>);
+    if (section.more > 0) out.push(<span key={`more-${at}`} className="px-2 py-1 text-label text-muted">{section.more} more: type to find them</span>);
+  });
+  return out;
 }

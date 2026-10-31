@@ -8,6 +8,7 @@ import { Field, Input, Modal } from "./form";
 import { useActionHost } from "./ItemMenu";
 import { Button } from "./primitives";
 import { Picker } from "./controls";
+import { recentProjects } from "../lib/pickers";
 
 /**
  * The pool sheet (AJ-E1702), loaded on first use: make a pool, or move a
@@ -109,6 +110,8 @@ function CreatePool({
               testId="pool-create-project"
               className="self-start"
               options={[{ value: "", label: "Any project" }, ...projects.map((row) => ({ value: row.id, label: row.name }))]}
+              groups={[{ label: "Recent", values: recentProjects(projects) }]}
+              searchLabel="Search projects"
             />
           </Field>
         )}
