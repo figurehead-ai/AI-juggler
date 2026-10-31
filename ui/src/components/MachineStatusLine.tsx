@@ -20,8 +20,9 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // Memory pressure, in one line, where the words alone don't say it.
   const why = status && info && underPressure(info.machine) ? PRESSURE_SHORT : undefined;
   // Before the first sample: the Mac's name only, a neutral dot.
-  const words = status ? `This Mac · ${status.words}` : "This Mac";
-  const shown = status && short && SHORT_WORDS[status.words] ? `This Mac · ${SHORT_WORDS[status.words]}` : words;
+  const name = "This Mac";
+  const words = status ? `${name} · ${status.words}` : name;
+  const shown = status && short && SHORT_WORDS[status.words] ? `${name} · ${SHORT_WORDS[status.words]}` : words;
   const dot = status ? status.dot : "bg-faint";
   if (minimal) {
     return (

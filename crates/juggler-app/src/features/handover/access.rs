@@ -38,7 +38,7 @@ pub fn check_switch_access(
 pub fn refusal_words(not: &NotReady, target: &str) -> String {
     match not {
         NotReady::Blocked(path) => format!(
-            "macOS isn't letting AI Juggler read {} (another app's data). Allow AI Juggler in System Settings › Privacy & Security › Files & Folders (or Full Disk Access), then try again. Nothing was changed.",
+            "The system isn't letting AI Juggler read {} (another app's data). Allow AI Juggler in System Settings › Privacy & Security › Files & Folders (or Full Disk Access), then try again. Nothing was changed.",
             home_short(path)
         ),
         NotReady::NotSetUp(why) => {

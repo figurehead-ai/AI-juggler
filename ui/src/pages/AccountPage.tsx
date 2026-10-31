@@ -81,12 +81,13 @@ export function AccountOverview(props: AccountPanelProps) {
                 <li key={project.id}>
                   <button
                     type="button"
-                    aria-label={project.name}
                     onClick={() => props.onOpenProject(project.id)}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body font-medium text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
                   >
                     <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                    <span className="text-label text-muted">Open ›</span>
+                    <span className="text-label text-muted">
+                      Open <span aria-hidden="true">›</span>
+                    </span>
                   </button>
                 </li>
               ))}
