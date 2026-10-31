@@ -11,7 +11,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 import type { NoticeSummaryInfo } from "../lib/ipc/notices";
 import * as notices from "../lib/ipc/notices";
-import { ActionHostProvider, type ActionHost } from "./ItemMenu";
+import { ActionHostProvider } from "./ItemMenu";
+
+type ActionHost = Parameters<typeof ActionHostProvider>[0]["host"];
 import { NotificationRegion } from "./NotificationRegion";
 import { resetToasts } from "./Toast";
 

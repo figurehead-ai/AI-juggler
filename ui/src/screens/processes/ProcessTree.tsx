@@ -19,17 +19,19 @@ import { COLUMNS, NameCell, NumberCells, OWNER_CELL, StateChip } from "./cells";
 /** Every row's height, px (two lines of text). */
 export const ROW_HEIGHT = 48;
 
-/** The rows with the processes under a folded process taken out. */
+/** The rows under a folded row taken out: an app's sessions and
+ * programs, a session's processes, a process's children (0.3.2: the app
+ * and session rows folded only through the backend, and an app's never). */
 export function unfolded(rows: readonly ProcessGraphRowInfo[], folded: ReadonlySet<string>): ProcessGraphRowInfo[] {
   const out: ProcessGraphRowInfo[] = [];
   let hideBelow: number | null = null;
   for (const row of rows) {
     if (hideBelow !== null) {
-      if (row.kind === "process" && row.depth > hideBelow) continue;
+      if (row.depth > hideBelow) continue;
       hideBelow = null;
     }
     out.push(row);
-    if (row.kind === "process" && row.has_children && folded.has(row.key)) hideBelow = row.depth;
+    if (folded.has(row.key)) hideBelow = row.depth;
   }
   return out;
 }
@@ -78,7 +80,14 @@ export function ProcessTree({
   select?: string | null;
   onSelected?: () => void;
 }): JSX.Element {
-  const [folded, setFolded] = useState<Set<string>>(() => new Set());
+  // Open or folded by a click here, at once, whatever the backend says
+  // next (a session's choice is also kept by the view, `onToggle`).
+  const [chosen, setChosen] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const open = useCallback(
+    (row: ProcessGraphRowInfo) => chosen.get(row.key) ?? (row.kind === "session" ? isOpen(row) : true),
+    [chosen, isOpen],
+  );
+  const folded = useMemo(() => new Set(rows.filter((row) => !open(row)).map((row) => row.key)), [rows, open]);
   const shown = useMemo(() => unfolded(rows, folded), [rows, folded]);
   const scroller = useRef<HTMLDivElement | null>(null);
   const [scroll, setScroll] = useState({ top: 0, height: 800 });
@@ -111,20 +120,10 @@ export function ProcessTree({
     onSelected?.();
   }, [select, shown, onSelected]);
 
-  const open = useCallback(
-    (row: ProcessGraphRowInfo) => (row.kind === "process" ? !folded.has(row.key) : row.kind === "session" ? isOpen(row) : true),
-    [folded, isOpen],
-  );
   const toggle = useCallback(
     (row: ProcessGraphRowInfo, next: boolean) => {
-      if (row.kind === "process") {
-        setFolded((now) => {
-          const copy = new Set(now);
-          if (next) copy.delete(row.key);
-          else copy.add(row.key);
-          return copy;
-        });
-      } else onToggle(row, next);
+      setChosen((now) => new Map(now).set(row.key, next));
+      if (row.kind === "session") onToggle(row, next);
     },
     [onToggle],
   );
