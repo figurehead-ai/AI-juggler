@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `worktree_isolation` waits out the 2-second git status cache instead of
   racing it (a CI flake on #201).
+- The pools access test waits for the panel to finish saving before it
+  clicks Revoke (a CI flake on #202).
 - A lab test's profiles and a design mock use neutral names ("Lab A",
   "Lab B", "work-b"); evidence of past runs keeps what those runs printed.
 
