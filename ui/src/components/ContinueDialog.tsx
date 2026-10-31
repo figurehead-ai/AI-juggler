@@ -20,15 +20,27 @@ const PICKS = `${TARGETS}, [data-testid='remote-switch-target']:not(:disabled)`;
 /** The Suggested one, in either list. */
 const SUGGESTED = "[data-testid='continue-target'][data-suggested='true']:not(:disabled), button[data-row][aria-pressed='true']:not(:disabled)";
 
+/** Where the keyboard goes back to: what opened the dialog, else (a
+ * menu's line, gone with its menu) the page's own Switch account…, else
+ * the page. */
+function back(opener: Element | null): HTMLElement {
+  const usable = (node: Element | null): node is HTMLElement => node instanceof HTMLElement && node.isConnected && node !== document.body && !node.closest("[role='menu']");
+  if (usable(opener)) return opener;
+  const door = document.querySelector("[data-testid='header-switch']");
+  if (usable(door)) return door;
+  return document.querySelector<HTMLElement>("main") ?? document.body;
+}
+
 export function ContinueDialog({ title, detail, onClose: close, children }: { title: string; detail?: string; onClose: () => void; children: ReactNode }): JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
   // WCAG 2.4.3: the control that opened the dialog gets the keyboard
   // back, whether it closes or an account is picked. A pick hands it back
   // first, so the switch it opens returns there on Cancel (its rows here
   // are gone by then: 0.3.2's keyboard walk ended on the page's body).
-  const [opener] = useState(() => document.activeElement);
+  const [opener] = useState(() => back(document.activeElement));
   const giveBack = () => {
-    if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    const to = opener.isConnected ? opener : back(null);
+    to.focus();
   };
   const onClose = () => {
     close();
