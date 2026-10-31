@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ThisMacInfo } from "./machine";
 import type { HomeNeed, HomeNeedKind } from "./home-needs";
-import type { Need, RailItem } from "./rail-items";
+import { placeWords, type Need, type RailItem } from "./rail-items";
 import { readSnooze, forgetSnooze, type SnoozeState } from "./railview";
 import type { AccountInfo, InstanceInfo } from "./bridge";
 import { notificationsPage, notificationsSnooze, notificationsSnoozes, standInNeedsPage, type NeedSnoozeInfo, type NoticeInfo } from "./ipc/notices";
@@ -66,7 +66,7 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
     if (!kind) continue;
     const item = SESSION_KINDS.has(row.kind) ? byKey.get(row.subject) : undefined;
     if (item) {
-      out.push({ key: item.key, kind, title: item.title, detail: [item.project, item.place.app, item.place.profile, item.accountLabel !== item.place.profile ? item.accountLabel : null].filter(Boolean).join(" · "), severe: kind !== "session", item });
+      out.push({ key: item.key, kind, title: item.title, detail: [item.project, ...placeWords(item.place)].filter(Boolean).join(" · "), severe: kind !== "session", item });
       continue;
     }
     if (SESSION_KINDS.has(row.kind)) continue; // its row isn't loaded here yet

@@ -41,11 +41,12 @@ import { markHasSubagents } from "../pages/session/useSubagents";
 import { profileColor } from "../lib/profile-marks";
 import { togglePin } from "../lib/rail-order-store";
 
+import { placeWords } from "../lib/rail-items";
 export { needWord } from "../lib/rail-items";
 
-/** Where it is, in words: "project · Claude · Work". */
+/** Where it is, in words: "project · Claude Code · Work · in Terminal". */
 export function whereWords(item: RailItem): string {
-  return [item.project, item.place.app, item.place.profile].filter(Boolean).join(" · ");
+  return [item.project, ...placeWords(item.place)].filter(Boolean).join(" · ");
 }
 
 /** Its primary (a click, ↩): its page here, whichever app runs it. */
@@ -277,7 +278,7 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
         <span aria-hidden="true" className="truncate text-label font-semibold leading-4 text-warning" data-testid="need-word">
           {word}
         </span>
-        <RowProject item={item} rest={[item.place.app, item.place.profile].filter(Boolean).join(" · ")} />
+        <RowProject item={item} rest={placeWords(item.place).join(" · ")} />
       </span>
     </RowShell>
   );

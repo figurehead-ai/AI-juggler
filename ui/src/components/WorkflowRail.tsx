@@ -1,4 +1,5 @@
 import { AccountAvatar } from "./Avatar";
+import { useRailAccountOf } from "../lib/rail-accounts";
 import { ProjectMark } from "./ProjectMark";
 import { AppIcon } from "./AppIcon";
 import { appOfSession } from "../lib/app-of";
@@ -399,12 +400,15 @@ export function InstanceBoard({
 
   const effectiveDensity = density === "minimal" ? "compact" : density;
   // The Project lens: the View's Only, as the project board's filters.
+  // D-62: Only › Account is a subscription, so it may hold several Apps.
+  const picked = view.only.account;
+  const accountOf = useRailAccountOf(picked !== undefined);
   const filters: ChipFilters = {
     ...NO_CHIP_FILTERS,
-    account: sessions.find((row) => row.account_label === view.only.account)?.account_id ?? (view.only.account ? "-" : null),
     project: projects.find((project) => project.name === view.only.project)?.id ?? (view.only.project ? "-" : null),
   };
-  const filtered = filterSessions(sessions, filters, parsed.text, projects);
+  const onAccount = picked === undefined ? sessions : sessions.filter((row) => (accountOf(row.account_id)?.label ?? row.account_label) === picked);
+  const filtered = filterSessions(onAccount, filters, parsed.text, projects);
   const sorted = sortSessions(filtered, "needs", snooze, now, projects, accounts);
   // D-49: what is in Needs you is the backend's.
   const { needOf } = useBackendNeeds();

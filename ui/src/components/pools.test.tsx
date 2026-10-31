@@ -105,7 +105,7 @@ describe("pools in the rail: the Pool lens", () => {
     await loaded();
     expect(within(groupSwitch(view)).queryByRole("radio", { name: "Pool" })).toBeNull();
     expect(within(groupSwitch(view)).getByRole("radio", { name: "App" }).getAttribute("aria-checked")).toBe("true");
-    expect(view.getAllByTestId("place-header").some((header) => header.textContent?.includes("AI Juggler"))).toBe(true);
+    expect(view.getAllByTestId("place-header").some((header) => header.textContent?.includes("Claude Code"))).toBe(true);
   });
 
   it("groups Open now by pool, and a pool's header opens its page", async () => {

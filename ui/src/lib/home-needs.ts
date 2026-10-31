@@ -6,7 +6,7 @@
  * prepared launches and paused chains join as kinds here.)
  */
 import type { AccountInfo } from "./bridge";
-import type { RailItem } from "./rail-items";
+import { placeWords, type RailItem } from "./rail-items";
 import type { ConversationInfo } from "./ipc/conversations";
 
 export type HomeNeedKind = "session" | "limit" | "failed" | "signin" | "mac" | "heavy" | "leftovers" | "quota";
@@ -43,7 +43,7 @@ export interface NeedInputs {
 }
 
 function where(item: RailItem): string {
-  return [item.project, item.place.app, item.place.profile, item.accountLabel !== item.place.profile ? item.accountLabel : null].filter(Boolean).join(" · ");
+  return [item.project, ...placeWords(item.place)].filter(Boolean).join(" · ");
 }
 
 export function homeNeeds({ items, signIns, signInDetail, mac, heavy, leftovers }: NeedInputs): HomeNeed[] {

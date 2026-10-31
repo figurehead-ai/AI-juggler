@@ -114,9 +114,10 @@ describe("every rail element opens a page here (place lens)", () => {
     const projectName = within(row(list, "c:claude-work/outside-3").parentElement!).getByRole("button", { name: "Open project payments-api" });
     expect(projectName.className).toContain("min-h-6");
     fireEvent.click(projectName);
-    // A place's header: its profile's page; AI Juggler's own: Home.
-    fireEvent.click(within(header(list, "Claude|Work")).getByTestId("place-page"));
-    fireEvent.click(within(header(list, "ai-juggler")).getByTestId("place-page"));
+    // An App's header: its page (D-62; the App page lands with AJ-E3204,
+    // its folder's page until then), the CLI App AI Juggler runs one in too.
+    fireEvent.click(within(header(list, "app|claude-app|Work")).getByTestId("place-page"));
+    fireEvent.click(within(header(list, "cli|claude-code|claude-work")).getByTestId("place-page"));
     expect(landed()).toEqual([
       "conversation:outside-3",
       "session:aj-asks",
@@ -125,7 +126,7 @@ describe("every rail element opens a page here (place lens)", () => {
       "session:aj-pinned",
       "project:proj-payments",
       "profile:claude-work",
-      "home",
+      "profile:claude-work",
     ]);
 
     // Section heads fold and unfold in place. D-47: the one asking stays in
@@ -140,11 +141,11 @@ describe("every rail element opens a page here (place lens)", () => {
     expect(asking()).toBe(2);
     const open = within(view.getByTestId("rail-open-now")).getByRole("button", { expanded: true });
     fireEvent.click(open);
-    expect(header(list, "Claude|Work")).toBeNull();
+    expect(header(list, "app|claude-app|Work")).toBeNull();
     fireEvent.click(open);
-    expect(header(list, "Claude|Work")).toBeTruthy();
+    expect(header(list, "app|claude-app|Work")).toBeTruthy();
     // A place's chevron folds it in place (its rows go, its header stays).
-    fireEvent.click(within(header(list, "Claude|Personal")).getByTestId("rail-fold"));
+    fireEvent.click(within(header(list, "app|claude-app|Personal")).getByTestId("rail-fold"));
     expect(row(list, "c:claude-personal/outside-4")).toBeNull();
 
     // "Also: 1 inactive" shows them, and takes focus to their head.
@@ -175,18 +176,18 @@ describe("every rail element opens a page here (place lens)", () => {
     await waitFor(() => expect(row(list, "c:claude-work/outside-3")).toBeTruthy());
     const asks = row(list, "c:claude-work/outside-3").parentElement!;
     // Needs you: always shown, named for its app and profile.
-    const arrow = within(asks).getByRole("button", { name: "Go to it in Claude · Work Max" });
+    const arrow = within(asks).getByRole("button", { name: "Go to it in Claude app · Work" });
     expect(arrow.className).not.toContain("opacity-0");
     fireEvent.click(arrow);
     expect(host.goToConversation).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(row(list, "c:claude-work/outside-3"), { key: "Enter", metaKey: true });
     expect(host.goToConversation).toHaveBeenCalledTimes(2);
     // Open now: on hover and focus.
-    expect(within(row(list, "c:claude-work/outside-1").parentElement!).getByRole("button", { name: "Go to it in Claude · Work Max" }).className).toContain("opacity-0");
+    expect(within(row(list, "c:claude-work/outside-1").parentElement!).getByRole("button", { name: "Go to it in Claude app · Work" }).className).toContain("opacity-0");
     // AI Juggler's own terminal session: its page is where it runs.
     expect(within(row(list, "s:aj-working").parentElement!).queryByRole("button", { name: /^Go to it/ })).toBeNull();
-    fireEvent.click(within(header(list, "Terminal|Work Max")).getByTestId("place-open"));
-    expect(bring).toHaveBeenCalledWith(5100);
+    fireEvent.click(within(header(list, "app|claude-app|Work")).getByTestId("place-open"));
+    expect(bring).toHaveBeenCalledWith(4100);
     expect(host.openConversation).not.toHaveBeenCalled();
     expect(onSelect).not.toHaveBeenCalled();
   });
