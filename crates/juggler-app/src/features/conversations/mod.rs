@@ -655,18 +655,25 @@ pub fn live_tick(state: &Arc<AppState>) -> AppResult<bool> {
         .collect();
     let profiles = profiles(state);
     let home = dirs::home_dir().unwrap_or_default();
-    let model = state
-        .conversations
-        .scanner
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?
-        .tick(
+    let (model, apps) = {
+        let mut scanner = state
+            .conversations
+            .scanner
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        let model = scanner.tick(
             &scan::RealOs,
             &adapters,
             &profiles,
             &home,
             std::time::Instant::now(),
         );
+        (model, scanner.take_apps())
+    };
+    // 0.3.3: the apps and profiles running, remembered (a full scan's).
+    if let Some(apps) = apps {
+        crate::features::places::observe(state, &apps, &model.entries);
+    }
     {
         let mut known = state
             .conversations

@@ -86,7 +86,8 @@ pub struct PlaceInfo {
     /// What kind of app: `desktop`, `terminal` or `editor`, when known.
     pub kind: Option<String>,
     /// AJ-E2104: the app's own process, which the place's Open brings
-    /// forward (never launches); `None` when no app runs it.
+    /// forward; `None` when no app runs it (0.3.3: a remembered place's
+    /// Open starts it then, `features::places`).
     pub app_pid: Option<u32>,
     /// The place in words: `Claude · b-work`, `Terminal`.
     pub label: String,

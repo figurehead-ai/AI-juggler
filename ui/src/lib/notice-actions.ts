@@ -63,6 +63,8 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
       return host.openPool?.(target.pool_id);
     }
     if (target.page === "updates") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "updates" } }));
+    // 0.3.3: keep alive's notices open its switches.
+    if (target.page === "desktop_apps") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } }));
     if (target.page && SCREENS[target.page]) return openScreen(SCREENS[target.page]!);
     if (target.account_id) return host.openAccountById?.(target.account_id);
     if (target.project_id) return host.openProjectById?.(target.project_id);

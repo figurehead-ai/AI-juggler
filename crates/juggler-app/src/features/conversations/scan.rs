@@ -22,7 +22,7 @@ use std::time::{Duration, Instant, SystemTime};
 use juggler_adapter::SharedAdapter;
 use juggler_adapter::live::{AppSession, LiveSession, LiveStatus, TurnOutcome, same_start};
 
-use super::places::{Host, HostRegistry, host_of, running_instances};
+use super::places::{Host, HostRegistry, RunningApp, host_of, running_apps, running_instances};
 use super::procs::{Proc, Table};
 
 /// How often the per-session files are looked at.
@@ -257,6 +257,8 @@ pub struct Scanner {
     /// What each session server or unexplained session process held:
     /// `(pid, start)` → `(tool, profile, id)`.
     held: Held,
+    /// 0.3.3: the desktop apps the last full scan found, until taken.
+    apps: Option<Vec<RunningApp>>,
 }
 
 impl std::fmt::Debug for Scanner {
@@ -282,6 +284,12 @@ struct Found {
 }
 
 impl Scanner {
+    /// 0.3.3: the desktop apps the last full scan found, once (the places
+    /// remember them); `None` between full scans.
+    pub fn take_apps(&mut self) -> Option<Vec<RunningApp>> {
+        self.apps.take()
+    }
+
     /// One refresh: what is open now.
     pub fn tick(
         &mut self,
@@ -307,6 +315,7 @@ impl Scanner {
             self.table = os.table();
             self.full_at = Some(now);
             self.alive_at = Some(now);
+            self.apps = Some(running_apps(&self.table, &hosts, home));
         }
         let sessions = self.session_files(adapters, profiles);
         self.refresh_pids(os, &sessions, now);

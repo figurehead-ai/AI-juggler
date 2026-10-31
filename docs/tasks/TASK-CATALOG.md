@@ -258,6 +258,8 @@
 | AJ-E2108 | The session page: where it runs and its last messages | E21-desktop-first.md | P0 | M | AJ-E2102 |
 | AJ-E2109 | Accounts are subscriptions; profiles sit under them | E21-desktop-first.md | P0 | M | — |
 | AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
+| AJ-E2111 | Open starts an app or profile that isn't running | E21-desktop-first.md | P0 | M | AJ-E2104, AJ-E2105 |
+| AJ-E2112 | Keep alive per app and profile | E21-desktop-first.md | P0 | M | AJ-E2111 |
 | AJ-E2201 | The readability scale as tokens | E22-visual-usage.md | P0 | S | — |
 | AJ-E2202 | A hand-built chart kit | E22-visual-usage.md | P0 | M | AJ-E2201 |
 | AJ-E2203 | The usage history's summaries | E22-visual-usage.md | P0 | L | — |
@@ -334,5 +336,5 @@
 | AJ-E2812 | Cross-links: the session's Usage and Processes, and the project's subagents | E28-finding-your-way.md | P1 | S | AJ-E2809, AJ-E2811 |
 | AJ-E2813 | The sweep's smaller fixes | E28-finding-your-way.md | P1 | S | AJ-E2801 |
 | AJ-E2814 | The design-quality review: a critique beside every new or changed screen, and every popover captured | E28-finding-your-way.md | P0 | S | — |
-Total: 332 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 334 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

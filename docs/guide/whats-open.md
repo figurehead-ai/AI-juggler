@@ -109,7 +109,11 @@ Claude · Work forward; pick the session in its sidebar". A place's **Open**
 brings its app forward too.
 
 Sessions AI Juggler runs itself have no ↗: their page is where they run.
-Ended sessions have none either.
+Ended sessions have none either. An ended session's page has **Open in
+{app}** instead, for the app or profile it was last open in: AI Juggler
+starts that app if it isn't running, on the same profile (the Codex app
+opens at the thread itself; in the Claude app, pick the session in its
+sidebar).
 
 It brings the exact window or terminal tab forward only if you turned that
 on in Settings › Desktop apps. Going to a session never asks for a macOS
@@ -190,6 +194,11 @@ too.
   - **Open AI Juggler from anywhere:** a keyboard shortcut you choose.
     There's none until you pick one. ⌥Space isn't accepted, because ChatGPT
     uses it.
+- **Your apps and profiles:** every app and profile AI Juggler has seen
+  running. **Start** opens one that isn't running, on the same profile;
+  **Open** brings a running one forward. **Keep alive** starts it again
+  whenever it stops ([Keep work going](keep-work-going.md#keep-apps-alive)
+  says when it doesn't). **Forget** removes one you no longer use.
 - **Last messages:** on by default. Turn it off and session pages don't
   read transcripts.
 

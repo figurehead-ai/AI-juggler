@@ -12,7 +12,7 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-60. Do not re-litigate them; supersede only via a
+   decisions D-01..D-63. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
 4. The epic file for the task you claim (E1-E28 below).
@@ -43,7 +43,7 @@
 | [E18-agent-messaging.md](E18-agent-messaging.md) | Messaging between agents | AJ-E1801-E1805 |
 | [E19-agent-tasks.md](E19-agent-tasks.md) | Task management shared by pools | AJ-E1901-E1906 |
 | [E20-engineering-and-security.md](E20-engineering-and-security.md) | Engineering and security foundations | AJ-E2001-E2019 |
-| [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2110 |
+| [E21-desktop-first.md](E21-desktop-first.md) | Desktop first: what's open, where, and one click to it | AJ-E2101-E2112 |
 | [E22-visual-usage.md](E22-visual-usage.md) | Usage and projects you can read at a glance | AJ-E2201-E2207 |
 | [E23-session-runtime.md](E23-session-runtime.md) | A runtime per tool: driven sessions, exact state, answers from AI Juggler | AJ-E2301-E2310 |
 | [E24-processes.md](E24-processes.md) | The Processes view: every app, session and process, one model | AJ-E2401-E2407 |

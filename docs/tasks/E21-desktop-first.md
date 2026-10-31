@@ -96,7 +96,7 @@
 **Goal**: The rail groups open sessions by place (app + profile), each row says what, where and its state, and every other view is one click away.
 **User story**: As the maintainer, I read the rail in five seconds even with 40 sessions.
 **Requirements**:
-1. A place header SHALL show the app icon, the profile, a count and Open (brings a running app forward only).
+1. A place header SHALL show the app icon, the profile, a count and Open (brings a running app forward). *Amendment (D-63, 0.3.3):* a desktop app's menu also turns its Keep alive on and off; an app or profile AI Juggler remembers that isn't running is started by Open from Home, Settings › Desktop apps and an ended session's page ("Open in {app}"), exactly as it last ran.
 2. A row SHALL show the app icon with the profile badge (monogram, 4.5:1), the title, a place line (project · app · profile · window or tab), and a state dot with its word. Runway shows on a row only when low.
 3. States SHALL be one vocabulary everywhere: Asks you, Working, Idle, Done (review it), and the folded Ended. Every tool and app status maps onto them.
 4. Quiet places SHALL fold ("Work · 4 idle"); a place shows working rows and the last 3, then "+n quiet". *Deviation (D-47, 2026-10-27):* this is now the **Latest activity** order only. In **Your order** (the default) and **Name**, a place shows all its open rows (the first 8 by the order, then "+n more", never re-picked by activity) and folds only when the user folds it, which is remembered; inactive sessions still wait behind "Also: n inactive". A place with a session that needs you is never quiet.
@@ -117,7 +117,7 @@
 **Requirements**:
 1. The heading SHALL be one sentence about what needs you, with the other counts as links.
 2. Needs you SHALL hold every kind of item, each with its own primary: a session asking (Go to it), a limit reached (Continue elsewhere or Wait), a sign-in, a heavy Mac, left-behind processes, and on 0.2 agent messages (Deliver), agent requests (Allow once), prepared launches (Start) and paused chains (Continue).
-3. "Your apps" SHALL show one tile per running app and profile (count, needs-you badge, the account's runway, Open), at most 6 then "+n".
+3. "Your apps" SHALL show one tile per running app and profile (count, needs-you badge, the account's runway, Open), at most 6 then "+n". *Amendment (D-63, 0.3.3):* an app or profile kept alive that isn't running has a tile too (why it's down, Start), and a running one kept alive says so.
 4. Runway by account SHALL list subscriptions with their profiles, and say "Not measured yet" with the way to measure it.
 **UI/UX reasoning**: The approved canvas.
 **Performance budget**: Home interactive < 300 ms.
@@ -216,3 +216,38 @@
 **Files to touch**: `ui/src/screens/Settings.tsx`, `docs/guide/`, `README.md`, `docs/adr/0008-terminology-charter.md`.
 **Research basis**: as above.
 **Handover note**: —
+
+### AJ-E2111 Open starts an app or profile that isn't running | Status: DONE (0.3.3; backend, UI, tests and the hand walk evidenced) | Priority P0 | Effort M | Depends: AJ-E2104, AJ-E2105
+**Goal**: Open works whether the app is running or not (D-63).
+**User story**: As a user, I click Open on an app or profile I closed, and it starts on the same profile, at the session where its app can.
+**Requirements**:
+1. AI Juggler SHALL remember each desktop app and profile it sees running: its bundle, the instance folder it was given, the sessions open in it; at most 32, forgotten after 90 days unseen unless kept alive.
+2. Open SHALL bring a running place forward, and start one that isn't, exactly as it last ran (the instance folder only), in front.
+3. An ended session SHALL offer "Open in {app}" for the place it was last open in; Codex opens the thread by its link.
+4. Every start SHALL check the bundle is still the app's and its executable is one no other user can change; the window's setting writer SHALL NOT change the record.
+**UI/UX reasoning**: Nielsen's match with the real world: "Open" means open, whatever state the app is in.
+**Performance budget**: Open answers within 1.5 s (else "Still opening…").
+**Quality gates**: Rust tests (`features::places`, `juggler-platform::apps`), vitest (`keep-alive.test.tsx`), the IPC audit.
+**Evidence/validation proof**: `docs/qa/0.3.3-walk.md`.
+**Visual testing**: Home's closed tile, Settings › Desktop apps, an ended session's header, both themes.
+**Files to touch**: `crates/juggler-app/src/features/places/`, `crates/juggler-platform/src/apps.rs`, `ui/src/components/HomeApps.tsx`, `ui/src/components/ConversationPage.tsx`, `ui/src/screens/settings/DesktopAppsPane.tsx`.
+**Research basis**: `open(1)` and Launch Services (`-n` for a further instance).
+**Handover note**: a desktop app's own sign-in isn't read; a signed-out profile starts and shows its own sign-in.
+
+### AJ-E2112 Keep alive per app and profile | Status: DONE (0.3.3; backend, UI, tests and the hand walk evidenced) | Priority P0 | Effort M | Depends: AJ-E2111
+**Goal**: An app or profile the user keeps alive is started again when it stops (SPEC §1 amendment 3, D-63).
+**User story**: As a user, I turn on Keep alive for my work profile, and when it crashes or I quit it by mistake it comes back.
+**Requirements**:
+1. Keep alive SHALL be off until turned on, per app or profile (Settings › Desktop apps, the rail's place menu).
+2. Gone SHALL mean its main process missing twice in a row; it SHALL start 5 s later, behind the app in front.
+3. It SHALL NOT start while the screen is locked, within a minute of AI Juggler starting or the computer waking, or once AI Juggler is quitting.
+4. After 3 starts in 10 minutes it SHALL pause and say why; a stop in AI Juggler SHALL pause it; Open SHALL end a pause.
+5. Every start and pause SHALL be a notice whose action opens the switch.
+**UI/UX reasoning**: Apple HIG on background activity: the user turns it on, sees each start, and can turn it off from the notice.
+**Performance budget**: one process check per kept place every 2 s; the whole process list at most every 10 s while one is down.
+**Quality gates**: as AJ-E2111; `keep::tests` cover each guard.
+**Evidence/validation proof**: `docs/qa/0.3.3-walk.md`.
+**Visual testing**: the notices, the switch on and paused, the rail menu.
+**Files to touch**: `crates/juggler-app/src/features/places/keep.rs`, `crates/juggler-app/src/features/notifications/sources.rs`, `ui/src/components/PlaceHeader.tsx`.
+**Research basis**: AJ-E1509's restart limits (`sessions::restart`).
+**Handover note**: tries are counted in memory, as a session's are; an AI Juggler restart counts again.

@@ -250,6 +250,9 @@ describe("agent access", () => {
     pick(getByTestId("pool-hop-limit"), "3");
     await waitFor(() => expect(calls()).toContain("delivery:pool-team:3:false"));
     expect(getByTestId("pool-rule").textContent).toContain("Give a task to someone else");
+    // The panel is busy until the hop limit's save comes back, and a
+    // busy panel's buttons are off: a slow runner clicked too soon (#202).
+    await waitFor(() => expect((getByTestId("pool-rule-revoke") as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(getByTestId("pool-rule-revoke"));
     await waitFor(() => expect(calls()).toContain("revoke:7"));
   });

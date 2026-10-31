@@ -353,7 +353,9 @@ describe("D-25 first run — the flow", () => {
     expect(outcome.textContent).toContain("Stopped. 1 brought in, 2 still to go.");
     expect(onDone).not.toHaveBeenCalled();
     expect(close.textContent).toBe("Not now");
-    expect(document.activeElement).toBe(getByTestId("first-run-continue"));
+    // Focus moves in an effect after the outcome paints: a loaded full run
+    // can look between the two, so wait for it rather than read it once.
+    await waitFor(() => expect(document.activeElement).toBe(getByTestId("first-run-continue")));
     await act(async () => {
       fireEvent.click(getByTestId("first-run-rest"));
     });

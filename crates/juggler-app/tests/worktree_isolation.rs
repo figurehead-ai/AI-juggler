@@ -159,10 +159,20 @@ fn a_second_instance_gets_its_own_worktree_and_nothing_is_overwritten() {
         "zero silent overwrites"
     );
 
-    // On focus: the dirty state, read now.
-    let status = worktree::git_status_refresh_impl(&state, &second.session_id)
-        .unwrap()
-        .unwrap();
+    // On focus: the dirty state. A read is kept for up to 2 s (a focus
+    // never runs git twice in a row), so a status read while the tree was
+    // still clean can answer first: the test waits out that window, never
+    // a fixed sleep (PR #201's CI read 0 inside it).
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let status = loop {
+        let status = worktree::git_status_refresh_impl(&state, &second.session_id)
+            .unwrap()
+            .unwrap();
+        if status.changed == 1 || std::time::Instant::now() >= deadline {
+            break status;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    };
     assert_eq!(status.changed, 1);
     assert!(status.worktree && status.created_by_juggler);
 

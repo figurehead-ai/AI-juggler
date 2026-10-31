@@ -526,6 +526,14 @@ macro_rules! app_commands {
             Write features::conversations::commands::conversations_go_to,
             // Brings a running app forward (never launches it).
             Write features::conversations::commands::conversations_bring_forward,
+            // 0.3.3: the apps and profiles remembered; Open starts one
+            // that isn't running; Keep alive starts it again. Never from
+            // the read-only bridge (each may start an app).
+            Read  features::places::commands::places_list,
+            Read  features::places::commands::places_find,
+            Write features::places::commands::places_open,
+            Write features::places::commands::places_keep_alive,
+            Write features::places::commands::places_forget,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::subscriptions::commands::subscriptions_list,
@@ -902,6 +910,14 @@ pub fn run() {
             std::process::exit(1);
         })
         .run(move |app, event| {
+            // 0.3.3: quitting (⌘Q, a log out, a shut down) stops Keep
+            // alive first: nothing is started on the way out.
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                features::places::keep::stand_down();
+            }
             if let tauri::RunEvent::Exit = event {
                 // AJ-E1509: quit as asked — the run is clean and the
                 // watchdog ends with the app.
@@ -1184,6 +1200,8 @@ fn spawn_read_model_ticks(
         // AJ-E1703: what each live session is working on (its card).
         features::pools::cards::tick(&processes_state);
     });
+    // 0.3.3: Keep alive, every 2 s (features::places::keep says when not).
+    features::places::spawn(subagents_app.clone(), quota_state.clone());
     // AJ-E1520 (0.2): the rail's subagent count, on its own tick.
     features::subagents::count::start(subagents_app.clone(), quota_state.clone());
     // 0.2: an own session of a tool without hooks learns its conversation

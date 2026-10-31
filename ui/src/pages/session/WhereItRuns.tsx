@@ -8,6 +8,7 @@ import { Card } from "../../components/primitives";
 import { shortPath } from "../../screens/AccountManage";
 import { CardTitle } from "./CardTitle";
 import { appWords, type SessionModel } from "./model";
+import { useLastPlace } from "../../lib/places";
 
 export function WhereItRuns({
   model,
@@ -26,8 +27,11 @@ export function WhereItRuns({
 }): JSX.Element {
   const place = model.places[0];
   const app = appWords(place, model.tool) ?? (model.sessionId && model.live ? "AI Juggler's terminal" : null);
+  // 0.3.3: an ended session of another app names where it was last open
+  // (its header's Open in starts that app).
+  const last = useLastPlace(model.tool, model.conversationId ?? "", outside && !model.live && model.conversationId !== null);
   const rows: [string, string, boolean?][] = [
-    ["App", app ? app.replace(/^the /, "") : model.live ? "Not known" : "Not open now"],
+    ["App", app ? app.replace(/^the /, "") : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now"],
     ...(place?.instance ? ([["Window", place.label]] as [string, string][]) : []),
     ["Profile", model.profileLabel],
     ...(accountWords ? ([["Account", accountWords]] as [string, string][]) : []),

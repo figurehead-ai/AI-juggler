@@ -53,6 +53,8 @@ pub const APP_KINDS: &[(&str, &str)] = &[
     ("reset", "Resets"),
     ("finished", "Finished sessions"),
     ("restarted", "Crashes and restarts"),
+    ("app-started", "Apps started again (keep alive)"),
+    ("keep-alive-paused", "Keep alive paused"),
     ("update", "Updates"),
     ("renewal", "Plan renewals"),
 ];
