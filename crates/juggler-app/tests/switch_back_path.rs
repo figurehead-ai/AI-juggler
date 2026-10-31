@@ -54,7 +54,7 @@ fn config_dir_of(state: &Arc<AppState>, account_id: &str) -> PathBuf {
 fn transcript_of(state: &Arc<AppState>, account_id: &str, cwd: &str, native: &str) -> PathBuf {
     config_dir_of(state, account_id)
         .join("projects")
-        .join(juggler_adapter::handover::mangled_dir(&cwd))
+        .join(juggler_adapter::handover::mangled_dir(cwd))
         .join(format!("{native}.jsonl"))
 }
 

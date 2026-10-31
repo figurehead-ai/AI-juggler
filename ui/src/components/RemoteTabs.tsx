@@ -58,7 +58,7 @@ export function RemoteTabBody({
       case "actions":
         return (
           <Card className="flex flex-col gap-2 p-4 text-xs" data-testid="remote-machine-actions">
-            <p className="leading-relaxed text-muted">
+            <p className="leading-relaxed text-ink-2">
               Pairing, permissions and unpairing for {machine.label} live in Fleet.
             </p>
           </Card>
@@ -124,7 +124,7 @@ function Unavailable({ machine, what }: { machine: RemoteMachineInfo; what: stri
   return (
     <Card className="p-4 text-xs" data-testid="remote-unavailable">
       <p className="font-medium">Unavailable — {machine.label} doesn't share {what} over the link yet.</p>
-      <p className="mt-1 leading-relaxed text-muted">
+      <p className="mt-1 leading-relaxed text-ink-2">
         Nothing here is estimated: a value appears only when {machine.label} reports it.
       </p>
     </Card>
@@ -412,7 +412,7 @@ function MachineOverview({
       <Card className="flex flex-col gap-1 p-4">
         <p className="text-xs font-medium">Sessions on {machine.label}</p>
         {machine.instances.length === 0 ? (
-          <p className="text-xs text-muted">
+          <p className="text-xs text-ink-2">
             {machine.freshness === "offline" ? "Unavailable while offline." : "None running."}
           </p>
         ) : (
@@ -445,7 +445,7 @@ function MachineProcesses({ machine, now }: { machine: RemoteMachineInfo; now: n
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="remote-machine-processes">
       {counted.length === 0 ? (
-        <p className="text-xs text-muted">Unavailable — {machine.label} hasn't reported process numbers.</p>
+        <p className="text-xs text-ink-2">Unavailable — {machine.label} hasn't reported process numbers.</p>
       ) : (
         <ul className="flex flex-col gap-1 text-xs">
           {counted.map((row) => (

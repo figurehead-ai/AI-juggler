@@ -241,13 +241,13 @@ export function NewProjectSheet({
                 Step 2 — which account?
               </p>
               <div className="mt-2 flex flex-col gap-1.5" data-testid="project-account">
-                {recipes === null && <p className="py-3 text-xs text-muted">Loading…</p>}
+                {recipes === null && <p className="py-3 text-xs text-ink-2">Loading…</p>}
                 {recipes !== null && recipes.length === 0 && !detour && (
                   <div
                     className="flex flex-col items-start gap-2 rounded-xl border border-hairline px-4 py-3"
                     data-testid="no-account-detour"
                   >
-                    <p className="text-xs text-muted">
+                    <p className="text-xs text-ink-2">
                       No account set up yet — add one and your project launch picks up right
                       where it left off.
                     </p>

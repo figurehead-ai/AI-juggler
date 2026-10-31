@@ -131,7 +131,7 @@ export function RunwayPanel({
   if (display?.unavailable_reason) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-meta text-muted">{display.unavailable_reason}</p>
+        <p className="text-meta text-ink-2">{display.unavailable_reason}</p>
         <UsageLine usage={usage} usageTotal={usageTotal} name={name} color={color} reading={!!display?.history_reading} />
       </div>
     );

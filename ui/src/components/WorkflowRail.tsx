@@ -505,7 +505,7 @@ export function InstanceBoard({
         onScroll={(event) => setScrollTop((event.target as HTMLDivElement).scrollTop)}
       >
         {hasRemote && showLocal && (
-          <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-muted" data-testid="board-machine-local">
+          <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-ink-2" data-testid="board-machine-local">
             This Mac
           </p>
         )}
@@ -526,7 +526,7 @@ export function InstanceBoard({
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 px-2 py-8 text-center">
-              <p className="text-meta font-medium text-muted">No sessions match</p>
+              <p className="text-meta font-medium text-ink-2">No sessions match</p>
               <Button
                 size="sm"
                 variant="secondary"
@@ -585,7 +585,7 @@ export function InstanceBoard({
                     </RailProjectHeader>
                   ) : (
                     <p
-                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-muted"
+                      className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-ink-2"
                       title={entry.rollup || undefined}
                     >
                       <span className="min-w-0 truncate">{entry.label}</span>
@@ -635,7 +635,7 @@ export function InstanceBoard({
                 controls="rail-history-list"
                 onToggle={() => toggleFold(HISTORY_GROUP)}
               />
-              <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-muted">
+              <p className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-ink-2">
                 <span className="min-w-0 truncate">Projects</span>
                 <span className="shrink-0 text-label font-normal text-muted">{repoGroups(idleProjects).length}</span>
               </p>
@@ -662,7 +662,7 @@ export function InstanceBoard({
                           controls={safeId("rail-repo", group.key)}
                           onToggle={() => toggleFold(group.key)}
                         />
-                        <p className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-muted" title={group.key}>
+                        <p className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-ink-2" title={group.key}>
                           <span className="flex min-w-0 items-center gap-1.5">
                             <ProjectMark projectId={group.projects[0]!.id} size={14} />
                             <span className="min-w-0 truncate">{group.name}</span>

@@ -53,7 +53,7 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 }
 
 fn seed_transcript(config_dir: &Path, cwd: &str, session_id: &str) {
-    let encoded = juggler_adapter::handover::mangled_dir(&cwd);
+    let encoded = juggler_adapter::handover::mangled_dir(cwd);
     let dir = config_dir.join("projects").join(encoded);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -93,7 +93,7 @@ fn launch_with_transcript(
     seed_transcript(&config_dir_of(state, account_id), cwd, native_id);
     let transcript = config_dir_of(state, account_id)
         .join("projects")
-        .join(juggler_adapter::handover::mangled_dir(&cwd))
+        .join(juggler_adapter::handover::mangled_dir(cwd))
         .join(format!("{native_id}.jsonl"));
     let storage = state.storage.lock().unwrap();
     let mut record = storage

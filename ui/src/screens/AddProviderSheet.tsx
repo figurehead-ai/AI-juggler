@@ -115,10 +115,10 @@ export function AddProviderSheet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5" data-testid="provider-cards">
-          <p className="text-xs leading-relaxed text-muted">
+          <p className="text-xs leading-relaxed text-ink-2">
             Which tool is it for? Installed tools are ready; others link to their install page.
           </p>
-          {installs === null && <p className="mt-4 text-xs text-muted">Checking your machine…</p>}
+          {installs === null && <p className="mt-4 text-xs text-ink-2">Checking your machine…</p>}
           <ul className="mt-3 flex flex-col gap-2">
             {sorted.map((row) => {
               const ready = selectable(row);
@@ -188,7 +188,7 @@ export function AddProviderSheet({
               </summary>
               <div className="mt-3 flex flex-col gap-2" data-testid="add-through-service">
                 <p className="text-label uppercase tracking-wider text-muted">Through another service</p>
-                <p className="text-xs leading-relaxed text-muted">
+                <p className="text-xs leading-relaxed text-ink-2">
                   A subscription that answers for your tools at the address it publishes. You paste its key once.
                 </p>
                 <ul className="flex flex-col gap-2">

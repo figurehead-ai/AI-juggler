@@ -180,7 +180,7 @@ export function FleetScreen({
           <p id="fleet-link-label" className="text-section font-semibold text-ink">
             Link {link?.enabled ? "on" : "off"}
           </p>
-          <p id="fleet-link-detail" className="text-meta text-muted" data-testid="fleet-link-detail">
+          <p id="fleet-link-detail" className="text-meta text-ink-2" data-testid="fleet-link-detail">
             {link?.enabled
               ? `Paired machines can connect to this Mac (port ${link.port ?? "—"}); machines on this network see an unnamed entry until you pair.`
               : "This Mac isn't visible to, or reachable from, other machines. Turn Link on to pair or connect."}
@@ -201,7 +201,7 @@ export function FleetScreen({
           data-testid="fleet-trust-broken"
         >
           <p className="text-sm font-medium">⚠ Trust broken — re-pair required</p>
-          <p className="text-xs leading-relaxed text-muted">
+          <p className="text-xs leading-relaxed text-ink-2">
             The list of paired machines failed its integrity check, so AI Juggler isn't
             trusting any of them. Nothing connects until you reset trust and pair again.
           </p>
@@ -504,7 +504,7 @@ function ConfirmSheet({
         <p id="fleet-confirm-title" className="text-sm font-semibold">
           {title}
         </p>
-        <p id="fleet-confirm-body" className="mt-1.5 text-xs leading-relaxed text-muted">
+        <p id="fleet-confirm-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           {body}
         </p>
         <div className="mt-4 flex justify-end gap-2">

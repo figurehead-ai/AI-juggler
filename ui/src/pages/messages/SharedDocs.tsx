@@ -51,7 +51,7 @@ export function SharedDocs({ poolId, now }: { poolId: string; now: number }): JS
       {docs === null ? (
         <span className="h-10 rounded-lg bg-surface-3 motion-safe:animate-pulse" role="status" aria-label="Loading the documents" />
       ) : docs.length === 0 ? (
-        <p className="text-meta text-muted">None yet. When an agent shares a document with this pool, it shows here, with any secrets handled as you chose for handovers.</p>
+        <p className="text-meta text-ink-2">None yet. When an agent shares a document with this pool, it shows here, with any secrets handled as you chose for handovers.</p>
       ) : (
         <ul className="flex flex-col divide-y divide-hairline/60 rounded-xl border border-hairline">
           {docs.map((doc) => (

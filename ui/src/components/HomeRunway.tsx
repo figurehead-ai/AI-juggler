@@ -112,7 +112,7 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
           );
         })}
         {advice && accounts.length > 1 && (
-          <p className="border-t border-hairline/60 py-3 text-xs text-muted" data-testid="new-work-advice">
+          <p className="border-t border-hairline/60 py-3 text-xs text-ink-2" data-testid="new-work-advice">
             {advice}
           </p>
         )}

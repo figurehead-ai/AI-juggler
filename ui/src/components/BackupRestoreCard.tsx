@@ -160,9 +160,9 @@ export function BackupRestoreCard(): JSX.Element {
               <span aria-hidden="true">✓ </span>Backed up — {byteSize(phase.info.bytes)}, every file checksummed.
             </p>
             <p className="break-all font-mono text-label text-muted">{phase.info.path}</p>
-            <p className="text-muted">{countLine(phase.info.manifest.counts)}</p>
+            <p className="text-ink-2">{countLine(phase.info.manifest.counts)}</p>
             {phase.info.manifest.withheld.length > 0 && (
-              <p className="text-muted">
+              <p className="text-ink-2">
                 Withheld (re-enter after a restore): {phase.info.manifest.withheld.join("; ")}
               </p>
             )}
@@ -180,7 +180,7 @@ export function BackupRestoreCard(): JSX.Element {
                 <li key={step}>{step}</li>
               ))}
             </ul>
-            <p className="break-all text-muted">Kept from before: {phase.result.kept_before.join(" · ")}</p>
+            <p className="break-all text-ink-2">Kept from before: {phase.result.kept_before.join(" · ")}</p>
           </div>
         )}
         {phase.kind === "failed" && (

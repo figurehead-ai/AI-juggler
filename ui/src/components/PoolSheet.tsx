@@ -116,12 +116,12 @@ function CreatePool({
           </Field>
         )}
         {where && (
-          <p className="text-xs text-muted" data-testid="pool-create-session">
+          <p className="text-xs text-ink-2" data-testid="pool-create-session">
             <span className="text-ink">{where.title}</span>
             {where.detail ? ` · ${where.detail}` : ""} goes in it.
           </p>
         )}
-        {!session && sessions.length === 0 && <p className="text-xs text-muted">Sessions can join it once you start some.</p>}
+        {!session && sessions.length === 0 && <p className="text-xs text-ink-2">Sessions can join it once you start some.</p>}
         {error && (
           <p className="text-xs text-danger" role="alert" data-testid="pool-error">
             {error}

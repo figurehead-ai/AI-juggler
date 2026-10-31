@@ -127,7 +127,7 @@ export function UsageDashboard({
   return (
     <div className="@container flex flex-col gap-grid" data-testid={testId} aria-busy={view.loading || reading !== null || undefined}>
       {reading !== null && (
-        <p role="status" className="text-body text-muted" data-testid="usage-reading">
+        <p role="status" className="text-body text-ink-2" data-testid="usage-reading">
           {readingLine(reading)}
         </p>
       )}

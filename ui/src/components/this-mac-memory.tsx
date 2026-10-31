@@ -81,7 +81,7 @@ export function MemoryMeter({ info, more = false }: { info: ThisMacInfo; more?: 
   ].filter((part): part is { key: PartKey; words: string; bytes: number } => part !== null);
   return (
     <div className="flex flex-col gap-2.5">
-      <p className="flex flex-wrap items-baseline gap-x-1.5 text-body text-muted" data-testid="this-mac-memory" title={used !== null ? `In use: ${basis}` : undefined}>
+      <p className="flex flex-wrap items-baseline gap-x-1.5 text-body text-ink-2" data-testid="this-mac-memory" title={used !== null ? `In use: ${basis}` : undefined}>
         {used !== null ? (
           <>
             <span className="text-title font-semibold tabular-nums text-ink">{bytesWords(used)}</span>{" "}
@@ -124,7 +124,7 @@ export function MemoryMeter({ info, more = false }: { info: ThisMacInfo; more?: 
           {more && compressed > 0 && (
             // The 0.2 walk (F13): an alert named one app at more than
             // "Other apps and macOS" here.
-            <p className="text-meta text-muted" data-testid="this-mac-memory-compressed-note">
+            <p className="text-meta text-ink-2" data-testid="this-mac-memory-compressed-note">
               Memory macOS keeps compressed is shown on its own, and an app's own figure counts memory its processes share more than once, so one app can show more than “Other apps and macOS” here.
             </p>
           )}
@@ -167,7 +167,7 @@ export function OtherAppsGroup({ info }: { info: ThisMacInfo }): JSX.Element | n
             ))}
           </ul>
         )}
-        <p className="text-meta text-muted">
+        <p className="text-meta text-ink-2">
           The biggest, by name. The rest is macOS itself and smaller apps
           {compressed > 0 ? `, and macOS keeps ${bytesWords(compressed)} more compressed for every app, AI tools too` : ""}. AI Juggler only reads
           these, and never stops them.

@@ -528,11 +528,11 @@ function InstanceOverview(props: PanelProps) {
               <DrivenPanel session={session} onOpenSession={props.onOpenSession} />
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
-                {session.runtime?.fell_back && <p className="text-meta text-muted" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
+                {session.runtime?.fell_back && <p className="text-meta text-ink-2" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
                 <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
                   <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} rule={session.attention?.rule ?? null} />
                 </Card>
-                {!live && <p className="text-meta text-muted">{`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}</p>}
+                {!live && <p className="text-meta text-ink-2">{`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}</p>}
               </div>
             )
           }
@@ -635,7 +635,7 @@ function InstanceOverview(props: PanelProps) {
               </div>
             )}
             {focusOutcome !== null && (
-              <p className="text-meta text-muted" data-testid="desktop-focus-outcome">
+              <p className="text-meta text-ink-2" data-testid="desktop-focus-outcome">
                 {focusOutcome.outcome}
                 {focusOutcome.window_title !== null ? (
                   <span className="text-muted"> · window “{focusOutcome.window_title}”</span>
@@ -719,7 +719,7 @@ function InstanceOverview(props: PanelProps) {
                 </span>
               </button>
             ) : (
-              <p className="text-xs text-muted">No live session — free to juggle.</p>
+              <p className="text-xs text-ink-2">No live session — free to juggle.</p>
             )}
             <p className="mt-2 text-section font-semibold text-ink">
               Launch with another account
@@ -749,14 +749,14 @@ function InstanceOverview(props: PanelProps) {
                 );
               })}
               {profiles.length === 0 && (
-                <p className="text-xs text-muted">No launch settings yet — add an account first.</p>
+                <p className="text-xs text-ink-2">No launch settings yet — add an account first.</p>
               )}
             </div>
           </Card>
           <Card className="flex flex-col gap-2 p-4">
             <p className="text-section font-semibold text-ink">Sessions in this project</p>
             {history.length === 0 ? (
-              <p className="text-xs text-muted">Nothing recorded yet.</p>
+              <p className="text-xs text-ink-2">Nothing recorded yet.</p>
             ) : (
               <div className="flex flex-col divide-y divide-hairline/50">
                 {history.map((s) => (
@@ -800,7 +800,7 @@ function InstanceOverview(props: PanelProps) {
         <Card className="flex flex-col gap-2 p-4">
           <p className="text-section font-semibold text-ink">Sessions on this account</p>
           {rows.length === 0 ? (
-            <p className="text-xs text-muted">No sessions recorded yet.</p>
+            <p className="text-xs text-ink-2">No sessions recorded yet.</p>
           ) : (
             rows.slice(0, 8).map((row) => (
               <button
@@ -826,7 +826,7 @@ function InstanceOverview(props: PanelProps) {
         <Card className="flex flex-col gap-2 p-4">
           <p className="text-section font-semibold text-ink">Tool</p>
           <p className="font-mono text-meta">{data.provider.id}</p>
-          <p className="text-meta text-muted">
+          <p className="text-meta text-ink-2">
             {providerAccounts.length} account{providerAccounts.length === 1 ? "" : "s"} ·{" "}
             {providerAccounts.filter((a) => signedIn(a.login_state)).length} signed in
           </p>
@@ -842,7 +842,7 @@ function InstanceOverview(props: PanelProps) {
             </p>
           ))}
           {providerAccounts.length === 0 && (
-            <p className="text-xs text-muted">No accounts for this tool yet.</p>
+            <p className="text-xs text-ink-2">No accounts for this tool yet.</p>
           )}
         </Card>
       </div>
@@ -944,7 +944,7 @@ function ProviderOverview(props: PanelProps) {
       <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
         <p className="text-section font-semibold text-ink">Runway, least left first</p>
         {perAccount.length === 0 ? (
-          <p className="text-meta text-muted">No accounts for this tool yet.</p>
+          <p className="text-meta text-ink-2">No accounts for this tool yet.</p>
         ) : (
           perAccount.map(({ account, display, sessions }) => (
             <div key={account.id} className="flex flex-col gap-1.5 py-1">
@@ -1026,7 +1026,7 @@ function QualityTab(props: PanelProps) {
   if (loadError) {
     return (
       <Card className="flex flex-col gap-1 p-4" data-testid="quality-tab">
-        <p className="text-meta text-muted">Signals unavailable right now.</p>
+        <p className="text-meta text-ink-2">Signals unavailable right now.</p>
         <p className="text-label text-muted">{loadError}</p>
       </Card>
     );
@@ -1168,14 +1168,14 @@ function QualityTab(props: PanelProps) {
       </div>
       {signals.length === 0 ? (
         <Card className="flex flex-col gap-1 p-5">
-          <p className="text-body text-muted">Nothing measured yet — this fills in as the session works.</p>
+          <p className="text-body text-ink-2">Nothing measured yet — this fills in as the session works.</p>
         </Card>
       ) : (
         // Cards sized to what they say, as many to a row as fit.
         <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-grid">
           {signals.map((signal) => (
             <Card key={signal.testId} className="flex flex-col gap-1.5 p-5 text-body" data-testid={signal.testId}>
-              <p className="text-meta font-medium text-muted">{signal.label}</p>
+              <p className="text-meta font-medium text-ink-2">{signal.label}</p>
               {signal.body}
               <TierTag tier={signal.tier} />
             </Card>

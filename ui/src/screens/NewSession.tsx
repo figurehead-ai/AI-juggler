@@ -427,12 +427,12 @@ export function NewSessionModal({
                 );
               })}
             {profiles !== null && profiles.length === 0 && (
-              <p className="py-3 text-center text-xs text-muted">
+              <p className="py-3 text-center text-xs text-ink-2">
                 No launch settings yet — add an account first (Accounts, top right).
               </p>
             )}
             {profiles === null && (
-              <p className="py-3 text-center text-xs text-muted">Loading…</p>
+              <p className="py-3 text-center text-xs text-ink-2">Loading…</p>
             )}
           </div>
 

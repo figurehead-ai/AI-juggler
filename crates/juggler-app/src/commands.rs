@@ -5992,11 +5992,6 @@ fn switch_execute_core(
 
     let freeze = freeze_of(freeze_choice);
     let sides = switch_sides(state, session_id, target_profile_id)?;
-    crate::features::handover::access::check_switch_access(
-        state,
-        &sides.reference.path,
-        &sides.account_b,
-    )?;
     // AJ-E1304 (D-11): across Providers the conversation REPLAYS into a
     // primed session — one vendor's file is never installed into the
     // other's home.
@@ -6090,6 +6085,7 @@ fn switch_execute_core(
     )?;
 
     crate::identity::record(state, &new_session, &account_b, &assertion, "switch");
+    crate::features::handover::arrival::watch_switch(state, &account_b, &new_session, pid, &record);
     switch.succeeded();
     tasks_after_switch(state, &new_session, &account_a, &account_b);
 
@@ -6258,6 +6254,7 @@ fn switch_sides(
         message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
             .into(),
     })?;
+    crate::features::handover::access::check_switch_access(state, &reference.path, &account_b)?;
     Ok(SwitchSides {
         source,
         reference,

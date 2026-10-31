@@ -160,11 +160,11 @@ export function HandoverSection({
         </button>
       )}
       {targets === null ? (
-        <p className="text-meta text-muted" data-testid="handover-targets-loading">
+        <p className="text-meta text-ink-2" data-testid="handover-targets-loading">
           Ranking destinations…
         </p>
       ) : targets.length === 0 ? (
-        <p className="text-meta text-muted" data-testid="handover-targets-empty">
+        <p className="text-meta text-ink-2" data-testid="handover-targets-empty">
           Add another account to juggle between them.
         </p>
       ) : (
@@ -193,7 +193,7 @@ export function HandoverSection({
           </svg>
         </summary>
         {dialog ? (
-          <p className="mt-3 text-meta text-muted" data-testid="handover-in-dialog">
+          <p className="mt-3 text-meta text-ink-2" data-testid="handover-in-dialog">
             Choosing in the dialog…
           </p>
         ) : (
@@ -201,7 +201,7 @@ export function HandoverSection({
         )}
       </details>
       {!open && (
-        <p className="text-meta leading-[1.5] text-muted" data-testid="handover-teaser">
+        <p className="text-meta leading-[1.5] text-ink-2" data-testid="handover-teaser">
           {handoverTeaser(targets)}
         </p>
       )}

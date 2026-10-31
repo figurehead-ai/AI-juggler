@@ -185,7 +185,7 @@ export function HomeNeeds({
             )}
           </NeedBox>
         ) : waiting > 0 ? null : (
-          <p className="text-sm text-muted" data-testid="home-needs-none">
+          <p className="text-sm text-ink-2" data-testid="home-needs-none">
             Nothing waits on you. What's open is in the list and under Your apps.
           </p>
         )}

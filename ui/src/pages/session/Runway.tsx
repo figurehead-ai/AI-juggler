@@ -42,7 +42,7 @@ export function Runway({
         {title && <span className="min-w-0 truncate text-meta text-muted">{title}</span>}
       </div>
       {display?.unavailable_reason ? (
-        <p className="text-meta text-muted" data-testid="account-runway">
+        <p className="text-meta text-ink-2" data-testid="account-runway">
           {display.unavailable_reason}
         </p>
       ) : unmeasured ? (

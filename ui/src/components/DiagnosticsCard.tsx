@@ -55,7 +55,7 @@ export function DiagnosticsCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-diagnostics">
       <div>
         <CardTitle>Report a problem</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
           Tell us what went wrong on GitHub. Diagnostics help: versions, settings and AI Juggler's own logs, scrubbed on
           this computer. No transcripts, terminal output, credentials, home folder or user name. You see every file before
           it's saved, and attach the zip yourself.
@@ -131,11 +131,11 @@ function ResponseTimes(): JSX.Element {
   return (
     <Disclosure summary="Backend response times" testId="diagnostics-timings" onToggle={(open) => open && read()}>
       <div className="mt-2 flex flex-col gap-2 text-label">
-        <p className="text-muted">
+        <p className="text-ink-2">
           Since AI Juggler started: each backend call&apos;s slowest and latest time. Calls over {SLOW_MS} ms are listed below. Names and times only.
         </p>
         {rows.length === 0 ? (
-          <p className="text-muted">No calls yet.</p>
+          <p className="text-ink-2">No calls yet.</p>
         ) : (
           <table className="w-full text-left tabular-nums" data-testid="diagnostics-timings-table">
             <thead className="text-muted">
@@ -159,7 +159,7 @@ function ResponseTimes(): JSX.Element {
           </table>
         )}
         {slow.length > 0 && (
-          <p className="text-muted" data-testid="diagnostics-slow">
+          <p className="text-ink-2" data-testid="diagnostics-slow">
             Slow: {slow.map((call) => `${call.command} ${ms(call.ms)}`).join(" · ")}
           </p>
         )}

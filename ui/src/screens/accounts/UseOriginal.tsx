@@ -39,7 +39,7 @@ export function UseOriginalModal({
         <p className="truncate font-mono text-xs text-ink" title={source}>
           {where}
         </p>
-        <p className="leading-relaxed text-muted">
+        <p className="leading-relaxed text-ink-2">
           {account.label} will use your original folder: the same sign-in, settings and history {sameAsWords([account.provider])}.
           AI Juggler's copy stays where it is (nothing is deleted); sessions you started in the copy stay in the copy, and
           won't resume from the original.

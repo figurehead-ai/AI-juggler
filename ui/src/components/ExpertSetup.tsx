@@ -166,7 +166,7 @@ export function ExpertSetup({
               />
             </div>
           )}
-          {info === null && error === null && <p className="text-muted">Loading…</p>}
+          {info === null && error === null && <p className="text-ink-2">Loading…</p>}
           {info !== null && (
             <>
               <div className="flex flex-col gap-1.5">
@@ -180,7 +180,7 @@ export function ExpertSetup({
                     data-testid="expert-state-dir"
                   />
                 </label>
-                <p className="leading-relaxed text-muted">
+                <p className="leading-relaxed text-ink-2">
                   {info.note}
                   {!info.exists && " It doesn't exist yet."}
                 </p>
@@ -224,7 +224,7 @@ export function ExpertSetup({
                     </Button>
                   </>
                 ) : (
-                  <p className="leading-relaxed text-muted" data-testid="expert-snippet-pending">
+                  <p className="leading-relaxed text-ink-2" data-testid="expert-snippet-pending">
                     The shell line appears once the account exists — it points the vendor's CLI at
                     that account's own folder.
                   </p>
@@ -247,7 +247,7 @@ export function ExpertSetup({
                         />
                       </div>
                     )}
-                    <p className="leading-relaxed text-muted">
+                    <p className="leading-relaxed text-ink-2">
                       Extra variables set when{" "}
                       {launchSettingsName(recipe.name) === "Default" ? "the default Launch settings" : `“${recipe.name}”`}{" "}
                       start a session.
@@ -259,12 +259,12 @@ export function ExpertSetup({
                     />
                   </>
                 ) : accountId !== null ? (
-                  <p className="leading-relaxed text-muted" data-testid="expert-env-pending">
+                  <p className="leading-relaxed text-ink-2" data-testid="expert-env-pending">
                     This account has no Launch settings yet — add some in Accounts and their
                     overrides edit here.
                   </p>
                 ) : (
-                  <p className="leading-relaxed text-muted" data-testid="expert-env-pending">
+                  <p className="leading-relaxed text-ink-2" data-testid="expert-env-pending">
                     Overrides belong to an account's Launch settings — edit them here once the
                     account exists, or anytime in Accounts.
                   </p>
@@ -300,7 +300,7 @@ export function ExpertSetup({
               {showMetricsExport && (
                 <div className="flex flex-col gap-1.5">
                   <span className="font-medium text-ink">Onboarding metrics</span>
-                  <p className="leading-relaxed text-muted">
+                  <p className="leading-relaxed text-ink-2">
                     Counts of setup steps, stored only on this computer — never paths, names, or
                     credentials.
                   </p>

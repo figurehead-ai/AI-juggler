@@ -205,7 +205,7 @@ export function TaskView({
             )}
           </div>
         )}
-        {actions.review && quiet && <p className="text-meta text-muted">{task.holder ?? "Its holder"} says it's done: approve it, or send it back with what should change.</p>}
+        {actions.review && quiet && <p className="text-meta text-ink-2">{task.holder ?? "Its holder"} says it's done: approve it, or send it back with what should change.</p>}
         {sending && <SendBack holder={task.holder} busy={busy} onSend={(note) => act(() => tasksSendBack(task.id, note))} onCancel={() => setSending(false)} />}
         {cancelling && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-meta" role="group" aria-label="Cancel this task" data-testid="task-cancel">

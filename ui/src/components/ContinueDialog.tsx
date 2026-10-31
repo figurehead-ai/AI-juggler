@@ -46,7 +46,7 @@ export function ContinueDialog({ title, detail, onClose, children }: { title: st
             <h2 id="continue-dialog-title" className="text-section font-semibold text-ink">
               {title}
             </h2>
-            {detail && <p className="mt-0.5 truncate text-meta text-muted">{detail}</p>}
+            {detail && <p className="mt-0.5 truncate text-meta text-ink-2">{detail}</p>}
           </div>
           <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" data-testid="continue-dialog-close" className="-mr-1 rounded-lg px-2 py-1 text-section leading-none text-muted hover:bg-surface-2 hover:text-ink">
             ×

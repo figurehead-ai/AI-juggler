@@ -85,14 +85,14 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {summary?.quiet && summary.quiet_until && (
-          <p className="border-b border-hairline/50 bg-surface px-3.5 py-2 text-meta text-muted" data-testid="notices-muted">
+          <p className="border-b border-hairline/50 bg-surface px-3.5 py-2 text-meta text-ink-2" data-testid="notices-muted">
             {mutedLine(summary.quiet_until, summary.count)}
           </p>
         )}
         {empty ? (
           <div className="flex flex-col items-center gap-1 px-6 py-10 text-center" data-testid="notices-empty">
             <p className="text-body font-medium text-ink">You're all caught up.</p>
-            <p className="text-meta text-muted">What needs you, and what happened, shows up here.</p>
+            <p className="text-meta text-ink-2">What needs you, and what happened, shows up here.</p>
           </div>
         ) : (
           <>
@@ -108,7 +108,7 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
               {needs.loading ? (
                 <RowPlaceholders shape="home" rows={3} label="Loading notifications" />
               ) : awake.length === 0 && !showSnoozed ? (
-                <p className="px-3.5 pb-2.5 text-meta text-muted">Nothing needs you right now.</p>
+                <p className="px-3.5 pb-2.5 text-meta text-ink-2">Nothing needs you right now.</p>
               ) : (
                 <ul data-testid="notices-needs">
                   {[...awake, ...(showSnoozed ? snoozed : [])].map((notice) => (

@@ -14,7 +14,7 @@ export function NoticeMutes(): JSX.Element {
   if (!list.loading && list.items.length === 0) {
     return (
       <Card className="p-4">
-        <p className="text-meta text-muted" data-testid="notice-mutes-none">
+        <p className="text-meta text-ink-2" data-testid="notice-mutes-none">
           Nothing is muted. In the notification centre, ⋯ on an item mutes its project or its kind.
         </p>
       </Card>

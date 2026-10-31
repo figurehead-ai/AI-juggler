@@ -99,13 +99,13 @@ export function RemoveAccountModal({
     <Modal title={`Remove ${account.label}?`} onClose={onClose}>
       <div className="flex flex-col gap-4 text-sm" data-testid="remove-account" data-kind={account.in_place ? "in-place" : "copy"}>
         {open.length > 0 ? (
-          <p className="leading-relaxed text-muted" data-testid="remove-account-open">
+          <p className="leading-relaxed text-ink-2" data-testid="remove-account-open">
             {account.label} has {open.length === 1 ? "a session" : `${open.length} sessions`} open: <span className="text-ink">{names.join(", ")}</span>.
             Stop {open.length === 1 ? "it" : "them"} first, then remove the account.
           </p>
         ) : account.in_place ? (
           <>
-            <p className="leading-relaxed text-muted">
+            <p className="leading-relaxed text-ink-2">
               AI Juggler forgets this account. Your folder stays exactly as it is: nothing in it is moved or changed.
             </p>
             {where && (
@@ -116,7 +116,7 @@ export function RemoveAccountModal({
           </>
         ) : (
           <>
-            <p className="leading-relaxed text-muted">
+            <p className="leading-relaxed text-ink-2">
               AI Juggler forgets this account.{" "}
               {where ? (
                 <>
@@ -155,7 +155,7 @@ export function RemoveAccountModal({
             </div>
           </>
         )}
-        {open.length === 0 && <p className="text-xs text-muted">Its past sessions stay in History, marked “removed account”.</p>}
+        {open.length === 0 && <p className="text-xs text-ink-2">Its past sessions stay in History, marked “removed account”.</p>}
         {error && (
           <p className="text-xs text-danger" role="alert">
             {error}

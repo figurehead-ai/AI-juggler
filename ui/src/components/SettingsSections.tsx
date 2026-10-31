@@ -33,7 +33,7 @@ export function accountName(account: AccountInfo): string {
 }
 
 export function NoAccounts(): JSX.Element {
-  return <p className="text-xs text-muted">No Accounts yet. Add one on the Accounts screen.</p>;
+  return <p className="text-xs text-ink-2">No Accounts yet. Add one on the Accounts screen.</p>;
 }
 
 export function Status({ status, error }: { status: string | null; error: string | null }): JSX.Element | null {
@@ -81,7 +81,7 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-cleanup">
       <div>
         <CardTitle>Cleanup</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
           AI Juggler tracks every process it starts. When one is left behind, it tells you; it only tidies up by
           itself for an account you've turned that on for, and only dev servers and watchers it verified as that
           account's. Shells, MCP servers and databases are never stopped automatically, and every stop is
@@ -230,7 +230,7 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-renewal-card">
       <div>
         <CardTitle>Accounts &amp; renewal dates</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
           When each subscription renews, if you want reminders. AI Juggler never reads your billing and never guesses
           a date: an account without one simply gets no renewal reminders.
         </p>
@@ -283,13 +283,13 @@ export function FleetPermissionsCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-fleet">
       <div>
         <CardTitle>Fleet permissions</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
           What each of your paired Macs may do on this one. Only this Mac can change it, and no Mac can ever read
           another's credentials.
         </p>
       </div>
       {peers !== null && peers.length === 0 && (
-        <p className="text-xs text-muted">No paired Macs. Pair one on the Fleet screen.</p>
+        <p className="text-xs text-ink-2">No paired Macs. Pair one on the Fleet screen.</p>
       )}
       {peers !== null && peers.length > 0 && (
         <ul className="flex flex-col divide-y divide-hairline">

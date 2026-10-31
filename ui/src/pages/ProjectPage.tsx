@@ -169,7 +169,7 @@ function EmptyProject({ project, now, onStart }: { project: ProjectInfo; now: nu
       {project.history_sessions > 0 ? (
         <div className="flex flex-col items-center gap-1">
           <p className="text-body font-medium text-ink">Nothing started from AI Juggler here yet</p>
-          <p className="text-meta text-muted" data-testid="project-history-line">
+          <p className="text-meta text-ink-2" data-testid="project-history-line">
             {projectStats(project, now).join(" · ")}
           </p>
         </div>
@@ -227,7 +227,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
       <ProjectDefaultAccount project={project} accounts={props.accounts} onChanged={props.onStopped} />
       {/* Ranked only by what's known (P21): no headroom read yet, no claim. */}
       {ranked.length > 0 && (
-        <p className="text-meta text-muted">
+        <p className="text-meta text-ink-2">
           {ranked.some((entry) => Number.isFinite(entry.left)) ? "Or start one on another account, most room first" : "Or start one on another account"}
         </p>
       )}
@@ -256,7 +256,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
           );
         })}
       </ul>
-      {ranked.length === 0 && <p className="text-meta text-muted">No launch settings yet: add an account first.</p>}
+      {ranked.length === 0 && <p className="text-meta text-ink-2">No launch settings yet: add an account first.</p>}
     </Section>
   );
   const checkoutsCard =

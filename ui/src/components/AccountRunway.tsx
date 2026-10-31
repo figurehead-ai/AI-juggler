@@ -234,7 +234,7 @@ export function AccountRunway({
 }): JSX.Element {
   if (display?.unavailable_reason) {
     return (
-      <p className="text-xs text-muted" data-testid="account-runway">
+      <p className="text-xs text-ink-2" data-testid="account-runway">
         {display.unavailable_reason}
       </p>
     );

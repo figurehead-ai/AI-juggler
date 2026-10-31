@@ -90,7 +90,7 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
           {notice.unread && <span className="sr-only">Unread: </span>}
           {notice.title}
         </p>
-        <p className="text-meta text-muted">{needLine(notice, now)}</p>
+        <p className="text-meta text-ink-2">{needLine(notice, now)}</p>
         {meta && <p className="truncate text-label text-muted">{meta}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {primary && (

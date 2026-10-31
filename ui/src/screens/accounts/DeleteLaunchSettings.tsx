@@ -25,7 +25,7 @@ export function DeleteLaunchSettingsModal({
   return (
     <Modal title={`Delete ${name}?`} onClose={onClose}>
       <div className="flex flex-col gap-4 text-sm" data-testid="delete-launch-settings">
-        <p className="leading-relaxed text-muted">
+        <p className="leading-relaxed text-ink-2">
           It's removed from this account's launch settings and won't start new sessions. Sessions already made with it stay in History.
         </p>
         {error && (

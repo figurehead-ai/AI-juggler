@@ -100,7 +100,7 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
                   Lineage
                 </h4>
                 {replay.lineage.length === 0 ? (
-                  <p className="text-muted">Never switched.</p>
+                  <p className="text-ink-2">Never switched.</p>
                 ) : (
                   <ul className="flex flex-col gap-0.5" data-testid="replay-lineage-list">
                     {replay.lineage.map((step, index) => (
@@ -121,7 +121,7 @@ export function ReplayDialog({ sessionId, onClose }: { sessionId: string; onClos
                   Processes
                 </h4>
                 {replay.processes.length === 0 ? (
-                  <p className="text-muted">No process record — the ledger keeps one for 7 days after a process exits.</p>
+                  <p className="text-ink-2">No process record — the ledger keeps one for 7 days after a process exits.</p>
                 ) : (
                   <ul className="flex flex-col gap-0.5" data-testid="replay-process-list">
                     {replay.processes.map((process, index) => (

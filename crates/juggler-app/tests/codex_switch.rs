@@ -112,7 +112,7 @@ fn write_rollout(home: &Path, cwd: &str) -> PathBuf {
 fn write_claude_transcript(home: &Path, cwd: &str) -> PathBuf {
     let dir = home
         .join("projects")
-        .join(juggler_adapter::handover::mangled_dir(&cwd));
+        .join(juggler_adapter::handover::mangled_dir(cwd));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("claude-sess-1.jsonl");
     let lines = [

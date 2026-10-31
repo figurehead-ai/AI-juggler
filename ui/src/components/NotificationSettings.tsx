@@ -94,7 +94,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-notifications">
       <div>
         <CardTitle>Notifications</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
           In AI Juggler, alerts you can act on, such as an account about to run out or a parked session ready to
           resume, show once each time; everything else waits for an hourly digest. Outside it, macOS shows only what
           you choose below.

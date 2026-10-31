@@ -170,7 +170,7 @@ export function MessagesView({
               ))}
             </div>
           ) : shown.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-muted" data-testid="messages-empty">
+            <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="messages-empty">
               {found ? "No message has those words." : sessionId ? "No messages to or from this session yet." : "No messages yet. When agents here write to each other or to you, their threads show here."}
             </p>
           ) : (

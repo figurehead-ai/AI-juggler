@@ -76,7 +76,7 @@ fn launch_with_transcript(
     }
     let dir = config_dir_of(state, account)
         .join("projects")
-        .join(juggler_adapter::handover::mangled_dir(&cwd));
+        .join(juggler_adapter::handover::mangled_dir(cwd));
     std::fs::create_dir_all(&dir).unwrap();
     let transcript = dir.join(format!("{native}.jsonl"));
     std::fs::write(

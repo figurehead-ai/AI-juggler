@@ -66,7 +66,7 @@ function Card({ title, testId, className = "", children }: { title: string; test
 /** A big figure and what it is of: "93%" "of all 30 cores". */
 function Figure({ value, of }: { value: string; of: string }): JSX.Element {
   return (
-    <p className="flex flex-wrap items-baseline gap-x-1.5 text-body tabular-nums text-muted">
+    <p className="flex flex-wrap items-baseline gap-x-1.5 text-body tabular-nums text-ink-2">
       <span className="text-title font-semibold text-ink">{value}</span> <span>{of}</span>
     </p>
   );
@@ -160,7 +160,7 @@ export function ThisMacScreen({
               </Card>
               <Card title="Processor" testId="this-mac-cpu">
                 {machine.cpu_pct === null ? (
-                  <p className="text-body text-muted">Not measured yet</p>
+                  <p className="text-body text-ink-2">Not measured yet</p>
                 ) : (
                   <>
                     <Figure value={`${Math.round(machine.cpu_pct)}%`} of={`of all ${machine.cores} cores`} />
@@ -168,7 +168,7 @@ export function ThisMacScreen({
                   </>
                 )}
                 {info.tools.count > 0 && (
-                  <p className="text-meta tabular-nums text-muted">
+                  <p className="text-meta tabular-nums text-ink-2">
                     AI tools: {info.tools.cpu_pct === null ? "not measured yet" : `${Math.round(info.tools.cpu_pct)}% of all cores`}
                   </p>
                 )}
@@ -177,7 +177,7 @@ export function ThisMacScreen({
                 <Card title="Swap" testId="this-mac-swap">
                   <Figure value={bytesWords(machine.swap_used)} of={`of ${bytesWords(machine.swap_total)} moved to disk`} />
                   <Gauge pct={(machine.swap_used / machine.swap_total) * 100} label={`Swap: ${bytesWords(machine.swap_used)} of ${bytesWords(machine.swap_total)} moved to disk`} />
-                  <p className="text-meta text-muted">Memory macOS moved to disk to make room. Reading it back is slow.</p>
+                  <p className="text-meta text-ink-2">Memory macOS moved to disk to make room. Reading it back is slow.</p>
                 </Card>
               )}
               <Card title="AI Juggler" testId="this-mac-own-card">
@@ -190,7 +190,7 @@ export function ThisMacScreen({
 
           <div className="flex min-w-0 flex-col gap-8">
           <Section id="this-mac-using" title="What's using it">
-            {info.by_tool.length === 0 && <p className="text-body text-muted">No AI tools are running.</p>}
+            {info.by_tool.length === 0 && <p className="text-body text-ink-2">No AI tools are running.</p>}
             <div className="flex flex-col">
               {info.by_tool.map((group) => (
                 <ToolGroup key={`${group.ours ? "ours" : "theirs"}-${group.tool}`} group={group} info={info} nameOf={nameOf} onOpenSession={onOpenSession} />

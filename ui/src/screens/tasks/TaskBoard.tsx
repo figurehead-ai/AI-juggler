@@ -130,7 +130,7 @@ export function Plan({ now, ...shared }: Shared & { now: number }): JSX.Element 
   }
   if (pools.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-muted" data-testid="tasks-plan-empty">
+      <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="tasks-plan-empty">
         No epics or stories yet. When a pool's lead agent plans bigger work, its epics, their stories and their tasks show here.
       </p>
     );

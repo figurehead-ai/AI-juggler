@@ -104,7 +104,7 @@ export function PaneSection({
           <ul className="flex flex-col divide-y divide-hairline rounded-card border border-hairline bg-surface shadow-card">{children}</ul>
         )}
       </InSettingsSection.Provider>
-      {footer && <p className="px-1 text-xs leading-relaxed text-muted">{footer}</p>}
+      {footer && <p className="px-1 text-xs leading-relaxed text-ink-2">{footer}</p>}
     </section>
   );
 }

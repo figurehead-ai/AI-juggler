@@ -88,7 +88,7 @@ export function IdentityMismatchDialog(): JSX.Element | null {
               {check.detected ?? "—"}
             </dd>
           </dl>
-          <p className="text-muted">
+          <p className="text-ink-2">
             Work started now would be billed to the account signed in. Pick the right one, or fix the
             sign-in and check again.
           </p>

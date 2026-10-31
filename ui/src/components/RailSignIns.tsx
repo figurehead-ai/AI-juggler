@@ -17,7 +17,7 @@ export function RailSignIns({
   if (terminals.length === 0) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-muted">Sign-ins</p>
+      <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-ink-2">Sign-ins</p>
       {terminals.map((t) => (
         <button
           key={t.id}

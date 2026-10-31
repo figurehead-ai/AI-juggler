@@ -38,7 +38,7 @@ export function WindowRing({
 }): JSX.Element {
   if (omittedReason) {
     return (
-      <p className="text-xs text-muted" data-testid={`ring-${kind}-omitted`}>
+      <p className="text-xs text-ink-2" data-testid={`ring-${kind}-omitted`}>
         {omittedReason}
       </p>
     );
@@ -50,7 +50,7 @@ export function WindowRing({
   if (window.state === "unknown") {
     return (
       <div data-testid={`ring-${kind}`} role="img" aria-label={`${label}: not measured yet`}>
-        <p className="text-xs text-muted">Start a session to measure</p>
+        <p className="text-xs text-ink-2">Start a session to measure</p>
       </div>
     );
   }
@@ -60,14 +60,14 @@ export function WindowRing({
     const words = windowView(window).words;
     return (
       <div data-testid={`ring-${kind}`} data-state={window.state === "reset" ? "reset" : "unmeasured"} role="img" aria-label={`${label}: ${words}`}>
-        <p className="text-xs text-muted">{words}</p>
+        <p className="text-xs text-ink-2">{words}</p>
       </div>
     );
   }
   if (window.state === "learning") {
     return (
       <div data-testid={`ring-${kind}`} role="img" aria-label={`${label}: learning`}>
-        <p className="text-xs text-muted">Not enough use yet to forecast</p>
+        <p className="text-xs text-ink-2">Not enough use yet to forecast</p>
       </div>
     );
   }
@@ -175,7 +175,7 @@ export function RenewalLine({
 export function TwoClocks({ display }: { display: QuotaDisplayData }): JSX.Element {
   if (display.unavailable_reason) {
     return (
-      <p className="text-xs text-muted" data-testid="quota-unavailable">
+      <p className="text-xs text-ink-2" data-testid="quota-unavailable">
         {display.unavailable_reason}
       </p>
     );

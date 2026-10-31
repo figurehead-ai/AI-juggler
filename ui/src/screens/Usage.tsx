@@ -48,7 +48,7 @@ export function UsageScreen({
       <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <div className="min-w-[16rem] flex-1">
           <h2 className="text-title text-ink">Usage</h2>
-          <p className="mt-1 max-w-[70ch] text-meta text-muted">
+          <p className="mt-1 max-w-[70ch] text-meta text-ink-2">
             {profiles === 0
               ? "What your sessions use, measured on this computer."
               : `What your sessions used on ${profiles} ${profiles === 1 ? "profile" : "profiles"}, measured on this computer from each session's own files.`}
@@ -67,7 +67,7 @@ export function UsageScreen({
       {profiles === 0 ? (
         <Card className="flex flex-col items-start gap-3 p-card" data-testid="usage-no-accounts">
           <p className="text-section text-ink">Nothing to measure yet</p>
-          <p className="max-w-xl text-body text-muted">
+          <p className="max-w-xl text-body text-ink-2">
             Once your accounts are in, this shows what every session used over time, by account, tool, model and project, each account's 5-hour and weekly
             windows with their history, and when you work.
           </p>

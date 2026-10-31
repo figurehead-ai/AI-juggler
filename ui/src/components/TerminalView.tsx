@@ -318,7 +318,7 @@ export function TerminalView({
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-surface p-6 text-center" data-testid="terminal-away">
         <p className="text-sm text-ink">This terminal is in its own window.</p>
-        <p className="max-w-sm text-xs leading-relaxed text-muted">The session keeps running and AI Juggler keeps watching it here.</p>
+        <p className="max-w-sm text-xs leading-relaxed text-ink-2">The session keeps running and AI Juggler keeps watching it here.</p>
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => void terminalPopOut(id, title)}>
             Show its window

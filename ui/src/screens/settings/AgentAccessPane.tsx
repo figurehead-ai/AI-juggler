@@ -73,7 +73,7 @@ export function AgentAccessCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-agent-access">
       <CardTitle>Agent access</CardTitle>
       {pools === null ? (
-        <p className="text-meta text-muted">Loading…</p>
+        <p className="text-meta text-ink-2">Loading…</p>
       ) : (
         <>
           <ul className="flex flex-col gap-1.5" data-testid="agent-access-pools">
@@ -163,9 +163,9 @@ function AgentRules({ now = Date.now() }: { now?: number }): JSX.Element {
     <Card className="flex flex-col gap-2 p-5" data-testid="settings-agent-rules">
       <CardTitle>Rules you made</CardTitle>
       {pools === null ? (
-        <p className="text-xs text-muted">Loading…</p>
+        <p className="text-xs text-ink-2">Loading…</p>
       ) : rules.length === 0 ? (
-        <p className="text-xs text-muted">None yet. When you always allow something an agent asked, the rule shows here.</p>
+        <p className="text-xs text-ink-2">None yet. When you always allow something an agent asked, the rule shows here.</p>
       ) : (
         <ul className="flex flex-col gap-1">
           {rules.map(({ rule, pool }) => (

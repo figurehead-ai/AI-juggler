@@ -97,7 +97,7 @@ describe("an approval", () => {
     expect(getByText("npm test")).toBeTruthy();
     expect(getByTestId("ask-option-accept").textContent).toContain("Allow once");
     expect(getByTestId("ask-option-acceptWithExecpolicyAmendment").getAttribute("title")).toContain("Take it back in the tool");
-    expect(getByTestId("ask-option-accept").className).toContain("from-accent-hi");
+    expect(getByTestId("ask-option-accept").className).toContain("bg-accent-fill");
     expect(getByTestId("ask-option-cancel").className).toContain("text-danger");
     await act(async () => fireEvent.click(getByTestId("ask-option-decline")));
     expect(calls()).toEqual(["answer:sess-1:0:decline"]);

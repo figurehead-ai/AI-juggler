@@ -13,6 +13,7 @@
 //! ([`view`]).
 
 pub mod access;
+pub mod arrival;
 pub mod switch_words;
 pub mod view;
 

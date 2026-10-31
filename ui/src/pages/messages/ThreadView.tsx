@@ -144,7 +144,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
           <h3 id={`thread-${thread.id}`} className="text-[16px] font-semibold text-ink">
             {thread.subject}
           </h3>
-          <p className="text-meta text-muted">
+          <p className="text-meta text-ink-2">
             {thread.people.join(", ")}
             {thread.pool_name ? ` · in «${thread.pool_name}»` : ""}
           </p>

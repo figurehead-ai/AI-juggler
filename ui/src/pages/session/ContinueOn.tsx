@@ -168,9 +168,9 @@ export function ContinueOn({
       </button>
     )}
     {rows === null ? (
-      <p className="text-meta text-muted" role="status">Looking for room…</p>
+      <p className="text-meta text-ink-2" role="status">Looking for room…</p>
     ) : others.length === 0 ? (
-      <p className="text-meta text-muted" data-testid="continue-none">No other account to continue on.</p>
+      <p className="text-meta text-ink-2" data-testid="continue-none">No other account to continue on.</p>
     ) : (
       <ul className="flex flex-col gap-3" aria-label="Accounts to continue on">
         {others.map((group) => {
@@ -223,7 +223,7 @@ export function ContinueOn({
     ))}
     {outside && (
       <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
-        <p className="text-meta leading-[1.5] text-muted">
+        <p className="text-meta leading-[1.5] text-ink-2">
           {model.live
             ? `Picking one continues it as a new session here in AI Juggler. The original stays open in ${app ?? "its app"}, untouched.`
             : "Picking one continues it as a new session here in AI Juggler. The original stays as it is."}
@@ -247,7 +247,7 @@ export function ContinueOn({
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
       <CardTitle>Continue on another account</CardTitle>
       {dialog ? (
-        <p className="text-meta text-muted" data-testid="continue-in-dialog">
+        <p className="text-meta text-ink-2" data-testid="continue-in-dialog">
           Choosing in the dialog…
         </p>
       ) : (

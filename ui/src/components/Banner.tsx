@@ -100,7 +100,7 @@ export function Banner({
           {title}
           {aside}
         </p>
-        {detail && <p className="text-meta text-muted">{detail}</p>}
+        {detail && <p className="text-meta text-ink-2">{detail}</p>}
         {meter && (
           <span
             role="meter"

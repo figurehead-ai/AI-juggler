@@ -63,7 +63,7 @@ export function WhereItRuns({
         )}
       </dl>
       {model.places.length > 1 && (
-        <p className="text-meta text-muted" data-testid="where-also">
+        <p className="text-meta text-ink-2" data-testid="where-also">
           Also open in {model.places.slice(1).map((p) => p.label || p.app).join(", ")}.
         </p>
       )}

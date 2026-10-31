@@ -83,7 +83,7 @@ export function AccountSettingsSheet({
     <Modal title={`Copy settings into ${account.label}`} onClose={() => onClose(copied)} wide testId="account-settings">
       <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1 text-sm">
         {sources !== null && sources.length === 0 && (
-          <p className="text-muted">There's no other account of this tool to copy from.</p>
+          <p className="text-ink-2">There's no other account of this tool to copy from.</p>
         )}
         {sources !== null && sources.length > 0 && !results && (
           <>
@@ -101,9 +101,9 @@ export function AccountSettingsSheet({
                 <span className="font-medium text-ink">{name}</span>
               )}
             </div>
-            {check === null && !error && <p className="text-xs text-muted">Reading what {name} has…</p>}
+            {check === null && !error && <p className="text-xs text-ink-2">Reading what {name} has…</p>}
             {check && check.offers.length === 0 && (
-              <p className="text-xs text-muted">
+              <p className="text-xs text-ink-2">
                 {account.label} already has everything {name} has to copy: its MCP servers, permissions and status line.
               </p>
             )}

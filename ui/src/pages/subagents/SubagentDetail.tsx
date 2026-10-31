@@ -100,7 +100,7 @@ export function SubagentDetail({
           <span className="h-40 rounded-card bg-surface-3 motion-safe:animate-pulse" />
         </div>
       ) : !agent ? (
-        <p className="text-body text-muted" data-testid="subagent-detail-missing">
+        <p className="text-body text-ink-2" data-testid="subagent-detail-missing">
           {detail.reason ?? "This subagent isn't in the session's records any more."}
         </p>
       ) : (
@@ -148,7 +148,7 @@ function Head({ detail, agent, onConversation }: { detail: SubagentDetailInfo; a
           </Button>
         )}
       </div>
-      <p className="flex flex-wrap items-center gap-x-1.5 text-meta text-muted">
+      <p className="flex flex-wrap items-center gap-x-1.5 text-meta text-ink-2">
         {facts.join(" · ")}
         {agent.background === true && (
           <span className="inline-flex items-center gap-1">

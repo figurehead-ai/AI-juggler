@@ -108,7 +108,7 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
           <>
             <div className="min-w-0 flex-1">
               <p className="text-body font-medium text-ink">{options.message}</p>
-              {options.detail && <p className="text-meta text-muted">{options.detail}</p>}
+              {options.detail && <p className="text-meta text-ink-2">{options.detail}</p>}
             </div>
             {options.undo && (
               <button type="button" ref={undoRef} onClick={() => void undoToast(entry.id)} data-testid={options.testId ?? "toast-undo"} title="Undo (⌘Z)" className={BUTTON + " border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60"}>
@@ -147,7 +147,7 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
           <>
             <div className="flex min-w-0 flex-1 flex-col">
               <p className="text-body font-medium text-danger">Undo didn’t complete</p>
-              <p className="text-meta text-muted">{entry.failure}</p>
+              <p className="text-meta text-ink-2">{entry.failure}</p>
             </div>
             <button type="button" onClick={() => void remove(entry.id)} className={BUTTON + " border-hairline hover:bg-surface-2"}>
               Close

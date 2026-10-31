@@ -392,7 +392,7 @@ export function HomeScreen({
           <LegendPopover className="shrink-0" placement="below" />
         </div>
         {counts.length > 0 && (
-          <p className="flex flex-wrap items-center gap-x-1.5 text-body text-muted" data-testid="home-counts">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
             {counts.map((part, index) => (
               <span key={part.key} className="flex items-center gap-1.5">
                 {index > 0 && <span aria-hidden="true">·</span>}
@@ -422,7 +422,7 @@ export function HomeScreen({
       {sessions.length === 0 && conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-section font-semibold text-ink">Start your first session</h2>
-          <p className="max-w-xl text-body text-muted">
+          <p className="max-w-xl text-body text-ink-2">
             Pick a project folder and an account. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
           </p>
           <Button variant="primary" onClick={onNewSession}>New session</Button>
@@ -447,7 +447,7 @@ export function HomeScreen({
               onOpenCleanup,
             }}
           >
-            {signingIn && <p className="text-meta text-muted" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
+            {signingIn && <p className="text-meta text-ink-2" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
             <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
           </HomeNeeds>
           )}

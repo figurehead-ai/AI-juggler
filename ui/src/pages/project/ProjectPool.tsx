@@ -56,7 +56,7 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
               </li>
             ))}
           </ul>
-          <p className="text-meta text-muted">Answer these in Needs you on Home, or on the pool's page.</p>
+          <p className="text-meta text-ink-2">Answer these in Needs you on Home, or on the pool's page.</p>
         </Section>
       )}
       {yours.length > 0 && (

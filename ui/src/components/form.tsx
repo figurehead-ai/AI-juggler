@@ -118,7 +118,7 @@ export function Modal({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 id={titleId} className="text-sm font-semibold">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 text-xs text-ink-2">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}

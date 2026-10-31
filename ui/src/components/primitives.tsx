@@ -14,7 +14,7 @@ type ButtonSize = "sm" | "md";
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:
-    "bg-gradient-to-b from-accent-hi to-accent text-white hover:brightness-110 \
+    "bg-accent-fill text-white hover:brightness-110 \
      active:translate-y-px shadow-glow-accent border border-accent-hi/40",
   secondary:
     "bg-surface-2 text-ink border border-hairline hover:bg-surface-3 \

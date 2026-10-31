@@ -51,7 +51,7 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 /// Writes a transcript shaped like Claude's: message lines carrying `cwd`
 /// (the only unambiguous project-path source).
 fn seed_transcript(config_dir: &Path, cwd: &str, session_id: &str) {
-    let encoded = juggler_adapter::handover::mangled_dir(&cwd);
+    let encoded = juggler_adapter::handover::mangled_dir(cwd);
     let dir = config_dir.join("projects").join(encoded);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(

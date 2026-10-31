@@ -169,11 +169,11 @@ export function SubagentsView({
           ))}
         </div>
       ) : meta && meta.state !== "listed" ? (
-        <p className="text-body text-muted" data-testid="subagents-unlisted" data-state={meta.state}>
+        <p className="text-body text-ink-2" data-testid="subagents-unlisted" data-state={meta.state}>
           {meta.reason ?? "There's no record of these subagents on this computer."}
         </p>
       ) : meta && meta.summary.total === 0 ? (
-        <p className="text-body text-muted" data-testid="subagents-empty">
+        <p className="text-body text-ink-2" data-testid="subagents-empty">
           {whose === "this session's" ? "This session hasn't started any subagents." : "None of these sessions has started a subagent."}
         </p>
       ) : rows.length === 0 && filtered ? (
@@ -187,12 +187,12 @@ export function SubagentsView({
         <SubagentTree rows={rows} label="Subagents" now={now} onOpen={onOpen} onGroup={onGroup} hasMore={list.hasMore} onNearEnd={list.loadMore} height={height} keep={keep} />
       )}
       {meta?.conversations_note && (
-        <p className="text-meta text-muted" data-testid="subagents-note">
+        <p className="text-meta text-ink-2" data-testid="subagents-note">
           {meta.conversations_note}
         </p>
       )}
       {meta && meta.summary.tokens === null && meta.summary.total > 0 && (
-        <p className="text-meta text-muted">Tokens per subagent: not recorded by {meta.tool || "its tool"}.</p>
+        <p className="text-meta text-ink-2">Tokens per subagent: not recorded by {meta.tool || "its tool"}.</p>
       )}
       <span className="sr-only" aria-live="polite">
         {meta && filtered ? `${meta.matched} ${meta.matched === 1 ? "subagent matches" : "subagents match"}` : ""}

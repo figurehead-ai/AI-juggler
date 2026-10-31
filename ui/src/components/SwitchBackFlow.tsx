@@ -139,7 +139,7 @@ export function SwitchBackFlow({
         className="flex max-h-[86vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-hairline bg-surface p-5 shadow-card"
       >
         {phase.kind === "plan" && (
-          <p className="text-xs text-muted" data-testid="switch-back-planning">
+          <p className="text-xs text-ink-2" data-testid="switch-back-planning">
             Reading the switch lineage (plan)…
           </p>
         )}
