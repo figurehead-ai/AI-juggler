@@ -44,7 +44,8 @@ export default defineConfig({
   timeout: 30_000,
   retries: 0,
   workers: 4,
-  use: { baseURL: `http://localhost:${PORT}` },
+  // 0.3.2: no WebGL, so the terminal keeps its DOM renderer (its fallback).
+  use: { baseURL: `http://localhost:${PORT}`, launchOptions: { args: ["--disable-3d-apis"] } },
   webServer: {
     command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,

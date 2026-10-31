@@ -40,6 +40,10 @@ pub struct Candidate {
     pub wrong_provider: bool,
     /// Hard filter: quota exhausted with no reset before need-by.
     pub exhausted_no_reset: bool,
+    /// A used-up window that the account's credits carry on past (the
+    /// maintainer's report, 0.3.2): never hard-filtered as exhausted, and
+    /// its headroom counts as [`CREDITS_HEADROOM_PCT`].
+    pub credits_cover: bool,
     /// min(5h, weekly) headroom percent (0–100); `None` = unknown —
     /// ranked by the remaining inputs, and the row says so.
     pub headroom_pct: Option<f64>,
@@ -75,6 +79,16 @@ pub struct Candidate {
 /// never enough to outweigh a real factor gap, and hard-filtered
 /// rows never reach scoring.
 pub const RETURN_BONUS: f64 = 0.05;
+
+/// The headroom a used-up account carrying on with its credits counts as
+/// (percent): a little room, so any account with real window room above
+/// this ranks first, and it still ranks above one that is truly out.
+/// Credits cost money a window doesn't; this keeps them for when they
+/// are needed.
+pub const CREDITS_HEADROOM_PCT: f64 = 10.0;
+
+/// A row carrying on with its credits says so in its words.
+pub const USING_CREDITS: &str = "using its credits";
 
 /// A row whose room isn't measured says so in its words.
 pub const ROOM_UNKNOWN: &str = "room left unknown — ranked by the rest";
@@ -135,7 +149,7 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
             Some("This tool can't take this request".to_owned())
         } else if candidate.logged_out {
             Some("Signed out: sign in to it first".to_owned())
-        } else if candidate.exhausted_no_reset {
+        } else if candidate.exhausted_no_reset && !candidate.credits_cover {
             Some("Out of room, and no reset is known".to_owned())
         } else {
             None
@@ -164,8 +178,13 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
             Some(usd) if max_usd > 0.0 => 1.0 - (usd / max_usd),
             _ => 0.5, // unpriced or all-equal ⇒ neutral
         };
-        let headroom_unknown = candidate.headroom_pct.is_none();
+        let headroom_unknown = candidate.headroom_pct.is_none() && !candidate.credits_cover;
         let (headroom_input, headroom_words) = match candidate.headroom_pct {
+            // Its window is used up, but its credits carry it on: a small
+            // documented room, said so.
+            _ if candidate.credits_cover => {
+                (CREDITS_HEADROOM_PCT / 100.0, USING_CREDITS.to_owned())
+            }
             Some(pct) => {
                 let discounted = if candidate.headroom_confidence == Confidence::Estimated {
                     pct * ESTIMATED_HEADROOM_DISCOUNT
@@ -265,6 +284,12 @@ pub fn rank(candidates: &[Candidate]) -> Vec<RankedRow> {
             .collect();
         if headroom_unknown && !top_factors.iter().any(|words| words == ROOM_UNKNOWN) {
             top_factors.push(ROOM_UNKNOWN.to_owned());
+        }
+        // So does one carrying on with its credits, first: it's why the
+        // row ranks where it does.
+        if candidate.credits_cover {
+            top_factors.retain(|words| words != USING_CREDITS);
+            top_factors.insert(0, USING_CREDITS.to_owned());
         }
         survivors.push(RankedRow {
             account: candidate.account.clone(),

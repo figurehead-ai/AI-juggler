@@ -13,6 +13,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -107,7 +110,9 @@ fn write_rollout(home: &Path, cwd: &str) -> PathBuf {
 }
 
 fn write_claude_transcript(home: &Path, cwd: &str) -> PathBuf {
-    let dir = home.join("projects").join(cwd.replace('/', "-"));
+    let dir = home
+        .join("projects")
+        .join(juggler_adapter::handover::mangled_dir(cwd));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("claude-sess-1.jsonl");
     let lines = [
@@ -136,8 +141,14 @@ fn setup(work: &Path, from: &str, to: &str) -> Setup {
     let project = work.join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, from, "Source", None).unwrap();
-    let b = commands::create_account(&state, to, "Target", None).unwrap();
+    let a = set_up::set_up(
+        &state,
+        commands::create_account(&state, from, "Source", None).unwrap(),
+    );
+    let b = set_up::set_up(
+        &state,
+        commands::create_account(&state, to, "Target", None).unwrap(),
+    );
     let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
     let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
     let launched = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
@@ -349,7 +360,10 @@ fn a_replay_waits_for_a_secret_policy() {
 fn an_oversized_newest_turn_still_travels_cut_to_fit() {
     let work = tempfile::tempdir().unwrap();
     let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
-    let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
+    let dir = s
+        .source_home
+        .join("projects")
+        .join(juggler_adapter::handover::mangled_dir(&s.cwd));
     std::fs::create_dir_all(&dir).unwrap();
     // ~300 KB of 3-byte characters in short lines (quoting adds bytes per
     // line): far over one argv entry's limit.
@@ -393,7 +407,10 @@ fn an_oversized_newest_turn_still_travels_cut_to_fit() {
 fn a_session_with_no_conversation_is_not_replayed() {
     let work = tempfile::tempdir().unwrap();
     let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
-    let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
+    let dir = s
+        .source_home
+        .join("projects")
+        .join(juggler_adapter::handover::mangled_dir(&s.cwd));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         dir.join("claude-sess-1.jsonl"),
@@ -459,7 +476,10 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
     )
     .unwrap();
 
-    let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
+    let dir = s
+        .source_home
+        .join("projects")
+        .join(juggler_adapter::handover::mangled_dir(&s.cwd));
     std::fs::create_dir_all(&dir).unwrap();
     let cwd = &s.cwd;
     let lines = [
@@ -538,7 +558,10 @@ fn claude_to_codex_carries_tool_calls_the_task_list_and_the_changes() {
 fn older_turns_that_dont_fit_are_named_by_what_was_asked() {
     let work = tempfile::tempdir().unwrap();
     let s = setup(work.path(), CLAUDE_CODE_ID, CODEX_ID);
-    let dir = s.source_home.join("projects").join(s.cwd.replace('/', "-"));
+    let dir = s
+        .source_home
+        .join("projects")
+        .join(juggler_adapter::handover::mangled_dir(&s.cwd));
     std::fs::create_dir_all(&dir).unwrap();
     let cwd = &s.cwd;
     let huge = "x".repeat(120 * 1024);
@@ -717,8 +740,14 @@ fn a_replay_that_cant_go_never_stops_the_source() {
     let project = dir.join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, CLAUDE_CODE_ID, "Source", None).unwrap();
-    let b = commands::create_account(&state, CODEX_ID, "Target", None).unwrap();
+    let a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Source", None).unwrap(),
+    );
+    let b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CODEX_ID, "Target", None).unwrap(),
+    );
     let recipe_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
     let recipe_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
     let launched = commands::launch_profile(&state, &recipe_a.id, Some(cwd.clone())).unwrap();
@@ -789,7 +818,10 @@ fn exported_pack(work: &Path, from: &str) -> (Setup, PathBuf) {
 
 /// A launch setting on a new account of `tool`, and that account's home.
 fn recipe_for(s: &Setup, tool: &str) -> (String, PathBuf) {
-    let account = commands::create_account(&s.state, tool, "Opener", None).unwrap();
+    let account = set_up::set_up(
+        &s.state,
+        commands::create_account(&s.state, tool, "Opener", None).unwrap(),
+    );
     let recipe = commands::create_profile(&s.state, &account.id, "Main", None, None).unwrap();
     (recipe.id, home(&s.state, tool, &account.id))
 }

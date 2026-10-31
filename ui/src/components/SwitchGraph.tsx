@@ -113,14 +113,14 @@ export function SwitchGraph({
 
   if (works === null) {
     return (
-      <p className="text-xs text-muted" data-testid="switch-graph-loading">
+      <p className="text-xs text-ink-2" data-testid="switch-graph-loading">
         Loading the switch graph…
       </p>
     );
   }
   if (works.length === 0) {
     return (
-      <p className="text-xs text-muted" data-testid="switch-graph-empty">
+      <p className="text-xs text-ink-2" data-testid="switch-graph-empty">
         No switches yet — your work starts here.
       </p>
     );
@@ -246,7 +246,7 @@ export function SwitchGraph({
                   Switch failed: {failedEdge.label}
                   {failedEdge.failed_reason ? ` — ${failedEdge.failed_reason}` : ""}
                 </p>
-                <p className="mt-0.5 text-muted">
+                <p className="mt-0.5 text-ink-2">
                   Nothing was half-moved: the source stayed resumable and no target session
                   was left behind. Recovery starts from the source — its own ranked targets
                   are one click away.

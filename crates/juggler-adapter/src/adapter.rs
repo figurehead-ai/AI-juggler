@@ -126,6 +126,20 @@ pub trait HarnessAdapter: Send + Sync {
         LoginState::LoggedOut
     }
 
+    /// 0.3.2: whether a launch into `state_dir` can go ahead, checked
+    /// before a switch changes anything: the files the tool reads there
+    /// (the OS may refuse them, [`crate::readiness::probe_read`]) and
+    /// whether it is set up (else it opens on its own first-run setup).
+    /// Default: ready.
+    ///
+    /// # Errors
+    ///
+    /// The first thing that keeps the launch from working.
+    fn launch_ready(&self, state_dir: &Path) -> Result<(), crate::readiness::NotReady> {
+        let _ = state_dir;
+        Ok(())
+    }
+
     /// AJ-E1303: finds the transcript of a session this Account started
     /// in `cwd` at or after `since_ms` (epoch ms) — the file the vendor
     /// created for it, read-only. Files in `taken` (linked to other

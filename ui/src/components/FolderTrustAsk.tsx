@@ -42,7 +42,7 @@ export function useFolderTrust(): { confirm: (profileId: string, cwd: string | n
   const element = asking ? (
     <Modal title={asking.info.question} subtitle={asking.info.folder} onClose={() => done(false)} testId="folder-trust">
       <div className="flex flex-col gap-4 text-xs">
-        <p className="leading-relaxed text-muted">{asking.info.note}</p>
+        <p className="leading-relaxed text-ink-2">{asking.info.note}</p>
         {error && <p className="text-warning">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
           <Button size="sm" variant="ghost" onClick={() => done(false)}>

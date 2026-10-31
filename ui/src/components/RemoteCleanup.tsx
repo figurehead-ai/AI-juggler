@@ -199,7 +199,7 @@ function CleanSheet({
         <p id="remote-clean-title" className="text-sm font-semibold">
           Clean {row.name || "this process"} on {machine.label}?
         </p>
-        <p id="remote-clean-body" className="mt-1.5 text-xs leading-relaxed text-muted">
+        <p id="remote-clean-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           {machine.label} checks again that pid {row.pid} is still the process it recorded for{" "}
           {row.account_label || "that session"}, then asks it to quit and stops it if it doesn't. If
           anything changed, nothing is touched.

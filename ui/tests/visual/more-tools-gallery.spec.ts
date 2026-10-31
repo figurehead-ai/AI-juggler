@@ -11,7 +11,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { goTo, honestEmpty } from "./fixtures";
+import { goTo, honestEmpty, settingsPane } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/91-more-tools");
 const THEMES = ["dark", "light"] as const;
@@ -166,20 +166,25 @@ for (const theme of THEMES) {
   });
 
   for (const tool of NEW_TOOLS) {
-    test(`${tool.name}'s page, from More › Tools — ${theme}`, async ({ page }) => {
+    // 0.1.5: a tool's page folded into Settings › Accounts (Tools on this
+    // Mac); there is no More › Tools any more.
+    test(`${tool.name}, in Settings › Accounts — ${theme}`, async ({ page }) => {
       await seed(page, theme, WITH_ACCOUNTS, null);
       await page.goto("/");
-      await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "More", exact: true }).click();
-      await page.getByTestId("more-tool").filter({ hasText: tool.name }).click();
-      await expect(page.getByTestId("page-type")).toHaveText("Tool");
-      await expect(page.getByRole("heading", { level: 1, name: tool.name })).toBeVisible();
+      await goTo(page, "Settings");
+      await settingsPane(page, "Accounts");
+      await expect(page.getByTestId("settings-tool").filter({ hasText: tool.name })).toBeVisible();
       // AJ-E1611: a newer version is a calm line, with the command to run.
       // (Grok Build updates itself: no list of versions is asked.)
-      await expect(page.getByTestId("provider-update-check")).toHaveCount(tool.id in TOOL_UPDATES ? 1 : 0);
+      // 0.3.2: the setting is asked once for every tool (two have a feed
+      // here); each row says only its own newer version.
+      await expect(page.getByTestId("provider-update-check")).toHaveCount(1);
+      await expect(page.getByTestId("settings-tool").filter({ hasText: tool.name }).getByTestId("provider-update-available")).toHaveCount(tool.id === "opencode" ? 1 : 0);
       if (tool.id === "opencode") {
         await expect(page.getByTestId("provider-update-available")).toContainText("OpenCode 1.19.4 is out; not tested with AI Juggler yet.");
       }
-      await shoot(page, `${tool.id}-tool-page`, theme);
+      // One picture: the section is the same for each tool (0.3.2).
+      if (tool.id === "opencode") await shoot(page, "tools-on-this-mac", theme);
     });
   }
 }

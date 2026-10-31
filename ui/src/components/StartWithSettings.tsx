@@ -114,7 +114,7 @@ export function StartWithSettings({
         )}
       </div>
       {on && check && check.offers.length === 0 && (
-        <p className="text-xs text-muted">{name} has no settings to copy: no MCP servers, permissions or status line.</p>
+        <p className="text-xs text-ink-2">{name} has no settings to copy: no MCP servers, permissions or status line.</p>
       )}
       {on && check && check.offers.length > 0 && (
         <div className="flex flex-col gap-2 pl-6">

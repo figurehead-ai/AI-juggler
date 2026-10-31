@@ -74,6 +74,9 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme);
     await goTo(page, "Accounts");
     await page.getByTestId("add-account").click();
+    // AJ-E1601: with a service a found tool runs through, Add account asks which tool first.
+    const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+    await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
     const line = page.getByTestId("terms-line");
     await expect(line).toBeVisible();
     // The setups found, not the look for them.

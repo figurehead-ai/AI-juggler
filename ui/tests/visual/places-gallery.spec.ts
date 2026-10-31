@@ -92,7 +92,9 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a row opens its page here; its ↗ goes to its app, saying so — ${theme}`, async ({ page }) => {
     await seed(page, "eight", theme);
-    const asks = page.locator("[data-rail-row]", { has: page.locator('[data-conversation-id="outside-3"]') });
+    // The session that asks: its row under Needs you (it shows again in
+    // its app's group further down).
+    const asks = page.locator("[data-rail-row]", { has: page.locator('[data-conversation-id="outside-3"]') }).first();
     await asks.locator("[data-rail-item]").click({ position: { x: 60, y: 10 } });
     await expect(page.getByTestId("conversation-page")).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: /forward|Going to it/ })).toHaveCount(0);
@@ -113,7 +115,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`the rail's View — ${theme}`, async ({ page }) => {
     await seed(page, "eight", theme);
     await page.keyboard.press("Shift+V");
-    await expect(page.getByRole("dialog", { name: "View" })).toBeVisible();
+    // 0.3: the View is a menu (Show, Only), its first line holding the keyboard.
+    await expect(page.getByRole("menu", { name: "View" })).toBeVisible();
     await shoot(page, "view", theme);
   });
 

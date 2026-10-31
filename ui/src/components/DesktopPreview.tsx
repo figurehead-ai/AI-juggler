@@ -125,7 +125,7 @@ export function DesktopPreview({
         </span>
       </div>
       {phase?.phase === "paused" ? (
-        <p className="text-meta text-muted" data-testid="preview-paused">
+        <p className="text-meta text-ink-2" data-testid="preview-paused">
           {PAUSED_NOT_VISIBLE}
         </p>
       ) : null}
@@ -141,7 +141,7 @@ export function DesktopPreview({
         </div>
       ) : null}
       {phase?.phase === "unsupported" ? (
-        <p className="text-meta text-muted" data-testid="preview-unsupported">
+        <p className="text-meta text-ink-2" data-testid="preview-unsupported">
           {phase.text}
         </p>
       ) : null}

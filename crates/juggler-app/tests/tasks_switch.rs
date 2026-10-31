@@ -13,6 +13,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -73,7 +76,7 @@ fn launch_with_transcript(
     }
     let dir = config_dir_of(state, account)
         .join("projects")
-        .join(cwd.replace('/', "-"));
+        .join(juggler_adapter::handover::mangled_dir(cwd));
     std::fs::create_dir_all(&dir).unwrap();
     let transcript = dir.join(format!("{native}.jsonl"));
     std::fs::write(
@@ -131,8 +134,14 @@ fn a_switch_keeps_its_task_and_the_history_shows_each_sessions() {
     let project_dir = work.path().join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
-    let a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &b.id, "Main", None, None).unwrap();
     let planner = launch_with_transcript(&state, &profile_a.id, &a.id, &cwd, "native-p");

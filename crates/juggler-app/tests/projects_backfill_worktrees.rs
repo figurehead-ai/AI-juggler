@@ -45,7 +45,9 @@ fn worktree(repo: &Path, at: &Path, name: &str) {
 fn transcript(config: &Path, cwd: &Path, name: &str) {
     let dir = config
         .join("projects")
-        .join(cwd.to_string_lossy().replace('/', "-"));
+        .join(juggler_adapter::handover::mangled_dir(
+            &cwd.to_string_lossy(),
+        ));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         dir.join(format!("{name}.jsonl")),

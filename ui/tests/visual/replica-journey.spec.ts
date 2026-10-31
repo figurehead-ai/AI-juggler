@@ -79,11 +79,14 @@ test("a project's page lists its conversations started outside AI Juggler", asyn
   const count = FIXTURE.conversations.filter((c) => c.project_id === project.id && c.session_id === null).length;
   await projectLens(page);
   await page.getByTestId("rail").getByRole("button", { name: new RegExp(`^${project.name}`) }).first().click();
-  // AJ-E1533: the project's body (its Sessions) lists them beside its own.
+  // AJ-E1533: the project's Sessions tab lists them beside its own (0.3:
+  // a project opens on its Overview).
+  await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Sessions" }).click();
   const body = page.getByTestId("page-panel-sessions");
   await expect(body.getByTestId("page-sessions")).toBeVisible();
-  const all = body.getByTestId("page-sessions-all");
-  if (await all.count()) await all.click();
-  await expect(body.locator('[data-testid="page-session-row"][data-outside="true"]')).toHaveCount(count);
-  await expect(body.locator('[data-testid="page-session-row"][data-outside="true"]').first()).toContainText("outside AI Juggler");
+  // The list is paged and drawn as it scrolls (instant and paged): its
+  // count line says how many it holds — here every one is from outside
+  // (the replica has no AI Juggler sessions).
+  await expect(body.getByTestId("page-sessions-count")).toHaveText(new RegExp(`^${count} sessions\\b`));
+  await expect(body.locator('[data-testid="page-session-row"][data-outside="true"]').first()).toContainText(" · in Claude Code"); // 0.1.5: the app it runs in
 });

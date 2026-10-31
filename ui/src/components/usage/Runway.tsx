@@ -16,6 +16,7 @@ import { LimitHistory } from "../charts/LimitHistory";
 import { Sparkline } from "../charts/StatTile";
 import { READING_SHORT } from "../../lib/history-reading";
 import { resetsWords } from "../../lib/time-words";
+import { creditsConsequence, creditsUntil, usingCredits, usingCreditsWords } from "../../lib/credits";
 
 /** How long until `at`, in words ("in 40 min", "in 2 h 10 min", "in 3 days"). */
 export function inWords(at: number, now: number): string {
@@ -38,7 +39,7 @@ function readWords(at: number, now: number): string {
 }
 
 /** One window's gauge, from the engine's display of it. */
-export function WindowGauge({ name, window, omitted, now }: { name: string; window: WindowDisplay | null | undefined; omitted?: string | null; now: number }): JSX.Element {
+export function WindowGauge({ name, window, omitted, now, credits = false }: { name: string; window: WindowDisplay | null | undefined; omitted?: string | null; now: number; credits?: boolean }): JSX.Element {
   if (!window) return <Gauge name={name} left={null} state={omitted ? "omitted" : "unmeasured"} note={omitted ?? null} testId="window-gauge" />;
   if (window.state === "learning") return <Gauge name={name} left={null} state="measuring" testId="window-gauge" />;
   if (window.state === "reset") {
@@ -50,7 +51,9 @@ export function WindowGauge({ name, window, omitted, now }: { name: string; wind
   const resets = window.resets_at_ms != null ? resetsWords(window.resets_at_ms, now) : null;
   const until = window.resets_at_ms != null ? inWords(window.resets_at_ms, now) : null;
   if (window.state === "exhausted" || (measured(window) && window.percentage >= 100)) {
-    return <Gauge name={name} left={0} resets={resets} resetsIn={until ? `Limit hit · back ${until}` : "Limit hit"} testId="window-gauge" />;
+    // 0.3.2: credits carry the work on: used up, not a stop.
+    const hit = credits ? "Used up, on credits" : "Limit hit";
+    return <Gauge name={name} left={0} resets={resets} resetsIn={until ? `${hit} · back ${until}` : hit} onCredits={credits} testId="window-gauge" />;
   }
   if (!measured(window)) {
     const tokens = usedTokensWords([window]);
@@ -128,7 +131,7 @@ export function RunwayPanel({
   if (display?.unavailable_reason) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-meta text-muted">{display.unavailable_reason}</p>
+        <p className="text-meta text-ink-2">{display.unavailable_reason}</p>
         <UsageLine usage={usage} usageTotal={usageTotal} name={name} color={color} reading={!!display?.history_reading} />
       </div>
     );
@@ -140,11 +143,12 @@ export function RunwayPanel({
       ) : (
         <div className="grid grid-cols-1 gap-3 @min-[500px]:grid-cols-2">
           {limitWindows(display).map((entry) => (
-            <WindowGauge key={entry.key} name={entry.label} window={entry.window} omitted={entry.omitted} now={now} />
+            <WindowGauge key={entry.key} name={entry.label} window={entry.window} omitted={entry.omitted} now={now} credits={usingCredits(display) !== null} />
           ))}
         </div>
       )}
       {readingLine(display, now) && <p className="-mt-1 text-label text-muted">{readingLine(display, now)}</p>}
+      <CreditsLine display={display} now={now} />
       {hasHistory && !compact ? (
         <div className="flex flex-col gap-1.5">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label text-muted" aria-hidden="true">
@@ -162,6 +166,19 @@ export function RunwayPanel({
       ) : null}
       <UsageLine usage={usage} usageTotal={usageTotal} name={name} color={color} reading={!!display?.history_reading} />
     </div>
+  );
+}
+
+/** A used-up window its credits carry on past (0.3.2): what's left, and
+ * what that means for its sessions. */
+function CreditsLine({ display, now }: { display: QuotaDisplayData | undefined; now: number }): JSX.Element | null {
+  const using = usingCredits(display);
+  if (!using) return null;
+  return (
+    <p className="-mt-1 flex flex-col gap-0.5 text-label" data-testid="runway-credits">
+      <span className="font-medium text-ink">{usingCreditsWords(using)}</span>
+      <span className="text-muted">{creditsConsequence(creditsUntil(display), now, "Sessions on it go on")}</span>
+    </p>
   );
 }
 

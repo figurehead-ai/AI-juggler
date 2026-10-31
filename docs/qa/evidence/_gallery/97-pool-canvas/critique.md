@@ -1,4 +1,4 @@
-<!-- captures: 0a698059c359 -->
+<!-- captures: 957e7e478e5d -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -29,7 +29,10 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 - At fit the node text was about 9–10 px, under the 12 px floor, and edge labels ("Paused at the hop limit") were tiny (fixed in this branch, below).
 - The palette's "ADD A SESSION" in letter-spaced capitals is the only such header on the page.
 - The new pool's centred hint card floats in a large empty canvas.
-- The badge's panel and the edge's panel are a card inside a card (the ask's own bordered box in the panel); at 1024 the open "Paused" panel, a popover under its badge, covers Tax rules research's name until it closes.
+- The badge's panel and the edge's panel are a card inside a card (the ask's own bordered box in the panel); in canvas-badge-open and canvas-edge-badge-open (both widths) the open panel covers Tax rules research's name until it closes, and at 1024 the "Paused" panel also cuts "Spike: payment sandbox" to "Spike: payme".
+- canvas-full (both widths): the ADD A SESSION palette sits over Planner's card, the 1024 zoom bar lies over the bottom row's text, and the side nodes are cut at the board's left edge ("cart totals", "ayment san…").
+- inspect-member (both widths): the selected node's ⋯ button covers the end of "Checkout copy pass".
+- list-1280x800, list-default-1024x700: the members' times ("2 min ago", "just now") are in the monospace face.
 
 ## Fixed
 
@@ -59,3 +62,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | list-1280x800 | The List view: six member rows and seven lines of who talks to whom. | New. |
 | messages-panel-1280x800 | Messages over the canvas, the page's width. | New; re-render fix. |
 | new-pool-1280x800 | A new, empty pool: its name field focused ("New pool"), "No one in this pool yet". | New. |
+
+## 0.3.2
+
+The canvas gains the most from the 0.3.2 surfaces: in dark the dotted board, the nodes and the inspector are three distinct steps, so Planner's violet frame and the amber "needs you" frames on Checkout copy pass, Review the checkout steps and Tax rules research read at a glance in canvas and pools-screen; in light the white nodes and Pools cards sit on a grey ground. The design fixes show in dark only: the lighter accent on the header's New session, the logo mark, Planner's frame and the violet edges, the new pool's focused name field, Change what agents may do… and inspect-member's "1 Allow once", the one filled button beside a quiet "2 Deny"; light changes only by a pixel in the This Mac line. The top bar stays one row, with "This Mac · Plenty of room" at 1280 and "7 to clean up" whole at 1024 (the list folded, no This Mac line). New session and New pool are the solid violet primaries, New message leads messages-panel, and the inspector's section labels (THIS POOL, LIVE, WAITING ON YOU) sit dimmer than their values, which makes inspect-pool's long settings column easy to scan. The old overlaps are all still there: in canvas-badge-open and canvas-edge-badge-open the open panel covers Tax rules research's name, and at 1024 the "Paused" panel cuts "Spike: payment sandbox" to "Spike: payme" (canvas-badge-open-1024, whose panel sits higher, leaves Spike whole); in canvas-full the ADD A SESSION palette sits over Planner's card, the 1024 zoom bar lies over the bottom row's text, and side nodes are cut at the board's left edge; in inspect-member the selected node's ⋯ button covers the end of "Checkout copy pass". The List view's times ("2 min ago") are in the monospace face, as before.

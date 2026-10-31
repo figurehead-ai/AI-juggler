@@ -19,6 +19,7 @@ import {
   open as tauriOpenDialog,
   save as tauriSaveDialog,
 } from "@tauri-apps/plugin-dialog";
+import { timed } from "./timing";
 
 /** What a non-Tauri transport provides. */
 export type Transport = {
@@ -44,10 +45,13 @@ export const liveBackend = tauri || readOnly !== null;
 /** True when the backend is the read-only test bridge: writes are off. */
 export const readOnlyBackend = readOnly !== null;
 
+/** Every call is timed (0.3.2, `./timing`): names and times, never data. */
 export function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T> {
-  return readOnly
-    ? readOnly.then((transport) => transport.invoke<T>(cmd, args))
-    : tauriInvoke<T>(cmd, args);
+  return timed(cmd, () =>
+    readOnly
+      ? readOnly.then((transport) => transport.invoke<T>(cmd, args))
+      : tauriInvoke<T>(cmd, args),
+  );
 }
 
 export function listen<T>(

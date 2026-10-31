@@ -15,7 +15,7 @@ export function SubagentsShareLine({ profileId, conversationId }: { profileId: s
   const counts = useHeardSubagentCounts(profileId, conversationId);
   if (!counts || counts.total === 0 || counts.share == null) return null;
   return (
-    <p className="flex flex-wrap items-center gap-x-1.5 text-body text-muted" data-testid="usage-subagents-line">
+    <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="usage-subagents-line">
       <IconSubtasks aria-hidden="true" width={15} height={15} className="text-muted" />
       <span>
         Subagents used <span className="font-semibold tabular-nums text-ink">{shareWords(counts.share)}</span> of these tokens

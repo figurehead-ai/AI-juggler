@@ -51,7 +51,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
       </Section>
       <Section title="Live" testId="inspect-stream">
         {canvas === null ? (
-          <span className="h-16 rounded-lg bg-surface-3 motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
+          <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
         ) : canvas.stream.length === 0 ? (
           <p className="text-label text-muted">Nothing yet. Messages and task changes between its agents show here as they happen.</p>
         ) : (
@@ -82,7 +82,7 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
 
 function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; edgeId: string; names: ReadonlyMap<string, string>; now: number }): JSX.Element {
   const edge = canvas?.edges.find((row) => edgeKey(row.from_session_id, row.to_session_id) === edgeId);
-  if (!edge) return <p className="px-4 py-3 text-meta text-muted">Nothing passes between these two this week.</p>;
+  if (!edge) return <p className="px-4 py-3 text-meta text-ink-2">Nothing passes between these two this week.</p>;
   const from = names.get(edge.from_session_id) ?? "A member";
   const to = names.get(edge.to_session_id) ?? "a member";
   const members = [

@@ -221,10 +221,6 @@ fn rank_candidates_for(
             .flatten()
             .filter_map(|window| window.percentage.map(|pct| 100.0 - pct))
             .reduce(f64::min);
-        let exhausted_no_reset = [display.five_hour.as_ref(), display.weekly.as_ref()]
-            .into_iter()
-            .flatten()
-            .any(|window| window.state == "exhausted" && window.resets_at_ms.is_none());
         let confidence = match display
             .five_hour
             .as_ref()
@@ -330,7 +326,9 @@ fn rank_candidates_for(
                 |ready| !ready,
             ),
             wrong_provider: false, // request-restriction surface rides E210's pair gating
-            exhausted_no_reset,
+            exhausted_no_reset: display.exhausted_no_reset(),
+            // 0.3.2: a used-up window its credits carry on past.
+            credits_cover: display.using_credits().is_some(),
             headroom_pct,
             headroom_confidence: confidence,
             affinity,
@@ -498,7 +496,8 @@ fn step_account_alerts(
                 minutes_left: display.forecast.tte_min,
                 resets_at_ms: window.resets_at_ms,
             };
-            let text = crate::features::quota::alert_words::quota_alert_words(kind, &quota, now);
+            let words = crate::features::quota::alert_words::alert_text;
+            let text = words(kind, &quota, display.credits.as_ref(), now);
             (kind, text, quota)
         });
         if let Some((kind, text, quota)) = event {
@@ -590,7 +589,8 @@ fn queue_and_digest_events(
         .collect();
     let usage = storage.usage();
     for (id, session, account, _resume_at) in usage.pending_resumes(now).unwrap_or_default() {
-        if !session_ids.contains(&session) {
+        // 0.3.2: another app's session (`conv:…`) has no lineage here.
+        if !session.starts_with("conv:") && !session_ids.contains(&session) {
             let _ = usage.set_reset_state(&id, "stale");
             continue;
         }
@@ -722,7 +722,7 @@ pub async fn reset_queue_list(
         let now = juggler_core::model::Timestamp::now().millis();
         Ok(storage
             .usage()
-            .pending_resumes(now + 365 * 24 * 3_600_000)
+            .open_reminders() // 0.3.2: a due one stays until opened or closed
             .unwrap_or_default()
             .into_iter()
             .map(|(id, session, account, resume_at)| ResetQueueInfo {
@@ -5356,6 +5356,7 @@ pub(crate) fn preflight_with(
         message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
             .into(),
     })?;
+    crate::features::handover::access::check_switch_access(state, &reference.path, &account_b)?;
     // (No compaction scan: a compacted source loses nothing in a switch —
     // D-03 amendment, 2026-10-27.)
 
@@ -5552,7 +5553,7 @@ fn pair_validated_now(state: &Arc<AppState>, from: &str, to: &str) -> AppResult<
 fn quota_gate_of(storage: &Storage, account: &Account, now: i64) -> (bool, Option<(u32, u32)>) {
     let target_display = quota_display_inner(storage, account, now);
     match target_display.five_hour.as_ref().map(|w| w.state.as_str()) {
-        Some("exhausted") => (true, None),
+        Some("exhausted") => (target_display.using_credits().is_none(), None), // 0.3.2: or credits
         Some(_) => {
             let used = target_display
                 .five_hour
@@ -6084,6 +6085,7 @@ fn switch_execute_core(
     )?;
 
     crate::identity::record(state, &new_session, &account_b, &assertion, "switch");
+    crate::features::handover::arrival::watch_switch(state, &account_b, &new_session, pid, &record);
     switch.succeeded();
     tasks_after_switch(state, &new_session, &account_a, &account_b);
 
@@ -6252,6 +6254,7 @@ fn switch_sides(
         message: "AI Juggler couldn't tell which file holds this conversation, so nothing moved"
             .into(),
     })?;
+    crate::features::handover::access::check_switch_access(state, &reference.path, &account_b)?;
     Ok(SwitchSides {
         source,
         reference,

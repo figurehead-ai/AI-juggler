@@ -8,6 +8,7 @@ import { Field, Input, Modal } from "./form";
 import { useActionHost } from "./ItemMenu";
 import { Button } from "./primitives";
 import { Picker } from "./controls";
+import { recentProjects } from "../lib/pickers";
 
 /**
  * The pool sheet (AJ-E1702), loaded on first use: make a pool, or move a
@@ -108,17 +109,20 @@ function CreatePool({
               onChange={setProject}
               testId="pool-create-project"
               className="self-start"
-              options={[{ value: "", label: "Any project" }, ...projects.map((row) => ({ value: row.id, label: row.name }))]}
+              options={[{ value: "", label: "Any project", pinned: true }, ...projects.map((row) => ({ value: row.id, label: row.name }))]}
+              groups={[{ label: "Recent", values: recentProjects(projects) }]}
+              searchLabel="Search projects"
+              allHeading="All projects"
             />
           </Field>
         )}
         {where && (
-          <p className="text-xs text-muted" data-testid="pool-create-session">
+          <p className="text-xs text-ink-2" data-testid="pool-create-session">
             <span className="text-ink">{where.title}</span>
             {where.detail ? ` · ${where.detail}` : ""} goes in it.
           </p>
         )}
-        {!session && sessions.length === 0 && <p className="text-xs text-muted">Sessions can join it once you start some.</p>}
+        {!session && sessions.length === 0 && <p className="text-xs text-ink-2">Sessions can join it once you start some.</p>}
         {error && (
           <p className="text-xs text-danger" role="alert" data-testid="pool-error">
             {error}

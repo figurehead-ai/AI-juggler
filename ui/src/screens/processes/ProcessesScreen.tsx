@@ -77,7 +77,7 @@ export function ProcessesScreen({
       testId="processes-page"
     >
       {saved && (
-        <p className="text-meta text-muted" role="status">
+        <p className="text-meta text-ink-2" role="status">
           Saved {saved}: names and hashed command lines only.
         </p>
       )}

@@ -6,6 +6,7 @@
  * click (D-08).
  */
 import { needsFor } from "../test/needs-kit";
+import { alertNextStep } from "../lib/machine-memory";
 import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RailRow } from "./WorkflowRail";
@@ -207,6 +208,11 @@ describe("overload alerts and recommendations (AJ-E1408, AJ-E1409)", () => {
     other_apps: [] as import("../lib/machine-memory").OtherAppInfo[],
     since_ms: NOW,
     ...overrides,
+  });
+
+  it("names an app's windows without doubling its article (0.3.2: \"Close the The Claude app…\")", () => {
+    const words = alertNextStep(alert({ kind: "cpu", session_id: null, place: "desktop", subject_name: "The Claude app" }) as never, () => null);
+    expect(words).toMatch(/^Close the Claude app windows you aren't using\./);
   });
 
   it("puts a sustained machine alert under Needs you, naming the biggest user", () => {

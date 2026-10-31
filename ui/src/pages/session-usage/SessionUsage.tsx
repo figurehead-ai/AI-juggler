@@ -114,7 +114,7 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
         </Section>
         <Section title="Its share of the limits" icon={<IconGauge />} sub={`of ${profileLabel ?? "its profile"}'s use`} className="@min-[900px]:col-span-2" busy={busy} testId="session-usage-share">
           {(detail?.windows ?? []).length === 0 ? (
-            <p className="text-meta text-muted">{detail === null ? "Reading…" : "Nothing measured in its windows."}</p>
+            <p className="text-meta text-ink-2">{detail === null ? "Reading…" : "Nothing measured in its windows."}</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {detail!.windows.map((window) => (

@@ -67,7 +67,7 @@ export function FleetPeersEmpty({ onOpenHome, selfLabel, linkOn = false }: { onO
             </li>
           ))}
         </ol>
-        <p className="text-meta text-muted">A Mac on another network? Connect them with Tailscale or WireGuard first, then pair by its address.</p>
+        <p className="text-meta text-ink-2">A Mac on another network? Connect them with Tailscale or WireGuard first, then pair by its address.</p>
       </div>
       {onOpenHome && <WelcomePointer onOpenHome={onOpenHome} />}
     </div>

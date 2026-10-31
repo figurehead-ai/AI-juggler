@@ -12,7 +12,7 @@ fake-tool suites pass (`crates/juggler-app/tests/messages.rs`,
 **Rules while running it**
 - AI Juggler Dev only (`just dev`), in a throwaway lab project
   (`$LAB`). Never the installed AI Juggler, never a project with real work.
-- At most two real tools at once: the maintainer's **bookauth-luka** Claude
+- At most two real tools at once: the maintainer's **lab-profile-1** Claude
   profile and their Codex sign-in, used where they are. Sign in to nothing.
   Click no Allow that this list doesn't name. Read no credential file, the
   Keychain or a process environment.
@@ -27,7 +27,7 @@ fake-tool suites pass (`crates/juggler-app/tests/messages.rs`,
 
 ```sh
 export LAB="$HOME/lab/aj-messaging"                     # the throwaway project
-export CLAUDE_DIR="<the bookauth-luka profile's folder>"
+export CLAUDE_DIR="<the lab-profile-1 profile's folder>"
 export CODEX_DIR="<the Codex profile's folder>"         # e.g. ~/.codex
 export AJ_LAB_OUT=/tmp/aj-messaging-lab                 # snapshots and notes (0700)
 export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"

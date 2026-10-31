@@ -14,7 +14,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, expectRail, openSwitch } from "./fixtures";
+import { allStatuses, expectRail, openSwitch, switchRows } from "./fixtures";
 import { EXAMPLE_SETUP, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "../../src/lib/ipc/switchSetupExamples";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/96-switch-setup");
@@ -60,7 +60,7 @@ async function openWith(page: Page, theme: "dark" | "light", setup: unknown) {
   await expectRail(page);
   await page.getByRole("button", { name: /Work Max/ }).first().click();
   await openSwitch(page);
-  await page.getByTestId("handover-section").locator("button[data-row]:not(:disabled)").first().click();
+  await switchRows(page).first().click();
   await expect(page.getByTestId("switch-flow")).toBeVisible();
 }
 
@@ -101,8 +101,12 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`nothing missing — ${theme}`, async ({ page }) => {
     await openWith(page, theme, { ...EXAMPLE_SETUP, offers: [] });
-    const line = page.getByTestId("switch-setup-summary");
-    await expect(line).toHaveText("Personal already has everything Work Max has set up.");
+    // Nothing missing: no list before the switch (the screen stays
+    // short); Details says the target has it all.
+    await expect(page.getByTestId("switch-setup")).toHaveCount(0);
+    const details = page.getByTestId("switch-details");
+    if ((await details.getAttribute("open")) === null) await details.locator(":scope > summary").click();
+    await expect(details).toContainText("Personal already has 3 of the 3 things this account has set up.");
     await page.getByTestId("switch-oneclick").screenshot({ path: resolve(OUT, `nothing-missing-${theme}.png`) });
     await axeClean(page, "nothing missing");
   });

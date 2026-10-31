@@ -340,7 +340,7 @@ export function HomeScreen({
   if (loading && accounts.length === 0 && sessions.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-content flex-col gap-6 pb-10" data-testid="home-loading">
-        <span className="block h-7 w-64 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
+        <span className="block h-7 w-64 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
         <RowPlaceholders shape="home" rows={3} label="Loading Home" />
       </div>
     );
@@ -359,7 +359,8 @@ export function HomeScreen({
   const sessionNeeds = allNeeds.filter(isSessionNeed).length;
   const otherNeeds = allNeeds.length - sessionNeeds + capNeeds.caps.length + messageNeeds.length + taskNeeds.length;
   const headline = needsHeading({ sessions: sessionNeeds, others: otherNeeds }, {
-    runOut: runway.filter((r) => r.left === 0).map((r) => r.account.label),
+    // 0.3.2: one carrying on with its credits hasn't run out.
+    runOut: runway.filter((r) => r.left === 0 && !r.credits).map((r) => r.account.label),
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,
   });
@@ -372,7 +373,7 @@ export function HomeScreen({
   ].filter((part) => !part.words.startsWith("0 "));
   const runwayFor = (accountId: string | null) => {
     const row = runway.find((r) => r.account.id === accountId);
-    return row ? { left: row.left, words: row.left !== null ? `${row.account.label} · ${row.left}% left` : `${row.account.label} · not measured yet` } : null;
+    return row ? { left: row.left, words: row.credits ? `${row.account.label} · ${row.words}` : row.left !== null ? `${row.account.label} · ${row.left}% left` : `${row.account.label} · not measured yet` } : null;
   };
 
   return (
@@ -391,7 +392,7 @@ export function HomeScreen({
           <LegendPopover className="shrink-0" placement="below" />
         </div>
         {counts.length > 0 && (
-          <p className="flex flex-wrap items-center gap-x-1.5 text-body text-muted" data-testid="home-counts">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
             {counts.map((part, index) => (
               <span key={part.key} className="flex items-center gap-1.5">
                 {index > 0 && <span aria-hidden="true">·</span>}
@@ -421,7 +422,7 @@ export function HomeScreen({
       {sessions.length === 0 && conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
           <h2 className="text-section font-semibold text-ink">Start your first session</h2>
-          <p className="max-w-xl text-body text-muted">
+          <p className="max-w-xl text-body text-ink-2">
             Pick a project folder and an account. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
           </p>
           <Button variant="primary" onClick={onNewSession}>New session</Button>
@@ -446,7 +447,7 @@ export function HomeScreen({
               onOpenCleanup,
             }}
           >
-            {signingIn && <p className="text-meta text-muted" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
+            {signingIn && <p className="text-meta text-ink-2" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
             <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
           </HomeNeeds>
           )}

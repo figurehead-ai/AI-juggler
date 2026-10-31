@@ -108,7 +108,7 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
   );
   return (
     <Section title="Top projects" icon={<IconFolder />} sub="by tokens in and out" className={className} busy={busy} testId="top-projects" actions={<SeeAll count={rows.length} noun="projects" onOpen={() => setAll(true)} />}>
-      {rows.length === 0 ? <p className="py-6 text-center text-meta text-muted">{data ? "No project used anything in this range." : "Reading usage…"}</p> : <div className="overflow-x-auto">{table(rows.slice(0, TOP))}</div>}
+      {rows.length === 0 ? <p className="py-6 text-center text-meta text-ink-2">{data ? "No project used anything in this range." : "Reading usage…"}</p> : <div className="overflow-x-auto">{table(rows.slice(0, TOP))}</div>}
       {all && (
         <Modal title="Every project, by usage" subtitle={`${rows.length} projects`} wide onClose={() => setAll(false)} testId="all-projects">
           <div className="max-h-[60vh] overflow-y-auto">{table(rows)}</div>
@@ -197,7 +197,7 @@ export function TopSessions({ data, busy, range, scope, className = "" }: { data
       actions={<SeeAll count={data?.session_count ?? 0} noun="sessions" onOpen={() => setAll(true)} />}
     >
       {rows.length === 0 ? (
-        <p className="py-6 text-center text-meta text-muted">{data ? "No session used anything in this range." : "Reading usage…"}</p>
+        <p className="py-6 text-center text-meta text-ink-2">{data ? "No session used anything in this range." : "Reading usage…"}</p>
       ) : (
         <div>
           <Header />
@@ -230,7 +230,7 @@ function AllSessions({ data, range, scope, projects, labels, total, onClose }: {
         renderRow={(row) => <SessionRow row={row} projects={projects} labels={labels} total={total} />}
         rowHeight={56}
         label="Every session, by usage"
-        empty={<p className="py-6 text-center text-meta text-muted">No session used anything in this range.</p>}
+        empty={<p className="py-6 text-center text-meta text-ink-2">No session used anything in this range.</p>}
         maxHeight={520}
       />
     </Modal>

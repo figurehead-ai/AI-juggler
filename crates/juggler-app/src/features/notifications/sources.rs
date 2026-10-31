@@ -116,6 +116,185 @@ pub fn low_notice(
     }
 }
 
+/// A used-up window that the account's credits carry on past (the
+/// maintainer's report, 0.3.2: "has run out of room" while Codex kept
+/// working on its credits): the cover when the window is used up (`run_out`
+/// or 0% left) and the credits cover; `None` keeps the room notice.
+#[must_use]
+pub fn credits_carry_on(
+    used: Option<f64>,
+    run_out: bool,
+    credits: Option<&crate::features::quota::CreditsDisplay>,
+) -> Option<crate::features::quota::CreditsCover> {
+    let used_up = run_out || used.is_some_and(crate::features::quota::used_up);
+    if !used_up {
+        return None;
+    }
+    credits.and_then(crate::features::quota::CreditsDisplay::cover)
+}
+
+/// The notice for an account whose window is used up while its credits
+/// carry its work on. It informs (work isn't blocked): told once per used-up
+/// window, under Earlier, never a need; no empty meter. "Continue on
+/// another account…" stays its action.
+#[must_use]
+pub fn credits_notice(
+    account_id: &str,
+    label: &str,
+    window: &str,
+    resets_at_ms: Option<i64>,
+    sessions: u32,
+    cover: crate::features::quota::CreditsCover,
+) -> NewNotice {
+    let left = cover.left_words();
+    let title = if left.is_some() {
+        format!("{label} is using its credits")
+    } else {
+        format!("{label} is probably using its credits")
+    };
+    let detail = match &left {
+        Some(left) => format!("Its {window} window is used up · {left}"),
+        None => format!("Its {window} window is used up"),
+    };
+    NewNotice {
+        key: format!(
+            "credits:{account_id}:{}",
+            resets_at_ms.map_or(0, |at| at / 60_000)
+        ),
+        kind: "quota".to_owned(),
+        title,
+        detail,
+        data: centre::data_of(
+            &NoticeTarget {
+                account_id: Some(account_id.to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts {
+                window: Some(window.to_owned()),
+                resets_at_ms,
+                sessions: Some(sessions),
+                account: Some(label.to_owned()),
+                credits: Some(left.unwrap_or_default()),
+                ..NoticeFacts::default()
+            },
+        ),
+        action: Some("hand-over".to_owned()),
+        meter: None,
+        ..NewNotice::default()
+    }
+}
+
+/// One account's turn in the quota pass (0.3.2: split out when the
+/// credits watch joined it).
+struct AccountPass<'a> {
+    storage: &'a Storage,
+    emitted: &'a [crate::commands::AlertEventInfo],
+    open: &'a [String],
+    now: i64,
+}
+
+type Told = Vec<(Target, Kind, centre::NoticeInfo)>;
+
+impl AccountPass<'_> {
+    fn run(
+        &self,
+        account: &juggler_core::model::Account,
+        on_credits: &mut std::collections::BTreeSet<String>,
+        told: &mut Told,
+        room_again: &mut Vec<(String, String, &'static str)>,
+    ) {
+        let id = account.id.as_str();
+        let low_now = self
+            .emitted
+            .iter()
+            .rfind(|event| event.account == id && LOW_KINDS.contains(&event.kind.as_str()));
+        let is_open = self.open.iter().any(|key| *key == format!("quota:{id}"));
+        let carrying = on_credits.contains(id);
+        if low_now.is_none() && !is_open && !carrying {
+            return;
+        }
+        let display = crate::features::quota::quota_display_inner(self.storage, account, self.now);
+        let Some((window, used, resets_at)) = fullest(&display) else {
+            return;
+        };
+        let sessions = live_sessions_on(self.storage, id);
+        if carrying && !used.is_some_and(crate::features::quota::used_up) {
+            // Its window reset: no longer on its credits.
+            on_credits.remove(id);
+            if low_now.is_none() && !is_open {
+                return;
+            }
+        }
+        if is_open && low_now.is_none() && used.is_some_and(|used| used < ROOM_AGAIN_USED_PCT) {
+            if centre::end_need(self.storage, &format!("quota:{id}"), self.now).unwrap_or(false) {
+                room_again.push((id.to_owned(), account.label.clone(), window));
+            }
+            return;
+        }
+        // Carrying on with credits that ran out: the window is used up,
+        // so it has run out of room now.
+        let credits_gone = on_credits.contains(id);
+        let run_out = credits_gone || low_now.is_some_and(|event| event.kind == "exhausted");
+        // 0.3.2: used up, but its credits carry the work on — said
+        // once, under Earlier; any room need it had ends (work isn't
+        // blocked, so nothing needs the user).
+        if let Some(cover) = credits_carry_on(used, run_out, display.credits.as_ref()) {
+            on_credits.insert(id.to_owned());
+            if is_open {
+                let _ = centre::end_need(self.storage, &format!("quota:{id}"), self.now);
+            }
+            let notice = credits_notice(id, &account.label, window, resets_at, sessions, cover);
+            if let Ok(Some(info)) = centre::record(self.storage, &notice, self.now) {
+                told.push((Target::Account(id.to_owned()), Kind::Quota, info));
+            }
+            return;
+        }
+        on_credits.remove(id);
+        if credits_gone
+            && low_now.is_none()
+            && !is_open
+            && !used.is_some_and(crate::features::quota::used_up)
+        {
+            return;
+        }
+        let notice = low_notice(
+            id,
+            &account.label,
+            window,
+            used,
+            resets_at,
+            sessions,
+            run_out,
+        );
+        if let Ok(Some(info)) = centre::open_need(self.storage, &notice, self.now) {
+            told.push((Target::Account(id.to_owned()), Kind::Quota, info));
+        }
+    }
+}
+
+/// Where the accounts carrying on with their credits are kept.
+const ON_CREDITS_KEY: &str = "quota_on_credits";
+
+/// The accounts carrying on with their credits (0.3.2).
+fn on_credits_of(storage: &juggler_core::storage::Storage) -> std::collections::BTreeSet<String> {
+    storage
+        .app_settings()
+        .get(ON_CREDITS_KEY)
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn save_on_credits(
+    storage: &juggler_core::storage::Storage,
+    ids: &std::collections::BTreeSet<String>,
+) {
+    if let Ok(raw) = serde_json::to_string(ids) {
+        let _ = storage.app_settings().set(ON_CREDITS_KEY, &raw);
+    }
+}
+
 /// The work that moved away from an account and can come back to it now
 /// (D-05's switch back, AJ-E207's suggestions): the newest such session,
 /// by its row's name, and how many there are.
@@ -290,39 +469,22 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
                 now,
             );
         }
+        // 0.3.2: accounts carrying on with their credits, watched each
+        // pass: the alert that said "used up" fires once, so credits that
+        // run out mid-window would otherwise go unsaid.
+        let mut on_credits = on_credits_of(&storage);
+        let before = on_credits.clone();
         for account in &accounts {
-            let id = account.id.as_str();
-            let low_now = emitted
-                .iter()
-                .rfind(|event| event.account == id && LOW_KINDS.contains(&event.kind.as_str()));
-            let is_open = open.iter().any(|key| *key == format!("quota:{id}"));
-            if low_now.is_none() && !is_open {
-                continue;
-            }
-            let display = crate::features::quota::quota_display_inner(&storage, account, now);
-            let Some((window, used, resets_at)) = fullest(&display) else {
-                continue;
+            let pass = AccountPass {
+                storage: &storage,
+                emitted,
+                open: &open,
+                now,
             };
-            let sessions = live_sessions_on(&storage, id);
-            if is_open && low_now.is_none() && used.is_some_and(|used| used < ROOM_AGAIN_USED_PCT) {
-                if centre::end_need(&storage, &format!("quota:{id}"), now).unwrap_or(false) {
-                    room_again.push((id.to_owned(), account.label.clone(), window));
-                }
-                continue;
-            }
-            let run_out = low_now.is_some_and(|event| event.kind == "exhausted");
-            let notice = low_notice(
-                id,
-                &account.label,
-                window,
-                used,
-                resets_at,
-                sessions,
-                run_out,
-            );
-            if let Ok(Some(info)) = centre::open_need(&storage, &notice, now) {
-                told.push((Target::Account(id.to_owned()), Kind::Quota, info));
-            }
+            pass.run(account, &mut on_credits, &mut told, &mut room_again);
+        }
+        if on_credits != before {
+            save_on_credits(&storage, &on_credits);
         }
     }
     // 0.3: the work that moved away from an account that has room again
@@ -531,6 +693,105 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn credits(
+        has_credits: bool,
+        unlimited: bool,
+        balance: Option<&str>,
+    ) -> crate::features::quota::CreditsDisplay {
+        crate::features::quota::CreditsDisplay {
+            has_credits,
+            unlimited,
+            balance: balance.map(str::to_owned),
+            as_of_ms: 1_793_399_680_137,
+            source: "A tool".to_owned(),
+            stale: false,
+        }
+    }
+
+    /// The maintainer's report (0.3.2): "has run out of room · 0% of its
+    /// weekly window left" while the session kept working on its credits.
+    #[test]
+    fn a_used_up_window_on_credits_is_not_out_of_room() {
+        use crate::features::quota::CreditsCover;
+        // The maintainer's real stored value.
+        let real = credits(true, false, Some("14150.1635025000"));
+        let cover = credits_carry_on(Some(100.0), true, Some(&real)).unwrap();
+        let notice = credits_notice(
+            "acct-c",
+            "Codex",
+            "weekly",
+            Some(1_793_500_000_000),
+            1,
+            cover,
+        );
+        assert_eq!(notice.title, "Codex is using its credits");
+        assert_eq!(
+            notice.detail,
+            "Its weekly window is used up · 14,150 credits left"
+        );
+        assert_eq!(notice.meter, None, "no empty red meter");
+        assert!(!notice.needs, "it informs: work isn't blocked");
+        assert_eq!(notice.kind, "quota");
+        assert_eq!(notice.action.as_deref(), Some("hand-over"));
+        assert!(notice.key.starts_with("credits:acct-c:"));
+        let data: serde_json::Value = serde_json::from_str(&notice.data).unwrap();
+        assert_eq!(data["facts"]["credits"], "14,150 credits left");
+        assert_eq!(data["facts"]["window"], "weekly");
+        assert_eq!(data["target"]["account_id"], "acct-c");
+        for words in [&notice.title, &notice.detail] {
+            assert!(!words.contains("out of room") && !words.contains("acct-c"));
+        }
+        // 0% left counts as used up even without the exhausted alert.
+        assert!(credits_carry_on(Some(100.0), false, Some(&real)).is_some());
+
+        // Credits with no balance reported: probably.
+        let probably = credits_carry_on(None, true, Some(&credits(true, false, None))).unwrap();
+        assert_eq!(probably, CreditsCover::Probably);
+        let notice = credits_notice("acct-c", "Codex", "5-hour", None, 0, probably);
+        assert_eq!(notice.title, "Codex is probably using its credits");
+        assert_eq!(notice.detail, "Its 5-hour window is used up");
+        let data: serde_json::Value = serde_json::from_str(&notice.data).unwrap();
+        assert_eq!(data["facts"]["credits"], "");
+
+        // Unlimited.
+        let unlimited =
+            credits_carry_on(Some(100.0), true, Some(&credits(false, true, None))).unwrap();
+        assert_eq!(
+            credits_notice("a", "Codex", "weekly", None, 0, unlimited).detail,
+            "Its weekly window is used up · unlimited credits"
+        );
+    }
+
+    /// Credits that don't cover (none, or a balance of 0) keep today's
+    /// words exactly; a window with room left is no credits notice.
+    #[test]
+    fn credits_that_dont_cover_keep_the_out_of_room_notice() {
+        assert_eq!(
+            credits_carry_on(Some(100.0), true, Some(&credits(true, false, Some("0")))),
+            None,
+            "a balance of 0"
+        );
+        assert_eq!(
+            credits_carry_on(Some(100.0), true, Some(&credits(false, false, Some("12")))),
+            None,
+            "no credits"
+        );
+        assert_eq!(
+            credits_carry_on(Some(100.0), true, None),
+            None,
+            "none reported"
+        );
+        assert_eq!(
+            credits_carry_on(Some(93.0), false, Some(&credits(true, false, Some("500")))),
+            None,
+            "room left: the almost-out notice"
+        );
+        let out = low_notice("acct-1", "Codex", "weekly", Some(100.0), None, 0, true);
+        assert_eq!(out.title, "Codex has run out of room");
+        assert_eq!(out.detail, "0% of its weekly window left");
+        assert_eq!(out.meter, Some(0));
     }
 
     #[test]

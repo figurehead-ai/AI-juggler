@@ -81,7 +81,9 @@ for (const theme of ["dark", "light"] as const) {
       test(`this mac — ${state.name} — ${vp.name} — ${theme}`, gate("72-this-mac"), async ({ page }) => {
         await seed(page, state, theme, vp);
         // AJ-E2105: This Mac's line is the top bar's; its page holds the rest.
-        await page.getByTestId("machine-status").click();
+        // The top bar's line, or (narrow, the bar has no room for it) the
+        // folded rail's dot: either opens This Mac.
+        await page.getByTestId("machine-status").or(page.getByTestId("machine-status-dot").getByRole("button")).filter({ visible: true }).first().click();
         await expect(page.getByRole("main")).toContainText(state.expect);
         await page.screenshot({ path: resolve(OUT, `${state.name}-${vp.name}-${theme}.png`) });
         await axeClean(page, `this mac ${state.name}`);
@@ -92,13 +94,13 @@ for (const theme of ["dark", "light"] as const) {
   test(`heavy session — Needs you, rail, session header — ${theme}`, async ({ page }) => {
     await seed(page, { fixture: heavy, machine: "plenty" }, theme, { width: 1280, height: 800 });
     const item = page.getByTestId("home-need-heavy");
-    await expect(item).toContainText("Working your Mac hard — CPU 96% · 3.2 GB");
+    await expect(item).toContainText("Working your Mac hard — CPU 96% · 3.0 GB");
     // The rail shows one figure, only on the heavy row.
     await expect(page.getByTestId("rail-heavy")).toHaveCount(1);
-    await expect(page.getByTestId("rail-heavy")).toContainText("3.2 GB");
+    await expect(page.getByTestId("rail-heavy")).toContainText("3.0 GB");
     await item.getByRole("button", { name: /Take a look/ }).click();
     const header = page.getByTestId("session-resources");
-    await expect(header).toContainText("CPU 96% · 3.2 GB · 5 more processes");
+    await expect(header).toContainText("CPU 96% · 3.0 GB · 5 more processes");
     await expect(header).toContainText("working your Mac hard");
     await page.screenshot({ path: resolve(OUT, `session-header-heavy-1280x800-${theme}.png`) });
     await axeClean(page, "session header heavy");

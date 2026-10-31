@@ -14,6 +14,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -79,11 +82,15 @@ fn lab(work: &Path, turns: usize, words: usize) -> Lab {
     let project = work.join("storefront");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let personal =
-        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", Some("max".into())).unwrap();
+    let personal = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", Some("max".into())).unwrap(),
+    );
     let recipe = commands::create_profile(&state, &personal.id, "Mine", None, None).unwrap();
-    let work_account =
-        commands::create_account(&state, CLAUDE_CODE_ID, "Work", Some("max".into())).unwrap();
+    let work_account = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work", Some("max".into())).unwrap(),
+    );
     commands::create_profile(&state, &work_account.id, "Main", None, None).unwrap();
     // A non-empty `.credentials.json` marks "Work" signed in: a test
     // marker under the temp dir, never a real credential.
@@ -98,7 +105,7 @@ fn lab(work: &Path, turns: usize, words: usize) -> Lab {
         .join(CLAUDE_CODE_ID)
         .join(&personal.id)
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join("native-7.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     std::fs::write(&transcript, transcript_body(&cwd, turns, words)).unwrap();

@@ -81,7 +81,7 @@ export function Welcome({
           <h1 className="text-stat font-semibold leading-tight tracking-tight sm:text-[34px]">
             All your AI coding accounts, in one calm place.
           </h1>
-          <p className="max-w-2xl text-section leading-relaxed text-muted">
+          <p className="max-w-2xl text-section leading-relaxed text-ink-2">
             AI Juggler runs your {names.length > 0 ? listWords(names) : "AI coding"} sessions side by side, shows you what needs
             you, and helps you carry on in another account before one runs out.
           </p>
@@ -135,7 +135,7 @@ export function Welcome({
             </li>
           ))}
         </ul>
-        <p className="flex items-center gap-2 text-meta text-muted" data-testid="welcome-trust">
+        <p className="flex items-center gap-2 text-meta text-ink-2" data-testid="welcome-trust">
           <span aria-hidden="true" className="text-success">
             <IconShield width={14} height={14} />
           </span>

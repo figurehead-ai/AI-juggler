@@ -33,7 +33,7 @@ export function PoolCardRows({ list, sessions, now }: { list: Paged<PoolMemberRo
       rowHeight={56}
       skeletonRows={3}
       testId="pool-cards"
-      empty={<p className="text-xs text-muted">No sessions here yet. Move one in from its menu in the list.</p>}
+      empty={<p className="text-xs text-ink-2">No sessions here yet. Move one in from its menu in the list.</p>}
       renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} />}
     />
   );

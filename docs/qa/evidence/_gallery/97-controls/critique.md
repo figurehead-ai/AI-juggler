@@ -1,4 +1,4 @@
-<!-- captures: a8e30ac1825e -->
+<!-- captures: 3db9aed85ed7 -->
 # 97-controls: the shared controls and the rail's View
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -29,6 +29,8 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 - The menu covers the grouping switch beside it while open.
 - History's Picker open wasn't captured (fixed in this branch).
 - Second re-render, seen by eye on picker-open-history: History's rows stopped with an error said "7 h" and "12 h" beside their neighbours' "5 h ago" (fixed, below).
+- settings-general-cards-1024x700: the three order cards squeeze their hints to one or two words a line ("Stays put. / New ones / join at the / end.") and "Reset my order" wraps onto two lines inside its pill.
+- view-open, view-changed-only-open (both widths): the page heading "5 sessions need you" peeks out half-covered above the View menu's top edge.
 
 ## Fixed
 
@@ -47,3 +49,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | view-changed-only-open-1280x800, -1024x700 | Quiet ones turned on, Reset shown, Only › Account's submenu open with ✓ on All. | New. This branch: one row height. |
 | picker-open-history-1280x800, -1024x700 | History with its Project filter open: "Project" over All ✓ (focused), ai-juggler, storefront, sacrificial, under the Project: All and Profile: All chips. | New state (this branch): the spec counted the filters before History had drawn and skipped. |
 | settings-general-cards-1280x800, -1024x700 | Settings › General: theme, density and order as equal cards with the shared radio. | New (AJ-E2813). |
+
+## 0.3.2
+
+The View menu (view-open, view-changed-only-open) and History's Project picker (picker-open-history) float on a lifted surface over the darker canvas, and in light the white menus separate from the grey page. The picker changed most this round: it now opens right under its "Project: All" chip, only as wide as its longest name, with "All" ✓ on top, then ai-juggler, storefront and sacrificial (it used to hang wider and to the left of the chip). In dark the lighter accent shows on the header's New session, the logo mark, the ✓ marks, the Runway bar and Measure its limits; light changes only by a pixel in the This Mac line. The top bar stays one row at both widths: at 1280 with "This Mac · Plenty of room" and "7 to clean up", at 1024 with the cleanup pill shortened to a broom and "7" and the This Mac line left out. rail-group-switch shows the rail age fix: the Project rail's "Stopped with an error" and "Limit reached · 0% left" now end whole instead of on a cut-off "· 7…", while rows with room still show their age ("Asks you · 2 h", "Probably stuck · 3 h"). In settings-general-cards the chosen Light or Dark, Comfortable and Your order cards are a clearly tinted, outlined step above their neighbours in both themes, but at 1024×700 the three order cards still squeeze their hints to one or two words a line and "Reset my order" wraps inside its pill. In the View captures the page heading "5 sessions need you" still peeks out half-covered above the menu's top edge. After the second pass the 1280 captures' rail feat/read-model row keeps its age whole ("ai-j… · 3 h ago" where it read "ai-jugg… · 3 …"); nothing else changed.

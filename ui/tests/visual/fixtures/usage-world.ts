@@ -35,7 +35,7 @@ export const SUBSCRIPTIONS = [
   { key: "max", tool: "claude-code", state: "signed_in", email: "o…@work.com", organisation: null, reason: null, plan: "Max", renewal_date: "2026-11-02", fee_usd: 200, differs: [], profiles: [profile("claude-work", "~/Library/Application Support/ClaudeCodeProfiles/work"), profile("claude-work-2", "~/Library/Application Support/ClaudeCodeProfiles/work-2"), profile("claude-lab", "~/Library/Application Support/ClaudeCodeProfiles/lab")] },
   { key: "gpt", tool: "codex", state: "signed_in", email: "o…@work.com", organisation: null, reason: null, plan: "Pro", renewal_date: null, fee_usd: 200, differs: [], profiles: [profile("codex-main", "~/.codex")] },
   { key: "acme", tool: "claude-code", state: "signed_in", email: "o…@acme.com", organisation: "Acme team", reason: null, plan: "Team", renewal_date: null, fee_usd: null, differs: [], profiles: [profile("claude-client-a", "~/Library/Application Support/ClaudeCodeProfiles/client-a"), profile("claude-client-b", "~/Library/Application Support/ClaudeCodeProfiles/client-b")] },
-  { key: "pro", tool: "claude-code", state: "signed_in", email: "o…@home.com", organisation: null, reason: null, plan: "Pro", renewal_date: null, fee_usd: 20, differs: [], profiles: [profile("claude-personal", "~/Library/Application Support/ClaudeCodeProfiles/bookauth-olivia")] },
+  { key: "pro", tool: "claude-code", state: "signed_in", email: "o…@home.com", organisation: null, reason: null, plan: "Pro", renewal_date: null, fee_usd: 20, differs: [], profiles: [profile("claude-personal", "~/Library/Application Support/ClaudeCodeProfiles/studio-main")] },
 ];
 
 const project = (id: string, name: string, swatch: number, used: string[]) => ({

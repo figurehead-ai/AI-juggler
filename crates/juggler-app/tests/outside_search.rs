@@ -28,7 +28,9 @@ use juggler_app::state::AppState;
 fn transcript(config: &Path, cwd: &Path, name: &str, said: &[&str]) -> PathBuf {
     let dir = config
         .join("projects")
-        .join(cwd.to_string_lossy().replace('/', "-"));
+        .join(juggler_adapter::handover::mangled_dir(
+            &cwd.to_string_lossy(),
+        ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join(format!("{name}.jsonl"));
     let mut text = String::new();
@@ -171,11 +173,9 @@ fn the_size_shown_first_is_the_built_size_within_ten_percent() {
 #[test]
 fn a_sampled_estimate_is_within_ten_percent_too() {
     let lab = lab();
-    let total: u64 = std::fs::read_dir(
-        lab.config
-            .join("projects")
-            .join(lab.cwd.to_string_lossy().replace('/', "-")),
-    )
+    let total: u64 = std::fs::read_dir(lab.config.join("projects").join(
+        juggler_adapter::handover::mangled_dir(&lab.cwd.to_string_lossy()),
+    ))
     .unwrap()
     .flatten()
     .map(|entry| entry.metadata().unwrap().len())
@@ -216,7 +216,9 @@ fn it_finds_outside_words_in_context_and_follows_the_files() {
     let path = lab
         .config
         .join("projects")
-        .join(lab.cwd.to_string_lossy().replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(
+            &lab.cwd.to_string_lossy(),
+        ))
         .join("conv-webhook.jsonl");
     let mut text = std::fs::read_to_string(&path).unwrap();
     text.push_str(&format!(

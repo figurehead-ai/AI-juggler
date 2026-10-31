@@ -336,7 +336,7 @@ export function History({
         {/* What the search reaches, said while searching (the review of
             0.1.4: a four-line paragraph headed the page). */}
         {query.trim() && (
-          <p className="text-meta text-muted" data-testid="history-scope">
+          <p className="text-meta text-ink-2" data-testid="history-scope">
             {everyWord ? "Words are searched in every session." : "Words are searched in AI Juggler's sessions; Settings › Privacy turns it on for the rest."}
           </p>
         )}

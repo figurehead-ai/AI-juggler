@@ -302,6 +302,68 @@ fn reset_queue_notifies_once_marks_stale_never_launches() {
 }
 
 #[test]
+fn a_due_reminder_stays_until_acted_on_and_other_apps_sessions_can_have_one() {
+    // 0.3.2: "Queue for the reset" became "Remind me at <time>". The alert
+    // pass's notice used to hide the reminder (state `notified`), so its
+    // Resume never showed; a session another app runs went stale at once.
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    seed(&state, dir.path());
+    let now = Timestamp::now().millis();
+    {
+        let storage = state.storage.lock().unwrap();
+        let usage = storage.usage();
+        usage
+            .queue_reset("rq-sess-a", "sess-a", "acc-a", now - 1)
+            .unwrap();
+        usage
+            .queue_reset("rq-conv:c-1", "conv:c-1", "acc-a", now - 1)
+            .unwrap();
+        usage
+            .queue_reset("rq-later", "sess-a", "acc-a", now + 3_600_000)
+            .unwrap();
+    }
+    let told = alerts_tick_inner(&state, Some(12));
+    assert_eq!(
+        told.iter()
+            .filter(|event| event.kind == "reset-reached")
+            .count(),
+        2,
+        "both due reminders tell once: {told:?}"
+    );
+    let open = |state: &Arc<AppState>| -> Vec<String> {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .open_reminders()
+            .unwrap()
+            .into_iter()
+            .map(|(id, ..)| id)
+            .collect()
+    };
+    assert_eq!(
+        open(&state),
+        ["rq-sess-a", "rq-conv:c-1", "rq-later"],
+        "told, they stay until opened or closed"
+    );
+    let _ = alerts_tick_inner(&state, Some(12));
+    assert!(
+        open(&state).contains(&"rq-conv:c-1".to_owned()),
+        "another app's session isn't stale"
+    );
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .set_reset_state("rq-sess-a", "dismissed")
+        .unwrap();
+    assert_eq!(open(&state), ["rq-conv:c-1", "rq-later"]);
+}
+
+#[test]
 fn admission_verdict_rides_the_ranked_rows_e306() {
     // AJ-E306 Req.7: the SPEC §5.2 verdict rides the wire — a real
     // verdict when cap + burn are known; None (rendered "headroom

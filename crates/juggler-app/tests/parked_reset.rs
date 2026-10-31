@@ -60,7 +60,7 @@ fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathB
     let config = state.accounts_dir().join(CLAUDE_CODE_ID).join(&account.id);
     let transcript = config
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join("native-7.jsonl");
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     let mut body = String::new();

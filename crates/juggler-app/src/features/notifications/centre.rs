@@ -131,6 +131,13 @@ pub struct NoticeFacts {
     /// The account's name.
     #[serde(default)]
     pub account: Option<String>,
+    /// A used-up window the account's credits carry on past (the
+    /// maintainer's report, 0.3.2): what's left of them in words ("14,150
+    /// credits left"), or empty when the tool didn't say (it probably
+    /// does). `None`: not a credits notice.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub credits: Option<String>,
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]

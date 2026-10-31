@@ -12,7 +12,7 @@ import { MenuItem, MenuSeparator, RowMenu, menuPoint } from "./RowMenu";
 import { IconMute, IconSnooze } from "./icons-actions";
 import { IconAsk, IconClock, IconDone, IconStopped, IconWarn } from "./icons-menu";
 import { ChannelChip } from "./ChannelChip";
-import { happenedAt, needLine, needMeta, primaryLabel, secondOf, toneOf } from "../lib/notice-words";
+import { earlierLine, happenedAt, needLine, needMeta, noticeTone, primaryLabel, secondOf, toneOf } from "../lib/notice-words";
 import type { NoticeActions } from "../lib/notice-actions";
 import type { NoticeInfo } from "../lib/ipc/notices";
 
@@ -25,8 +25,8 @@ const TONES = {
 };
 
 /** A notice's mark (its tone and icon); `small` in the rail. */
-export function NoticeMark({ kind, small = false }: { kind: string; small?: boolean }): JSX.Element {
-  const tone = TONES[toneOf(kind)];
+export function NoticeMark({ kind, tone: given, small = false }: { kind: string; tone?: ReturnType<typeof toneOf>; small?: boolean }): JSX.Element {
+  const tone = TONES[given ?? toneOf(kind)];
   return (
     <span aria-hidden="true" className={"flex shrink-0 items-center justify-center rounded-lg " + (small ? "size-6 " : "size-8 ") + tone.className}>
       <tone.Icon width={small ? 14 : 16} height={small ? 14 : 16} />
@@ -56,7 +56,7 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
   if (!notice.needs) {
     return (
       <li className="flex gap-2.5 border-t border-hairline/50 px-3.5 py-2.5" data-testid="notice-earlier" data-kind={notice.kind}>
-        <NoticeMark kind={notice.kind} />
+        <NoticeMark kind={notice.kind} tone={noticeTone(notice)} />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-body text-ink">
             {notice.unread && <span className="sr-only">Unread: </span>}
@@ -65,7 +65,7 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
           </p>
           <p className="flex flex-wrap items-center gap-x-1.5 text-label text-muted">
             <span>{happenedAt(notice.created_ms, now)}</span>
-            {notice.detail && <span>· {notice.detail}</span>}
+            {earlierLine(notice, now) && <span>· {earlierLine(notice, now)}</span>}
             {primary && (
               <>
                 <span aria-hidden="true">·</span>
@@ -90,7 +90,7 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
           {notice.unread && <span className="sr-only">Unread: </span>}
           {notice.title}
         </p>
-        <p className="text-meta text-muted">{needLine(notice, now)}</p>
+        <p className="text-meta text-ink-2">{needLine(notice, now)}</p>
         {meta && <p className="truncate text-label text-muted">{meta}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {primary && (

@@ -28,6 +28,7 @@ import { useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { SuggestedMark } from "./SwitchTargetRows";
 import { IconClose } from "./icons-controls";
 import { resetsWords, whenWords } from "../lib/time-words";
+import { creditsConsequence, usingCreditsWords } from "../lib/credits";
 
 function inWords(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
@@ -42,8 +43,9 @@ function ago(ms: number): string {
 
 /** The pick: the one order by room's suggestion (`lib/room`, as Home's
  * "Best for new work"), else the first other account that isn't out of
- * room. Never the same account, a held-back one, or one out of room: that
- * would walk into another limit (the 0.2 walk, F1). */
+ * room (one carrying on with its credits can be: a session there goes on,
+ * 0.3.2). Never the same account, a held-back one, or one out of room:
+ * that would walk into another limit (the 0.2 walk, F1). */
 export function pickTarget(
   targets: SwitchTargetData[],
   fromAccount: string | null,
@@ -174,7 +176,7 @@ export function LimitDialog({
               <IconClose width={16} height={16} aria-hidden="true" />
             </button>
           </div>
-          <p id="limit-what" className="text-sm leading-relaxed text-muted">
+          <p id="limit-what" className="text-sm leading-relaxed text-ink-2">
             {resetAt
               ? resetAt > now
                 ? `It ${resetsWords(resetAt, now)}, in ${inWords(resetAt - now)}. `
@@ -199,7 +201,7 @@ export function LimitDialog({
           <>
             <section className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-4" data-testid="limit-continue">
               {targets === null ? (
-                <p className="text-xs text-muted">Finding the best account for this…</p>
+                <p className="text-xs text-ink-2">Finding the best account for this…</p>
               ) : target ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
@@ -211,12 +213,17 @@ export function LimitDialog({
                       Ready to continue on {target.account_label} · prepared {ago(now - ready.prepared_at_ms)}
                     </p>
                   )}
+                  {target.room.kind === "credits" && target.room.credits && (
+                    <p className="text-xs text-ink" data-testid="limit-target-credits">
+                      {usingCreditsWords(target.room.credits)}. {creditsConsequence(target.room.resetsAtMs, now, "It goes on")}
+                    </p>
+                  )}
                   {targetLines.length > 0 && (
-                    <p className="text-xs text-muted" data-testid="limit-target-runway">
+                    <p className="text-xs text-ink-2" data-testid="limit-target-runway">
                       {targetLines.map((line) => `${line.label}: ${line.words}`).join(" · ")}
                     </p>
                   )}
-                  <p className="text-xs leading-relaxed text-muted">
+                  <p className="text-xs leading-relaxed text-ink-2">
                     Takes the conversation, the branch and the project's context with it. Switching is in beta ({target.badge}):{" "}
                     <button
                       type="button"
@@ -229,7 +236,7 @@ export function LimitDialog({
                     .
                   </p>
                   {carry && (
-                    <p className="text-xs text-muted" data-testid="limit-drops">
+                    <p className="text-xs text-ink-2" data-testid="limit-drops">
                       {target.drops.length > 0 ? `Doesn't carry: ${target.drops.join(", ")}.` : "Everything this pair supports carries over."}
                     </p>
                   )}
@@ -238,7 +245,7 @@ export function LimitDialog({
                   </Button>
                 </>
               ) : (
-                <p className="text-xs text-muted" data-testid="limit-no-target">
+                <p className="text-xs text-ink-2" data-testid="limit-no-target">
                   No other account can take this session right now. Wait for the reset, or add an account.
                 </p>
               )}
@@ -246,13 +253,13 @@ export function LimitDialog({
 
             <section className="flex flex-col gap-2 rounded-xl border border-hairline p-4" data-testid="limit-wait">
               <span className="text-sm font-medium">Wait for the reset</span>
-              <p className="text-xs leading-relaxed text-muted">
+              <p className="text-xs leading-relaxed text-ink-2">
                 {stillOpen ? "Keeps it open where it stopped. " : "Parks the session. "}
                 {resetAt ? `At ${whenWords(resetAt, now)} it's offered back to you` : "Once the reset is known it's offered back to you"};
                 nothing {stillOpen ? "runs" : "restarts"} on its own.
               </p>
               {/* 0.3: said with the wait it belongs to, not under the footer. */}
-              <p className="text-xs leading-relaxed text-muted" data-testid="limit-switch-back">
+              <p className="text-xs leading-relaxed text-ink-2" data-testid="limit-switch-back">
                 You can switch back to {session.account_label} after the reset.
               </p>
               <Button

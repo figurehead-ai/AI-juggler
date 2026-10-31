@@ -162,7 +162,7 @@ export function EmptyPlot({ height, words }: { height: number; words: string }):
           <span key={line} className="block h-px bg-hairline/60" />
         ))}
       </div>
-      <p className="relative rounded-lg bg-surface px-3 py-1.5 text-meta text-muted">{words}</p>
+      <p className="relative rounded-lg bg-surface px-3 py-1.5 text-meta text-ink-2">{words}</p>
     </div>
   );
 }

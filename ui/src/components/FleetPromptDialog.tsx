@@ -81,7 +81,7 @@ export function FleetPromptDialog(): JSX.Element | null {
         <p id="fleet-prompt-title" className="text-sm font-semibold">
           {prompt.peer_label} asks to act on this Mac
         </p>
-        <p id="fleet-prompt-body" className="mt-1.5 text-xs leading-relaxed text-muted">
+        <p id="fleet-prompt-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           It wants to <span className="text-ink">{prompt.action}</span>. Nothing happens unless you
           allow it. If you don't answer, it's denied in {left} s.
         </p>

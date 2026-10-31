@@ -53,20 +53,23 @@ export function AppHeader({
     >
       <h1 className="sr-only">{title}</h1>
       <MainNav primary={PRIMARY_NAV} global={global} page={page} pairedCount={pairedCount} onPick={onPick} />
-      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 xl:gap-1.5" data-tauri-drag-region={false}>
+      {/* From 960 px the rest always fits one row beside the tabs, so the
+          cluster takes the room left and This Mac's line shortens (…)
+          instead of the bar wrapping (0.3.2, a longer status word). */}
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap" data-tauri-drag-region={false}>
         {/* AJ-E2105: This Mac's line, in the top bar (it gives way first):
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row
             (the 0.3 re-render found it wrapping). */}
         <span className={"mr-1 hidden min-w-0 text-muted " + (pairedCount > 0 ? "@min-[1060px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
-          <MachineStatusLine minimal={false} onOpen={onOpenThisMac} />
+          <MachineStatusLine minimal={false} short onOpen={onOpenThisMac} />
         </span>
         <CleanupPill count={cleanupCount} shown={global !== "cleanup"} onOpen={() => onPick("cleanup")} />
-        <Button size="sm" variant="primary" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1">
+        <Button size="sm" variant="primary" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1 shrink-0">
           <IconTerminal width={14} height={14} />
           New session
         </Button>
-        <span className="ml-1.5 flex items-center gap-2">
+        <span className="ml-1.5 flex shrink-0 items-center gap-2">
           <NotificationBell sessions={sessions} />
           <UserMenu />
         </span>

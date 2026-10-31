@@ -368,7 +368,7 @@ function FoundStep({
         <h1 className="text-stat font-semibold tracking-tight">
           {tools.length > 1 ? "Looking for your setups on this computer…" : `Looking for ${toolName} on this computer…`}
         </h1>
-        <p className="text-sm text-muted">{toolSpec(provider).scan_hint}</p>
+        <p className="text-sm text-ink-2">{toolSpec(provider).scan_hint}</p>
       </div>
     );
   }
@@ -378,7 +378,7 @@ function FoundStep({
     <div className="flex flex-col gap-6" data-testid="first-run-found">
       <div className="flex flex-col gap-2">
         <h1 className="text-stat font-semibold leading-tight tracking-tight">{words.heading}</h1>
-        <p className="max-w-2xl text-section leading-relaxed text-muted">{words.lead}</p>
+        <p className="max-w-2xl text-section leading-relaxed text-ink-2">{words.lead}</p>
         {scanError !== null && (
           <div>
             <Button onClick={onScanAgain} data-testid="first-run-scan-again">
@@ -517,7 +517,7 @@ function FoundStep({
         </div>
       )}
       {installs.length > 0 && !showOutcome && canInPlace && copyOnlyTools.length > 0 && (
-        <p className="-mt-3 text-xs text-muted" data-testid="first-run-copy-only">
+        <p className="-mt-3 text-xs text-ink-2" data-testid="first-run-copy-only">
           {copyOnlyTools.map(providerDisplayName).join(" and ")} setups always come in as copies.
         </p>
       )}
@@ -791,7 +791,7 @@ function SigninStep({
               ? "One account needs a quick sign-in."
               : `${left.length} accounts need a quick sign-in.`}
         </h1>
-        <p className="max-w-2xl text-section leading-relaxed text-muted">
+        <p className="max-w-2xl text-section leading-relaxed text-ink-2">
           {(() => {
             // One tool: its own sign-in by name. First run with every tool
             // (AJ-E1301): each account opens its own tool's sign-in.
@@ -927,7 +927,7 @@ function FolderStep({
     <div className="flex flex-col gap-6" data-testid="first-run-folder">
       <div className="flex flex-col gap-2">
         <h1 className="text-stat font-semibold leading-tight tracking-tight">Bring in this folder?</h1>
-        <p className="max-w-2xl text-section leading-relaxed text-muted">
+        <p className="max-w-2xl text-section leading-relaxed text-ink-2">
           AI Juggler makes its own copy; the folder itself isn't changed, and you can keep using it as before.
         </p>
       </div>

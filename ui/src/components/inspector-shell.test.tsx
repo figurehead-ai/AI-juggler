@@ -248,14 +248,16 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
     expect(getByTestId("header-switch").textContent).toBe("Switch account…");
   });
 
-  it("the switch list is one step away: closed, opened by Switch account…; open when the limit hit", async () => {
-    const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
+  it("the switch list is one step away: closed, Switch account… opens it in a dialog (0.3.2); open when the limit hit", async () => {
+    const { getByTestId, queryByTestId } = shell({ kind: "instance", id: "sess-1" });
     const section = getByTestId("handover-section") as HTMLDetailsElement;
     expect(section.open).toBe(false);
     await act(async () => {
       fireEvent.click(getByTestId("header-switch"));
     });
-    expect((getByTestId("handover-section") as HTMLDetailsElement).open).toBe(true);
+    expect(getByTestId("continue-dialog").textContent).toContain("Continue on another account");
+    fireEvent.click(getByTestId("continue-dialog-close"));
+    expect(queryByTestId("continue-dialog")).toBeNull();
     cleanup();
     const blocked = shell({ kind: "instance", id: "sess-1" }, { instance: { ...instance, status: "quota_blocked" } });
     expect((blocked.getByTestId("handover-section") as HTMLDetailsElement).open).toBe(true);

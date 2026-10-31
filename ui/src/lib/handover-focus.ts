@@ -81,3 +81,20 @@ export function openOnAccount(
     .map((conversation) => ({ at: when(conversation.last_activity_ms, conversation.started_ms), pick: { conversation } }));
   return [...own, ...others].sort((a, b) => b.at - a.at)[0]?.pick ?? null;
 }
+
+/** What opened Continue on another account, kept for the switch a pick
+ * opens: Cancel there gives it the keyboard back (WCAG 2.4.3). Handed over
+ * here, not read from the page, since a terminal that finishes loading in
+ * between may have taken focus (0.3.2's keyboard walk). */
+let switchOpener: { element: Element; at: number } | null = null;
+
+export function noteSwitchOpener(element: Element | null): void {
+  switchOpener = element ? { element, at: Date.now() } : null;
+}
+
+/** The opener noted a moment ago, once; else null. */
+export function takeSwitchOpener(): Element | null {
+  const noted = switchOpener;
+  switchOpener = null;
+  return noted && Date.now() - noted.at < PENDING_MS && noted.element.isConnected ? noted.element : null;
+}

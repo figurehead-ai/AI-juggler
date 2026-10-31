@@ -66,7 +66,7 @@ export function TaskTree({ plan, poolId, open, now, onOpen }: { plan: TaskInfo[]
   const roots = plan.filter((item) => item.kind === "epic" || !plan.some((p) => p.id === item.parent_id));
   if (roots.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-muted" data-testid="tree-empty">
+      <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="tree-empty">
         No epics or stories yet. Add an epic to plan bigger work, then its stories, then their tasks.
       </p>
     );

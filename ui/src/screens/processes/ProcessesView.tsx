@@ -209,14 +209,14 @@ export function ProcessesView({
         />
       )}
       {zombies > 0 && (view === "attention" || view === "running") && (
-        <p className="text-meta text-muted" data-testid="zombie-words">
+        <p className="text-meta text-ink-2" data-testid="zombie-words">
           <span className="font-medium text-ink">Waiting for its parent</span> means: {ZOMBIE_WORDS}
         </p>
       )}
       {error && rows.length === 0 && <p className="text-body text-danger">Couldn't read the processes: {error}</p>}
       {view === "ports" ? (
         <section className="flex flex-col gap-2" aria-label="Ports on this computer" data-testid="processes-ports">
-          <p className="text-meta text-muted">Every port open on this computer: what each is, and whether a session left it running.</p>
+          <p className="text-meta text-ink-2">Every port open on this computer: what each is, and whether a session left it running.</p>
           <div className="rounded-card border border-hairline bg-surface px-4 py-3">
             <PortInventoryList bridge={PORTS} />
           </div>
@@ -224,7 +224,7 @@ export function ProcessesView({
       ) : view === "history" ? (
         <HistoryView sessionId={sessionId} />
       ) : loading ? (
-        <div className="h-64 animate-pulse rounded-card bg-surface-2" aria-label="Loading the processes" data-testid="processes-loading" />
+        <div className="h-64 animate-pulse rounded-card bg-skeleton" aria-label="Loading the processes" data-testid="processes-loading" />
       ) : (
         <ProcessTree
           rows={rows}

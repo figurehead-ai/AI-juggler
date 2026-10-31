@@ -12,11 +12,14 @@
  *
  * A pick of yours out of room is passed over for the Suggested one, and
  * the sheet says so ("Your default, Work, is out of room until …"): a
- * new session there would stop at once.
+ * new session there would stop at once. One whose used-up window its
+ * credits carry on past stays the pick (a session there goes on, 0.3.2),
+ * and the sheet says it is using its credits.
  */
 import { runwayOf } from "../components/AccountRunway";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo, type QuotaDisplayData } from "./bridge";
 import { rankByRoom, type RoomKind } from "./room";
+import type { CreditsCover } from "./credits";
 
 export type PickWhy = "chosen" | "project-default" | "your-default" | "last-here" | "suggested" | "first";
 
@@ -30,9 +33,9 @@ export interface LaunchPick {
 }
 
 /** An account's room, as Home's Runway reads it. */
-export function launchRoom(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = []): { left: number | null; resetsAtMs: number | null } {
+export function launchRoom(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = []): { left: number | null; resetsAtMs: number | null; credits: CreditsCover | null } {
   const run = runwayOf(display, sessions);
-  return { left: run.left, resetsAtMs: run.resetsAtMs ?? null };
+  return { left: run.left, resetsAtMs: run.resetsAtMs ?? null, credits: run.credits ?? null };
 }
 
 export function pickLaunch(
@@ -44,17 +47,17 @@ export function pickLaunch(
   sessions: InstanceInfo[] = [],
 ): LaunchPick | null {
   if (recipes.length === 0) return null;
-  const left = (accountId: string) =>
+  const room = (accountId: string) =>
     launchRoom(
       quotas.find((entry) => entry.account === accountId),
       sessions.filter((row) => row.account_id === accountId),
-    ).left;
+    );
   // Signed out can't take work: never suggested (as New session's rows).
   const usable = (recipe: LaunchRecipeInfo) => {
     const state = accounts.find((account) => account.id === recipe.account_id)?.login_state;
     return state === undefined || signedIn(state);
   };
-  const ranked = rankByRoom(recipes, (recipe) => left(recipe.account_id), usable);
+  const ranked = rankByRoom(recipes, (recipe) => room(recipe.account_id).left, usable, (recipe) => room(recipe.account_id).credits !== null);
   const kindOf = new Map<string, RoomKind>(ranked.map((row) => [row.item.id, row.kind]));
   const suggested = ranked.find((row) => row.suggested)?.item ?? null;
   const of = (accountId: string | null | undefined) => (accountId ? recipes.find((recipe) => recipe.account_id === accountId) : undefined);

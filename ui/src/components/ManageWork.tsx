@@ -128,7 +128,7 @@ function ProblemSheet({ title, message, onClose }: { title: string; message: str
   return (
     <Modal title={title} onClose={onClose}>
       <div className="flex flex-col gap-4 text-sm">
-        <p className="leading-relaxed text-muted" role="alert" data-testid="manage-problem">
+        <p className="leading-relaxed text-ink-2" role="alert" data-testid="manage-problem">
           {message}
         </p>
         <div className="flex justify-end">
@@ -238,7 +238,7 @@ function ForgetSheet({ project, onClose, onDone }: { project: ProjectInfo; onClo
   return (
     <Modal title={`Forget ${project.name}?`} onClose={onClose}>
       <div className="flex flex-col gap-4 text-sm" data-testid="forget-project">
-        <p className="leading-relaxed text-muted">
+        <p className="leading-relaxed text-ink-2">
           It leaves the rail and New session until you start a session there again. Nothing in the folder changes, and its sessions stay in History.
         </p>
         {error && (

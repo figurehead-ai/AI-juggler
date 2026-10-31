@@ -45,7 +45,7 @@ export function Page({
               <Heading className="text-title text-ink">{title}</Heading>
               {badge}
             </div>
-            {subtitle && <p className="max-w-[72ch] text-body text-muted">{subtitle}</p>}
+            {subtitle && <p className="max-w-[72ch] text-body text-ink-2">{subtitle}</p>}
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </header>

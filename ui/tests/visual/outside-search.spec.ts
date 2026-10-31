@@ -58,7 +58,7 @@ for (const theme of ["dark", "light"] as const) {
       await expect(page.getByTestId("outside-search-size")).toHaveText(
         enabled
           ? "Index: 212 MB so far · 1180 of 3412 sessions. It builds in the background."
-          : "Its index would take about 684 MB on this Mac, for 3412 sessions.",
+          : "Its index would take about 684 MB on this computer, for 3412 sessions.",
       );
       await setting.scrollIntoViewIfNeeded();
       await page.mouse.move(0, 0);

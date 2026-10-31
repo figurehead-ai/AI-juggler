@@ -166,7 +166,7 @@ function Travelled({ project, data, cut, onOpenSession }: { project: ProjectInfo
   return (
     <Section title="How this work travelled" icon={<IconRoute />} sub="who worked here, day by day; arrows are moves between accounts" className={SPAN.full} testId="project-switch-graph-card">
       {lanes.length === 0 || lanes.every((lane) => lane.values.length === 0) ? (
-        <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-meta text-muted">
+        <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-meta text-ink-2">
           {data === null ? "Reading usage…" : "No work here in the last 30 days. When a session here moves to another account, the move shows on this line."}
         </p>
       ) : (

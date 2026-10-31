@@ -22,6 +22,7 @@ import {
   errorText,
 } from "../lib/bridge";
 import { Radio } from "./controls";
+import { PRIMARY_FILL } from "./primitives";
 
 type Phase =
   | { kind: "plan" }
@@ -139,7 +140,7 @@ export function SwitchBackFlow({
         className="flex max-h-[86vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-hairline bg-surface p-5 shadow-card"
       >
         {phase.kind === "plan" && (
-          <p className="text-xs text-muted" data-testid="switch-back-planning">
+          <p className="text-xs text-ink-2" data-testid="switch-back-planning">
             Reading the switch lineage (plan)…
           </p>
         )}
@@ -277,14 +278,11 @@ export function SwitchBackFlow({
                 disabled={unresolved > 0}
                 onClick={() => void execute()}
                 data-testid="switch-back-confirm"
-                className={
-                  "rounded-lg border px-3 py-1.5 text-xs " +
-                  (unresolved > 0
-                    ? "border-hairline text-muted"
-                    : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
-                }
+                // 0.3.2: the one primary fill, as in every dialog; faded
+                // while a conflict waits on a choice.
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${PRIMARY_FILL} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100`}
               >
-                Resume {plan.original_account} ▸ {armed && <span className="text-muted">(⏎)</span>}
+                Resume {plan.original_account} ▸ {armed && <span>(⏎)</span>}
               </button>
             </div>
           </div>

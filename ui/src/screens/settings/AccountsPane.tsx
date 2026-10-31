@@ -7,6 +7,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { RenewalSettingsCard } from "../../components/SettingsSections";
 import { ToolMark } from "../../components/ToolMark";
+import { ToolNewerLine, ToolUpdateChecks, useToolUpdates } from "../../components/ToolUpdateLine";
 import { accountsList, providersDiscover, type AccountInfo, type ProviderInstallData } from "../../lib/bridge";
 import { installWords } from "../../lib/providers";
 import { useTools } from "../../lib/tools";
@@ -27,6 +28,7 @@ function useInstalls(): ProviderInstallData[] | null {
 function ToolsSection({ accounts }: { accounts: AccountInfo[] }): JSX.Element | null {
   const installs = useInstalls();
   const tools = useTools().filter((tool) => accounts.some((account) => account.provider === tool.id));
+  const [updates, setChecks] = useToolUpdates(tools.map((tool) => tool.id));
   if (tools.length === 0) return null;
   return (
     <PaneSection id="tools" title="Tools on this computer" footer="Read from each tool's install. AI Juggler updates none of them.">
@@ -40,9 +42,16 @@ function ToolsSection({ accounts }: { accounts: AccountInfo[] }): JSX.Element | 
             icon={<ToolMark tool={tool.id} size={20} className="text-muted" />}
             title={tool.display_name}
             description={`${count === 1 ? "1 account" : `${count} accounts`} · ${installs === null ? "checking what's installed…" : install ? installWords(install) : "Couldn't check what's installed"}`}
-          />
+          >
+            <ToolNewerLine info={updates[tool.id]} name={tool.display_name} />
+          </SettingRow>
         );
       })}
+      {Object.keys(updates).length > 0 && (
+        <li className="px-4 py-3">
+          <ToolUpdateChecks rows={updates} onChange={setChecks} />
+        </li>
+      )}
     </PaneSection>
   );
 }

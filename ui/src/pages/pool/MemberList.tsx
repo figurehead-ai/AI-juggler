@@ -34,7 +34,7 @@ export function MemberList({ data, canvas, sessions, names, now, onSelect }: { d
             Who talks to whom <span className="text-meta font-normal text-muted">this week</span>
           </h3>
           {edges.length === 0 ? (
-            <p className="text-meta text-muted">No messages or task hand-offs between the members yet.</p>
+            <p className="text-meta text-ink-2">No messages or task hand-offs between the members yet.</p>
           ) : (
             <ul className="flex flex-col divide-y divide-hairline/60 rounded-card border border-hairline bg-surface" data-testid="pool-list-edges">
               {edges.map((edge) => {

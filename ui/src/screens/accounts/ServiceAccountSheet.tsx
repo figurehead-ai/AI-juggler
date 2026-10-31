@@ -82,7 +82,7 @@ export function ServiceAccountSheet({
   if (!service) {
     return (
       <Modal title="Through another service" onClose={onClose} testId="service-account-sheet">
-        <p className="text-xs text-muted" role="status">Loading…</p>
+        <p className="text-xs text-ink-2" role="status">Loading…</p>
       </Modal>
     );
   }

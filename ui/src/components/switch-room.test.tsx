@@ -111,16 +111,39 @@ describe("F1 Continue on another account", () => {
     expect((within(last).getByTestId("continue-target") as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("F8: ⌘⇧H while the targets load holds the card, then hands the keyboard to the Suggested one", async () => {
+  it("F8, 0.3.2: ⌘⇧H opens the list in a dialog; while it loads the dialog holds the keyboard, then the Suggested one takes it", async () => {
     let resolve!: (rows: SwitchTargetData[]) => void;
     vi.mocked(bridge.switchTargets).mockReturnValue(new Promise((done) => (resolve = done)));
     const model = fromInstance({ id: "s-1", provider: "claude-code", account_id: "src", account_label: "Source", conversation_id: "c", status: "running", cwd: "/w" } as unknown as InstanceInfo);
     render(<ContinueOn model={model} accounts={[]} displays={DISPLAYS} onPick={vi.fn()} />);
     act(() => void focusHandover());
-    expect(document.activeElement?.getAttribute("data-testid")).toBe("continue-on");
+    expect(document.activeElement?.getAttribute("data-testid")).toBe("continue-dialog");
+    expect(screen.getByTestId("continue-in-dialog").textContent).toContain("dialog");
     await act(async () => resolve(TARGETS));
     await waitFor(() => expect(document.activeElement?.getAttribute("data-suggested")).toBe("true"));
     expect(document.activeElement?.textContent).toContain("Account B");
+    expect(screen.getByTestId("continue-dialog").contains(document.activeElement)).toBe(true);
+    // Esc closes it, nothing picked; the list is back on the page.
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByTestId("continue-dialog")).toBeNull();
+    expect(screen.getAllByTestId("continue-target").length).toBeGreaterThan(0);
+  });
+
+  it("0.3.2: picking an account in the dialog closes it and opens the switch screen", async () => {
+    vi.mocked(bridge.switchTargets).mockResolvedValue(TARGETS);
+    const onPick = vi.fn();
+    const model = fromInstance({ id: "s-1", provider: "claude-code", account_id: "src", account_label: "Source", conversation_id: "c", status: "running", cwd: "/w" } as unknown as InstanceInfo);
+    render(<ContinueOn model={model} accounts={[]} displays={DISPLAYS} onPick={onPick} />);
+    act(() => void focusHandover());
+    const dialog = await screen.findByTestId("continue-dialog");
+    const best = await waitFor(() => {
+      const button = dialog.querySelector<HTMLButtonElement>("[data-suggested='true']");
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    fireEvent.click(best);
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("continue-dialog")).toBeNull();
   });
 });
 

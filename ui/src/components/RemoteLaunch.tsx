@@ -106,7 +106,7 @@ export function RemoteSessionSheet({ where, onClose }: { where: Where; onClose: 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <MachinePicker where={where} />
           {machine.why_not ? (
-            <p className="text-xs text-muted" data-testid="remote-why-not">
+            <p className="text-xs text-ink-2" data-testid="remote-why-not">
               {machine.why_not}.
             </p>
           ) : (

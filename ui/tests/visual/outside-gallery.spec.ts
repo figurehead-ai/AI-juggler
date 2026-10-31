@@ -70,7 +70,9 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, theme);
     await projectLens(page);
     await page.getByTestId("rail").getByTestId("rail-project").first().click();
-    // AJ-E1533: the project's body lists every session, outside ones too.
+    // AJ-E1533: the project's Sessions tab lists every session, outside
+    // ones too (0.3: a project opens on its Overview).
+    await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Sessions" }).click();
     await expect(page.getByTestId("page-panel-sessions").locator('[data-testid="page-session-row"][data-outside="true"]').first()).toBeVisible();
     await shoot(page, "project-page", theme);
   });

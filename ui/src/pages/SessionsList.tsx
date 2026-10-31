@@ -139,7 +139,7 @@ export function useSessionRows(
 /** The heading over a list: how many, how many open. */
 function ListCount({ total, open }: { total: number; open: number }): JSX.Element {
   return (
-    <p className="text-meta text-muted" data-testid="page-sessions-count">
+    <p className="text-meta text-ink-2" data-testid="page-sessions-count">
       {total === 1 ? "1 session" : `${total} sessions`}
       {open > 0 && ` · ${open} open`}
     </p>
@@ -148,7 +148,7 @@ function ListCount({ total, open }: { total: number; open: number }): JSX.Elemen
 
 function EmptyList({ empty }: { empty: string }): JSX.Element {
   return (
-    <p className="rounded-card border border-hairline bg-surface px-4 py-8 text-center text-body text-muted" data-testid="page-sessions-empty">
+    <p className="rounded-card border border-hairline bg-surface px-4 py-8 text-center text-body text-ink-2" data-testid="page-sessions-empty">
       {empty}
     </p>
   );

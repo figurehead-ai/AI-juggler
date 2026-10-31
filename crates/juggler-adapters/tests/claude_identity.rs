@@ -11,14 +11,14 @@ fn a_signed_in_config_dir_reports_its_account_masked() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
         dir.path().join(".claude.json"),
-        r#"{"numStartups":3,"oauthAccount":{"accountUuid":"acct-123","emailAddress":"olivia@example.com","organizationName":"Acme"}}"#,
+        r#"{"numStartups":3,"oauthAccount":{"accountUuid":"acct-123","emailAddress":"sam@example.com","organizationName":"Acme"}}"#,
     )
     .unwrap();
     assert_eq!(
         probe_claude_identity(dir.path()),
         IdentityProbe::SignedIn {
             subject: "acct-123".into(),
-            label: "o…@example.com · Acme".into(),
+            label: "s…@example.com · Acme".into(),
             org: None,
         }
     );
@@ -69,7 +69,7 @@ fn a_personal_plan_and_a_team_seat_on_one_login_name_their_organisations() {
         std::fs::write(
             dir.path().join(".claude.json"),
             format!(
-                r#"{{"oauthAccount":{{"accountUuid":"acct-1","emailAddress":"olivia@example.com","organizationUuid":"{org}","organizationName":"{name}"}}}}"#
+                r#"{{"oauthAccount":{{"accountUuid":"acct-1","emailAddress":"sam@example.com","organizationUuid":"{org}","organizationName":"{name}"}}}}"#
             ),
         )
         .unwrap();

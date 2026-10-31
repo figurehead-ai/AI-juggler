@@ -89,10 +89,11 @@ async function seed(page: Page, machine: string, alerts: unknown[], theme: "dark
 
 /** Opens a session from the rail: the screens the banner is for. */
 async function openSession(page: Page, title: RegExp) {
-  await openRailList(page);
   // AJ-E2104: the rows named by state first are the place lens's; these
-  // read the project board's.
+  // read the project board's. (The lens reloads the page, so the list is
+  // opened after it: a narrow window folds the rail again on load.)
   await projectLens(page);
+  await openRailList(page);
   await page.getByTestId("instance-board").getByRole("button", { name: title }).first().click();
 }
 
@@ -131,7 +132,7 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, "others", [OTHERS], theme);
     const item = page.getByTestId("home-need-mac");
     await expect(item).toContainText("Your Mac is under memory pressure");
-    await expect(item).toContainText("Other apps are using most of the memory: next-server 6.4 GB, Docker about 4.0 GB, fseventsd 1.5 GB");
+    await expect(item).toContainText("Other apps are using most of the memory: next-server 6.0 GB, Docker about 3.7 GB, fseventsd 1.4 GB");
     await expect(item).not.toContainText("Claude app");
     await page.screenshot({ path: resolve(OUT, `memory-pressure-other-apps-1280x800-${theme}.png`) });
     await axeClean(page);

@@ -545,10 +545,13 @@ test("status is never colour-only", async ({ page }) => {
   for (const dot of dots) {
     const line = dot.locator("xpath=ancestor::*[@data-rail-row][1]");
     const row = line.locator("[data-rail-item]");
-    const word = (await line.getByTestId("state-word").innerText()).trim();
     const id = (await row.getAttribute("data-rail-item")) ?? "a row";
-    expect.soft(word, `${id}: its state in words`).toMatch(vocabulary);
-    await expect.soft(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `));
+    // Read together until they agree (as in the Project lens below).
+    await expect(async () => {
+      const word = (await line.getByTestId("state-word").innerText()).trim();
+      expect(word, `${id}: its state in words`).toMatch(vocabulary);
+      await expect(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `), { timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
     drawn.add((await dot.getAttribute("data-state-dot"))!);
   }
   // Needs you: why, in amber and in words, and first in the row's name.
@@ -577,9 +580,14 @@ test("status is never colour-only", async ({ page }) => {
   for (const glyph of glyphs) {
     const row = glyph.locator("xpath=ancestor::button[1]");
     const id = (await row.getAttribute("data-instance-id")) ?? "a row";
-    const word = (await row.locator('[data-testid="rail-state-word"], [data-testid="rail-parked"]').innerText()).trim();
-    expect.soft(word, `${id}: its state in words`).not.toBe("");
-    await expect.soft(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(escape(word)));
+    // Word and name read together until they agree: a state that changes
+    // between the two reads (the fixture's Needs you filling in) isn't a
+    // row that says two things (the 0.4 preflight's flake).
+    await expect(async () => {
+      const word = (await row.locator('[data-testid="rail-state-word"], [data-testid="rail-parked"]').innerText()).trim();
+      expect(word, `${id}: its state in words`).not.toBe("");
+      await expect(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(escape(word)), { timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
   }
   await expect(rail, "one vocabulary: no old state words").not.toContainText(/Running|Starting|Waiting for you|Looks stuck|Hit its limit|Handed over/);
 });

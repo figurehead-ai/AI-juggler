@@ -10,7 +10,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, DOOR_WIZARD, openSwitch, expectRail, NARROW_RAIL_PX } from "./fixtures";
+import { allStatuses, DOOR_WIZARD, openSwitch, expectRail, NARROW_RAIL_PX, switchRows } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804/zoom-motion");
@@ -83,8 +83,8 @@ async function walk(page: Page, theme: string, label: string) {
   await shoot(page, `inspector-${label}-${theme}`);
   // The switch wizard.
   await openSwitch(page);
-  await page.getByTestId("handover-section").locator("button[data-row]:not(:disabled)").first().scrollIntoViewIfNeeded();
-  await page.getByTestId("handover-section").locator("button[data-row]:not(:disabled)").first().click();
+  await switchRows(page).first().scrollIntoViewIfNeeded();
+  await switchRows(page).first().click();
   await expect(page.getByTestId("switch-flow")).toBeVisible();
   await expect(page.getByTestId("switch-continue")).toBeInViewport();
   await noHorizontalScroll(page);

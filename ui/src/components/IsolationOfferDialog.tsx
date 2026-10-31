@@ -14,6 +14,7 @@ import {
   type IsolationOfferRequest,
 } from "../lib/bridge";
 import { Radio } from "./controls";
+import { PRIMARY_FILL } from "./primitives";
 
 export function IsolationOfferDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IsolationOfferRequest | null>(null);
@@ -167,7 +168,7 @@ export function IsolationOfferDialog(): JSX.Element | null {
             onClick={go}
             className={
               "rounded-lg border px-3 py-1.5 text-xs " +
-              (ready ? "border-accent/40 bg-accent-soft text-accent-hi" : "border-hairline text-muted")
+              (ready ? PRIMARY_FILL : "border-hairline text-muted")
             }
             data-testid="isolation-go"
           >

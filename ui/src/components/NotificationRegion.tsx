@@ -2,11 +2,18 @@
  * AJ-E611, AJ-E2504 — the band of banners above a screen, one polite live
  * region, every banner the shared §2 Banner (the approved design of
  * 2026-10-27): an account almost out of room (from the notification
- * model, with its meter, Continue on another account…, Queue for the reset, Snooze 1 h,
- * and a close that leaves it in the centre; at most three), an update,
- * a parked session's reset, a queued resume, this computer's alerts and
- * another computer's. Plain words, real actions; nothing here launches by
- * itself — every action is a click.
+ * model, with its meter, Continue on another account…, Remind me at the
+ * reset, Snooze 1 h, and a close that leaves it in the centre), a
+ * reminder that's due, an update, a parked session's reset, this
+ * computer's alerts and another computer's. Plain words, real actions;
+ * nothing here launches by itself — every action is a click.
+ *
+ * 0.3.2 (the maintainer's 0.3.0 walk: stacked banners pushed the page
+ * down and cut it off, and a close took about a minute): one banner shows,
+ * the most pressing, with "N more" opening the rest in place; a close or
+ * a snooze hides it at once and the backend catches up (it comes back,
+ * with the reason, if the backend refuses); a reminder shows nothing while
+ * it waits, only when it's due.
  *
  * The alert pass still runs here on its 30 s poll: it feeds the
  * notification model (and the paired consoles); the model's banners are
@@ -42,8 +49,10 @@ import { usePagedList } from "../lib/paged";
 import { notificationsDismiss, notificationsPage, type NoticeInfo } from "../lib/ipc/notices";
 import { acted } from "../lib/notices-store";
 import { useNoticeActions } from "../lib/notice-actions";
-import { quotaDetail } from "../lib/notice-words";
-import { whenWords } from "../lib/time-words";
+import { quotaDetail, secondOf } from "../lib/notice-words";
+import { REMINDER_CONVERSATION } from "../lib/notice-actions";
+import { useActionHost } from "./ItemMenu";
+import { useConversations } from "../lib/conversations";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -137,13 +146,11 @@ function usePoll(setQueue: (rows: ResetQueueRow[]) => void, setOffers: (rows: Pa
 }
 
 export function NotificationRegion({
-  onQueueResume,
   onOpenRemote,
   hideMachineAlerts = false,
   sessions = [],
   accounts = [],
 }: {
-  onQueueResume?: (row: ResetQueueRow) => void;
   /** AJ-E709: open the machine a Fleet alert came from. */
   onOpenRemote?: (machineId: string) => void;
   /** Home lists this computer's alerts and the accounts almost out of
@@ -157,6 +164,11 @@ export function NotificationRegion({
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
   const [restartError, setRestartError] = useState<string | null>(null);
+  // Closed or snoozed here, not yet confirmed by the backend (0.3.2).
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  const [more, setMore] = useState(false);
+  const host = useActionHost();
+  const { all: conversations } = useConversations();
   // AJ-E1408: overload alerts — told once, dismissable, passive only.
   const [machineAlerts, setMachineAlertsState] = useState<MachineNotice[]>(machineNotices);
   const thisMac = useContext(ThisMacContext);
@@ -191,14 +203,37 @@ export function NotificationRegion({
       .filter((entry) => !dismissed.has(entry.key))
       .slice(0, 3),
   );
-  const accountName = (id: string) => accounts.find((account) => account.id === id || account.label === id)?.label ?? "its account";
+  const accountName = (id: string) => accounts.find((account) => account.id === id || account.label === id)?.label ?? "Its account";
   const { update, ready } = updates;
-  return (
-    <div aria-live="polite" role="status" data-testid="notification-region" className="flex flex-col gap-2 [&:not(:empty)]:mb-3">
-      {!hideMachineAlerts &&
-        banners.items.map((notice) => (
+  /** Hides it now; the write follows, and a refusal puts it back. */
+  const hideWhile = (key: string, write: () => Promise<unknown>) => {
+    setHidden((prior) => new Set(prior).add(key));
+    void write().then(
+      (done) => done === false && setHidden((prior) => without(prior, key)),
+      () => setHidden((prior) => without(prior, key)),
+    );
+  };
+  const reminderOf = (row: ResetQueueRow) => {
+    if (row.session.startsWith(REMINDER_CONVERSATION)) {
+      const conversation = conversations.find((c) => c.id === row.session.slice(REMINDER_CONVERSATION.length));
+      return { name: conversation ? (conversation.title ?? conversation.git_branch ?? folderOf(conversation.cwd)) : null, open: conversation ? () => host.openConversation?.(conversation) : null };
+    }
+    const session = sessions.find((s) => s.id === row.session);
+    return { name: session ? (session.git_branch ?? folderOf(session.cwd)) : null, open: session ? () => host.openSessionById?.(session.id) : null };
+  };
+  // The band's banners, the most pressing first: what stops work, then
+  // what's due, then news.
+  const items: Array<{ key: string; node: JSX.Element }> = [];
+  if (!hideMachineAlerts)
+    for (const notice of banners.items) {
+      const key = `notice-${notice.id}`;
+      if (hidden.has(key)) continue;
+      const second = secondOf(notice);
+      items.push({
+        key,
+        node: (
           <Banner
-            key={notice.id}
+            key={key}
             tone="warning"
             title={notice.title}
             detail={quotaDetail(notice, now)}
@@ -206,19 +241,66 @@ export function NotificationRegion({
             actions={[
               // F16: the switch for its open session, else (named so) its account.
               { label: actions.canHandOver(notice) ? "Continue on another account…" : "Open its account", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
-              { label: "Queue for the reset", onClick: () => actions.second(notice, "queue-reset"), testId: "quota-banner-queue" },
-              { label: "Snooze 1 h", quiet: true, onClick: () => actions.snooze(notice, "hour") },
+              ...(second?.id === "remind-reset" ? [{ label: second.label, onClick: () => actions.second(notice, "remind-reset"), testId: "quota-banner-remind" }] : []),
+              { label: "Snooze 1 h", quiet: true, testId: "quota-banner-snooze", onClick: () => hideWhile(key, () => actions.snooze(notice, "hour")) },
             ]}
-            onDismiss={() => void acted(() => notificationsDismiss(notice.id))}
+            onDismiss={() => hideWhile(key, () => acted(() => notificationsDismiss(notice.id)))}
             dismissLabel={`Close: ${notice.title} (it stays in Notifications)`}
             testId="quota-banner"
           />
-        ))}
-      {!hideMachineAlerts &&
-        machineAlerts.map((alert) => (
-          <Banner key={alert.key} tone="warning" title={`${alert.text}.`} onDismiss={() => (notification("other", "dismissed"), publishMachineNotices(machineNotices().filter((entry) => entry.key !== alert.key)))} testId="machine-alert" />
-        ))}
-      {remoteAlerts.map(({ machine, alert, key }) => (
+        ),
+      });
+    }
+  for (const row of queue) {
+    const key = `reminder-${row.id}`;
+    if (row.state !== "ready" || hidden.has(key)) continue;
+    const { name, open } = reminderOf(row);
+    const done = () => hideWhile(key, () => resetQueueDismiss(row.id));
+    items.push({
+      key,
+      node: (
+        <Banner
+          key={key}
+          tone="accent"
+          title={name ? `${accountName(row.account)} has room again: ${name} can carry on` : `${accountName(row.account)} has room again`}
+          detail={open ? "The reminder you set. Nothing restarted by itself." : "The reminder you set. Its session is no longer open."}
+          actions={open ? [{ label: name ? `Open ${name}` : "Open it", primary: true, testId: "reminder-open", onClick: () => (done(), open()) }] : []}
+          onDismiss={done}
+          dismissLabel="Close the reminder"
+          testId="reminder-ready"
+        />
+      ),
+    });
+  }
+  for (const offer of offers) {
+    const key = `parked-${offer.session_id}`;
+    if (hidden.has(key)) continue;
+    items.push({
+      key,
+      node: (
+        <Banner
+          key={key}
+          tone="accent"
+          title={offer.text}
+          actions={[
+            { label: "Resume", primary: true, testId: "parked-offer-resume", onClick: () => hideWhile(key, () => parkedResume(offer.session_id).then(() => setOffers((rows) => rows.filter((r) => r.session_id !== offer.session_id)))) },
+            { label: offer.last ? "Stop reminding me" : "Remind me in 30 min", quiet: true, testId: offer.last ? "parked-offer-stop" : "parked-offer-snooze", onClick: () => hideWhile(key, () => parkedDismiss(offer.session_id).then(() => setOffers((rows) => rows.filter((r) => r.session_id !== offer.session_id)))) },
+          ]}
+          testId="parked-offer"
+        />
+      ),
+    });
+  }
+  if (!hideMachineAlerts)
+    for (const alert of machineAlerts)
+      items.push({
+        key: `machine-${alert.key}`,
+        node: <Banner key={alert.key} tone="warning" title={`${alert.text}.`} onDismiss={() => (notification("other", "dismissed"), publishMachineNotices(machineNotices().filter((entry) => entry.key !== alert.key)))} testId="machine-alert" />,
+      });
+  for (const { machine, alert, key } of remoteAlerts)
+    items.push({
+      key,
+      node: (
         <Banner
           key={key}
           tone={alert.kind === "exhausted" || alert.kind === "actionable" || alert.kind === "peer-offline" ? "warning" : "neutral"}
@@ -227,9 +309,14 @@ export function NotificationRegion({
           onDismiss={() => (notification("fleet", "dismissed"), setDismissed((prior) => new Set(prior).add(key)))}
           testId={`remote-alert-${alert.kind}`}
         />
-      ))}
-      {update && (
+      ),
+    });
+  if (update)
+    items.push({
+      key: "update",
+      node: (
         <Banner
+          key="update"
           tone="accent"
           title={`AI Juggler ${update.version} is available`}
           detail="Nothing is installed until you choose."
@@ -240,9 +327,14 @@ export function NotificationRegion({
           ]}
           testId="update-notice"
         />
-      )}
-      {ready && (
+      ),
+    });
+  if (ready)
+    items.push({
+      key: "ready",
+      node: (
         <Banner
+          key="ready"
           tone="accent"
           title={`AI Juggler ${ready.version} is installed`}
           detail="Restart when you're ready — nothing restarts by itself."
@@ -259,29 +351,27 @@ export function NotificationRegion({
             </p>
           )}
         </Banner>
+      ),
+    });
+  const rest = items.length - 1;
+  return (
+    <div aria-live="polite" role="status" data-testid="notification-region" className="flex shrink-0 flex-col gap-2 [&:not(:empty)]:mb-3">
+      {(more ? items : items.slice(0, 1)).map((item) => item.node)}
+      {rest > 0 && (
+        <button type="button" onClick={() => setMore((open) => !open)} aria-expanded={more} data-testid="banners-more" className="-mt-1 self-end rounded-md px-2 py-0.5 text-meta text-muted hover:bg-surface-2 hover:text-ink">
+          {more ? "Show fewer" : rest === 1 ? "1 more notice" : `${rest} more notices`}
+        </button>
       )}
-      {offers.map((offer) => (
-        <Banner
-          key={`parked-${offer.session_id}`}
-          tone="accent"
-          title={offer.text}
-          actions={[
-            { label: "Resume", primary: true, testId: "parked-offer-resume", onClick: () => void parkedResume(offer.session_id).then(() => setOffers(offers.filter((row) => row.session_id !== offer.session_id))) },
-            { label: offer.last ? "Stop reminding me" : "Remind me in 30 min", quiet: true, testId: offer.last ? "parked-offer-stop" : "parked-offer-snooze", onClick: () => void parkedDismiss(offer.session_id).then(() => setOffers(offers.filter((row) => row.session_id !== offer.session_id))) },
-          ]}
-          testId="parked-offer"
-        />
-      ))}
-      {queue.map((row) => (
-        <Banner
-          key={row.id}
-          tone="neutral"
-          title={row.state === "ready" ? `${accountName(row.account)} has room again — ready to resume` : row.state === "stale" ? "A queued resume can't go ahead: its session is gone" : `Queued for ${accountName(row.account)}'s reset at ${whenWords(row.resume_at_ms)}`}
-          actions={row.state === "ready" && onQueueResume ? [{ label: "Resume", primary: true, onClick: () => onQueueResume(row) }] : []}
-          onDismiss={() => void resetQueueDismiss(row.id).then(() => setQueue(queue.filter((entry) => entry.id !== row.id)))}
-          testId={`queue-${row.state}`}
-        />
-      ))}
     </div>
   );
+}
+
+function without(set: ReadonlySet<string>, key: string): ReadonlySet<string> {
+  const next = new Set(set);
+  next.delete(key);
+  return next;
+}
+
+function folderOf(cwd: string | null | undefined): string | null {
+  return (cwd ?? "").replace(/\/+$/, "").split("/").pop() || null;
 }

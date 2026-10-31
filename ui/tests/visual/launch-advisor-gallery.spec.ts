@@ -22,7 +22,7 @@ const heavy = {
 const STATES = [
   { name: "ok", machine: "plenty", expect: "This Mac can take another session", verdict: "ok" },
   { name: "not-measured", machine: "plenty", advice: "unmeasured", expect: "not measured yet", verdict: "ok" },
-  { name: "tight", machine: "tight", expect: "Closing feat/read-model frees about 3.2 GB.", verdict: "tight" },
+  { name: "tight", machine: "tight", expect: "Closing feat/read-model frees about 3.0 GB.", verdict: "tight" },
   { name: "no", machine: "pressure", expect: "You can still start it.", verdict: "no" },
 ] as const;
 

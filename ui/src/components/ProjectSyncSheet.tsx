@@ -72,7 +72,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
   }, [load, picked]);
 
   if (!rules) {
-    return error ? <p className="text-xs text-danger" role="alert">{error}</p> : <p className="text-xs text-muted">Reading the rules files…</p>;
+    return error ? <p className="text-xs text-danger" role="alert">{error}</p> : <p className="text-xs text-ink-2">Reading the rules files…</p>;
   }
   const master = rules.files.find((file) => file.name === rules.master) ?? null;
   return (
@@ -88,7 +88,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
         )}
       </div>
       {rules.files.length === 0 ? (
-        <p className="text-xs text-muted">None of your tools reads a rules file in a project.</p>
+        <p className="text-xs text-ink-2">None of your tools reads a rules file in a project.</p>
       ) : (
         <fieldset className="flex flex-col gap-1.5">
           <legend className="sr-only">The master copy</legend>
@@ -105,7 +105,7 @@ function RulesSection({ project }: { project: ProjectInfo }) {
         </fieldset>
       )}
       {rules.files.length > 0 && !master && (
-        <p className="text-xs text-muted">None of these files is here with rules of its own yet, so there's nothing to compare.</p>
+        <p className="text-xs text-ink-2">None of these files is here with rules of its own yet, so there's nothing to compare.</p>
       )}
       {master &&
         rules.files
@@ -239,7 +239,7 @@ function ApplyPanel({
           </HowButton>
         </div>
       )}
-      {diff ? <DiffView diff={diff} /> : <p className="text-xs text-muted">Comparing…</p>}
+      {diff ? <DiffView diff={diff} /> : <p className="text-xs text-ink-2">Comparing…</p>}
       {error && (
         <p className="text-xs text-danger" role="alert">
           {error}
@@ -269,7 +269,7 @@ function HowButton({ pressed, onClick, children }: { pressed: boolean; onClick: 
 
 /** Each change with the lines around it, numbered as the file is now. */
 export function DiffView({ diff }: { diff: RulesDiffInfo }) {
-  if (diff.groups.length === 0) return <p className="text-xs text-muted">Nothing changes.</p>;
+  if (diff.groups.length === 0) return <p className="text-xs text-ink-2">Nothing changes.</p>;
   return (
     <div className="overflow-x-auto rounded border border-hairline bg-canvas font-mono text-label leading-relaxed" data-testid="sync-diff">
       {diff.groups.map((group, index) => (

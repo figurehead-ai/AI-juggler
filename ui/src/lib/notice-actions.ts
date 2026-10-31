@@ -1,7 +1,7 @@
 /**
  * AJ-E2503 — what a notice's actions do, on the user's click only: open
  * what it is about (a session's page, another app's session, a pool, an
- * account, a screen), hand over, queue for the reset, mark reviewed,
+ * account, a screen), hand over, remind at the reset, mark reviewed,
  * snooze, mute. Opening a notice marks it read. Nothing here runs by
  * itself: every function is called from a click (or ↵ on a focused row).
  */
@@ -17,6 +17,13 @@ import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { whenWords } from "./time-words";
 import { rememberTab } from "../pages/registry";
 
+/** Sessions still open (a reminder is for these). */
+const OPEN = new Set(["running", "waiting_user", "stuck", "starting", "quota_blocked"]);
+
+/** A reminder's key for a session another app runs (the backend's
+ * `REMINDER_CONVERSATION`). */
+export const REMINDER_CONVERSATION = "conv:";
+
 /** The screens a notice can open, by the page its target names. */
 const SCREENS: Record<string, string> = { this_mac: "thismac", processes: "cleanup", usage: "usage", accounts: "accounts", settings: "settings" };
 
@@ -31,7 +38,9 @@ export interface NoticeActions {
   canHandOver: (notice: NoticeInfo) => boolean;
   /** Its second action beside the primary. */
   second: (notice: NoticeInfo, which: Second) => void;
-  snooze: (notice: NoticeInfo, until: "hour" | "tomorrow") => void;
+  /** True once it took (the banner hides it at once, and puts it back
+   * if it didn't). */
+  snooze: (notice: NoticeInfo, until: "hour" | "tomorrow") => Promise<boolean>;
   /** Ends its snooze now: back into Needs you. */
   wake: (notice: NoticeInfo) => void;
   mute: (notice: NoticeInfo, scope: "project" | "kind") => void;
@@ -95,7 +104,10 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     const at = until === "hour" ? Date.now() + HOUR_MS : tomorrowMorning(Date.now());
     // D-49: snoozed, it is out of the Needs you count until it wakes.
     const back = `Back at ${whenWords(at)}; out of Needs you until then.`;
-    void acted(() => notificationsSnooze(notice.subject, at), "Couldn't snooze it").then((done) => done && showToast({ id: `snoozed:${notice.subject}`, message: until === "hour" ? "Snoozed for an hour" : "Snoozed until tomorrow", detail: back, undo: { onUndo: () => acted(() => notificationsSnooze(notice.subject, null)) } }));
+    return acted(() => notificationsSnooze(notice.subject, at), "Couldn't snooze it").then((done) => {
+      if (done) showToast({ id: `snoozed:${notice.subject}`, message: until === "hour" ? "Snoozed for an hour" : "Snoozed until tomorrow", detail: back, undo: { onUndo: () => acted(() => notificationsSnooze(notice.subject, null)) } });
+      return done;
+    });
   };
   const wake = (notice: NoticeInfo) => void acted(() => notificationsSnooze(notice.subject, null), "Couldn't wake it");
   const mute = (notice: NoticeInfo, scope: "project" | "kind") => {
@@ -106,7 +118,7 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     );
   };
   const second = (notice: NoticeInfo, which: Second) => {
-    if (which === "snooze-hour") return snooze(notice, "hour");
+    if (which === "snooze-hour") return void snooze(notice, "hour");
     if (which === "mark-reviewed" && notice.target.session_id) {
       const id = notice.target.session_id;
       void instanceMarkReviewed(id).then(
@@ -115,17 +127,23 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
       );
       return;
     }
-    if (which === "queue-reset") {
+    if (which === "remind-reset") {
+      // 0.3.2: a reminder at the reset for each open session on the
+      // account, AI Juggler's or another app's. At the reset a banner
+      // offers to open it; nothing restarts by itself.
       const account = notice.target.account_id;
       const at = notice.facts.resets_at_ms;
-      const live = sessions.filter((s) => s.account_id === account && s.status !== "finished" && s.status !== "stopped" && s.status !== "failed");
-      if (!account || at === null || live.length === 0) {
-        showToast({ id: "queue-reset", message: "Nothing to queue", detail: "No session is using it now." });
+      const own = sessions.filter((s) => s.account_id === account && OPEN.has(s.status));
+      const others = conversations.filter((c) => c.account_id === account && c.live && c.session_id === null);
+      if (!account || at === null || own.length + others.length === 0) {
+        showToast({ id: "remind-reset", message: "Nothing to remind you about", detail: "No session is open on it now." });
         return;
       }
-      void Promise.all(live.map((s) => resetQueueQueue(s.id, account, at))).then(
-        () => showToast({ id: "queue-reset", message: "Queued for the reset", detail: `At ${whenWords(at)} you'll be offered to carry on. Nothing restarts by itself.` }),
-        (cause) => showToast({ tone: "error", message: "Couldn't queue it", detail: errorText(cause), action: { label: "Retry", run: () => second(notice, which) } }),
+      const keys = [...own.map((s) => s.id), ...others.map((c) => `${REMINDER_CONVERSATION}${c.id}`)];
+      const what = keys.length === 1 ? "to open its session" : `to open its ${keys.length} sessions`;
+      void Promise.all(keys.map((key) => resetQueueQueue(key, account, at))).then(
+        () => showToast({ id: "remind-reset", message: `Reminder set for ${whenWords(at)}`, detail: `When it has room again, a banner offers ${what}. Nothing restarts by itself.` }),
+        (cause) => showToast({ tone: "error", message: "Couldn't set the reminder", detail: errorText(cause), action: { label: "Retry", run: () => second(notice, which) } }),
       );
     }
   };

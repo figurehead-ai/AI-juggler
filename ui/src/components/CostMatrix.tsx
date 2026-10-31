@@ -228,7 +228,7 @@ export function CostMatrix(): JSX.Element {
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* The permanent disclaimer — a label, never a tooltip (deep/10 §6). */}
-        <p className="min-w-0 flex-1 text-meta text-muted">{`Every cost here is an estimate. ${API_PRICE}.`}</p>
+        <p className="min-w-0 flex-1 text-meta text-ink-2">{`Every cost here is an estimate. ${API_PRICE}.`}</p>
         <Button size="sm" variant="secondary" disabled={none} onClick={() => void costCsvExport().then(setCsvPath)}>
           Export CSV
         </Button>
@@ -254,7 +254,7 @@ export function CostMatrix(): JSX.Element {
           rowHeight={45}
           label="Cost per session and day"
           empty={
-            <p className="rounded-xl border border-hairline px-4 py-5 text-center text-body text-muted" data-testid="cost-empty">
+            <p className="rounded-xl border border-hairline px-4 py-5 text-center text-body text-ink-2" data-testid="cost-empty">
               No usage recorded yet. Costs appear here as your sessions run.
             </p>
           }
@@ -279,7 +279,7 @@ export function CostMatrix(): JSX.Element {
         )}
       </div>
       {csvPath && (
-        <p role="status" className="text-meta text-muted">
+        <p role="status" className="text-meta text-ink-2">
           CSV written: <span className="font-mono">{csvPath}</span>
         </p>
       )}

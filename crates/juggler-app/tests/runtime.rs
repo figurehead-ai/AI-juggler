@@ -24,6 +24,9 @@
 
 mod common;
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -75,7 +78,10 @@ fn app_state(dir: &Path, codex: Option<PathBuf>) -> Arc<AppState> {
 }
 
 fn new_profile(state: &Arc<AppState>, harness: &str, cwd: &Path) -> String {
-    let account = commands::create_account(state, harness, "Lab", None).unwrap();
+    let account = set_up::set_up(
+        state,
+        commands::create_account(state, harness, "Lab", None).unwrap(),
+    );
     commands::create_profile(
         state,
         &account.id,

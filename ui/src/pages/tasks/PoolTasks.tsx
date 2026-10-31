@@ -49,7 +49,7 @@ function Skeleton({ label, rows }: { label: string; rows: number }): JSX.Element
   return (
     <div className="flex flex-col gap-2" role="status" aria-label={label}>
       {Array.from({ length: rows }, (_, n) => (
-        <span key={n} className="h-16 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
+        <span key={n} className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" />
       ))}
     </div>
   );
@@ -96,7 +96,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
     <div className="flex w-full min-w-0 max-w-content flex-col gap-4" data-testid="pool-tasks">
       <div className="flex flex-wrap items-center gap-2">
         {view === "plan" ? (
-          <p className="text-meta text-muted">The plan: each epic, its stories and their tasks. Open a fold to see what's under it.</p>
+          <p className="text-meta text-ink-2">The plan: each epic, its stories and their tasks. Open a fold to see what's under it.</p>
         ) : (
           <div role="radiogroup" aria-label="Which tasks" className="flex flex-wrap items-center gap-1">
             {FILTERS.map((word) => {
@@ -141,7 +141,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
           ) : !read ? (
             <Skeleton label="Loading the tasks" rows={4} />
           ) : rows.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-muted" data-testid="tasks-empty">
+            <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="tasks-empty">
               {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work."}
             </p>
           ) : (
@@ -166,7 +166,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
           {open ? (
             <TaskView key={open} taskId={open} sessions={sessions} defaultAccountId={defaultAccount} now={now} onOpenTask={setOpen} />
           ) : read ? (
-            <p className="text-meta text-muted" data-testid="task-none-open">
+            <p className="text-meta text-ink-2" data-testid="task-none-open">
               The tasks the pool's agents write and work show here, with who has each and its history. You follow them; you approve or send back what's in review.
             </p>
           ) : null}
@@ -190,9 +190,9 @@ export function SessionTasks({ session, now }: { session: InstanceInfo; now: num
   };
   return (
     <div className="flex w-full min-w-0 max-w-[960px] flex-col gap-3" data-testid="session-tasks">
-      <p className="text-meta text-muted">The tasks this session holds or worked, in its pool. A switch keeps them: its next session holds them too.</p>
+      <p className="text-meta text-ink-2">The tasks this session holds or worked, in its pool. A switch keeps them: its next session holds them too.</p>
       {tasks.loading ? (
-        <span className="h-16 rounded-lg bg-surface-3 motion-safe:animate-pulse" role="status" aria-label="Loading its tasks" />
+        <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Loading its tasks" />
       ) : (
         <ul className="flex flex-col gap-0.5">
           {tasks.items.map((task) => (

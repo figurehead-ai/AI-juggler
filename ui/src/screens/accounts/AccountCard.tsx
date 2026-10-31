@@ -114,7 +114,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           <h3 className="truncate text-section text-ink" data-testid="account-name">
             {accountName(sub)}
           </h3>
-          <p className="truncate text-meta text-muted" data-testid="account-line">
+          <p className="truncate text-meta text-ink-2" data-testid="account-line">
             {signedOut
               ? `${profiles.length === 1 ? "This profile isn't" : "These profiles aren't"} signed in, so ${profiles.length === 1 ? "its" : "their"} account isn't known yet.`
               : sub.state === "unverified" && !service
@@ -158,7 +158,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
                 compact
               />
               {unmeasured && ownSessions.length === 0 && (
-                <p className="text-meta text-muted" data-testid="account-unmeasured">
+                <p className="text-meta text-ink-2" data-testid="account-unmeasured">
                   {unmeasuredWords(sub.tool)}{" "}
                   {profiles[0] && props.onInspect && (
                     <button type="button" onClick={() => props.onInspect!(profiles[0]!.id)} className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-measure">
@@ -169,7 +169,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
               )}
             </>
           ) : (
-            <p className="text-meta text-muted" data-testid="account-no-limits">
+            <p className="text-meta text-ink-2" data-testid="account-no-limits">
               {noLimitsWords(sub.tool)}.
             </p>
           )}

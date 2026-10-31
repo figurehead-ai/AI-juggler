@@ -129,12 +129,12 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
               <p ref={question} tabIndex={-1} className="font-medium text-ink outline-none">
                 Go back to {name(option)}?
               </p>
-              <p className="text-muted">
+              <p className="text-ink-2">
                 Your data goes back to how it was on {when(option.kept_at_ms)}, when {appName} was updated. What changed
                 since — accounts brought in, sessions, settings — isn't in it. The data as it is now is kept beside it in
                 the data folder; nothing is deleted.
               </p>
-              <p className="text-muted">
+              <p className="text-ink-2">
                 {appName} then quits. Install {name(option)} from the releases page and open it. Opening this version
                 again instead upgrades that data again.
               </p>
@@ -324,7 +324,7 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
                     "No release notes were published with this version."
                   )}
                 </div>
-                <p className="text-muted">
+                <p className="text-ink-2">
                   Installing writes a backup of {status.app_name}'s data first, so you can go back to {status.current_version}.
                 </p>
               </div>
@@ -338,11 +338,11 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
                   {status.available?.version ?? "The update"} is installed. It starts the next time {status.app_name} starts.
                 </p>
                 {status.restart_wait && (
-                  <p className="text-muted" data-testid="update-restart-wait">
+                  <p className="text-ink-2" data-testid="update-restart-wait">
                     {status.restart_wait} Nothing restarts by itself.
                   </p>
                 )}
-                {status.backup_path && <p className="break-all text-muted">Backup from before: {status.backup_path}</p>}
+                {status.backup_path && <p className="break-all text-ink-2">Backup from before: {status.backup_path}</p>}
               </div>
             )}
             {status.state === "failed" && status.error && (

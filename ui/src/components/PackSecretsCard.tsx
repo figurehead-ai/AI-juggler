@@ -62,7 +62,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
       <Card className="flex flex-col gap-3 p-5" data-testid="pack-secrets">
         <div>
           <CardTitle>Keys and passwords</CardTitle>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted">
+          <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
             When you switch to another tool, or save a handover, the other tool reads the
             conversation. Choose what happens to keys and passwords in it — remembered for every
             tool unless one has its own. A switch between accounts of the same tool copies the

@@ -198,7 +198,13 @@ for (const theme of ["dark", "light"] as const) {
   test(`the session's row says three subagents run, and its page's line opens their tab — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await railViewAs(page, { show: { subagents: true } });
-    await expect(page.getByRole("button", { name: "Open its subagents: +3 agents" })).toBeVisible();
+    const count = page.getByRole("button", { name: "Open its subagents: +3 agents" });
+    await expect(count).toBeVisible();
+    // The rail settled first: Needs you arriving later pushes rows down.
+    await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*5/);
+    // Its row can sit below the rail's fold (Open now holds six rows).
+    await count.scrollIntoViewIfNeeded();
+    await expect(count).toBeInViewport();
     await shoot(page, "row-count", theme);
     await page.locator(`[data-instance-id="${SESSION}"]`).first().click();
     await page.getByRole("tab", { name: "Overview" }).click();

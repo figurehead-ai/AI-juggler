@@ -38,7 +38,7 @@ export function AgentToolsQuestion({ className = "" }: { className?: string }): 
       <h2 id="agent-tools-question" className="text-sm font-semibold text-ink">
         {QUESTION}
       </h2>
-      <p className="text-xs leading-relaxed text-muted">
+      <p className="text-xs leading-relaxed text-ink-2">
         {WHY} You can switch this off for a project or a profile in Settings › Agent access.
       </p>
       <div className="flex gap-2">
@@ -123,7 +123,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
           {error}
         </p>
       )}
-      {rows === null && !error && <p className="mt-2 text-xs text-muted">Loading…</p>}
+      {rows === null && !error && <p className="mt-2 text-xs text-ink-2">Loading…</p>}
       {rows !== null && (
         <div className="mt-2.5 flex flex-col gap-3">
           <Group title="Projects" empty="No projects yet.">
@@ -162,7 +162,7 @@ function Group({ title, empty, children }: { title: string; empty: string; child
   return (
     <div className="flex flex-col gap-1.5" role="group" aria-label={title}>
       <p className="text-label font-medium uppercase tracking-wide text-faint">{title}</p>
-      {children.length === 0 ? <p className="text-xs text-muted">{empty}</p> : children}
+      {children.length === 0 ? <p className="text-xs text-ink-2">{empty}</p> : children}
     </div>
   );
 }

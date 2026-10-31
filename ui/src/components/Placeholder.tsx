@@ -10,14 +10,14 @@ import type { JSX } from "react";
 export type PlaceholderShape = "rail" | "home" | "card";
 
 function Bar({ className }: { className: string }): JSX.Element {
-  return <span className={`block rounded bg-surface-3 ${className}`} />;
+  return <span className={`block rounded bg-skeleton ${className}`} />;
 }
 
 function RailRow({ index }: { index: number }): JSX.Element {
   return (
     <div className="flex items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-2">
       <span className="flex w-4 shrink-0 justify-center">
-        <span className="size-2.5 rounded-full bg-surface-3" />
+        <span className="size-2.5 rounded-full bg-skeleton" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <Bar className={`h-2.5 ${index % 2 === 0 ? "w-3/4" : "w-2/3"}`} />
@@ -43,7 +43,7 @@ function CardRow({ index }: { index: number }): JSX.Element {
   return (
     <div className="flex flex-col gap-3 rounded-card border border-hairline bg-surface p-4">
       <span className="flex items-center gap-2">
-        <span className="size-7 rounded-lg bg-surface-3" />
+        <span className="size-7 rounded-lg bg-skeleton" />
         <span className="flex flex-1 flex-col gap-1.5">
           <Bar className={`h-3 ${index % 2 === 0 ? "w-1/3" : "w-1/4"}`} />
           <Bar className="h-2 w-1/5" />
