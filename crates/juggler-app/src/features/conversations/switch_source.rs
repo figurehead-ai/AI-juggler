@@ -59,7 +59,7 @@ pub fn open_in(state: &Arc<AppState>, account_id: &str, tool: &str, id: &str) ->
         .live_entry(account_id, tool, id)?
         .places
         .iter()
-        .find_map(|place| place.host.as_ref().map(|host| host.name.clone()))
+        .find_map(|place| place.host.as_ref().map(|host| host.shown.clone()))
         .filter(|name| !name.is_empty())
 }
 
@@ -235,6 +235,7 @@ mod tests {
         let app = super::super::places::Host {
             app_id: Some("claude".to_owned()),
             name: "Claude".to_owned(),
+            shown: "Claude app".to_owned(),
             kind: Some(juggler_adapter::live::HostKind::Desktop),
             pid: 4242,
             start: None,
@@ -280,7 +281,7 @@ mod tests {
             preflight.source_keeps_running,
             "AI Juggler never stops another app's session"
         );
-        assert_eq!(preflight.source_app.as_deref(), Some("Claude"));
+        assert_eq!(preflight.source_app.as_deref(), Some("Claude app"));
 
         let switched = crate::commands::switch_execute_impl(
             &state,

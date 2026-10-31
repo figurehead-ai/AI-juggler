@@ -157,8 +157,13 @@ fn place_info(
         .as_ref()
         .map(|host| host.name.clone())
         .unwrap_or_default();
+    let shown = place
+        .host
+        .as_ref()
+        .map(|host| host.shown.clone())
+        .unwrap_or_default();
     let instance = place.host.as_ref().and_then(|host| host.instance.clone());
-    let label = [Some(app.clone()), instance.clone()]
+    let label = [Some(shown.clone()), instance.clone()]
         .into_iter()
         .flatten()
         .filter(|part| !part.is_empty())
@@ -167,6 +172,7 @@ fn place_info(
     PlaceInfo {
         app_id: place.host.as_ref().and_then(|host| host.app_id.clone()),
         app,
+        shown,
         profile,
         instance,
         pid: place.pid,

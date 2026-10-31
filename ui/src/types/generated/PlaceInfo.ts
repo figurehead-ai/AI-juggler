@@ -12,6 +12,10 @@ export type PlaceInfo = {
  */
 app: string, 
 /**
+ * D-62: its name on screen ("Claude app"); `app` is the Dock's.
+ */
+shown: string, 
+/**
  * The host registry's id for the app, when it knows it.
  */
 app_id: string | null, 

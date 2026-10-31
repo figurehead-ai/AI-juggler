@@ -48,7 +48,7 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
 const project = (id: string, name: string): ProjectInfo =>
   ({ id, root: `/Users/dev/${name}`, name, last_activity_ms: NOW, active_instance: null, accounts_used: [], instance_count: 1, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false }) as ProjectInfo;
 
-const place = (label: string, pid: number) => ({ app: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, kind: null, app_pid: null, label });
+const place = (label: string, pid: number) => ({ app: label.split(" · ")[0]!, shown: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, kind: null, app_pid: null, label });
 
 function board(rows: InstanceInfo[], conversations: ConversationInfo[]) {
   (window as unknown as { __AIJ_FIXTURE__?: unknown }).__AIJ_FIXTURE__ = { conversations };

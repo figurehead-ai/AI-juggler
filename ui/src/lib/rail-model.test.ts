@@ -22,7 +22,7 @@ const none = () => null;
 function place(app: string, profile: string, pid = 10): PlaceInfo {
   // Terminal is where a CLI session's window is; the Claude app runs its own.
   const terminal = app === "Terminal";
-  return { app, app_id: app.toLowerCase(), profile, instance: terminal ? null : profile, pid, kind: terminal ? "terminal" : "desktop", app_pid: pid + 1, label: `${app} · ${profile}` };
+  return { app, shown: app === "Claude" ? "Claude app" : app, app_id: app.toLowerCase(), profile, instance: terminal ? null : profile, pid, kind: terminal ? "terminal" : "desktop", app_pid: pid + 1, label: `${app} · ${profile}` };
 }
 
 function talk(id: string, over: Partial<ConversationInfo> = {}): ConversationInfo {

@@ -102,6 +102,7 @@ fn target(
             host: Some(Host {
                 app_id: app_id.map(str::to_owned),
                 name: name.to_owned(),
+                shown: name.to_owned(),
                 kind,
                 pid: 10,
                 start: Some(10),

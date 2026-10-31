@@ -101,7 +101,7 @@ export function appWords(place: PlaceInfo | undefined, tool: string): string | n
  * part of it (`sessionHost`). */
 export function sessionAppName(model: SessionModel): string {
   const place = model.places[0];
-  if (place && place.app !== "" && (place.kind === "desktop" || isDesktopApp(place, model.tool))) return appName(desktopAppWord(place.app, model.tool), place.instance);
+  if (place && place.app !== "" && (place.kind === "desktop" || isDesktopApp(place, model.tool))) return appName(desktopAppWord(place.app, model.tool, place.shown), place.instance);
   const own = model.desktop ? toolSpec(model.tool).desktop_app : null;
   if (own) return appName(desktopAppWord(own, model.tool), model.profileLabel);
   return cliAppName(model.tool, model.profileLabel);

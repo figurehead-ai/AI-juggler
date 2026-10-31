@@ -73,11 +73,11 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     }
 }
 
-/// The place's name in the outcome: `Claude · b-work`, `Terminal`.
+/// The place's name in the outcome: `Claude app · b-work`, `Terminal`.
 fn label(host: &Host) -> String {
     match &host.instance {
-        Some(instance) => format!("{} · {instance}", host.name),
-        None => host.name.clone(),
+        Some(instance) => format!("{} · {instance}", host.shown),
+        None => host.shown.clone(),
     }
 }
 
@@ -188,7 +188,7 @@ fn step(
     if let Some(link) = app.and_then(|app| app.thread_link_for(&target.session_id))
         && desktop.open_link(&link)
     {
-        let opened = format!("Opened the thread in {}", host.name);
+        let opened = format!("Opened the thread in {}", host.shown);
         return Step::Done(Done {
             forward: opened.clone(),
             kept: Some(opened),
@@ -210,7 +210,7 @@ fn step(
                         || folder.display().to_string(),
                         |n| n.to_string_lossy().into_owned(),
                     );
-                    let opened = format!("Opened {shown} in {}", host.name);
+                    let opened = format!("Opened {shown} in {}", host.shown);
                     return Step::Done(Done {
                         forward: opened.clone(),
                         kept: Some(opened),

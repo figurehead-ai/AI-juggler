@@ -240,7 +240,7 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     project: projectName(c.project_id) ?? (folderOf(c.cwd) || null),
     place:
       first?.kind === "desktop"
-        ? { key: desktopAppKey(first.app_id ?? null, first.app, first.instance), app: desktopAppWord(first.app, c.tool), appId: first.app_id ?? null, kind: "desktop", profile: first.instance ?? null, appPid: first.app_pid ?? null, host: null }
+        ? { key: desktopAppKey(first.app_id ?? null, first.app, first.instance), app: desktopAppWord(first.app, c.tool, first.shown), appId: first.app_id ?? null, kind: "desktop", profile: first.instance ?? null, appPid: first.app_pid ?? null, host: null }
         : cliPlace(c.tool, c.account_id, c.account_label, { name: first?.app || null, kind: first?.kind ?? null, pid: first?.app_pid ?? null }),
     alsoIn: places.slice(1).map((place) => place.label || place.app),
     accountId: c.account_id,

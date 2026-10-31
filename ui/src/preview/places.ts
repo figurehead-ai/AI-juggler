@@ -12,10 +12,10 @@ import type { ConversationInfo } from "../types/generated/ConversationInfo";
 import type { PlaceInfo } from "../types/generated/PlaceInfo";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 
-const CLAUDE_WORK: PlaceInfo = { app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude · Work" };
-const CLAUDE_PERSONAL: PlaceInfo = { app: "Claude", app_id: "claude-app", profile: "Personal", instance: "Personal", pid: 4343, kind: "desktop", app_pid: 4101, label: "Claude · Personal" };
-const TERMINAL: PlaceInfo = { app: "Terminal", app_id: "terminal", profile: "Work Max", instance: null, pid: 5150, kind: "terminal", app_pid: 5100, label: "Terminal" };
-const CODEX: PlaceInfo = { app: "ChatGPT", app_id: "codex-app", profile: "Codex", instance: null, pid: 6160, kind: "desktop", app_pid: 6100, label: "ChatGPT" };
+const CLAUDE_WORK: PlaceInfo = { app: "Claude", shown: "Claude app", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude app · Work" };
+const CLAUDE_PERSONAL: PlaceInfo = { app: "Claude", shown: "Claude app", app_id: "claude-app", profile: "Personal", instance: "Personal", pid: 4343, kind: "desktop", app_pid: 4101, label: "Claude app · Personal" };
+const TERMINAL: PlaceInfo = { app: "Terminal", shown: "Terminal", app_id: "terminal", profile: "Work Max", instance: null, pid: 5150, kind: "terminal", app_pid: 5100, label: "Terminal" };
+const CODEX: PlaceInfo = { app: "ChatGPT", shown: "ChatGPT", app_id: "codex-app", profile: "Codex", instance: null, pid: 6160, kind: "desktop", app_pid: 6100, label: "ChatGPT" };
 export const PREVIEW_PLACES = [CLAUDE_WORK, CLAUDE_PERSONAL, TERMINAL, CODEX];
 
 const TITLES = ["Speed up the search index", "Write the onboarding copy", "Fix the date picker on Safari", "Move the jobs to the new queue", "Add retries to the uploader", "Review the API error messages", "Port the settings to the new form", "Split the billing module"];

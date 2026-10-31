@@ -34,7 +34,7 @@ const CONVERSATIONS: usize = 100;
 pub struct KnownPlace {
     /// The host registry's id for the app.
     pub app_id: String,
-    /// The app's name (`Claude`).
+    /// The app's name on screen (`Claude app`).
     pub name: String,
     /// The instance's name when it isn't the app's default one (`b-work`).
     #[serde(default)]
@@ -185,7 +185,8 @@ impl Book {
                 keep_alive: false,
                 paused: None,
             });
-            place.name = host.map_or_else(|| app.app_id.clone(), |host| host.name.clone());
+            place.name =
+                host.map_or_else(|| app.app_id.clone(), |host| host.shown_name().to_owned());
             place.instance = instance;
             place.bundle.clone_from(&app.bundle);
             place.exe.clone_from(&app.exe);
@@ -271,6 +272,7 @@ mod tests {
             folder_link: None,
             folder_command: None,
             tab_script: None,
+            shown: None,
         }])
     }
 
@@ -304,6 +306,7 @@ mod tests {
                 host: Some(Host {
                     app_id: Some("claude-app".into()),
                     name: "Claude".into(),
+                    shown: "Claude app".into(),
                     kind: Some(HostKind::Desktop),
                     pid: 10,
                     start: Some(100),

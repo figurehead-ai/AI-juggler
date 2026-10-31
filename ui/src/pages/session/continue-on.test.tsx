@@ -73,7 +73,7 @@ const conversation = (overrides: Partial<ConversationInfo>): ConversationInfo =>
   tokens: null,
   live: true,
   session_id: null,
-  places: [{ app: "Claude", app_id: "claude", profile: "Work", instance: null, pid: 7, kind: "desktop", app_pid: 6, label: "Claude" }],
+  places: [{ app: "Claude", shown: "Claude app", app_id: "claude", profile: "Work", instance: null, pid: 7, kind: "desktop", app_pid: 6, label: "Claude app" }],
   pid: 7,
   state: "idle",
   probably: false,
@@ -143,7 +143,7 @@ describe("AJ-E2108 Continue on another account", () => {
         tool: "codex",
         account_id: "codex",
         account_label: "Codex Personal",
-        places: [{ app: "ChatGPT", app_id: "chatgpt", profile: null, instance: null, pid: 9, kind: "desktop", app_pid: 8, label: "ChatGPT" }],
+        places: [{ app: "ChatGPT", shown: "ChatGPT", app_id: "chatgpt", profile: null, instance: null, pid: 9, kind: "desktop", app_pid: 8, label: "ChatGPT" }],
       }),
     );
     const onPick = show(model);
