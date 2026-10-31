@@ -123,6 +123,9 @@ test("flow (d): add an Account ≤ 3 primary clicks (one tool: no choice, no gat
         desktop_apps: [],
         cancelled: false,
       };
+      // One tool and no service it runs through (AJ-E1601's More): so
+      // there is nothing to choose.
+      w.__AIJ_SERVICES__ = [];
       localStorage.setItem("aij.theme", "dark");
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");

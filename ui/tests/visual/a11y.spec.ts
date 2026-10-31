@@ -588,7 +588,8 @@ for (const theme of ["dark", "light"] as const) {
     // The notification region renders in the work view (polite
     // live-region semantics assertable before the modal opens).
     await expect(page.getByTestId("home-need-quota")).toBeVisible();
-    await expect(page.getByTestId("queue-ready")).toBeVisible();
+    // 0.3.2: the due reset reminder is a banner (a waiting one shows nothing).
+    await expect(page.getByTestId("reminder-ready")).toBeVisible();
     await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
     await expect(page.getByTestId("ranked-rows")).toBeVisible();
     const serious = await scanSeriousWithConfirm(page);
@@ -982,6 +983,9 @@ for (const theme of ["dark", "light"] as const) {
     const rowsScan = await new AxeBuilder({ page })
       .include("[data-testid='continue-dialog']") // 0.3.2: the list's dialog
       .analyze();
+    // The dialog is modal: Esc closes it, changing nothing.
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("continue-dialog")).toBeHidden();
 
     // The graph: scoped scan on the project panel.
     await openRailList(page); // D-25: a project row needs the list
@@ -1437,7 +1441,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("pairing-verify")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("pairing-fingerprints-match").click();
-    await expect(page.getByRole("radiogroup")).toBeVisible();
+    // The Permissions step's radio group (the rail has its own, "Group sessions by").
+    await expect(page.getByRole("dialog", { name: "Add a machine" }).getByRole("radiogroup")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.keyboard.press("Escape");
 

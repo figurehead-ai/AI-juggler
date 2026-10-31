@@ -75,6 +75,10 @@ for (const theme of ["dark", "light"] as const) {
   test(`a session's row menu and the rename sheet — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     await projectLens(page);
+    // The rail is drawn in full: its Needs you section arrives a moment
+    // after the rows, and the list redraws under it (a menu opened before
+    // that closes with the redraw).
+    await expect(page.getByTestId("rail-needs-you")).toBeVisible();
     const row = page.locator('[data-instance-id="sess-2"]');
     await row.hover();
     await page.getByRole("button", { name: "Session actions for feat/read-model" }).first().click();

@@ -20,7 +20,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, GATE_NOW, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, openRailList, type FixtureSet } from "./fixtures";
+import { allStatuses, openRailList, terminalDrawn, type FixtureSet } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/97-nav");
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -221,6 +221,7 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme, { width: 1024, height: 700 });
     await page.locator('[data-instance-id="sess-2"]').first().click();
     await expect(page.getByTestId("session-pool-chip")).toBeVisible();
+    await terminalDrawn(page); // the session's terminal is in the frame
     await shoot(page, "session-pool-chip-1024x700", theme);
   });
 
@@ -231,6 +232,7 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "pools-1280x800", theme);
     await page.locator('[data-instance-id="sess-2"]').first().click();
     await expect(page.getByTestId("session-pool-chip")).toBeVisible();
+    await terminalDrawn(page); // the session's terminal is in the frame
     await shoot(page, "session-pool-chip-1280x800", theme);
   });
 }

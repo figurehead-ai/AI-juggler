@@ -17,6 +17,7 @@ import { resolve } from "node:path";
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
+import { previewMac } from "../../src/preview/processes-fixture";
 import { allStatuses, honestEmpty, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
@@ -35,6 +36,27 @@ const VIEWPORTS = [
 const THEMES = ["dark", "light"] as const;
 
 const T0 = 1_728_800_000_000;
+
+/**
+ * Frames a capture on `target`: scrolls its scrolling ancestor so the
+ * target's top (or, with `edge: "end"`, its bottom) sits `gap` px inside
+ * the visible area, clear of the top bar — instead of scrollIntoView,
+ * which leaves a heading just above the target cut at the edge.
+ */
+async function frameOn(target: import("@playwright/test").Locator, { gap = 16, edge = "start" }: { gap?: number; edge?: "start" | "end" } = {}): Promise<void> {
+  await target.evaluate(
+    (element, { gap: g, edge: e }) => {
+      let scroller = element.parentElement;
+      while (scroller && !(/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight)) scroller = scroller.parentElement;
+      const view = scroller ?? document.scrollingElement!;
+      const frame = scroller ? scroller.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+      const box = element.getBoundingClientRect();
+      view.scrollTop += e === "start" ? box.top - frame.top - g : box.bottom - frame.bottom + g;
+    },
+    { gap, edge },
+  );
+  await target.page().evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+}
 
 function noteNotCaptured(screen: string, state: string, reason: string) {
   appendFileSync(
@@ -264,8 +286,14 @@ test("rail — the View open", async ({ page }) => {
 });
 
 test("rail — group by project with rollups", async ({ page }) => {
+  // From the default grouping (by app), so the capture shows the switch
+  // to Project: the projects' groups with their rollups, Project checked.
+  await page.addInitScript(() => localStorage.setItem("aij.rail.view.v1", JSON.stringify({ group: "place", show: { ended: true } })));
   await seedRail(page, {});
+  await expect(page.getByTestId("rail-project")).toHaveCount(0);
   await groupBy(page, "Project");
+  await expect(page.getByRole("radiogroup", { name: "Group sessions by" }).getByRole("radio", { name: "Project", exact: true })).toBeChecked();
+  await expect(page.getByTestId("rail").getByTestId("rail-project").first()).toBeVisible();
   await expect(page.getByText(/running/).first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "01-rail-sort/group-by-project-1440x900.png") });
 });
@@ -539,20 +567,34 @@ async function seedRenewalPage(
   page: import("@playwright/test").Page,
   vp: { width: number; height: number },
   days: number | null,
+  { accountsList = false }: { accountsList?: boolean } = {},
 ) {
   await page.addInitScript(
-    ({ fixture, t0, days: d }) => {
+    ({ fixture, t0, days: d, list }) => {
       const accounts = (fixture.accounts ?? []).map((entry: { id: string }, index: number) => ({
         ...entry,
         renewal_date: index === 0 ? (d === null ? null : new Date(t0 + d * 86_400_000).toISOString().slice(0, 10)) : null,
       }));
-      (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = { ...fixture, accounts };
+      // AJ-E2109: the Accounts list is subscriptions (the backend's,
+      // carrying each one's renewal date); the preview's own grouping
+      // leaves the date out, so the list's capture gives them.
+      type Row = { id: string; label: string; provider: string; plan: string | null; login_state: string; renewal_date: string | null };
+      const subscriptions = list
+        ? (accounts as Row[])
+            .filter((a) => a.login_state === "logged_in")
+            .map((a) => ({
+              key: `k-${a.id}`, tool: a.provider, state: "signed_in", email: `${a.label.toLowerCase()[0]}…@example.com`, organisation: null, reason: null,
+              plan: a.plan, renewal_date: a.renewal_date, fee_usd: null, differs: [],
+              profiles: [{ id: a.id, label: a.label, folder: `~/.claude-${a.id}`, plan: a.plan, renewal_date: a.renewal_date, fee_usd: null }],
+            }))
+        : undefined;
+      (window as never as { __AIJ_FIXTURE__: unknown }).__AIJ_FIXTURE__ = { ...fixture, accounts, ...(subscriptions ? { subscriptions } : {}) };
       localStorage.setItem("aij.theme", "dark");
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture: allStatuses, t0: T0, days },
+    { fixture: allStatuses, t0: T0, days, list: accountsList },
   );
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -576,6 +618,9 @@ for (const [name, days] of [
     await seedRenewalPage(page, { width: 1440, height: 900 }, days);
     await openAccountOverview(page);
     await expect(page.getByTestId("account-renewal")).toBeVisible();
+    // 0.1.5: renewal lives in the profile's Settings, below its limits.
+    await frameOn(page.getByTestId("account-settings"));
+    await expect(page.getByTestId("account-renewal")).toBeInViewport();
     await page.screenshot({ path: resolve(GALLERY, `11-renewal/account-${name}-1440x900.png`) });
   });
 }
@@ -585,6 +630,8 @@ test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renew
   await openAccountOverview(page);
   await expect(page.getByTestId("renewal-editor")).toBeVisible();
   await expect(page.getByText("Entered by you - AI Juggler does not read billing")).toBeVisible();
+  await frameOn(page.getByTestId("account-settings"));
+  await expect(page.getByTestId("renewal-editor")).toBeInViewport();
   await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1440x900.png") });
 });
 
@@ -592,13 +639,19 @@ test("renewal — editor at 1280x800", async ({ page }) => {
   await seedRenewalPage(page, { width: 1280, height: 800 }, 6);
   await openAccountOverview(page);
   await expect(page.getByTestId("renewal-editor")).toBeVisible();
+  await frameOn(page.getByTestId("account-settings"));
+  await expect(page.getByTestId("renewal-editor")).toBeInViewport();
   await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1280x800.png") });
 });
 
 test("renewal — Accounts row chip at <= 7 days (and none for unknown)", async ({ page }) => {
-  await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
+  await seedRenewalPage(page, { width: 1440, height: 900 }, 6, { accountsList: true });
   await goTo(page, "Accounts");
-  await expect(page.getByText("Renews in 6 days").first()).toBeVisible();
+  // The card's chip (not the polite announcer, which says it too).
+  const chip = page.getByTestId("account-card").getByText("Renews in 6 days").first();
+  await expect(chip).toBeVisible();
+  await frameOn(chip, { gap: 160 }); // its card around it
+  await expect(chip).toBeInViewport();
   await page.screenshot({ path: resolve(GALLERY, "11-renewal/accounts-row-chip-1440x900.png") });
 });
 
@@ -1371,6 +1424,9 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("account-tier2-toggle")).toContainText(
         "Also tidy after a crash (with notification)",
       );
+      // The toggles live in the profile's Settings, below its limits.
+      await frameOn(page.getByTestId("account-settings"));
+      await expect(page.getByTestId("account-tier-toggles")).toBeInViewport();
       await page.screenshot({
         path: resolve(GALLERY, `21-tiers/toggles-off-${vp.name}-${theme}.png`),
       });
@@ -1388,6 +1444,8 @@ for (const theme of THEMES) {
       await expect(
         page.getByTestId("account-tier2-toggle").locator("input"),
       ).toBeChecked();
+      await frameOn(page.getByTestId("account-settings"));
+      await expect(page.getByTestId("account-tier-toggles")).toBeInViewport();
       await page.screenshot({
         path: resolve(GALLERY, `21-tiers/toggles-on-${vp.name}-${theme}.png`),
       });
@@ -1524,6 +1582,26 @@ async function seedRecoveryPage(
   await page.goto("/");
 }
 
+/** The preview's made-up Mac with its working Claude Code session as
+ * sess-2 (the fixture's running Work Max terminal), its claude process
+ * picked up after the restart: what the session's Processes tab lists. */
+function adoptedMac() {
+  const real = Date.now;
+  Date.now = () => T0;
+  try {
+    const mac = previewMac();
+    for (const app of mac.apps)
+      for (const session of app.sessions)
+        if (session.session_id === "s-web") {
+          Object.assign(session, { session_id: "sess-2", key: "s:ours:sess-2", title: "feat/read-model", project_id: "proj-1" });
+          session.processes = session.processes.map((node, index) => (index === 0 ? { ...node, state: "picked_up" } : node));
+        }
+    return mac;
+  } finally {
+    Date.now = real;
+  }
+}
+
 for (const theme of THEMES) {
   test(`recovery — one-time summary dialog — 1440x900 — ${theme}`, gate("22-recovery"), async ({ page }) => {
     await seedRecoveryPage(page, theme, { __AIJ_RECOVERY__: RECOVERY_SUMMARY });
@@ -1541,7 +1619,7 @@ for (const theme of THEMES) {
     // sess-2 (the running Work Max terminal) survived the crash and was
     // re-adopted at restart.
     await page.addInitScript(
-      ({ fixture, t0, theme: t }) => {
+      ({ fixture, t0, theme: t, processes }) => {
         const w = window as unknown as Record<string, unknown>;
         w.__AIJ_FIXTURE__ = {
           ...fixture,
@@ -1549,12 +1627,13 @@ for (const theme of THEMES) {
             session.id === "sess-2" ? { ...session, adopted: true } : session,
           ),
         };
+        w.__AIJ_PROCESSES__ = processes;
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");
         sessionStorage.setItem("aij.ready.skipped", "1");
         Date.now = () => t0;
       },
-      { fixture: allStatuses, t0: T0, theme },
+      { fixture: allStatuses, t0: T0, theme, processes: adoptedMac() },
     );
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -1571,6 +1650,9 @@ for (const theme of THEMES) {
     await expect(notice).toBeVisible();
     await expect(notice).toContainText("Running — picked up after restart");
     await expect(notice).toContainText("terminal is detached");
+    // The picked-up process is listed below the notice (its rows read a
+    // moment after the tab opens).
+    await expect(page.locator('[data-testid^="process-row-p:61001:"]').getByTestId("process-state")).toHaveText("Picked up after restart");
     await page.screenshot({
       path: resolve(GALLERY, `22-recovery/adopted-panel-1440x900-${theme}.png`),
     });
@@ -1917,7 +1999,9 @@ const quotaWindow = (over: Record<string, unknown> = {}): Record<string, unknown
 
 const quotaDisplays: Record<string, Record<string, unknown>[]> = {
   measured: [{ account: "claude-work", five_hour: quotaWindow(), weekly: quotaWindow({ percentage: 41 }), renewal: { state: "set", label: "Renews 2026-10-23", entered_by_user: true }, forecast: { state: "exhausts", tte_min: 55, range_min: 40, range_max: 70, badge: "measured" } }],
-  stale: [{ account: "claude-work", five_hour: quotaWindow({ stale_note_ms: 22 * 60 * 1000 }), weekly: quotaWindow({ percentage: 41, stale_note_ms: 22 * 60 * 1000 }), renewal: { state: "approaching", label: "Renews in 6 days — check your plan", entered_by_user: true }, forecast: { state: "wont-exhaust", badge: "measured" } }],
+  // 0.3.2: a stale reading is its state plus when it was read (the window
+  // then says how old: "as of 22 min ago").
+  stale: [{ account: "claude-work", five_hour: quotaWindow({ state: "stale", measured_at_ms: T0 - 22 * 60 * 1000 }), weekly: quotaWindow({ percentage: 41, state: "stale", measured_at_ms: T0 - 22 * 60 * 1000 }), renewal: { state: "approaching", label: "Renews in 6 days — check your plan", entered_by_user: true }, forecast: { state: "wont-exhaust", badge: "measured" } }],
   "no-data": [{ account: "claude-work", five_hour: { state: "unknown", burned_tokens: 0 }, weekly: { state: "learning", burned_tokens: 0 }, renewal: { state: "none", label: "Renewal: unknown — add date", entered_by_user: false }, forecast: { state: "learning", badge: "estimated" } }],
   blocked: [{ account: "claude-work", five_hour: quotaWindow({ state: "exhausted", percentage: 100 }), weekly: quotaWindow({ percentage: 41 }), renewal: { state: "overdue", label: "Renewal date passed", entered_by_user: true }, forecast: { state: "exhausts", tte_min: 0, badge: "measured" } }],
 };
@@ -1959,6 +2043,10 @@ for (const theme of THEMES) {
         }
         if (state === "no-data") {
           await expect(window_).not.toContainText("0% left");
+        }
+        if (state === "stale") {
+          await expect(window_).toContainText("18% left");
+          await expect(window_).toContainText("as of 22 min ago");
         }
         await page.screenshot({
           path: resolve(GALLERY, `26-quota/usage-${state}-${vp.name}-${theme}.png`),
@@ -2039,7 +2127,9 @@ const notificationEvents = {
 
 const queueRows: Record<string, unknown>[] = [
   { id: "rq-1", session: "sess-1", account: "claude-work", resume_at_ms: T0 + 45 * 60_000, state: "queued" },
-  { id: "rq-2", session: "sess-2", account: "claude-lab", resume_at_ms: T0 - 60_000, state: "ready" },
+  // 0.3.2: a reminder set for the reset — the stuck Work Max session's
+  // window is back; it shows as a banner only once it's due.
+  { id: "rq-2", session: "sess-4", account: "claude-work", resume_at_ms: T0 - 60_000, state: "ready" },
 ];
 
 for (const theme of THEMES) {
@@ -2148,11 +2238,16 @@ for (const theme of THEMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
-      await expect(page.getByTestId("queue-queued")).toContainText("Work Max");
-      await expect(page.getByTestId("queue-ready")).toContainText("ready to resume");
-      // The Resume action is keyboard-focusable (the click is the only
-      // launch path) — capture it focused.
-      await page.getByRole("button", { name: "Resume", exact: true }).focus();
+      // 0.3.2 ("Remind me at <time>"): a reminder still waiting shows
+      // nothing; the due one is a banner naming its session, and opening
+      // it is a click — nothing restarts by itself.
+      const due = page.getByTestId("reminder-ready");
+      await expect(due).toHaveCount(1);
+      await expect(due).toContainText("Work Max has room again: feat/read-model can carry on");
+      await expect(due).toContainText("Nothing restarted by itself.");
+      // The Open action is keyboard-focusable (the click is the only
+      // way it opens) — capture it focused.
+      await due.getByRole("button", { name: "Open feat/read-model", exact: true }).focus();
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/queue-${vp.name}-${theme}.png`),
       });
@@ -3001,6 +3096,8 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await expect(page.getByTestId("switch-graph-hop-note")).toContainText("3 switches");
       await expect(page.getByTestId("switch-graph-collapse")).toContainText("+2 switches");
+      // The chain sits below the overview's stats: framed on it.
+      await frameOn(page.getByTestId("switch-graph"));
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/linear-${vp.name}-${theme}.png`),
       });
@@ -3017,6 +3114,25 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("switch-graph")).toBeVisible();
       await expect(page.getByTestId("node-fork-chip").first()).toBeVisible();
       await expect(page.getByTestId("node-merge-chip").first()).toBeVisible();
+      // The chain sits below the overview's stats: framed on it, its fork
+      // and merge marks in the shot.
+      await frameOn(page.getByTestId("switch-graph"));
+      // The chain scrolls sideways: centred on the stretch from the fork
+      // to the merge, so both marks are in the shot; where the strip is
+      // narrower than that stretch (800 px), it starts at the fork.
+      const both = await page.getByTestId("switch-graph").evaluate((graph) => {
+        const fork = graph.querySelector("[data-testid='node-fork-chip']")!.getBoundingClientRect();
+        const merge = graph.querySelector("[data-testid='node-merge-chip']")!.getBoundingClientRect();
+        let strip = graph.querySelector("[data-testid='node-fork-chip']")!.parentElement;
+        while (strip && !(/(auto|scroll)/.test(getComputedStyle(strip).overflowX) && strip.scrollWidth > strip.clientWidth)) strip = strip.parentElement;
+        if (!strip) return true;
+        const box = strip.getBoundingClientRect();
+        const fits = merge.right - fork.left + 8 <= box.width;
+        strip.scrollLeft += fits ? (fork.left + merge.right) / 2 - (box.left + box.right) / 2 : fork.left - box.left - 150;
+        return fits;
+      });
+      await expect(page.getByTestId("node-fork-chip").first()).toBeInViewport();
+      if (both) await expect(page.getByTestId("node-merge-chip").first()).toBeInViewport();
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/fork-merge-${vp.name}-${theme}.png`),
       });
@@ -4897,6 +5013,7 @@ for (const theme of THEMES) {
     await page.screenshot({ path: resolve(GALLERY, `53-parked/rail-and-offer-1280x800-${theme}.png`) });
     await page.getByTestId("rail-parked").first().click();
     await expect(page.getByTestId("park-state")).toContainText("Parked until the quota resets");
+    await terminalDrawn(page); // the session's terminal is in the frame
     await page.screenshot({ path: resolve(GALLERY, `53-parked/inspector-1280x800-${theme}.png`) });
   });
 }
@@ -5307,11 +5424,17 @@ for (const theme of THEMES) {
       } else {
         await goTo(page, "Settings");
         await expect(page.getByTestId("channel-label")).toBeVisible();
-        await page.getByTestId("settings-updates").evaluate((card) => card.scrollIntoView({ block: "start" }));
+        // Framed on About & updates: its heading in view under the bar.
+        await frameOn(page.locator("#settings-about"));
         if (name === "going-back-confirm") {
           await page.getByText("Go back to an earlier version", { exact: true }).click();
           await page.getByTestId("going-back-27").click();
-          await expect(page.getByTestId("going-back-confirm")).toBeVisible();
+          const confirm = page.getByTestId("going-back-confirm");
+          await expect(confirm).toBeVisible();
+          // The whole confirm, its Go back and quit / Cancel in the shot.
+          await frameOn(confirm, { edge: "end" });
+          await expect(confirm.getByRole("button", { name: /Go back and quit/ })).toBeInViewport();
+          await expect(confirm.getByRole("button", { name: "Cancel" })).toBeInViewport();
         }
       }
       await page.screenshot({ path: resolve(GALLERY, `58-updates/${name}-1280x800-${theme}.png`) });
@@ -5666,7 +5789,8 @@ for (const theme of THEMES) {
       __AIJ_USAGE_STATS__: SHARE,
       __AIJ_CRASH__: { setting: "ask", effective: "ask", reason: null, asking: [], queued: 1, can_send: false },
     }, "Privacy");
-    await page.getByTestId("privacy-crash-reports").evaluate((row) => row.scrollIntoView({ block: "center" }));
+    // Framed on the Crash reports row (the page would open mid-card).
+    await frameOn(page.getByTestId("privacy-crash-reports"), { gap: 24 });
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(GALLERY, `64-crash/setting-1280x800-${theme}.png`) });
   });

@@ -101,8 +101,12 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`nothing missing — ${theme}`, async ({ page }) => {
     await openWith(page, theme, { ...EXAMPLE_SETUP, offers: [] });
-    const line = page.getByTestId("switch-setup-summary");
-    await expect(line).toHaveText("Personal already has everything Work Max has set up.");
+    // Nothing missing: no list before the switch (the screen stays
+    // short); Details says the target has it all.
+    await expect(page.getByTestId("switch-setup")).toHaveCount(0);
+    const details = page.getByTestId("switch-details");
+    if ((await details.getAttribute("open")) === null) await details.locator(":scope > summary").click();
+    await expect(details).toContainText("Personal already has 3 of the 3 things this account has set up.");
     await page.getByTestId("switch-oneclick").screenshot({ path: resolve(OUT, `nothing-missing-${theme}.png`) });
     await axeClean(page, "nothing missing");
   });

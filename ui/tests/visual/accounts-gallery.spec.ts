@@ -120,6 +120,10 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, allStatuses, theme);
     await goTo(page, "Accounts");
     await page.getByTestId("add-account").click();
+    // AJ-E1601: a found tool with a service it runs through: Add account
+    // asks which tool first.
+    const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+    await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
     const dialog = page.getByRole("dialog", { name: "Add accounts" });
     await expect(dialog.getByTestId("first-run-bring-in")).toHaveText("Bring in 2 accounts");
     await page.screenshot({ path: resolve(OUT, `add-accounts-1280x800-${theme}.png`) });

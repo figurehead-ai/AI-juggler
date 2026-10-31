@@ -18,7 +18,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { atScale, goTo, expectRail } from "./fixtures";
+import { atScale, goTo, expectRail, openRailList } from "./fixtures";
 
 const T0 = 1_728_800_000_000;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E805");
@@ -241,7 +241,9 @@ for (const theme of ["dark", "light"] as const) {
     test(`rail and inspector hold their layout at scale — ${theme} ${width}x${height}`, async ({ page }) => {
       await open(page, theme);
       await page.setViewportSize({ width, height });
-      await boardRows(page);
+      await expectRail(page); // D-25: narrower than 1100 px the rail folds to icons
+      await openRailList(page); // and its own door opens the list (the board)
+      await expect(page.locator(ROWS).first()).toBeVisible();
       const row = page.locator(ROWS).nth(3);
       const id = (await row.getAttribute("data-instance-id")) ?? "";
       await row.click();
