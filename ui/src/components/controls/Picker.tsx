@@ -31,6 +31,8 @@ export interface PickerOption<T extends string = string> {
   reason?: string;
   /** It would show nothing (an empty pool in a filter): listed last. */
   empty?: boolean;
+  /** Always first, above the groups (a filter's "All"). */
+  pinned?: boolean;
 }
 
 /** A group shown before All: its words and the values in it, in order. */
@@ -41,6 +43,8 @@ export interface PickerGroup<T extends string = string> {
 
 /** Past this many options the menu has a search field. */
 export const SEARCH_FROM = 9;
+/** From this many options the groups show; a shorter list is all in view. */
+export const GROUPS_FROM = 6;
 /** At most this many lines are drawn; typing finds the rest. */
 const DRAWN = 60;
 
@@ -74,6 +78,7 @@ export function Picker<T extends string>({
   describedBy,
   groups = [],
   searchLabel = "Search",
+  allHeading = "All",
 }: {
   value: T | null | undefined;
   options: readonly PickerOption<T>[];
@@ -81,6 +86,8 @@ export function Picker<T extends string>({
   groups?: readonly PickerGroup<T>[];
   /** The search field's name ("Search pools"). */
   searchLabel?: string;
+  /** The full list's heading under the groups ("All pools"). */
+  allHeading?: string;
   onChange: (value: T) => void;
   /** What it picks ("Sort by"); with the value, the button's name. */
   ariaLabel?: string;
@@ -187,13 +194,13 @@ export function Picker<T extends string>({
               onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
-                const first = sections(options, groups, query).flatMap((section) => section.options).find((option) => !option.disabled);
+                const first = sections(options, groups, query, allHeading).flatMap((section) => section.options).find((option) => !option.disabled);
                 if (first) pick(first);
               }}
               className="mx-0.5 mb-1 h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-body text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent/60"
             />
           )}
-          {lines(sections(options, groups, query), (option, key, index) => (
+          {lines(sections(options, groups, query, allHeading), (option, key, index) => (
             <MenuItem
               key={key}
               checked={option.value === value}
@@ -228,18 +235,22 @@ interface Section<T extends string> {
 
 /** What the menu lists: the groups (not while searching), then All with
  * the empty ones last; a search keeps what matches its words. */
-export function sections<T extends string>(options: readonly PickerOption<T>[], groups: readonly PickerGroup<T>[], query: string): Section<T>[] {
+export function sections<T extends string>(options: readonly PickerOption<T>[], groups: readonly PickerGroup<T>[], query: string, allHeading = "All"): Section<T>[] {
   const words = query.trim().toLowerCase();
   const matches = (option: PickerOption<T>) => words === "" || `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(words);
   const byValue = new Map(options.map((option) => [option.value, option]));
   const out: Section<T>[] = [];
-  if (words === "")
+  const pinned = options.filter((option) => option.pinned);
+  if (pinned.length > 0 && words === "") out.push({ label: null, options: pinned, more: 0 });
+  const rest = options.filter((option) => !option.pinned);
+  if (words === "" && rest.length >= GROUPS_FROM)
     for (const group of groups) {
-      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined);
+      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined && !option.pinned);
       if (shown.length > 0) out.push({ label: group.label, options: shown, more: 0 });
     }
-  const all = [...options.filter((option) => !option.empty), ...options.filter((option) => option.empty)].filter(matches);
-  out.push({ label: out.length > 0 ? "All" : null, options: all.slice(0, DRAWN), more: Math.max(0, all.length - DRAWN) });
+  const grouped = out.some((section) => section.label !== null);
+  const all = [...rest.filter((option) => !option.empty), ...rest.filter((option) => option.empty)].filter(matches);
+  out.push({ label: grouped ? allHeading : null, options: all.slice(0, DRAWN), more: Math.max(0, all.length - DRAWN) });
   return out;
 }
 

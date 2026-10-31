@@ -100,7 +100,7 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   const shownPools = pools.filter((pool) => !projectId || pool.project_id === projectId);
   const poolOptions = shownPools.map((pool): PickerOption => ({ value: pool.id, label: pool.name, hint: pool.members === 0 ? "No members" : pool.members === 1 ? "1 member" : `${pool.members} members`, icon: IconPool, empty: pool.members === 0 }));
   const poolGroups = [{ label: "With members", values: [...shownPools].filter((pool) => pool.members > 0).sort((a, b) => b.members - a.members).slice(0, 5).map((pool) => pool.id) }];
-  const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects }))];
+  const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects, pinned: true }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects }))];
   const projectGroups = [{ label: "Recent", values: recentProjects(projects) }];
   const chooseView = (next: "board" | "plan") => {
     setView(next);
@@ -131,16 +131,17 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
           testId="tasks-view"
           className="w-36 shrink-0"
         />
-        <Picker size="sm" prefix="Project:" ariaLabel="Project" heading="Project" value={projectId ?? ALL} options={projectOptions} groups={projectGroups} searchLabel="Search projects" onChange={(next) => (setProjectId(orAll(next)), setPoolId(null))} testId="tasks-filter-project" />
+        <Picker size="sm" prefix="Project:" ariaLabel="Project" heading="Project" value={projectId ?? ALL} options={projectOptions} groups={projectGroups} searchLabel="Search projects" allHeading="All projects" onChange={(next) => (setProjectId(orAll(next)), setPoolId(null))} testId="tasks-filter-project" />
         <Picker
           size="sm"
           prefix="Pool:"
           ariaLabel="Pool"
           heading="Pool"
           value={poolId ?? ALL}
-          options={[{ value: ALL, label: "All", hint: projectId ? "Every pool of this project" : "Every pool", icon: IconPool }, ...poolOptions]}
+          options={[{ value: ALL, label: "All", hint: projectId ? "Every pool of this project" : "Every pool", icon: IconPool, pinned: true }, ...poolOptions]}
           groups={poolGroups}
           searchLabel="Search pools"
+          allHeading="All pools"
           onChange={(next) => setPoolId(orAll(next))}
           testId="tasks-filter-pool"
         />

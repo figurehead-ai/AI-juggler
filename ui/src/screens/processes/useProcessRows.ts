@@ -117,7 +117,10 @@ export function useProcessRows(query: ProcessQueryInput): ProcessRows {
   }, []);
 
   useEffect(() => {
-    setState(kept.get(key) ?? null);
+    // 0.3.2: a new query (a session unfolded, a filter) keeps the last
+    // rows on screen until its own arrive (`current` says which), so the
+    // table never blanks while the backend answers.
+    setState((prior) => kept.get(key) ?? prior);
     void read(PAGE_ROWS);
   }, [key, read]);
 

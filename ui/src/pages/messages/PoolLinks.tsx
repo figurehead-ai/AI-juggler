@@ -59,6 +59,7 @@ export function PoolLinks({ poolId }: { poolId: string }): JSX.Element {
             options={others.map((pool) => ({ value: pool.id, label: pool.name, hint: pool.members === 0 ? "No members" : undefined, empty: pool.members === 0 }))}
             groups={[{ label: "With members", values: others.filter((pool) => pool.members > 0).sort((a, b) => b.members - a.members).slice(0, 5).map((pool) => pool.id) }]}
             searchLabel="Search pools"
+            allHeading="All pools"
           />
           <Button size="sm" variant="secondary" disabled={!adding} onClick={() => change(adding, true)} data-testid="pool-link-add">
             Link

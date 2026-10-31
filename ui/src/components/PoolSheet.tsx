@@ -109,9 +109,10 @@ function CreatePool({
               onChange={setProject}
               testId="pool-create-project"
               className="self-start"
-              options={[{ value: "", label: "Any project" }, ...projects.map((row) => ({ value: row.id, label: row.name }))]}
+              options={[{ value: "", label: "Any project", pinned: true }, ...projects.map((row) => ({ value: row.id, label: row.name }))]}
               groups={[{ label: "Recent", values: recentProjects(projects) }]}
               searchLabel="Search projects"
+              allHeading="All projects"
             />
           </Field>
         )}

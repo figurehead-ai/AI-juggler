@@ -16,8 +16,8 @@ const options = OPTIONS.map((option) => ({ ...option, empty: !busy.has(option.va
 
 describe("0.3.2 the Picker: suggested, then All", () => {
   it("lists the group first, then All with the empty ones last", () => {
-    const out = sections(options, [{ label: "With members", values: ["p2", "p9"] }], "");
-    expect(out.map((section) => section.label)).toEqual(["With members", "All"]);
+    const out = sections(options, [{ label: "With members", values: ["p2", "p9"] }], "", "All pools");
+    expect(out.map((section) => section.label)).toEqual(["With members", "All pools"]);
     expect(out[0]!.options.map((option) => option.value)).toEqual(["p2", "p9"]);
     expect(out[1]!.options.slice(0, 3).map((option) => option.value)).toEqual(["p2", "p4", "p9"]);
     expect(out[1]!.options.at(-1)!.value).toBe("p10");
@@ -28,6 +28,14 @@ describe("0.3.2 the Picker: suggested, then All", () => {
     expect(out).toHaveLength(1);
     expect(out[0]!.label).toBeNull();
     expect(out[0]!.options.map((option) => option.value)).toEqual(["p1", "p10"]);
+  });
+
+  it("a pinned option comes first; a short list shows no groups, all of it in view", () => {
+    const short = [{ value: "all", label: "All", pinned: true }, ...options.slice(0, 3)];
+    const out = sections(short, [{ label: "With members", values: ["p2"] }], "", "All pools");
+    expect(out.map((section) => section.label)).toEqual([null, null]);
+    expect(out[0]!.options.map((option) => option.value)).toEqual(["all"]);
+    expect(out[1]!.options.map((option) => option.value)).not.toContain("all");
   });
 
   it("draws at most 60 lines and says how many more typing finds", () => {
