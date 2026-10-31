@@ -52,7 +52,7 @@ export function AccountOverview(props: AccountPanelProps) {
     return (
       <Card className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center" data-testid="account-signin-card">
         <p className="text-[13px] font-medium text-ink">{account.label} is signed out</p>
-        <p className="max-w-xs text-meta leading-relaxed text-muted">
+        <p className="max-w-xs text-meta leading-relaxed text-ink-2">
           Sign in from the Accounts screen to see quota, usage and launch controls again. Nothing is
           deleted — the isolated account state is kept.
         </p>
@@ -74,19 +74,20 @@ export function AccountOverview(props: AccountPanelProps) {
         <AccountRunning {...props} />
         <Section title="Usual projects" icon={<IconFolder />} sub="where this profile works" testId="account-affinity">
           {usualProjects.length === 0 ? (
-            <p className="text-meta text-muted">No project affinity yet.</p>
+            <p className="text-meta text-ink-2">No project affinity yet.</p>
           ) : (
             <ul className="flex flex-col">
               {usualProjects.map((project) => (
                 <li key={project.id}>
                   <button
                     type="button"
-                    aria-label={project.name}
                     onClick={() => props.onOpenProject(project.id)}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body font-medium text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
                   >
                     <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                    <span className="text-label text-muted">Open ›</span>
+                    <span className="text-label text-muted">
+                      Open <span aria-hidden="true">›</span>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -160,11 +161,11 @@ function AccountLimits({ account, now }: { account: AccountInfo; now: number }) 
     <Section title="Limits" icon={<IconGauge />} sub={display?.unavailable_reason ? undefined : "what's left in each window, and the last 7 days"} className="@container" testId="account-limits">
       <div data-testid="account-rings">
         {display === null ? (
-          <p className="text-meta text-muted" data-testid="account-rings-loading">
+          <p className="text-meta text-ink-2" data-testid="account-rings-loading">
             Reading its limits…
           </p>
         ) : display.unavailable_reason ? (
-          <p className="text-meta text-muted" data-testid="quota-unavailable">
+          <p className="text-meta text-ink-2" data-testid="quota-unavailable">
             {display.unavailable_reason}
           </p>
         ) : (

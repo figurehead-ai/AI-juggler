@@ -118,7 +118,7 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
             ))}
           </ul>
         ) : shown.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-muted" data-testid="projects-empty">
+          <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="projects-empty">
             {words.trim() ? `No project matches “${words.trim()}”.` : "No projects yet. Start a session in a folder, or make a project, and it shows here with what needs you, its sessions and its tasks."}
           </p>
         ) : (

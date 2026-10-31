@@ -121,16 +121,16 @@ export function ProjectRowSkeleton(): JSX.Element {
   return (
     <li className={GRID + " px-3 py-3"} aria-hidden="true">
       <span className="col-span-2 flex items-center gap-3 @min-[760px]:col-span-1">
-        <span className="size-7 rounded-lg bg-surface-3 motion-safe:animate-pulse" />
+        <span className="size-7 rounded-lg bg-skeleton motion-safe:animate-pulse" />
         <span className="flex flex-col gap-1.5">
-          <span className="h-3.5 w-36 rounded bg-surface-3 motion-safe:animate-pulse" />
-          <span className="h-3 w-48 rounded bg-surface-3 motion-safe:animate-pulse" />
+          <span className="h-3.5 w-36 rounded bg-skeleton motion-safe:animate-pulse" />
+          <span className="h-3 w-48 rounded bg-skeleton motion-safe:animate-pulse" />
         </span>
       </span>
-      <span className="hidden h-3.5 w-24 rounded bg-surface-3 motion-safe:animate-pulse @min-[760px]:block" />
-      <span className="hidden h-3.5 w-20 rounded bg-surface-3 motion-safe:animate-pulse @min-[760px]:block" />
-      <span className="hidden h-3.5 w-20 rounded bg-surface-3 motion-safe:animate-pulse @min-[760px]:block" />
-      <span className="hidden h-3.5 w-12 justify-self-end rounded bg-surface-3 motion-safe:animate-pulse @min-[760px]:block" />
+      <span className="hidden h-3.5 w-24 rounded bg-skeleton motion-safe:animate-pulse @min-[760px]:block" />
+      <span className="hidden h-3.5 w-20 rounded bg-skeleton motion-safe:animate-pulse @min-[760px]:block" />
+      <span className="hidden h-3.5 w-20 rounded bg-skeleton motion-safe:animate-pulse @min-[760px]:block" />
+      <span className="hidden h-3.5 w-12 justify-self-end rounded bg-skeleton motion-safe:animate-pulse @min-[760px]:block" />
     </li>
   );
 }

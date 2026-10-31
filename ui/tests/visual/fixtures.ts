@@ -422,11 +422,19 @@ export async function terminalDrawn(page: import("@playwright/test").Page): Prom
   await expect(page.locator(".xterm-rows")).toContainText("Ask anything");
 }
 
+/** The session's switch list, open: as the card's list when it's open
+ * already (the limit hit), else Switch account…'s dialog (0.3.2). */
 export async function openSwitch(page: import("@playwright/test").Page): Promise<void> {
   const section = page.getByTestId("handover-section");
   if (await section.evaluate((node) => (node as HTMLDetailsElement).open).catch(() => false)) return;
   await page.getByTestId("header-switch").click();
-  await expect(section).toHaveJSProperty("open", true);
+  await expect(page.getByTestId("continue-dialog")).toBeVisible();
+}
+
+/** The ranked rows of the switch list, wherever it shows: the dialog
+ * while it's open (the card then says so), else the card. */
+export function switchRows(page: import("@playwright/test").Page): import("@playwright/test").Locator {
+  return page.locator("[data-testid='continue-dialog'] button[data-row]:not(:disabled), [data-testid='handover-section'] button[data-row]:not(:disabled)");
 }
 
 /**

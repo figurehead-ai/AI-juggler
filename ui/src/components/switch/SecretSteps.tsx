@@ -61,7 +61,7 @@ export function SecretSteps({
         ))}
       </ol>
       {command && (
-        <pre className="whitespace-pre-wrap break-all rounded-lg border border-hairline bg-surface-2 px-3 py-2 font-mono text-meta text-ink" data-testid="switch-setup-command">
+        <pre className="whitespace-pre-wrap break-words rounded-lg border border-hairline bg-surface-2 px-3 py-2 font-mono text-meta text-ink" data-testid="switch-setup-command">
           {command}
         </pre>
       )}

@@ -78,7 +78,7 @@ export function PrivacyClaims(): JSX.Element {
   const tools = useTools().filter((tool) => tool.terms !== null);
   return (
     <div className="flex flex-col gap-7" data-testid="privacy-page">
-      <p className="px-1 text-meta text-muted">{claims.checked}</p>
+      <p className="px-1 text-meta text-ink-2">{claims.checked}</p>
       {claims.groups.map((group) => (
         <Section key={group.id} id={group.id} title={group.title}>
           {group.claims.map((claim) => (
@@ -103,7 +103,7 @@ export function PrivacyClaims(): JSX.Element {
           ))}
         </Section>
       )}
-      <p className="px-1 text-meta text-muted">
+      <p className="px-1 text-meta text-ink-2">
         Found a line that isn't true? Please <OutLink to={{ kind: "report" }}>report it privately</OutLink>: it's a security bug.
       </p>
     </div>

@@ -86,7 +86,7 @@ export function RulesPanel({ policy: seeded }: { policy?: CleanupPolicyInfo | nu
           </Button>
         )}
       </div>
-      <p className="text-meta text-muted">
+      <p className="text-meta text-ink-2">
         Off unless you turn it on, per account. It only ever tidies dev servers and watchers AI Juggler started, after their session ended, and never another app's.
       </p>
       {policy?.paused && <p className="text-meta font-medium text-warning">Paused for every account.</p>}

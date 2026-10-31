@@ -29,7 +29,7 @@ export function AccessStep({
               ? "One optional permission makes it smoother."
               : `${entries.length} optional permissions make it smoother.`}
         </h1>
-        <p className="max-w-2xl text-section leading-relaxed text-muted">
+        <p className="max-w-2xl text-section leading-relaxed text-ink-2">
           Allow opens the system's own prompt, and this page updates as soon as you say yes. Skip any of them: AI Juggler asks again only when you first use what it's for.
         </p>
       </div>

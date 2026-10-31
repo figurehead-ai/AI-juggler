@@ -42,7 +42,7 @@ function RemoteBoardSection({
         : "○ offline · last known";
   return (
     <div className="mt-1 flex flex-col gap-0.5" data-testid="board-machine" data-machine={machine.machine_id}>
-      <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-meta font-semibold text-muted">
+      <p className="flex items-baseline gap-1.5 px-3 pb-0.5 pt-1 text-meta font-semibold text-ink-2">
         <span className="truncate normal-case tracking-normal">{machine.label}</span>
         <span className="shrink-0 font-normal normal-case tracking-normal">{state}</span>
       </p>
@@ -133,7 +133,7 @@ export function OtherMacs({
                   controls={id}
                   onToggle={() => setOpened((current) => new Set([...current, machine.machine_id]))}
                 />
-                <p className="min-w-0 truncate text-meta font-semibold text-muted">
+                <p className="min-w-0 truncate text-meta font-semibold text-ink-2">
                   {machine.label} <span className="font-normal">· {rows.length} open</span>
                 </p>
               </div>

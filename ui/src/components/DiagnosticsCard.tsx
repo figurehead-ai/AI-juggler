@@ -17,6 +17,8 @@ import {
 } from "../lib/ipc/app";
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
+import { Disclosure } from "./controls";
+import { commandTimings, slowCalls, SLOW_MS, type CommandTiming, type SlowCall } from "../lib/ipc/timing";
 
 const bytesOf = (text: string) => new TextEncoder().encode(text).length;
 
@@ -53,7 +55,7 @@ export function DiagnosticsCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-diagnostics">
       <div>
         <CardTitle>Report a problem</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
           Tell us what went wrong on GitHub. Diagnostics help: versions, settings and AI Juggler's own logs, scrubbed on
           this computer. No transcripts, terminal output, credentials, home folder or user name. You see every file before
           it's saved, and attach the zip yourself.
@@ -115,6 +117,60 @@ export function DiagnosticsCard(): JSX.Element {
         </section>
       )}
       <Status status={status} error={error} />
+      <ResponseTimes />
     </Card>
   );
+}
+
+/** 0.3.2: how long the backend took, this run (`lib/ipc/timing`). Read
+ * when opened, so it costs nothing while closed. */
+function ResponseTimes(): JSX.Element {
+  const [rows, setRows] = useState<CommandTiming[]>([]);
+  const [slow, setSlow] = useState<SlowCall[]>([]);
+  const read = () => (setRows(commandTimings().slice(0, 12)), setSlow(slowCalls().slice(0, 8)));
+  return (
+    <Disclosure summary="Backend response times" testId="diagnostics-timings" onToggle={(open) => open && read()}>
+      <div className="mt-2 flex flex-col gap-2 text-label">
+        <p className="text-ink-2">
+          Since AI Juggler started: each backend call&apos;s slowest and latest time. Calls over {SLOW_MS} ms are listed below. Names and times only.
+        </p>
+        {rows.length === 0 ? (
+          <p className="text-ink-2">No calls yet.</p>
+        ) : (
+          <table className="w-full text-left tabular-nums" data-testid="diagnostics-timings-table">
+            <thead className="text-muted">
+              <tr>
+                <th className="py-1 font-medium">Call</th>
+                <th className="py-1 text-right font-medium">Calls</th>
+                <th className="py-1 text-right font-medium">Slowest</th>
+                <th className="py-1 text-right font-medium">Latest</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.command} className="border-t border-hairline">
+                  <td className="py-1 font-mono text-ink">{row.command}</td>
+                  <td className="py-1 text-right text-ink">{row.calls}</td>
+                  <td className={"py-1 text-right " + (row.slowestMs >= SLOW_MS ? "text-warning" : "text-ink")}>{ms(row.slowestMs)}</td>
+                  <td className="py-1 text-right text-ink">{ms(row.lastMs)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {slow.length > 0 && (
+          <p className="text-ink-2" data-testid="diagnostics-slow">
+            Slow: {slow.map((call) => `${call.command} ${ms(call.ms)}`).join(" · ")}
+          </p>
+        )}
+        <Button size="sm" variant="ghost" className="w-fit" onClick={read}>
+          Refresh
+        </Button>
+      </div>
+    </Disclosure>
+  );
+}
+
+function ms(value: number): string {
+  return value >= 1000 ? `${(value / 1000).toFixed(1)} s` : `${Math.round(value)} ms`;
 }

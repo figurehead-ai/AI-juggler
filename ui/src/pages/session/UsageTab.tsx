@@ -89,7 +89,7 @@ export function SessionUsageTab({
             ))}
           </ul>
         ) : (
-          <p className="text-meta leading-[1.5] text-muted">{modelsWhy ?? (models ? "Not recorded in the end of its transcript." : "Reading its transcript…")}</p>
+          <p className="text-meta leading-[1.5] text-ink-2">{modelsWhy ?? (models ? "Not recorded in the end of its transcript." : "Reading its transcript…")}</p>
         )}
       </Card>
       <Runway display={display} title={accountTitle} heading="Its account's window" testId="session-usage-runway" profile={profile}>
@@ -110,7 +110,7 @@ export function SessionUsageTab({
             </span>
             <div className="flex min-w-0 flex-col gap-0.5" data-testid="session-usage-none">
               <p className="text-body font-semibold text-ink">No token counts for it yet</p>
-              <p className="text-meta leading-[1.5] text-muted">They show here once its app writes them on this computer: input, output and what came from the cache.</p>
+              <p className="text-meta leading-[1.5] text-ink-2">They show here once its app writes them on this computer: input, output and what came from the cache.</p>
             </div>
           </Card>
           <div className="grid grid-cols-1 items-start gap-4 @4xl:grid-cols-2">{side}</div>

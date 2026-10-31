@@ -257,7 +257,7 @@ mod tests {
         });
         let body = serde_json::json!({
             "pid": 4242, "userID": 501, "crashReporterKey": "C0FFEE-KEY",
-            "procPath": "/Users/olivia/Applications/AI Juggler.app/Contents/MacOS/ai-juggler",
+            "procPath": "/Users/sam/Applications/AI Juggler.app/Contents/MacOS/ai-juggler",
             "exception": { "type": "EXC_BAD_ACCESS", "signal": "SIGSEGV",
                            "subtype": "KERN_INVALID_ADDRESS at 0x0000000000000010",
                            "codes": "0x0000000000000001, 0x0000000000000010" },
@@ -272,7 +272,7 @@ mod tests {
                   ] }
             ],
             "usedImages": [
-                { "name": "ai-juggler", "path": "/Users/olivia/Applications/AI Juggler.app/Contents/MacOS/ai-juggler", "uuid": "1b071767-a2a3-3416-943c-37500bb073d8" },
+                { "name": "ai-juggler", "path": "/Users/sam/Applications/AI Juggler.app/Contents/MacOS/ai-juggler", "uuid": "1b071767-a2a3-3416-943c-37500bb073d8" },
                 { "name": "WebCore", "path": "/System/Library/Frameworks/WebKit.framework/WebCore" },
                 { "name": "libobjc.A.dylib", "path": "/usr/lib/libobjc.A.dylib" }
             ],
@@ -299,7 +299,7 @@ mod tests {
         );
         let all = serde_json::to_string(&report).unwrap();
         for never in [
-            "olivia",
+            "sam",
             "C0FFEE",
             "4242",
             "77D477FF",

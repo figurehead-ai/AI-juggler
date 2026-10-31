@@ -16,6 +16,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge";
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
 import type { TargetRoom } from "../lib/room-targets";
+import { creditsConsequence, usingCreditsWords } from "../lib/credits";
 
 /** "Suggested": the one with the most room (the one order by room). */
 export function SuggestedMark({ className = "" }: { className?: string }): JSX.Element {
@@ -35,6 +36,15 @@ export function RoomLine({ name, room, testId = "target-room" }: { name: string;
       <span className="flex flex-col text-label text-danger" data-testid={testId} data-room="out">
         <span className="font-medium">{outOfRoomWords(room.resetsAtMs)}</span>
         <span>{outOfRoomConsequence(name, room.resetsAtMs)}</span>
+      </span>
+    );
+  }
+  // 0.3.2: its window is used up, but its credits carry a session on.
+  if (room.kind === "credits" && room.credits) {
+    return (
+      <span className="flex flex-col text-label text-ink" data-testid={testId} data-room="credits">
+        <span className="font-medium">{usingCreditsWords(room.credits)}</span>
+        <span className="text-muted">{creditsConsequence(room.resetsAtMs)}</span>
       </span>
     );
   }

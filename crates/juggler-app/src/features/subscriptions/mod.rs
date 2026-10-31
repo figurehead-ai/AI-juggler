@@ -397,7 +397,7 @@ mod tests {
                 signed(
                     "acct-1",
                     Some("org-me"),
-                    "o…@work.com · olivia@work.com's Organization",
+                    "s…@work.com · sam@work.com's Organization",
                 ),
             ),
             row(

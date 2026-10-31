@@ -177,12 +177,12 @@ impl Rig {
             "the wrapped bridge program isn't trusted (its folder must be the user's, 0700)"
         );
         agent_bridge::settings::answer_impl(&state, true).unwrap();
-        let claude_profile = import(&state, CLAUDE_CODE_ID, &env.claude, "Lab Luka");
+        let claude_profile = import(&state, CLAUDE_CODE_ID, &env.claude, "Lab A");
         let codex_profile = import(&state, CODEX_ID, &env.codex, "Lab Codex");
         let claude_b_profile = env
             .claude_b
             .clone()
-            .map(|folder| import(&state, CLAUDE_CODE_ID, &folder, "Lab Anela"));
+            .map(|folder| import(&state, CLAUDE_CODE_ID, &folder, "Lab B"));
 
         // The app's own background work, as lib.rs runs it without a window.
         juggler_app::features::sessions::lifecycle::spawn_forwarder(Arc::clone(&state));

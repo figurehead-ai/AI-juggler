@@ -15,6 +15,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -71,8 +74,14 @@ fn a_session_that_knows_its_conversation_switches_by_it() {
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
 
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
 
@@ -84,7 +93,7 @@ fn a_session_that_knows_its_conversation_switches_by_it() {
         .join(&account_a.id);
     let transcript: PathBuf = a_dir
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join(format!("{native}.jsonl"));
     seed(&transcript, native, &cwd);
 
@@ -175,7 +184,10 @@ fn a_chain_of_switches_returns_to_where_it_started_with_every_hop() {
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
     let account = |label: &str| {
-        let account = commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap();
+        let account = set_up::set_up(
+            &state,
+            commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap(),
+        );
         let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
         (account.id, profile.id)
     };
@@ -188,7 +200,7 @@ fn a_chain_of_switches_returns_to_where_it_started_with_every_hop() {
             .join(CLAUDE_CODE_ID)
             .join(account)
             .join("projects")
-            .join(cwd.replace('/', "-"))
+            .join(juggler_adapter::handover::mangled_dir(&cwd))
             .join(format!("{native}.jsonl"))
     };
     let append = |path: &std::path::Path, uuid: &str, kind: &str, text: &str| {
@@ -316,8 +328,14 @@ fn freezing(freeze: &str) {
     let project = work.path().join("lab");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
     let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
@@ -328,7 +346,7 @@ fn freezing(freeze: &str) {
         .join(CLAUDE_CODE_ID)
         .join(&account_a.id)
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join(format!("{native}.jsonl"));
     seed(&transcript, native, &cwd);
     {
@@ -376,8 +394,14 @@ fn a_session_with_file_history_switches_and_its_history_travels() {
     let project = work.path().join("lab");
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
     let native = "0b5e0e5c-6c0b-4c55-9a6b-2a7d3c9f1e12";
@@ -387,7 +411,7 @@ fn a_session_with_file_history_switches_and_its_history_travels() {
         .join(&account_a.id);
     let transcript = a_dir
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join(format!("{native}.jsonl"));
     seed(&transcript, native, &cwd);
     let history = a_dir.join("file-history").join(native);
@@ -466,7 +490,10 @@ fn switching_back_gives_the_task_list_the_newest_hop_left() {
     std::fs::create_dir_all(&project).unwrap();
     let cwd = project.to_string_lossy().into_owned();
     let account = |label: &str| {
-        let account = commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap();
+        let account = set_up::set_up(
+            &state,
+            commands::create_account(&state, CLAUDE_CODE_ID, label, None).unwrap(),
+        );
         let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
         (account.id, profile.id)
     };
@@ -480,7 +507,7 @@ fn switching_back_gives_the_task_list_the_newest_hop_left() {
             .join(CLAUDE_CODE_ID)
             .join(account)
             .join("projects")
-            .join(cwd.replace('/', "-"))
+            .join(juggler_adapter::handover::mangled_dir(&cwd))
             .join(format!("{native}.jsonl"))
     };
     seed(&file_of(&a), native, &cwd);

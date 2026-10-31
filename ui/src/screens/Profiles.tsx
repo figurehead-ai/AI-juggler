@@ -144,7 +144,7 @@ export function ProfilesScreen({
     // AJ-E1503 Req.4: card-shaped placeholders while the accounts load.
     return (
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-        <span className="block h-6 w-32 rounded bg-surface-3 motion-safe:animate-pulse" aria-hidden="true" />
+        <span className="block h-6 w-32 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
         <RowPlaceholders shape="card" rows={3} label="Loading accounts" />
       </div>
     );
@@ -167,7 +167,7 @@ export function ProfilesScreen({
       <header className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-title text-ink">Accounts</h2>
-          <p className="max-w-[70ch] text-meta text-muted" data-testid="accounts-definition">
+          <p className="max-w-[70ch] text-meta text-ink-2" data-testid="accounts-definition">
             An <strong className="font-semibold text-ink">account</strong> is a subscription you pay for. A{" "}
             <strong className="font-semibold text-ink">profile</strong> is a setup an app runs on: a Claude app profile or a Claude Code folder.
             One account can have several profiles.
@@ -187,7 +187,7 @@ export function ProfilesScreen({
       </header>
 
       {error && <Card className="border-danger/30 bg-danger-soft p-3 text-xs text-danger">{error}</Card>}
-      <p role="status" className="text-xs text-muted empty:hidden" data-testid="accounts-notice">
+      <p role="status" className="text-xs text-ink-2 empty:hidden" data-testid="accounts-notice">
         {notice}
       </p>
 
@@ -225,7 +225,7 @@ export function ProfilesScreen({
 
       {/* D-25: the pack-secrets policy lives in Settings; the matrix of
           proven switches is one click away, not on every visit. */}
-      <p className="text-xs text-muted">
+      <p className="text-xs text-ink-2">
         What happens to keys and passwords in a conversation you carry to another account is in{" "}
         <button
           type="button"
@@ -285,7 +285,7 @@ function EmptyAccounts({ onAdd }: { onAdd: () => void }) {
       <span className="flex size-11 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi">
         <IconProfiles width={22} height={22} />
       </span>
-      <p className="max-w-sm text-center text-sm text-muted">
+      <p className="max-w-sm text-center text-sm text-ink-2">
         No accounts yet. Add your first one: AI Juggler keeps each account's sign-in in its
         own folder, apart from anything you already use.
       </p>

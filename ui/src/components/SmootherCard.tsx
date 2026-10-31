@@ -116,7 +116,7 @@ export function SmootherCard({ variant }: { variant: "welcome" | "reminder" }): 
             Not now
           </button>
         </div>
-        <p className="text-meta leading-relaxed text-muted">Optional: AI Juggler works without them. Allow opens the system's own prompt.</p>
+        <p className="text-meta leading-relaxed text-ink-2">Optional: AI Juggler works without them. Allow opens the system's own prompt.</p>
         {missing.length > 0 && <OsAccessRows entries={entries} setEntries={setEntries} size="compact" testIdPrefix="smoother" />}
         <LoginItemRow state={loginItem} setState={setLoginItem} />
       </section>

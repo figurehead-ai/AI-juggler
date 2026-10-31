@@ -12,6 +12,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::Path;
 use std::sync::Arc;
 
@@ -48,7 +51,7 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 /// Writes a transcript shaped like Claude's: message lines carrying `cwd`
 /// (the only unambiguous project-path source).
 fn seed_transcript(config_dir: &Path, cwd: &str, session_id: &str) {
-    let encoded = cwd.replace('/', "-");
+    let encoded = juggler_adapter::handover::mangled_dir(cwd);
     let dir = config_dir.join("projects").join(encoded);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -69,7 +72,10 @@ fn backfill_surfaces_real_project_history_from_transcripts() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
 
-    let account = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
+    let account = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
     let config = config_dir_of(&state, &account.id);
     seed_transcript(&config, "/Users/dev/storefront", "sess-old-1");
     seed_transcript(&config, "/Users/dev/storefront", "sess-old-2");
@@ -100,8 +106,14 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
 
@@ -115,7 +127,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
     );
     let source_transcript = config_dir_of(&state, &account_a.id)
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(&cwd))
         .join("native-sess-42.jsonl");
     let source_hash_before =
         juggler_handover::manifest::sha256_hex(&std::fs::read(&source_transcript).unwrap());
@@ -148,7 +160,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
 
     // Transcript transplanted byte-for-byte into B's config, same encoded
     // project subpath.
-    let encoded = cwd.replace('/', "-");
+    let encoded = juggler_adapter::handover::mangled_dir(&cwd);
     let dest = config_dir_of(&state, &account_b.id)
         .join("projects")
         .join(&encoded)

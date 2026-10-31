@@ -52,7 +52,7 @@ export function UninstallCard(): JSX.Element {
           <section className="flex flex-col gap-1">
             <h4 className="font-medium text-ink">Status lines</h4>
             {done.status_lines.length === 0 ? (
-              <p className="text-muted">None to put back: no account's status line points at AI Juggler.</p>
+              <p className="text-ink-2">None to put back: no account's status line points at AI Juggler.</p>
             ) : (
               <ul className="flex flex-col gap-0.5">
                 {done.status_lines.map((line) => (

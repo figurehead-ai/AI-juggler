@@ -22,6 +22,7 @@ import { finishedByYou } from "../../lib/useSwitchSetup";
 import { CarryList } from "./CarryList";
 import { Disclosure } from "../controls";
 import { risky, RoomNote } from "./TargetRoom";
+import { creditsConsequence } from "../../lib/credits";
 import type { TargetRoom } from "../../lib/room-targets";
 
 const DETAILS_KEY = "aij.switch.details";
@@ -89,7 +90,11 @@ export function ConfirmBody({
           </li>
           {room && (
             <li data-testid="switch-summary-room" className={tight ? "font-semibold text-warning" : undefined}>
-              {tight ? `${target} ${room.kind === "out" ? "is out of room" : "has little room left"}: see below before you switch.` : `Room on ${target}: ${room.words}.`}
+              {tight
+                ? `${target} ${room.kind === "out" ? "is out of room" : "has little room left"}: see below before you switch.`
+                : room.kind === "credits"
+                  ? `Room on ${target}: ${room.words}. ${creditsConsequence(room.resetsAtMs, Date.now(), "It goes on")}`
+                  : `Room on ${target}: ${room.words}.`}
             </li>
           )}
           <li data-testid="switch-summary-needs">

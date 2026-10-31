@@ -135,7 +135,7 @@ export function CloudBackupPanel(): JSX.Element | null {
           Restore from Cloud…
         </button>
       </div>
-      <p className="text-muted">
+      <p className="text-ink-2">
         Up to {byteSize(status.limit_bytes)} per backup. Figurehead keeps a limited number, so don't rely on an old one being
         there.
       </p>
@@ -147,7 +147,7 @@ export function CloudBackupPanel(): JSX.Element | null {
       {list && (
         <div className="flex flex-col gap-1.5 border-t border-hairline pt-2" data-testid="cloud-backup-list">
           {list.length === 0 ? (
-            <p className="text-muted">No backups on Figurehead yet.</p>
+            <p className="text-ink-2">No backups on Figurehead yet.</p>
           ) : (
             <>
               {needsCode && (

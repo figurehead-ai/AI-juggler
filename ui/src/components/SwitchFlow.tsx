@@ -19,6 +19,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
 import type { FreezeChoice } from "./SwitchFreezeChoice";
 import { SwitchSetupResults } from "./SwitchSetupList";
+import { takeSwitchOpener } from "../lib/handover-focus";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
 import { ConfirmBody } from "./switch/ConfirmBody";
@@ -83,7 +84,8 @@ export function SwitchFlow({
   // One switch per confirm: a second ⏎ before the phase re-renders would
   // read the stale "confirm" and start another (review of #132).
   const started = useRef(false);
-  if (invokerRef.current === null) invokerRef.current = document.activeElement;
+  // From Continue on another account, what opened that dialog.
+  if (invokerRef.current === null) invokerRef.current = takeSwitchOpener() ?? document.activeElement;
   const running = phase.kind === "executing";
   // Set the moment the switch starts, so an Esc that comes before the
   // next render is held too.
@@ -226,7 +228,8 @@ export function SwitchFlow({
       className={keysPending ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
-      {risky(room) ? "Switch anyway" : "Switch now"}
+      {/* 0.3.2: from another app's session, the button says where it goes on. */}
+      {preflight.source_outside ? (risky(room) ? "Continue here anyway" : "Continue here in AI Juggler") : risky(room) ? "Switch anyway" : "Switch now"}
     </button>
   );
   const cancelButton = <CancelButton onClick={cancel} testId="switch-cancel" />;

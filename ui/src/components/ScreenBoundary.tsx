@@ -77,7 +77,7 @@ function ProblemPanel({
     <div className={root ? "flex min-h-screen items-center justify-center bg-canvas p-6" : "flex h-full items-start justify-center p-6"}>
       <Card className="flex max-w-lg flex-col gap-3 p-6" data-testid="screen-problem" data-screen={screen} role="alert">
         <h2 className="text-base font-semibold text-ink">{root ? "AI Juggler hit a problem" : "This screen hit a problem"}</h2>
-        <p className="text-sm leading-relaxed text-muted">
+        <p className="text-sm leading-relaxed text-ink-2">
           {root
             ? "Something went wrong while showing the window. Reopening it usually helps."
             : `${label} couldn't be shown. The rest of AI Juggler still works: Try again, or copy the details to report it.`}
@@ -92,7 +92,7 @@ function ProblemPanel({
         </div>
         {copied === "failed" && (
           <div className="flex flex-col gap-1.5" role="status">
-            <p className="text-xs text-muted">Couldn't copy the details. Select them here instead:</p>
+            <p className="text-xs text-ink-2">Couldn't copy the details. Select them here instead:</p>
             <pre className="max-h-40 select-text overflow-auto whitespace-pre-wrap rounded-md bg-surface-2 p-2 font-mono text-label text-ink" data-testid="screen-problem-details">
               {errorDetails(screen, error)}
             </pre>

@@ -12,7 +12,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo, openOutsidePage, projectLens, settingsPane } from "./fixtures";
+import { allStatuses, goTo, openOutsidePage, openRailList, projectLens, settingsPane } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/79-pages");
 const REPLICA = JSON.parse(readFileSync(resolve(process.cwd(), "tests/visual/fixtures/replica.json"), "utf8"));
@@ -73,6 +73,7 @@ async function openSession(page: Page) {
 
 async function openProject(page: Page) {
   await projectLens(page);
+  await openRailList(page); // D-25: a narrow window's rail is icons until its list opens
   await page.getByTestId("rail").getByTestId("rail-project").filter({ hasText: PROJECT.name }).first().click();
   // 0.3: a project's crumb is "Projects › its name".
   await expect(page.getByTestId("crumb-projects")).toBeVisible();

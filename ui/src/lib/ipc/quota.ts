@@ -112,6 +112,8 @@ export interface CreditsDisplay {
   as_of_ms: number;
   /** Who reported it: the tool's name ("Codex"). */
   source: string;
+  /** 0.3.2: read over 6 hours ago; its balance is no longer trusted. */
+  stale?: boolean;
 }
 
 /** AJ-E306: one window's token headroom (cap − burned) — present

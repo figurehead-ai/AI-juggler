@@ -15,6 +15,7 @@ import {
   type IdentityMismatchRequest,
 } from "../lib/bridge";
 import { launchSettingsName } from "../lib/account-words";
+import { PRIMARY_FILL } from "./primitives";
 
 export function IdentityMismatchDialog(): JSX.Element | null {
   const [request, setRequest] = useState<IdentityMismatchRequest | null>(null);
@@ -88,18 +89,19 @@ export function IdentityMismatchDialog(): JSX.Element | null {
               {check.detected ?? "—"}
             </dd>
           </dl>
-          <p className="text-muted">
+          <p className="text-ink-2">
             Work started now would be billed to the account signed in. Pick the right one, or fix the
             sign-in and check again.
           </p>
         </div>
         <div className="flex flex-col gap-1.5">
-          {check.alternatives.map((alternative) => (
+          {check.alternatives.map((alternative, index) => (
             <button
               key={alternative.recipe_id}
               type="button"
               onClick={() => decide({ kind: "switch", recipeId: alternative.recipe_id })}
-              className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-1.5 text-left text-xs text-accent-hi"
+              // 0.3.2: the first way out is the dialog's primary.
+              className={"rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-accent/40 bg-accent-soft text-accent-hi")}
               data-testid="identity-switch"
             >
               Use «{alternative.account_label}» ({launchSettingsName(alternative.recipe_name)}) — it is signed in as{" "}

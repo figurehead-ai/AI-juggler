@@ -77,9 +77,33 @@ async function seed(page: Page, width: number, theme: "dark" | "light") {
   await expect(page.getByTestId("rail")).toBeVisible();
 }
 
-/** Every app icon on screen has settled: its icon, or its letters. */
+/** Every app icon on screen has settled: its icon, or its letters. An
+ * icon is read once it's on screen (lazy-load), so one scrolled out of
+ * a list (the palette's rows past its fold) keeps its placeholder until
+ * it's scrolled to; "on screen" is inside every clipping ancestor. */
 async function settled(page: Page) {
-  await expect(page.locator('[data-testid="app-icon"][data-state="loading"]')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-testid="app-icon"][data-state="loading"]')].filter((icon) => {
+          const box = icon.getBoundingClientRect();
+          let top = Math.max(box.top, 0);
+          let bottom = Math.min(box.bottom, window.innerHeight);
+          let left = Math.max(box.left, 0);
+          let right = Math.min(box.right, window.innerWidth);
+          for (let up = icon.parentElement; up; up = up.parentElement) {
+            if (getComputedStyle(up).overflow === "visible") continue;
+            const clip = up.getBoundingClientRect();
+            top = Math.max(top, clip.top);
+            bottom = Math.min(bottom, clip.bottom);
+            left = Math.max(left, clip.left);
+            right = Math.min(right, clip.right);
+          }
+          return bottom > top && right > left;
+        }).length,
+      ),
+    )
+    .toBe(0);
 }
 
 async function shoot(page: Page, name: string, target: "page" | "rail" = "page") {

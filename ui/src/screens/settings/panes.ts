@@ -79,6 +79,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   privacy: { pane: "privacy" },
   "go-to": { pane: "desktop-apps", anchor: "go-to" },
   "last-messages": { pane: "desktop-apps", anchor: "last-messages" },
+  // 0.3.3: the apps and profiles, with Start and Keep alive.
+  "keep-alive": { pane: "desktop-apps", anchor: "keep-alive" },
   // 0.2's first Agent access section (one page of Settings).
   agents: { pane: "agent-access" },
   // AJ-E1704: whether sessions get the agent tools, and where they're off.

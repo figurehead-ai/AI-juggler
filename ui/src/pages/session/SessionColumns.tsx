@@ -5,29 +5,8 @@
  * fixed column (where it runs, its runway, where it could continue) that
  * scrolls within itself. One layout for every kind of session.
  */
-import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
-
-/** Whether a box that scrolls has more below what shows (a short window:
- * the side column says so with a "More below" chip; never a fade, which
- * made the last card look disabled). */
-function useMoreBelow(): [React.RefObject<HTMLDivElement | null>, boolean, () => void] {
-  const box = useRef<HTMLDivElement | null>(null);
-  const [more, setMore] = useState(false);
-  const measure = () => {
-    const el = box.current;
-    if (el) setMore(el.scrollHeight - el.clientHeight - el.scrollTop > 4);
-  };
-  useEffect(() => {
-    measure();
-    const el = box.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const watch = new ResizeObserver(measure);
-    watch.observe(el);
-    for (const child of el.children) watch.observe(child);
-    return () => watch.disconnect();
-  });
-  return [box, more, measure];
-}
+import type { JSX, ReactNode } from "react";
+import { MoreBelow, useMoreBelow } from "../../components/MoreBelow";
 
 export function SessionColumns({ main, side, testId = "session-overview" }: { main: ReactNode; side: ReactNode; testId?: string }): JSX.Element {
   const [box, moreBelow, onSideScroll] = useMoreBelow();
@@ -50,19 +29,7 @@ export function SessionColumns({ main, side, testId = "session-overview" }: { ma
           </div>
           {/* Under the column, never over a card: the cards stay whole and
               bright, and this says there's more (a click scrolls to it). */}
-          {moreBelow && (
-            <button
-              type="button"
-              onClick={() => box.current?.scrollBy({ top: box.current.clientHeight * 0.8, behavior: "smooth" })}
-              className="hidden shrink-0 items-center justify-center gap-1.5 self-center rounded-full px-3 py-0.5 text-meta font-medium text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 @4xl:inline-flex"
-              data-testid="session-side-more"
-            >
-              More below
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
-          )}
+          {moreBelow && <MoreBelow box={box} className="hidden @4xl:inline-flex" testId="session-side-more" />}
         </div>
       </div>
     </div>

@@ -430,20 +430,26 @@ pub fn uuid_set(bytes: &[u8]) -> BTreeSet<String> {
     out
 }
 
-/// The naive vendor mangle (`/` → `-`) — ONLY a flagged fallback
-/// when discovery finds no target dir (H-3); documented as
-/// collision-prone (`/a/b.c` vs `/a/b-c`).
+/// Claude Code's own name for a project's folder: every character that
+/// isn't an ASCII letter or digit becomes `-` (`/Users/me/My App/.x` →
+/// `-Users-me-My-App--x`, as on disk). Used only when discovery finds no
+/// target folder (H-3). 0.3.2: it replaced only `/` and `\`, so a project
+/// whose path held a space or a dot got a folder `--resume` never looked
+/// in, and the switched session started fresh (the maintainer's walk).
 ///
-/// Always one plain folder name: `\\` is a separator too, and a name of
-/// only dots (`.`, `..`) or nothing becomes dashes, so the fallback can
-/// never point at the config root or above it.
+/// Always one plain folder name: dots become dashes, so it can never
+/// point at the config root or above it.
 #[must_use]
 pub fn mangled_dir(cwd: &str) -> String {
-    let name = cwd.replace(['/', '\\'], "-");
-    if name.chars().all(|c| c == '.') {
-        return "-".repeat(name.len().max(1));
+    let name: String = cwd
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect();
+    if name.is_empty() {
+        "-".to_owned()
+    } else {
+        name
     }
-    name
 }
 
 #[cfg(test)]
@@ -520,7 +526,7 @@ mod tests {
         assert_eq!(mangled_dir(".."), "--");
         assert_eq!(mangled_dir("."), "-");
         assert_eq!(mangled_dir(""), "-");
-        assert_eq!(mangled_dir("..\\..\\x"), "..-..-x");
+        assert_eq!(mangled_dir("..\\..\\x"), "------x");
     }
 
     fn line(uuid: &str, parent: Option<&str>, session: &str, cwd: &str) -> String {
@@ -619,7 +625,18 @@ mod tests {
 
     #[test]
     fn mangle_is_the_flagged_fallback_only() {
-        assert_eq!(mangled_dir("/a/b.c"), "-a-b.c");
+        assert_eq!(mangled_dir("/a/b.c"), "-a-b-c");
+        // As Claude Code names them on disk (0.3.2): spaces and dots too.
+        assert_eq!(
+            mangled_dir("/Users/me/Library/Application Support/AI Juggler/x"),
+            "-Users-me-Library-Application-Support-AI-Juggler-x"
+        );
+        assert_eq!(
+            mangled_dir("/Users/me/Dev/App/.claude/worktrees/rel-0.3"),
+            "-Users-me-Dev-App--claude-worktrees-rel-0-3"
+        );
+        assert_eq!(mangled_dir(".."), "--");
+        assert_eq!(mangled_dir(""), "-");
         // Fallback status is structural: discovery is the primary
         // path and flags its use — this helper never decides alone.
     }

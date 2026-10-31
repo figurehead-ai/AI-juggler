@@ -264,19 +264,24 @@ test("launch keys — ⌘N New session, ⌘⇧N New project, ⌥⌘N notificatio
 
 /** The Work Max session in the rail → its first ranked switch row. The
  * rail's list is one stop on the Tab path; ↓ goes through its rows. */
-async function toSwitchRow(page: Page, stops: Stop[]) {
+/** Opens Continue on another account by keyboard; returns what had the
+ * keyboard when it opened (where Esc from the switch comes back to). */
+async function toSwitchRow(page: Page, stops: Stop[]): Promise<Stop> {
   await page.locator("body").focus();
   await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
   await arrowTo(page, stops, /Work Max/);
   await page.keyboard.press("Enter");
   await leaveTerminalIfFocused(page, stops);
-  // D-25: the ranked list is folded; ⌘⇧H opens it and focuses it.
+  const opener = await focused(page);
+  // D-25, 0.3.2: ⌘⇧H opens the ranked list in a dialog, the Suggested
+  // (else the first) account holding the keyboard once the rows load.
   await page.keyboard.press("ControlOrMeta+Shift+H");
-  await expect(page.locator("[data-testid='handover-section'] > summary")).toBeFocused();
+  await expect(page.getByTestId("continue-dialog")).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(document.activeElement?.closest("[data-testid='continue-dialog']") && document.activeElement?.hasAttribute("data-row"))))
+    .toBe(true);
   stops.push(await focused(page));
-  // The ranked rows load asynchronously; tab once they are there.
-  await expect(page.locator("[data-testid='handover-section'] button[data-row]:not(:disabled)").first()).toBeVisible();
-  await tabToEl(page, stops, "[data-testid='handover-section'] button[data-row]:not(:disabled)", { max: 120 });
+  return opener;
 }
 
 test("switch, 1-click — popover, confirm, undo window", async ({ page }) => {
@@ -300,11 +305,12 @@ test("switch, 1-click — popover, confirm, undo window", async ({ page }) => {
   ]);
 });
 
-test("switch, wizard — three steps by keyboard; Esc returns to the row", async ({ page }) => {
+test("switch, wizard — three steps by keyboard; Esc returns to where it was opened", async ({ page }) => {
   await open(page, allStatuses, { __AIJ_SWITCH_PREFLIGHT__: DOOR_WIZARD });
   const stops: Stop[] = [];
-  await toSwitchRow(page, stops);
-  const invoker = await focused(page);
+  // 0.3.2: the row is in Continue on another account's dialog, gone once
+  // a row is picked; Esc from the switch comes back to what opened it.
+  const invoker = await toSwitchRow(page, stops);
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("switch-flow")).toBeVisible();
   stops.push(await focused(page));
@@ -322,10 +328,10 @@ test("switch, wizard — three steps by keyboard; Esc returns to the row", async
   await expect.poll(async () => (await focused(page)).name).toBe(invoker.name);
   const back = await focused(page);
   stops.push(back);
-  expect(back.name, "Esc returns focus to the row that opened the wizard").toBe(invoker.name);
+  expect(back.name, "Esc returns focus to what opened the switch's dialog").toBe(invoker.name);
   record("switch-wizard", stops, [
     "Continue moves Step 1 → 2 → 3 (announced politely); the confirm button is reachable.",
-    "Esc closes the wizard without switching; focus returns to the switch row that opened it.",
+    "Esc closes the wizard without switching; focus returns to what had it when ⌘⇧H opened the accounts.",
   ]);
 });
 

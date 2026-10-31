@@ -6,6 +6,7 @@
  */
 import type { JSX } from "react";
 import { Modal } from "./form";
+import { MoreBelow, useMoreBelow } from "./MoreBelow";
 import { SHORTCUT_AREAS, SHORTCUTS, type Shortcut } from "../lib/shortcuts";
 
 /** One key, as a key cap (the tier tag's quiet border). */
@@ -22,6 +23,8 @@ export function shownShortcuts(fleet: boolean): readonly Shortcut[] {
 
 export function ShortcutSheet({ onClose, fleet = false }: { onClose: () => void; fleet?: boolean }): JSX.Element {
   const shown = shownShortcuts(fleet);
+  // 0.3.2: the list runs past a short window; say so under it.
+  const [box, moreBelow, onScroll] = useMoreBelow();
   return (
     <Modal
       title="Keyboard shortcuts"
@@ -30,7 +33,7 @@ export function ShortcutSheet({ onClose, fleet = false }: { onClose: () => void;
       wide
       testId="shortcut-sheet"
     >
-      <div className="grid max-h-[60vh] gap-x-8 gap-y-5 overflow-y-auto pr-1 sm:grid-cols-2" tabIndex={0} aria-label="Shortcuts by area">
+      <div ref={box} onScroll={onScroll} className="grid max-h-[60vh] gap-x-8 gap-y-5 overflow-y-auto pr-1 sm:grid-cols-2" tabIndex={0} aria-label="Shortcuts by area">
         {SHORTCUT_AREAS.map((area) => (
           <section key={area} aria-labelledby={`shortcuts-${area}`} className="flex flex-col gap-1.5">
             <h3 id={`shortcuts-${area}`} className="text-label font-semibold text-muted">
@@ -58,6 +61,7 @@ export function ShortcutSheet({ onClose, fleet = false }: { onClose: () => void;
           </section>
         ))}
       </div>
+      {moreBelow && <MoreBelow box={box} className="mx-auto mt-2 flex" testId="shortcut-sheet-more" />}
     </Modal>
   );
 }

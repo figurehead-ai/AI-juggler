@@ -316,7 +316,7 @@ export function NewSessionModal({
               settings preselected; the full list under Customise ▸. */}
           {ranked.length > 0 && (
             <div className="mt-5">
-              <RankedRows rows={ranked} leftOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).left} activeAccount={preselected?.account_id} onPick={setPickedAccount} />
+              <RankedRows rows={ranked} leftOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).left} creditsOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).credits !== null} activeAccount={preselected?.account_id} onPick={setPickedAccount} />
             </div>
           )}
           <p className="mt-5 text-section font-semibold text-ink">Which account?</p>
@@ -427,12 +427,12 @@ export function NewSessionModal({
                 );
               })}
             {profiles !== null && profiles.length === 0 && (
-              <p className="py-3 text-center text-xs text-muted">
+              <p className="py-3 text-center text-xs text-ink-2">
                 No launch settings yet — add an account first (Accounts, top right).
               </p>
             )}
             {profiles === null && (
-              <p className="py-3 text-center text-xs text-muted">Loading…</p>
+              <p className="py-3 text-center text-xs text-ink-2">Loading…</p>
             )}
           </div>
 

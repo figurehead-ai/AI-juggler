@@ -15,7 +15,7 @@ coordinator or the maintainer, after the fake-tool suites pass
 **Rules while running it**
 - AI Juggler Dev only (`just dev`), in a throwaway lab project
   (`$LAB`). Never the installed AI Juggler, never a project with real work.
-- At most two real tools at once: the maintainer's **bookauth-luka** Claude
+- At most two real tools at once: the maintainer's **lab-profile-1** Claude
   profile and their Codex sign-in, used where they are. Sign in to nothing.
   Click no Allow that this list doesn't name. Read no credential file, the
   Keychain or a process environment.
@@ -29,7 +29,7 @@ coordinator or the maintainer, after the fake-tool suites pass
 
 ```sh
 export LAB="$HOME/lab/aj-tasks"                         # the throwaway project
-export CLAUDE_DIR="<the bookauth-luka profile's folder>"
+export CLAUDE_DIR="<the lab-profile-1 profile's folder>"
 export CODEX_DIR="<the Codex profile's folder>"         # e.g. ~/.codex
 export AJ_LAB_OUT=/tmp/aj-tasks-lab                     # snapshots and notes (0700)
 export AJ_DATA="$HOME/Library/Application Support/AI Juggler Dev"
@@ -107,7 +107,7 @@ export DISABLE_AUTOUPDATER=1
       project's default account), **Start session** greyed until you pick,
       and **Not now**.
 - [ ] Ask Planner to do it again: still one request.
-- [ ] Pick the **bookauth-luka** launch settings, **Start session**. A new
+- [ ] Pick the **lab-profile-1** launch settings, **Start session**. A new
       Claude session starts in `$LAB`; its first prompt begins
       `[AI Juggler: you started this session for the task aj-…`. The task
       says **In progress with** the new session; **Sessions** lists it as

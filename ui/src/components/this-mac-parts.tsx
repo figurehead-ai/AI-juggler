@@ -130,7 +130,7 @@ export function AwakeLine({ info }: { info: ThisMacInfo }): JSX.Element | null {
       ? `On battery, so not kept awake while ${sessions}`
       : `Not kept awake while ${sessions} (off in Settings)`;
   return (
-    <p className="flex items-start gap-2 text-meta text-muted" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
+    <p className="flex items-start gap-2 text-meta text-ink-2" data-testid="this-mac-awake" data-kept={kept ? "true" : "false"}>
       <span aria-hidden="true" className={`mt-1.5 size-2 shrink-0 rounded-full ${kept ? "bg-live" : "bg-faint"}`} />
       {/* The dot beside the words, never on a line of its own. */}
       <span>
@@ -160,7 +160,7 @@ export function OwnLine({ info }: { info: ThisMacInfo }): JSX.Element {
     atLogin ? "opens at login" : null,
   ].filter(Boolean);
   return (
-    <p className="text-meta text-muted" data-testid="this-mac-own">
+    <p className="text-meta text-ink-2" data-testid="this-mac-own">
       {parts.join(" · ")}
     </p>
   );

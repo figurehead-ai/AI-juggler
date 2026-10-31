@@ -49,7 +49,7 @@ export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; pr
         </Button>
       </div>
       {caps.length === 0 ? (
-        <p className="max-w-[70ch] text-meta text-muted">
+        <p className="max-w-[70ch] text-meta text-ink-2">
           A cap tells you in Needs you when an account or a group of projects reaches 80 % and 100 % of an amount a month.
           Nothing is ever stopped.
         </p>

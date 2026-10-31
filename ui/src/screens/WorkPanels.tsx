@@ -235,7 +235,7 @@ export function NewSessionModal({
     >
       <Card className="w-full max-w-md p-5">
         <h3 className="text-sm font-semibold">New session</h3>
-        <p className="mt-0.5 text-xs text-muted">
+        <p className="mt-0.5 text-xs text-ink-2">
           Pick a profile — its account, isolation, and defaults apply. Point
           it at a directory to make (or reuse) a project.
         </p>
@@ -269,7 +269,7 @@ export function NewSessionModal({
             </button>
           ))}
           {profiles !== null && profiles.length === 0 && (
-            <p className="py-4 text-center text-xs text-muted">
+            <p className="py-4 text-center text-xs text-ink-2">
               No profiles yet — add an account first (Accounts, top right).
             </p>
           )}

@@ -354,7 +354,9 @@ fn a_codex_switch_never_takes_another_sessions_rollout() {
 #[test]
 fn a_claude_switch_never_takes_another_sessions_transcript() {
     two_sessions_one_file(juggler_adapters::CLAUDE_CODE_ID, |home, cwd| {
-        let dir = home.join("projects").join(cwd.replace('/', "-"));
+        let dir = home
+            .join("projects")
+            .join(juggler_adapter::handover::mangled_dir(cwd));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("claude-s1.jsonl"),

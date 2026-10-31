@@ -18,7 +18,9 @@ export type FreezeChoice = "finish-turn" | "stop-now";
  * words: "The original stays open in Claude, untouched: …". */
 export function outsideWords(app: string | null | undefined, live: boolean, target: string): string {
   const where = live ? `stays open in ${app ?? "its app"}, untouched` : "stays as it is, untouched";
-  return `The original ${where}: AI Juggler only reads its conversation. ${target} continues it as a new session here in AI Juggler.`;
+  // 0.3.2 (the maintainer's walk: it moved to a terminal unannounced):
+  // where the work goes on is said before the switch, plainly.
+  return `The original ${where}: AI Juggler only reads its conversation. ${target} continues it here in AI Juggler, in a terminal, not in ${app ?? "its app"}.`;
 }
 
 /** What happens to the original, in one line (the confirm summary). */

@@ -128,8 +128,8 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
   if (!page) {
     return (
       <div className="flex flex-col gap-3 p-4" role="status" aria-label="Loading the thread">
-        <span className="h-12 w-2/3 rounded-2xl bg-surface-3 motion-safe:animate-pulse" />
-        <span className="ml-auto h-10 w-1/2 rounded-2xl bg-surface-3 motion-safe:animate-pulse" />
+        <span className="h-12 w-2/3 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
+        <span className="ml-auto h-10 w-1/2 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
         {error && <p className="text-meta text-danger">{error}</p>}
       </div>
     );
@@ -144,7 +144,7 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
           <h3 id={`thread-${thread.id}`} className="text-[16px] font-semibold text-ink">
             {thread.subject}
           </h3>
-          <p className="text-meta text-muted">
+          <p className="text-meta text-ink-2">
             {thread.people.join(", ")}
             {thread.pool_name ? ` · in «${thread.pool_name}»` : ""}
           </p>

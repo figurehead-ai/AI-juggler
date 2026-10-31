@@ -823,7 +823,7 @@ export default function App() {
               {/* AJ-E611: the alerts (polite, plain words), reset-queue rows
                   with an explicit Resume click (nothing launches by itself). */}
               <div className="shrink-0" data-testid="notification-band">
-                <NotificationRegion onQueueResume={() => setNewSession(true)} onOpenRemote={(machineId) => inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} sessions={sessions} accounts={accounts} />
+                <NotificationRegion onOpenRemote={(machineId) => inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} sessions={sessions} accounts={accounts} />
               </div>
               {selection.kind === "none" ? (
                 <div className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
@@ -851,9 +851,14 @@ export default function App() {
                   </ScreenBoundary>
                 </div>
               ) : selection.kind === "conversation" ? (
-                <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} onSwitch={(sessionId, targetProfileId, targetLabel) => setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
+                <div className="min-h-0 flex-1" data-testid="conversation-scroll">
+                  <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} onSwitch={(sessionId, targetProfileId, targetLabel) => setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
+                </div>
               ) : selection.kind === "pool" ? (
-                <PoolPage poolId={selection.id} sessions={railSessions} projects={projects} now={now} />
+                // The band above takes its height: the page shrinks to fit, never runs past the window (0.3.1).
+                <div className="min-h-0 flex-1" data-testid="pool-scroll">
+                  <PoolPage poolId={selection.id} sessions={railSessions} projects={projects} now={now} />
+                </div>
               ) : (
               <div className="min-h-0 flex-1">
               <RightInspector

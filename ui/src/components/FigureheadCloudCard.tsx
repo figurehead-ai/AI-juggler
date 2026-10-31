@@ -97,7 +97,7 @@ export function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
         </p>
       )}
       {status === null ? (
-        <p className="text-xs text-muted">Loading…</p>
+        <p className="text-xs text-ink-2">Loading…</p>
       ) : status.state === "signed_out" ? (
         <SignedOut
           status={status}
@@ -160,7 +160,7 @@ function SignedOut({
   const validName = name.trim().length > 0 && name.trim().length <= 64;
   return (
     <div className="flex flex-col gap-3" data-testid="cloud-signed-out">
-      <p className="text-xs leading-relaxed text-muted">
+      <p className="text-xs leading-relaxed text-ink-2">
         You can do everything in AI Juggler without an account. A free Figurehead account adds
         Cloud features you choose to turn on — encrypted backups you can restore on another Mac,
         and finding your own Macs for Fleet without a pairing code. Your sign-ins to Claude,
@@ -237,7 +237,7 @@ function Linking({
   onCancel: () => void;
 }): JSX.Element {
   const link = status.link;
-  if (!link) return <p className="text-xs text-muted">Connecting…</p>;
+  if (!link) return <p className="text-xs text-ink-2">Connecting…</p>;
   if (link.phase !== "waiting") {
     const copy =
       link.phase === "denied"
@@ -261,7 +261,7 @@ function Linking({
   }
   return (
     <div className="flex flex-col gap-3" data-testid="cloud-linking">
-      <p className="text-xs leading-relaxed text-muted">
+      <p className="text-xs leading-relaxed text-ink-2">
         We opened figurehead.ai in your browser. Check that it shows this code, then click{" "}
         <span className="text-ink">Approve this Mac</span>.
       </p>

@@ -73,7 +73,7 @@ export function ThisMacCard({
               </Button>
             </div>
           )}
-          <p className="mt-0.5 text-meta text-muted">
+          <p className="mt-0.5 text-meta text-ink-2">
             Shown only here and to the Macs you pair with.
           </p>
         </div>
@@ -108,7 +108,7 @@ export function ThisMacCard({
             {copied ? "Copied" : "Copy"}
           </Button>
         </div>
-        <p className="mt-1.5 text-meta text-muted">
+        <p className="mt-1.5 text-meta text-ink-2">
           When you pair, both Macs show their fingerprints: check they match before you confirm.
         </p>
       </details>

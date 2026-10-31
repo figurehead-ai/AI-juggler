@@ -10,6 +10,7 @@
  */
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 import type { PlaceInfo } from "../types/generated/PlaceInfo";
+import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 
 const CLAUDE_WORK: PlaceInfo = { app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude · Work" };
 const CLAUDE_PERSONAL: PlaceInfo = { app: "Claude", app_id: "claude-app", profile: "Personal", instance: "Personal", pid: 4343, kind: "desktop", app_pid: 4101, label: "Claude · Personal" };
@@ -65,4 +66,32 @@ export function placesConversations(now: number, extra = 0): ConversationInfo[] 
     rows.push(open(`more-${n}`, place, { title: TITLES[n % TITLES.length]!, state: n % 5 === 0 ? "working" : "idle", last_activity_ms: now - (n + 3) * 7 * 60_000 }));
   }
   return rows;
+}
+
+/** 0.3.3: the apps and profiles remembered on that desktop: both Claude
+ * profiles and ChatGPT running (Work kept alive), a Lab profile kept alive
+ * that's down, and an old one; the ended "outside-2" was last open in
+ * Claude · Personal. */
+export function knownPlacesPreview(now: number): { places: KnownPlaceInfo[]; sessions: Record<string, string> } {
+  const row = (over: Partial<KnownPlaceInfo> & Pick<KnownPlaceInfo, "id" | "app_id" | "app" | "label">): KnownPlaceInfo => ({
+    instance: null,
+    profile: null,
+    app_pid: null,
+    keep_alive: false,
+    paused: null,
+    account_id: null,
+    seen_ms: now - 3_600_000,
+    cannot_start: null,
+    ...over,
+  });
+  return {
+    places: [
+      row({ id: "claude-app|/Users/you/Profiles/Work", app_id: "claude-app", app: "Claude", instance: "Work", profile: "Work Max", label: "Claude · Work Max", app_pid: CLAUDE_WORK.app_pid, keep_alive: true, account_id: "claude-work" }),
+      row({ id: "claude-app|/Users/you/Profiles/Personal", app_id: "claude-app", app: "Claude", instance: "Personal", profile: "Personal", label: "Claude · Personal", app_pid: CLAUDE_PERSONAL.app_pid, account_id: "claude-personal" }),
+      row({ id: "codex-app|", app_id: "codex-app", app: "ChatGPT", label: "ChatGPT", app_pid: CODEX.app_pid, account_id: "codex" }),
+      row({ id: "claude-app|/Users/you/Profiles/Lab", app_id: "claude-app", app: "Claude", instance: "Lab", profile: "Lab", label: "Claude · Lab", keep_alive: true, seen_ms: now - 20 * 60_000 }),
+      row({ id: "claude-app|/Users/you/Profiles/Old", app_id: "claude-app", app: "Claude", instance: "Old", profile: "Old", label: "Claude · Old", seen_ms: now - 9 * 24 * 3_600_000 }),
+    ],
+    sessions: { "claude-code/outside-2": "claude-app|/Users/you/Profiles/Personal" },
+  };
 }

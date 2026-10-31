@@ -37,7 +37,9 @@ fn git(dir: &Path, args: &[&str]) {
 fn transcript(config: &Path, cwd: &Path, id: &str) {
     let folder = config
         .join("projects")
-        .join(cwd.to_string_lossy().replace('/', "-"));
+        .join(juggler_adapter::handover::mangled_dir(
+            &cwd.to_string_lossy(),
+        ));
     std::fs::create_dir_all(&folder).unwrap();
     std::fs::write(
         folder.join(format!("{id}.jsonl")),

@@ -16,6 +16,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -67,7 +70,7 @@ fn sign_in(state: &Arc<AppState>, account_id: &str) {
 fn transcript_of(state: &Arc<AppState>, account_id: &str, cwd: &str, native: &str) -> PathBuf {
     config_dir_of(state, account_id)
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(cwd))
         .join(format!("{native}.jsonl"))
 }
 
@@ -107,7 +110,10 @@ fn launch_source(work: &Path) -> LaunchedSource {
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
     {
@@ -151,8 +157,14 @@ fn switch_targets_rank_badge_and_explain_never_lossless() {
     // A second same-Provider account (signed in) and a cross-Provider
     // account on the fake harness (left logged out — the filtered-row
     // contract carries its badge + Drop list all the same).
-    let account_b = commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap();
-    let account_c = commands::create_account(state, FAKE_HARNESS_ID, "Zed Lab", None).unwrap();
+    let account_b = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
+    let account_c = set_up::set_up(
+        state,
+        commands::create_account(state, FAKE_HARNESS_ID, "Zed Lab", None).unwrap(),
+    );
     sign_in(state, &account_b.id);
     commands::create_profile(state, &account_b.id, "Main", None, None).unwrap();
     commands::create_profile(state, &account_c.id, "Main", None, None).unwrap();
@@ -226,8 +238,14 @@ fn switch_targets_come_in_the_rankings_order() {
     let source = launch_source(work.path());
     let state = &source.state;
     // Added first, but signed out: held back.
-    let first = commands::create_account(state, CLAUDE_CODE_ID, "Added first", None).unwrap();
-    let second = commands::create_account(state, CLAUDE_CODE_ID, "Added second", None).unwrap();
+    let first = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Added first", None).unwrap(),
+    );
+    let second = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Added second", None).unwrap(),
+    );
     sign_in(state, &second.id);
     commands::create_profile(state, &first.id, "Main", None, None).unwrap();
     commands::create_profile(state, &second.id, "Main", None, None).unwrap();
@@ -256,8 +274,14 @@ fn graph_renders_the_round_trip_and_hop_note() {
     let source = launch_source(work.path());
     let state = &source.state;
 
-    let account_b = commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap();
-    let account_c = commands::create_account(state, CLAUDE_CODE_ID, "Lab", None).unwrap();
+    let account_b = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
+    let account_c = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Lab", None).unwrap(),
+    );
     let profile_b = commands::create_profile(state, &account_b.id, "Main", None, None).unwrap();
     let profile_c = commands::create_profile(state, &account_c.id, "Main", None, None).unwrap();
 
@@ -371,7 +395,10 @@ fn pack_export_blocks_until_policy_then_strips_the_canary() {
         &source.cwd,
     );
 
-    let account_b = commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_b = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_b = commands::create_profile(state, &account_b.id, "Main", None, None).unwrap();
     commands::switch_execute_impl(
         state,

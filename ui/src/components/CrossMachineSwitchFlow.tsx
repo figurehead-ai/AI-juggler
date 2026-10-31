@@ -26,6 +26,7 @@ import {
   type RemoteSwitchTargetInfo,
 } from "../lib/bridge";
 import { byteSize } from "../lib/compact";
+import { takeSwitchOpener } from "../lib/handover-focus";
 import type { FreezeChoice } from "./SwitchFreezeChoice";
 import { CrossCarried, CrossConfirm, CrossProject, CrossTarget, type Mechanism } from "./switch/CrossSteps";
 import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, SECONDARY, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
@@ -60,7 +61,8 @@ export function CrossMachineSwitchFlow({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): closing returns focus to what opened it.
   const invokerRef = useRef<Element | null>(null);
-  if (invokerRef.current === null) invokerRef.current = document.activeElement;
+  // From Continue on another account, what opened that dialog.
+  if (invokerRef.current === null) invokerRef.current = takeSwitchOpener() ?? document.activeElement;
 
   const mapped = projectId !== null && projectId !== target.same_path_project;
   const steps = useMemo(() => {

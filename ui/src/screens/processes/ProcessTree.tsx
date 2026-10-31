@@ -14,22 +14,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";
 import { treeKey, windowRows } from "../../lib/tree-grid";
-import { COLUMNS, NameCell, NumberCells, OWNER_CELL, StateChip } from "./cells";
+import { AGE_CELL, COLUMNS, NameCell, NumberCells, OWNER_CELL, StateChip } from "./cells";
 
 /** Every row's height, px (two lines of text). */
 export const ROW_HEIGHT = 48;
 
-/** The rows with the processes under a folded process taken out. */
+/** The rows under a folded row taken out: an app's sessions and
+ * programs, a session's processes, a process's children (0.3.2: the app
+ * and session rows folded only through the backend, and an app's never). */
 export function unfolded(rows: readonly ProcessGraphRowInfo[], folded: ReadonlySet<string>): ProcessGraphRowInfo[] {
   const out: ProcessGraphRowInfo[] = [];
   let hideBelow: number | null = null;
   for (const row of rows) {
     if (hideBelow !== null) {
-      if (row.kind === "process" && row.depth > hideBelow) continue;
+      if (row.depth > hideBelow) continue;
       hideBelow = null;
     }
     out.push(row);
-    if (row.kind === "process" && row.has_children && folded.has(row.key)) hideBelow = row.depth;
+    if (folded.has(row.key)) hideBelow = row.depth;
   }
   return out;
 }
@@ -78,7 +80,14 @@ export function ProcessTree({
   select?: string | null;
   onSelected?: () => void;
 }): JSX.Element {
-  const [folded, setFolded] = useState<Set<string>>(() => new Set());
+  // Open or folded by a click here, at once, whatever the backend says
+  // next (a session's choice is also kept by the view, `onToggle`).
+  const [chosen, setChosen] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const open = useCallback(
+    (row: ProcessGraphRowInfo) => chosen.get(row.key) ?? (row.kind === "session" ? isOpen(row) : true),
+    [chosen, isOpen],
+  );
+  const folded = useMemo(() => new Set(rows.filter((row) => !open(row)).map((row) => row.key)), [rows, open]);
   const shown = useMemo(() => unfolded(rows, folded), [rows, folded]);
   const scroller = useRef<HTMLDivElement | null>(null);
   const [scroll, setScroll] = useState({ top: 0, height: 800 });
@@ -111,20 +120,10 @@ export function ProcessTree({
     onSelected?.();
   }, [select, shown, onSelected]);
 
-  const open = useCallback(
-    (row: ProcessGraphRowInfo) => (row.kind === "process" ? !folded.has(row.key) : row.kind === "session" ? isOpen(row) : true),
-    [folded, isOpen],
-  );
   const toggle = useCallback(
     (row: ProcessGraphRowInfo, next: boolean) => {
-      if (row.kind === "process") {
-        setFolded((now) => {
-          const copy = new Set(now);
-          if (next) copy.delete(row.key);
-          else copy.add(row.key);
-          return copy;
-        });
-      } else onToggle(row, next);
+      setChosen((now) => new Map(now).set(row.key, next));
+      if (row.kind === "session") onToggle(row, next);
     },
     [onToggle],
   );
@@ -159,13 +158,13 @@ export function ProcessTree({
   return (
     <div className="@container flex min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid={testId}>
       <div role="treegrid" aria-label={label} aria-rowcount={total + 1} className="flex min-h-0 flex-col" onKeyDown={onKey}>
-        <div role="row" aria-rowindex={1} className={`grid ${COLUMNS} items-center gap-3 border-b border-hairline bg-surface-2 px-3 py-2 text-meta font-medium text-muted`}>
+        <div role="row" aria-rowindex={1} className={`grid ${COLUMNS} items-center border-b border-hairline bg-surface-2 px-3 py-2 text-meta font-medium text-muted`}>
           <div role="columnheader">Process</div>
           <div role="columnheader">State</div>
           <div role="columnheader" className="pl-2">CPU</div>
           <div role="columnheader" className="text-right">{ended ? "Peak" : "Memory"}</div>
-          <div role="columnheader">Ports</div>
-          <div role="columnheader" className="text-right">{ended ? "Ran for" : "Age"}</div>
+          <div role="columnheader" className="pl-2">Ports</div>
+          <div role="columnheader" className={`${AGE_CELL} text-right`}>{ended ? "Ran for" : "Age"}</div>
           <div role="columnheader" className={OWNER_CELL}>
             Owner
           </div>
@@ -201,7 +200,7 @@ export function ProcessTree({
                     data-kind={row.kind}
                     onFocus={() => setFocus(index)}
                     onClick={() => setFocus(index)}
-                    className={`absolute inset-x-0 grid ${COLUMNS} items-center gap-3 border-b border-hairline/60 px-3 outline-none focus-visible:bg-accent-soft/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+                    className={`absolute inset-x-0 grid ${COLUMNS} items-center border-b border-hairline/60 px-3 outline-none focus-visible:bg-accent-soft/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
                       row.kind === "app" ? "bg-surface-2/60" : "hover:bg-surface-2/50"
                     }`}
                     style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}

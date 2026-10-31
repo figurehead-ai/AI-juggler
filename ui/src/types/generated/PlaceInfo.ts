@@ -34,7 +34,8 @@ pid: number,
 kind: string | null, 
 /**
  * AJ-E2104: the app's own process, which the place's Open brings
- * forward (never launches); `None` when no app runs it.
+ * forward; `None` when no app runs it (0.3.3: a remembered place's
+ * Open starts it then, `features::places`).
  */
 app_pid: number | null, 
 /**

@@ -165,7 +165,7 @@ export function PortWarningSheet(props: {
 }) {
   return (
     <div
-      className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-panel p-4"
+      className="flex flex-col gap-3 rounded-xl border border-accent/40 bg-surface p-4 shadow-card"
       role="alertdialog"
       aria-label="Port already held"
       data-testid="port-warning-sheet"

@@ -83,7 +83,7 @@ ui/src/components/FigureheadCloudParts.tsx mac-words 5
 ui/src/components/FleetChips.tsx mac-words 5
 ui/src/components/FleetPeersEmpty.tsx mac-words 6
 ui/src/components/FleetThisMac.tsx mac-words 1
-ui/src/components/MachineStatusLine.tsx mac-words 2
+ui/src/components/MachineStatusLine.tsx mac-words 1
 ui/src/components/MachineUsage.tsx mac-words 1
 ui/src/components/MarkSheet.tsx mac-words 1
 ui/src/components/NotificationSettings.tsx mac-words 3

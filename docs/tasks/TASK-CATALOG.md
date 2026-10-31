@@ -258,6 +258,8 @@
 | AJ-E2108 | The session page: where it runs and its last messages | E21-desktop-first.md | P0 | M | AJ-E2102 |
 | AJ-E2109 | Accounts are subscriptions; profiles sit under them | E21-desktop-first.md | P0 | M | — |
 | AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
+| AJ-E2111 | Open starts an app or profile that isn't running | E21-desktop-first.md | P0 | M | AJ-E2104, AJ-E2105 |
+| AJ-E2112 | Keep alive per app and profile | E21-desktop-first.md | P0 | M | AJ-E2111 |
 | AJ-E2201 | The readability scale as tokens | E22-visual-usage.md | P0 | S | — |
 | AJ-E2202 | A hand-built chart kit | E22-visual-usage.md | P0 | M | AJ-E2201 |
 | AJ-E2203 | The usage history's summaries | E22-visual-usage.md | P0 | L | — |
@@ -371,5 +373,5 @@
 | AJ-E3304 | Pools validated: the exhaustive tables, the pairs, and P1–P11 by hand | E33-validated-by-use.md | P0 | L | AJ-E3301, AJ-E3009 |
 | AJ-E3305 | Every 0.4 screen scored against the 14 principles | E33-validated-by-use.md | P1 | M | AJ-E3301 |
 | AJ-E3306 | The release candidate walked whole: every scenario again, a day in the life, the load | E33-validated-by-use.md | P0 | L | AJ-E3302, AJ-E3303, AJ-E3304, AJ-E3305 |
-Total: 369 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 371 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

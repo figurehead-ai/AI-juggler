@@ -76,7 +76,7 @@ export function ParkCard({
         </>
       )}
       {note && (
-        <p className="w-full text-muted" aria-live="polite">
+        <p className="w-full text-ink-2" aria-live="polite">
           {note}
         </p>
       )}

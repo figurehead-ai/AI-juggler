@@ -47,7 +47,7 @@ export function ServersSection({ project }: { project: ProjectInfo }) {
         MCP servers
       </h3>
       {servers.accounts.length === 0 ? (
-        <p className="text-xs text-muted">No account to compare yet.</p>
+        <p className="text-xs text-ink-2">No account to compare yet.</p>
       ) : (
         <dl className="grid grid-cols-[minmax(0,auto)_1fr] gap-x-4 gap-y-1 text-xs">
           {servers.accounts.map((account) => (
@@ -85,7 +85,7 @@ export function ServersSection({ project }: { project: ProjectInfo }) {
         </ul>
       )}
       {servers.accounts.length > 1 && servers.copies.length === 0 && (
-        <p className="text-xs text-muted">Every account has the same servers.</p>
+        <p className="text-xs text-ink-2">Every account has the same servers.</p>
       )}
       {done && <DoneLine done={done} onUndone={() => void load()} />}
       {error && (

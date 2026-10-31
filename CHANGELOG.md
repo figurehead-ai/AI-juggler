@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (0.3.3)
+
+- **Open starts an app or profile that isn't running; Keep alive per app
+  and profile** (D-63, SPEC §1 amendment 3, docs/releases/0.3.3.md): AI
+  Juggler remembers the desktop apps and profiles it sees running
+  (`features::places`, at most 32); Start and Open in Settings › Desktop
+  apps, Home's tiles and an ended session's "Open in {app}" (Codex at the
+  thread by its link); Keep alive starts one again when it stops, behind
+  the app in front, never while locked, settling, or quitting, at most 3
+  times in 10 minutes, paused by a stop in AI Juggler; every start checks
+  the bundle and that no other user can change it; the record is reserved
+  from the window's setting writer.
+
+### Fixed (0.3.3)
+
+- `worktree_isolation` waits out the 2-second git status cache instead of
+  racing it (a CI flake on #201).
+- The pools access test waits for the panel to finish saving before it
+  clicks Revoke (a CI flake on #202).
+- The Needs you count test waits for the counts to meet at their full
+  value, not the moment they agree at 1 while the preview still loads.
+- A lab test's profiles and a design mock use neutral names ("Lab A",
+  "Lab B", "work-b"); evidence of past runs keeps what those runs printed.
+
+### Fixed (0.3.2)
+
+- **The maintainer's 0.3.0 findings, batched** (docs/releases/0.3.2.md):
+  credits running out mid-window, and a reading's age; one banner and
+  "N more"; close and snooze in the same frame (backend call timing in
+  Report a problem); "Continue on another account…" opens a dialog for
+  every kind of session; "Remind me at <time>" replaces "Queue for the
+  reset" and opens the session when due; a switch checks access and the
+  target's setup before anything changes, names the copied folder as
+  Claude Code does, watches that the conversation arrived and says where
+  it continues; the terminal draws block characters (WebGL); Processes
+  folds app and session rows at once; no web-view menu (Reload); group
+  headers get their own menu; the top bar stays one row (This Mac's words
+  shorten first; a broom and count on a narrow bar); the re-render's
+  findings (rail age whole or not at all, menus fit their labels, the
+  identity line wraps, crash report lines wrap, the port warning's
+  background, skeletons on the grey page, "Close the The…"); the second
+  look's: Processes fits at 1024 (Age and the CPU line give way first),
+  the terminal's margin is dark, rail times stay whole, Home's first need
+  wraps to two lines, commands wrap between words, the shortcut sheet
+  says More below, darker light-theme placeholders.
+
+### Changed (0.3.2)
+
+- **A colour hierarchy in both themes** (D-62 decision 23): surfaces a
+  step apart, an ink-2 level for sentences, labels dimmer than values,
+  one primary fill, dialogs included; every level AA on every surface
+  (the dark accent is #8787f6 for it).
+- **Pickers: suggested, then All** (QUALITY.md "Finding things"): groups
+  on long lists, search from 9, empty last, All pinned.
+
 ### Added
 
 - **One local cache, sized by your Mac** (0.3, ADR-0023): what AI Juggler
@@ -506,6 +561,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests pass unchanged).
 
 ### Fixed
+
+- **An account on its credits isn't "out of room"** (0.3.2). A Codex
+  account whose week was used up kept working on its pre-bought credits
+  while AI Juggler said it had "run out of room · 0% of its weekly window
+  left". Credits that cover (unlimited, or a balance above 0; "probably"
+  when the tool doesn't say how many) are now their own room state: the
+  notice says "Codex is using its credits" (under Earlier, not Needs you,
+  with no empty meter, Continue on another account… still one click), the
+  switch list, its confirm, New session's pick, the limit dialog, Home's
+  Runway and the account card say "Using credits · 14,150 left" and that
+  a session there goes on with its credits until the window resets. Such
+  an account ranks after any with room in its window, before any truly
+  out, and is never Suggested; with a balance of 0 nothing changes.
 
 - **Deleting launch settings keeps their sessions** (0.3.1, D-60). One
   click on the bin deleted launch settings and every session made with

@@ -67,10 +67,15 @@ it("the bell, Home and the rail show one Needs you count, the model's own needs 
   const heading = await view.findByTestId("home-heading");
   await waitFor(() => expect(view.getByTestId("home-needs").textContent).toContain("Work Max is almost out of room"));
   // Home's heading counts the rows it shows (the 0.2 walk, F4), read
-  // again when the backend's count moves: the two meet.
-  await waitFor(() => expect(view.getByTestId("bell-count").textContent).toBe(String(count(heading.textContent ?? ""))));
+  // again when the backend's count moves: the two meet, once both have
+  // the notice and the preview's session that asks. They agree at 1 for
+  // a moment before that, and a busy run once asserted there.
+  await waitFor(() => {
+    const shown = count(heading.textContent ?? "");
+    expect(shown).toBeGreaterThanOrEqual(2);
+    expect(view.getByTestId("bell-count").textContent).toBe(String(shown));
+  });
   const home = count(heading.textContent ?? "");
-  expect(home).toBeGreaterThanOrEqual(2);
   expect(view.getByTestId("notification-bell").getAttribute("aria-label")).toContain(`${home} things need you`);
   await waitFor(() => expect(view.getByTestId("rail-needs-you").textContent).toContain(String(home)));
   expect(view.getAllByTestId("rail-notice").some((row) => row.textContent?.includes("Work Max is almost out of room"))).toBe(true);

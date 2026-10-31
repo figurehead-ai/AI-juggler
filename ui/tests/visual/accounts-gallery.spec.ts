@@ -8,19 +8,19 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, goTo, honestEmpty, readyHome, type FixtureSet } from "./fixtures";
+import { allStatuses, expectRail, goTo, honestEmpty, openSwitch, readyHome, terminalDrawn, type FixtureSet } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-accounts");
 const T0 = 1_728_800_000_000;
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-async function seed(page: Page, fixture: FixtureSet, theme: "dark" | "light") {
+async function seed(page: Page, fixture: FixtureSet, theme: "dark" | "light", displays: unknown[] | null = null) {
   await page.addInitScript(
-    ({ fixture, theme, t0 }) => {
+    ({ fixture, theme, t0, displays }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
-      w.__AIJ_QUOTA_DISPLAY__ = [
+      w.__AIJ_QUOTA_DISPLAY__ = displays ?? [
         {
           account: "claude-work",
           five_hour: { state: "tracking", percentage: 42, resets_at_ms: t0 + 2 * 3_600_000, burned_tokens: 0 },
@@ -34,7 +34,7 @@ async function seed(page: Page, fixture: FixtureSet, theme: "dark" | "light") {
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture, theme, t0: T0 },
+    { fixture, theme, t0: T0, displays },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -120,6 +120,10 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, allStatuses, theme);
     await goTo(page, "Accounts");
     await page.getByTestId("add-account").click();
+    // AJ-E1601: a found tool with a service it runs through: Add account
+    // asks which tool first.
+    const chooser = page.getByRole("dialog", { name: "Add an account: which tool?" });
+    await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
     const dialog = page.getByRole("dialog", { name: "Add accounts" });
     await expect(dialog.getByTestId("first-run-bring-in")).toHaveText("Bring in 2 accounts");
     await page.screenshot({ path: resolve(OUT, `add-accounts-1280x800-${theme}.png`) });
@@ -237,3 +241,104 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
+
+// The maintainer's report (0.3.2): a Codex account whose week is used up
+// while its pre-bought credits carry the work on reads "Using credits ·
+// 14,150 left", never "out of room": on its account card and in a
+// session's switch list (beside one with room and one truly out, its
+// credits at 0).
+const CODEX: FixtureSet = {
+  ...allStatuses,
+  accounts: [...allStatuses.accounts, { id: "codex-work", provider: "codex", label: "Codex", plan: "pro", login_state: "logged_in" }],
+  profiles: [...allStatuses.profiles, { id: "p-codex", name: "Main", account_id: "codex-work", account_label: "Codex", provider: "codex", model: null, default_cwd: null }],
+} as FixtureSet;
+const week = (left: number) => ({
+  state: left === 0 ? "exhausted" : "tracking",
+  percentage: 100 - left,
+  resets_at_ms: T0 + 2 * 86_400_000 + 5 * 3_600_000,
+  reset_basis: "measured",
+  measured_at_ms: T0 - 10 * 60_000,
+  badge: "measured",
+  burned_tokens: 0,
+});
+const ROOM_DISPLAYS = [
+  {
+    account: "codex-work",
+    five_hour: null,
+    weekly: week(0),
+    renewal: { state: "none", label: "", entered_by_user: false },
+    forecast: { state: "learning", tte_min: null, range_min: null, range_max: null, badge: "measured" },
+    unavailable_reason: null,
+    credits: { has_credits: true, unlimited: false, balance: "14150.1635025000", as_of_ms: T0 - 12 * 60_000, source: "Codex" },
+  },
+  {
+    account: "claude-personal",
+    five_hour: { state: "tracking", percentage: 30, resets_at_ms: T0 + 2 * 3_600_000, badge: "measured", burned_tokens: 0 },
+    weekly: { state: "tracking", percentage: 40, resets_at_ms: T0 + 4 * 86_400_000, badge: "measured", burned_tokens: 0 },
+    renewal: { state: "none", label: "", entered_by_user: false },
+    forecast: { state: "learning", tte_min: null, range_min: null, range_max: null, badge: "measured" },
+    unavailable_reason: null,
+    credits: null,
+  },
+  {
+    account: "fake-desk",
+    five_hour: null,
+    weekly: week(0),
+    renewal: { state: "none", label: "", entered_by_user: false },
+    forecast: { state: "learning", tte_min: null, range_min: null, range_max: null, badge: "measured" },
+    unavailable_reason: null,
+    credits: { has_credits: true, unlimited: false, balance: "0", as_of_ms: T0 - 12 * 60_000, source: "Fake Desk" },
+  },
+];
+const switchTarget = (account_id: string, account_label: string, provider: string, top: string[]) => ({
+  recipe_id: `r-${account_id}`,
+  provider,
+  account_id,
+  account_label,
+  badge: provider === "claude-code" ? "Continues exactly · Proven" : "Full story, fresh start · Beta",
+  validated: provider === "claude-code",
+  cross_provider: provider !== "claude-code",
+  drops: provider === "claude-code" ? [] : ["Subagents' work"],
+  score: 0.4,
+  filtered_reason: null,
+  top_factors: top,
+  factors: [],
+  confidence: "Measured",
+  tte_min: null,
+  suggested: false,
+});
+const SWITCH_TARGETS = [
+  switchTarget("codex-work", "Codex", "codex", ["using its credits", "quiet"]),
+  switchTarget("claude-personal", "Personal", "claude-code", ["60% left · measured", "quiet"]),
+  switchTarget("fake-desk", "Fake Desk", "fake-desktop", ["0% left · measured", "quiet"]),
+];
+
+async function seedCredits(page: Page, theme: "dark" | "light") {
+  await page.addInitScript((targets) => ((window as unknown as Record<string, unknown>).__AIJ_SWITCH_TARGETS__ = targets), SWITCH_TARGETS);
+  await seed(page, CODEX, theme, ROOM_DISPLAYS);
+}
+
+for (const theme of ["dark", "light"] as const) {
+  test(`accounts — a Codex account using its credits — ${theme}`, gate("68-accounts"), async ({ page }) => {
+    await seedCredits(page, theme);
+    await goTo(page, "Accounts");
+    const card = page.getByTestId("account-card").filter({ hasText: "Codex" });
+    await expect(card.getByTestId("runway-credits")).toContainText("Using credits · 14,150 left");
+    await card.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(OUT, `accounts-credits-1280x800-${theme}.png`) });
+    await axeClean(page, "accounts with credits");
+  });
+
+  test(`switch list — a Codex account using its credits — ${theme}`, gate("68-accounts"), async ({ page }) => {
+    await seedCredits(page, theme);
+    await expectRail(page);
+    await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click();
+    await terminalDrawn(page);
+    await openSwitch(page);
+    const rows = page.getByTestId("switch-target-rows");
+    await expect(rows.locator('[data-room="credits"]')).toContainText("Using credits · 14,150 left");
+    await rows.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(OUT, `switch-credits-1280x800-${theme}.png`) });
+    await axeClean(page, "switch list with credits");
+  });
+}

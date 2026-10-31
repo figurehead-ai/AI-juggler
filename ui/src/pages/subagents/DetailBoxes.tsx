@@ -37,7 +37,7 @@ export function Kv({ label, children }: { label: string; children: ReactNode }):
 }
 
 function Missing({ children }: { children: ReactNode }): JSX.Element {
-  return <p className="text-meta leading-[1.5] text-muted">{children}</p>;
+  return <p className="text-meta leading-[1.5] text-ink-2">{children}</p>;
 }
 
 /** A long text: its first lines, the rest one click away (the same
@@ -65,7 +65,7 @@ export function TaskBox({ detail }: { detail: SubagentDetailInfo }): JSX.Element
       ) : (
         <Missing>{detail.messages_off ? "Last messages are off in Settings, so its prompt isn't read." : `Its prompt isn't recorded by ${detail.tool}.`}</Missing>
       )}
-      {detail.asked && <p className="border-t border-hairline pt-2 text-meta text-muted">From your message: “{detail.asked}”</p>}
+      {detail.asked && <p className="border-t border-hairline pt-2 text-meta text-ink-2">From your message: “{detail.asked}”</p>}
     </Box>
   );
 }
@@ -167,7 +167,7 @@ export function StopBox({ detail }: { detail: SubagentDetailInfo }): JSX.Element
     <Box title="Stop" testId="subagent-stop-box">
       <div className="flex items-start gap-2.5">
         <IconStop aria-hidden="true" width={16} height={16} className="mt-0.5 shrink-0 text-muted" />
-        <p className="text-meta leading-[1.5] text-muted">
+        <p className="text-meta leading-[1.5] text-ink-2">
           {running ? `AI Juggler can't stop one subagent inside a ${detail.tool} session it doesn't drive.` : "It isn't running."}
           {running && (detail.stop_hint ? ` ${detail.stop_hint}` : " Stopping the session stops all of them.")}
         </p>

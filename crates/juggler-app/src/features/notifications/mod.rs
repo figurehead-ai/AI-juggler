@@ -331,7 +331,9 @@ pub fn model_event(state: &Arc<AppState>, target: Target, kind: Kind, info: &cen
         );
     }
     observe(state, target.clone(), Some(kind));
-    if kind != Kind::Quota {
+    // A quota notice that only informs (an account carrying on with its
+    // credits, 0.3.2) happened: the next one can be told again.
+    if kind != Kind::Quota || !info.needs {
         let now = crate::commands::now_millis();
         if let Ok(mut engine) = state.notifier.engine.lock()
             && !engine.pending()

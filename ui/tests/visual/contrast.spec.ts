@@ -12,7 +12,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses } from "./fixtures";
 
-const TEXT = ["ink", "muted", "faint", "accent", "accent-hi", "live", "success", "warning", "danger"] as const;
+const TEXT = ["ink", "ink-2", "muted", "faint", "accent", "accent-hi", "live", "success", "warning", "danger"] as const;
 const SURFACES = ["canvas", "canvas-hi", "surface", "surface-2", "surface-3"] as const;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804");
 

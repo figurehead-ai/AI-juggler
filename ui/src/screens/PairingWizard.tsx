@@ -249,7 +249,7 @@ export function PairingWizard({
         {step === "done" && state && (
           <div className="flex flex-col gap-3" data-testid="pairing-done" role="status">
             <p className="text-sm font-medium">✓ Paired with {state.peer_label}</p>
-            <p className="text-xs leading-relaxed text-muted">
+            <p className="text-xs leading-relaxed text-ink-2">
               It's listed under Paired machines and connects whenever Link is on on both
               machines. You can unpair it any time.
             </p>
@@ -334,7 +334,7 @@ function HostFind({
   const code = state?.code ?? null;
   return (
     <div className="flex flex-col gap-3" data-testid="pairing-host-find">
-      <p className="text-xs leading-relaxed text-muted">
+      <p className="text-xs leading-relaxed text-ink-2">
         On the other machine, open Fleet, choose <span className="font-medium text-ink">Join a machine</span>,
         pick this Mac and enter this code:
       </p>
@@ -479,7 +479,7 @@ function JoinFind({
     >
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-xs font-medium">1. Choose the machine</legend>
-        {!byAddress && machines === null && <p className="text-xs text-muted">Looking on this network…</p>}
+        {!byAddress && machines === null && <p className="text-xs text-ink-2">Looking on this network…</p>}
         {!byAddress && machines !== null && machines.length === 0 && (
           <p className="rounded-lg border border-hairline px-3 py-2 text-xs leading-relaxed" data-testid="pairing-none-found">
             No machines found. Check both machines are on the same network with Link on.
@@ -588,7 +588,7 @@ function JoinFind({
       </fieldset>
 
       {connecting && (
-        <p className="text-xs text-muted" role="status">
+        <p className="text-xs text-ink-2" role="status">
           Connecting securely…
         </p>
       )}
@@ -624,7 +624,7 @@ function Verify({
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-3" data-testid="pairing-verify">
-      <p className="text-xs leading-relaxed text-muted">
+      <p className="text-xs leading-relaxed text-ink-2">
         The code matched. Now check you're pairing with the right machine: the
         fingerprint below must match the one Fleet shows on{" "}
         <span className="font-medium text-ink">{state.peer_label}</span> under This Mac.
@@ -687,7 +687,7 @@ function Permissions({
   ];
   return (
     <div className="flex flex-col gap-3" data-testid="pairing-permissions">
-      <p className="text-xs text-muted">What may {peerLabel} do on this Mac?</p>
+      <p className="text-xs text-ink-2">What may {peerLabel} do on this Mac?</p>
       <div role="radiogroup" aria-label={`What ${peerLabel} may do on this Mac`} className="flex flex-col gap-2">
         {options.map((option) => (
           <label
@@ -793,7 +793,7 @@ function Failure({
   return (
     <div className="flex flex-col gap-3" role="alert" data-testid="pairing-failure" data-reason={state.reason ?? "unknown"}>
       <p className="text-sm font-medium">{known?.title ?? "Pairing didn't finish"}</p>
-      <p className="text-xs leading-relaxed text-muted">{known?.body ?? state.message ?? "Nothing was paired."}</p>
+      <p className="text-xs leading-relaxed text-ink-2">{known?.body ?? state.message ?? "Nothing was paired."}</p>
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>
           Close

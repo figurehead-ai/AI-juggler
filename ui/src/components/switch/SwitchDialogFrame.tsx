@@ -10,10 +10,11 @@
  * instead (§4.9).
  */
 import { useEffect, type JSX, type ReactNode, type RefObject } from "react";
+import { PRIMARY_FILL } from "../primitives";
 
 export const BUTTON = "min-h-8 rounded-lg border px-3.5 text-body";
 export const SECONDARY = `${BUTTON} border-hairline text-ink hover:bg-surface-2`;
-export const PRIMARY = `${BUTTON} border-accent/50 bg-accent-soft font-semibold text-accent-hi hover:border-accent/70`;
+export const PRIMARY = `${BUTTON} ${PRIMARY_FILL} font-semibold`;
 export const PRIMARY_WAITING = `${BUTTON} border-hairline text-muted`;
 
 /** Where the dialog's controls are, for Tab. */

@@ -93,7 +93,7 @@ export function CrashReportPrompt(): JSX.Element | null {
           {!info.can_send && " This build can't send it yet, so Send keeps it on this computer until one can."}
         </p>
         <pre
-          className="max-h-64 overflow-auto whitespace-pre rounded bg-canvas p-2 font-mono text-label text-ink"
+          className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-canvas p-2 font-mono text-label text-ink"
           aria-label="Crash report (read-only)"
           tabIndex={0}
           data-testid="crash-preview"

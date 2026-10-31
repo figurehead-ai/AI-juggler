@@ -87,7 +87,7 @@ export function QuitSheet(): JSX.Element | null {
           </span>
         </p>
         {busy === "stop" && (
-          <p className="text-muted" role="status">
+          <p className="text-ink-2" role="status">
             {one ? "Stopping it, then quitting…" : `Stopping ${plan.live} sessions, then quitting…`}
           </p>
         )}

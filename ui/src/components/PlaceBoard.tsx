@@ -20,6 +20,8 @@ import { AccountAvatar } from "./Avatar";
 import { showToast } from "./Toast";
 import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
+import { placesKeepAlive } from "../lib/ipc/places";
+import { placeFor, useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow, OWN_PLACE } from "../lib/rail-items";
 import { buildLines, foldSections, lineHeights, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import type { RailGroup } from "../lib/rail-places";
@@ -127,6 +129,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // A header's own click: its profile's page here (an account's in the
   // Account lens, a pool's in the Pool lens); AI Juggler's own place is Home.
   const host = useActionHost();
+  // 0.3.3: the apps remembered, for a desktop place's Keep alive.
+  const places = useKnownPlaces();
   const pageOf = (group: RailGroup): (() => void) | undefined => {
     if (lens === "pool") {
       const pool = group.poolId;
@@ -262,6 +266,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       case "header": {
         const group = line.group;
         const own = group.key === OWN_PLACE;
+        const known = lens === "place" && group.place?.kind === "desktop" ? placeFor(places, group.place.appPid) : null;
         const opens =
           lens === "pool"
             ? group.poolId !== null && host.openPool !== undefined
@@ -280,6 +285,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             openWords={lens === "pool" ? "Open its page" : undefined}
             onPage={pageOf(group)}
             shortcut={line.digit ?? undefined}
+            keepAlive={known ? { on: known.keep_alive, toggle: () => void placesKeepAlive(known.id, !known.keep_alive).catch(() => showToast({ id: "keep-alive", message: `Couldn't change keep alive for ${known.label}` })) } : null}
           >
             {lens === "account" ? <AccountAvatar accountId={group.accountId} label={group.label} size={16} /> : undefined}
           </PlaceHeader>

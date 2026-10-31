@@ -32,7 +32,7 @@ pub enum IdentityProbe {
 }
 
 /// Masks an email for display: first character, `…`, then the domain
-/// (`olivia@example.com` → `o…@example.com`). Recognisable, never the
+/// (`sam@example.com` → `s…@example.com`). Recognisable, never the
 /// full address.
 #[must_use]
 pub fn mask_email(email: &str) -> String {
@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn emails_are_masked_but_recognisable() {
-        assert_eq!(mask_email("olivia@example.com"), "o…@example.com");
+        assert_eq!(mask_email("sam@example.com"), "s…@example.com");
         assert_eq!(mask_email("@example.com"), "…");
         assert_eq!(mask_email("nobody"), "…");
     }

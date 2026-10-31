@@ -143,6 +143,9 @@ pub struct AppState {
     /// ADR-0023: the local caches' registry, budget and switch, as
     /// Settings left them.
     pub cache: crate::features::cache::Manager,
+    /// 0.3.3: the apps and profiles remembered (Open starts one; Keep
+    /// alive starts it again).
+    pub places: crate::features::places::Places,
     /// AJ-E1509: the restarts of crashed sessions so far, by lineage.
     pub restarts: std::sync::Mutex<crate::features::sessions::restart::Restarts>,
     /// AJ-E1509: what keeps the Mac awake and App Nap off for the sessions.
@@ -363,6 +366,7 @@ impl AppState {
             project_icons: std::sync::Mutex::default(),
             app_icons: crate::features::app_icons::IconCache::of(&cache),
             cache,
+            places: crate::features::places::Places::default(),
             restarts: std::sync::Mutex::default(),
             awake: std::sync::Mutex::default(),
             ended_by_crash: std::sync::Mutex::new(ended_by_crash),

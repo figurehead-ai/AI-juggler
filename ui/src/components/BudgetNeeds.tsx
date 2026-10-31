@@ -42,9 +42,12 @@ export function CapNeedItems({
   accounts: AccountInfo[];
   projects: ProjectInfo[];
   onSeen: () => void;
-}): JSX.Element {
+}): JSX.Element | null {
+  if (caps.length === 0) return null;
+  // Its own list: Home places these after Needs you's list (axe: an
+  // <li> must sit in a list).
   return (
-    <>
+    <ul className="flex flex-col gap-2.5" aria-label="Spending caps">
       {caps.map((cap) => {
         const over = cap.level === "over";
         return (
@@ -69,6 +72,6 @@ export function CapNeedItems({
           </li>
         );
       })}
-    </>
+    </ul>
   );
 }

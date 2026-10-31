@@ -84,7 +84,7 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
               <li>Claude Code saves the answer in its own state file, where AI Juggler reads it.</li>
               <li>At most every 15 minutes, only while it's in use and the app's meter is old.</li>
             </ul>
-            <p className="text-muted">Turn it off here at any time.</p>
+            <p className="text-ink-2">Turn it off here at any time.</p>
             {problem && (
               <p className="text-meta text-warning" role="alert">
                 {problem}

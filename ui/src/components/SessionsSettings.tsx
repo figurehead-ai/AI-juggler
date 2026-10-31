@@ -226,7 +226,7 @@ export function SessionsSettingsCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-sessions">
       <div>
         <CardTitle>Sessions</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
           When a quiet session is marked Looks stuck, how its terminal reads, and what keeps work going.
         </p>
       </div>

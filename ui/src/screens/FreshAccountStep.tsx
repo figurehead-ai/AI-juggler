@@ -107,7 +107,7 @@ export function FreshAccountStep({
     >
       <div className="flex flex-col gap-2">
         <h1 className="text-stat font-semibold leading-tight tracking-tight">Add a fresh account.</h1>
-        <p className="max-w-2xl text-section leading-relaxed text-muted">
+        <p className="max-w-2xl text-section leading-relaxed text-ink-2">
           AI Juggler sets it up in its own folder, apart from anything you already use. Next you sign in with{" "}
           {ownSignIn(provider)}; AI Juggler never sees your password.
         </p>

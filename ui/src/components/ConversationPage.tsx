@@ -28,6 +28,9 @@ import { GoToButton, SessionChips, SessionMark, SessionWhere } from "../pages/se
 import { SessionToolChip } from "../pages/session/HeaderDoors";
 import { fromConversation, type SessionModel } from "../pages/session/model";
 import { useHasSubagents } from "../pages/session/useSubagents";
+import { useLastPlace } from "../lib/places";
+import { placesOpen } from "../lib/ipc/places";
+import { showToast } from "./Toast";
 
 const SessionOverview = lazyNamed(() => import("../pages/session/SessionOverview"), "SessionOverview");
 const UsagePanel = lazyNamed(() => import("../pages/session/UsagePanel"), "UsagePanel");
@@ -87,8 +90,8 @@ export function ConversationPage({
   if (!row) {
     return (
       <div className="m-6 flex flex-col gap-3" role="status" aria-label="Loading the session" data-testid="conversation-loading">
-        <span className="h-12 w-2/3 rounded-xl bg-surface-3 motion-safe:animate-pulse" />
-        <span className="h-64 rounded-xl bg-surface-3 motion-safe:animate-pulse" />
+        <span className="h-12 w-2/3 rounded-xl bg-skeleton motion-safe:animate-pulse" />
+        <span className="h-64 rounded-xl bg-skeleton motion-safe:animate-pulse" />
       </div>
     );
   }
@@ -130,6 +133,17 @@ function ConversationView({
     latest.current = conversation;
   }, [conversation]);
   const goTo = useCallback(() => void host.goToConversation?.(latest.current), [host]);
+  // 0.3.3: an ended session reopens in the app it was last open in (that
+  // app started when it isn't running; Codex at the thread itself).
+  const lastPlace = useLastPlace(conversation.tool, conversation.id, !conversation.live);
+  const openIn = useCallback(() => {
+    if (!lastPlace) return;
+    showToast({ id: "go-to", message: `Opening ${lastPlace.label}…` });
+    placesOpen(lastPlace.id, latest.current.id).then(
+      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      () => showToast({ id: "go-to", message: `Couldn't open ${lastPlace.label}` }),
+    );
+  }, [lastPlace]);
   const carryIn = useCallback(() => void host.continueConversation?.(latest.current), [host]);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
   // Always both tabs: Usage says when nothing is measured (a working
@@ -176,6 +190,13 @@ function ConversationView({
                     <Button size="md" variant="primary" onClick={carryIn} data-testid="conversation-continue">
                       Continue in AI Juggler
                     </Button>
+                    {lastPlace && (
+                      // The app's name only: the profile is the chip under the
+                      // title, and a long label cut the title short.
+                      <Button size="md" variant="secondary" onClick={openIn} disabled={lastPlace.cannot_start !== null} title={lastPlace.cannot_start ?? `Open in ${lastPlace.label}`} aria-label={`Open in ${lastPlace.label}`} data-testid="conversation-open-in">
+                        Open in {lastPlace.app}
+                      </Button>
+                    )}
                     <Button size="md" variant="secondary" onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
                       Copy resume command
                     </Button>

@@ -162,7 +162,8 @@ export function HomeNeeds({
               <Mark need={first} size={32} />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate text-section font-semibold text-ink">{first.title}</span>
-                <span className="truncate text-xs text-muted">{first.detail}</span>
+                {/* 0.3.2: the first need's why is the point of the card; two lines, not one cut. */}
+                <span className="line-clamp-2 text-xs text-muted" title={first.detail}>{first.detail}</span>
               </div>
               {first.item && <span className={"shrink-0 text-xs font-semibold " + (first.severe ? "text-danger" : "text-warning")}>{needWord(first.item)}</span>}
             </div>
@@ -185,7 +186,7 @@ export function HomeNeeds({
             )}
           </NeedBox>
         ) : waiting > 0 ? null : (
-          <p className="text-sm text-muted" data-testid="home-needs-none">
+          <p className="text-sm text-ink-2" data-testid="home-needs-none">
             Nothing waits on you. What's open is in the list and under Your apps.
           </p>
         )}
@@ -198,7 +199,7 @@ export function HomeNeeds({
                 <Mark need={need} size={24} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-meta font-medium text-ink">{need.title}</span>
-                  <span className="truncate text-label text-muted">{need.item ? `${needWord(need.item)} · ${need.detail}` : need.detail}</span>
+                  <span className="truncate text-label text-muted" title={need.detail}>{need.item ? `${needWord(need.item)} · ${need.detail}` : need.detail}</span>
                 </span>
                 <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts="A" onClick={() => run(need)}>
                   {primaryWords(need)}

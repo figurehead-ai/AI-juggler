@@ -5,12 +5,15 @@
  * 0.3: a badge on its name's line (it wrapped onto a line of its own).
  * Under it, when it isn't the Suggested one: that one with its room and
  * "Use it" (the spec's suggest-only line, deep/11 §4.8); and a pick of
- * yours passed over for being out of room, with until when.
+ * yours passed over for being out of room, with until when; a pick whose
+ * used-up window its credits carry on past, what that means (its room line
+ * already says "Using credits · 14,150 left", 0.3.2).
  */
 import type { JSX } from "react";
 import type { QuotaDisplayData } from "../lib/bridge";
 import { launchRoom, pickWhyWords, type LaunchPick } from "../lib/launch-pick";
 import { outOfRoomWords } from "../lib/room";
+import { creditsConsequence } from "../lib/credits";
 
 /** Why the pick is the one: a badge beside its name. */
 export function LaunchPickBadge({ pick }: { pick: LaunchPick }): JSX.Element | null {
@@ -37,8 +40,14 @@ export function LaunchPickWhy({
   const otherLeft = other ? launchRoom(quota[other.account_id]).left : null;
   const passed = pick.passedOver;
   const passedWhy = passed ? pickWhyWords(passed.why) : null;
+  const pickRoom = launchRoom(quota[pick.recipe.account_id]);
   return (
     <>
+      {pickRoom.credits && (
+        <span className="basis-full text-label text-ink" data-testid="launch-credits">
+          {creditsConsequence(pickRoom.resetsAtMs)}
+        </span>
+      )}
       {passed && (
         <span className="basis-full text-label text-warning" data-testid="launch-passed-over">
           {passed.recipe.account_label}

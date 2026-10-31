@@ -15,6 +15,7 @@ pub mod messages;
 pub mod notifications;
 pub mod outside_search;
 pub mod packs;
+pub mod places;
 pub mod pools;
 pub mod processes;
 pub mod project_sync;

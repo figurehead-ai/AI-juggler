@@ -8,23 +8,28 @@
  *
  * The order: accounts with room, most first; then ones not measured yet
  * (their room isn't known, so they're never suggested); then low ones,
- * most first; then out of room; then ones that can't take work now
- * (signed out, the same account). Out of room is listed, never hidden.
- * Pure: the callers hand in each one's room.
+ * most first; then used up but carrying on with credits (0.3.2: a session
+ * there goes on, paid by its credits; never suggested); then out of room;
+ * then ones that can't take work now (signed out, the same account). Out
+ * of room is listed, never hidden. Pure: the callers hand in each one's
+ * room.
  */
 import { whenWords } from "./time-words";
 
 /** At or under this much left, an account is low: never suggested. */
 export const LOW_LEFT = 25;
 
-/** Where an account stands, by its room. */
-export type RoomKind = "room" | "unknown" | "low" | "out" | "blocked";
+/** Where an account stands, by its room. `credits`: a window used up,
+ * but its credits carry the work on (`lib/credits`). */
+export type RoomKind = "room" | "unknown" | "low" | "credits" | "out" | "blocked";
 
-const ORDER: Record<RoomKind, number> = { room: 0, unknown: 1, low: 2, out: 3, blocked: 4 };
+const ORDER: Record<RoomKind, number> = { room: 0, unknown: 1, low: 2, credits: 3, out: 4, blocked: 5 };
 
-/** An account's kind, from the % it has left (`null`: not measured). */
-export function roomKind(left: number | null, usable = true): RoomKind {
+/** An account's kind, from the % it has left (`null`: not measured) and
+ * whether its credits carry it on past a used-up window. */
+export function roomKind(left: number | null, usable = true, credits = false): RoomKind {
   if (!usable) return "blocked";
+  if (credits) return "credits";
   if (left === null) return "unknown";
   if (left <= 0) return "out";
   return left <= LOW_LEFT ? "low" : "room";
@@ -44,10 +49,12 @@ export function rankByRoom<T>(
   items: readonly T[],
   leftOf: (item: T) => number | null,
   usable: (item: T) => boolean = () => true,
+  /** Its credits carry it on past a used-up window. */
+  credits: (item: T) => boolean = () => false,
 ): ByRoom<T>[] {
   const rows = items.map((item, index) => {
     const left = leftOf(item);
-    return { item, left, kind: roomKind(left, usable(item)), index };
+    return { item, left, kind: roomKind(left, usable(item), credits(item)), index };
   });
   rows.sort((a, b) => {
     const kind = ORDER[a.kind] - ORDER[b.kind];
@@ -77,4 +84,4 @@ export function lowRoomWords(name: string, left: number): string {
 
 /** "Why this order?", said once for every list that uses it. */
 export const ROOM_ORDER_WORDS =
-  "By room left, as Home's Runway reads it: most first, then accounts not measured yet, then low ones, then any out of room. Suggested is the one with the most room, over 25% left. Under each: what else AI Juggler weighed.";
+  "By room left, as Home's Runway reads it: most first, then accounts not measured yet, then low ones, then any using credits, then any out of room. Suggested is the one with the most room, over 25% left. Under each: what else AI Juggler weighed.";

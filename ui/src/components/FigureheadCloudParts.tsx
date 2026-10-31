@@ -147,7 +147,7 @@ export function Consent({
   return (
     <div className="flex flex-col gap-2" data-testid="cloud-consent">
       <p className="text-sm font-medium">Turn on Cloud for this Mac</p>
-      <p className="text-xs text-muted">
+      <p className="text-xs text-ink-2">
         Linked to {status.email ?? "your Figurehead account"}. Choose what this Mac may use — you can change
         any of it here later.
       </p>
@@ -348,7 +348,7 @@ function UnlinkSheet({
         <p id="unlink-title" className="text-sm font-semibold">
           Unlink this Mac from Figurehead?
         </p>
-        <p id="unlink-body" className="mt-1.5 text-xs leading-relaxed text-muted">
+        <p id="unlink-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           Cloud features stop on this Mac and its sign-in is removed. Everything stored on this Mac
           stays as it is, and backups already on figurehead.ai stay there until you delete them.
         </p>

@@ -1,4 +1,4 @@
-<!-- captures: 6a10f76ada3b -->
+<!-- captures: 4fd46ebac026 -->
 # 95-tasks: tasks on a pool, a session and in Needs you
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -24,7 +24,11 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 ## Weak
 
-- None new.
+- switch-graph-tasks-1680x1050: opens scrolled past the top of the project page, so the Open sessions, checkout and Accounts cards show only their cut-off last rows under the tabs.
+- pool-tasks-2000x1250, pool-plan-2000x1250: the open task stops short of the Tasks panel's right edge, leaving an empty strip beside it.
+- session-tasks-1680x1050: one task row across the full width, "6 min" far from its title, and nothing else on the page.
+- needs-you-1280x800 (both themes): "Keep the old shortcuts wor…" is cut in Pick up where you left off, and the Sign in button sits half below the window's bottom edge.
+- pool-card-task-1680x1050: the two ended members are both "Untitled session · ai-juggler" while their line says payments-api; the title says nothing about what they did and names the wrong project.
 
 ## Fixed
 
@@ -43,3 +47,7 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 | session-tasks-1680x1050 | A session's Tasks tab. | The 0.3 header. |
 | switch-graph-tasks-1680x1050, history-switch-1280x900 | The switch history with each session's task. | The 0.3 header. |
 | pool-card-task-1680x1050 | A member's card with its task. | The 0.3 inspector. |
+
+## 0.3.2
+
+The Tasks panel and its open task stand a step off the dark canvas (in light, a white sheet on grey), and each screen has one solid violet action that matches the state: "Start a session for it…" on a ready task (pool-tasks, pool-plan), Approve on a task in review (task-review), Send back once its note is open (task-send-back), Start session in the launch row (task-start) and Allow once in Needs you. In dark the lighter accent shows on those buttons, on the header's New session, the logo mark, Needs you's "Work Max · 58% left" bars, the lit Open 7 / In review 1 tab and the note field's focus ring in task-send-back; light captures change only by a pixel in the This Mac line. The top bar stays one row everywhere, with "This Mac · Plenty of room" and "7 to clean up" whole. The state pills stay easy to scan in both themes (teal In progress, amber In review, red Blocked with its red "Waits on…" line), and What it asks and Done when read as body copy under the small-capital section titles. The older weak spots are unchanged: switch-graph-tasks still opens scrolled past the top of the project page (its rail also cuts "outside AI Juggle" with no ellipsis); at 2000 wide (pool-tasks, pool-plan) the open task stops short of the panel's right edge; session-tasks puts one task row across the full width with "6 min" far from its title; and in pool-card-task the two ended members are "Untitled session · ai-juggler" with payments-api on their line, and the members' times ("10 min ago") are in the monospace face. After the second pass, needs-you-1280 gives the Personal needs its sign-in detail two lines, so it ends whole ("…AI Juggler never sees your password."), which pushes its Sign in button to the bottom edge of the window where it is half out of view until you scroll; Pick up where you left off's "Keep the old shortcuts wor…" is still cut. In every capture the rail's Refactor the settings screen row now keeps its time whole ("ai-ju… · viewed 2 min ago" where it read "ai-juggler · viewed 2 mi…"); nothing else changed.

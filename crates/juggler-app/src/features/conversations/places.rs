@@ -179,6 +179,79 @@ pub fn host_of(pid: u32, table: &Table, hosts: &HostRegistry, home: &Path) -> Op
     })
 }
 
+/// A desktop app's main process running now (0.3.3): its bundle, and the
+/// instance it runs as.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunningApp {
+    /// The registry's id for the app.
+    pub app_id: String,
+    /// The bundle folder (`/Applications/Claude.app`).
+    pub bundle: PathBuf,
+    /// Its main executable (inside `Contents/MacOS`).
+    pub exe: PathBuf,
+    /// The main process.
+    pub pid: u32,
+    /// Its start time.
+    pub start: Option<i64>,
+    /// The instance folder it was started with (`--user-data-dir`), when
+    /// it was given one: what starting it again passes.
+    pub given: Option<PathBuf>,
+    /// Its instance folder: the one given, else the app's default one.
+    /// `None` for an app that runs one instance.
+    pub instance: Option<PathBuf>,
+}
+
+/// The desktop apps the registry knows running now, by their main
+/// process (an app's helpers carry its arguments too, as Chromium's do,
+/// and never count): one per instance folder, the oldest process first.
+#[must_use]
+pub fn running_apps(table: &Table, hosts: &HostRegistry, home: &Path) -> Vec<RunningApp> {
+    let mut found: Vec<RunningApp> = Vec::new();
+    let mut processes: Vec<&super::procs::Proc> = table.values().collect();
+    processes.sort_by_key(|process| (process.start, process.pid));
+    for process in processes {
+        let Some(exe) = process.exe.as_deref() else {
+            continue;
+        };
+        let Some((dir, bundle)) = outer_bundle(exe) else {
+            continue;
+        };
+        let Some(app) = hosts.by_bundle(&bundle) else {
+            continue;
+        };
+        if app.kind != HostKind::Desktop || exe.parent() != Some(&dir.join("Contents/MacOS")) {
+            continue;
+        }
+        let given = app
+            .instance_arg
+            .as_deref()
+            .and_then(|flag| arg_value(&process.args, flag))
+            .map(PathBuf::from);
+        let instance = app.instance_arg.as_ref().and_then(|_| {
+            given
+                .clone()
+                .or_else(|| app.default_instance.as_deref().map(|d| home.join(d)))
+        });
+        if found
+            .iter()
+            .any(|known| known.app_id == app.id && known.instance == instance)
+        {
+            continue;
+        }
+        found.push(RunningApp {
+            app_id: app.id.clone(),
+            bundle: dir,
+            exe: exe.to_path_buf(),
+            pid: process.pid,
+            start: process.start,
+            given,
+            instance,
+        });
+    }
+    found.sort_by(|a, b| (&a.app_id, &a.instance).cmp(&(&b.app_id, &b.instance)));
+    found
+}
+
 /// The instances of each app that runs several, from its running main
 /// processes (`--user-data-dir`, else its default folder): each app id with
 /// its instance folders, every folder once.
@@ -189,32 +262,12 @@ pub fn running_instances(
     home: &Path,
 ) -> Vec<(String, PathBuf)> {
     let mut out: Vec<(String, PathBuf)> = Vec::new();
-    for process in table.values() {
-        let Some(exe) = process.exe.as_deref() else {
-            continue;
-        };
-        let Some((dir, bundle)) = outer_bundle(exe) else {
-            continue;
-        };
-        let Some(app) = hosts.by_bundle(&bundle) else {
-            continue;
-        };
-        let Some(flag) = app.instance_arg.as_deref() else {
-            continue;
-        };
-        // The app's main executable only (its helpers carry the argument
-        // too, as Chromium's do).
-        if exe.parent() != Some(&dir.join("Contents/MacOS")) {
-            continue;
-        }
-        let Some(instance) = arg_value(&process.args, flag)
-            .map(PathBuf::from)
-            .or_else(|| app.default_instance.as_deref().map(|d| home.join(d)))
-        else {
+    for app in running_apps(table, hosts, home) {
+        let Some(instance) = app.instance else {
             continue;
         };
         if !out.iter().any(|(_, known)| *known == instance) {
-            out.push((app.id.clone(), instance));
+            out.push((app.app_id, instance));
         }
     }
     out.sort();

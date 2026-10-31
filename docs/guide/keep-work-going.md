@@ -19,6 +19,26 @@ A launch setting can choose for itself: open the profile's **Edit launch
 settings**, and set **If a session crashes** to follow Settings, restart
 it, or leave it ended.
 
+## Keep apps alive
+
+Off until you turn it on, for each app or profile: in Settings › Desktop
+apps › **Your apps and profiles**, or with a right-click on its place in
+the rail. When an app or profile you keep alive stops running (it crashed,
+you pressed ⌘Q, or it was force quit), AI Juggler starts it again about
+10 seconds later, on the same profile and behind the app you're in. Home
+shows a tile for one that's down, with **Start**.
+
+- Each start is a notice, with the way to turn it off.
+- At most 3 times in 10 minutes. After that, keep alive pauses for that
+  app and says why. Opening the app again ends the pause.
+- Never while your screen is locked, in the first minute after AI Juggler
+  starts or your Mac wakes, or while AI Juggler is quitting (so logging
+  out and shutting down work as always).
+- Stopping the app from AI Juggler pauses keep alive for it, until you
+  open it again.
+- It never changes the account a profile uses, and it starts an app only
+  if no other user can change it.
+
 ## Keep the Mac awake while sessions work
 
 On by default, when the Mac is plugged in. While at least one AI Juggler

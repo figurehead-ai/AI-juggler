@@ -13,6 +13,9 @@
 )]
 #![cfg(unix)]
 
+#[path = "support/set_up.rs"]
+mod set_up;
+
 use std::path::Path;
 use std::sync::Arc;
 
@@ -50,7 +53,7 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 }
 
 fn seed_transcript(config_dir: &Path, cwd: &str, session_id: &str) {
-    let encoded = cwd.replace('/', "-");
+    let encoded = juggler_adapter::handover::mangled_dir(cwd);
     let dir = config_dir.join("projects").join(encoded);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -90,7 +93,7 @@ fn launch_with_transcript(
     seed_transcript(&config_dir_of(state, account_id), cwd, native_id);
     let transcript = config_dir_of(state, account_id)
         .join("projects")
-        .join(cwd.replace('/', "-"))
+        .join(juggler_adapter::handover::mangled_dir(cwd))
         .join(format!("{native_id}.jsonl"));
     let storage = state.storage.lock().unwrap();
     let mut record = storage
@@ -127,8 +130,14 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
     let source_id =
@@ -234,8 +243,14 @@ fn lossy_pair_is_never_reachable_in_one_click() {
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
     let source_id =
@@ -262,8 +277,14 @@ fn undo_stops_target_resumes_source_and_compensates_the_edge() {
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
     let source_id =
@@ -380,9 +401,14 @@ fn a_cross_tool_move_says_it_starts_fresh() {
     let project_dir = work.path().join("storefront");
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let account_b =
-        commands::create_account(&state, juggler_adapters::CODEX_ID, "Codex", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, juggler_adapters::CODEX_ID, "Codex", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
     let source_id =
@@ -413,8 +439,14 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
     std::fs::create_dir_all(&project_dir).unwrap();
     let cwd = project_dir.to_string_lossy().into_owned();
 
-    let account_a = commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap();
-    let account_b = commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap();
+    let account_a = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Work Max", None).unwrap(),
+    );
+    let account_b = set_up::set_up(
+        &state,
+        commands::create_account(&state, CLAUDE_CODE_ID, "Personal", None).unwrap(),
+    );
     let profile_a = commands::create_profile(&state, &account_a.id, "Main", None, None).unwrap();
     let profile_b = commands::create_profile(&state, &account_b.id, "Main", None, None).unwrap();
     let planner = launch_with_transcript(&state, &profile_a.id, &account_a.id, &cwd, "native-p");

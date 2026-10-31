@@ -788,6 +788,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         ClaudeCodeAdapter::login_state(self, state_dir)
     }
 
+    fn launch_ready(&self, state_dir: &Path) -> Result<(), juggler_adapter::readiness::NotReady> {
+        launch_ready_in(&claude_state_file(state_dir), state_dir)
+    }
+
     /// Claude keeps `projects/<mangled cwd>/<session>.jsonl`; the cwd
     /// is read from the file (never decoded from the name, H-3).
     fn locate_transcript(
@@ -1158,6 +1162,37 @@ pub fn claude_state_file(dir: &Path) -> PathBuf {
     )
 }
 
+/// 0.3.2: Claude Code launches into `dir` only once it can read its state
+/// file and projects, and its first-run setup is done there
+/// (`hasCompletedOnboarding`); otherwise `--resume` opens on the setup
+/// screen, not the conversation (the maintainer's walk).
+///
+/// # Errors
+///
+/// What keeps the launch from working.
+pub fn launch_ready_in(
+    state_file: &Path,
+    dir: &Path,
+) -> Result<(), juggler_adapter::readiness::NotReady> {
+    use juggler_adapter::readiness::{NotReady, probe_read};
+    probe_read(state_file)?;
+    probe_read(&dir.join("projects"))?;
+    let set_up = std::fs::read_to_string(state_file)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .is_some_and(|state| {
+            state.get("hasCompletedOnboarding") == Some(&serde_json::Value::Bool(true))
+        });
+    if set_up {
+        Ok(())
+    } else {
+        Err(NotReady::NotSetUp(
+            "Claude Code hasn't been set up on this account yet. Start a session on it once and finish its setup, then switch."
+                .to_owned(),
+        ))
+    }
+}
+
 /// [`claude_state_file`] for an explicit home folder (pure, testable).
 #[must_use]
 pub fn claude_state_file_in(dir: &Path, home: &Path) -> PathBuf {
@@ -1445,5 +1480,35 @@ mod watcher_count_tests {
         std::fs::write(&path, "a\nb\nc\nd").unwrap();
         assert_eq!(newlines_from(&path, 4).unwrap(), (7, 1));
         assert_eq!(newlines_from(&path, 0).unwrap(), (7, 3));
+    }
+}
+
+#[cfg(test)]
+mod launch_ready_tests {
+    use super::launch_ready_in;
+    use juggler_adapter::readiness::NotReady;
+
+    /// 0.3.2: the switched session opened on Claude Code's setup screen.
+    #[test]
+    fn a_launch_needs_the_setup_done_there() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = dir.path().join(".claude.json");
+        assert!(
+            matches!(
+                launch_ready_in(&state, dir.path()),
+                Err(NotReady::NotSetUp(_))
+            ),
+            "no state file: not set up"
+        );
+        std::fs::write(&state, r#"{"numStartups":1}"#).unwrap();
+        assert!(
+            matches!(
+                launch_ready_in(&state, dir.path()),
+                Err(NotReady::NotSetUp(_))
+            ),
+            "setup not finished"
+        );
+        std::fs::write(&state, r#"{"hasCompletedOnboarding":true}"#).unwrap();
+        assert_eq!(launch_ready_in(&state, dir.path()), Ok(()));
     }
 }

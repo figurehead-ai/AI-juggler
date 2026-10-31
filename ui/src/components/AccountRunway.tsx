@@ -15,6 +15,7 @@ import { READING_LIMITS } from "../lib/history-reading";
 import { asOfWords, limitWindows, measured, resetWords, usedTokensWords, windowView } from "../lib/quotaWindow";
 import { resetsLead, resetsWords } from "../lib/time-words";
 import { LOW_LEFT, rankByRoom } from "../lib/room";
+import { usingCredits, usingCreditsWords, type CreditsCover } from "../lib/credits";
 
 export type RunwayLine = {
   label: string;
@@ -33,7 +34,12 @@ export function windowLine(label: string, window: WindowDisplay | null | undefin
 /** Every limit (the 5 hours, the week, each model's own week), plus the
  * session fallback when none is measured. */
 export function runwayLines(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = []): RunwayLine[] {
-  const lines = limitWindows(display).map((entry) => windowLine(entry.label, entry.window, entry.omitted));
+  // 0.3.2: a used-up window its credits carry on past isn't a stop: amber,
+  // not red (the credits line says why).
+  const credits = usingCredits(display) !== null;
+  const lines = limitWindows(display)
+    .map((entry) => windowLine(entry.label, entry.window, entry.omitted))
+    .map((line) => (credits && line.tone === "out" ? { ...line, tone: "low" as const } : line));
   if (lines.some((line) => line.left !== null)) return lines;
   const reading = sessionFallback(display, sessions);
   if (!reading) return lines;
@@ -67,11 +73,13 @@ function sessionFallback(
 }
 
 /** Home's one line for an account: % left of the tighter measured window,
- * else the newest session's own reading, else why there is none. */
+ * else the newest session's own reading, else why there is none. A window
+ * used up while its credits carry the work on says so ("Using credits ·
+ * 14,150 left", 0.3.2), never only "0% left". */
 export function runwayOf(
   display: QuotaDisplayData | undefined,
   sessions: InstanceInfo[] = [],
-): { left: number | null; words: string; resets: string | null; resetsAtMs?: number | null } {
+): { left: number | null; words: string; resets: string | null; resetsAtMs?: number | null; credits?: CreditsCover | null } {
   // A tool that doesn't report its limits, or has no source: its reason,
   // never a window's numbers.
   if (display?.unavailable_reason) return { left: null, words: display.unavailable_reason, resets: null };
@@ -86,11 +94,13 @@ export function runwayOf(
     const tightest = known.reduce((a, b) => (a.window.percentage >= b.window.percentage ? a : b));
     const left = Math.max(0, Math.round(100 - tightest.window.percentage));
     const words = resetWords(tightest.window);
+    const credits = usingCredits(display);
     return {
       left,
-      words: `${left}% left ${tightest.phrase}${modelWeekNote(display, left)}`,
+      words: credits ? usingCreditsWords(credits, display?.credits?.as_of_ms) : `${left}% left ${tightest.phrase}${modelWeekNote(display, left)}`,
       resets: words ? `${tightest.label} ${words}` : null,
       resetsAtMs: tightest.window.resets_at_ms ?? null,
+      credits,
     };
   }
   const reading = sessionFallback(display, sessions);
@@ -143,13 +153,13 @@ export function newWorkAdvice(
 ): { best: { account: AccountInfo; left: number } | null; words: string | null } {
   const rows = accounts
     .filter((account) => signedIn(account.login_state))
-    .map((account) => ({
-      account,
-      left: runwayOf(displays.find((d) => d.account === account.id), sessions.filter((s) => s.account_id === account.id)).left,
-    }));
+    .map((account) => {
+      const run = runwayOf(displays.find((d) => d.account === account.id), sessions.filter((s) => s.account_id === account.id));
+      return { account, left: run.left, credits: run.credits ?? null };
+    });
   // The one order by room (`lib/room`): the switch and New session rank
   // and suggest by the same rule.
-  const ranked = rankByRoom(rows, (row) => row.left);
+  const ranked = rankByRoom(rows, (row) => row.left, undefined, (row) => row.credits !== null);
   const first = ranked.find((row) => row.left !== null);
   if (!first) return { best: null, words: null };
   const top = { account: first.item.account, left: first.left! };
@@ -164,6 +174,10 @@ export function newWorkAdvice(
       words: unmeasured.length === 0 ? `Best for new work: ${name}, ${top.left}% left.` : `${name} has ${top.left}% left; ${unknown}.`,
     };
   }
+  // 0.3.2: none has room in its window; the first goes on with credits.
+  if (first.kind === "credits" && unmeasured.length === 0) {
+    return { best: null, words: `No account has room in its window: ${name} is using its credits.` };
+  }
   return {
     best: null,
     words:
@@ -175,13 +189,18 @@ export function newWorkAdvice(
 
 /** The account's credits in words, with who reported them and when,
  * when its tool reports them ("Credits: 16.25 · reported by Codex, as of
- * 12 min ago"). */
+ * 12 min ago"); while they carry a used-up window on, it says so ("Using
+ * credits · 14,150 left · reported by …", 0.3.2). */
 export function creditsWords(display: QuotaDisplayData | undefined): string | null {
   const credits = display?.credits;
   if (credits == null) return null;
-  const amount = credits.unlimited ? "unlimited" : credits.balance;
+  const by = `reported by ${credits.source}, ${asOfWords(credits.as_of_ms)}`;
+  const using = usingCredits(display);
+  if (using) return `${usingCreditsWords(using)} · ${by}`;
+  const number = credits.balance != null && credits.balance.trim() !== "" ? Number(credits.balance) : NaN;
+  const amount = credits.unlimited ? "unlimited" : Number.isFinite(number) ? number.toLocaleString("en-US", { maximumFractionDigits: 2 }) : credits.balance;
   if (amount == null) return null;
-  return `Credits: ${amount} · reported by ${credits.source}, ${asOfWords(credits.as_of_ms)}`;
+  return `Credits: ${amount} · ${by}`;
 }
 
 /** "At this pace it runs out in about 40 min" — only when it will. */
@@ -215,7 +234,7 @@ export function AccountRunway({
 }): JSX.Element {
   if (display?.unavailable_reason) {
     return (
-      <p className="text-xs text-muted" data-testid="account-runway">
+      <p className="text-xs text-ink-2" data-testid="account-runway">
         {display.unavailable_reason}
       </p>
     );
@@ -240,7 +259,7 @@ export function AccountRunway({
         ))}
       </div>
       {credits && (
-        <p className="text-label text-muted" data-testid="account-runway-credits">
+        <p className={"text-label " + (usingCredits(display) ? "text-ink" : "text-muted")} data-testid="account-runway-credits">
           {credits}
         </p>
       )}
