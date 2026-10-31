@@ -19,13 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Claude Code does, watches that the conversation arrived and says where
   it continues; the terminal draws block characters (WebGL); Processes
   folds app and session rows at once; no web-view menu (Reload); group
-  headers get their own menu.
+  headers get their own menu; the top bar stays one row (This Mac's words
+  shorten first; a broom and count on a narrow bar); the re-render's
+  findings (rail age whole or not at all, menus fit their labels, the
+  identity line wraps, crash report lines wrap, the port warning's
+  background, skeletons on the grey page, "Close the The…").
 
 ### Changed (0.3.2)
 
 - **A colour hierarchy in both themes** (D-62 decision 23): surfaces a
   step apart, an ink-2 level for sentences, labels dimmer than values,
-  one primary fill; every level AA on every surface.
+  one primary fill, dialogs included; every level AA on every surface
+  (the dark accent is #8787f6 for it).
 - **Pickers: suggested, then All** (QUALITY.md "Finding things"): groups
   on long lists, search from 9, empty last, All pinned.
 
