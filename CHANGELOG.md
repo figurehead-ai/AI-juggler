@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (0.3.2)
+
+- **The maintainer's 0.3.0 findings, batched** (docs/releases/0.3.2.md):
+  credits running out mid-window, and a reading's age; one banner and
+  "N more"; close and snooze in the same frame (backend call timing in
+  Report a problem); "Continue on another account…" opens a dialog for
+  every kind of session; "Remind me at <time>" replaces "Queue for the
+  reset" and opens the session when due; a switch checks access and the
+  target's setup before anything changes, names the copied folder as
+  Claude Code does, watches that the conversation arrived and says where
+  it continues; the terminal draws block characters (WebGL); Processes
+  folds app and session rows at once; no web-view menu (Reload); group
+  headers get their own menu.
+
+### Changed (0.3.2)
+
+- **A colour hierarchy in both themes** (D-62 decision 23): surfaces a
+  step apart, an ink-2 level for sentences, labels dimmer than values,
+  one primary fill; every level AA on every surface.
+- **Pickers: suggested, then All** (QUALITY.md "Finding things"): groups
+  on long lists, search from 9, empty last, All pinned.
+
 ### Added
 
 - **One local cache, sized by your Mac** (0.3, ADR-0023): what AI Juggler
