@@ -3055,17 +3055,17 @@ for (const theme of THEMES) {
   for (const vp of SWITCH_VP) {
     test(`graph — ranked targets with explanations — ${vp.name} — ${theme}`, gate("32-graph"), async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, targets, room, t0 }) => {
+        ({ fixture, targets, room, t0, theme: themeName }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_TARGETS__ = targets;
           w.__AIJ_QUOTA_DISPLAY__ = room;
-          localStorage.setItem("aij.theme", theme);
+          localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0 },
+        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0, theme },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -3175,17 +3175,17 @@ for (const theme of THEMES) {
 
     test(`graph — badge set (validated vs beta) — ${vp.name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
-        ({ fixture, targets, room, t0 }) => {
+        ({ fixture, targets, room, t0, theme: themeName }) => {
           const w = window as unknown as Record<string, unknown>;
           w.__AIJ_FIXTURE__ = fixture;
           w.__AIJ_SWITCH_TARGETS__ = targets;
           w.__AIJ_QUOTA_DISPLAY__ = room;
-          localStorage.setItem("aij.theme", theme);
+          localStorage.setItem("aij.theme", themeName);
           localStorage.setItem("aij.onboarding.dismissed", "1");
           sessionStorage.setItem("aij.ready.skipped", "1");
           Date.now = () => t0;
         },
-        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0 },
+        { fixture: allStatuses, targets: BADGE_SET_TARGETS, room: BADGE_SET_ROOM, t0: T0, theme },
       );
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -3934,6 +3934,7 @@ for (const theme of THEMES) {
       await expect(tool).toBeVisible();
       await expect(chip).toHaveCount(0); // the view doesn't link to itself
       await expect(tool).toContainText(/Version \S+/);
+      await page.mouse.move(0, 0); // the chip's click would leave a hover on the nav line under it
       await page.screenshot({ path: resolve(GALLERY, `72-tool-view/overview-${vp.name}-${theme}.png`), fullPage: true });
       const text = (await page.getByTestId("settings-pane-accounts").innerText()) ?? "";
       expect(text, "tool view").not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b|lands with/);

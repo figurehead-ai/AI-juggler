@@ -1,11 +1,11 @@
-<!-- captures: 0184ff2e61b3 -->
+<!-- captures: 9eb9d7e4752f -->
 # 86-open-pack: New session from a saved handover, what it carries, where to work, launch
 
-Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
+Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
 
 ## 0.3.2
 
-The dialog lifts clearly off the blurred page in both themes, and "Launch on Work Max" is one solid violet fill, the only primary, with Close beside it. The handover box is a tidy two-column list (From, Where, Continues as, Carries, Doesn't carry, Withheld) with labels a step dimmer than values, and the brief opens as a monospace block that stays readable on both the dark and the light grey well. In dark the lighter accent now shows on the payments-api chip, the handover box's outline, the chosen tile's outline and Launch on Work Max; the light capture is unchanged. Under "Where do you want to work?" the chosen payments-api tile is tinted violet, but a cyan dot sits on the unchosen ai-juggler tile, so two different marks compete for "this one"; the footer's "Launching in payments-api" settles it, but only after reading. The dashed "Choose folder… or drop it anywhere" tile sits alone in its row with the right half empty, and "Don't use it", the way out of the handover, is plain grey text at the box's top right that is easy to miss.
+The dialog lifts clearly off the blurred page in both themes, and "Launch on Work Max" is one solid violet fill, the only primary, with Close beside it. The handover box is a tidy two-column list (From, Where, Continues as, Carries, Doesn't carry, Withheld) with labels a step dimmer than values, and the brief opens as a monospace block that stays readable on both the dark and the light grey well. In dark the lighter accent now shows on the payments-api chip, the handover box's outline, the chosen tile's outline and Launch on Work Max. The second pass changed only the blurred page behind the dialog, in both themes. Under "Where do you want to work?" the chosen payments-api tile is tinted violet, but a cyan dot sits on the unchosen ai-juggler tile, so two different marks compete for "this one"; the footer's "Launching in payments-api" settles it, but only after reading. The dashed "Choose folder… or drop it anywhere" tile sits alone in its row with the right half empty, and "Don't use it", the way out of the handover, is plain grey text at the box's top right that is easy to miss.
 
 ## Weak
 

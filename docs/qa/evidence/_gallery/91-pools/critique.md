@@ -1,4 +1,4 @@
-<!-- captures: dd257746b7d7 -->
+<!-- captures: 779f952dbc17 -->
 # 91-pools: the rail's Pool grouping, Move to pool, Agent access
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -26,7 +26,6 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 - The switch shows four segments in a 264 px rail; it fits only because segments size to their words.
 - Move to pool's lines carry no icon or member count.
-- rail-by-pool-1280x800, settings-agent-access-1280x800: the rail row "Refactor the settings screen" reads "ai-juggler · viewed 2 mi…", the age cut mid-word.
 
 ## Fixed
 
@@ -43,4 +42,4 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 
 ## 0.3.2
 
-rail-by-pool fits the four-segment switch (App, Project, Account, Pool) in the rail with Pool selected, groups the rail under "Checkout redesign 1" and "Not in a pool 1", and on Home the Your apps, Needs you and Runway by account cards stand off the canvas, with Sign in the one solid violet button. After the design fixes the dark captures carry the lighter accent on the logo mark, the New session buttons, Sign in, the Work Max progress bars and the "Measure its limits ›" link, which now read clearly against the near-black; in light only the top bar's "This Mac · Plenty of room" moved by a sub-pixel, and the bar stays one row with the whole "7 to clean up" pill. The rail's "Refactor the settings screen" row still cuts its meta to "ai-juggler · viewed 2 mi…". move-to-pool still lists its three pools without icons or member counts; "It's here" is a quiet right-hand label, and New pool… and Cancel are both outlined, which is right when choosing a row is the action. settings-agent-access shows the pools as bordered rows inside a raised card, with Docs opened to its four radios (Work together selected, now the lighter violet in dark) and a "Messages put into sessions" fold; it is rows inside a card inside a card, but the names are bright, the "Work together · 1 rule ›" values a step dimmer, and nothing clips in either theme.
+rail-by-pool fits the four-segment switch (App, Project, Account, Pool) in the rail with Pool selected, groups the rail under "Checkout redesign 1" and "Not in a pool 1", and on Home the Your apps, Needs you and Runway by account cards stand off the canvas, with Sign in the one solid violet button. After the design fixes the dark captures carry the lighter accent on the logo mark, the New session buttons, Sign in, the Work Max progress bars and the "Measure its limits ›" link, which now read clearly against the near-black; in light only the top bar's "This Mac · Plenty of room" moved by a sub-pixel, and the bar stays one row with the whole "7 to clean up" pill. In the second pass the rail's "Refactor the settings screen" row cuts the project instead of the time ("ai-ju… · viewed 2 min ago", with a slightly wide gap after the "…"), and Home's "Personal needs its sign-in" card says its detail on two whole lines ("…AI Juggler never sees your password."), so the card is a line taller; the blurred Home behind move-to-pool shifted with it. move-to-pool still lists its three pools without icons or member counts; "It's here" is a quiet right-hand label, and New pool… and Cancel are both outlined, which is right when choosing a row is the action. settings-agent-access shows the pools as bordered rows inside a raised card, with Docs opened to its four radios (Work together selected, now the lighter violet in dark) and a "Messages put into sessions" fold; it is rows inside a card inside a card, but the names are bright, the "Work together · 1 rule ›" values a step dimmer, and nothing clips in either theme.

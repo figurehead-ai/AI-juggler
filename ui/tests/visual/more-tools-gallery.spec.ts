@@ -183,7 +183,8 @@ for (const theme of THEMES) {
       if (tool.id === "opencode") {
         await expect(page.getByTestId("provider-update-available")).toContainText("OpenCode 1.19.4 is out; not tested with AI Juggler yet.");
       }
-      await shoot(page, `${tool.id}-tool-page`, theme);
+      // One picture: the section is the same for each tool (0.3.2).
+      if (tool.id === "opencode") await shoot(page, "tools-on-this-mac", theme);
     });
   }
 }
