@@ -1,4 +1,4 @@
-<!-- captures: ce6070734726 -->
+<!-- captures: 9958d97a0806 -->
 # 20-kill: the "Stop vite?" sheet for a process AI Juggler started: choosing what to stop, the 5-second wait, the outcome, and when the PID now belongs to another program
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
