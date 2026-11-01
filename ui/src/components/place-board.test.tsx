@@ -91,7 +91,8 @@ describe("the rail by place", () => {
       "Open Claude app · Personal",
       "Open Claude app · Work",
     ]);
-    expect(view.getByTestId("rail-also").textContent).toMatch(/1 ended today\s*·\s*1 inactive\s*·\s*1 background\s*·\s*History ›/);
+    // D-64: by App, an inactive session is under its app, not on Also.
+    expect(view.getByTestId("rail-also").textContent).toMatch(/1 ended today\s*·\s*1 background\s*·\s*History ›/);
   });
 
   it("a row's label leads with its state; one worked out says probably", async () => {

@@ -5,14 +5,16 @@
  */
 import { Fragment, type JSX, type ReactNode } from "react";
 import { IconAlert } from "./icons";
-import { IconWindow } from "./icons-places";
+import { IconHistory, IconWindow } from "./icons-places";
 import type { HiddenApp } from "../lib/shown-apps";
-import type { AlsoCounts } from "../lib/rail-lines";
+import type { AlsoCounts, SectionId } from "../lib/rail-lines";
 import { showInRail, useRailView, type ShowKey } from "../lib/rail-view";
 
-const SECTION: Record<"needs" | "open", { label: string; tone: string; Icon: typeof IconAlert }> = {
-  needs: { label: "Needs you", tone: "text-warning", Icon: IconAlert },
-  open: { label: "Open now", tone: "text-live", Icon: IconWindow },
+const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof IconAlert; testId: string }> = {
+  needs: { label: "Needs you", tone: "text-warning", Icon: IconAlert, testId: "rail-needs-you" },
+  open: { label: "Open now", tone: "text-live", Icon: IconWindow, testId: "rail-open-now" },
+  // D-64: the apps with nothing open, after the open ones.
+  idle: { label: "Inactive apps", tone: "text-ink-2", Icon: IconHistory, testId: "rail-inactive-apps" },
 };
 
 /** A fold chevron, as the Project lens's (FoldButton). */
@@ -24,12 +26,23 @@ export function Chevron({ open }: { open: boolean }): JSX.Element {
   );
 }
 
+/** A link line under a place ("+3 quiet", "Last 3 inactive" with its
+ * chevron, "Show 4 more"). */
+export function RailLink({ onClick, testId, expanded, children }: { onClick: () => void; testId: string; expanded?: boolean; children: ReactNode }): JSX.Element {
+  return (
+    <button type="button" aria-expanded={expanded} onClick={onClick} data-rail-nav={expanded === undefined ? undefined : true} data-testid={testId} className="ml-3 flex h-[24px] items-center gap-1 rounded-md px-2.5 text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+      {children}
+      {expanded !== undefined && <Chevron open={expanded} />}
+    </button>
+  );
+}
+
 /** A section's head: a click folds it in place, and unfolds it. */
-export function SectionHead({ id, count, open, onToggle, extra }: { id: "needs" | "open"; count: number; open: boolean; onToggle: () => void; extra?: ReactNode }): JSX.Element {
-  const { label, tone, Icon } = SECTION[id];
+export function SectionHead({ id, count, open, onToggle, extra }: { id: SectionId; count: number; open: boolean; onToggle: () => void; extra?: ReactNode }): JSX.Element {
+  const { label, tone, Icon, testId } = SECTION[id];
   return (
     <div className="relative flex h-[30px] items-end px-0.5">
-      <h3 className={"flex min-w-0 flex-1 text-meta font-semibold " + tone} data-testid={id === "needs" ? "rail-needs-you" : "rail-open-now"}>
+      <h3 className={"flex min-w-0 flex-1 text-meta font-semibold " + tone} data-testid={testId}>
         <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
           <Icon width={13} height={13} aria-hidden="true" />
           {label}

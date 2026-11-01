@@ -18,6 +18,7 @@ const NOW = Date.UTC(2026, 9, 31, 12);
 
 function place(over: Partial<KnownPlaceInfo>): KnownPlaceInfo {
   return {
+    recent: [],
     id: "claude-app|/Users/you/Profiles/b-lab",
     app_id: "claude-app",
     app: "Claude",
@@ -106,20 +107,24 @@ describe("Settings › Desktop apps: your apps and profiles", () => {
   });
 });
 
-describe("Home: an app kept alive that isn't running", () => {
+describe("Home: an app that isn't running", () => {
   it("has a tile with why and Start, which starts it", async () => {
     seams().__AIJ_PLACES__ = { places: [place({ keep_alive: true }), place({ id: "other", label: "Claude · b-off", instance: "b-off", profile: "b-off" })] };
     render(<HomeApps items={[]} runwayOf={() => null} />);
-    const tile = await screen.findByTestId("home-app-closed");
-    expect(screen.getAllByTestId("home-app-closed")).toHaveLength(1);
-    expect(tile.textContent).toContain("Not running · keep alive starts it");
-    fireEvent.click(within(tile).getByRole("button", { name: "Start Claude · b-lab" }));
+    await screen.findAllByTestId("home-app-closed");
+    // 0.3.4 (D-64): every remembered app that's closed has a tile, the
+    // kept-alive one first.
+    const [tile, other] = screen.getAllByTestId("home-app-closed");
+    expect(tile!.textContent).toContain("Not running · keep alive starts it");
+    expect(other!.textContent).toContain("b-off");
+    expect(within(other!).getByRole("button", { name: "Start Claude app · b-off" })).toBeTruthy();
+    fireEvent.click(within(tile).getByRole("button", { name: "Start Claude app · b-lab" }));
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.app_pid).not.toBeNull());
     // Running now, with nothing open in it yet: its tile stays, with Open.
-    await waitFor(() => expect(screen.queryByTestId("home-app-closed")).toBeNull());
+    await waitFor(() => expect(screen.getAllByTestId("home-app-closed")).toHaveLength(1));
     const kept = screen.getByTestId("home-app-kept");
     expect(kept.textContent).toContain("Running · kept alive");
-    expect(within(kept).getByRole("button", { name: "Open Claude · b-lab" })).toBeTruthy();
+    expect(within(kept).getByRole("button", { name: "Open Claude app · b-lab" })).toBeTruthy();
   });
 });
 

@@ -342,3 +342,47 @@ for (const theme of ["dark", "light"] as const) {
     await axeClean(page, "switch list with credits");
   });
 }
+
+// 0.3.4, the maintainer's report: personal-max read "Ready", then the
+// switch said it wasn't set up; and Codex was suggested over a Claude
+// account with room. Now: the same tool first while one has room; a
+// target the switch would refuse is held back, saying why, with a way to
+// finish its setup.
+const SETUP: FixtureSet = {
+  ...CODEX,
+  accounts: [...CODEX.accounts, { id: "claude-lab", provider: "claude-code", label: "Lab", plan: "max-5x", login_state: "logged_in" }],
+  profiles: [...CODEX.profiles, { id: "p-lab", name: "Main", account_id: "claude-lab", account_label: "Lab", provider: "claude-code", model: null, default_cwd: null }],
+} as FixtureSet;
+const shown = (account: string, left: number) => ({
+  account,
+  five_hour: null,
+  weekly: week(left),
+  renewal: { state: "none", label: "", entered_by_user: false },
+  forecast: { state: "learning", tte_min: null, range_min: null, range_max: null, badge: "measured" },
+  unavailable_reason: null,
+  credits: null,
+});
+const SETUP_WORDS =
+  "Claude Code's first-run setup isn't done on this account. It asks again after a sign-in change, even on an account in daily use. Start a session on it once and answer its setup questions, then switch.";
+const SETUP_TARGETS = [
+  switchTarget("codex-work", "Codex", "codex", ["100% left · measured", "quiet"]),
+  switchTarget("claude-lab", "Lab", "claude-code", ["70% left · measured", "quiet"]),
+  { ...switchTarget("claude-personal", "Personal", "claude-code", []), score: null, filtered_reason: SETUP_WORDS, setup_needed: true },
+];
+
+for (const theme of ["dark", "light"] as const) {
+  test(`switch list — same tool first; one not set up held back — ${theme}`, async ({ page }) => {
+    await page.addInitScript((targets) => ((window as unknown as Record<string, unknown>).__AIJ_SWITCH_TARGETS__ = targets), SETUP_TARGETS);
+    await seed(page, SETUP, theme, [shown("codex-work", 100), shown("claude-lab", 70), shown("claude-personal", 62)]);
+    await expectRail(page);
+    await page.getByTestId("rail").locator('[data-instance-id="sess-2"]').first().click();
+    await terminalDrawn(page);
+    await openSwitch(page);
+    const rows = page.getByTestId("switch-target-rows");
+    await expect(rows.getByTestId("continue-set-up")).toHaveText("Start a session on Personal ›");
+    await expect(rows.getByRole("button", { name: /^Lab/ }).first()).toHaveAttribute("aria-pressed", "true");
+    await rows.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(OUT, `switch-setup-1280x800-${theme}.png`) });
+    await axeClean(page, "switch list with one not set up");
+  });
+}

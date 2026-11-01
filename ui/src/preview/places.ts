@@ -82,12 +82,13 @@ export function knownPlacesPreview(now: number): { places: KnownPlaceInfo[]; ses
     account_id: null,
     seen_ms: now - 3_600_000,
     cannot_start: null,
+    recent: [],
     ...over,
   });
   return {
     places: [
-      row({ id: "claude-app|/Users/you/Profiles/Work", app_id: "claude-app", app: "Claude", instance: "Work", profile: "Work Max", label: "Claude · Work Max", app_pid: CLAUDE_WORK.app_pid, keep_alive: true, account_id: "claude-work" }),
-      row({ id: "claude-app|/Users/you/Profiles/Personal", app_id: "claude-app", app: "Claude", instance: "Personal", profile: "Personal", label: "Claude · Personal", app_pid: CLAUDE_PERSONAL.app_pid, account_id: "claude-personal" }),
+      row({ id: "claude-app|/Users/you/Profiles/Work", app_id: "claude-app", app: "Claude", instance: "Work", profile: "Work Max", label: "Claude · Work Max", app_pid: CLAUDE_WORK.app_pid, keep_alive: true, account_id: "claude-work", recent: ["claude-code/outside-3", "claude-code/outside-1", "claude-code/outside-8"] }),
+      row({ id: "claude-app|/Users/you/Profiles/Personal", app_id: "claude-app", app: "Claude", instance: "Personal", profile: "Personal", label: "Claude · Personal", app_pid: CLAUDE_PERSONAL.app_pid, account_id: "claude-personal", recent: ["claude-code/outside-5", "claude-code/outside-4", "claude-code/outside-2"] }),
       row({ id: "codex-app|", app_id: "codex-app", app: "ChatGPT", label: "ChatGPT", app_pid: CODEX.app_pid, account_id: "codex" }),
       row({ id: "claude-app|/Users/you/Profiles/Lab", app_id: "claude-app", app: "Claude", instance: "Lab", profile: "Lab", label: "Claude · Lab", keep_alive: true, seen_ms: now - 20 * 60_000 }),
       row({ id: "claude-app|/Users/you/Profiles/Old", app_id: "claude-app", app: "Claude", instance: "Old", profile: "Old", label: "Claude · Old", seen_ms: now - 9 * 24 * 3_600_000 }),

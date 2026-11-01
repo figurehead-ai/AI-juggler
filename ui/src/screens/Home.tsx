@@ -356,9 +356,11 @@ export function HomeScreen({
     anything: sessions.length + conversations.length > 0,
   });
   const openCount = items.filter(openNow).length;
+  const sessionsWords = (count: number, what: string) => `${count} ${what} ${count === 1 ? "session" : "sessions"}`;
   const counts: { key: string; words: string; run: () => void }[] = [
     { key: "open", words: `${openCount} open`, run: () => document.querySelector<HTMLElement>("[data-testid='rail'] [data-rail-item]")?.focus() },
-    { key: "inactive", words: `${items.filter((item) => item.inactive).length} inactive`, run: () => showInRail("inactive") },
+    // "23 inactive" read as apps or anything (the maintainer, 0.3.3).
+    { key: "inactive", words: sessionsWords(items.filter((item) => item.inactive).length, "inactive"), run: () => showInRail("inactive") },
     { key: "ended", words: `${items.filter((item) => endedToday(item, now)).length} ended today`, run: () => showInRail("ended") },
     ...hiddenApps.map((part) => ({ key: `hidden-${part.app}`, words: `${part.count} in ${part.app} hidden`, run: () => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "settings" } })) })),
   ].filter((part) => !part.words.startsWith("0 "));
