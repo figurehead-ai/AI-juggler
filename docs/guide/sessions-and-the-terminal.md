@@ -3,7 +3,9 @@
 ## Your sessions
 
 The list on the left shows the sessions open right now, in every app,
-grouped by place: the app and profile each runs in. What needs you is on
+grouped by the app each runs in, such as "Claude Code · Work Max". A
+terminal session sits under its tool and folder, with its terminal as a
+detail ("in Terminal"). What needs you is on
 top, and ended or inactive sessions are one click away under the "Also:"
 line. To see your projects with their sessions instead, choose **View** ›
 **Group by** › **Project**. [What's open, and getting to it](whats-open.md)
@@ -13,7 +15,7 @@ History holds every session that has ended, and you can search it.
 
 ### Searching what was said
 
-History finds a session by what it was about, its project, account, tool,
+History finds a session by what it was about, its project, app, tool,
 model, branch or date, and by the words said in it. For sessions AI Juggler
 started, words are searched as they are. For the ones started outside it,
 turn on **Search the words of every session** in Settings › Privacy:
@@ -28,24 +30,24 @@ turn on **Search the words of every session** in Settings › Privacy:
   session the tool deletes leaves the index too.
 - **Turning it off deletes the index.**
 
-To start one, choose **New session** (⌘N). Pick the project folder, the tool
-and the profile. A project can have its own profile (set it from the
-project's menu). Otherwise new sessions use your default profile, then the
-one you used last in that folder.
+To start one, choose **New session** (⌘N). Pick the project folder, then
+the app under **Which app?**. A project can have its own app (**Set its
+app…** in the project's menu). Otherwise new sessions use your default
+app, then the one you used last in that folder.
 
-**Ranked for you** lists the profiles by the room their accounts have left,
+**Ranked for you** lists the apps by the room their accounts have left,
 read as Home's **Runway by account** reads it, and marks **Suggested** the
 one with the most. The pick says why it's the pick ("your default", "used
 last here", "Suggested: the most room"). When it isn't the Suggested one,
-the sheet offers that one beside it ("Use Account B"). A pick of yours
+the sheet offers that one beside it ("Use Personal"). A pick of yours
 that's out of room gives way to the Suggested one, and the sheet says until
 when; **Use … anyway** keeps it. Picking a row of the ranking makes it the
-pick. "Used most here" is said only of the account that ran most sessions
+pick. "Used most here" is said only of the app that ran most sessions
 in that folder.
 
 A session you started elsewhere can be picked up with **Continue in AI
-Juggler**. To carry one to another account or tool, see
-[Continue on another account](switching.md).
+Juggler**. To carry one to another app or tool, see
+[Continue in another app](switching.md).
 
 ## The terminal
 
@@ -118,14 +120,14 @@ in that folder, so Codex's `config.toml` is never changed. A folder you
 already decided in Codex itself is left to Codex. **Cancel** starts
 nothing.
 
-To choose per profile, go to Settings › Sessions › **How sessions run**: a
-profile can always start in a terminal. **New session** has **How it runs**
-for just that session.
+To choose for each app's launch settings, go to Settings › Sessions ›
+**How sessions run**: they can always start in a terminal. **New
+session** has **How it runs** for just that session.
 
 A Claude Code session in a terminal still tells AI Juggler exactly what it's
 doing (working, waiting for you, asking a question) through Claude Code's
 own hooks. They're added to that launch only, in AI Juggler's folder, and
-never written into your profile.
+never written into the app's own folder.
 
 ## Answering a session's questions
 
@@ -140,7 +142,7 @@ on its page:
 - Several open questions are listed together, each with its session.
 
 Nothing is answered until you click. AI Juggler never answers by itself, on
-a timer or by default. The answer goes to the tool, and the account's log
+a timer or by default. The answer goes to the tool, and the app's log
 records it. A Claude Code session in a terminal is answered in its terminal:
 **Go to it**.
 

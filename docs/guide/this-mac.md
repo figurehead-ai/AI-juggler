@@ -57,11 +57,11 @@ stop it: AI Juggler checks it again and tells you what stopping it will do
 before you confirm. A process AI Juggler can't be sure of has no button.
 
 Automatic cleanup is off by default: AI Juggler stops nothing by itself.
-To let it tidy left-behind dev servers, turn it on for a profile under
+To let it tidy left-behind dev servers, turn it on for an app under
 **Automatic cleanup** on the Processes page, or on the Accounts page.
-Settings › Advanced › Cleanup sets what new profiles start with, and
-**Pause automatic cleanup** stops it for every profile until you resume
-it.
+Settings › Advanced › Cleanup sets what new apps start with (**Default for
+new apps**), and **Pause automatic cleanup** stops it for every app until
+you resume it.
 
 ## Kept awake
 

@@ -1,17 +1,17 @@
 # Your first run
 
-## Find your profiles
+## Bring in your apps
 
-On first launch, choose **Find my accounts**. AI Juggler looks for your
+On first launch, choose **Find my apps**. AI Juggler looks for your
 Claude Code and Codex setups: `~/.claude`, `~/.codex`, other `~/.claude*` and
 `~/.codex*` folders, the folders named by `CLAUDE_CONFIG_DIR` or `CODEX_HOME`
-in your shell's startup files, and profiles made by other account managers.
+in your shell's startup files, and folders made by other account managers.
 It only reads; nothing is changed by looking.
 
-Each setup it finds is a **profile**: the setup an app runs on. The
-**account** is the subscription a profile is signed in to. Two profiles
-signed in to the same account are normal, and share that account's limits.
-[Accounts and profiles](accounts.md) says more.
+Each setup it finds becomes an **app**: the tool on that folder, such as
+"Claude Code · Work". The **account** is the subscription an app is signed
+in to. Two apps signed in to the same account are normal, and share that
+account's limits. [Accounts and apps](accounts.md) says more.
 
 ## Use it where it is, or make a copy
 
@@ -25,25 +25,28 @@ For each setup it finds, you choose:
   folder and uses the copy. Your original is never changed. The copy doesn't
   include the sign-in, so you sign in once inside the copy.
 
-You can change your mind later: add or remove profiles from the Accounts
+Then choose **Bring in 1 app** (or however many you picked).
+
+You can change your mind later: add or remove apps from the Accounts
 page.
 
 ## Signing in
 
-When a profile needs a sign-in, AI Juggler opens that tool's own sign-in,
+When an app needs a sign-in, AI Juggler opens that tool's own sign-in,
 in a terminal. You sign in exactly as you would by hand. AI Juggler never
 sees your password or your tokens.
 
 ## What you'll see
 
-- **The list on the left** shows what's open right now, grouped by place:
-  the app and profile each session runs in, such as "Claude app · Work".
+- **The list on the left** shows what's open right now, grouped by app:
+  the app each session runs in, such as "Claude app · Work" or "Claude Code
+  · Work".
   What needs you is on top. Click a session, or press Enter, to open its
   page here. Its **↗** (or ⌘Enter) brings its app forward. See
   [What's open, and getting to it](whats-open.md).
 - **Home** shows what needs you, the apps you have open, and how much room
   each account has left.
-- **New session** starts the tool you choose, on the profile you choose, in
+- **New session** starts the tool you choose, in the app you choose, in
   the folder you choose.
 
 ## Optional permissions

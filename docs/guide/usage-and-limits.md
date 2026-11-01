@@ -3,13 +3,13 @@
 AI Juggler shows two kinds of numbers, and it never mixes them up.
 
 Limits and money belong to an **account**, the subscription you pay for.
-Sessions run in a **profile**, the setup an app runs on. Several profiles
-signed in to one account share its limits. See
-[Accounts and profiles](accounts.md).
+Sessions run in an **app**, one app in one of its profiles, such as
+"Claude Code · Work Max". Several apps signed in to one account share its
+limits. See [Accounts and apps](accounts.md).
 
 ## Usage: what you've spent
 
-Tokens and cost per session, per profile, per account and per project,
+Tokens and cost per session, per app, per account and per project,
 counted from the tools' own records on your Mac: Claude Code's transcripts
 and Codex's session logs. It doesn't ask any provider for anything.
 
@@ -41,8 +41,8 @@ providers' API list prices.
 
 If you work for clients, or keep an eye on what an API key costs, set a
 monthly cap: **Usage** › **Set a monthly cap**. Give it a name, an amount
-in US dollars, and what it counts: one account, or a group of projects on
-any account.
+in US dollars, and what it counts: **One app**, or **A group of projects,
+in any app**.
 
 - **Needs you** on Home tells you when this month reaches 80 % of the cap,
   and again at 100 %. **Got it** hides the warning until the next one, or
@@ -80,7 +80,7 @@ balance. It shows only the limits Codex reports for your plan.
 AI Juggler reads Claude's limits from Claude's own records on your Mac,
 with nothing to set up:
 
-- **The Claude app's meter.** While the Claude app is open on a profile,
+- **The Claude app's meter.** While the Claude app is open on an account,
   it records the 5-hour and weekly use about every 15 minutes. A reading
   shows where it came from and how old it is: "60% left · from the Claude
   app, 12 min ago".
@@ -105,13 +105,13 @@ that the meter shows no all-models week and when the rest will show.
 
 Sessions AI Juggler starts report their limits through Claude Code's status
 line. For sessions you start with `claude` in a terminal, there's an option
-per profile, off by default. The Claude app never runs a status line, so its
+per app, off by default. The Claude app never runs a status line, so its
 sessions don't need it:
 
-1. On the Accounts page, open the profile's menu.
+1. On the Accounts page, open the app's menu.
 2. Choose **Measure its limits…**, then **Also measure terminal sessions…**.
 3. Review the change it shows you: one setting, `statusLine`, in that
-   profile's `settings.json`. Your own status line keeps working; AI
+   app's `settings.json`. Your own status line keeps working; AI
    Juggler only reads its limits and passes the rest through.
 4. Confirm.
 
@@ -119,7 +119,7 @@ Turning it off restores the file exactly as it was. If you've edited the
 file since, it removes only AI Juggler's part.
 
 Because a limit belongs to the account, one measured session counts for
-every profile signed in to that account.
+every app signed in to that account.
 
 ## How long a limit will last
 
