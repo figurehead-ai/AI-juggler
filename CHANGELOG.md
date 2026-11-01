@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (0.3.4)
+
+- **The Overview's switcher** (docs/releases/0.3.4.md): beside a session's
+  conversation, its running subagents, the sessions it started
+  (`conversations_started`, from the Claude app's `spawnedFrom`) and the
+  ended ones, each one click to its conversation in place; the own pane is
+  never unmounted (a terminal never rebuilt).
+
 ### Changed (0.3.4)
 
+- **Page switching** (lib/shared-read, lib/scroll-memory): kept answers
+  painted first and read again behind, scroll kept per page and tab,
+  lazy screens rendered at once once loaded, hidden tabs read when shown;
+  layout shift over 22 switches 0.24 → 0.009.
 - **A conversation shows like the tools' own windows**
   (docs/releases/0.3.4.md, docs/research/native-conversation-display.md):
   a finished turn's work (its notes and steps) folds into one row
