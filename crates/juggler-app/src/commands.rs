@@ -13255,6 +13255,16 @@ fn redaction_items_of(
 // AJ-E209: the badged switch entry point, the Switch Graph, and the
 // per-node actions (Resume / Export pack) — ranking suggests only.
 
+/// 0.3.4: why a switch target is held back, when a step of the user's
+/// fixes it (the words are its `filtered_reason`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HeldBack {
+    /// Its tool's first-run setup isn't done there: a session started on
+    /// it once does it.
+    SetUp,
+}
+
 /// One ranked, badged switch destination (the handover section's
 /// rows). Suggest-only: the click is the user's.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
@@ -13282,9 +13292,8 @@ pub struct SwitchTargetInfo {
     /// launch there (its tool's own check), so it's never offered as
     /// ready.
     pub filtered_reason: Option<String>,
-    /// 0.3.4: its tool's first-run setup isn't done there (a session
-    /// started on it once does it).
-    pub setup_needed: bool,
+    /// 0.3.4: why it's held back, when a step of the user's fixes it.
+    pub held_back: Option<HeldBack>,
     /// Top-2 contributing factors in words.
     pub top_factors: Vec<String>,
     /// All inputs for the "Why this order?" expander.
@@ -13446,11 +13455,11 @@ pub fn switch_targets_impl(
         };
         // 0.3.4: the switch's own launch check, before it's offered.
         let blocker = crate::features::handover::access::launch_blocker(state, &account);
-        let setup_needed = matches!(
+        let set_up = matches!(
             blocker,
             Some(juggler_adapter::readiness::NotReady::NotSetUp(_))
         );
-        let blocked = row.filtered_reason.clone().or_else(|| {
+        let reason = row.filtered_reason.clone().or_else(|| {
             blocker
                 .as_ref()
                 .map(crate::features::handover::access::blocker_words)
@@ -13499,13 +13508,13 @@ pub fn switch_targets_impl(
                 cross_provider: cross,
                 drops: carry.dropped.clone(),
                 score: row.score,
-                filtered_reason: blocked.clone(),
-                setup_needed: row.filtered_reason.is_none() && setup_needed,
+                filtered_reason: reason.clone(),
+                held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
                 top_factors: row.top_factors.clone(),
                 factors: row.factors.clone(),
                 confidence: row.confidence.clone(),
                 tte_min: row.tte_min,
-                suggested: row.suggested && blocked.is_none(),
+                suggested: row.suggested && reason.is_none(),
             });
         }
     }

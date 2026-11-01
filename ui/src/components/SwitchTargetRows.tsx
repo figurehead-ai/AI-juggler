@@ -196,7 +196,7 @@ export function SwitchTargetRows({
                   </span>
                 )}
               </button>
-              {target.setup_needed && <StartThereLink accountId={target.account_id} label={target.account_label} />}
+              {target.held_back === "set_up" && <StartThereLink accountId={target.account_id} label={target.account_label} />}
             </li>
           );
         })}

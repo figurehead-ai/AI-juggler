@@ -2341,9 +2341,10 @@ export interface SwitchTargetData {
   drops: string[];
   score: number | null;
   filtered_reason: string | null;
-  /** 0.3.4: held back because its tool's first-run setup isn't done
-   * there (a session started on it once does it). */
-  setup_needed?: boolean;
+  /** 0.3.4: why it's held back, when a step of the user's fixes it:
+   * "set_up", its tool's first-run setup isn't done there (a session
+   * started on it once does it). */
+  held_back?: "set_up" | null;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;

@@ -367,7 +367,7 @@ const SETUP_WORDS =
 const SETUP_TARGETS = [
   switchTarget("codex-work", "Codex", "codex", ["100% left · measured", "quiet"]),
   switchTarget("claude-lab", "Lab", "claude-code", ["70% left · measured", "quiet"]),
-  { ...switchTarget("claude-personal", "Personal", "claude-code", []), score: null, filtered_reason: SETUP_WORDS, setup_needed: true },
+  { ...switchTarget("claude-personal", "Personal", "claude-code", []), score: null, filtered_reason: SETUP_WORDS, held_back: "set_up" },
 ];
 
 for (const theme of ["dark", "light"] as const) {

@@ -1528,14 +1528,16 @@ mod launch_ready_tests {
         let dir = tempfile::tempdir().unwrap();
         let state = dir.path().join(".claude.json");
         std::fs::write(&state, r#"{"hasCompletedOnboard"#).unwrap();
-        let Err(NotReady::NotSetUp(words)) = launch_ready_in(&state, dir.path()) else {
-            panic!("a half-written file isn't ready");
-        };
-        assert!(words.contains("couldn't read"), "{words}");
+        let half = launch_ready_in(&state, dir.path());
+        assert!(
+            matches!(&half, Err(NotReady::NotSetUp(words)) if words.contains("couldn't read")),
+            "a half-written file isn't ready: {half:?}"
+        );
         std::fs::write(&state, r#"{"hasCompletedOnboarding":false}"#).unwrap();
-        let Err(NotReady::NotSetUp(words)) = launch_ready_in(&state, dir.path()) else {
-            panic!("setup not finished");
-        };
-        assert!(words.contains("first-run setup"), "{words}");
+        let fresh = launch_ready_in(&state, dir.path());
+        assert!(
+            matches!(&fresh, Err(NotReady::NotSetUp(words)) if words.contains("first-run setup")),
+            "setup not finished: {fresh:?}"
+        );
     }
 }

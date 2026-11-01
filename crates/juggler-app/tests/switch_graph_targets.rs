@@ -301,11 +301,15 @@ fn a_target_the_switch_would_refuse_is_held_back() {
         .unwrap();
     let words = held.filtered_reason.as_deref().unwrap_or_default();
     assert!(words.contains("first-run setup"), "{words}");
-    assert!(held.setup_needed, "a session started there finishes it");
+    assert_eq!(
+        held.held_back,
+        Some(commands::HeldBack::SetUp),
+        "a session started there finishes it"
+    );
     assert!(!held.suggested);
     let fine = targets.iter().find(|t| t.account_label == "Ready").unwrap();
     assert_eq!(fine.filtered_reason, None);
-    assert!(!fine.setup_needed);
+    assert_eq!(fine.held_back, None);
 }
 
 #[test]

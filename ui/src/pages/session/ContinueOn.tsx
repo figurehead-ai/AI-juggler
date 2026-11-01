@@ -89,7 +89,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
       label: row.account_label,
       recipeId: row.recipe_id,
       blocked: row.filtered_reason,
-      setupNeeded: row.setup_needed === true,
+      setupNeeded: row.held_back === "set_up",
       badge: row.badge ? { words: row.badge, validated: row.validated } : null,
       crossTool: row.cross_provider,
     }));
