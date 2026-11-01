@@ -10,7 +10,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as ipc from "../../lib/ipc/conversations";
 import type { LastMessagesInfo, LastTurnInfo } from "../../lib/ipc/conversations";
-import { LastMessages, questionOf, stepsSummary } from "./LastMessages";
+import { foldOf, LastMessages, questionOf, stepsSummary, workWords } from "./LastMessages";
 import { FOLLOW_WORKING_MS } from "./useLastMessages";
 import type { SessionModel } from "./model";
 
@@ -47,7 +47,7 @@ const info = (turns: LastTurnInfo[], extra: Partial<LastMessagesInfo> = {}): Las
 
 const shown = info(
   [
-    text("you", "Use the key •••"),
+    text("you", "Use the key •••", Date.now() - 360_000),
     {
       speaker: "assistant",
       blocks: [
@@ -76,17 +76,24 @@ describe("AJ-E2108 last messages", () => {
     expect(read).toHaveBeenCalledWith("work", "c1");
   });
 
-  it("show your turns on the right and the agent's on the left, with its name, markdown and folded steps", async () => {
+  it("show your turns on the right and the agent's on the left, with its name, its work folded to one row (0.3.4: as the tools' own windows), then its reply", async () => {
     vi.spyOn(ipc, "conversationsLastMessages").mockResolvedValue(shown);
-    render(<LastMessages model={model()} visible />);
+    render(<LastMessages model={model({}, { asks: false })} visible />);
     const turns = await screen.findAllByTestId("last-turn");
     expect(turns.map((turn) => turn.dataset.speaker)).toEqual(["you", "assistant"]);
     expect(turns[0]!.className).toContain("items-end");
     expect(turns[1]!.textContent).toContain("Claude");
+    expect(turns[1]!.querySelector("time")?.textContent).toBe("2 min ago");
+    // The reply shows; the work before it is one row: how long, what it did.
+    expect(turns[1]!.textContent).toContain("All green. Keep the old layout?");
+    const work = screen.getByTestId("last-turn-work-toggle");
+    expect(work.textContent).toBe("Worked for 4 min · Ran 1 command, edited 1 file, read 1 file · 1 note");
+    expect(work.getAttribute("aria-expanded")).toBe("false");
+    expect(turns[1]!.querySelector("strong")).toBeNull();
+    fireEvent.click(work);
+    // Open: the notes as written (markdown), and the steps' own row.
     expect(turns[1]!.querySelector("strong")?.textContent).toBe("tests");
     expect(turns[1]!.querySelector("[data-testid='md-code'] pre")?.textContent).toBe("const a = 1;");
-    expect(turns[1]!.querySelector("time")?.textContent).toBe("2 min ago");
-    // Folded: one line saying what it did; open, each call.
     const steps = screen.getByTestId("last-turn-steps").querySelector("button")!;
     expect(steps.textContent).toBe("Ran 1 command, edited 1 file, read 1 file");
     expect(steps.getAttribute("aria-expanded")).toBe("false");
@@ -107,10 +114,22 @@ describe("AJ-E2108 last messages", () => {
     expect(onGoTo).toHaveBeenCalledTimes(1);
   });
 
-  it("a working session says so at the bottom, with no question card", async () => {
+  it("0.3.4: a turn ending on a step is all work; the question is the reply's, never a note's", () => {
+    const step = { kind: "steps", text: "", steps: ['ran "pnpm test"'], hidden: 0 };
+    const note = { kind: "text", text: "Should I also bump the version?", steps: [], hidden: 0 };
+    const going = { speaker: "assistant", blocks: [note, step], at_ms: null, model: null } as LastTurnInfo;
+    expect(foldOf(going)).toEqual({ work: [note, step], reply: null });
+    const done = { ...going, blocks: [note, step, { kind: "text", text: "Done: 42 passed.", steps: [], hidden: 0 }] } as LastTurnInfo;
+    expect(questionOf(done)).toBe("Done: 42 passed.");
+    expect(workWords(foldOf(done).work, null)).toBe("Ran 1 command · 1 note");
+  });
+
+  it("a working session says so at the bottom, with no question card, and its latest turn shows open as it goes", async () => {
     vi.spyOn(ipc, "conversationsLastMessages").mockResolvedValue(shown);
     render(<LastMessages model={model({}, { asks: false, working: true, words: "Working", tone: "live" })} visible />);
     expect((await screen.findByTestId("last-messages-working")).textContent).toContain("Claude is working");
+    expect(screen.queryByTestId("last-turn-work")).toBeNull();
+    expect(screen.getAllByTestId("last-turn")[1]!.querySelector("strong")?.textContent).toBe("tests");
     expect(screen.queryByTestId("last-messages-asks")).toBeNull();
     // Nothing to answer while it works: only where Go to it leads.
     expect(screen.getByTestId("last-messages-answer").textContent).not.toContain("Answer it");
