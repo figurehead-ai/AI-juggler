@@ -20,6 +20,7 @@ mod sessions;
 
 mod cleanup_audit;
 mod cleanup_settings;
+mod entities;
 mod fleet_sync;
 mod footprints;
 mod identity;
@@ -49,6 +50,9 @@ pub use cleanup_audit::{
     CleanupAuditRepo, OUTCOME_PENDING,
 };
 pub use cleanup_settings::{CleanupSettingsRepo, CleanupTierSettings};
+pub use entities::{
+    App, AppsRepo, Subscription, SubscriptionsRepo, cli_app_id, desktop_app_id, subscription_id,
+};
 pub use fleet_sync::{FleetSyncRepo, SyncEntry};
 pub use footprints::{
     FOOTPRINTS_PER_KEY, Footprint, FootprintStats, FootprintsRepo, MIN_FOOTPRINT_MS,
@@ -631,9 +635,13 @@ const V38: &str = pool_canvas::MIGRATION;
 /// out of History (the sessions table cascades).
 const V39: &str = "ALTER TABLE launch_recipes ADD COLUMN removed_at INTEGER;";
 
+/// v40 (D-62, AJ-E3202): the Account and the App, stored; a CLI App per
+/// folder row in use; each session AI Juggler ran, its App.
+const V40: &str = entities::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39,
+    V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -1010,6 +1018,18 @@ impl Storage {
     #[must_use]
     pub fn tasks(&self) -> TasksRepo<'_> {
         TasksRepo::new(&self.conn)
+    }
+
+    /// Repository for the stored Accounts (subscriptions, D-62).
+    #[must_use]
+    pub fn subscriptions(&self) -> SubscriptionsRepo<'_> {
+        SubscriptionsRepo::new(&self.conn)
+    }
+
+    /// Repository for the stored Apps (D-62).
+    #[must_use]
+    pub fn apps(&self) -> AppsRepo<'_> {
+        AppsRepo::new(&self.conn)
     }
 
     /// Repository for the pool canvas: where the user put each member, and
