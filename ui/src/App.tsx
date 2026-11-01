@@ -280,9 +280,12 @@ export default function App() {
     { id: string; title: string; ended: boolean }[]
   >([]);
   const [newSession, setNewSession] = useState(false);
+  // 0.3.4: the account New session opens on, when the opener names one.
+  const [newSessionAccount, setNewSessionAccount] = useState<string | null>(null);
   const closeNewSession = () => {
     setNewSession(false);
     setNewSessionDir(null);
+    setNewSessionAccount(null);
   };
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
@@ -356,7 +359,11 @@ export default function App() {
   // the Start-first-session CTA route to the real surfaces.
   useEffect(() => {
     const openAccounts = () => setGlobal("accounts");
-    const newSession = () => setNewSession(true);
+    const newSession = (event: Event) => {
+      const accountId = (event as CustomEvent<{ accountId?: unknown } | null>).detail?.accountId;
+      setNewSessionAccount(typeof accountId === "string" ? accountId : null);
+      setNewSession(true);
+    };
     const openScreen = (event: Event) => { setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current); focusPageSoon(); };
     // AJ-E2503/E2507: a notice's Continue elsewhere; your menu's shortcuts.
     const limit = (event: Event) => setLimitFor((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null);
@@ -1123,6 +1130,7 @@ export default function App() {
           accounts={accounts}
           sessions={sessions}
           initialDirectory={newSessionDir}
+          initialAccount={newSessionAccount}
           openLoginTerminal={openLoginTerminal}
           onClose={closeNewSession}
           onLaunched={(sessionId) => {

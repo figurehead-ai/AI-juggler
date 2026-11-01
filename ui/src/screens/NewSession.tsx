@@ -30,6 +30,7 @@ export function NewSessionModal({
   accounts,
   sessions = [],
   initialDirectory,
+  initialAccount = null,
   onClose,
   onLaunched,
   openLoginTerminal,
@@ -40,6 +41,9 @@ export function NewSessionModal({
   /** The sessions the app already has: names for "Closing … frees about …". */
   sessions?: InstanceInfo[];
   initialDirectory: string | null;
+  /** 0.3.4: the account it opens on (a switch target's "Start a session
+   * on it", an app's New session), still the user's to change. */
+  initialAccount?: string | null;
   onClose: () => void;
   onLaunched: (sessionId: string, title: string) => void;
   /** AJ-E306 Req.8: the Sign-in-first detour opens the vendor login
@@ -134,7 +138,7 @@ export function NewSessionModal({
   // highlights that account's recipes; the launch stays the user's
   // own click on a recipe).
   const [ranked, setRanked] = useState<RankedRowData[]>([]);
-  const [pickedAccount, setPickedAccount] = useState<string | undefined>(undefined);
+  const [pickedAccount, setPickedAccount] = useState<string | undefined>(initialAccount ?? undefined);
   // F17: for the folder picked ("used most here" only where it was).
   const projectId = projects.find((row) => row.root === directory)?.id;
   useEffect(() => {

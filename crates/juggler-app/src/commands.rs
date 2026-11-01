@@ -13278,8 +13278,13 @@ pub struct SwitchTargetInfo {
     pub drops: Vec<String>,
     /// The §Q6 score (`None` = hard-filtered, reason alongside).
     pub score: Option<f64>,
-    /// Hard-filter reason, when filtered.
+    /// Hard-filter reason, when filtered; 0.3.4: also what would stop a
+    /// launch there (its tool's own check), so it's never offered as
+    /// ready.
     pub filtered_reason: Option<String>,
+    /// 0.3.4: its tool's first-run setup isn't done there (a session
+    /// started on it once does it).
+    pub setup_needed: bool,
     /// Top-2 contributing factors in words.
     pub top_factors: Vec<String>,
     /// All inputs for the "Why this order?" expander.
@@ -13439,6 +13444,17 @@ pub fn switch_targets_impl(
         let Some(row) = by_account.get(account.id.as_str()) else {
             continue;
         };
+        // 0.3.4: the switch's own launch check, before it's offered.
+        let blocker = crate::features::handover::access::launch_blocker(state, &account);
+        let setup_needed = matches!(
+            blocker,
+            Some(juggler_adapter::readiness::NotReady::NotSetUp(_))
+        );
+        let blocked = row.filtered_reason.clone().or_else(|| {
+            blocker
+                .as_ref()
+                .map(crate::features::handover::access::blocker_words)
+        });
         for recipe in storage.profiles().list_by_account(&account.id)? {
             if recipe.id == source.profile {
                 continue; // the source itself is not a destination
@@ -13483,12 +13499,13 @@ pub fn switch_targets_impl(
                 cross_provider: cross,
                 drops: carry.dropped.clone(),
                 score: row.score,
-                filtered_reason: row.filtered_reason.clone(),
+                filtered_reason: blocked.clone(),
+                setup_needed: row.filtered_reason.is_none() && setup_needed,
                 top_factors: row.top_factors.clone(),
                 factors: row.factors.clone(),
                 confidence: row.confidence.clone(),
                 tte_min: row.tte_min,
-                suggested: row.suggested,
+                suggested: row.suggested && blocked.is_none(),
             });
         }
     }

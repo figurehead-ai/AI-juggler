@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
 import { AccountAvatar } from "../../components/Avatar";
 import { Button, Card } from "../../components/primitives";
-import { FidelityBadge, RoomLine, SuggestedMark } from "../../components/SwitchTargetRows";
+import { FidelityBadge, RoomLine, StartThereLink, SuggestedMark } from "../../components/SwitchTargetRows";
 import { switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData } from "../../lib/bridge";
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { rankTargets, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
@@ -29,6 +29,9 @@ export type Target = {
   label: string;
   recipeId: string;
   blocked: string | null;
+  /** 0.3.4: held back because its tool's first-run setup isn't done there
+   * ("Start a session on it" does it). */
+  setupNeeded: boolean;
   /** What the move carries ("Full story, fresh start · Beta"), when known. */
   badge: { words: string; validated: boolean } | null;
   /** Another tool than the session's. */
@@ -86,6 +89,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
       label: row.account_label,
       recipeId: row.recipe_id,
       blocked: row.filtered_reason,
+      setupNeeded: row.setup_needed === true,
       badge: row.badge ? { words: row.badge, validated: row.validated } : null,
       crossTool: row.cross_provider,
     }));
@@ -208,6 +212,7 @@ export function ContinueOn({
                         {target.blocked ?? words}
                       </span>
                     )}
+                    {target.setupNeeded && <StartThereLink accountId={target.profileId} label={target.label} onStart={() => setDialog(false)} />}
                   </div>
                 );
               })}

@@ -11,8 +11,9 @@
  * most first; then used up but carrying on with credits (0.3.2: a session
  * there goes on, paid by its credits; never suggested); then out of room;
  * then ones that can't take work now (signed out, the same account). Out
- * of room is listed, never hidden. Pure: the callers hand in each one's
- * room.
+ * of room is listed, never hidden. A switch prefers its own tool among the
+ * ones with room (0.3.4, the maintainer: same tool first while it has
+ * space, then the others). Pure: the callers hand in each one's room.
  */
 import { whenWords } from "./time-words";
 
@@ -51,14 +52,17 @@ export function rankByRoom<T>(
   usable: (item: T) => boolean = () => true,
   /** Its credits carry it on past a used-up window. */
   credits: (item: T) => boolean = () => false,
+  /** Comes first among the ones with room (a switch: the same tool). */
+  preferred: (item: T) => boolean = () => true,
 ): ByRoom<T>[] {
   const rows = items.map((item, index) => {
     const left = leftOf(item);
-    return { item, left, kind: roomKind(left, usable(item), credits(item)), index };
+    return { item, left, kind: roomKind(left, usable(item), credits(item)), index, first: preferred(item) };
   });
   rows.sort((a, b) => {
     const kind = ORDER[a.kind] - ORDER[b.kind];
     if (kind !== 0) return kind;
+    if (a.kind === "room" && a.first !== b.first) return a.first ? -1 : 1;
     const measured = a.kind === "room" || a.kind === "low";
     return measured && a.left !== b.left ? (b.left ?? 0) - (a.left ?? 0) : a.index - b.index;
   });

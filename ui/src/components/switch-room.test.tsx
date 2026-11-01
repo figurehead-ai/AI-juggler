@@ -90,6 +90,38 @@ describe("F1 one order by room", () => {
   });
 });
 
+describe("0.3.4 a switch: same tool first, never a target it would refuse", () => {
+  it("suggests the same tool while one has room, ahead of another tool with more", () => {
+    const codex = target("x", "Codex", { provider: "codex", cross_provider: true });
+    const low = target("l", "Low", {});
+    const ranked = rankTargets([codex, target("d", "Default"), low], null, [display("x", 100), display("d", 98), display("l", 20)], "src");
+    expect(ranked.map((row) => row.account_label)).toEqual(["Default", "Codex", "Low"]);
+    expect(ranked.find((row) => row.suggested)?.account_label).toBe("Default");
+    // None of the same tool has room: the other tool's room wins.
+    const only = rankTargets([codex, low], null, [display("x", 100), display("l", 20)], "src");
+    expect(only.find((row) => row.suggested)?.account_label).toBe("Codex");
+  });
+
+  it("a target whose setup isn't done is held back, never Suggested, with a way to finish it", async () => {
+    const words = "Claude Code's first-run setup isn't done on this account. It asks again after a sign-in change, even on an account in daily use. Start a session on it once and answer its setup questions, then switch.";
+    vi.spyOn(setup, "switchSetupCheck").mockResolvedValue({ from: "Work", to: "x", already_there: 0, offers: [] });
+    vi.spyOn(bridge, "switchTargets").mockResolvedValue([target("p", "personal-max", { filtered_reason: words, setup_needed: true }), target("d", "Default")]);
+    const asked = vi.fn();
+    window.addEventListener("aij:new-session", asked);
+    const model = fromInstance({ id: "s-1", provider: "claude-code", account_id: "src", account_label: "Source", conversation_id: "c", status: "running", cwd: "/w" } as unknown as InstanceInfo);
+    render(<ContinueOn model={model} accounts={[]} displays={[display("p", 62), display("d", 30)]} onPick={vi.fn()} />);
+    await waitFor(() => expect(screen.getAllByTestId("continue-target").length).toBe(2));
+    const [first, second] = screen.getAllByTestId("continue-target") as HTMLButtonElement[];
+    expect(first!.textContent).toContain("Default");
+    expect(first!.textContent).toContain("Suggested");
+    expect(second!.disabled).toBe(true);
+    expect(screen.getByText(words)).toBeTruthy();
+    fireEvent.click(screen.getByTestId("continue-set-up"));
+    expect((asked.mock.calls[0]![0] as CustomEvent).detail).toEqual({ accountId: "p" });
+    window.removeEventListener("aij:new-session", asked);
+  });
+});
+
 describe("F1 Continue on another account", () => {
   beforeEach(() => {
     vi.spyOn(setup, "switchSetupCheck").mockResolvedValue({ from: "Work", to: "x", already_there: 0, offers: [] });
