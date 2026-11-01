@@ -44,7 +44,9 @@ export function SessionMark({ model }: { model: SessionModel }): JSX.Element {
   const place = model.places[0];
   const name = place?.profile ?? place?.instance ?? model.profileLabel;
   return (
-    <span aria-hidden="true" className="inline-flex shrink-0 items-end gap-1.5" data-testid="session-mark">
+    // A flex box, not inline: on a line it took the line's descender too
+    // (54 px for a 48 px icon), and a folded header sat 7 px low (0.3.4).
+    <span aria-hidden="true" className="flex shrink-0 items-end gap-1.5" data-testid="session-mark">
       <SessionAppIcon model={model} />
       {name && (
         <span data-testid="session-mark-profile" title={name} className="-mb-0.5">
