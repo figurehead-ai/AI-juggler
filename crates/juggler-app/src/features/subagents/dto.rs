@@ -79,6 +79,10 @@ pub struct SubagentsSummaryInfo {
     pub running: u32,
     /// Ended with an error.
     pub failed: u32,
+    /// Stopped before it finished.
+    pub stopped: u32,
+    /// How it ended isn't on record.
+    pub unknown: u32,
     /// Failed, stopped or unknown: the Needs attention view.
     pub attention: u32,
     /// Their tokens together (`null`: not recorded per subagent).

@@ -14,6 +14,10 @@ import { SubagentTree } from "./SubagentTree";
 import { useSubagentRows, type SubagentsMeta, type SubagentsSource } from "./useSubagentRows";
 import { kindWords, shareWords } from "./words";
 
+/** The type filter's value for subagents with no type recorded (the
+ * backend's `NO_KIND`). */
+const NO_KIND = "-";
+
 export type ViewId = "running" | "attention" | "all";
 export type SortId = "newest" | "tokens" | "longest";
 
@@ -64,6 +68,14 @@ export function SubagentsView({
 }): JSX.Element {
   const kept = memory?.current ?? {};
   const [view, setView] = useState<ViewId>(kept.view ?? firstView);
+  // 0.3.4: the view the user picked (this visit or a kept one) stays;
+  // otherwise it opens on Running when anything runs, else All, decided
+  // each time the tab is shown (it mounts hidden, at the page's open).
+  const picked = useRef(kept.view !== undefined);
+  const choose = (next: ViewId) => {
+    picked.current = true;
+    setView(next);
+  };
   const [sort, setSort] = useState<SortId>(kept.sort ?? firstSort);
   const [kind, setKind] = useState<string>(kept.kind ?? "");
   const [typed, setTyped] = useState(kept.typed ?? "");
@@ -88,9 +100,22 @@ export function SubagentsView({
     }));
   const summary = meta ? summaryWords(meta, whose) : null;
   const running = meta?.summary.running ?? 0;
+  const shown = useRef(false);
+  useEffect(() => {
+    if (!visible) {
+      shown.current = false;
+      return;
+    }
+    if (shown.current || !meta) return;
+    shown.current = true;
+    if (!picked.current) setView(running > 0 ? "running" : "all");
+    // A Running kept from before, with nothing running now: never an
+    // empty list to open on.
+    else if (view === "running" && running === 0) setView("all");
+  }, [visible, meta, running, view]);
   const attention = meta?.summary.attention ?? 0;
   const types: PickerOption<string>[] = useMemo(
-    () => [{ value: "", label: "All types" }, ...(meta?.kinds ?? []).map((k) => ({ value: k.kind, label: kindWords(k.kind) ?? k.kind, hint: `${k.count} ${k.count === 1 ? "subagent" : "subagents"}` }))],
+    () => [{ value: "", label: "All types" }, ...(meta?.kinds ?? []).map((k) => ({ value: k.kind, label: k.kind === NO_KIND ? "No type recorded" : (kindWords(k.kind) ?? k.kind), hint: `${k.count} ${k.count === 1 ? "subagent" : "subagents"}` }))],
     [meta?.kinds],
   );
   const searchBox = useRef<HTMLInputElement | null>(null);
@@ -103,7 +128,7 @@ export function SubagentsView({
           {running > 0 && (
             <>
               <span aria-hidden="true" className="text-muted">·</span>
-              <button type="button" onClick={() => setView("running")} className="rounded text-live underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagents-summary-running">
+              <button type="button" onClick={() => choose("running")} className="rounded text-live underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagents-summary-running">
                 {running} running
               </button>
             </>
@@ -111,8 +136,26 @@ export function SubagentsView({
           {(meta?.summary.failed ?? 0) > 0 && (
             <>
               <span aria-hidden="true" className="text-muted">·</span>
-              <button type="button" onClick={() => setView("attention")} className="rounded text-danger underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagents-summary-failed">
+              <button type="button" onClick={() => choose("attention")} className="rounded text-danger underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagents-summary-failed">
                 {meta!.summary.failed} failed
+              </button>
+            </>
+          )}
+          {/* 0.3.4: the rest of Needs attention, said, so its count and
+              the summary never disagree ("18 failed" beside "19"). */}
+          {(meta?.summary.stopped ?? 0) > 0 && (
+            <>
+              <span aria-hidden="true" className="text-muted">·</span>
+              <button type="button" onClick={() => choose("attention")} className="rounded text-warning underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagents-summary-stopped">
+                {meta!.summary.stopped} stopped
+              </button>
+            </>
+          )}
+          {(meta?.summary.unknown ?? 0) > 0 && (
+            <>
+              <span aria-hidden="true" className="text-muted">·</span>
+              <button type="button" onClick={() => choose("attention")} title="Its end was never recorded: worth a look" className="rounded text-warning underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="subagents-summary-unknown">
+                {meta!.summary.unknown} with no recorded end
               </button>
             </>
           )}
@@ -138,7 +181,7 @@ export function SubagentsView({
           className="h-9 w-[23rem] max-w-full shrink-0"
           label="Which subagents"
           value={view}
-          onChange={setView}
+          onChange={choose}
           testId="subagents-views"
           segments={[
             { value: "running", label: running > 0 ? `Running ${running}` : "Running" },
@@ -179,7 +222,7 @@ export function SubagentsView({
       ) : rows.length === 0 && filtered ? (
         <div className="flex flex-col items-start gap-2 rounded-card border border-dashed border-hairline px-4 py-6" data-testid="subagents-none-match">
           <p className="text-body text-ink">{view === "running" && !search && !kind ? "Nothing is running now." : view === "attention" && !search && !kind ? "Nothing needs your attention." : "No subagent matches."}</p>
-          <button type="button" className="rounded text-meta text-accent-hi underline-offset-2 hover:underline" onClick={() => (setView("all"), setTyped(""), setKind(""))}>
+          <button type="button" className="rounded text-meta text-accent-hi underline-offset-2 hover:underline" onClick={() => (choose("all"), setTyped(""), setKind(""))}>
             Show all {meta?.summary.total.toLocaleString()}
           </button>
         </div>

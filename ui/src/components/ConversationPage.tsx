@@ -28,6 +28,7 @@ import { GoToButton, SessionChips, SessionMark, SessionWhere } from "../pages/se
 import { SessionToolChip } from "../pages/session/HeaderDoors";
 import { fromConversation, type SessionModel } from "../pages/session/model";
 import { useHasSubagents } from "../pages/session/useSubagents";
+import { ConversationSubagents } from "./SessionNotes";
 import { useLastPlace } from "../lib/places";
 import { placesOpen } from "../lib/ipc/places";
 import { showToast } from "./Toast";
@@ -179,6 +180,7 @@ function ConversationView({
               <>
                 <SessionToolChip tool={model.tool} />
                 <SessionWhere model={model} now={now} />
+                <ConversationSubagents accountId={conversation.account_id} conversationId={conversation.id} />
               </>
             }
             actions={

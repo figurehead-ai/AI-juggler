@@ -29,10 +29,18 @@ export function subagentsLineWords({ total, running }: SubagentCounts): string {
   return running > 0 ? `${all} · ${running} running` : all;
 }
 
-function SubagentsLine({ counts }: { counts: SubagentCounts }): JSX.Element {
+/** D-48 on another app's session page (0.3.4: it had none): the same
+ * line, inline in the header's facts, from the page's own read. */
+export function ConversationSubagents({ accountId, conversationId }: { accountId: string; conversationId: string }): JSX.Element | null {
+  const counts = useHeardSubagentCounts(accountId, conversationId);
+  return counts && counts.total > 0 ? <SubagentsLine counts={counts} inline /> : null;
+}
+
+function SubagentsLine({ counts, inline = false }: { counts: SubagentCounts; inline?: boolean }): JSX.Element {
   const words = subagentsLineWords(counts);
+  const Line = inline ? "span" : "p";
   return (
-    <p className="flex items-center gap-1" data-testid="session-subagents-line">
+    <Line className={inline ? "inline-flex items-center gap-1 text-label text-muted" : "flex items-center gap-1"} data-testid="session-subagents-line">
       <span>{words}</span>
       <button
         type="button"
@@ -43,6 +51,6 @@ function SubagentsLine({ counts }: { counts: SubagentCounts }): JSX.Element {
       >
         <span aria-hidden="true">› </span>Subagents
       </button>
-    </p>
+    </Line>
   );
 }

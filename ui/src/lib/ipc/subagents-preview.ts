@@ -78,7 +78,7 @@ function matches(seed: SubagentInfo & SeedAgent, query: SubagentsQuery): boolean
   const view = query.view ?? "all";
   if (view === "running" && seed.status !== "running") return false;
   if (view === "attention" && !["failed", "stopped", "unknown"].includes(seed.status)) return false;
-  if (query.kind && seed.kind !== query.kind) return false;
+  if (query.kind && (query.kind === "-" ? !!seed.kind : seed.kind !== query.kind)) return false;
   const hay = [seed.task, seed.kind, seed.prompt, seed.result, seed.failure, ...(seed.files ?? [])].filter(Boolean).join("\n").toLowerCase();
   for (const term of (query.search ?? "").toLowerCase().split(/\s+/).filter(Boolean)) {
     if (term.startsWith("type:")) {
@@ -167,7 +167,7 @@ function build(seeded: Seeded, query: SubagentsQuery): { rows: SubagentRowInfo[]
 }
 
 function listed(seeded: Seeded | undefined, query: SubagentsQuery, page: PageRequest): SubagentsInfo {
-  const summaryEmpty = { total: 0, running: 0, failed: 0, attention: 0, tokens: null, share_pct: null, counted: "none" };
+  const summaryEmpty = { total: 0, running: 0, failed: 0, stopped: 0, unknown: 0, attention: 0, tokens: null, share_pct: null, counted: "none" };
   const base = { kinds: [], matched: 0, running: 0, reading: false, live: false, conversations_note: null, tool: "Claude Code" };
   if (!seeded) return { state: "listed", reason: null, page: { items: [], next_cursor: null, total: 0 }, summary: summaryEmpty, ...base };
   const { rows, matched, agents } = build(seeded, query);
@@ -186,12 +186,18 @@ function listed(seeded: Seeded | undefined, query: SubagentsQuery, page: PageReq
       total: agents.length,
       running: count(["running"]),
       failed: count(["failed"]),
+      stopped: count(["stopped"]),
+      unknown: count(["unknown"]),
       attention: count(["failed", "stopped", "unknown"]),
       tokens: tokens || null,
       share_pct: tokens && seeded.session_tokens ? (tokens / (tokens + seeded.session_tokens)) * 100 : null,
       counted: tokens ? "in_session" : "none",
     },
-    kinds: [...kinds.entries()].map(([kind, n]) => ({ kind, count: n })).sort((a, b) => b.count - a.count),
+    // As the backend: the ones with no type recorded last, as "-".
+    kinds: [
+      ...[...kinds.entries()].map(([kind, n]) => ({ kind, count: n })).sort((a, b) => b.count - a.count),
+      ...(kinds.size > 0 && agents.some((a) => !a.kind) ? [{ kind: "-", count: agents.filter((a) => !a.kind).length }] : []),
+    ],
     matched,
     running: count(["running"]),
     reading: seeded.reading ?? false,
