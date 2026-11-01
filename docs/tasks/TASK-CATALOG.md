@@ -360,6 +360,7 @@
 | AJ-E3103 | One related-items list and one row, everywhere | E31-everything-links.md | P0 | L | AJ-E3102 |
 | AJ-E3104 | Every page leads to what's related: header chips and counted tabs on project, session, App, Account, pool, Mac and Tool | E31-everything-links.md | P0 | L | AJ-E3103, AJ-E3204, AJ-E3205 |
 | AJ-E3105 | Every picker: suggested for where you are, then All, with search | E31-everything-links.md | P0 | M | AJ-E3102 |
+| AJ-E3106 | Beside a session's conversation, what the tools' own apps show: subagents running, the sessions it started; and each tool's own marks | E31-everything-links.md | P0 | M | AJ-E3103 |
 | AJ-E3201 | One word per thing: Account, App, Tool, Project, Session, on screen, in the spec and in the guide | E32-account-and-app.md | P0 | M | — |
 | AJ-E3202 | Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | E32-account-and-app.md | P0 | L | AJ-E3201 |
 | AJ-E3203 | Claude app profiles found when they aren't running | E32-account-and-app.md | P1 | M | AJ-E3202 |
@@ -373,5 +374,5 @@
 | AJ-E3304 | Pools validated: the exhaustive tables, the pairs, and P1–P11 by hand | E33-validated-by-use.md | P0 | L | AJ-E3301, AJ-E3009 |
 | AJ-E3305 | Every 0.4 screen scored against the 14 principles | E33-validated-by-use.md | P1 | M | AJ-E3301 |
 | AJ-E3306 | The release candidate walked whole: every scenario again, a day in the life, the load | E33-validated-by-use.md | P0 | L | AJ-E3302, AJ-E3303, AJ-E3304, AJ-E3305 |
-Total: 371 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 372 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

@@ -117,3 +117,21 @@
 **Files to touch**: `ui/src/components/controls/Picker.tsx` call sites.
 **Research basis**: D-62 decision 21.
 **Handover note**: —
+
+### AJ-E3106 Beside a session's conversation, what the tools' own apps show: subagents running, the sessions it started; and each tool's own marks | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3103
+**Goal**: A session's Overview lets you switch, from beside its conversation, to what runs inside it and to what it started, the way the Claude app's tasks pane and ChatGPT's Codex side panel do. The Subagents tab stays the full, deeper list.
+**User story**: As someone watching a long session, I see the three subagents running now and the two sessions it started beside its conversation, and one click shows each one's conversation or page, without leaving the Overview.
+**Requirements**:
+1. Beside the Conversation card, a list SHALL show the session's subagents running now, then the last few that ended ("Done · 12 ›" opens the Subagents tab). Each opens its own conversation in the same card, with a way back. This matches Claude's tasks pane (running work) and Codex's Active / Done panel.
+2. The same list SHALL show the sessions this one started, from the Claude app's own record (`spawnedFrom.sessionId`; archived ones left out). Each opens its page.
+3. Codex's own marks SHALL decide a turn's reply: the message Codex marked `final_answer` (its `phase`), commentary folded with the work even when it comes after.
+4. A step's line SHALL be its own description when the tool records one (Claude Code's Bash `description`: "Run the full preflight"), with the command beside it.
+5. Read-only and paged, like every list (D-37, instant and paged).
+**UI/UX reasoning**: the maintainer, testing 0.3.3: "on overview we want to match that capability as close as possible how claude and codex and other apps default to what subagents are showing … while on subagents tab is a full like we have right now". Research: `docs/research/native-conversation-display.md`.
+**Performance budget**: the list paints from the subagent index already read for the tab; ≤ 100 ms.
+**Quality gates**: vitest for the list and the switch in place; the conformance kit's subagent check for each adapter's "running now"; L3 pairs.
+**Evidence/validation proof**: scenario K-series walk on a session with running and ended subagents and started sessions.
+**Visual testing**: the Overview with the list, both themes, 1024 and 1280.
+**Files to touch**: `ui/src/pages/session/SessionOverview.tsx`, `SessionColumns.tsx`, `LastMessages.tsx`; `crates/juggler-adapters/src/codex_transcript.rs`, `last_turns.rs`, `tool_summary.rs`; a Claude app reader for `spawnedFrom`.
+**Research basis**: `docs/research/native-conversation-display.md` §1–§4.
+**Handover note**: 0.3.4 already folds a finished turn's work and fixed the Subagents tab; this is the side list and the tools' own marks.
