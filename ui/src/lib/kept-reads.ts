@@ -36,7 +36,13 @@ export const budgets = sharedRead<BudgetInfo[]>(() => budgetsList());
 const NO_CAPS: BudgetInfo[] = [];
 
 export function useBudgets(): BudgetInfo[] {
-  return useSharedRead(budgets, { pollMs: 60_000 }) ?? NO_CAPS;
+  return useBudgetsRead().caps;
+}
+
+/** The caps, and whether the first answer has come (`known`). */
+export function useBudgetsRead(): { caps: BudgetInfo[]; known: boolean } {
+  const caps = useSharedRead(budgets, { pollMs: 60_000 });
+  return { caps: caps ?? NO_CAPS, known: caps !== undefined };
 }
 
 /** The last day's usage by machine (Usage, Fleet): read again when one

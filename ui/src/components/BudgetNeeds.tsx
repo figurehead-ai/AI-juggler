@@ -9,14 +9,14 @@ import { Button } from "./primitives";
 import { scopeWords, spentWords } from "./BudgetCaps";
 import type { AccountInfo, ProjectInfo } from "../lib/bridge";
 import { budgetSeen, percentOf, type BudgetInfo } from "../lib/ipc/budgets";
-import { budgets, useBudgets } from "../lib/kept-reads";
+import { budgets, useBudgetsRead } from "../lib/kept-reads";
 
 /** The caps Needs you shows now (refreshed every minute; the last
  * answer, Usage's too, shows at once). */
-export function useCapNeeds(): { caps: BudgetInfo[]; reload: () => void } {
-  const all = useBudgets();
+export function useCapNeeds(): { caps: BudgetInfo[]; known: boolean; reload: () => void } {
+  const { caps: all, known } = useBudgetsRead();
   const caps = useMemo(() => all.filter((cap) => cap.level !== "under" && !cap.seen), [all]);
-  return { caps, reload: reloadBudgets };
+  return { caps, known, reload: reloadBudgets };
 }
 
 const reloadBudgets = () => void budgets.refresh();
