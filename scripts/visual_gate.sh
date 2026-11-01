@@ -13,7 +13,9 @@
 set -euo pipefail
 if [ "${1:-}" = --full-sweep ]; then shift; exec "$(dirname "$0")/visual_sweep.sh" "$@"; fi
 cd "$(dirname "$0")/../ui"
-IMAGE="mcr.microsoft.com/playwright:v1.64.1-noble"
+# Pinned by digest: the tag was re-published (2026-11-01) with a Node
+# that has no corepack, and CI broke while this Mac's cached image worked.
+IMAGE="mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea"
 ARGS=""
 ENV_SELFTEST=0
 for arg in "$@"; do
