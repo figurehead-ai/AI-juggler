@@ -29,7 +29,7 @@ import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
 import { WhenShown } from "../pages/PageShell";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
-import { sharedReads, useSharedRead } from "../lib/shared-read";
+import { useQualitySignals } from "../lib/kept-reads";
 import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
   signedIn,
 } from "../lib/bridge";
@@ -1003,28 +1003,9 @@ function stuckRuleWords(rule: string): string {
   }
 }
 
-/** 0.3.4: each session's last signals (or why they couldn't be read),
- * kept so its Usage tab opens with them (the card below the charts grew
- * in a read later, pushing the page); read when the tab shows, again
- * when older than `QUALITY_FRESH_MS`. */
-type QualityRead = { signals: import("../lib/bridge").QualitySignalsInfo | null; error: null } | { signals: null; error: string };
-const qualityOf = sharedReads<QualityRead>(
-  (sessionId) =>
-    import("../lib/bridge")
-      .then((bridge) => bridge.instanceQuality(sessionId))
-      .then(
-        (signals): QualityRead => ({ signals, error: null }),
-        (cause: unknown): QualityRead => ({ signals: null, error: errorText(cause) }),
-      ),
-  32,
-);
-const QUALITY_FRESH_MS = 15_000;
-
 function QualityTab(props: PanelProps) {
   const instance = props.data.instance;
-  const read = useSharedRead(instance ? qualityOf(instance.id) : null, { wanted: props.visible, maxAgeMs: QUALITY_FRESH_MS });
-  const quality = read?.signals ?? null;
-  const loadError = read?.error ?? null;
+  const { quality, loadError } = useQualitySignals(instance?.id ?? null, props.visible);
   const [asTable, setAsTable] = useState(false);
 
   if (!instance) return <HonestEmpty tab="quality" />;

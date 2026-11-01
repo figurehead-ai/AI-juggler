@@ -10,7 +10,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as ipc from "../../lib/ipc/conversations";
 import type { LastMessagesInfo, LastTurnInfo } from "../../lib/ipc/conversations";
-import { foldOf, LastMessages, questionOf, stepsSummary, workWords } from "./LastMessages";
+import { LastMessages, questionOf } from "./LastMessages";
+import { foldOf, stepsSummary, workWords } from "./TurnWork";
 import { FOLLOW_WORKING_MS } from "./useLastMessages";
 import type { SessionModel } from "./model";
 

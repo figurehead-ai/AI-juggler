@@ -264,7 +264,7 @@ function StartedPane({ session, onBack }: { session: StartedSessionInfo; onBack:
     return (
       <div className="flex flex-col items-start gap-3 rounded-card border border-hairline bg-surface p-5" data-testid="switcher-started-missing">
         <BackButton onBack={onBack} label="Back to this session's conversation" />
-        <p className="text-body text-ink-2">{session.title || "This session"} isn't in this Mac's list of conversations yet. It shows here once its tool has written it.</p>
+        <p className="text-body text-ink-2">{session.title || "This session"} isn't in this computer's list of conversations yet. It shows here once its tool has written it.</p>
       </div>
     );
   }

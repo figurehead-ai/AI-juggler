@@ -29,8 +29,7 @@ export function NewSessionModal({
   projects,
   accounts,
   sessions = [],
-  initialDirectory,
-  initialAccount = null,
+  initialDirectory, initialAccount,
   onClose,
   onLaunched,
   openLoginTerminal,
@@ -41,8 +40,7 @@ export function NewSessionModal({
   /** The sessions the app already has: names for "Closing … frees about …". */
   sessions?: InstanceInfo[];
   initialDirectory: string | null;
-  /** 0.3.4: the account it opens on (a switch target's "Start a session
-   * on it", an app's New session), still the user's to change. */
+  /** 0.3.4: the account it opens on (the user can still change it). */
   initialAccount?: string | null;
   onClose: () => void;
   onLaunched: (sessionId: string, title: string) => void;

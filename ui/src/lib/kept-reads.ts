@@ -5,10 +5,10 @@
  * machines. Each screen still reads again when it opens and on its own
  * timer; a screen opened again shows the last answer in its first frame.
  */
-import { quotaDisplayAll, type QuotaDisplayData } from "./bridge";
+import { errorText, instanceQuality, quotaDisplayAll, type QualitySignalsInfo, type QuotaDisplayData } from "./bridge";
 import { budgetsList, type BudgetInfo } from "./ipc/budgets";
 import { fleetUsageByMachine, type MachineUsageInfo } from "./ipc/fleet-launch";
-import { sharedRead, useSharedRead } from "./shared-read";
+import { sharedRead, sharedReads, useSharedRead } from "./shared-read";
 
 /** Every account's two clocks (`quotaDisplayAll`). Read again when a
  * screen showing them opens, every half minute while one is shown, and
@@ -51,4 +51,25 @@ export const machineUsage = sharedRead<MachineUsageInfo[]>(() => fleetUsageByMac
 
 export function useMachineUsage(): MachineUsageInfo[] | null {
   return useSharedRead(machineUsage, { pollMs: 30_000 }) ?? null;
+}
+
+/** 0.3.4: each session's last signals (or why they couldn't be read),
+ * kept so its Usage tab opens with them (the card below the charts grew
+ * in a read later, pushing the page); read when the tab shows, again
+ * when older than `QUALITY_FRESH_MS`. */
+type QualityRead = { signals: QualitySignalsInfo | null; error: null } | { signals: null; error: string };
+const qualityOf = sharedReads<QualityRead>(
+  (sessionId) =>
+    instanceQuality(sessionId).then(
+      (signals): QualityRead => ({ signals, error: null }),
+      (cause: unknown): QualityRead => ({ signals: null, error: errorText(cause) }),
+    ),
+  32,
+);
+const QUALITY_FRESH_MS = 15_000;
+
+/** A session's quality signals, while `visible`. */
+export function useQualitySignals(sessionId: string | null, visible: boolean): { quality: QualitySignalsInfo | null; loadError: string | null } {
+  const read = useSharedRead(sessionId ? qualityOf(sessionId) : null, { wanted: visible, maxAgeMs: QUALITY_FRESH_MS });
+  return { quality: read?.signals ?? null, loadError: read?.error ?? null };
 }

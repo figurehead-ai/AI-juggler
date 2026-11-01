@@ -106,7 +106,7 @@ describe("0.3.4 the Overview's switcher", () => {
     const item = await screen.findByTestId("switcher-started-session");
     expect(item.textContent).toContain("Nightly: skip docs-only");
     fireEvent.click(item);
-    // Not in this Mac's list of conversations (none in the test): said so.
-    expect((await screen.findByTestId("switcher-started-missing")).textContent).toContain("isn't in this Mac's list");
+    // Not in this computer's list of conversations (none in the test): said so.
+    expect((await screen.findByTestId("switcher-started-missing")).textContent).toContain("isn't in this computer's list");
   });
 });

@@ -51,6 +51,7 @@ unbounded cloud_backup_prepare_restore  # bounded: a fixed set (settings, checks
 unbounded conversations_get  # bounded: one conversation (its places: one per process it is open in)
 unbounded conversations_last_messages  # bounded: the last 2-3 messages
 unbounded conversations_list  # bounded: the working set (open, in a sidebar, the newest 200 of the week); History and the Sessions tabs page the rest
+unbounded conversations_started  # bounded: the sessions one session started (its side sessions, a handful)
 unbounded cost_rollups  # TO PAGE: the UI reads only its totals (Prices and details pages cost_rows_page); its rows are still read by the real-account QA harness (qa_real_readonly, real_truth.py)
 unbounded crash_answer  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded crash_info  # bounded: a fixed set (settings, checks, choices or tools)
@@ -119,6 +120,7 @@ unbounded overnight_summary  # TO PAGE: what happened while away (grows with ses
 unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
+unbounded places_find  # bounded: one app; its sessions are the book's newest 100 (D-64)
 unbounded pools_canvas  # bounded: at most 200 members named, edges per pair of them, the newest 100 waiting messages and 30 stream lines
 unbounded pools_canvas_previews  # bounded: at most 60 pools named, each with its open members' places
 unbounded pools_create  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members

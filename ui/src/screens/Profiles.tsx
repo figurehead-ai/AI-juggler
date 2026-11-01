@@ -1,5 +1,5 @@
 import { RowPlaceholders } from "../components/Placeholder";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Card } from "../components/primitives";
 import { Field, Input, Modal } from "../components/form";
 import { IconProfiles } from "../components/icons";
@@ -10,18 +10,16 @@ import { BetaMatrix } from "../components/BetaMatrix";
 import { newWorkAdvice } from "../components/AccountRunway";
 import { useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
-import { inPlaceProviders, ownSignIn, providerDisplayName, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits } from "../lib/providers";
-import { cachedSubscriptions, loadSubscriptions, withLiveLabels, type SubscriptionInfo } from "../lib/subscriptions";
+import { ownSignIn, providerDisplayName, supportsInPlace, reportsLimits } from "../lib/providers";
+import { withLiveLabels } from "../lib/subscriptions";
+import { useAccountsData, useToolCapabilities } from "./accounts/useAccountsData";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { AccountCard } from "./accounts/AccountCard";
 import {
-  accountsList,
   createProfile,
   deleteProfile,
   launchSession,
-  launchRecipesList,
   pickDirectory,
-  providersCapabilities,
   type AccountInfo,
   type LaunchRecipeInfo,
   errorText,
@@ -66,12 +64,6 @@ export function ProfilesScreen({
   sessions?: InstanceInfo[];
   onInspectAccount?: (id: string) => void;
 }) {
-  // What's already known paints the first frame (the page-switching
-  // report: a skeleton on every visit); the placeholder is for a screen
-  // with nothing known yet.
-  const [accounts, setAccounts] = useState<AccountInfo[] | null>(knownAccounts);
-  const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(knownProfiles);
-  const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[] | null>(cachedSubscriptions);
   const [newProfileFor, setNewProfileFor] = useState<AccountInfo | null>(null);
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,73 +71,8 @@ export function ProfilesScreen({
   const [notice, setNotice] = useState<string | null>(null);
   const { displays } = useQuotaDisplays();
   const { all: conversations } = useConversations();
-  // ADR-0018: which tools' copies can switch to their original — the
-  // backend's static capabilities (no install probe). If the call fails
-  // the offer stays; the backend refuses what it can't adopt.
-  const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
-  // 0.0.11 walk (Q3): the tools that don't report their own limits.
-  const [limits, setLimits] = useState<InPlaceSupport>("unknown");
-  useEffect(() => {
-    let alive = true;
-    void providersCapabilities().then(
-      (rows) => {
-        if (!alive) return;
-        setInPlace(inPlaceProviders(rows));
-        setLimits(limitProviders(rows));
-      },
-      () => alive && setInPlace("unknown"),
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // After a change made here: everything read again, now.
-  const refresh = useCallback(async () => {
-    try {
-      const [accountRows, profileRows, groups] = await Promise.all([accountsList(), launchRecipesList(), loadSubscriptions(true)]);
-      setAccounts(accountRows);
-      setProfiles(profileRows);
-      setSubscriptions(groups);
-    } catch (cause) {
-      setError(errorText(cause));
-    }
-  }, []);
-
-  // The app's lists as they change (it reads them on every sessions
-  // update and after every account change).
-  useEffect(() => {
-    if (knownAccounts) setAccounts(knownAccounts);
-  }, [knownAccounts]);
-  useEffect(() => {
-    if (knownProfiles) setProfiles(knownProfiles);
-  }, [knownProfiles]);
-
-  // On opening: what the app doesn't hold is read; the accounts' sign-ins
-  // behind what's shown, again only when older than half a minute, marked
-  // old (a sign-in started, an account added), or when the profiles they
-  // cover aren't the app's any more.
-  const knownIds = knownAccounts ? knownAccounts.map((account) => account.id).sort().join(",") : null;
-  useEffect(() => {
-    let alive = true;
-    const kept = cachedSubscriptions();
-    const covered = kept ? kept.flatMap((sub) => sub.profiles.map((profile) => profile.id)).sort().join(",") : null;
-    const force = knownIds !== null && covered !== null && covered !== knownIds;
-    void Promise.all([knownIds === null ? accountsList() : null, knownProfiles === null ? launchRecipesList() : null, loadSubscriptions(force)]).then(
-      ([accountRows, profileRows, groups]) => {
-        if (!alive) return;
-        if (accountRows) setAccounts(accountRows);
-        if (profileRows) setProfiles(profileRows);
-        setSubscriptions(groups);
-      },
-      (cause: unknown) => alive && setError(errorText(cause)),
-    );
-    return () => {
-      alive = false;
-    };
-    // Once, on opening: the lists' own changes come through the effects above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { inPlace, limits } = useToolCapabilities();
+  const { accounts, profiles, subscriptions, refresh } = useAccountsData({ knownAccounts, knownProfiles, onError: setError });
 
   const changed = async (words: string | null) => {
     setNotice(words);
