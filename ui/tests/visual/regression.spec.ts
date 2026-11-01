@@ -17,7 +17,7 @@
  */
 import { type Page } from "@playwright/test";
 import { expect, GATE_NOW, settle, test } from "./axe-gallery";
-import { allStatuses, expectRail, goTo, NARROW_RAIL_PX, openRailList, projectLens, railViewAs, settingsPane, terminalDrawn } from "./fixtures";
+import { allStatuses, expectRail, goTo, NARROW_RAIL_PX, openRailList, projectLens, railViewAs, settingsPane, terminalDrawn, openWorkMaxSession } from "./fixtures";
 import { placesConversations } from "../../src/preview/places";
 
 /** The instant the harness pins the clock to (axe-gallery.ts). */
@@ -164,7 +164,7 @@ for (const theme of THEMES) {
       test(`inspector — Instance overview — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expectRail(page); // F14: below 1100 px the rail folds to its icons
-        await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
+        await openWorkMaxSession(page);
         // AJ-E1533: a session's page opens on its body: its terminal, its Overview.
         await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true");
         // The terminal loads on first use (#173): a slow runner shot its
@@ -179,7 +179,7 @@ for (const theme of THEMES) {
       test(`inspector — tool view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expectRail(page);
-        await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
+        await openWorkMaxSession(page);
         await page.getByRole("button", { name: "About Claude Code" }).click();
         // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
         await expect(page.getByTestId("settings-tool").first()).toBeVisible();

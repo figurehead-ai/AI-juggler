@@ -12,7 +12,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, expectRail, groupBy, openRailList, openSwitch, switchRows } from "./fixtures";
+import { allStatuses, expectRail, groupBy, openRailList, openSwitch, switchRows, openWorkMaxSession } from "./fixtures";
 import { EXAMPLE_SETUP } from "../../src/lib/ipc/switchSetupExamples";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/97-handover-told");
@@ -67,7 +67,7 @@ async function switchedToCodex(page: Page, theme: "dark" | "light") {
   await page.setViewportSize({ width: 1280, height: 1400 });
   await page.goto("/");
   await expectRail(page);
-  await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
+  await openWorkMaxSession(page);
   await openSwitch(page);
   await switchRows(page).first().click();
   await expect(page.getByTestId("switch-wizard")).toBeVisible();

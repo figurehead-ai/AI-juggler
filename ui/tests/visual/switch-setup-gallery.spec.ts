@@ -14,7 +14,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, expectRail, openSwitch, switchRows } from "./fixtures";
+import { allStatuses, expectRail, openSwitch, switchRows, openWorkMaxSession } from "./fixtures";
 import { EXAMPLE_SETUP, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "../../src/lib/ipc/switchSetupExamples";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/96-switch-setup");
@@ -58,7 +58,7 @@ async function openWith(page: Page, theme: "dark" | "light", setup: unknown) {
   await page.setViewportSize({ width: 1280, height: 1400 });
   await page.goto("/");
   await expectRail(page);
-  await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
+  await openWorkMaxSession(page);
   await openSwitch(page);
   await switchRows(page).first().click();
   await expect(page.getByTestId("switch-flow")).toBeVisible();

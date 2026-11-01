@@ -10,7 +10,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, atScale } from "./fixtures";
+import { allStatuses, atScale, openWorkMaxSession } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/69-rail-narrow");
 const T0 = 1_728_800_000_000;
@@ -181,7 +181,7 @@ test("Ctrl+D typed in the terminal or a text field is the typing's, not the rail
   await page.keyboard.press("Control+d");
   await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
   // The terminal (Ctrl+D is end-of-input there).
-  await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
+  await openWorkMaxSession(page);
   await page.locator(".xterm-helper-textarea").first().focus();
   await page.keyboard.press("Control+d");
   await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
