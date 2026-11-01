@@ -177,6 +177,20 @@ describe("charts", () => {
     expect(screen.getByTestId("stat-delta").textContent).toContain("down 20% on the 30 days before");
   });
 
+  it("a stat tile whose first figures are on their way keeps its change line's and sparkline's space, hidden from readers (0.3.4)", () => {
+    const view = render(<StatTile label="Tokens" value={null} unit="tokens" holdSpace testId="waiting" />);
+    const tile = view.getByTestId("waiting");
+    // The value's row, a held change line and a held sparkline.
+    expect(tile.children).toHaveLength(4);
+    expect([...tile.children].slice(2).every((row) => row.getAttribute("aria-hidden") === "true")).toBe(true);
+    expect(screen.queryByTestId("stat-delta")).toBeNull();
+    // With its figures, the real ones take those places.
+    view.rerender(<StatTile label="Tokens" value={10} unit="tokens" before={5} period="last week" trend={[1, 2, 3]} holdSpace testId="waiting" />);
+    expect(screen.getByTestId("stat-delta")).toBeTruthy();
+    expect(screen.getByTestId("sparkline")).toBeTruthy();
+    expect(tile.querySelectorAll("[aria-hidden='true'].bg-skeleton")).toHaveLength(0);
+  });
+
   it("a share bar is the item against the biggest, its percentage of the total", () => {
     render(<ShareBar parts={[{ key: "w", label: "Work", value: 50, color: "red" }]} total={200} scale={100} unit="tokens" label="web-app" />);
     const bar = screen.getByTestId("share-bar");

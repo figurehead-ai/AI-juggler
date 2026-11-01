@@ -48,6 +48,8 @@ import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
 import { readInspectorFolded, storeInspectorFolded } from "./lib/shortcuts";
 import { holdStop, sessionLabel } from "./lib/stop";
 import { useWindowFolderDrop } from "./lib/use-folder-drop";
+import { staleSubscriptions } from "./lib/subscriptions";
+import { useScrollMemory } from "./lib/scroll-memory";
 import { ToastHost } from "./components/Toast";
 import { fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
 
@@ -403,6 +405,16 @@ export default function App() {
     }
   }), [baselineFreshness]);
 
+  // 0.3.4: Home opens where it was left.
+  const homeScroll = useScrollMemory("home");
+
+  // An account added, renamed, signed in or removed: the app's lists now,
+  // and the accounts' sign-ins on the next view of them.
+  const accountsChanged = useCallback(() => {
+    staleSubscriptions();
+    void refresh();
+  }, [refresh]);
+
   // Day one: the REAL project history from imported transcripts (an idempotent
   // scan); AJ-E1529: again when the files change (not when only what's open did).
   useEffect(() => {
@@ -449,6 +461,9 @@ export default function App() {
   // Login flows (Accounts screen) hand their terminal here; it joins the
   // Sessions rail list and gets selected.
   const openLoginTerminal = useCallback((id: string, title: string) => {
+    // A sign-in may change what the accounts read says: the next view of
+    // them reads it again.
+    staleSubscriptions();
     setLoginTerminals((current) =>
       current.some((t) => t.id === id) ? current : [...current, { id, title, ended: false }],
     );
@@ -702,9 +717,11 @@ export default function App() {
             <ScrollingScreen key="accounts" screen="accounts" label="Accounts">
               <ProfilesScreen
                 key={accountsNonce}
+                knownAccounts={loaded ? accounts : null}
+                knownProfiles={loaded ? profiles : null}
                 sessions={sessions}
                 onAddAccounts={() => startAddAccount()}
-                onAccountsChanged={() => void refresh()}
+                onAccountsChanged={accountsChanged}
                 openTerminal={openLoginTerminal}
                 onInspectAccount={(id) => {
                   setGlobal(null);
@@ -713,7 +730,7 @@ export default function App() {
               />
             </ScrollingScreen>
           ) : global === "history" ? (
-            <ScrollingScreen key="history" screen="history" label="History">
+            <ScrollingScreen key="history" screen="history" label="History" subject={historyQuery}>
               <History key={historyQuery} initialQuery={historyQuery} sessions={sessions} projects={projects} accounts={accounts} onChanged={() => void refresh()} />
             </ScrollingScreen>
           ) : global === "usage" ? (
@@ -743,7 +760,7 @@ export default function App() {
             // Settings › Privacy, a frame from now (the redirect above).
             null
           ) : global === "settings" ? (
-            <ScrollingScreen key="settings" screen="settings" label="Settings">
+            <ScrollingScreen key="settings" screen="settings" label="Settings" subject={settingsSection ?? ""}>
               <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
             </ScrollingScreen>
           ) : selectedLogin ? (
@@ -826,7 +843,7 @@ export default function App() {
                 <NotificationRegion onOpenRemote={(machineId) => inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} sessions={sessions} accounts={accounts} />
               </div>
               {selection.kind === "none" ? (
-                <div className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
+                <div ref={homeScroll} className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
                   <ScreenBoundary key="home" screen="home" label="Home">
                     <HomeScreen
                       loading={!loaded}
@@ -842,7 +859,7 @@ export default function App() {
                       onFreshAccount={() => startAddAccount(true)}
                       onLimit={setLimitFor}
                       openLoginTerminal={openLoginTerminal}
-                      onAccountsChanged={() => void refresh()}
+                      onAccountsChanged={accountsChanged}
                       onChanged={() => void refresh()}
                       thisMac={thisMacInfo}
                       onOpenCleanup={() => setGlobal("cleanup")}
@@ -1009,7 +1026,7 @@ export default function App() {
             setFirstRun(false);
             void refresh();
           }}
-          onAccountsChanged={() => void refresh()}
+          onAccountsChanged={accountsChanged}
         />
       )}
 
@@ -1020,7 +1037,7 @@ export default function App() {
             setChooseTool(false);
             setAddAccounts(provider);
           }}
-          onServiceAdded={() => (setChooseTool(false), setAccountsNonce((n) => n + 1), void refresh())}
+          onServiceAdded={() => (setChooseTool(false), setAccountsNonce((n) => n + 1), accountsChanged())}
         />
       )}
 
@@ -1033,9 +1050,9 @@ export default function App() {
           onDone={() => {
             setAddAccounts(null);
             setAccountsNonce((n) => n + 1);
-            void refresh();
+            accountsChanged();
           }}
-          onAccountsChanged={() => void refresh()}
+          onAccountsChanged={accountsChanged}
         />
       )}
 
@@ -1138,7 +1155,7 @@ export default function App() {
             selectSession(sessionId);
           }}
           openLoginTerminal={openLoginTerminal}
-          onAccountsChanged={() => void refresh()}
+          onAccountsChanged={accountsChanged}
           onManageLaunchSettings={() => {
             setNewProjectDir(null);
             setGlobal("accounts");

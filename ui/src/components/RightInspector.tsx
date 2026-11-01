@@ -26,8 +26,10 @@ import { ProcessesView } from "../screens/processes/ProcessesView";
 import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
 import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
+import { WhenShown } from "../pages/PageShell";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
+import { sharedReads, useSharedRead } from "../lib/shared-read";
 import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
   signedIn,
 } from "../lib/bridge";
@@ -224,6 +226,8 @@ export function RightInspector({
       // Each type keeps its own tab: a new type starts from its own memory.
       key={page}
       kind={page}
+      subject={selection.id}
+      tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
       tabs={tabs}
       testId="right-inspector"
       folded={folded}
@@ -999,30 +1003,29 @@ function stuckRuleWords(rule: string): string {
   }
 }
 
+/** 0.3.4: each session's last signals (or why they couldn't be read),
+ * kept so its Usage tab opens with them (the card below the charts grew
+ * in a read later, pushing the page); read when the tab shows, again
+ * when older than `QUALITY_FRESH_MS`. */
+type QualityRead = { signals: import("../lib/bridge").QualitySignalsInfo | null; error: null } | { signals: null; error: string };
+const qualityOf = sharedReads<QualityRead>(
+  (sessionId) =>
+    import("../lib/bridge")
+      .then((bridge) => bridge.instanceQuality(sessionId))
+      .then(
+        (signals): QualityRead => ({ signals, error: null }),
+        (cause: unknown): QualityRead => ({ signals: null, error: errorText(cause) }),
+      ),
+  32,
+);
+const QUALITY_FRESH_MS = 15_000;
+
 function QualityTab(props: PanelProps) {
   const instance = props.data.instance;
-  const [quality, setQuality] = useState<import("../lib/bridge").QualitySignalsInfo | null>(null);
+  const read = useSharedRead(instance ? qualityOf(instance.id) : null, { wanted: props.visible, maxAgeMs: QUALITY_FRESH_MS });
+  const quality = read?.signals ?? null;
+  const loadError = read?.error ?? null;
   const [asTable, setAsTable] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!instance) return;
-    let alive = true;
-    import("../lib/bridge")
-      .then((bridge) => bridge.instanceQuality(instance.id))
-      .then((result) => {
-        if (alive) {
-          setQuality(result);
-          setLoadError(null);
-        }
-      })
-      .catch((cause: unknown) => {
-        if (alive) setLoadError(errorText(cause));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [instance?.id]);
 
   if (!instance) return <HonestEmpty tab="quality" />;
 
@@ -1208,7 +1211,10 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
           </p>
         </Card>
       )}
-      <ProcessesView sessionId={instance.id} onOpenSession={props.onOpenSession} height="calc(100vh - 22rem)" testId="session-processes" />
+      {/* Read once the tab is opened, not with the page (0.3.4). */}
+      <WhenShown visible={props.visible}>
+        <ProcessesView sessionId={instance.id} onOpenSession={props.onOpenSession} height="calc(100vh - 22rem)" testId="session-processes" />
+      </WhenShown>
     </div>
   );
 }

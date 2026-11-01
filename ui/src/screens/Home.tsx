@@ -62,11 +62,11 @@ import {
   instancePark,
   instanceMarkReviewed, instanceUnmarkReviewed,
   parkedResume,
-  quotaDisplayAll,
   signedIn,
   terminalSpawnLogin,
-  type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData,
+  type AccountInfo, type InstanceInfo, type ProjectInfo,
 } from "../lib/bridge";
+import { useQuotaDisplays } from "../lib/kept-reads";
 import { CapNeedItems } from "../components/BudgetNeeds";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
@@ -158,7 +158,10 @@ export function HomeScreen({
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
 }): JSX.Element {
-  const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
+  // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
+  // The runways kept from the last read (any screen's) show at once; read
+  // again on opening, each half minute, and when an account comes or goes.
+  const { displays: quota, known: quotaKnown } = useQuotaDisplays({ version: accounts.length });
   // AJ-E2502, D-49: Needs you is the backend's (the bell shows the same
   // count); caps, messages and tasks keep their own rows and controls.
   const needsNow = useBackendNeeds();
@@ -167,18 +170,6 @@ export function HomeScreen({
   const messageNeeds = useMessageNeeds();
   const taskNeeds = useTaskNeeds();
   const seen = useSeen();
-  // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
-  useEffect(() => {
-    let alive = true;
-    const load = () => void quotaDisplayAll().then((rows) => alive && setQuota(rows), () => null);
-    load();
-    const timer = window.setInterval(load, 30_000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, [accounts.length]);
-
   // AJ-E501: process tracking degraded — said here, only when it is.
   const [ledgerDegraded, setLedgerDegraded] = useState(false);
   useEffect(() => {
@@ -491,7 +482,7 @@ export function HomeScreen({
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <HomeRunway accounts={accounts} quota={quota} sessions={sessions} advice={advice.words} />
+          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} advice={advice.words} />
         <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} />
         </div>
       </div>

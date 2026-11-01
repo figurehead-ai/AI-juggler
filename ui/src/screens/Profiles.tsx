@@ -11,7 +11,8 @@ import { newWorkAdvice } from "../components/AccountRunway";
 import { useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
 import { inPlaceProviders, ownSignIn, providerDisplayName, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits } from "../lib/providers";
-import { loadSubscriptions, withLiveLabels, type SubscriptionInfo } from "../lib/subscriptions";
+import { cachedSubscriptions, loadSubscriptions, withLiveLabels, type SubscriptionInfo } from "../lib/subscriptions";
+import { useQuotaDisplays } from "../lib/kept-reads";
 import { AccountCard } from "./accounts/AccountCard";
 import {
   accountsList,
@@ -24,9 +25,7 @@ import {
   type AccountInfo,
   type LaunchRecipeInfo,
   errorText,
-  quotaDisplayAll,
   type InstanceInfo,
-  type QuotaDisplayData,
 } from "../lib/bridge";
 
 export { placementWords } from "./accounts/UseOriginal";
@@ -48,7 +47,13 @@ export function ProfilesScreen({
   sessions = [],
   onAddAccounts,
   onAccountsChanged,
+  knownAccounts = null,
+  knownProfiles = null,
 }: {
+  /** 0.3.4: the app's own lists, kept current by it (`null` before its
+   * first read): the screen opens on them instead of reading them again. */
+  knownAccounts?: AccountInfo[] | null;
+  knownProfiles?: LaunchRecipeInfo[] | null;
   /** AJ-E1501: a rename, removal or new default — the rest of the app
    * (rail, Usage, New session) reads the profiles again, no restart. */
   onAccountsChanged?: () => void;
@@ -61,15 +66,18 @@ export function ProfilesScreen({
   sessions?: InstanceInfo[];
   onInspectAccount?: (id: string) => void;
 }) {
-  const [accounts, setAccounts] = useState<AccountInfo[] | null>(null);
-  const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
-  const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[] | null>(null);
+  // What's already known paints the first frame (the page-switching
+  // report: a skeleton on every visit); the placeholder is for a screen
+  // with nothing known yet.
+  const [accounts, setAccounts] = useState<AccountInfo[] | null>(knownAccounts);
+  const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(knownProfiles);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[] | null>(cachedSubscriptions);
   const [newProfileFor, setNewProfileFor] = useState<AccountInfo | null>(null);
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   // AJ-E1501: what the last change did, in words ("Removed …").
   const [notice, setNotice] = useState<string | null>(null);
-  const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
+  const { displays } = useQuotaDisplays();
   const { all: conversations } = useConversations();
   // ADR-0018: which tools' copies can switch to their original — the
   // backend's static capabilities (no install probe). If the call fails
@@ -91,17 +99,8 @@ export function ProfilesScreen({
       alive = false;
     };
   }, []);
-  useEffect(() => {
-    let alive = true;
-    const load = () => void quotaDisplayAll().then((rows) => alive && setDisplays(rows), () => null);
-    load();
-    const timer = window.setInterval(load, 30_000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, []);
 
+  // After a change made here: everything read again, now.
   const refresh = useCallback(async () => {
     try {
       const [accountRows, profileRows, groups] = await Promise.all([accountsList(), launchRecipesList(), loadSubscriptions(true)]);
@@ -113,9 +112,40 @@ export function ProfilesScreen({
     }
   }, []);
 
+  // The app's lists as they change (it reads them on every sessions
+  // update and after every account change).
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (knownAccounts) setAccounts(knownAccounts);
+  }, [knownAccounts]);
+  useEffect(() => {
+    if (knownProfiles) setProfiles(knownProfiles);
+  }, [knownProfiles]);
+
+  // On opening: what the app doesn't hold is read; the accounts' sign-ins
+  // behind what's shown, again only when older than half a minute, marked
+  // old (a sign-in started, an account added), or when the profiles they
+  // cover aren't the app's any more.
+  const knownIds = knownAccounts ? knownAccounts.map((account) => account.id).sort().join(",") : null;
+  useEffect(() => {
+    let alive = true;
+    const kept = cachedSubscriptions();
+    const covered = kept ? kept.flatMap((sub) => sub.profiles.map((profile) => profile.id)).sort().join(",") : null;
+    const force = knownIds !== null && covered !== null && covered !== knownIds;
+    void Promise.all([knownIds === null ? accountsList() : null, knownProfiles === null ? launchRecipesList() : null, loadSubscriptions(force)]).then(
+      ([accountRows, profileRows, groups]) => {
+        if (!alive) return;
+        if (accountRows) setAccounts(accountRows);
+        if (profileRows) setProfiles(profileRows);
+        setSubscriptions(groups);
+      },
+      (cause: unknown) => alive && setError(errorText(cause)),
+    );
+    return () => {
+      alive = false;
+    };
+    // Once, on opening: the lists' own changes come through the effects above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const changed = async (words: string | null) => {
     setNotice(words);
@@ -143,7 +173,7 @@ export function ProfilesScreen({
   if (accounts === null || profiles === null || subscriptions === null) {
     // AJ-E1503 Req.4: card-shaped placeholders while the accounts load.
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-content flex-col gap-5">
         <span className="block h-6 w-32 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
         <RowPlaceholders shape="card" rows={3} label="Loading accounts" />
       </div>

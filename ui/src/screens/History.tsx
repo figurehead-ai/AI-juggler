@@ -237,8 +237,13 @@ export function History({
     [live, sessions, all.length, snippets],
   );
   const changes = useMemo(() => sessions.map((s) => `${s.id}:${s.status}:${s.lifecycle ?? ""}`).join(","), [sessions]);
+  // Not as it opens: the list reads itself then (a second read on top of
+  // that one replaced it; 0.3.4) — only when a session changed since.
+  const readFor = useRef(changes);
   useEffect(() => {
-    if (live) refreshPaged("history:");
+    if (!live || readFor.current === changes) return;
+    readFor.current = changes;
+    refreshPaged("history:");
   }, [live, changes]);
   const changed = () => {
     refreshPaged("history:");

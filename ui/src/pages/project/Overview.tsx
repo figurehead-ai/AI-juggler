@@ -92,7 +92,7 @@ export function ProjectOverviewView({
           note={<span data-testid="tile-tasks-note">{taskWords(taskCounts)}</span>}
           testId="tile-tasks"
         />
-        <StatTile label="Tokens this week" icon={<IconTokens width={15} height={15} />} value={weekIo} unit="tokens" before={week.data ? week.data.previous.tokens.input + week.data.previous.tokens.output : null} period="last week" trend={daily} testId="tile-week-tokens" />
+        <StatTile label="Tokens this week" icon={<IconTokens width={15} height={15} />} value={weekIo} unit="tokens" before={week.data ? week.data.previous.tokens.input + week.data.previous.tokens.output : null} period="last week" trend={daily} holdSpace={week.data === null} testId="tile-week-tokens" />
         <StatTile
           label="Accounts used"
           icon={<IconUser width={15} height={15} />}

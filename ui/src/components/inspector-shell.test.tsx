@@ -175,16 +175,19 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     (window as unknown as { __AIJ_PROJECT_GIT__?: unknown }).__AIJ_PROJECT_GIT__ = {
       "proj-1": { branch: "trunk", changed: 2, untracked: 1, ahead: 2, behind: 0, worktree: false, created_by_juggler: false, path: "/w/alpha" },
     };
-    const { findByTestId, getByTestId, queryByTestId } = shell({ kind: "project", id: "proj-1" });
+    const { findByTestId, getByTestId } = shell({ kind: "project", id: "proj-1" });
     expect((await findByTestId("project-uncommitted")).textContent).toBe("· 3 files not committed");
     expect(getByTestId("project-branch").textContent).toBe("· trunk");
     expect(getByTestId("project-upstream").textContent).toBe("· 2 ahead");
     delete (window as unknown as { __AIJ_PROJECT_GIT__?: unknown }).__AIJ_PROJECT_GIT__;
     cleanup();
-    // Not a git checkout (or not answered yet): its sessions' branches, nothing more.
+    // 0.3.4: opened again, it shows the last answer at once, and reads
+    // again behind it. Not a git checkout (or not answered yet): its
+    // sessions' branches, nothing more.
     const plain = shell({ kind: "project", id: "proj-1" });
-    expect(plain.getByTestId("project-branch").textContent).toBe("· main");
-    expect(queryByTestId("project-uncommitted")).toBeNull();
+    expect(plain.getByTestId("project-branch").textContent).toBe("· trunk");
+    await waitFor(() => expect(plain.getByTestId("project-branch").textContent).toBe("· main"));
+    expect(plain.queryByTestId("project-uncommitted")).toBeNull();
   });
 
   it("a project's body lists its sessions, live first", () => {
