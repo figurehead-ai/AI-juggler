@@ -77,7 +77,7 @@ export function LastMessages({
     // Sized to what it holds, at most the column's height (then its
     // messages scroll): a short conversation has its question card right
     // under its last message, never a void between them.
-    <Card className="flex min-h-[22rem] flex-initial flex-col overflow-hidden @4xl:min-h-0" data-testid="last-messages">
+    <Card className="reading flex min-h-[22rem] flex-initial flex-col overflow-hidden @4xl:min-h-0" data-testid="last-messages">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline px-5 py-3.5">
         {head}
         <h3 className="min-w-0 max-w-full truncate text-section font-semibold text-ink">{title}</h3>
