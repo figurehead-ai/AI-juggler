@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (0.3.4)
+
+- **A conversation shows like the tools' own windows**
+  (docs/releases/0.3.4.md, docs/research/native-conversation-display.md):
+  a finished turn's work (its notes and steps) folds into one row
+  ("Worked for 4 min · Ran 3 commands · 2 notes") before its reply; the
+  latest turn of a working session shows open; the question card reads
+  only the reply; a conversation sits on a near-black, neutral `.reading`
+  surface in the dark theme.
+
+### Fixed (0.3.4)
+
+- **The Subagents tab**: opens on Running only when something runs (chosen
+  each time it's shown, AJ-E2810 req 2); the summary names stopped and
+  "with no recorded end" beside failed; "No type recorded" can be picked;
+  another app's session page gets D-48's subagents line.
+
 ### Added (0.3.3)
 
 - **Open starts an app or profile that isn't running; Keep alive per app
