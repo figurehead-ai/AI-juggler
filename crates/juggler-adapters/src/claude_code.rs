@@ -1165,10 +1165,11 @@ pub fn claude_state_file(dir: &Path) -> PathBuf {
 /// 0.3.2: Claude Code launches into `dir` only once it can read its state
 /// file and projects, and its first-run setup is done there
 /// (`hasCompletedOnboarding`); otherwise `--resume` opens on the setup
-/// screen, not the conversation (the maintainer's walk). 0.3.4: Claude
-/// Code clears that flag when the account's sign-in changes, so an
-/// account in daily use can need it again; the words say so, and a state
-/// file it can't parse says that instead.
+/// screen, not the conversation (the maintainer's walk). 0.3.4: an
+/// account used every day through the Claude app's Code tab never has it
+/// (the app runs Claude Code without its first run), and a sign-in change
+/// clears it; the words say so, and a state file it can't parse says that
+/// instead.
 ///
 /// # Errors
 ///
@@ -1182,7 +1183,7 @@ pub fn launch_ready_in(
     probe_read(&dir.join("projects"))?;
     let first_run = || {
         NotReady::NotSetUp(
-            "Claude Code's first-run setup isn't done on this account. It asks again after a sign-in change, even on an account in daily use. Start a session on it once and answer its setup questions, then switch."
+            "Claude Code hasn't done its first-run setup in a terminal on this account. Sessions in the Claude app don't do it, and a sign-in change asks again. Start a session on it once here and answer its setup questions, then switch."
                 .to_owned(),
         )
     };

@@ -103,7 +103,7 @@ describe("0.3.4 a switch: same tool first, never a target it would refuse", () =
   });
 
   it("a target whose setup isn't done is held back, never Suggested, with a way to finish it", async () => {
-    const words = "Claude Code's first-run setup isn't done on this account. It asks again after a sign-in change, even on an account in daily use. Start a session on it once and answer its setup questions, then switch.";
+    const words = "Claude Code hasn't done its first-run setup in a terminal on this account. Sessions in the Claude app don't do it, and a sign-in change asks again. Start a session on it once here and answer its setup questions, then switch.";
     vi.spyOn(setup, "switchSetupCheck").mockResolvedValue({ from: "Work", to: "x", already_there: 0, offers: [] });
     vi.spyOn(bridge, "switchTargets").mockResolvedValue([target("p", "personal-max", { filtered_reason: words, setup_needed: true }), target("d", "Default")]);
     const asked = vi.fn();

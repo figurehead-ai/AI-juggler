@@ -1,4 +1,4 @@
-<!-- captures: ad278388699b -->
+<!-- captures: c1880e1386b4 -->
 # 68-accounts: Accounts, Usage, the limit decision, and an account on its credits
 
 Design critique (D-57, AJ-E2814). Written at 0.3.2 for the four new captures of the maintainer's report: a Codex account whose week is used up while its pre-bought credits carry the work on. Before 0.3.2 it was called "out of room". The family's other captures were not re-taken this round, and this critique doesn't judge them.
@@ -50,6 +50,6 @@ The credits work reads well in its new home. In switch-credits the list sits in 
 
 One new capture, switch-setup (dark, light), from the maintainer's report. personal-max read "Ready: same tools set up", then the switch refused it ("hasn't been set up"). Codex was also suggested over a Claude account with room. The family's other captures weren't re-taken.
 
-**switch-setup.** The same "Continue on another account · Now on Work Max" dialog. Lab (70% left, the session's own tool) is first, with the violet Suggested outline. Codex has 100% left but is second, with its amber Beta badge and "Doesn't carry: Subagents' work". Personal is last and held back. Its card keeps the "Continues exactly · Proven" badge, then the reason in three plain lines: setup isn't done, it comes back after a sign-in change even on an account in daily use, and what to do. Under the card, "Start a session on Personal ›" in the link colour opens New session already on that account. The card is greyed only by its muted name, never red: nothing is wrong with the account, it needs one step. Axe is clean in both themes.
+**switch-setup.** The same "Continue on another account · Now on Work Max" dialog. Lab (70% left, the session's own tool) is first, with the violet Suggested outline. Codex has 100% left but is second, with its amber Beta badge and "Doesn't carry: Subagents' work". Personal is last and held back. Its card keeps the "Continues exactly · Proven" badge, then the reason in three plain lines: the terminal Claude Code's first-run setup isn't done there, sessions in the Claude app don't do it (the maintainer's case: accounts used every day through the Claude app), and what to do. Under the card, "Start a session on Personal ›" in the link colour opens New session already on that account. The card is greyed only by its muted name, never red: nothing is wrong with the account, it needs one step. Axe is clean in both themes.
 
 Weak: the link sits under the card rather than inside it, because the card is the whole row's button. It reads as the card's own next step, but a row whose only use is that link could carry it inside.

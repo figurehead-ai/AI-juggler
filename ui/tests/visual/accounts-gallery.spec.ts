@@ -363,7 +363,7 @@ const shown = (account: string, left: number) => ({
   credits: null,
 });
 const SETUP_WORDS =
-  "Claude Code's first-run setup isn't done on this account. It asks again after a sign-in change, even on an account in daily use. Start a session on it once and answer its setup questions, then switch.";
+  "Claude Code hasn't done its first-run setup in a terminal on this account. Sessions in the Claude app don't do it, and a sign-in change asks again. Start a session on it once here and answer its setup questions, then switch.";
 const SETUP_TARGETS = [
   switchTarget("codex-work", "Codex", "codex", ["100% left · measured", "quiet"]),
   switchTarget("claude-lab", "Lab", "claude-code", ["70% left · measured", "quiet"]),
