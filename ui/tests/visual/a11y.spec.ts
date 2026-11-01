@@ -677,7 +677,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+    await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
     await openSwitch(page);
     await switchRows(page)
       .first()
@@ -750,7 +750,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+    await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
     await openSwitch(page);
     await switchRows(page)
       .first()
@@ -822,7 +822,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+    await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
     await expect(page.getByTestId("switch-back-card")).toBeVisible();
     const cardScan = await new AxeBuilder({ page })
       .include("[data-testid='switch-back-card']")
@@ -899,7 +899,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+    await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
     await openSwitch(page);
     await switchRows(page)
       .first()
@@ -975,7 +975,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+    await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
 
     // The ranked entry: scoped scan (the rows + their explanations).
     await openSwitch(page);
@@ -1792,7 +1792,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+    await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
     await expect(page.getByTestId("remote-switch-target")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     // The wizard, keyboard-only: open, step, map, confirm.
@@ -1906,7 +1906,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("git-badge").first()).toHaveAttribute("title", /3 uncommitted files/);
-    await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+    await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
     await page.getByTestId("worktree-remove").click();
     await expect(page.getByTestId("worktree-remove-confirm")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);

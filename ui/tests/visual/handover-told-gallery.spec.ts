@@ -67,7 +67,7 @@ async function switchedToCodex(page: Page, theme: "dark" | "light") {
   await page.setViewportSize({ width: 1280, height: 1400 });
   await page.goto("/");
   await expectRail(page);
-  await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+  await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
   await openSwitch(page);
   await switchRows(page).first().click();
   await expect(page.getByTestId("switch-wizard")).toBeVisible();

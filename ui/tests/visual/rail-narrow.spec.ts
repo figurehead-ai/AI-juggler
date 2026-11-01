@@ -181,7 +181,7 @@ test("Ctrl+D typed in the terminal or a text field is the typing's, not the rail
   await page.keyboard.press("Control+d");
   await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
   // The terminal (Ctrl+D is end-of-input there).
-  await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
+  await page.getByRole("button", { name: /\bon Work Max\b|, Work Max, |· Claude Code · Work Max/ }).first().click();
   await page.locator(".xterm-helper-textarea").first().focus();
   await page.keyboard.press("Control+d");
   await expect(rail(page)).toHaveAttribute("data-density", "comfortable");
