@@ -340,6 +340,8 @@ impl Filter {
         let view = match self.view.as_str() {
             "running" => node.status == "running",
             "attention" => matches!(node.status, "failed" | "stopped" | "unknown"),
+            // 0.3.4: the session page's switcher, its ended ones newest first.
+            "done" => node.status != "running",
             _ => true,
         };
         view && self.kind.as_deref().is_none_or(|kind| {

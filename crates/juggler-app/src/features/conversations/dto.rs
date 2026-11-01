@@ -93,6 +93,22 @@ pub struct PlaceInfo {
     pub label: String,
 }
 
+/// 0.3.4: one session another started, as its app records it (the Claude
+/// app's sidebar nests it under the one it came from).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct StartedSessionInfo {
+    /// Its tool.
+    pub tool: String,
+    /// Its conversation.
+    pub conversation_id: String,
+    /// Its title in the app's sidebar.
+    pub title: Option<String>,
+    /// Its last activity, epoch ms.
+    #[ts(type = "number | null")]
+    pub last_activity_ms: Option<i64>,
+}
+
 /// AJ-E2102: what Go to it did, in words, and the step it reached.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]

@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::dto::{ConversationInfo, GoToOutcomeInfo, PlaceInfo};
+use super::dto::{ConversationInfo, GoToOutcomeInfo, PlaceInfo, StartedSessionInfo};
 use crate::commands::lock_storage_arc;
 use crate::error::AppResult;
 use crate::state::AppState;
@@ -222,6 +222,45 @@ pub async fn conversations_get(
             .find(|c| c.account_id == account_id && c.id == conversation_id))
     })
     .await
+}
+
+/// 0.3.4: the sessions `conversation_id` (of `tool`) started, newest
+/// first, as a running app records them; none when no app does (a tool
+/// that records no such link, or its app isn't open). Read from what the
+/// live refresher last saw: no file is read here.
+#[must_use]
+pub fn started_impl(
+    state: &Arc<AppState>,
+    tool: &str,
+    conversation_id: &str,
+) -> Vec<StartedSessionInfo> {
+    state
+        .conversations
+        .live_model()
+        .started
+        .into_iter()
+        .filter(|link| link.tool == tool && link.parent == conversation_id)
+        .map(|link| StartedSessionInfo {
+            tool: link.tool,
+            conversation_id: link.session_id,
+            title: link.title,
+            last_activity_ms: link.last_activity_ms,
+        })
+        .collect()
+}
+
+/// The sessions a session started ([`started_impl`]).
+///
+/// # Errors
+///
+/// None today; a `Result` for the IPC contract.
+#[tauri::command]
+pub async fn conversations_started(
+    state: tauri::State<'_, Arc<AppState>>,
+    tool: String,
+    conversation_id: String,
+) -> AppResult<Vec<StartedSessionInfo>> {
+    Ok(started_impl(state.inner(), &tool, &conversation_id))
 }
 
 /// How many recent conversations (not open) the window holds.

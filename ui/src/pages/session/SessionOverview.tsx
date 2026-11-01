@@ -10,6 +10,7 @@ import type { JSX } from "react";
 import type { SwitchBackSuggestionData } from "../../lib/bridge";
 import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { LastMessages } from "./LastMessages";
+import { ConversationSwitcher } from "./ConversationSwitcher";
 import { ContinueOn } from "./ContinueOn";
 import { Runway } from "./Runway";
 import { SessionColumns } from "./SessionColumns";
@@ -43,7 +44,15 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);
   return (
     <SessionColumns
-      main={<LastMessages model={model} visible={props.visible} remoteMac={props.remoteMac} onGoTo={props.onGoTo} />}
+      // 0.3.4: beside it, on its left, its subagents and the sessions it
+      // started, one click to each (a paired Mac's stay there).
+      main={
+        props.remoteMac ? (
+          <LastMessages model={model} visible={props.visible} remoteMac={props.remoteMac} onGoTo={props.onGoTo} />
+        ) : (
+          <ConversationSwitcher model={model} visible={props.visible} own={<LastMessages model={model} visible={props.visible} onGoTo={props.onGoTo} />} />
+        )
+      }
       side={
         <>
           <WhereItRuns model={model} outside={props.outside ?? false} accountWords={account ? [accountName(account), accountLine(account)].filter(Boolean).join(" · ") : null} />

@@ -78,6 +78,7 @@ function matches(seed: SubagentInfo & SeedAgent, query: SubagentsQuery): boolean
   const view = query.view ?? "all";
   if (view === "running" && seed.status !== "running") return false;
   if (view === "attention" && !["failed", "stopped", "unknown"].includes(seed.status)) return false;
+  if (view === "done" && seed.status === "running") return false;
   if (query.kind && (query.kind === "-" ? !!seed.kind : seed.kind !== query.kind)) return false;
   const hay = [seed.task, seed.kind, seed.prompt, seed.result, seed.failure, ...(seed.files ?? [])].filter(Boolean).join("\n").toLowerCase();
   for (const term of (query.search ?? "").toLowerCase().split(/\s+/).filter(Boolean)) {

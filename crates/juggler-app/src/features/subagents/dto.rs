@@ -12,8 +12,8 @@ use crate::paging::Page;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SubagentsQuery {
-    /// `running`, `attention` (failed, stopped, unknown) or `all` (the
-    /// default).
+    /// `running`, `attention` (failed, stopped, unknown), `done` (every
+    /// one not running) or `all` (the default).
     #[serde(default)]
     pub view: Option<String>,
     /// Words to find in a subagent's task, prompt, result, type or files;
