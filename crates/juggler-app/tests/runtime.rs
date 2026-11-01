@@ -684,11 +684,11 @@ fn app_core_in_a_child() {
                 .is_some_and(|mark| mark.native_id == thread && mark.in_turn == (stage == "mid"))
         });
     }
-    std::fs::write(
-        work.join("core-ready"),
-        format!("{session} {thread} {}", launched.pid),
-    )
-    .unwrap();
+    // Written whole, then moved into place: the parent reads it as soon as
+    // it exists, and a half-written one failed under load (0.3.4 preflight).
+    let partial = work.join("core-ready.tmp");
+    std::fs::write(&partial, format!("{session} {thread} {}", launched.pid)).unwrap();
+    std::fs::rename(&partial, work.join("core-ready")).unwrap();
     std::thread::sleep(Duration::from_secs(60));
 }
 
