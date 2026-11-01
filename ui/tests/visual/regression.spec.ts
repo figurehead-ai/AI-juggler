@@ -366,6 +366,9 @@ for (const theme of THEMES) {
           // Screens past Home load on first use (lib/lazy): the shot raced
           // the screen's code and caught a blank page on most runs.
           await expect(page.getByRole("main")).toHaveText(/\S/);
+          // Settings' nav shows before its pane (loaded on use): the shot
+          // caught an empty pane on some runs (0.3.4).
+          if (screen === "Settings") await expect(page.getByTestId("settings-pane-general")).toBeVisible();
           await page.waitForLoadState("networkidle");
           await page.mouse.move(0, 0);
           await settle(page);
