@@ -29,7 +29,7 @@ const target = (over: Partial<RemoteSwitchTargetInfo> = {}): RemoteSwitchTargetI
   readiness: "t2_ready",
   blockers: [],
   fidelity: "F3",
-  badge: "Same conversation, new account · Not proven yet",
+  badge: "Same conversation, another app · Not proven yet",
   validated: false,
   carried: ["Conversation", "Rules"],
   regenerated: [],
@@ -65,7 +65,7 @@ describe("AJ-E706 destinations", () => {
     const rows = container.querySelectorAll<HTMLButtonElement>("[data-testid='remote-switch-target']");
     expect(rows).toHaveLength(3);
     expect(container.textContent).toContain("On Studio Mac");
-    expect(rows[0].textContent).toContain("Same conversation, new account · Not proven yet");
+    expect(rows[0].textContent).toContain("Same conversation, another app · Not proven yet");
     expect(rows[0].textContent).toContain("Ready — same version, same project path");
     expect(rows[1].textContent).toContain("full-story replay offered");
     expect(rows[2].disabled).toBe(true);

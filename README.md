@@ -23,21 +23,22 @@ window:
 
 - **What's open, where, and one step to it.** The list shows the sessions
   open right now in the Claude app, your terminals, the Codex app and
-  Cursor, grouped by the app and profile each runs in, with what needs you
-  on top. **Go to it** brings the right app and profile forward. Ended and
+  Cursor, grouped by the app each runs in ("Claude app · Work", "Claude Code
+  · Personal"), with what needs you on top. **Go to it** brings the right app
+  forward. Ended and
   inactive sessions are one click away, never in the way.
-- **Profiles and accounts kept apart.** A profile is the setup an app runs
-  on (a Claude Code folder, a Claude app profile, a Codex folder). An
-  account is the subscription it's signed in to. Several profiles on one
-  account are normal, and they share its limits.
+- **Apps and accounts kept apart.** An app is one app in one of its
+  profiles: a Claude app profile, or Claude Code or Codex on one config
+  folder. An account is the subscription it's signed in to. Several apps on
+  one account are normal, and they share its limits.
 - **Usage and limits you can trust.** A number is shown only when it was
   measured. Anything else says "Not measured yet", never a made-up 100%.
 - **Your Mac at a glance.** How much memory and CPU your AI tools use, which
   window is heavy, and leftover processes you can clean up.
-- **Profiles managed for you.** Use each setup where it already is, or as a
-  separate copy, and start a session on the profile you choose. A new
-  profile can start with your usual MCP servers and permissions.
-- **Carry a conversation to another account or tool** when one runs out of
+- **Apps managed for you.** Use each setup where it already is, or as a
+  separate copy, and start a session in the app you choose. A new app can
+  start with your usual MCP servers and permissions.
+- **Carry a conversation to another app or tool** when one runs out of
   room, and switch back later.
 - **Find anything you said.** History searches every ended session by what
   it was about, and by the words said in it.
@@ -246,12 +247,13 @@ The [proposal](./docs/PROPOSAL.md) explains the reasoning.
 **Do I need an API key?** No. AI Juggler uses the tools you've already signed
 in to.
 
-**What's the difference between a profile and an account?** A profile is the
-setup an app runs on: a Claude Code folder, a Claude app profile, or a Codex
-folder. An account is the subscription a profile is signed in to. Sessions
-run in a profile; limits and money belong to the account. The same account
-signed in to two profiles is normal, and both share its limits. See
-[Accounts and profiles](./docs/guide/accounts.md).
+**What's the difference between an app and an account?** An app is one app
+in one of its profiles: "Claude Code · Work" (the tool on one config folder)
+or "Claude app · b-work" (the desktop app in one of its profiles). An account
+is the subscription an app is signed in to. Sessions run in an app; limits
+and money belong to the account. The same account signed in to two apps is
+normal, and both share its limits. See
+[Accounts and apps](./docs/guide/accounts.md).
 
 **Why isn't a session I closed in the list?** The list shows what's open now.
 Ended, inactive and background sessions are behind the "Also:" line under
@@ -284,7 +286,7 @@ separate app with its own data.
 accounts of the same tool, the conversation's files move and it resumes.
 Between Claude Code and Codex, the other tool is told the story so far. The
 switch screen shows exactly what carries over before you confirm, and you
-can switch back. See [Continue on another account](./docs/guide/switching.md).
+can switch back. See [Continue in another app](./docs/guide/switching.md).
 
 **I'm coming from Claude Squad, Vibe Kanban, Crystal or cc-switch.** Most of
 it comes across by itself, since AI Juggler reads the tools' own files.

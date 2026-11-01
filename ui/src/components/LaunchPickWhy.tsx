@@ -10,6 +10,7 @@
  * already says "Using credits · 14,150 left", 0.3.2).
  */
 import type { JSX } from "react";
+import { cliAppName } from "../lib/app-name";
 import type { QuotaDisplayData } from "../lib/bridge";
 import { launchRoom, pickWhyWords, type LaunchPick } from "../lib/launch-pick";
 import { outOfRoomWords } from "../lib/room";
@@ -58,13 +59,13 @@ export function LaunchPickWhy({
             onClick={() => onUse(passed.recipe.account_id)}
             className="rounded text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
           >
-            Use {passed.recipe.account_label} anyway
+            Use {cliAppName(passed.recipe.provider, passed.recipe.account_label)} anyway
           </button>
         </span>
       )}
       {other && (
         <span className="basis-full text-label text-muted" data-testid="launch-suggested">
-          Suggested: {other.account_label} has the most room{otherLeft !== null ? ` (${otherLeft}% left)` : ""}.{" "}
+          Suggested: {cliAppName(other.provider, other.account_label)} has the most room{otherLeft !== null ? ` (${otherLeft}% left)` : ""}.{" "}
           <button
             type="button"
             onClick={() => onUse(other.account_id)}

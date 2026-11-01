@@ -251,17 +251,17 @@ fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
     let claude = pair_cell("claude-code", "claude-code").unwrap();
     let validated = with_dogfood(claude.clone(), pass.clone());
     assert!(!validated.validated());
-    assert_eq!(validated.badge(), "Same conversation, new account · Beta");
+    assert_eq!(validated.badge(), "Same conversation, another app · Beta");
     assert_eq!(
         advertised_badge("claude-code", "claude-code", Some(&pass)),
-        "Same conversation, new account · Beta"
+        "Same conversation, another app · Beta"
     );
 
     // The SAME pass on a fake-only row never validates it.
     let codex = pair_cell("codex", "codex").unwrap();
     let still_beta = with_dogfood(codex.clone(), pass);
     assert!(!still_beta.validated());
-    assert_eq!(still_beta.badge(), "Same conversation, new account · Beta");
+    assert_eq!(still_beta.badge(), "Same conversation, another app · Beta");
 
     // A FAIL on the real-CI row lowers the ceiling one level.
     let mut fail = DogfoodCell {
@@ -276,12 +276,12 @@ fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
     let lowered = with_dogfood(claude, fail.clone());
     assert_eq!(
         lowered.badge(),
-        "Same conversation, new account (a check failed) · Beta",
+        "Same conversation, another app (a check failed) · Beta",
         "F3 lowered one level (AJ-E1543)"
     );
     assert_eq!(
         advertised_badge("claude-code", "claude-code", Some(&fail)),
-        "Same conversation, new account (a check failed) · Beta"
+        "Same conversation, another app (a check failed) · Beta"
     );
 
     // A later PASS replaces the fail (fixed and re-run) — the ceiling
@@ -292,6 +292,6 @@ fn dogfood_cells_drive_the_advertised_badge_per_the_rules() {
     fail.at = "2026-10-17".to_owned();
     assert_eq!(
         advertised_badge("claude-code", "claude-code", Some(&fail)),
-        "Same conversation, new account · Beta"
+        "Same conversation, another app · Beta"
     );
 }

@@ -13719,7 +13719,7 @@ pub(crate) fn edge_carried_words(edge: &juggler_core::model::SwitchEdge) -> &'st
     }
     match edge.mechanism {
         SwitchMechanism::NativeResume => "Continues exactly",
-        SwitchMechanism::Transplant => "Same conversation, new account",
+        SwitchMechanism::Transplant => "Same conversation, another app",
         SwitchMechanism::Replay => "Full story, fresh start",
         SwitchMechanism::Pack => "Handover notes",
     }
@@ -14152,7 +14152,7 @@ pub struct ValidationCellInfo {
     /// The advertised ceiling after validation gating (a FAILED live
     /// cell lowers it one level until fixed).
     pub advertised: String,
-    /// The wire badge ("Full story, fresh start · Beta" / "Same conversation, new account · Proven").
+    /// The wire badge ("Full story, fresh start · Beta" / "Same conversation, another app · Proven").
     pub badge: String,
     /// Validated = real-CI row green AND a passing live cell.
     pub validated: bool,

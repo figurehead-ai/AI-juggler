@@ -160,7 +160,7 @@ describe("nothing internal on screen (D-25)", () => {
     seams.__AIJ_FLEET_SWITCH_OUTCOME__ = { accepted: false, reason_code: "made-up", message: words, instance_id: null, edge_id: null, divergence: null };
     const target = {
       machine_id: "m-1", machine_label: "Studio", recipe_id: "r-1", recipe_name: "Main", account_label: "Desktop Max", provider: "claude-code",
-      mechanism: "transplant", readiness: "t2_ready", blockers: [], fidelity: "F3", badge: "Same conversation, new account · Not proven yet", validated: false,
+      mechanism: "transplant", readiness: "t2_ready", blockers: [], fidelity: "F3", badge: "Same conversation, another app · Not proven yet", validated: false,
       carried: [], regenerated: [], dropped: [], same_path_project: "p-1", projects: [{ project_id: "p-1", name: "shop", same_path: true, same_name: true }],
       replay_available: true, version_here: "2.1.0", version_there: "2.1.0",
     };

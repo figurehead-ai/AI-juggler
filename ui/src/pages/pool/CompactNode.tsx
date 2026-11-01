@@ -11,6 +11,7 @@
  * the full card's name, description and keys; the badge follows it.
  */
 import { useEffect, useRef, useState, type JSX, type MouseEvent } from "react";
+import { appName } from "../../lib/app-name";
 
 import { ToolMark } from "../../components/ToolMark";
 import { IconLead, IconMore } from "../../components/icons-canvas";
@@ -156,7 +157,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
               </span>
             )}
             {member.role === "observer" && <span className="shrink-0 rounded bg-surface-2 px-1">Observer</span>}
-            <span className="truncate">{[member.card.account, member.card.tool].filter(Boolean).join(" · ")}</span>
+            <span className="truncate">{member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}</span>
           </span>
         )}
         {lines === 3 && (

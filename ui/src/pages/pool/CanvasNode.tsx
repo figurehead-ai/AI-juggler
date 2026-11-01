@@ -12,6 +12,7 @@
  * words at screen size.
  */
 import { memo, type JSX, type MouseEvent } from "react";
+import { appName } from "../../lib/app-name";
 
 import { ToolMark } from "../../components/ToolMark";
 import { IconLead, IconMore } from "../../components/icons-canvas";
@@ -103,7 +104,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
           </span>
         )}
         {member.role === "observer" && <span className="shrink-0 rounded-md bg-surface-2 px-1.5">Observer</span>}
-        <span className="truncate">{[account, member.card.tool].filter(Boolean).join(" · ")}</span>
+        <span className="truncate">{member.card.tool ? appName(member.card.tool, account) : account}</span>
       </span>
       <span className="flex min-w-0 items-center gap-1.5 text-label" data-testid="node-state">
         <span aria-hidden="true" className={"size-2 shrink-0 rounded-full " + (alert?.tone === "danger" ? "bg-danger" : STATE_TONE[state.state].dot) + (state.state === "working" ? " shadow-[0_0_0_3px_var(--color-live-soft)]" : "")} />

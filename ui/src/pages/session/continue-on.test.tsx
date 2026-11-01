@@ -45,7 +45,7 @@ const target = (account_id: string, account_label: string, provider: string, cro
   provider,
   account_id,
   account_label,
-  badge: cross ? "Full story, fresh start · Beta" : "Same conversation, new account · Beta",
+  badge: cross ? "Full story, fresh start · Beta" : "Same conversation, another app · Beta",
   validated: false,
   cross_provider: cross,
   drops: [],

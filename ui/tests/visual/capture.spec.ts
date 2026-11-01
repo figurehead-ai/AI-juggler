@@ -2279,7 +2279,7 @@ void preflightSeams;
 const SWITCH_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   score: 0.78,
   warnings: [
     "Personal has about 8% left, about 45 min at its recent pace; another account may have more room. Switching never happens on its own — your call.",
@@ -2931,7 +2931,7 @@ const GRAPH_FORK_MERGE = [
     ],
     edges: [
       { from: "ep-s", to: "ep-l", label: "Full story, fresh start", switch_back: false },
-      { from: "ep-s", to: "ep-r", label: "Same conversation, new account", switch_back: false },
+      { from: "ep-s", to: "ep-r", label: "Same conversation, another app", switch_back: false },
       { from: "ep-l", to: "ep-m", label: "Switched back · Full story, fresh start", switch_back: true },
       { from: "ep-r", to: "ep-m", label: "Handover notes", switch_back: false },
     ],
@@ -2955,7 +2955,7 @@ const GRAPH_FAILED = [
         failed_reason: "the session on the other account closed while it started",
         switch_back: false,
       },
-      { from: "ep-src", to: "ep-dst", label: "Same conversation, new account", switch_back: false },
+      { from: "ep-src", to: "ep-dst", label: "Same conversation, another app", switch_back: false },
     ],
     collapsed: 0,
     hop_note: null,
@@ -4678,7 +4678,7 @@ const crossTarget = (over: Record<string, unknown> = {}) => ({
   readiness: "t2_ready",
   blockers: [],
   fidelity: "F3",
-  badge: "Same conversation, new account · Not proven yet",
+  badge: "Same conversation, another app · Not proven yet",
   validated: false,
   carried: ["The whole conversation", "Project rules", "Your uncommitted changes"],
   regenerated: [],
@@ -6095,8 +6095,8 @@ for (const theme of THEMES) {
     renewal: { state: "none", label: "", entered_by_user: false },
   });
   // Each target's words match its tool: Codex is a handover (the 0.2
-  // re-render caught it labelled "Same conversation, new account").
-  const SAME_TOOL = { provider: "claude-code", badge: "Same conversation, new account · Beta", cross_provider: false, drops: [] as string[] };
+  // re-render caught it labelled "Same conversation, another app").
+  const SAME_TOOL = { provider: "claude-code", badge: "Same conversation, another app · Beta", cross_provider: false, drops: [] as string[] };
   const CODEX = { provider: "codex", badge: "Full story, fresh start · Beta", cross_provider: true, drops: ["Subagents' work", "The task list"] };
   const ROOM_TARGETS = [
     { account_id: "acct-personal", account_label: "Personal", recipe_id: "recipe-personal", left: 0, ...SAME_TOOL },

@@ -5,6 +5,7 @@
  * its tasks, who it talks to, its usage, and the rules it works under.
  */
 import { useEffect, useState, type JSX } from "react";
+import { appName } from "../../lib/app-name";
 
 import { AskCard } from "../../components/AskCard";
 import { Button } from "../../components/primitives";
@@ -104,7 +105,7 @@ export function InspectNode({
             <span className="truncate text-section text-ink" title={name}>
               {name}
             </span>
-            <span className="truncate text-label text-muted">{[member.role === "lead" ? "Lead" : member.role === "observer" ? "Observer" : null, member.card.account, member.card.tool].filter(Boolean).join(" · ")}</span>
+            <span className="truncate text-label text-muted">{[member.role === "lead" ? "Lead" : member.role === "observer" ? "Observer" : null, member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account].filter(Boolean).join(" · ")}</span>
           </span>
         </div>
         <span className={"text-meta " + state.tone}>{state.word}</span>

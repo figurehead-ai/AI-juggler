@@ -196,7 +196,7 @@ describe("the switching matrix", () => {
         mechanism: "transplant",
         researched_ceiling: "F3",
         advertised: "F3",
-        badge: "Same conversation, new account · Beta",
+        badge: "Same conversation, another app · Beta",
         validated: false,
         mechanism_green: true,
         ci_green: false,

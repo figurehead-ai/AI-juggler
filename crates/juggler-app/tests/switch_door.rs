@@ -163,7 +163,7 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     // QA P23: the screen says what a transplant does, as the list does;
     // "not proven" is its own reason, never an F-number.
     assert_eq!(info.mechanism, "transplant");
-    assert_eq!(info.fidelity_words, "Same conversation, new account");
+    assert_eq!(info.fidelity_words, "Same conversation, another app");
     assert!(
         info.wizard_reasons
             .iter()

@@ -116,7 +116,7 @@ describe("the rules and servers sheet", () => {
     // The Copy button has gone: focus is on what happened, inside the sheet.
     expect(document.activeElement).toBe(within(servers).getByRole("status"));
     expect(within(servers).queryByRole("button", { name: "Copy github to Codex" })).toBeNull();
-    expect(within(servers).getByText("Every account has the same servers.")).toBeTruthy();
+    expect(within(servers).getByText("Every app has the same servers.")).toBeTruthy();
   });
 
   it("says when no file has rules of its own yet", async () => {

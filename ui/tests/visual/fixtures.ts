@@ -277,7 +277,7 @@ export const atScale: FixtureSet = (() => {
 export const DOOR_WIZARD = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   score: 0.78,
   warnings: ["This conversation was compacted. Early detail carries as text, not as live memory — it may ask about early decisions."],
   zombies: [],

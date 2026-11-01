@@ -56,7 +56,7 @@ const ONECLICK: PreflightInfoData = {
 const WIZARD: PreflightInfoData = {
   ...ONECLICK,
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This switch hasn't been proven on a real setup yet."],

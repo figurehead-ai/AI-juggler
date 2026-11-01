@@ -95,7 +95,7 @@ fn f4_requires_same_account_native_resume() {
 #[test]
 fn caps_lower_independently() {
     // No compaction cap (D-03 amendment, 2026-10-27): a validated
-    // all-copy transplant stays "Same conversation, new account".
+    // all-copy transplant stays "Same conversation, another app".
     assert_eq!(score_pair(&input(all_copy())).label, FidelityLabel::F3);
 
     // Drop in chat alone (todos already Drop-able without capping):
@@ -156,7 +156,7 @@ fn worked_example_proper_claude_a_to_b() {
     // .35 + .15 + .15 + .05 (todos rebuilt: .10 × .5) + .10 + .05 + .05 + .05 = .95
     assert!((scored.score - 0.95).abs() < 1e-9, "score {}", scored.score);
     assert_eq!(scored.label, FidelityLabel::F3, "validated F3");
-    assert_eq!(scored.label.user_label(), "Same conversation, new account");
+    assert_eq!(scored.label.user_label(), "Same conversation, another app");
 
     // Unvalidated (today's truth): capped F1 — the cap, not the
     // mean, is the honesty mechanism.
@@ -386,7 +386,7 @@ fn the_words_say_what_the_move_does_and_the_door_keeps_the_cap() {
     assert_eq!(unproven.described, FidelityLabel::F3);
     assert_eq!(
         unproven.described.user_label(),
-        "Same conversation, new account"
+        "Same conversation, another app"
     );
     let mut proven_input = base_dispositions("claude-code", "claude-code");
     proven_input.flags.validated = true;

@@ -128,7 +128,7 @@ const target = (account_id: string, account_label: string): SwitchTargetData => 
   provider: "codex",
   account_id,
   account_label,
-  badge: "Same conversation, new account · Beta",
+  badge: "Same conversation, another app · Beta",
   validated: false,
   cross_provider: false,
   drops: [],

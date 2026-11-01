@@ -45,7 +45,7 @@ const target = (account_id: string, account_label: string, extra: Partial<Switch
   provider: "claude-code",
   account_id,
   account_label,
-  badge: "Same conversation, new account · Beta",
+  badge: "Same conversation, another app · Beta",
   validated: false,
   cross_provider: false,
   drops: [],
@@ -243,7 +243,7 @@ describe("F17 New session's pick says why, and offers the Suggested one", () => 
     const onUse = vi.fn();
     render(<><LaunchPickBadge pick={pick} /><LaunchPickWhy pick={pick} quota={quota} onUse={onUse} /></>);
     expect(screen.getByTestId("launch-default").textContent).toBe("your default");
-    expect(screen.getByTestId("launch-suggested").textContent).toContain("Suggested: Account B has the most room (98% left).");
+    expect(screen.getByTestId("launch-suggested").textContent).toContain("Suggested: Claude Code · Account B has the most room (98% left).");
     fireEvent.click(screen.getByTestId("launch-use-suggested"));
     expect(onUse).toHaveBeenCalledWith("b");
   });

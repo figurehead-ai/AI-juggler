@@ -44,7 +44,7 @@ the app marked **Suggested** instead.
 What carries over depends on where you're going. The switch screen says
 which kind it is before you confirm.
 
-- **Same conversation, new account.** Between two apps of the same tool,
+- **Same conversation, another app.** Between two apps of the same tool,
   for example two Claude Code folders signed in to different accounts. The
   conversation's files are copied to the other app, which resumes the
   conversation. The task list

@@ -1,7 +1,7 @@
 /**
  * AJ-E706 — paired machines as switch destinations, in the same handover
  * section as local Accounts. Every row names its machine, carries its
- * fidelity badge in words ("Same conversation, new account · Not proven yet" — D-04: no machine pair is
+ * fidelity badge in words ("Same conversation, another app · Not proven yet" — D-04: no machine pair is
  * validated until a live two-machine dogfood passes) and its readiness
  * in words (T2 ready / needs a project mapping / T2 blocked — T3 offered /
  * T3 only / unavailable with the reason). Listing these moved nothing:

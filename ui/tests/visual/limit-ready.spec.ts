@@ -27,7 +27,7 @@ async function open(page: Page, theme: "dark" | "light") {
         target_account_id: "claude-work", // the preview's Work Max (its switch targets carry the accounts' own ids)
         target_account_label: "Work Max",
         prepared_at_ms: t0 - 4 * 60_000,
-        fidelity_words: "Same conversation, new account", // Claude Code to Claude Code
+        fidelity_words: "Same conversation, another app", // Claude Code to Claude Code
       };
       localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");

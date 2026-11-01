@@ -614,7 +614,7 @@ for (const theme of ["dark", "light"] as const) {
 const DOOR_WIZARD_FIXTURE = {
   mechanism: "transplant",
   fidelity: "F2",
-  fidelity_words: "Same conversation, new account",
+  fidelity_words: "Same conversation, another app",
   score: 0.78,
   warnings: ["Personal has about 8% left, about 45 min at its recent pace; another account may have more room. Switching never happens on its own — your call."],
   zombies: [],
@@ -1767,7 +1767,7 @@ for (const theme of ["dark", "light"] as const) {
           machine_id: "machine-mini", machine_label: "Mac mini", recipe_id: "rec-mini", recipe_name: "Main",
           account_label: "Team", provider: "claude-code", mechanism: "transplant", readiness: "needs_mapping",
           blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use “Full story, fresh start”."],
-          fidelity: "F3", badge: "Same conversation, new account · Not proven yet", validated: false, carried: ["The whole conversation"], regenerated: [],
+          fidelity: "F3", badge: "Same conversation, another app · Not proven yet", validated: false, carried: ["The whole conversation"], regenerated: [],
           dropped: ["The task list"], same_path_project: null,
           projects: [{ project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true }],
           replay_available: true, version_here: "2.1.0", version_there: "2.1.0",
