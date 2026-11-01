@@ -164,7 +164,7 @@ for (const theme of THEMES) {
       test(`inspector — Instance overview — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expectRail(page); // F14: below 1100 px the rail folds to its icons
-        await page.getByRole("button", { name: /Work Max/ }).first().click();
+        await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
         // AJ-E1533: a session's page opens on its body: its terminal, its Overview.
         await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true");
         // The terminal loads on first use (#173): a slow runner shot its
@@ -179,7 +179,7 @@ for (const theme of THEMES) {
       test(`inspector — tool view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expectRail(page);
-        await page.getByRole("button", { name: /Work Max/ }).first().click();
+        await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
         await page.getByRole("button", { name: "About Claude Code" }).click();
         // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
         await expect(page.getByTestId("settings-tool").first()).toBeVisible();
@@ -431,12 +431,12 @@ for (const theme of THEMES) {
     // it): the mark is on the line, the row's other child.
     await expect(rail.locator("[data-rail-row]").filter({ has: page.locator('[data-instance-id="sess-6"]') }).getByTestId("pin-mark")).toBeVisible();
     await expect(pinned).toHaveAccessibleName(/^Ended, the login fix, pinned, /);
-    // Under AI Juggler's place in Open now, its first row — not folded
-    // into "Also: n ended today".
+    // In Open now, its app's first row (D-62: AI Juggler's sessions are
+    // their CLI app's) — not folded into "Also: n ended today".
     const lead = await page.getByTestId("place-board").evaluate((board) => {
       const lines = [...board.querySelectorAll<HTMLElement>('[data-testid="place-header"], [data-rail-item]')];
-      const header = lines.findIndex((line) => line.dataset.place === "ai-juggler");
-      return header < 0 ? null : (lines[header + 1]?.dataset.instanceId ?? null);
+      const row = lines.findIndex((line) => line.dataset.instanceId === "sess-6");
+      return row > 0 && lines[row - 1]?.dataset.testid === "place-header" ? "sess-6" : null;
     });
     expect(lead, "the pinned session leads its place").toBe("sess-6");
     await page.mouse.move(0, 0);
@@ -483,7 +483,7 @@ for (const theme of THEMES) {
     await open(page, theme, "comfortable", VIEWPORTS[0], ORDER, { seams: ORDER_SEAMS });
     const rail = page.getByTestId("rail");
     await expect(rail.getByTestId("rail-order-button")).toHaveText("Your order");
-    const personal = rail.locator('[data-order-group="Claude|Personal"][data-order-row]');
+    const personal = rail.locator('[data-order-group="app|claude-app|Personal"][data-order-row]');
     await expect(personal.first()).toHaveAttribute("data-order-row", "c:claude-personal/outside-5");
     await expect(personal.first().getByTestId("pin-mark")).toBeVisible();
     const asks = rail.locator('[data-order-row="c:claude-work/outside-3"]');

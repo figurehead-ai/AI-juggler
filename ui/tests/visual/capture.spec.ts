@@ -129,7 +129,7 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("rail")).toHaveAttribute("data-density", vp.width < NARROW_RAIL_PX ? "minimal" : "comfortable");
       // The row carries its account in the aria-label (initials disc on
       // screen) — click by accessible name (AJ-E402).
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
       await expect(page.getByTestId("handover-section")).toBeVisible();
       await page.screenshot({
         path: resolve(GALLERY, `05-session-panel/populated-${vp.name}-${theme}.png`),
@@ -372,7 +372,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
   test(`inspector — Session / Terminal — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page.getByRole("button", { name: /Work Max/ }).first().click();
+    await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
     const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
     await expect(tabs).toHaveText(["Overview", "Usage", "Processes"]);
     await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
@@ -413,7 +413,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
 test("inspector — Instance Overview fields (populated)", gate("07-inspector-content"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
   await expect(page.getByTestId("instance-overview-fields")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/instance-overview-populated.png") });
 });
@@ -421,7 +421,7 @@ test("inspector — Instance Overview fields (populated)", gate("07-inspector-co
 test("inspector — Instance Usage honest chart empties", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
   await page.getByRole("tab", { name: "Usage" }).click();
   await expect(page.locator('section:not([hidden])').getByTestId("instance-usage").first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/instance-usage.png") });
@@ -533,7 +533,7 @@ test("inspector — Project Overview", async ({ page }) => {
 test("inspector — Quality tab populated", gate("09-quality"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
   // AJ-E1533: the quality signals sit on Usage, under the token breakdown.
   await page.getByRole("tab", { name: "Usage" }).click();
   await expect(page.getByTestId("quality-tokens")).toBeVisible();
@@ -543,7 +543,7 @@ test("inspector — Quality tab populated", gate("09-quality"), async ({ page })
 test("inspector — Quality tab View as table", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
   await page.getByRole("tab", { name: "Usage" }).click(); // AJ-E1533: quality lives on Usage
   await page.getByRole("button", { name: "View as table" }).click();
   await expect(page.getByTestId("quality-tokens").getByRole("table")).toBeVisible();
@@ -680,7 +680,7 @@ test("model — I-03 plain (launch == running rows show no marker)", async ({ pa
 test("model — Instance Overview dual-model line", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
   await expect(page.getByTestId("instance-model-line")).toBeVisible();
   await expect(page.getByTestId("instance-model-line")).toContainText(
     "Launched with opus - now running sonnet-5",
@@ -1640,7 +1640,7 @@ for (const theme of THEMES) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await page
-      .getByRole("button", { name: /Work Max/ })
+      .getByRole("button", { name: /\bon Work Max\b/ })
       .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
       .first()
       .click();
@@ -2030,7 +2030,7 @@ for (const theme of THEMES) {
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
         await expectRail(page); // D-25: the list, or its icon column when narrow
-        await page.getByRole("button", { name: /Work Max/ }).first().click();
+        await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
         await page.getByRole("tab", { name: "Usage" }).click();
         // 0.1.5: a session's Usage tab shows its account's window as every
         // session page does (the old two-clock card left with the strips;
@@ -3191,7 +3191,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
       const solid = page.locator("[data-testid='fidelity-badge'][data-validated='true']");
       const hatched = page.locator("[data-testid='fidelity-badge'][data-validated='false']");
       await expect(solid).toContainText("Continues exactly · Proven");
@@ -3925,7 +3925,7 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page);
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
       const chip = page.getByRole("button", { name: "About Claude Code" });
       await expect(chip).toBeVisible();
       await chip.click();
@@ -4875,7 +4875,7 @@ for (const theme of THEMES) {
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       await expect(page.getByTestId("rail-identity").first()).toBeVisible();
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
       await expect(page.getByTestId("instance-identity")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `51-identity/rail-and-chip-${vp.name}-${theme}.png`) });
       // AJ-E1533: relaunch an ended Work Max session from its page header.
@@ -4951,7 +4951,7 @@ for (const theme of THEMES) {
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       await expect(page.getByTestId("git-badge").first()).toBeVisible();
-      await page.getByRole("button", { name: /Work Max/ }).first().click();
+      await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
       await expect(page.getByTestId("instance-git")).toContainText("3 uncommitted files");
       if (vp.name === "1280x800") {
         await page.screenshot({ path: resolve(GALLERY, `52-worktree/chips-1280x800-${theme}.png`) });
@@ -6036,7 +6036,7 @@ async function openSwitchWith(page: import("@playwright/test").Page, theme: (typ
   await page.setViewportSize(RERENDER_VP);
   await page.goto("/");
   await expectRail(page);
-  await page.getByRole("button", { name: /Work Max/ }).first().click();
+  await page.getByRole("button", { name: /\bon Work Max\b/ }).first().click();
   await openSwitch(page);
 }
 
