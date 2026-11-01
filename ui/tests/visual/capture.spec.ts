@@ -1072,7 +1072,19 @@ test("determinism — two captures are byte-identical", async ({ browser }, test
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await settle(page); // what loads after the first paint has landed
       await page.mouse.move(0, 0);
-      return await page.screenshot({ path: resolve(GALLERY, `01-rail/determinism-${suffix}.png`), animations: "disabled", caret: "hide" });
+      // A stable frame: unchanged for 1.5 s. The browser's overlay
+      // scrollbar shows after load, holds about a second, then fades; a
+      // shot before it had gone differed in a few edge pixels (0.3.4).
+      const shot = () => page.screenshot({ animations: "disabled", caret: "hide" });
+      let last = await shot();
+      for (let same = 0, tries = 0; same < 6 && tries < 40; tries += 1) {
+        await page.waitForTimeout(250);
+        const next = await shot();
+        same = next.equals(last) ? same + 1 : 0;
+        last = next;
+      }
+      writeFileSync(resolve(GALLERY, `01-rail/determinism-${suffix}.png`), last);
+      return last;
     } finally {
       await context.close();
     }
