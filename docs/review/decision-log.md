@@ -2033,3 +2033,35 @@ it is the app the user had open, the way they had it.
   `crates/juggler-platform/src/apps.rs`,
   `ui/src/screens/settings/keep-alive.test.tsx`, the hand walk in
   `docs/qa/0.3.3-walk.md`.
+
+### D-64 The rail's App grouping is about apps: inactive apps, and each app's last inactive sessions under it — SETTLED (2026-11-01, 0.3.4)
+
+**Ruling.** The maintainer, testing 0.3.3 after a Claude app profile quit
+overnight and vanished from the rail, with no place to start it: "When you
+are on App tab, everything should be related to apps, so innactive there
+should show innactive apps, that includes both Desktop and CLI. As far as
+innactive sessions they should be grouped under the app … a short link
+'last 3 innactive' which when clicked shows inline last 3 innactive
+sessions within that app. If they want full list they can go to app
+dedicated page … left navbar is for quick navigation, most recent used,
+and thing user do a lot."
+
+**What is settled.**
+1. In the App grouping, under Open now, **Inactive apps** lists every app
+   AI Juggler knows with nothing open: a desktop app or profile not
+   running (Start), a CLI app (tool and folder) with no open session (New
+   session there). An app that quits moves there; it never vanishes.
+2. An app's inactive sessions sit under that app: a short "Last 3
+   inactive" link opens its three most recent inline; the full list is on
+   the app's page. The rail never lists inactive sessions from everywhere
+   in the App grouping.
+3. Every app header has a menu: Start (closed) or Bring forward (running),
+   Keep alive, its page. Home's Your apps shows closed apps too, with
+   Start. No Restart of a running app (it would stop the sessions in it;
+   Keep alive restarts one that quits).
+4. The rail groups by App (D-62's grouping, built for 0.4) from 0.3.4, so
+   CLI apps exist in it; the other screens' words follow in 0.4.
+
+**Amends.** D-36 (the rail's "Also: inactive" line, in the App grouping),
+D-47 (an app that quits keeps its place among the apps).
+
