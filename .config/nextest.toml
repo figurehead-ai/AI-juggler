@@ -1,0 +1,66 @@
+# cargo-nextest (ADR-0024): every test in its own process, many at once.
+# `cargo test` ran the ~250 test binaries one after another; nextest runs
+# their tests side by side, so the rules below keep together what must not
+# overlap. No retries anywhere: a test that fails once is a failure (#198),
+# never a pass on the second try.
+
+[profile.default]
+retries = 0
+fail-fast = false
+# On a shared Mac (the maintainer's, with other projects running) four at
+# a time: local runs keep a small, fixed load. CI's `ci` profile uses
+# every core of its runner.
+test-threads = 4
+
+[profile.ci]
+test-threads = "num-cpus"
+failure-output = "immediate-final"
+
+[profile.ci.junit]
+# target/nextest/ci/junit.xml, uploaded by CI with each partition.
+path = "junit.xml"
+
+# The binaries other packages' tests reach by path (`target/debug/...`),
+# not through their own CARGO_BIN_EXE_*: an archive (CI builds once and
+# runs the tests on several runners) must carry them.
+[profile.default.archive]
+include = [
+    { path = "debug/fake-desktop", relative-to = "target", on-missing = "error" },
+    { path = "debug/fake-harness", relative-to = "target", on-missing = "error" },
+    { path = "debug/fake-claude", relative-to = "target", on-missing = "error" },
+    { path = "debug/fake-codex", relative-to = "target", on-missing = "error" },
+    { path = "debug/juggler-agent", relative-to = "target", on-missing = "error" },
+]
+
+[test-groups]
+# Binaries whose tests share one real resource. Under `cargo test` each
+# held an in-process mutex, which a process per test no longer shares.
+guardrails = { max-threads = 1 }     # ~40 real processes per matrix
+second-launch = { max-threads = 1 }  # one single-instance socket
+reconciler = { max-threads = 1 }     # real process trees and a soak budget
+# Timing-sensitive tests: one at a time, never beside each other.
+timing = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::guardrails)'
+test-group = 'guardrails'
+
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::second_launch)'
+test-group = 'second-launch'
+
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-supervisor::reconciler)'
+test-group = 'reconciler'
+
+# Wall-clock budgets measured alone: every test thread is theirs, so no
+# other test runs beside them (load_budgets held a mutex for this).
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::load_budgets) | (binary_id(juggler-agentbridge::bridge) & test(=calls_answer_in_under_50_ms))'
+threads-required = 'num-test-threads'
+
+# Sleeps, launches and paging timed against the clock (the flakes of
+# 2026-10-30 to 11-02): one at a time.
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::paged_lists) | binary_id(juggler-app::runtime) | binary_id(juggler-app::trust) | binary_id(juggler-app::identity_guard) | binary_id(juggler-supervisor::identity)'
+test-group = 'timing'

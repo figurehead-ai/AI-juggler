@@ -8,18 +8,19 @@ default: verify
 swift-flags := if os() == "macos" { `./scripts/ensure_swift_runtime.sh | tail -1 | sed 's/^RUSTFLAGS=//'` } else { "" }
 export RUSTFLAGS := swift-flags
 
-# Full local gate — everything CI enforces.
+# CI's verify on this Mac: the static checks (CI's `static` job), then
+# every test (CI's test partitions, doctests and the dev-bridge job);
+# scripts/ci_parity.py keeps the two in step.
+# Full local gate — everything CI's verify enforces.
 verify:
+    just verify-static
+    just verify-tests
+
+# Preflight runs these first and stops at a failure (they took minutes
+# to find what a 55-minute run found, #198).
+# The checks that run no test, cheapest first: lints, fmt, clippy ×3, rustdoc, cargo-deny.
+verify-static:
     ./scripts/ensure_swift_runtime.sh > /dev/null
-    cargo fmt --all --check
-    cargo clippy --workspace --all-targets -- -D warnings
-    cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-    cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
-    cargo test --workspace --no-fail-fast
-    cargo test -p juggler-app --features dev-bridge --lib dev_bridge
-    ./scripts/leaked_fixtures.sh
-    LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
-    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just evidence
     just terminology
     just tool-literals
@@ -27,20 +28,53 @@ verify:
     just structure
     just task-counts
     just stats-doc
-    just stats-events
     just polling-audit
     just release-selftest
-    just dev-bridge-check
     python3 scripts/capabilities.py check
-    cargo deny check
+    LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
     python3 scripts/ci_parity.py --selftest
     python3 scripts/ci_parity.py
+    cargo fmt --all --check
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+    cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
+    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+    just stats-events
+    cargo deny check
 
-# The whole of CI on this Mac, on HEAD (a clean tree): CI's verify and
-# ui jobs, Linux clippy in a container, and the visual and a11y gates
-# when ui/ changed. Stamps the commit for scripts/hooks/pre-push (#198).
+# nextest: .config/nextest.toml (a process per test, the timing-sensitive
+# ones apart, no retries); nextest doesn't run doctests, cargo test does.
+# Every test: nextest, the doctests, the dev-bridge tests, no fixture left running.
+verify-tests:
+    cargo nextest run --workspace --no-fail-fast
+    cargo test --workspace --doc
+    just dev-bridge-tests
+    ./scripts/leaked_fixtures.sh
+    just dev-bridge-check
+
+# The read-only test bridge's own tests (docs/qa/DEV-BRIDGE.md).
+dev-bridge-tests:
+    cargo test -p juggler-app --features dev-bridge --lib dev_bridge
+
+# Preflight's fast mode passes the packages scripts/affected_crates.py names.
+# The tests (and doctests) of some packages only.
+test-packages +packages:
+    cargo nextest run --no-fail-fast {{ prepend("-p ", packages) }}
+    cargo test --doc {{ prepend("-p ", packages) }}
+
+# ADR-0024: release notes, the static checks (stops at a failure), the
+# tests of the packages the change can affect, vitest and the UI build,
+# at low priority on a snapshot of the commit; GitHub runs every gate.
+# Stamps the commit for scripts/hooks/pre-push.
+# The fast local check of HEAD before a push to main or release/*.
 preflight base="origin/main":
     ./scripts/preflight.sh --base {{base}}
+
+# `just verify`, the UI job, Linux clippy in a container, and the visual
+# and a11y gates when ui/ changed. Heavy: for when GitHub can't be used.
+# The old whole-of-CI run on this Mac, stamped like `preflight`.
+preflight-full base="origin/main":
+    ./scripts/preflight.sh --full --base {{base}}
 
 # Pushes to main and release/* only of a commit preflight passed.
 hooks:
@@ -50,6 +84,8 @@ hooks:
 # nightly notes, channel requirements). A release only runs them for real
 # once a night.
 release-selftest:
+    python3 scripts/gate_passed.py --selftest
+    python3 scripts/affected_crates.py --selftest
     python3 scripts/release_version.py --selftest
     python3 scripts/release_ships.py --selftest
     python3 scripts/nightly_notes.py --selftest
@@ -149,7 +185,8 @@ lint:
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
 
 test:
-    cargo test --workspace
+    cargo nextest run --workspace
+    cargo test --workspace --doc
 
 # AJ-E807: (re)build the beta gate packet from the manifests, then check
 # it; `gate-signed` exits 1 until the maintainer signs it.

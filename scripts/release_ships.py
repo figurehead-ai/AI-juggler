@@ -83,6 +83,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("rustfmt.toml", False, "formatting"),
     (".editorconfig", False, "editor settings"),
     (".gitignore", False, "git"),
+    (".config/nextest.toml", False, "how the test runner groups the tests (CI and preflight)"),
     ("LICENSE", False, "the licence: the app bundle doesn't carry it"),
 )
 

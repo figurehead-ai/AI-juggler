@@ -44,6 +44,10 @@ export default defineConfig({
   timeout: 30_000,
   retries: 0,
   workers: 4,
+  // Tests, not files, go to workers and CI's shards (ADR-0024): on one
+  // worker regression.spec.ts alone took 16 minutes. Each test sets up
+  // its own page, so none depends on another's order.
+  fullyParallel: true,
   // 0.3.2: no WebGL, so the terminal keeps its DOM renderer (its fallback).
   use: { baseURL: `http://localhost:${PORT}`, launchOptions: { args: ["--disable-3d-apis"] } },
   webServer: {

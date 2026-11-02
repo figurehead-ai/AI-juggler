@@ -31,7 +31,7 @@ def main() -> int:
     print(f"- failed: {len(failed)}")
     print(f"- not captured: {len(skipped)}")
     for title in failed:
-        print(f"  - ✗ {title} — see the visual-triptychs artifact")
+        print(f"  - ✗ {title} — see the visual-triptychs-* artifacts and the visual-report")
     return 0
 
 
