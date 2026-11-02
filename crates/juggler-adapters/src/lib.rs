@@ -31,6 +31,7 @@ pub mod claude_memory;
 pub mod claude_ready;
 pub mod claude_stream;
 pub mod claude_subagents;
+pub mod claude_tool_words;
 pub mod claude_transcript;
 pub mod claude_used;
 pub mod codex;

@@ -383,8 +383,47 @@ fn call(name: &str, call_id: Option<String>, input: &Value) -> Call {
             pattern: field("pattern"),
             query: field("query"),
             subagent_type: field("subagent_type"),
+            action: input.get("action").and_then(identifier),
+            batch: input
+                .get("actions")
+                .and_then(Value::as_array)
+                .map(|actions| {
+                    actions
+                        .iter()
+                        .take(BATCH_MAX)
+                        .map(|step| {
+                            let action = step
+                                .get("input")
+                                .and_then(|input| input.get("action"))
+                                .or_else(|| step.get("action"))
+                                .and_then(identifier)
+                                .unwrap_or_default();
+                            (
+                                step.get("name").and_then(identifier).unwrap_or_default(),
+                                action,
+                            )
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            url_without_name: field("url").is_some() && field("name").is_none(),
         },
     }
+}
+
+/// The most actions of a batch kept.
+const BATCH_MAX: usize = 32;
+
+/// A value that is a plain identifier (`left_click`, `read_page`): what
+/// a title may name. Anything else (words, an address) is left out.
+fn identifier(value: &Value) -> Option<String> {
+    value
+        .as_str()
+        .filter(|word| {
+            (1..=40).contains(&word.len())
+                && word.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+        })
+        .map(str::to_owned)
 }
 
 /// The most characters one call input keeps.

@@ -113,6 +113,14 @@ pub struct CallInput {
     pub query: Option<String>,
     /// A subagent's kind.
     pub subagent_type: Option<String>,
+    /// What a call does among its kinds (`left_click`), when it says: a
+    /// plain identifier only, never words.
+    pub action: Option<String>,
+    /// A batch's actions in order, each its name and its own action
+    /// (plain identifiers, else empty).
+    pub batch: Vec<(String, String)>,
+    /// It opens a page by its address alone (no server's name).
+    pub url_without_name: bool,
 }
 
 impl CallInput {
@@ -140,7 +148,13 @@ impl CallInput {
         ]
         .iter()
         .map(|piece| piece.as_ref().map_or(0, String::len))
-        .sum()
+        .sum::<usize>()
+            + self.action.as_ref().map_or(0, String::len)
+            + self
+                .batch
+                .iter()
+                .map(|(name, action)| name.len() + action.len())
+                .sum::<usize>()
     }
 }
 

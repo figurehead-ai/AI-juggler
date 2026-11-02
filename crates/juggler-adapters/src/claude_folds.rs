@@ -107,7 +107,7 @@ fn one(step: &Step, running: bool) -> String {
             input.pattern.as_deref(),
             "",
         ),
-        Kind::Other => capitalised(&step.line),
+        Kind::Other => crate::claude_tool_words::words(&step.tool, input, running),
     }
 }
 
