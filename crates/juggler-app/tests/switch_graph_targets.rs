@@ -273,43 +273,79 @@ fn switch_targets_come_in_the_rankings_order() {
 /// launch check would refuse is held back in the list, with its words
 /// and a way to finish its setup, and never suggested.
 #[test]
-fn a_target_the_switch_would_refuse_is_held_back() {
+fn a_target_whose_first_run_isnt_done_is_offered_and_the_switch_finishes_it() {
+    // 0.3.5, the maintainer's walk: every profile is a Claude app
+    // profile, whose Code tab never does Claude Code's terminal first run,
+    // and 0.3.4 held them all back as "not set up".
     let work = tempfile::tempdir().unwrap();
     let source = launch_source(work.path());
     let state = &source.state;
-    // Signed in, but Claude Code's first-run setup not done there (it
-    // clears it after a sign-in change).
-    let fresh = commands::create_account(state, CLAUDE_CODE_ID, "Signed in again", None).unwrap();
+    let fresh =
+        commands::create_account(state, CLAUDE_CODE_ID, "Claude app profile", None).unwrap();
     let ready = set_up::set_up(
         state,
         commands::create_account(state, CLAUDE_CODE_ID, "Ready", None).unwrap(),
     );
+    let mut fresh_profile = None;
     for account in [&fresh, &ready] {
         sign_in(state, &account.id);
-        commands::create_profile(state, &account.id, "Main", None, None).unwrap();
+        let profile = commands::create_profile(state, &account.id, "Main", None, None).unwrap();
+        if account.id == fresh.id {
+            fresh_profile = Some(profile);
+        }
     }
-    std::fs::write(
-        config_dir_of(state, &fresh.id).join(".claude.json"),
-        r#"{"hasCompletedOnboarding":false}"#,
-    )
-    .unwrap();
+    let file = config_dir_of(state, &fresh.id).join(".claude.json");
+    let before = "{\n  \"numStartups\": 4,\n  \"hasCompletedOnboarding\": false\n}\n";
+    std::fs::write(&file, before).unwrap();
 
     let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
-    let held = targets
+    let offered = targets
         .iter()
-        .find(|t| t.account_label == "Signed in again")
+        .find(|t| t.account_label == "Claude app profile")
         .unwrap();
-    let words = held.filtered_reason.as_deref().unwrap_or_default();
-    assert!(words.contains("first-run setup"), "{words}");
-    assert_eq!(
-        held.held_back,
-        Some(commands::HeldBack::SetUp),
-        "a session started there finishes it"
-    );
-    assert!(!held.suggested);
+    assert_eq!(offered.filtered_reason, None, "offered, not refused");
+    assert_eq!(offered.held_back, None);
+    assert!(offered.first_run, "its row says the switch finishes it");
     let fine = targets.iter().find(|t| t.account_label == "Ready").unwrap();
-    assert_eq!(fine.filtered_reason, None);
-    assert_eq!(fine.held_back, None);
+    assert!(!fine.first_run);
+    // Checking the switch writes nothing.
+    commands::switch_preflight_impl(
+        state,
+        &source.session_id,
+        &fresh_profile.as_ref().unwrap().id,
+    )
+    .unwrap();
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), before);
+    // The switch the user starts finishes it, that key alone, and goes on.
+    commands::switch_execute_impl(
+        state,
+        &source.session_id,
+        &fresh_profile.unwrap().id,
+        "stop-now",
+        None,
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        before.replace("false", "true")
+    );
+}
+
+#[test]
+fn a_target_never_signed_in_is_held_back() {
+    let work = tempfile::tempdir().unwrap();
+    let source = launch_source(work.path());
+    let state = &source.state;
+    let blank = commands::create_account(state, CLAUDE_CODE_ID, "Blank", None).unwrap();
+    sign_in(state, &blank.id);
+    commands::create_profile(state, &blank.id, "Main", None, None).unwrap();
+    let _ = std::fs::remove_file(config_dir_of(state, &blank.id).join(".claude.json"));
+    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let held = targets.iter().find(|t| t.account_label == "Blank").unwrap();
+    let words = held.filtered_reason.as_deref().unwrap_or_default();
+    assert!(words.contains("isn't signed in"), "{words}");
+    assert!(!held.first_run);
 }
 
 #[test]

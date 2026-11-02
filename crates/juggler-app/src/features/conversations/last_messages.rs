@@ -1,4 +1,6 @@
-//! AJ-E2108: a session's last messages, for its page.
+//! AJ-E2108: a session's last messages, for its page. Since 0.3.5 the
+//! page follows the conversation (ADR-0024, `feed`); this one-shot read
+//! stays one release for its command's callers, on the feed's reader.
 //!
 //! Read while the page shows, never before and never in the background:
 //! the end of its transcript (the adapters' `last_turns`, a bounded
@@ -11,14 +13,13 @@
 //! search index; the text goes to the page and nowhere else. Off in
 //! Settings, nothing is read at all.
 
-use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 
-use juggler_adapters::last_turns::{
-    Block, LastTurns, Speaker, Window, last_turns, stamp, subagent_turns,
-};
+use juggler_adapters::conversation_feed::Lines;
+use juggler_adapters::last_turns::{Back, read_forward, scan_back, stamp};
 
+use super::feed::dto::{TurnInfo, turn_info};
 use crate::error::AppResult;
 use crate::state::AppState;
 
@@ -32,36 +33,6 @@ pub const TURNS: usize = 30;
 /// The most turns a page may ask for at once.
 pub const TURNS_MAX: usize = 60;
 
-/// A part of a turn: its words, or a run of tool calls.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct TurnBlockInfo {
-    /// `text` or `steps`.
-    pub kind: String,
-    /// The words (markdown as written), redacted; empty for `steps`.
-    pub text: String,
-    /// One line per tool call (`ran "pnpm test"`, `Edit a.ts`),
-    /// redacted; empty for `text`.
-    pub steps: Vec<String>,
-    /// Earlier calls in this run not shown.
-    pub hidden: u32,
-}
-
-/// One turn, redacted.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub struct LastTurnInfo {
-    /// `you` or `assistant`.
-    pub speaker: String,
-    /// Its parts, in order.
-    pub blocks: Vec<TurnBlockInfo>,
-    /// When its last message was written (epoch ms), when known.
-    #[ts(type = "number | null")]
-    pub at_ms: Option<i64>,
-    /// The model an assistant turn ran on, when the transcript says.
-    pub model: Option<String>,
-}
-
 /// A session's last messages, or why there are none.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -72,7 +43,7 @@ pub struct LastMessagesInfo {
     /// the tool stored compressed); `unreadable`.
     pub state: String,
     /// The turns, oldest first (empty unless `shown`).
-    pub turns: Vec<LastTurnInfo>,
+    pub turns: Vec<TurnInfo>,
     /// How many keys or tokens were taken out.
     pub redacted: u32,
     /// Where these turns start in the transcript: pass it as `before`
@@ -156,19 +127,17 @@ fn answer(
 /// redacted.
 #[must_use]
 pub fn read(path: Option<&Path>, ask: &Ask) -> LastMessagesInfo {
-    read_by(path, ask, last_turns)
+    read_by(path, ask, Lines::Session)
 }
 
 /// AJ-E1520 (0.2): the same for a subagent's own transcript (its lines
 /// are all the subagent's).
 #[must_use]
 pub fn read_subagent(path: Option<&Path>, ask: &Ask) -> LastMessagesInfo {
-    read_by(path, ask, subagent_turns)
+    read_by(path, ask, Lines::Subagent)
 }
 
-type TurnsReader = fn(&Path, usize, Window) -> std::io::Result<LastTurns>;
-
-fn read_by(path: Option<&Path>, ask: &Ask, reader: TurnsReader) -> LastMessagesInfo {
+fn read_by(path: Option<&Path>, ask: &Ask, lines: Lines) -> LastMessagesInfo {
     let Some(path) = path else {
         return LastMessagesInfo::without("none");
     };
@@ -180,67 +149,35 @@ fn read_by(path: Option<&Path>, ask: &Ask, reader: TurnsReader) -> LastMessagesI
             ..LastMessagesInfo::without("unchanged")
         };
     }
-    let window = match (ask.before, ask.from) {
-        (Some(before), _) => Window::Before(before),
-        (None, Some(from)) => Window::From(from),
-        (None, None) => Window::Latest,
-    };
     let max = ask.max.unwrap_or(TURNS).clamp(1, TURNS_MAX);
-    match reader(path, max, window) {
-        Ok(LastTurns::Turns(page)) => {
-            // Every text and every call line, redacted together.
-            let mut pieces: Vec<String> = Vec::new();
-            for turn in &page.turns {
-                for block in &turn.blocks {
-                    match block {
-                        Block::Text(text) => pieces.push(text.clone()),
-                        Block::Steps { lines, .. } => pieces.extend(lines.iter().cloned()),
-                    }
-                }
-            }
-            let (clean, counts) =
-                juggler_handover::redaction::strip_segments(&pieces, true, &BTreeSet::new());
-            let mut clean = clean.into_iter();
-            let mut next = || clean.next().unwrap_or_default();
-            let mut turns = Vec::with_capacity(page.turns.len());
-            for turn in &page.turns {
-                let mut blocks = Vec::with_capacity(turn.blocks.len());
-                for block in &turn.blocks {
-                    blocks.push(match block {
-                        Block::Text(_) => TurnBlockInfo {
-                            kind: "text".to_owned(),
-                            text: next(),
-                            steps: Vec::new(),
-                            hidden: 0,
-                        },
-                        Block::Steps { lines, hidden } => TurnBlockInfo {
-                            kind: "steps".to_owned(),
-                            text: String::new(),
-                            steps: lines.iter().map(|_| next()).collect(),
-                            hidden: u32::try_from(*hidden).unwrap_or(u32::MAX),
-                        },
-                    });
-                }
-                turns.push(LastTurnInfo {
-                    speaker: match turn.speaker {
-                        Speaker::You => "you",
-                        Speaker::Assistant => "assistant",
-                    }
-                    .to_owned(),
-                    blocks,
-                    at_ms: turn.at_ms,
-                    model: turn.model.clone(),
-                });
-            }
+    // The feed's own reader and redaction (ADR-0024).
+    let template = super::feed::template(lines);
+    let read = match (ask.before, ask.from) {
+        (Some(before), _) => scan_back(path, Some(before), max, &template),
+        (None, Some(from)) => read_forward(path, from, max, &template),
+        (None, None) => scan_back(path, None, max, &template),
+    };
+    match read {
+        Ok(Back::Page(page)) => {
+            let layout = page.log.layout();
+            let generation = super::feed::generation_of(path, page.file, 0);
+            let turns = page.log.turns();
+            let last = turns.len().saturating_sub(1);
+            let open = ask.before.is_none() && page.log.last_open();
+            let turns: Vec<TurnInfo> = turns
+                .iter()
+                .enumerate()
+                .map(|(index, turn)| turn_info(turn, generation, open && index == last, layout))
+                .collect();
             LastMessagesInfo {
                 state: "shown".to_owned(),
+                redacted: turns.iter().map(|turn| turn.redacted).sum(),
                 turns,
-                redacted: counts.iter().map(|count| count.count).sum(),
-                earlier: page.earlier,
+                earlier: page.log.earlier(),
                 stamp: now,
             }
         }
-        Ok(LastTurns::Compressed) => LastMessagesInfo::without("compressed"),
+        Ok(Back::Compressed) => LastMessagesInfo::without("compressed"),
         Err(_) => LastMessagesInfo::without("unreadable"),
     }
 }
@@ -454,26 +391,36 @@ mod tests {
 
     #[test]
     fn nothing_is_kept_written_or_logged() {
-        // The page's text lives in this read's answer only: this module
-        // writes no file or setting, logs nothing and feeds no index.
-        let source = include_str!("last_messages.rs");
-        let code = source.split("#[cfg(test)]").next().unwrap();
-        for word in [
-            "fs::write",
-            "File::create",
-            "OpenOptions",
-            ".set(",
-            "tracing::",
-            "log::",
-            "println!",
-            "eprintln!",
-            "transcript_index",
-            "outside_search",
+        // The page's text lives in this read's answer and the followed
+        // feeds' memory only (0.3.5, ADR-0024): these modules write no
+        // file or setting, log nothing and feed no index.
+        for source in [
+            include_str!("last_messages.rs"),
+            include_str!("feed/mod.rs"),
+            include_str!("feed/watch.rs"),
+            include_str!("feed/dto.rs"),
+            include_str!("../../../../juggler-adapters/src/conversation_feed.rs"),
+            include_str!("../../../../juggler-adapters/src/conversation_lines.rs"),
+            include_str!("../../../../juggler-adapters/src/last_turns.rs"),
         ] {
-            assert!(
-                !code.contains(word),
-                "last messages must keep nothing: {word}"
-            );
+            let code = source.split("#[cfg(test)]").next().unwrap();
+            for word in [
+                "fs::write",
+                "File::create",
+                "OpenOptions",
+                ".set(",
+                "tracing::",
+                "log::",
+                "println!",
+                "eprintln!",
+                "transcript_index",
+                "outside_search",
+            ] {
+                assert!(
+                    !code.contains(word),
+                    "last messages must keep nothing: {word}"
+                );
+            }
         }
         // Reading leaves the folder as it was.
         let (dir, path) = transcript(&[turn("user", "hello")]);

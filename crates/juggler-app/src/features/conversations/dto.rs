@@ -23,6 +23,10 @@ pub struct ConversationInfo {
     pub title: Option<String>,
     /// The git branch it last recorded.
     pub git_branch: Option<String>,
+    /// 0.3.5: the desktop app it was started from (a host registry id, its
+    /// tool's record), so one the app ran is that app's when it isn't open.
+    #[ts(optional = nullable)]
+    pub started_in: Option<String>,
     /// First activity, epoch ms.
     #[ts(type = "number | null")]
     pub started_ms: Option<i64>,

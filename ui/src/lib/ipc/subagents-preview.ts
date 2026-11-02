@@ -12,7 +12,7 @@ import type { SubagentInfo } from "../../types/generated/SubagentInfo";
 import type { SubagentRowInfo } from "../../types/generated/SubagentRowInfo";
 import type { SubagentsQuery } from "../../types/generated/SubagentsQuery";
 import type { SubagentDetailInfo } from "../../types/generated/SubagentDetailInfo";
-import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
+import type { SeededTurn } from "../../preview/conversation-feed";
 
 /** A seeded subagent: the row's fields, and what its page shows. */
 export type SeedAgent = Partial<SubagentInfo> & {
@@ -39,7 +39,7 @@ export type Seeded = {
   session_tokens?: number;
   items: SeedAgent[];
   /** Each subagent's turns, by its id. */
-  turns?: Record<string, LastMessagesInfo["turns"]>;
+  turns?: Record<string, SeededTurn[]>;
 };
 
 type Fixture = { subagents?: Record<string, Seeded>; projectSubagents?: Record<string, string[]> };
@@ -258,6 +258,6 @@ export function previewDetail(conversationId: string, subagentId: string): Subag
   };
 }
 
-export function seededTurns(conversationId: string, subagentId: string): LastMessagesInfo["turns"] | undefined {
+export function seededTurns(conversationId: string, subagentId: string): SeededTurn[] | undefined {
   return fixture().subagents?.[conversationId]?.turns?.[subagentId];
 }

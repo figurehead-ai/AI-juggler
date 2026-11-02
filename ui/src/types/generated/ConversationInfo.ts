@@ -41,6 +41,11 @@ title: string | null,
  */
 git_branch: string | null, 
 /**
+ * 0.3.5: the desktop app it was started from (a host registry id, its
+ * tool's record), so one the app ran is that app's when it isn't open.
+ */
+started_in?: string | null, 
+/**
  * First activity, epoch ms.
  */
 started_ms: number | null, 

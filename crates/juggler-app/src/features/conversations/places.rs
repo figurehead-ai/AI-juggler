@@ -328,6 +328,9 @@ mod tests {
             folder_command: None,
             tab_script: None,
             shown: None,
+            folder_env: None,
+            handoff_link: None,
+            handoff_record: None,
         }])
     }
 

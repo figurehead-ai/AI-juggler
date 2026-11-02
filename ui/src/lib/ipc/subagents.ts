@@ -6,7 +6,7 @@
  * The backend asks the session's tool's adapter, read-only; a saved
  * index makes a long session open at once.
  */
-import { invoke } from "./transport";
+import { channel, invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { PageRequest } from "../../types/generated/PageRequest";
 import type { SubagentsInfo } from "../../types/generated/SubagentsInfo";
@@ -16,6 +16,9 @@ import type { SubagentsQuery } from "../../types/generated/SubagentsQuery";
 import type { SubagentDetailInfo } from "../../types/generated/SubagentDetailInfo";
 import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
 import type { LastMessagesAsk } from "./conversations";
+import type { ConversationDeltaInfo } from "../../types/generated/ConversationDeltaInfo";
+import type { ConversationSnapshotInfo } from "../../types/generated/ConversationSnapshotInfo";
+import { previewFollow, previewWithout, seedTurn } from "../../preview/conversation-feed";
 import { previewDetail, previewList, previewProject, seededTurns } from "./subagents-preview";
 
 export type { SubagentsInfo, SubagentInfo, SubagentRowInfo, SubagentsQuery, SubagentDetailInfo };
@@ -42,10 +45,11 @@ export async function subagentsProject(projectId: string, page: PageRequest, que
 }
 
 /** One subagent's conversation: `before` pages back, `from` follows
- * along, `known` hears "unchanged" without a read. */
+ * along, `known` hears "unchanged" without a read.
+ * @deprecated 0.3.5: `subagentsFollow`; kept until 0.4.0. */
 export async function subagentsConversation(accountId: string, conversationId: string, subagentId: string, ask: LastMessagesAsk = {}): Promise<LastMessagesInfo> {
   if (!hasLiveBackend()) {
-    const turns = seededTurns(conversationId, subagentId);
+    const turns = seededTurns(conversationId, subagentId)?.map((turn, index) => seedTurn(turn, index));
     if (!turns) return { state: "none", turns: [], redacted: 0, earlier: null, stamp: null };
     const stamp = `preview:${turns.length}`;
     if (ask.before == null && ask.known === stamp) return { state: "unchanged", turns: [], redacted: 0, earlier: null, stamp };
@@ -60,4 +64,15 @@ export async function subagentsConversation(accountId: string, conversationId: s
     from: ask.from ?? null,
     max: ask.max ?? null,
   });
+}
+
+/** 0.3.5 (ADR-0024): follows one subagent's conversation while it shows,
+ * as `conversationsFollow` does a session's (unfollow, keep and earlier
+ * pages go through the conversations' calls, by subscription). */
+export async function subagentsFollow(accountId: string, conversationId: string, subagentId: string, max: number, onDelta: (delta: ConversationDeltaInfo) => void): Promise<ConversationSnapshotInfo> {
+  if (!hasLiveBackend()) {
+    const turns = seededTurns(conversationId, subagentId);
+    return turns ? previewFollow(`${accountId}\u0000${conversationId}\u0000${subagentId}`, turns, "stretches", max, onDelta) : previewWithout("none");
+  }
+  return invoke<ConversationSnapshotInfo>("subagents_follow", { accountId, conversationId, subagentId, max, channel: channel(onDelta) });
 }

@@ -516,10 +516,17 @@ macro_rules! app_commands {
             Read  features::conversations::commands::conversations_resume_command,
             // AJ-E2108: reads message text: never over the bridge.
             Write features::conversations::commands::conversations_last_messages,
+            // 0.3.5 (ADR-0024): the conversation followed while its page
+            // shows it (message text: never over the bridge).
+            Write features::conversations::commands::conversations_follow,
+            Write features::conversations::commands::conversations_unfollow,
+            Write features::conversations::commands::conversations_keep,
+            Write features::conversations::commands::conversations_earlier,
             // AJ-E1520 (0.2): the Subagents tab (a session's words: like its
             // last messages, never served without the window).
             Write features::subagents::commands::subagents_list,
             Write features::subagents::commands::subagents_conversation,
+            Write features::subagents::commands::subagents_follow,
             // AJ-E1520 (0.3): a subagent's page and a project's subagents
             // (their words, as the tab's).
             Write features::subagents::commands::subagents_detail,
@@ -794,6 +801,8 @@ pub fn run() {
                 .build(),
         )
         .manage(app_state)
+        // 0.3.5 (ADR-0024, T2): the conversations pages follow.
+        .manage(Arc::new(features::conversations::feed::Feeds::default()))
         // AJ-E1503: ⌘Q and the close button ask first while sessions
         // are live (the predefined Quit item would quit without asking).
         .menu(quit::app_menu)

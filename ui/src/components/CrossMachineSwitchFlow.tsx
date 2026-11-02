@@ -219,7 +219,8 @@ export function CrossMachineSwitchFlow({
               <ContinueButton ready={stepReady} onClick={() => setStep(step + 1)} testId="cross-switch-next" />
             ) : (
               <button type="button" disabled={!armed} onClick={(event) => event.detail < 2 && void execute()} className={armed ? PRIMARY : PRIMARY_WAITING} data-testid="cross-switch-go">
-                Switch now
+                {/* 0.3.5: the button says where it continues, as on this Mac. */}
+                Switch to CLI on {target.machine_label}
               </button>
             )}
           </>

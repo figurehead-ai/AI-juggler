@@ -1,4 +1,4 @@
-<!-- captures: 4c191f34d3d5 -->
+<!-- captures: e46fc7ce5979 -->
 # 28-switch: switching a conversation to another account: the "Continue on another account" list, the 3-step switch dialog's Confirm step in its variants, the running and failed states, and the notes and switch-anyway prompts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -18,3 +18,11 @@ The Confirm step has a sound reading order in both themes: step chips, a large "
 - failed-1280x800-*.png, failed-800x600-*.png: "resume it on Work" names the account wrongly, and there is no resume button.
 - executing-*.png: no current-step or done marks on the five steps.
 - notes-conflict-1280x900-*.png: "Before you switch" and "Set up on Personal" are two headings stacked with nothing between them.
+
+## 0.3.5
+
+Re-shot: dialog-finish, dialog-stop, executing, failed, notes-*, switch-anyway, targets-out-of-room (both sizes and themes). The confirm step now opens on "Continue in" with Desktop and CLI cards. On these captures Personal has no Claude app profile, so Desktop is greyed with why ("No desktop app profile on Personal yet…") and CLI is selected, tagged "Same as the original". Under them sits one coloured summary chip ("3 go along · 1 stays behind" amber, or "Everything goes along · 5 items" green) and one line on the original. The stop radios are one line each, with the examples behind "What does this mean?". The buttons read "Switch to CLI", or "Switch to CLI anyway" when Personal is out of room. At 800×600 the body scrolls under a fixed footer (Cancel, Back, Switch to CLI). executing lists its stages, the fourth saying where it starts: "Starting it in a terminal on Personal" (on Desktop: "Opening it in the Claude app on Personal"); failed is unchanged apart from the pills.
+
+### Weak (0.3.5)
+
+- At 800×600 the out-of-room note sits below the fold; the amber "Personal is out of room: see below" line above it points there.

@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { conversationItem } from "./rail-items";
-import { appByConversation, idleApps, idleSessionsByApp, recentWords } from "./rail-apps";
+import { appByConversation, appByFolder, idleApps, idleSessionsByApp, recentWords } from "./rail-apps";
+import { appOfConversation } from "./app-of";
 import { buildLines, foldSections, type Line } from "./rail-lines";
 import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
@@ -60,6 +61,19 @@ describe("D-64 an app's sessions that aren't open belong to it", () => {
     const by = appByConversation([known("Old", { recent: ["claude-code/x"], seen_ms: NOW - 9 * H }), known("Work", { recent: ["claude-code/x", "claude-code/y"] })]);
     expect(by.get("claude-code/x")).toBe("app|claude-app|Work");
     expect(by.get("claude-code/y")).toBe("app|claude-app|Work");
+  });
+
+  it("0.3.5: one its app started but AI Juggler never saw open is that app's profile on its folder, never a terminal app", () => {
+    const items = itemsOf([past("app-only", 2, { started_in: "claude-app" }), past("terminal", 3)]);
+    const places = [known("Work", { account_id: "a1", profile: "Work Max" })];
+    const idle = idleSessionsByApp(items, appByConversation(places), appByFolder(places));
+    expect(idle.get("app|claude-app|Work")!.map((item) => item.key)).toEqual(["c:a1/app-only"]);
+    expect(idle.get("cli|claude-code|a1")!.map((item) => item.key)).toEqual(["c:a1/terminal"]);
+    // Named as the user named the profile (its folder's name), like the Accounts page.
+    const apps = idleApps({ openKeys: new Set(), known: places, idle });
+    expect(apps.find((app) => app.key === "app|claude-app|Work")!.name).toBe("Claude app · Work Max");
+    // Its row says where it ran: the Claude app, not Claude Code.
+    expect(appOfConversation(items[0]!.conversation!).name).toBe("Claude app");
   });
 
   it("leaves out open, archived and needing ones; newest first", () => {

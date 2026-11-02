@@ -10,19 +10,22 @@ import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { GUIDE } from "../../lib/switch-words";
 import { Explain } from "./Explain";
 import { IN_HANDOVER, NOTES_KIND } from "./NotesRow";
+import { CARRY_TONES, CarryIcon, type CarryTone } from "./carry-marks";
 
-function Items({ items, testId, tone = "text-ink" }: { items: CarryItemData[]; testId: string; tone?: string }): JSX.Element {
+function Items({ items, testId, tone }: { items: CarryItemData[]; testId: string; tone: CarryTone }): JSX.Element {
   const id = useId();
+  const look = CARRY_TONES[tone];
   return (
-    <ul className={"flex flex-wrap gap-1.5 " + tone} data-testid={testId}>
+    <ul className="flex flex-wrap gap-1.5 text-ink" data-testid={testId}>
       {items.map((item, index) => (
         <li key={item.label}>
           <span
             tabIndex={0}
             title={item.hint}
             aria-describedby={`${id}-${index}`}
-            className="inline-flex min-h-6 items-center rounded-md border border-hairline bg-surface-2 px-2 text-meta outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+            className={"inline-flex min-h-6 items-center gap-1.5 rounded-md border px-2 text-meta outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + look.chip}
           >
+            <CarryIcon kind={item.kind} className={look.icon} />
             {item.label}
           </span>
           <span id={`${id}-${index}`} className="sr-only">
@@ -115,35 +118,29 @@ export function CarryList({
   const moves = items.filter((item) => item.how === "moves");
   const recreated = items.filter((item) => item.how === "recreated");
   const stays = items.filter((item) => item.how === "stays");
+  // Each group under a short heading; what each one means is in its
+  // chip's line (hover, focus) and under "What does this mean?".
+  const group = (tone: CarryTone, title: string, list: CarryItemData[], testId: string, listId: string) =>
+    list.length > 0 && (
+      <section className="flex flex-col gap-1.5" data-testid={testId}>
+        <h4 className={"text-meta font-semibold " + (tone === "stays" ? "text-warning" : "text-ink")}>{title}</h4>
+        <Items items={list} testId={listId} tone={tone} />
+      </section>
+    );
   return (
     <div className="flex flex-col gap-3" data-testid="switch-carry">
-      {moves.length > 0 && (
-        <section className="flex flex-col gap-1.5" data-testid="switch-carry-carried">
-          <h4 className="text-body font-semibold text-ink">Goes along</h4>
-          <Items items={moves} testId="switch-carry-moves" />
-        </section>
-      )}
-      {recreated.length > 0 && (
-        <section className="flex flex-col gap-1.5" data-testid="switch-carry-rebuilt">
-          <h4 className="text-body font-semibold text-ink">
-            Recreated on {target} ({tool}), from its latest version
-          </h4>
-          <Items items={recreated} testId="switch-carry-recreated" />
-        </section>
-      )}
-      {missing.length > 0 && (
-        <section className="flex flex-col gap-1.5" data-testid="switch-carry-missing">
-          <h4 className="text-body font-semibold text-ink">Not on {target} yet: set up on the last step</h4>
-          <Items items={missing} testId="switch-carry-not-there" />
-        </section>
-      )}
-      {stays.length > 0 && (
-        <section className="flex flex-col gap-1.5 rounded-lg border border-warning/40 px-3 py-2" data-testid="switch-carry-dropped">
-          <h4 className="text-body font-semibold text-warning">Stays behind: the new session starts without it</h4>
-          <Items items={stays} testId="switch-carry-stays" />
-        </section>
-      )}
-      <Explain guide={GUIDE.carried} testId="switch-carry-explain" tips={[...items, ...missing].map((item) => `${item.label}: ${item.hint}`)} />
+      {group("moves", "Goes along", moves, "switch-carry-carried", "switch-carry-moves")}
+      {group("recreated", `Recreated on ${target}`, recreated, "switch-carry-rebuilt", "switch-carry-recreated")}
+      {group("missing", `Not on ${target} yet: you can set it up before you switch`, missing, "switch-carry-missing", "switch-carry-not-there")}
+      {group("stays", "Stays behind: the new session starts without it", stays, "switch-carry-dropped", "switch-carry-stays")}
+      <Explain
+        guide={GUIDE.carried}
+        testId="switch-carry-explain"
+        tips={[
+          ...(recreated.length > 0 ? [`Recreated: ${tool} on ${target} makes it again from its latest version.`] : []),
+          ...[...items, ...missing].map((item) => `${item.label}: ${item.hint}`),
+        ]}
+      />
     </div>
   );
 }

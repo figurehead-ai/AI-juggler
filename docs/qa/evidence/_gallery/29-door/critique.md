@@ -1,4 +1,4 @@
-<!-- captures: 2534ddbce1b8 -->
+<!-- captures: bbeff49f2a9c -->
 # 29-door: the one-click door into a switch: the switch dialog from one click, the wizard's Target and What's carried steps (3- and 5-step), and the Undo toast after switching
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -13,3 +13,7 @@ The wizard steps are tidy and consistent: step chips with the current one tinted
 - undo-toast-800x600-dark.png, undo-toast-800x600-light.png: the toast covers the footer text.
 - wizard-target-*.png: three stacked warnings on step 1.
 - oneclick-popover-*.png: "Before you switch" and "When to stop the original" are two headings in a row with no content between them.
+
+## 0.3.5
+
+oneclick-popover re-shot (both sizes, both themes). The one-click door is the same summary as the wizard's last step: "Ready to switch to Personal", the fidelity badge, "Continue in" with Desktop (greyed: no profile on Personal yet, with why) and CLI (selected, "Same as the original"), the "Everything goes along · 5 items" chip, one line on the original, the two stop radios, and Details closed. The button reads "Switch to CLI", never "Continue here in AI Juggler".

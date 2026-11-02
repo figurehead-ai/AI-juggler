@@ -106,12 +106,15 @@
         },
         {
           "id": "last-messages",
-          "text": "A session's last messages are read from the end of its transcript on your Mac while its page is open, and kept nowhere. One switch in Settings › Desktop apps turns them off.",
+          "text": "A session's last messages are read from its transcript on your Mac while its page is open, kept in memory only while it's open (and a minute after), and written nowhere. One switch in Settings › Desktop apps turns them off.",
           "tests": [
             "ui/src/screens/settings/desktop-apps.test.tsx::Last messages are on until you turn them off, and only off is kept",
-            "ui/src/pages/session/last-messages.test.tsx::are read only once the page is shown, and once",
+            "ui/src/pages/session/last-messages.test.tsx::is followed only while its page is shown: once, and let go when it isn't",
             "ui/src/pages/session/last-messages.test.tsx::a paired Mac's session is never read here",
-            "crates/juggler-adapters/src/last_turns.rs::only_the_end_is_read_and_a_cut_line_is_skipped",
+            "crates/juggler-adapters/src/last_turns_tests.rs::only_the_end_is_read_and_a_turn_begun_before_the_window_is_dropped",
+            "crates/juggler-app/src/features/conversations/feed/tests.rs::a_key_in_an_appended_turn_arrives_redacted_and_counted",
+            "crates/juggler-app/src/features/conversations/feed/tests.rs::an_unfollowed_feed_is_kept_a_minute_then_let_go",
+            "crates/juggler-app/src/features/conversations/feed/tests.rs::turned_off_every_page_hears_it_and_all_is_let_go",
             "crates/juggler-app/src/features/conversations/last_messages.rs::an_api_key_in_a_turn_shows_redacted",
             "crates/juggler-app/src/features/conversations/last_messages.rs::a_private_key_block_is_taken_out_whole",
             "crates/juggler-app/src/features/conversations/last_messages.rs::nothing_is_kept_written_or_logged",
@@ -189,6 +192,31 @@
             "crates/juggler-app/tests/opencode_provider.rs::the_default_folder_is_used_where_it_is_and_never_written",
             "crates/juggler-app/tests/kimi_provider.rs::the_default_home_is_used_where_it_is_and_never_written",
             "crates/juggler-app/tests/grok_provider.rs::its_sessions_become_projects_and_its_default_home_is_never_written"
+          ]
+        },
+        {
+          "id": "first-run-finished",
+          "text": "Continuing a session on a Claude Code profile whose own first-run setup isn't done, such as a Claude app profile's folder, marks that setup done in its .claude.json, as Claude Code does after its first run, and changes nothing else. The profile's row says so before you pick it, and checking a switch writes nothing.",
+          "tests": [
+            "crates/juggler-app/tests/switch_graph_targets.rs::a_target_whose_first_run_isnt_done_is_offered_and_the_switch_finishes_it",
+            "crates/juggler-adapters/src/claude_ready.rs::finishing_the_first_run_sets_only_its_key"
+          ]
+        },
+        {
+          "id": "profile-start-folder",
+          "text": "Starting a Claude app profile passes it only its own folder and the Claude Code folder its sessions use, as your own launcher does, so it stays on its account. The app's default instance starts as it is.",
+          "tests": [
+            "crates/juggler-app/src/features/places/start.rs::a_profile_starts_on_its_own_tool_folder",
+            "crates/juggler-platform/src/apps.rs::a_paired_profile_starts_with_its_folder_variable"
+          ]
+        },
+        {
+          "id": "desktop-handoff",
+          "text": "Continuing a switch in Desktop sends one link to that profile's own Claude app process, never to the app at large, and confirms it arrived by the name of the file the app writes, nothing more. A profile that's already running is never started a second time.",
+          "tests": [
+            "crates/juggler-app/src/features/places/handoff_tests.rs::a_running_profile_gets_the_session_at_its_own_process_and_is_never_started_again",
+            "crates/juggler-app/src/features/places/handoff_tests.rs::a_record_is_found_by_its_name_alone_and_the_walk_is_bounded",
+            "crates/juggler-app/src/features/places/handoff_tests.rs::an_id_that_isnt_plain_is_never_sent"
           ]
         },
         {

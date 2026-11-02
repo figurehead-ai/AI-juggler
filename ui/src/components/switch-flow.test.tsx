@@ -254,11 +254,9 @@ describe("AJ-E2108 a session another app runs", () => {
   it("says the original stays open in its app, untouched, and where the new session runs", async () => {
     const view = mount(OUTSIDE, vi.fn());
     await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
-    expect(view.getByTestId("switch-outside").textContent).toBe(
-      "The original stays open in Claude, untouched: AI Juggler only reads its conversation. Personal continues it here in AI Juggler, in a terminal, not in Claude.",
-    );
-    // 0.3.2: the button says where it goes on.
-    expect(view.getByTestId("switch-confirm").textContent).toBe("Continue here in AI Juggler");
+    expect(view.getByTestId("switch-outside").textContent).toBe("The original stays open in Claude, untouched. It continues in a terminal (CLI).");
+    // 0.3.5: the button says where it goes on, Desktop or CLI.
+    expect(view.getByTestId("switch-confirm").textContent).toBe("Switch to CLI");
     expect(view.queryByRole("radio", { name: /Stop it now/ })).toBeNull();
   });
 
