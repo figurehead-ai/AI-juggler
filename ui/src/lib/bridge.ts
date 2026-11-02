@@ -2345,6 +2345,8 @@ export interface SwitchTargetData {
    * "set_up", its tool's first-run setup isn't done there (a session
    * started on it once does it). */
   held_back?: "set_up" | null;
+  /** 0.3.5: its tool's own first run isn't done there; the switch does it. */
+  first_run?: boolean;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;

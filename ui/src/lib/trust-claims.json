@@ -192,6 +192,14 @@
           ]
         },
         {
+          "id": "first-run-finished",
+          "text": "Continuing a session on a Claude Code profile whose own first-run setup isn't done, such as a Claude app profile's folder, marks that setup done in its .claude.json, as Claude Code does after its first run, and changes nothing else. The profile's row says so before you pick it, and checking a switch writes nothing.",
+          "tests": [
+            "crates/juggler-app/tests/switch_graph_targets.rs::a_target_whose_first_run_isnt_done_is_offered_and_the_switch_finishes_it",
+            "crates/juggler-adapters/src/claude_ready.rs::finishing_the_first_run_sets_only_its_key"
+          ]
+        },
+        {
           "id": "only-what-you-apply",
           "text": "It changes your setups and projects only when you apply a change, shows it first, and can undo it.",
           "tests": [

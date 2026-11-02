@@ -187,7 +187,7 @@ export function SwitchTargetRows({
                   <span className="text-label text-muted">{target.filtered_reason}</span>
                 ) : (
                   <span className="text-label text-muted">
-                    {target.top_factors.join(" · ")}
+                    {[...target.top_factors, ...(target.first_run ? ["its first-run setup is done as it switches"] : [])].join(" · ")}
                   </span>
                 )}
                 {whyOpen && !filtered && (

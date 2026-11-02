@@ -32,6 +32,8 @@ export type Target = {
   /** 0.3.4: held back because its tool's first-run setup isn't done there
    * ("Start a session on it" does it). */
   setupNeeded: boolean;
+  /** 0.3.5: its tool's own first run isn't done there; the switch does it. */
+  firstRun?: boolean;
   /** What the move carries ("Full story, fresh start · Beta"), when known. */
   badge: { words: string; validated: boolean } | null;
   /** Another tool than the session's. */
@@ -41,6 +43,13 @@ export type Target = {
   /** The one with the most room (the one order by room, `lib/room`). */
   suggested: boolean;
 };
+
+/** 0.3.5: a target whose tool hasn't done its own first run (a Claude app
+ * profile's folder) says the switch does it, after what else it needs. */
+export function withFirstRun(words: string | null, firstRun: boolean): string | null {
+  if (!firstRun) return words;
+  return words ? `${words} · its first-run setup too` : "Its first-run setup is done as it switches";
+}
 
 /** The one-line check, in words. */
 export function setupWords(check: SetupCheckInfo | null | undefined): string | null {
@@ -90,6 +99,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
       recipeId: row.recipe_id,
       blocked: row.filtered_reason,
       setupNeeded: row.held_back === "set_up",
+      firstRun: row.first_run === true,
       badge: row.badge ? { words: row.badge, validated: row.validated } : null,
       crossTool: row.cross_provider,
     }));
@@ -188,7 +198,7 @@ export function ContinueOn({
               </span>
               {room && <RoomLine name={name} room={room} testId="continue-room" />}
               {group.targets.map((target) => {
-                const words = target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
+                const words = withFirstRun(target.recipeId in checks ? setupWords(checks[target.recipeId]) : null, target.firstRun === true);
                 return (
                   <div key={target.profileId + target.recipeId} className="flex flex-col gap-0.5">
                     <Button
