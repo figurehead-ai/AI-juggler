@@ -218,13 +218,16 @@ pub fn app_sessions(instance_dir: &Path) -> Vec<AppSession> {
         .collect()
 }
 
+/// The Claude app's id in the host registry.
+pub const CLAUDE_APP_HOST: &str = "claude-app";
+
 /// The Claude app, as data: one bundle id for every instance, told apart
 /// by `--user-data-dir` (so Go to it activates the instance's process,
 /// never the bundle id).
 #[must_use]
 pub fn host_apps() -> Vec<HostApp> {
     vec![HostApp {
-        id: "claude-app".to_owned(),
+        id: CLAUDE_APP_HOST.to_owned(),
         name: "Claude".to_owned(),
         bundle: "Claude.app".to_owned(),
         bundle_id: Some("com.anthropic.claudefordesktop".to_owned()),

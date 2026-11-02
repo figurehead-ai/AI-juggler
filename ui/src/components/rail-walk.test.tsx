@@ -178,14 +178,14 @@ describe("every rail element opens a page here (place lens)", () => {
     await waitFor(() => expect(row(list, "c:claude-work/outside-3")).toBeTruthy());
     const asks = row(list, "c:claude-work/outside-3").parentElement!;
     // Needs you: always shown, named for its app and profile.
-    const arrow = within(asks).getByRole("button", { name: "Go to it in Claude app · Work" });
+    const arrow = within(asks).getByRole("button", { name: "Go to it in Claude app · Work Max" });
     expect(arrow.className).not.toContain("opacity-0");
     fireEvent.click(arrow);
     expect(host.goToConversation).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(row(list, "c:claude-work/outside-3"), { key: "Enter", metaKey: true });
     expect(host.goToConversation).toHaveBeenCalledTimes(2);
     // Open now: on hover and focus.
-    expect(within(row(list, "c:claude-work/outside-1").parentElement!).getByRole("button", { name: "Go to it in Claude app · Work" }).className).toContain("opacity-0");
+    expect(within(row(list, "c:claude-work/outside-1").parentElement!).getByRole("button", { name: "Go to it in Claude app · Work Max" }).className).toContain("opacity-0");
     // AI Juggler's own terminal session: its page is where it runs.
     expect(within(row(list, "s:aj-working").parentElement!).queryByRole("button", { name: /^Go to it/ })).toBeNull();
     fireEvent.click(within(header(list, "app|claude-app|Work")).getByTestId("place-open"));

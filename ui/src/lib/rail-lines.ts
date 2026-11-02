@@ -26,7 +26,7 @@ import { arrangeGroup, arrangeGroups, foldKey, lensOf, type OrderMode } from "./
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
-import { appByConversation, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, RECENT_INLINE, type IdleApp } from "./rail-apps";
+import { appByConversation, appByFolder, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, RECENT_INLINE, type IdleApp } from "./rail-apps";
 
 export type SectionId = "needs" | "open" | "idle";
 
@@ -150,7 +150,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   // D-64: by App, an inactive session is under its app, not a list apart.
   const apps = by === "place";
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
-  const idle = apps ? idleSessionsByApp(shown, appByConversation(known)) : new Map<string, RailItem[]>();
+  const idle = apps ? idleSessionsByApp(shown, appByConversation(known), appByFolder(known)) : new Map<string, RailItem[]>();
   // Its last ones, under an app: unfolded by a click, and while searching.
   const past = (key: string, sessions: readonly RailItem[]) => {
     const open = searching || toggled.has(`${key}#recent`);

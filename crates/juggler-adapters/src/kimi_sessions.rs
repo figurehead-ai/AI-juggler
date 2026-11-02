@@ -156,6 +156,7 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
     Some(ConversationSummary {
         cwd,
         git_branch: None,
+        started_in: None,
         title,
         opening,
         started_ms: first_time(

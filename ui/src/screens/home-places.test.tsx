@@ -75,7 +75,7 @@ describe("Home, desktop first", () => {
     const tiles = await view.findAllByTestId("home-app-tile");
     expect(tiles.map((tile) => tile.dataset.place)).toEqual(["app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work", "cli|claude-code|claude-work"]);
     const work = tiles[2]!;
-    expect(work.textContent).toContain("Work·2 sessions");
+    expect(work.textContent).toContain("Work Max·2 sessions");
     expect(within(work).getByTestId("home-app-needs").textContent).toBe("1 needs you");
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
     cleanup();
@@ -132,7 +132,7 @@ describe("Home, desktop first", () => {
     expect(openConversation).toHaveBeenCalledWith(expect.objectContaining({ id: "outside-3" }));
     expect(goToConversation).not.toHaveBeenCalled();
     // Always shown on a need, named for where it goes.
-    const arrow = within(first).getByRole("button", { name: "Go to it in Claude app · Work" });
+    const arrow = within(first).getByRole("button", { name: "Go to it in Claude app · Work Max" });
     fireEvent.click(arrow);
     expect(goToConversation).toHaveBeenCalledTimes(1);
     expect(openConversation).toHaveBeenCalledTimes(1);

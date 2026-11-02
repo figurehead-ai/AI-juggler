@@ -1123,6 +1123,7 @@ mod tests {
             id: id.to_owned(),
             cwd: None,
             git_branch: None,
+            started_in: None,
             title: None,
             opening: None,
             started_ms: Some(started),
