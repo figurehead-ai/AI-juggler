@@ -52,25 +52,20 @@ fn main() -> ExitCode {
         }
     };
     let Some(pick) = targets.iter().find(|row| row.account_label == target) else {
-        eprintln!(
-            "switch_lab: no target {target:?}; there are {:?}",
-            targets
-                .iter()
-                .map(|row| &row.account_label)
-                .collect::<Vec<_>>()
-        );
+        eprintln!("switch_lab: no such target ({} listed)", targets.len());
         return ExitCode::FAILURE;
     };
     match juggler_app::commands::switch_preflight_impl(&state, &source, &pick.recipe_id) {
+        // Kinds and yes/no only: no account, profile or session names.
         Ok(preflight) => println!(
-            "preflight: suggested {}, desktop {:?}, why not {:?}",
+            "preflight: suggested {}; desktop offered: {}; its profile running: {}",
             preflight.destinations.suggested,
+            preflight.destinations.desktop.is_some(),
             preflight
                 .destinations
                 .desktop
                 .as_ref()
-                .map(|d| (&d.name, d.running)),
-            preflight.destinations.desktop_why_not
+                .is_some_and(|desktop| desktop.running)
         ),
         Err(error) => {
             eprintln!("switch_lab: preflight: {error}");
@@ -88,10 +83,7 @@ fn main() -> ExitCode {
         &destination,
     ) {
         Ok(done) => {
-            println!(
-                "switched: continued in {}, session {}, pid {}, conversation {:?}",
-                done.continued_in, done.session_id, done.pid, done.conversation_key
-            );
+            println!("switched: continued in {}", done.continued_in);
             ExitCode::SUCCESS
         }
         Err(error) => {
