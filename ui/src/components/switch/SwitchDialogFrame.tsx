@@ -11,6 +11,7 @@
  */
 import { useEffect, type JSX, type ReactNode, type RefObject } from "react";
 import { PRIMARY_FILL } from "../primitives";
+import { IconCheck } from "../icons-controls";
 
 export const BUTTON = "min-h-8 rounded-lg border px-3.5 text-body";
 export const SECONDARY = `${BUTTON} border-hairline text-ink hover:bg-surface-2`;
@@ -20,8 +21,9 @@ export const PRIMARY_WAITING = `${BUTTON} border-hairline text-muted`;
 /** Where the dialog's controls are, for Tab. */
 const FOCUSABLE = "button:not(:disabled), input:not(:disabled), summary";
 
-/** The step marks: "Step 2 of 3: What's carried", then each step, the
- * ones done ticked. Only the steps that render are listed (§8). */
+/** The step marks: "Step 2 of 3: What's carried", then each step: the
+ * ones done ticked in the success tint, the current one in the accent's
+ * (0.3.5: "too monotone"). Only the steps that render are listed (§8). */
 export function StepMarks({ steps, step, testId }: { steps: readonly string[]; step: number; testId: string }): JSX.Element {
   return (
     <div className="flex flex-col gap-1.5" data-testid={testId} aria-live="polite">
@@ -30,8 +32,21 @@ export function StepMarks({ steps, step, testId }: { steps: readonly string[]; s
       </p>
       <ol className="flex flex-wrap gap-1">
         {steps.map((title, index) => (
-          <li key={title} aria-current={index === step ? "step" : undefined} className={"rounded-full border px-2.5 py-0.5 text-label " + (index === step ? "border-accent/60 bg-accent-soft text-accent-hi" : "border-hairline text-ink")}>
-            {index < step ? "✓ " : ""}
+          <li
+            key={title}
+            aria-current={index === step ? "step" : undefined}
+            data-done={index < step ? "true" : undefined}
+            className={
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-label " +
+              (index === step
+                ? "border-accent/60 bg-accent-soft font-semibold text-accent-hi"
+                : index < step
+                  ? "border-success/30 bg-success-soft text-success"
+                  : "border-hairline text-muted")
+            }
+          >
+            {index < step && <IconCheck aria-hidden="true" width={12} height={12} strokeWidth={2.5} className="shrink-0" />}
+            {index < step && <span className="sr-only">Done: </span>}
             {title}
           </li>
         ))}

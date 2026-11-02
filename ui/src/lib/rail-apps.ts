@@ -69,24 +69,43 @@ export function appByConversation(known: readonly KnownPlaceInfo[]): Map<string,
   return out;
 }
 
+/** 0.3.5: each remembered desktop app's App key by the folder its
+ * sessions run on (`<host app>|<folder>`), the most recently seen winning:
+ * where a session the app started belongs when AI Juggler never saw it
+ * open. */
+export function appByFolder(known: readonly KnownPlaceInfo[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const place of [...known].sort((a, b) => b.seen_ms - a.seen_ms)) {
+    if (place.account_id === null) continue;
+    const key = `${place.app_id}|${place.account_id}`;
+    if (!out.has(key)) out.set(key, knownKey(place));
+  }
+  return out;
+}
+
 /** The App an item belongs to: an open one where it's open; one not open
- * where it was last seen open (a desktop app's record), else its place
- * (a CLI session's tool and folder). */
-export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, string>): string {
-  if (item.conversation && !openNow(item)) {
-    const desktop = byConversation.get(`${item.conversation.tool}/${item.conversation.id}`);
+ * where it was last seen open (a desktop app's record), else, when its
+ * tool says a desktop app started it, that app's profile on its folder
+ * (0.3.5: never a terminal app the user doesn't run), else its place (a
+ * CLI session's tool and folder). */
+export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, string>, byFolder: ReadonlyMap<string, string> = new Map()): string {
+  const conversation = item.conversation;
+  if (conversation && !openNow(item)) {
+    const desktop = byConversation.get(`${conversation.tool}/${conversation.id}`);
     if (desktop) return desktop;
+    const started = conversation.started_in ? byFolder.get(`${conversation.started_in}|${conversation.account_id}`) : undefined;
+    if (started) return started;
   }
   return item.place.key;
 }
 
 /** Each App's sessions that aren't open (archived ones left out), newest
  * first. */
-export function idleSessionsByApp(items: readonly RailItem[], byConversation: ReadonlyMap<string, string>): Map<string, RailItem[]> {
+export function idleSessionsByApp(items: readonly RailItem[], byConversation: ReadonlyMap<string, string>, byFolder: ReadonlyMap<string, string> = new Map()): Map<string, RailItem[]> {
   const out = new Map<string, RailItem[]>();
   for (const item of items) {
     if (openNow(item) || item.archived || item.need !== null) continue;
-    const key = appKeyOf(item, byConversation);
+    const key = appKeyOf(item, byConversation, byFolder);
     const list = out.get(key);
     if (list) list.push(item);
     else out.set(key, [item]);
@@ -119,9 +138,11 @@ export function idleApps({
     out.push({
       key,
       kind: "desktop",
-      name: appName(app, place.instance),
+      // 0.3.5: the profile as the user named it (its folder's name), as
+      // the Accounts page says it; the window's own folder name otherwise.
+      name: appName(app, place.profile ?? place.instance),
       app,
-      profile: place.instance,
+      profile: place.profile ?? place.instance,
       appId: place.app_id,
       lastMs: Math.max(sessions[0]?.lastMs ?? 0, place.seen_ms),
       appPid: place.app_pid,

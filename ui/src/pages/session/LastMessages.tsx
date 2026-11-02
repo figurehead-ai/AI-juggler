@@ -1,23 +1,25 @@
 /**
  * AJ-E2108 — a session's conversation, on its page only (never in rows,
- * the tray or notifications): its last turns as its own app shows them,
- * your words on the right, the agent's on the left with its mark, its
- * markdown and its tool calls folded to one line each run. Read from the
- * end of its transcript once the page is shown, earlier turns on request,
- * followed along while it runs (useLastMessages); keys and tokens taken
- * out; kept nowhere. When it asks you, the question waits at the bottom
- * with Go to it. A chat its app keeps on its servers has no transcript on
- * this Mac: its title is all there is.
+ * the tray or notifications): its turns as its own app shows them
+ * (`ConversationTurn`). 0.3.5 (ADR-0024): followed while the page shows
+ * it (`useConversation`): its latest turns once, then only what changes,
+ * appended or grown in place under stable ids; the view stays where the
+ * reader is (`useStickToBottom`); a problem after turns were shown is a
+ * line over them, never an empty card. Earlier turns on request; keys
+ * and tokens taken out; kept nowhere. When it asks you, the question
+ * waits at the bottom with Go to it. A chat its app keeps on its servers
+ * has no transcript on this Mac: its title is all there is.
  */
-import { useLayoutEffect, useRef, type JSX, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, type JSX, type ReactNode } from "react";
 import { Button, Card } from "../../components/primitives";
-import { ToolMark } from "../../components/ToolMark";
 import { IconGoTo } from "../../components/icons-actions";
-import type { LastTurnInfo } from "../../lib/ipc/conversations";
-import { agoWords } from "../../lib/time-words";
-import { Markdown, plainWords } from "./Markdown";
-import { Blocks, foldOf, Work, workWords } from "./TurnWork";
-import { useLastMessages, type Chat, type ChatReader } from "./useLastMessages";
+import type { TurnInfo } from "../../lib/ipc/conversations";
+import type { FeedState } from "../../lib/conversation-feed-state";
+import { plainWords } from "./Markdown";
+import { foldOf } from "./TurnWork";
+import { Turn } from "./ConversationTurn";
+import { sessionSource, useConversation, type FeedSource } from "./useConversation";
+import { useStickToBottom } from "./useStickToBottom";
 import { appWords, picksInSidebar, speakerName, type SessionModel } from "./model";
 
 /** Why there's nothing to show, in words. */
@@ -25,6 +27,17 @@ const NONE: Record<string, string> = {
   none: "There's no transcript of it on this computer to read, so its title is all AI Juggler shows.",
   compressed: "Its transcript is stored compressed now that it has ended, so it isn't read here.",
   unreadable: "Its transcript couldn't be read just now.",
+};
+
+/** What a line over the turns says (they stay shown). */
+const BANNER: Record<string, string> = {
+  unreadable: "Couldn't read the latest changes. Trying again.",
+  retrying: "Couldn't reach the latest changes. Trying again.",
+  gone: "Its transcript is no longer on this computer. This is what was read.",
+  none: "Its transcript is no longer on this computer. This is what was read.",
+  ended: "It ended and its transcript was stored compressed. This is what was read.",
+  compressed: "It ended and its transcript was stored compressed. This is what was read.",
+  earlier: "Couldn't load earlier messages.",
 };
 
 /** Meta text: 7:1 or better on every surface, both themes. */
@@ -44,7 +57,7 @@ export function LastMessages({
   visible,
   remoteMac,
   onGoTo,
-  reader,
+  source,
   title = "Conversation",
   head,
   asker,
@@ -55,8 +68,9 @@ export function LastMessages({
   /** Go to it, from the question card (a live session). */
   onGoTo?: () => void;
   /** AJ-E1520: another conversation than the session's own (a
-   * subagent's), read the same way; it asks no one, so no question card. */
-  reader?: ChatReader;
+   * subagent's), followed the same way; it asks no one, so no question
+   * card. */
+  source?: FeedSource;
   /** The card's heading. */
   title?: string;
   /** Before the heading (a way back). */
@@ -64,16 +78,10 @@ export function LastMessages({
   /** Who the "you" side is, said over its turns ("The session"). */
   asker?: string;
 }): JSX.Element {
-  const { chat, showEarlier } = useLastMessages({
-    profileId: model.profileId,
-    conversationId: remoteMac ? null : model.conversationId,
-    visible: visible && !remoteMac,
-    live: model.live,
-    working: model.state.working,
-    reader,
-  });
+  const own = useMemo(() => (model.conversationId === null ? null : sessionSource(model.profileId, model.conversationId)), [model.profileId, model.conversationId]);
+  const { state: chat, showEarlier } = useConversation({ source: remoteMac ? null : (source ?? own), visible: visible && !remoteMac });
   const speaker = speakerName(model.tool);
-  const following = chat.state === "shown" && model.live && visible;
+  const following = chat.status === "shown" && chat.subscription !== null && model.live && visible;
   return (
     // Sized to what it holds, at most the column's height (then its
     // messages scroll): a short conversation has its question card right
@@ -88,10 +96,10 @@ export function LastMessages({
             Live
           </span>
         )}
-        {chat.state === "shown" && (
+        {chat.status === "shown" && (
           <span className={"ml-auto " + META} data-testid="last-messages-note">
             From its transcript · nothing kept
-            {chat.redacted > 0 && ` · ${keysWords(chat.redacted)} taken out`}
+            {redacted(chat.turns) > 0 && ` · ${keysWords(redacted(chat.turns))} taken out`}
           </span>
         )}
       </div>
@@ -102,9 +110,14 @@ export function LastMessages({
       ) : (
         <Body chat={chat} model={model} speaker={speaker} onShowEarlier={showEarlier} asker={asker} />
       )}
-      {!remoteMac && !reader && <Bottom chat={chat} model={model} speaker={speaker} onGoTo={onGoTo} />}
+      {!remoteMac && !source && <Bottom chat={chat} model={model} speaker={speaker} onGoTo={onGoTo} />}
     </Card>
   );
+}
+
+/** Keys or tokens taken out of what is shown. */
+function redacted(turns: TurnInfo[]): number {
+  return turns.reduce((sum, turn) => sum + turn.redacted, 0);
 }
 
 function Quiet({ children, testId, state }: { children: ReactNode; testId?: string; state?: string }): JSX.Element {
@@ -117,42 +130,91 @@ function Quiet({ children, testId, state }: { children: ReactNode; testId?: stri
   );
 }
 
-function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: Chat; model: SessionModel; speaker: string; onShowEarlier: () => void; asker?: string }): JSX.Element {
+function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: FeedState; model: SessionModel; speaker: string; onShowEarlier: () => void; asker?: string }): JSX.Element {
   const scroller = useRef<HTMLDivElement | null>(null);
-  const turns = chat.state === "shown" ? chat.turns : null;
-  const count = turns?.length ?? 0;
-  const first = turns?.[0];
-  const memory = useRef<{ count: number; first: LastTurnInfo | undefined; height: number; nearBottom: boolean }>({ count: 0, first: undefined, height: 0, nearBottom: true });
-  // Newest at the bottom: in view when it opens, and kept in view as new
-  // turns come while you're at the bottom; "Show earlier" keeps your
-  // place.
-  useLayoutEffect(() => {
-    const box = scroller.current;
-    if (!box || count === 0) return;
-    const before = memory.current;
-    const prepended = before.count > 0 && first !== before.first;
-    if (prepended) box.scrollTop += box.scrollHeight - before.height;
-    else if (before.count === 0 || before.nearBottom) box.scrollTop = box.scrollHeight;
-    memory.current = { count, first, height: box.scrollHeight, nearBottom: true };
-  }, [count, first]);
-  const onScroll = () => {
-    const box = scroller.current;
-    if (!box) return;
-    memory.current.nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 96;
-    memory.current.height = box.scrollHeight;
-  };
+  const turns = chat.turns;
+  const last = turns[turns.length - 1];
+  const { onScroll, pill, toBottom, keep } = useStickToBottom(scroller, {
+    firstId: turns[0]?.id ?? null,
+    lastKey: last ? `${last.id}:${last.revision}:${turns.length}` : null,
+  });
+  // A line over the turns takes room from them: the bottom stays in view.
+  useLayoutEffect(keep, [chat.banner, keep]);
+  // A first read that passed a long stretch with no turn: read on.
+  const further = chat.status === "shown" && turns.length === 0 && chat.earlier !== null;
+  useEffect(() => {
+    if (further && !chat.loadingEarlier) onShowEarlier();
+  }, [further, chat.loadingEarlier, onShowEarlier]);
 
-  if (chat.state === "failed") return <Quiet>Couldn't read them: {chat.why}</Quiet>;
-  if (chat.state === "loading") {
+  if (turns.length === 0) return <Empty chat={chat} further={further} />;
+  const asksAt = model.state.asks && last?.speaker === "assistant" ? turns.length - 1 : -1;
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {chat.banner && BANNER[chat.banner] && (
+        <p className={"border-b border-hairline bg-surface-2 px-5 py-2 " + META} role="status" data-testid="last-messages-banner" data-banner={chat.banner}>
+          {BANNER[chat.banner]}
+        </p>
+      )}
+      <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60" tabIndex={0} role="region" aria-label="Messages" data-testid="last-messages-scroll">
+        <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6 px-5 py-5">
+          {chat.earlier !== null ? (
+            <div className="flex justify-center">
+              <Button size="md" variant="secondary" onClick={onShowEarlier} disabled={chat.loadingEarlier || chat.subscription === null} data-testid="last-messages-earlier">
+                {chat.lookingFurther ? "Looking further back…" : chat.loadingEarlier ? "Loading earlier messages…" : "Show earlier messages"}
+              </Button>
+            </div>
+          ) : (
+            <p className={"text-center " + META} data-testid="last-messages-start">
+              The start of the conversation
+            </p>
+          )}
+          <ol className="flex flex-col gap-6" data-testid="last-messages-turns">
+            {turns.map((turn, index) => (
+              <Turn
+                key={turn.id}
+                turn={turn}
+                tool={model.tool}
+                speaker={speaker}
+                layout={chat.layout}
+                asks={index === asksAt}
+                asker={asker}
+                startedMs={turns[index - 1]?.at_ms ?? null}
+                working={model.live && model.state.working && index === turns.length - 1}
+              />
+            ))}
+          </ol>
+        </div>
+      </div>
+      {pill && (
+        <button
+          type="button"
+          onClick={toBottom}
+          className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-hairline bg-surface px-3.5 py-1.5 text-meta font-medium text-ink shadow-md outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60"
+          data-testid="last-messages-new"
+        >
+          New messages
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 5v14M6 13l6 6 6-6" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Before any turn was shown: loading, or why there is none. */
+function Empty({ chat, further }: { chat: FeedState; further: boolean }): JSX.Element {
+  if (chat.status === "failed") return <Quiet>Couldn't read them: {chat.why}</Quiet>;
+  if (chat.status === "loading" || further) {
     return (
-      <div className="flex flex-1 flex-col gap-5 px-5 py-6" aria-label="Loading the conversation" role="status">
+      <div className="flex flex-1 flex-col gap-5 px-5 py-6" aria-label={further ? "Looking further back" : "Loading the conversation"} role="status">
         <span className="ml-auto h-10 w-1/2 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
         <span className="h-16 w-3/4 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
         <span className="ml-auto h-8 w-1/3 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
       </div>
     );
   }
-  if (chat.state === "off") {
+  if (chat.status === "off") {
     return (
       <Quiet testId="last-messages-off">
         Last messages are off.{" "}
@@ -163,124 +225,17 @@ function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: Chat; mode
       </Quiet>
     );
   }
-  if (chat.state !== "shown" || chat.turns.length === 0) {
-    return (
-      <Quiet testId="last-messages-none" state={chat.state}>
-        {NONE[chat.state] ?? "The end of its transcript holds no messages."}
-      </Quiet>
-    );
-  }
-  const asksAt = model.state.asks && chat.turns[chat.turns.length - 1]?.speaker === "assistant" ? chat.turns.length - 1 : -1;
   return (
-    <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60" tabIndex={0} role="region" aria-label="Messages" data-testid="last-messages-scroll">
-      <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6 px-5 py-5">
-        {chat.earlier !== null ? (
-          <div className="flex justify-center">
-            <Button size="md" variant="secondary" onClick={onShowEarlier} disabled={chat.loadingEarlier} data-testid="last-messages-earlier">
-              {chat.loadingEarlier ? "Loading earlier messages…" : "Show earlier messages"}
-            </Button>
-          </div>
-        ) : (
-          <p className={"text-center " + META} data-testid="last-messages-start">
-            The start of the conversation
-          </p>
-        )}
-        <ol className="flex flex-col gap-6" data-testid="last-messages-turns">
-          {chat.turns.map((turn, index) => (
-            <Turn
-              key={index}
-              turn={turn}
-              tool={model.tool}
-              speaker={speaker}
-              asks={index === asksAt}
-              asker={asker}
-              startedMs={chat.turns[index - 1]?.at_ms ?? null}
-              working={model.live && model.state.working && index === chat.turns.length - 1}
-            />
-          ))}
-        </ol>
-      </div>
-    </div>
-  );
-}
-
-function When({ ms }: { ms: number | null }): JSX.Element | null {
-  if (ms === null) return null;
-  const date = new Date(ms);
-  return (
-    <time dateTime={date.toISOString()} title={date.toLocaleString()} className="text-label tabular-nums text-muted">
-      {agoWords(ms, Date.now())}
-    </time>
-  );
-}
-
-function Turn({
-  turn,
-  tool,
-  speaker,
-  asks,
-  asker,
-  startedMs,
-  working,
-}: {
-  turn: LastTurnInfo;
-  tool: string;
-  speaker: string;
-  asks: boolean;
-  asker?: string;
-  /** When the turn before it was written: its work's start. */
-  startedMs: number | null;
-  /** The session's latest turn while it works: shown open, as it goes. */
-  working: boolean;
-}): JSX.Element {
-  if (turn.speaker === "you") {
-    const words = turn.blocks.filter((block) => block.kind === "text").map((block) => block.text).join("\n\n");
-    return (
-      <li className="flex flex-col items-end gap-1.5" data-testid="last-turn" data-speaker="you">
-        {asker ? <span className="text-label font-medium text-muted">{asker}</span> : <span className="sr-only">You</span>}
-        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md border border-accent/20 bg-accent-soft px-4 py-2.5 text-body leading-[1.5] text-ink">{words}</p>
-        <When ms={turn.at_ms} />
-      </li>
-    );
-  }
-  return (
-    <li className="flex flex-col gap-2" data-testid="last-turn" data-speaker="assistant" data-asks={asks ? "true" : undefined}>
-      <div className="flex items-center gap-2">
-        <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-full border border-hairline bg-surface-2 text-ink">
-          <ToolMark tool={tool} size={15} />
-        </span>
-        <span className="text-body font-semibold text-ink">{speaker}</span>
-        {asks && (
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="last-turn-asks">
-            asks you
-          </span>
-        )}
-        <When ms={turn.at_ms} />
-      </div>
-      <div className="flex min-w-0 flex-col gap-3 pl-9">
-        {working ? (
-          <Blocks blocks={turn.blocks} />
-        ) : (
-          (() => {
-            const { work, reply } = foldOf(turn);
-            const took = startedMs !== null && turn.at_ms !== null ? turn.at_ms - startedMs : null;
-            return (
-              <>
-                {work.length > 0 && <Work work={work} words={workWords(work, took)} />}
-                {reply && <Markdown text={reply.text} />}
-              </>
-            );
-          })()
-        )}
-      </div>
-    </li>
+    <Quiet testId="last-messages-none" state={chat.status}>
+      {NONE[chat.status] ?? "Its transcript holds no messages yet."}
+    </Quiet>
   );
 }
 
 /** The question an asking turn ends on: its reply's last paragraph with a
  * "?", else its last paragraph, in plain words. Only the reply (0.3.4): a
  * "?" in the notes written while it worked isn't what it asks. */
-export function questionOf(turn: LastTurnInfo | undefined): string | null {
+export function questionOf(turn: TurnInfo | undefined): string | null {
   if (!turn || turn.speaker !== "assistant") return null;
   const { reply } = foldOf(turn);
   const text = reply ? reply.text : turn.blocks.filter((block) => block.kind === "text").map((block) => block.text).join("\n\n");
@@ -293,7 +248,7 @@ export function questionOf(turn: LastTurnInfo | undefined): string | null {
   return asked ?? paragraphs[paragraphs.length - 1] ?? null;
 }
 
-function Bottom({ chat, model, speaker, onGoTo }: { chat: Chat; model: SessionModel; speaker: string; onGoTo?: () => void }): JSX.Element | null {
+function Bottom({ chat, model, speaker, onGoTo }: { chat: FeedState; model: SessionModel; speaker: string; onGoTo?: () => void }): JSX.Element | null {
   if (!model.live) return null;
   const place = model.places[0];
   const app = appWords(place, model.tool);
@@ -305,7 +260,7 @@ function Bottom({ chat, model, speaker, onGoTo }: { chat: Chat; model: SessionMo
       {picksInSidebar(place, model.tool) ? "; if another session is showing there, pick this one in its sidebar." : "."}
     </p>
   ) : null;
-  const last = chat.state === "shown" ? chat.turns[chat.turns.length - 1] : undefined;
+  const last = chat.turns[chat.turns.length - 1];
   const question = model.state.asks ? questionOf(last) : null;
   if (model.state.asks) {
     return (

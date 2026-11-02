@@ -22,7 +22,8 @@ export function noteSwitchPick(suggested: boolean): void {
  * verifies, launches, and records the edge. `approved`: the set-up
  * check's offers the user ticked that the switch itself carries out
  * (D-51: this project's notes quoted in the handover, for a tool that
- * keeps none). */
+ * keeps none). `destination` (0.3.5): where it continues, `desktop` (the
+ * target's Claude app profile) or `cli` (a terminal). */
 export async function switchExecute(
   sessionId: string,
   targetProfileId: string,
@@ -30,6 +31,7 @@ export async function switchExecute(
   redactionChoice?: string | null,
   redactionUnredact?: number[],
   approved: string[] = [],
+  destination: "desktop" | "cli" = "cli",
 ): Promise<SwitchExecutedData> {
   if (!hasLiveBackend()) {
     const seams = window as unknown as {
@@ -40,6 +42,7 @@ export async function switchExecute(
         redactionUnredact: number[];
       }[];
       __AIJ_SWITCH_EXECUTE_APPROVED__?: string[][];
+      __AIJ_SWITCH_EXECUTE_DESTINATION__?: string[];
     };
     // The guardrail seam: the redaction payload is observable so
     // tests can prove it fires only from the click.
@@ -51,17 +54,21 @@ export async function switchExecute(
       },
     ];
     seams.__AIJ_SWITCH_EXECUTE_APPROVED__ = [...(seams.__AIJ_SWITCH_EXECUTE_APPROVED__ ?? []), approved];
+    seams.__AIJ_SWITCH_EXECUTE_DESTINATION__ = [...(seams.__AIJ_SWITCH_EXECUTE_DESTINATION__ ?? []), destination];
     if (seams.__AIJ_SWITCH_EXECUTE_FAIL__ !== undefined) {
       return Promise.reject(seams.__AIJ_SWITCH_EXECUTE_FAIL__);
     }
     if (seams.__AIJ_SWITCH_EXECUTE_HANG__) {
       return new Promise<SwitchExecutedData>(() => {});
     }
+    const now = Date.now();
     return {
-      session_id: `sess-preview-${Date.now()}`,
+      session_id: `sess-preview-${now}`,
       pid: 0,
-      edge_id: `edge-preview-${Date.now()}`,
+      edge_id: `edge-preview-${now}`,
       source_session_id: sessionId,
+      continued_in: destination,
+      conversation_key: destination === "desktop" ? `conversation:${targetProfileId}:preview-${now}` : null,
     };
   }
   const trigger = pendingSwitchTrigger ?? "manual";
@@ -74,5 +81,6 @@ export async function switchExecute(
     redactionUnredact: redactionUnredact ?? [],
     trigger,
     approved,
+    destination,
   });
 }

@@ -78,7 +78,7 @@ fn info(
         paused: place.paused.clone(),
         account_id: place.account_id.clone(),
         seen_ms: place.seen_ms,
-        cannot_start: super::start::plan(place, hosts, false).err(),
+        cannot_start: super::start::plan(place, hosts, None, false).err(),
         recent: recent(&place.conversations),
     }
 }

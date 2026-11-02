@@ -17,11 +17,16 @@ Each claim below is marked **verified** (seen in records, source or docs) or **i
 
 ## 1. What the Claude app (Code tab) and Claude Code show
 
-**Conversation.**
-- **Verified:** the app folds each run of work into one line with a short past-tense title, puts a one-sentence summary above it, and shows the reply in full.
-- **Verified:** the titles are not in the session's transcript or in the app's per-session records. Claude Code has a small-model helper that writes such labels (`tool_use_summary`, about 30 characters, past tense, per batch of tool calls). It is generated live and kept out of the transcript.
-- **Inferred:** the one-sentence summary is the model's summarized thinking (`thinking` blocks marked `thinkingDisplay: "updates"`). It is stored only while the session is on screen in the app.
-- **So:** the app's exact titles can't be rebuilt from files. Anything we show in their place must come from data that is there: the steps, their times and their own descriptions.
+**Conversation (0.3.5: verified from the Claude app's own code).** Read from the app's bundled JavaScript (build of 2026-10-27, `ion-dist.asar`, `ion/assets/v1/`: the module that turns messages into items, the one that lays out a turn's rows, the fold component, one call's label with its verb tables, and a fold's title). It corrects what 0.3.4 inferred from the screen.
+- **Verified:** every non-empty assistant text block shows in full, in order (the Code tab's adapter never folds narration). Nothing is folded into a whole-turn "Worked for" row: that is ChatGPT's Codex (§2).
+- **Verified:** each run of tool calls between two texts is **one fold line**. Thinking joins the neighbouring fold; its words show only with "show thinking" on.
+- **Verified:** a thinking block whose `signature` (base64 protobuf, field 2 → 1 → 8) reads `narration` is a narration line, drawn like reply text. It usually restates the text after it; both show.
+- **Verified, a fold's title for one call:** a command's own `description` with its first verb in the past tense, and each verb right after "and" or "then" too ("Record the Codex case and commit the on-screen app name" → "Recorded the Codex case and committed the on-screen app name"), only when the first word is a known verb, else as written ("Restamp the critique and commit req. 2"). No description: the shortened command; neither: "Ran a command". Read: "Read <file name>"; Write/Edit: "Created" or "Updated" <file name>, from the result's `toolUseResult.type`; Task/Agent: "Ran agent <description>"; WebSearch: "Searched web <query>". While running, the "-ing" form.
+- **Verified, a fold's title for any other call (found on the 0.3.5 walk, where ours said "Used mcp__Claude_Browser__computer"):** the app never shows a tool's raw name. Its own tools have their own words, by name and, where it matters, by action: the in-app browser ("Opened a page", a `computer` action "Clicked", "Typed", "Captured page"; a batch its first three different actions, "Ran page script, waited, captured page", the rest "+N"), Claude in Chrome in the same words, computer use, a simulator ("Captured screen", "Built app"), and its session tools ("Updated plan", "Marked chapter"). A built-in tool by its kind ("Loaded tools", "Proposed a plan"). Any other: "Used <server>: <Tool>", the tool's name split into words ("Used visualize: Show widget"), or "Used <Tool>" outside MCP. The tables are the app's own, generated from it into `claude_tool_words/table.rs`.
+- **Verified, several calls:** one phrase per kind of call in the order each kind first came, counting distinct commands and files ("ran 6 commands", "read a file"); grep is "searched code", glob "searched for files", a subagent "ran an agent". When every file the run touched is one file, it is named ("Ran a command, read accounts-screen-light.png"). First phrase capitalised, joined with ", ".
+- **Verified:** a message the person sends while the model works (`type: "attachment"`, `attachment.type: "queued_command"`, `origin.kind: "human"`, `commandMode: "prompt"`, its words in `attachment.prompt`) is drawn as their bubble at that point; the work after it is a new stretch. Task notifications (`origin.kind: "task-notification"`) and peers' messages (`isMeta: true`) are not the person's. User content that is only `<system-reminder>` blocks is stripped.
+- **Verified:** a live turn and a reloaded one draw the same; while running, the current fold shows its running label.
+- **Still true (0.3.4):** the one-sentence summaries the app may show above a fold come from a live helper and are not in the transcript; AI Juggler doesn't make them (it would mean sending the conversation to a model).
 
 **Subagents.**
 - **Verified:** each subagent has its own transcript under `<session>/subagents/agent-<id>.jsonl` with a `.meta.json`. The meta holds `toolUseId` (the parent's Agent call), `parentAgentId`, `agentType` and `description`.
@@ -77,12 +82,14 @@ Each claim below is marked **verified** (seen in records, source or docs) or **i
 | What | Release | State |
 |---|---|---|
 | A conversation reads on a near-black, neutral surface in the dark theme (white in the light one), as the tools' windows do | 0.3.4 | done |
-| A finished turn's work is one row, "Worked for 4 min · Ran 3 commands, edited a file · 2 notes", built from the turn's own times and steps, opening onto everything as written. The last text is the reply. The latest turn of a working session shows open. | 0.3.4 | done |
+| A finished turn's work is one row, "Worked for 4 min · Ran 3 commands, edited a file · 2 notes", built from the turn's own times and steps, opening onto everything as written. The last text is the reply. The latest turn of a working session shows open. | 0.3.4 | done for Codex; **wrong for Claude** (the Claude app has no such row: §1), replaced in 0.3.5 |
+| Claude Code conversations drawn as the Claude app draws them: every text in full, each run of work one line titled by the app's rules (`claude_folds.rs`), narration shown, a message sent mid-turn as its bubble, the running fold in its "-ing" form. Codex keeps the "Worked for" row. The adapter says which (`layout`), so the page has no tool branch. | 0.3.5 | done |
+| The conversation feed (ADR-0024): turns appended and grown in place under ids by byte offset, followed on the page's own channel while it shows, never emptied mid-turn | 0.3.5 | done |
 | The question card reads only the reply, never a "?" in a note | 0.3.4 | done |
 | Subagents tab: opens on Running only when something runs, else All, decided each time it's shown; the summary names failed, stopped and "with no recorded end"; "No type recorded" can be picked; other apps' pages get the D-48 line | 0.3.4 | done |
 | Codex: read `phase`, so a turn's final answer is the one Codex marked, and commentary after it still folds | 0.4 | planned |
 | Overview, beside the conversation, matches the apps' side lists: subagents **running now** (Claude's tasks pane) and **Active / Done** (Codex's panel), each opening its conversation in place; and **the sessions this one started** (`spawnedFrom`), each opening its page. Built with E31's related-items list. | 0.4 | planned |
-| A step's own description as its line ("Run the full preflight" instead of `ran "just preflight…"`), the label Claude Code itself shows | 0.4 | planned |
+| A step's own description as its line ("Run the full preflight" instead of `ran "just preflight…"`), the label Claude Code itself shows | 0.3.5 | done (the fold's title, §1) |
 
 **Not done, on purpose:**
 - We don't invent the app's titles or summaries. They aren't stored, and making them would mean sending conversation text to a model. AI Juggler reads a conversation on this Mac and keeps nothing of it.

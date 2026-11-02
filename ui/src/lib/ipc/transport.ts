@@ -9,7 +9,7 @@
  * there, so the block that reads the URL and imports ./devBridge is dead
  * code and goes (a test builds the bundle and checks).
  */
-import { invoke as tauriInvoke, type InvokeArgs } from "@tauri-apps/api/core";
+import { Channel, invoke as tauriInvoke, type InvokeArgs } from "@tauri-apps/api/core";
 import {
   listen as tauriListen,
   type EventCallback,
@@ -52,6 +52,17 @@ export function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T> {
       ? readOnly.then((transport) => transport.invoke<T>(cmd, args))
       : tauriInvoke<T>(cmd, args),
   );
+}
+
+/** A stream for a command's changes (a Tauri `Channel`). The read-only
+ * bridge carries none: what streams is message text, which it never
+ * serves (AJ-E2108), so the call goes without one and the bridge refuses
+ * it as any it doesn't serve, in words, never a crash (0.3.5). */
+export function channel<T>(onMessage: (message: T) => void): Channel<T> | null {
+  if (readOnly) return null;
+  const made = new Channel<T>();
+  made.onmessage = onMessage;
+  return made;
 }
 
 export function listen<T>(

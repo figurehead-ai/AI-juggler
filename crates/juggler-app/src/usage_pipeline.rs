@@ -158,13 +158,22 @@ pub fn spawn(state: Arc<AppState>) {
             tick = tick.wrapping_add(1);
             let pass_started = std::time::Instant::now();
             ingest_pass(&state, tick);
-            // Never a busy loop: sleep the remaining budget, at least
-            // the full cadence when a pass overruns (slow disk).
-            let elapsed = pass_started.elapsed();
-            let sleep_for = std::time::Duration::from_millis(PASS_EVERY_MS).saturating_sub(elapsed);
-            std::thread::sleep(sleep_for.max(std::time::Duration::from_millis(1)));
+            std::thread::sleep(pause_after(pass_started.elapsed()));
         }
     });
+}
+
+/// How long the pipeline sleeps after a pass that took `elapsed`: the
+/// rest of the cadence, and the whole cadence after a pass that overran
+/// it (0.3.5: it slept 1 ms then, so a slow pass ran back to back and
+/// kept a core busy).
+fn pause_after(elapsed: std::time::Duration) -> std::time::Duration {
+    let cadence = std::time::Duration::from_millis(PASS_EVERY_MS);
+    if elapsed >= cadence {
+        cadence
+    } else {
+        cadence.saturating_sub(elapsed)
+    }
 }
 
 /// P19: while a switch runs, its copy may be installed before the launch
@@ -791,6 +800,17 @@ fn tail_one(
     let offsets = ingest.offsets.entry(account.to_owned()).or_default();
     let offset = offsets.files.get(&key).copied().unwrap_or(0);
     let carry = offsets.carries.get(&key).cloned().unwrap_or_default();
+    // 0.3.5: a file read to its end is skipped by its size alone, never
+    // opened (each pass opened every transcript of every account).
+    if carry == juggler_adapters::RolloutCarry::default()
+        && offset > 0
+        && std::fs::metadata(path).is_ok_and(|meta| meta.len() == offset)
+    {
+        return juggler_adapters::TailOutcome {
+            offset,
+            ..juggler_adapters::TailOutcome::default()
+        };
+    }
     let mut outcome = tail(path, account, offset, &carry);
     if outcome.carry == juggler_adapters::RolloutCarry::default() {
         offsets.carries.remove(&key);
@@ -973,7 +993,12 @@ fn walk(root: &Path, out: &mut Vec<PathBuf>, keep: fn(&Path) -> bool, depth: u32
             continue;
         };
         let path = entry.path();
-        if path.is_dir() {
+        // The listing's own kind: no extra look per entry (a link to a
+        // folder is followed, as `is_dir` did).
+        let folder = entry
+            .file_type()
+            .is_ok_and(|kind| kind.is_dir() || (kind.is_symlink() && path.is_dir()));
+        if folder {
             complete &= walk(&path, out, keep, depth + 1);
         } else if keep(&path) {
             out.push(path);
@@ -1116,5 +1141,55 @@ mod chunk_tests {
                 .collect::<Vec<_>>(),
             [4, 2]
         );
+    }
+}
+
+#[cfg(test)]
+mod cadence_tests {
+    use super::*;
+
+    /// 0.3.5: a pass that overran its second waits a whole second before
+    /// the next, never 1 ms (it kept a core busy on a large setup).
+    #[test]
+    fn a_pass_that_overran_waits_a_whole_cadence() {
+        let cadence = std::time::Duration::from_millis(PASS_EVERY_MS);
+        assert_eq!(pause_after(std::time::Duration::from_secs(5)), cadence);
+        assert_eq!(pause_after(cadence), cadence);
+        assert_eq!(
+            pause_after(std::time::Duration::from_millis(300)),
+            cadence - std::time::Duration::from_millis(300)
+        );
+    }
+
+    /// 0.3.5: a file already read to its end isn't handed to the reader
+    /// (opened) again; one that grew is.
+    #[test]
+    fn a_file_read_to_its_end_is_skipped_by_its_size() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.jsonl");
+        std::fs::write(&path, "{}\n").unwrap();
+        let mut ingest = IngestState::default();
+        let mut store = Vec::new();
+        static OPENED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        fn tail(
+            _: &Path,
+            _: &str,
+            _: u64,
+            _: &juggler_adapters::RolloutCarry,
+        ) -> juggler_adapters::TailOutcome {
+            OPENED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            juggler_adapters::TailOutcome {
+                offset: 3,
+                ..juggler_adapters::TailOutcome::default()
+            }
+        }
+        let opened = || OPENED.load(std::sync::atomic::Ordering::SeqCst);
+        tail_one("a", "transcript", &path, tail, &mut ingest, &mut store);
+        assert_eq!(opened(), 1, "a new file is read");
+        tail_one("a", "transcript", &path, tail, &mut ingest, &mut store);
+        assert_eq!(opened(), 1, "read to its end: skipped");
+        std::fs::write(&path, "{}\n{}\n").unwrap();
+        tail_one("a", "transcript", &path, tail, &mut ingest, &mut store);
+        assert_eq!(opened(), 2, "it grew: read again");
     }
 }

@@ -218,13 +218,16 @@ pub fn app_sessions(instance_dir: &Path) -> Vec<AppSession> {
         .collect()
 }
 
+/// The Claude app's id in the host registry.
+pub const CLAUDE_APP_HOST: &str = "claude-app";
+
 /// The Claude app, as data: one bundle id for every instance, told apart
 /// by `--user-data-dir` (so Go to it activates the instance's process,
 /// never the bundle id).
 #[must_use]
 pub fn host_apps() -> Vec<HostApp> {
     vec![HostApp {
-        id: "claude-app".to_owned(),
+        id: CLAUDE_APP_HOST.to_owned(),
         name: "Claude".to_owned(),
         bundle: "Claude.app".to_owned(),
         bundle_id: Some("com.anthropic.claudefordesktop".to_owned()),
@@ -236,6 +239,12 @@ pub fn host_apps() -> Vec<HostApp> {
         folder_command: None,
         tab_script: None,
         shown: Some("Claude app".to_owned()),
+        // How a profile is paired with its Claude Code folder, and how
+        // Claude Code itself hands a session to the app (`--desktop`
+        // opens this link); the app records what it took here.
+        folder_env: Some("CLAUDE_CONFIG_DIR".to_owned()),
+        handoff_link: Some("claude://resume?session={id}".to_owned()),
+        handoff_record: Some("claude-code-sessions".to_owned()),
     }]
 }
 

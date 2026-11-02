@@ -108,7 +108,7 @@ const PAGE_FIXTURE = {
   subscriptions: [account("work", ["claude-work", "claude-work-2"], { plan: "Max" }), account("me", ["claude-personal"], { email: "o…@me.com", plan: "Pro" })],
   last_messages: {
     "asks-1": { state: "shown", redacted: 1, turns: askingTurns(T0) },
-    "work-1": { state: "shown", redacted: 0, turns: workingTurns(T0) },
+    "work-1": { state: "shown", redacted: 0, layout: "folded", turns: workingTurns(T0) },
     "822e4125-e07d-4866-9954-ec9295efb079": {
       state: "shown",
       redacted: 0,
@@ -212,9 +212,9 @@ for (const theme of ["dark", "light"] as const) {
     await openConversation(page, "Fix the flaky checkout test");
     await page.getByTestId("last-messages-scroll").evaluate((box) => (box.scrollTop = 0));
     await expect(page.getByTestId("last-messages-earlier")).toBeVisible();
-    // 0.3.4: a turn's work is folded under one row first; its steps inside.
-    await page.getByTestId("last-turn-work-toggle").first().click();
-    await page.getByTestId("last-turn-steps").first().getByRole("button").click();
+    // 0.3.5: a Claude turn's runs of work are one line each, as in the
+    // Claude app; one opens onto its steps.
+    await page.getByTestId("last-turn-fold-toggle").first().click();
     await expect(page.getByTestId("last-turn-step-lines").first()).toContainText('ran "pnpm vitest run checkout --repeat 40"');
     await page.getByTestId("last-messages-earlier").click();
     await expect(page.getByTestId("last-turn")).toHaveCount(32);

@@ -56,7 +56,7 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const running = place.app_pid !== null;
   // The open tiles' word for it ("Claude app"), D-64.
   const app = knownAppWord(place);
-  const name = appName(app, place.instance ?? place.profile);
+  const name = appName(app, place.profile ?? place.instance);
   const verb = running ? "Open" : "Start";
   const start = () => {
     showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });

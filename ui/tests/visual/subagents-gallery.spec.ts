@@ -239,7 +239,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("switcher-own")).toHaveAttribute("aria-current", "true");
     await expect(page.getByTestId("switcher-running").getByTestId("switcher-subagent")).toHaveCount(3);
     await expect(page.getByTestId("switcher-started").getByTestId("switcher-started-session")).toHaveCount(1);
-    await expect(page.getByTestId("switcher-done-toggle")).toContainText("Done · 7");
+    await expect(page.getByTestId("switcher-done-toggle")).toContainText("Finished subagents · 7");
     await shoot(page, "switcher-own", theme);
     await page.getByTestId("switcher-done-toggle").click();
     await page.getByTestId("switcher-subagent").filter({ hasText: "Find where the suite's fixtures are written" }).click();

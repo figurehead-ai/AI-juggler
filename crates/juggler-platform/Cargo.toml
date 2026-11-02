@@ -22,6 +22,11 @@ tokio = { version = "1.53.3", default-features = false, features = ["net"] }
 # This computer's memory, for the local cache's size (ADR-0023).
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 
+# 0.3.5: an "open this link" event to one process (`apps::send_link`),
+# through Foundation's safe bindings (no `unsafe` here).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSString", "NSDate", "NSError", "objc2-core-services", "libc"] }
+
 [target."cfg(unix)".dependencies]
 # The effective user id (safe bindings; no `unsafe` here).
 nix = { version = "0.31.3", features = ["user", "fs"] }

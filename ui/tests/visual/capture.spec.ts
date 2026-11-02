@@ -2837,7 +2837,8 @@ for (const theme of THEMES) {
 
     test(`confirm — nothing missing — ${vp.name} — ${theme}`, async ({ page }) => {
       await confirmWith(page, { from: "Work Max", to: "Personal", offers: [], already_there: 6 }, "nothing-missing");
-      await expect(page.getByTestId("switch-summary-needs")).toContainText("Nothing needs you");
+      // 0.3.5: nothing needing you says nothing; Details says the target has it all.
+      await expect(page.getByTestId("switch-summary-needs")).toHaveCount(0);
     });
 
     test(`confirm — can be set up — ${vp.name} — ${theme}`, async ({ page }) => {
@@ -2858,6 +2859,8 @@ for (const theme of THEMES) {
       const secret = page.getByTestId("switch-setup-secret-steps");
       await secret.scrollIntoViewIfNeeded();
       await expect(secret).toContainText("without the value");
+      // 0.3.5: the steps and the command wait behind Show me how.
+      await secret.getByTestId("switch-setup-show-how").click();
       await expect(page.getByTestId("switch-setup-command")).toContainText("<your GITHUB_TOKEN>");
       await page.screenshot({ path: resolve(GALLERY, `28-switch/confirm-token-steps-${vp.name}-${theme}.png`) });
     });
@@ -4787,7 +4790,7 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("switch-carry-stays")).toContainText("The task list");
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/carried-1280x800-${theme}.png`) });
     await page.getByTestId("cross-switch-next").click();
-    await expect(page.getByTestId("cross-switch-go")).toHaveText("Switch now");
+    await expect(page.getByTestId("cross-switch-go")).toHaveText(/^Switch to CLI on /);
     await page.screenshot({ path: resolve(GALLERY, `50-cross-switch/confirm-1280x800-${theme}.png`) });
     // The push, held: Esc says it's still sending, and only Stop sending stops it.
     await page.evaluate(() => {
@@ -6147,7 +6150,7 @@ for (const theme of THEMES) {
     await openSwitchWith(page, theme, roomSeams);
     await pickTarget(page, /Personal/);
     await expect(page.getByTestId("switch-summary-room")).toHaveText("Personal is out of room: see below before you switch.");
-    await expect(page.getByTestId("switch-confirm")).toHaveText("Switch anyway");
+    await expect(page.getByTestId("switch-confirm")).toHaveText("Switch to CLI anyway");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(GALLERY, `28-switch/switch-anyway-1280x900-${theme}.png`) });
   });

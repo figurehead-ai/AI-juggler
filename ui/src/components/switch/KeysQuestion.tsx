@@ -107,7 +107,8 @@ export function KeysQuestion({
       <label className="flex items-start gap-2.5 text-body text-ink">
         <Radio name="switch-keys" className={radio} checked={answer === "strip"} onChange={() => onAnswer("strip")} data-testid="switch-keys-hide" />
         <span>
-          <span className="font-semibold">Hide them</span> <span className="text-label text-success">recommended</span>
+          <span className="font-semibold">Hide them</span>{" "}
+          <span className="ml-1 rounded-full border border-success/30 bg-success-soft px-1.5 py-px text-label font-medium text-success">recommended</span>
           <span className="block text-meta">
             {tool} sees <code className="font-mono">OPENAI_API_KEY=•••</code> instead of the key. If it needs a key, it will ask you.
           </span>

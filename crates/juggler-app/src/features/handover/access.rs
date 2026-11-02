@@ -3,7 +3,10 @@
 //! the middle of a switch, the new session opened on Claude Code's setup
 //! screen, and AI Juggler still said "switched"). It reads the
 //! conversation it will carry, and asks the target's tool whether a launch
-//! there can work ([`juggler_adapter::readiness`]). Nothing is written.
+//! there can work ([`juggler_adapter::readiness`]). Nothing is written,
+//! but for one step the user's switch takes (0.3.5): a target whose tool is
+//! signed in but hasn't done its own first run has it finished, as the tool
+//! itself would ([`finish_first_run`]).
 
 use std::path::Path;
 use std::sync::Arc;
@@ -26,11 +29,39 @@ pub fn check_switch_access(
 ) -> AppResult<()> {
     probe_read(transcript).map_err(|not| refusal(&not, &target.label))?;
     if let Some(adapter) = state.registry.get(&target.harness) {
-        adapter
-            .launch_ready(&target.state_dir)
-            .map_err(|not| refusal(&not, &target.label))?;
+        match adapter.launch_ready(&target.state_dir) {
+            // 0.3.5: the switch finishes it as it goes (`finish_first_run`).
+            Ok(()) | Err(NotReady::FirstRun) => {}
+            Err(not) => return Err(refusal(&not, &target.label)),
+        }
     }
     Ok(())
+}
+
+/// 0.3.5: a switch the user started into `target` finishes its tool's
+/// first-run setup when that's all that's left (a Claude app profile's
+/// folder), as the tool itself would. Whether it did.
+///
+/// # Errors
+///
+/// The tool couldn't mark it done; nothing else was changed.
+pub fn finish_first_run(state: &Arc<AppState>, target: &Account) -> AppResult<bool> {
+    let Some(adapter) = state.registry.get(&target.harness) else {
+        return Ok(false);
+    };
+    if adapter.launch_ready(&target.state_dir) != Err(NotReady::FirstRun) {
+        return Ok(false);
+    }
+    adapter
+        .complete_first_run(&target.state_dir)
+        .map_err(|error| AppError::Io {
+            context: "switch",
+            message: format!(
+                "Can't continue on {} yet: AI Juggler couldn't finish its first-run setup ({error}). Nothing else was changed.",
+                target.label
+            ),
+        })?;
+    Ok(true)
 }
 
 /// 0.3.4: what would stop a launch on `target` (its tool's own check),
@@ -56,8 +87,13 @@ pub fn blocker_words(not: &NotReady) -> String {
             home_short(path)
         ),
         NotReady::NotSetUp(why) => why.clone(),
+        NotReady::FirstRun => FIRST_RUN_WORDS.to_owned(),
     }
 }
+
+/// 0.3.5: a target whose tool hasn't done its first run, in its row.
+pub const FIRST_RUN_WORDS: &str =
+    "Its first-run setup isn't done yet; AI Juggler finishes it as it switches, as the tool would.";
 
 /// The words for what stops it.
 #[must_use]
@@ -67,6 +103,7 @@ pub fn refusal_words(not: &NotReady, target: &str) -> String {
         NotReady::NotSetUp(why) => {
             format!("Can't continue on {target} yet. {why} Nothing was changed.")
         }
+        NotReady::FirstRun => format!("{target}: {FIRST_RUN_WORDS}"),
     }
 }
 
