@@ -46,6 +46,8 @@ RUNNER_ONLY = (
     "rustup component add",
     "cargo fetch",
     "rm -rf target",
+    "find target",
+    "du -sh",
     "for ",
     "done",
     "base=",

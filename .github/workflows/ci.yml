@@ -190,11 +190,6 @@ jobs:
           python3 scripts/ci_parity.py
       - name: Format
         run: cargo fmt --all --check
-      - name: Free runner disk
-        run: |
-          df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
-          df -h /
       - name: Install Tauri system dependencies (Linux)
         run: |
           sudo apt-get update
@@ -263,19 +258,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      # Line tables only: a failing test still names its file and line, but
-      # the test build is a fraction of its size. With full debug info it
-      # took about 100 GB (main had 3.3 GB left before coverage on
-      # 2026-10-29) and 0.3's dev-bridge build ran out of disk (#198).
-      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      # No debug info: a failing test still names its file and line (the
+      # panic carries them), and the archive every partition downloads is
+      # a fraction of the size (5.4 GB with line tables, 2026-11-02). Full
+      # debug info once took about 100 GB (#198). The runner has room
+      # (88 GB free on 2026-11-02), so no SDK is removed first.
+      CARGO_PROFILE_DEV_DEBUG: "0"
     steps:
-      # Every test binary outgrew the runner's free disk once (#148,
-      # 2026-10-23). This job never uses these preinstalled SDKs.
-      - name: Free runner disk
-        run: |
-          df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
-          df -h /
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -285,9 +274,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev libxdo-dev libssl-dev
-      # The test build only ("verify": the name the single job before
-      # ADR-0024 saved it under, so main's cache still serves). "-lt":
-      # line tables only (above).
+      # The dependencies of the test build ("-d0": no debug info, above).
+      # Only theirs: the workspace's own crates rebuild on every checkout
+      # anyway (new files), so they are left out before saving.
       - name: Cargo cache
         id: cargo-cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -297,8 +286,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-verify-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-verify-cargo-lt-
+          key: ${{ runner.os }}-tests-cargo-d0-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-tests-cargo-d0-
       - name: Install cargo-nextest (release binary, checked)
         env:
           NEXTEST: cargo-nextest-0.9.146-x86_64-unknown-linux-gnu.tar.gz
@@ -320,7 +309,18 @@ jobs:
           retention-days: 1
           compression-level: 0
           if-no-files-found: error
-      - name: Save the Cargo cache (the test build)
+      # Swatinem/rust-cache's rule, by hand (GitHub-owned actions only): the
+      # workspace's own artifacts and the test binaries out, the
+      # dependencies in (a 6 GB cache took 4 minutes to restore).
+      - name: Keep the dependencies only
+        if: steps.cargo-cache.outputs.cache-hit != 'true'
+        run: |
+          rm -rf target/debug/incremental target/nextest
+          find target/debug -maxdepth 1 -type f -delete
+          find target/debug/deps -maxdepth 1 -type f -perm -u+x ! -name '*.so' -delete
+          find target/debug/deps target/debug/.fingerprint target/debug/build -maxdepth 1 -name '*juggler*' -exec rm -rf {} +
+          du -sh target
+      - name: Save the Cargo cache (the dependencies)
         if: steps.cargo-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -412,13 +412,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      # As the test build, whose cache this job reads.
+      CARGO_PROFILE_DEV_DEBUG: "0"
     steps:
-      - name: Free runner disk
-        run: |
-          df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
-          df -h /
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -437,8 +433,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-verify-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-verify-cargo-lt-
+          key: ${{ runner.os }}-tests-cargo-d0-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-tests-cargo-d0-
       - name: Doctests
         run: cargo test --workspace --doc
       - name: Read-only test bridge's tests (Dev builds only)
