@@ -5920,6 +5920,32 @@ pub fn switch_execute_impl(
     )
 }
 
+/// 0.3.5: [`switch_execute_impl`] continuing in `destination` (`desktop`
+/// or `cli`), as the confirm step's choice sends it (walks and tests).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on any failure.
+pub fn switch_execute_to(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    freeze_choice: &str,
+    destination: &str,
+) -> AppResult<SwitchExecutedInfo> {
+    switch_execute_core(
+        state,
+        session_id,
+        target_profile_id,
+        freeze_choice,
+        None,
+        &[],
+        "manual",
+        &[],
+        Some(destination),
+    )
+}
+
 /// [`switch_execute_impl`] with the offers the user ticked that the switch
 /// itself carries out (see [`switch_execute`]).
 ///
