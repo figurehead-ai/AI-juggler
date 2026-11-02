@@ -154,6 +154,16 @@ export function rememberedTab(kind: PageKind, tabs: PageTab[]): PageTabId {
   return tabs.find((tab) => tab.id === saved)?.id ?? tabs[0]!.id;
 }
 
+/** The tab this type of page was last left on, whether or not this
+ * item has it (`null`: none remembered). */
+export function rememberedTabId(kind: PageKind): PageTabId | null {
+  try {
+    return localStorage.getItem(MEMORY(kind)) as PageTabId | null;
+  } catch {
+    return null;
+  }
+}
+
 export function rememberTab(kind: PageKind, tab: PageTabId): void {
   try {
     localStorage.setItem(MEMORY(kind), tab);

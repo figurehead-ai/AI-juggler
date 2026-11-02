@@ -269,7 +269,7 @@ test("launch keys — ⌘N New session, ⌘⇧N New project, ⌥⌘N notificatio
 async function toSwitchRow(page: Page, stops: Stop[]): Promise<Stop> {
   await page.locator("body").focus();
   await tabToEl(page, stops, "[data-testid='rail-list'] [data-rail-item], [data-testid='rail-list'] [data-rail-nav]");
-  await arrowTo(page, stops, /Work Max/);
+  await arrowTo(page, stops, /\bon Work Max\b/);
   await page.keyboard.press("Enter");
   await leaveTerminalIfFocused(page, stops);
   const opener = await focused(page);

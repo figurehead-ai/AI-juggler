@@ -12,8 +12,8 @@ use crate::paging::Page;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SubagentsQuery {
-    /// `running`, `attention` (failed, stopped, unknown) or `all` (the
-    /// default).
+    /// `running`, `attention` (failed, stopped, unknown), `done` (every
+    /// one not running) or `all` (the default).
     #[serde(default)]
     pub view: Option<String>,
     /// Words to find in a subagent's task, prompt, result, type or files;
@@ -79,6 +79,10 @@ pub struct SubagentsSummaryInfo {
     pub running: u32,
     /// Ended with an error.
     pub failed: u32,
+    /// Stopped before it finished.
+    pub stopped: u32,
+    /// How it ended isn't on record.
+    pub unknown: u32,
     /// Failed, stopped or unknown: the Needs attention view.
     pub attention: u32,
     /// Their tokens together (`null`: not recorded per subagent).

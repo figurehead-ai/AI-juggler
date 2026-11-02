@@ -405,6 +405,7 @@ fn host_of(place: &KnownPlace, profile: Option<String>, pid: u32, start: Option<
     Host {
         app_id: Some(place.app_id.clone()),
         name: place.name.clone(),
+        shown: place.name.clone(),
         kind: Some(juggler_adapter::live::HostKind::Desktop),
         pid,
         start,

@@ -1,4 +1,4 @@
-<!-- captures: e974120a8c33 -->
+<!-- captures: 983f551edf27 -->
 # 92-session-pages: a session's page, for each kind of session
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -59,3 +59,13 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 ## 0.3.2
 
 Go to it is solid violet in the header, and the "Claude asks you" band below carries a second solid violet Go to it, so outside-asks, outside-steps-open, last-messages-off and account-menu-open show two equal primaries on one screen. Cards stand off the canvas in both themes, the band is a warm amber (dark) or peach (light) well, and outside-ended's "Continue in AI Juggler" is the single primary beside an outlined Copy resume command. After the design fixes the dark captures carry the lighter accent on the logo mark, both Go to it buttons, New session, Continue in AI Juggler, the Runway bars, the Usage tab's bar charts and the "Measure its limits ›" link, all brighter against the near-black; the light captures changed only in the top bar, which stays one row: at 1280 and up "This Mac · Plenty of room" and the whole "7 to clean up" pill, at 1024 (account-menu-open-1024x700) a broom and "7" in place of the words, so the bar no longer crowds Go to it. The right column's "Continue on another account" card still ends under the "More below" fade, which in outside-working-1280x800 slices "Week resets Thu 2:13 AM" in half, and at 200 % zoom (outside-asks-2000x1100-zoom200) the conversation still shrinks to the cut bottom of one line above the asks band. On the Usage tab the chart legend and the By kind list give different totals for the same session (Input 5.3M and Output 1.2M against 6.2M and 1.4M; 1.3M and 282k against 1.4M and 301k in usage-not-measured) without saying why. outside-steps-open shows "Ran 2 commands" folded rather than its steps. After the second pass its dark capture opens the rail at the top again, with the search, the App · Project · Account switch and the Needs you header in view like the light one; the rail's feat/read-model row keeps its age whole ("ai-j… · 3 h ago" where it read "ai-jugg… · 3 …"); and in own-overview the terminal's black reaches the card's edge in both themes, without the lighter or white frame. The sixteen before/* captures were not re-rendered and keep the 0.3.1 colours.
+
+## 0.3.4
+
+The maintainer, testing 0.3.3: the conversation showed every note written between steps, where the tools' own windows fold a turn's work; and white text on blue-grey was hard to read at length.
+
+- Every conversation capture (outside-asks at all four sizes, outside-working, outside-steps-open, own-overview, account-menu-open, last-messages-off, usage) now has the conversation card on the near-black reading surface (#0d0d0e, measured) under neutral text. The side cards keep their blue-grey, so the conversation reads as its own pane. In light the card is white with neutral greys.
+- A finished turn is the person's message, one quiet row ("Worked for 1 min · Ran 2 commands"), then the reply. outside-steps-open shows that row opened onto its steps, and the steps opened to their lines. The latest turn of a working session (outside-working) shows open as it goes.
+- "Claude asks you" quotes the question in the reply, never one from the notes.
+- Weak: at 200 % zoom (outside-asks-2000x1100-zoom200) the conversation is still a sliver above the asks band, as in 0.3.2.
+

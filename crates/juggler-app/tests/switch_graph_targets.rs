@@ -268,6 +268,50 @@ fn switch_targets_come_in_the_rankings_order() {
     assert_eq!(preflight.target_account, second.id);
 }
 
+/// 0.3.4, the maintainer's walk: personal-max read "Ready", then the
+/// switch refused it ("hasn't been set up"). A target the switch's own
+/// launch check would refuse is held back in the list, with its words
+/// and a way to finish its setup, and never suggested.
+#[test]
+fn a_target_the_switch_would_refuse_is_held_back() {
+    let work = tempfile::tempdir().unwrap();
+    let source = launch_source(work.path());
+    let state = &source.state;
+    // Signed in, but Claude Code's first-run setup not done there (it
+    // clears it after a sign-in change).
+    let fresh = commands::create_account(state, CLAUDE_CODE_ID, "Signed in again", None).unwrap();
+    let ready = set_up::set_up(
+        state,
+        commands::create_account(state, CLAUDE_CODE_ID, "Ready", None).unwrap(),
+    );
+    for account in [&fresh, &ready] {
+        sign_in(state, &account.id);
+        commands::create_profile(state, &account.id, "Main", None, None).unwrap();
+    }
+    std::fs::write(
+        config_dir_of(state, &fresh.id).join(".claude.json"),
+        r#"{"hasCompletedOnboarding":false}"#,
+    )
+    .unwrap();
+
+    let targets = commands::switch_targets_impl(state, &source.session_id).unwrap();
+    let held = targets
+        .iter()
+        .find(|t| t.account_label == "Signed in again")
+        .unwrap();
+    let words = held.filtered_reason.as_deref().unwrap_or_default();
+    assert!(words.contains("first-run setup"), "{words}");
+    assert_eq!(
+        held.held_back,
+        Some(commands::HeldBack::SetUp),
+        "a session started there finishes it"
+    );
+    assert!(!held.suggested);
+    let fine = targets.iter().find(|t| t.account_label == "Ready").unwrap();
+    assert_eq!(fine.filtered_reason, None);
+    assert_eq!(fine.held_back, None);
+}
+
 #[test]
 fn graph_renders_the_round_trip_and_hop_note() {
     let work = tempfile::tempdir().unwrap();

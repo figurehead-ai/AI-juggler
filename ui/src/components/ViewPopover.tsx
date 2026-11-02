@@ -34,9 +34,10 @@ function Section({ children }: { children: string }): JSX.Element {
   return <span className="px-2 pb-0.5 pt-1 text-label font-semibold text-muted">{children}</span>;
 }
 
-export function ViewPopover({ options }: { options: Record<OnlyKey, { value: string; label: string }[]> }): JSX.Element {
+export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey, { value: string; label: string }[]>; onOpenChange?: (open: boolean) => void }): JSX.Element {
   const view = useRailView();
   const [at, setAt] = useState<MenuAt | null>(null);
+  useEffect(() => onOpenChange?.(at !== null), [at, onOpenChange]);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const changed = viewChanged(view);
   const open = at !== null;

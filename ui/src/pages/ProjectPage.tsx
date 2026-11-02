@@ -5,13 +5,11 @@
  * account starts work here, how the work travelled).
  */
 import { AccountAvatar } from "../components/Avatar";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
-import { PROJECT_SYNC_EVENT, ProjectSyncSheet } from "../components/ProjectSyncSheet";
-import { projectSyncRules } from "../lib/ipc/projectSync";
+import { ProjectSyncSheet } from "../components/ProjectSyncSheet";
 import { useConversations, outside } from "../lib/conversations";
-import { projectsGitStatus } from "../lib/ipc/projects";
-import type { GitStatusInfo } from "../types/generated/GitStatusInfo";
+import { useProjectGit, useProjectRules } from "./project/checkout";
 import { useActionHost } from "../components/ItemMenu";
 import { useProjectManage } from "../components/ManageWork";
 import { ProjectDefaultAccount } from "../components/ProjectDefaultAccount";
@@ -45,18 +43,8 @@ export type ProjectPanelProps = {
  * and what isn't committed — read from its own root; until that answers
  * (or for a folder that isn't a git checkout), its sessions' branches. */
 export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sessions: InstanceInfo[] }) {
-  const [git, setGit] = useState<GitStatusInfo | null>(null);
-  useEffect(() => {
-    let alive = true;
-    setGit(null);
-    projectsGitStatus(project.id).then(
-      (status) => alive && setGit(status),
-      () => undefined,
-    );
-    return () => {
-      alive = false;
-    };
-  }, [project.id]);
+  // The last answer at once (0.3.4), read again as the page opens.
+  const git = useProjectGit(project.id) ?? null;
   const branches = git?.branch
     ? [git.branch]
     : [...new Set(sessions.filter((s) => s.project_id === project.id && s.git_branch).map((s) => s.git_branch!))];
@@ -86,27 +74,10 @@ export function ProjectFacts({ project, sessions }: { project: ProjectInfo; sess
  * "1 rules file differs"), opening the sheet that compares them. Nothing
  * shows where there's nothing to compare. */
 function RulesLine({ project }: { project: ProjectInfo }) {
-  const [summary, setSummary] = useState<{ words: string; inSync: boolean } | null>(null);
+  // Kept per project (0.3.4); read again as the page opens and when the
+  // rules sheet closes (it can also be opened from the project's menu).
+  const summary = useProjectRules(project.id);
   const [open, setOpen] = useState(false);
-  const read = useCallback(() => {
-    let alive = true;
-    projectSyncRules(project.id).then(
-      (rules) => alive && setSummary(rules.summary ? { words: rules.summary, inSync: rules.in_sync } : null),
-      () => alive && setSummary(null),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [project.id]);
-  useEffect(read, [read]);
-  // The sheet can also be opened from the project's menu.
-  useEffect(() => {
-    const again = (event: Event) => {
-      if ((event as CustomEvent<string>).detail === project.id) read();
-    };
-    window.addEventListener(PROJECT_SYNC_EVENT, again);
-    return () => window.removeEventListener(PROJECT_SYNC_EVENT, again);
-  }, [project.id, read]);
   if (!summary) return null;
   return (
     <>

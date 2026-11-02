@@ -102,7 +102,13 @@ type Locator = import("@playwright/test").Locator;
 export async function settle(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle");
   await page.locator("html:not([data-loading-parts])").waitFor({ state: "attached" });
-  await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+  // Fonts that land late re-raster text and edges: the determinism test
+  // differed in a card's corner pixels 7 runs in 22 without this wait,
+  // 2 in 24 with it (0.3.4).
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())));
+  });
 }
 
 /** In the gate's `gallery` project, a capture (the page's or one

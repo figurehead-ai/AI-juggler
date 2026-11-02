@@ -51,7 +51,7 @@ export interface RunwayLine {
   credits?: CreditsCover | null;
 }
 
-export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; sessions: InstanceInfo[]; advice: string | null }): JSX.Element {
+export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advice }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[]; advice: string | null }): JSX.Element {
   const host = useActionHost();
   const subscriptions = useSubscriptions();
   const lineOf = (group: AccountGroup): RunwayLine => {
@@ -83,6 +83,9 @@ export function HomeRunway({ accounts, quota, sessions, advice }: { accounts: Ac
                   {credits ? "On credits" : row.left !== null ? `${row.left}% left` : "—"}
                 </span>
               </div>
+              {/* Before the first reading its meter's track holds the row's
+                  height, so the reading doesn't push what's below. */}
+              {!quotaKnown && row.left === null && <div className="h-1.5 rounded-full bg-surface-3" aria-hidden="true" data-testid="home-runway-meter-pending" />}
               {row.left !== null && (
                 <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={row.left} aria-label={`${group.name}: ${row.words}`}>
                   <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />

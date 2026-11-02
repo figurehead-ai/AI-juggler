@@ -17,7 +17,7 @@ import { pageTabs } from "../registry";
 import { SubagentsTab } from "./SubagentsTab";
 import { useHasSubagents, useHeardSubagentCounts } from "./useSubagents";
 import type { SessionModel } from "./model";
-import { SessionNotes, subagentsLineWords } from "../../components/SessionNotes";
+import { ConversationSubagents, SessionNotes, subagentsLineWords } from "../../components/SessionNotes";
 import { MOCK_SESSIONS } from "../../lib/bridge";
 import { pick } from "../../test/pick";
 
@@ -85,7 +85,7 @@ const listed = (items: SubagentRowInfo[], extra: Partial<SubagentsInfo> = {}): S
     state: "listed",
     reason: null,
     page: { items, next_cursor: null, total: items.length },
-    summary: { total: agents.length, running, failed: agents.filter((a) => a.status === "failed").length, attention: agents.filter((a) => a.status === "failed").length, tokens: 36_000, share_pct: 41, counted: "in_session" },
+    summary: { total: agents.length, running, failed: agents.filter((a) => a.status === "failed").length, stopped: 0, unknown: 0, attention: agents.filter((a) => a.status === "failed").length, tokens: 36_000, share_pct: 41, counted: "in_session" },
     kinds: [
       { kind: "general-purpose", count: 2 },
       { kind: "Explore", count: 1 },
@@ -179,6 +179,25 @@ describe("AJ-E1520 the Subagents tab", () => {
     const running = await screen.findByRole("radio", { name: "Running 1" });
     expect(running.getAttribute("aria-checked")).toBe("true");
     expect((await screen.findByTestId("subagents-none-match")).textContent).toContain("Nothing is running now.");
+  });
+
+  it("0.3.4: shown after everything finished, it opens on All, never an empty Running; Needs attention's parts are each said", async () => {
+    // The page opened while one ran (the tab mounts hidden then); by the
+    // time the tab is shown, nothing runs: 18 failed, 1 stopped, 1 with
+    // no recorded end make up Needs attention 20.
+    const done = TREE.map((r) => (r.agent?.status === "running" ? { ...r, agent: { ...r.agent, status: "completed", ended_ms: NOW - 60_000 } } : r));
+    const summary = { ...listed(done).summary, running: 0, failed: 18, stopped: 1, unknown: 1, attention: 20 };
+    vi.spyOn(ipc, "subagentsList").mockResolvedValue({ ...listed(done), summary, running: 0 });
+    const tab = (visible: boolean) => <SubagentsTab model={{ ...model, conversationId: "c-done" }} title="Fix the cart totals" visible={visible} now={NOW} />;
+    const view = render(tab(false));
+    view.rerender(tab(true));
+    await waitFor(() => expect(screen.getByRole("radio", { name: "All" }).getAttribute("aria-checked")).toBe("true"));
+    expect(screen.queryByTestId("subagents-none-match")).toBeNull();
+    expect(screen.getByRole("radio", { name: "Needs attention 20" })).toBeTruthy();
+    const words = screen.getByTestId("subagents-summary").textContent!;
+    expect(words).toContain("18 failed");
+    expect(words).toContain("1 stopped");
+    expect(words).toContain("1 with no recorded end");
   });
 
   it("a subagent's page: its task, result, work, usage, processes and how to stop it; Esc goes back", async () => {
@@ -313,5 +332,18 @@ describe("AJ-E1520 the session's line to its Subagents tab", () => {
     expect(screen.queryByTestId("session-subagents-line")).toBeNull();
     expect(subagentsLineWords({ total: 1, running: 0 })).toBe("1 subagent");
     expect(subagentsLineWords({ total: 2, running: 2 })).toBe("2 subagents · 2 running");
+  });
+
+  it("0.3.4 (D-48): another app's session page says it too, inline, and the line opens the tab", async () => {
+    vi.spyOn(ipc, "subagentsList").mockResolvedValue(listed(TREE));
+    const Outside = () => {
+      useHasSubagents("work", "c-outside", true);
+      return <ConversationSubagents accountId="work" conversationId="c-outside" />;
+    };
+    render(<Outside />);
+    const line = await screen.findByTestId("session-subagents-line");
+    expect(line.tagName).toBe("SPAN");
+    expect(line.textContent).toContain("3 subagents · 1 running");
+    expect(within(line).getByRole("button", { name: "Open its subagents: 3 subagents · 1 running" })).toBeTruthy();
   });
 });

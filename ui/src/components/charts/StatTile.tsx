@@ -67,6 +67,7 @@ export function StatTile({
   words,
   atLeast = false,
   estimate = false,
+  holdSpace = false,
   testId,
 }: {
   label: string;
@@ -94,6 +95,10 @@ export function StatTile({
   atLeast?: boolean;
   /** The number is an estimate (a cost at API prices): "~$12" (§10). */
   estimate?: boolean;
+  /** Its first figures are on their way: the change line and the
+   * sparkline keep their space meanwhile (0.3.4: the tiles grew a read
+   * later, pushing the page down). */
+  holdSpace?: boolean;
   testId?: string;
 }): JSX.Element {
   return (
@@ -109,12 +114,17 @@ export function StatTile({
         {suffix && value !== null && <span className="ml-1 text-section font-medium text-muted">{suffix}</span>}
       </span>
       {before != null && period && value !== null && <Delta now={value} before={before} better={better} period={period} />}
+      {holdSpace && value === null && <span aria-hidden="true" className="w-16 rounded-md bg-skeleton px-1.5 py-0.5 text-label motion-safe:animate-pulse">&nbsp;</span>}
       {note && <span className="text-label text-muted">{note}</span>}
-      {trend && trend.length > 1 && (
+      {trend && trend.length > 1 ? (
         <div className="mt-auto pt-1">
           <Sparkline values={trend} label={`${label}, over the range`} />
         </div>
-      )}
+      ) : holdSpace && value === null ? (
+        <div className="mt-auto pt-1" aria-hidden="true">
+          <Sparkline values={[]} label={label} />
+        </div>
+      ) : null}
     </div>
   );
 }

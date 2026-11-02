@@ -82,6 +82,7 @@ pub fn host_apps() -> Vec<HostApp> {
         folder_link: None,
         folder_command: None,
         tab_script: None,
+        shown: None,
     }]
 }
 

@@ -17,7 +17,7 @@ import { ProcessesView } from "../screens/processes/ProcessesView";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { PageHeader, PageShell, type Crumb } from "../pages/PageShell";
+import { PageHeader, PageShell, WhenShown, type Crumb } from "../pages/PageShell";
 import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
@@ -28,6 +28,7 @@ import { GoToButton, SessionChips, SessionMark, SessionWhere } from "../pages/se
 import { SessionToolChip } from "../pages/session/HeaderDoors";
 import { fromConversation, type SessionModel } from "../pages/session/model";
 import { useHasSubagents } from "../pages/session/useSubagents";
+import { ConversationSubagents } from "./SessionNotes";
 import { useLastPlace } from "../lib/places";
 import { placesOpen } from "../lib/ipc/places";
 import { showToast } from "./Toast";
@@ -164,6 +165,7 @@ function ConversationView({
     <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col" data-testid="conversation-page" {...menu.triggerProps}>
       <PageShell
         kind="conversation"
+        subject={`${conversation.account_id}:${conversation.id}`}
         tabs={tabs}
         header={
           <PageHeader
@@ -179,6 +181,7 @@ function ConversationView({
               <>
                 <SessionToolChip tool={model.tool} />
                 <SessionWhere model={model} now={now} />
+                <ConversationSubagents accountId={conversation.account_id} conversationId={conversation.id} />
               </>
             }
             actions={
@@ -211,9 +214,14 @@ function ConversationView({
           tab === "usage" ? (
             <UsagePanel model={model} visible={visible} tokens={tokens ?? lastTokens.current} account={account} />
           ) : tab === "processes" ? (
-            <ProcessesView sessionId={conversation.id} height="calc(100vh - 22rem)" testId="conversation-processes" />
+            // Hidden tabs read once they're opened, not with the page (0.3.4).
+            <WhenShown visible={visible}>
+              <ProcessesView sessionId={conversation.id} height="calc(100vh - 22rem)" testId="conversation-processes" />
+            </WhenShown>
           ) : tab === "subagents" ? (
-            <SubagentsTab model={model} title={title} visible={visible} now={now} />
+            <WhenShown visible={visible}>
+              <SubagentsTab model={model} title={title} visible={visible} now={now} />
+            </WhenShown>
           ) : (
             <SessionOverview
               model={model}

@@ -5,8 +5,10 @@
  * - one state in E21's words: Asks you, Working, Idle, Done (review it),
  *   Ended. Every tool's and app's status maps onto them here, and a state
  *   worked out rather than recorded says "probably" (D-37);
- * - its place: the app and profile it runs in (AI Juggler's own sessions
- *   are the place "AI Juggler");
+ * - its place: the App it runs in (D-62): a desktop app in one of its
+ *   profiles ("Claude app · b-work"), or a CLI tool on its folder
+ *   ("Claude Code · Work Max"), whose terminal (or AI Juggler, for its own
+ *   sessions) is where its window is, never its name;
  * - why it is in Needs you, when it is.
  *
  * Pure, so the order, fold and grouping rules are unit-tested.
@@ -14,31 +16,56 @@
 import type { InstanceInfo, ProjectInfo } from "./bridge";
 import type { ConversationInfo } from "./ipc/conversations";
 import { conversationTitle } from "./conversations";
+import { appOfTool } from "./app-of";
+import { cliAppKey, desktopAppKey, desktopAppWord, hostWords } from "./app-name";
+import { toolSpec } from "./tools";
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
 
 /** Why an item is in Needs you. */
 export type Need = "asks" | "limit" | "stuck" | "failed" | "review";
 
-/** The place AI Juggler's own sessions are in. */
+/** AI Juggler itself: the `kind` of a place whose window is AI Juggler's
+ * own terminal, and the id its icon is asked with. */
 export const OWN_PLACE = "ai-juggler";
 export const OWN_APP = "AI Juggler";
 /** A place whose app isn't named (a session no app shows now). */
 export const SOME_APP = "An app";
 
 export interface RailPlace {
-  /** App and profile (or the app's instance): one place. */
+  /** The App (D-62): a CLI tool and its folder, or a desktop app and its
+   * instance. */
   key: string;
+  /** The App's app: "Claude Code", "Claude app", "ChatGPT". */
   app: string;
-  /** D-38: the host registry's id for the app (its icon), `OWN_PLACE`
-   * for AI Juggler's own; `null` when the registry doesn't know it. */
+  /** D-38: the icon's id: the desktop app's, or a CLI tool's own app;
+   * `null` when the registry doesn't know it. */
   appId: string | null;
-  /** `desktop`, `terminal`, `editor`, `own` (AI Juggler), or unknown. */
+  /** Where its window is: `desktop`, `terminal`, `editor`, `own` (AI
+   * Juggler's terminal), or unknown. */
   kind: string | null;
-  /** The profile it runs in, in words. */
+  /** The App's profile, in words: its folder's label, or the app's
+   * instance. */
   profile: string | null;
-  /** The app's process, which the place's Open brings forward. */
+  /** The process the place's Open brings forward: the desktop app, or the
+   * terminal or editor a CLI session is in. */
   appPid: number | null;
+  /** Where a CLI App's window is ("Terminal", "AI Juggler"); `null` for a
+   * desktop App. A detail of the session, never the App's name. */
+  host: string | null;
+}
+
+/** A place in words: its App, then where its window is when that's a
+ * terminal or editor ("Claude Code · Work Max · in Terminal"). AI
+ * Juggler's own terminal isn't said: you're in it. */
+export function placeWords(place: RailPlace): string[] {
+  return [place.app, place.profile, place.kind === "own" ? null : hostWords(place.host)].filter((part): part is string => Boolean(part));
+}
+
+/** The CLI App tool `tool` runs on the folder `accountId` (labelled
+ * `folder`), its window in `host`. */
+export function cliPlace(tool: string, accountId: string | null, folder: string, host: { name: string | null; kind: string | null; pid: number | null }): RailPlace {
+  return { key: cliAppKey(tool, accountId, folder), app: toolSpec(tool).display_name, appId: appOfTool(tool).appId, kind: host.kind, profile: folder || null, appPid: host.pid, host: host.name };
 }
 
 export interface RailItem {
@@ -144,7 +171,10 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     title: row.label ?? row.git_branch ?? (folderOf(row.cwd) || row.account_label),
     projectId: row.project_id,
     project: projectName(row.project_id),
-    place: { key: OWN_PLACE, app: OWN_APP, appId: OWN_PLACE, kind: "own", profile: null, appPid: null },
+    place:
+      row.kind === "desktop"
+        ? { key: desktopAppKey(toolSpec(row.provider).host_app ?? null, row.provider, row.account_label), app: desktopAppWord(toolSpec(row.provider).desktop_app ?? "", row.provider) || toolSpec(row.provider).display_name, appId: toolSpec(row.provider).host_app ?? null, kind: "own", profile: row.account_label, appPid: null, host: null }
+        : cliPlace(row.provider, row.account_id, row.account_label, { name: OWN_APP, kind: "own", pid: null }),
     alsoIn: [],
     accountId: row.account_id,
     accountLabel: row.account_label,
@@ -182,11 +212,6 @@ export function statusState(status: string): { state: RailState; word: string } 
   return { state, word: needWord({ need, state, probably: need === "stuck" }) };
 }
 
-/** A place's key: the app, then its instance or the profile. */
-function placeKey(app: string, instance: string | null, profile: string | null): string {
-  return `${app}|${instance ?? profile ?? ""}`;
-}
-
 /** A session another app runs. "Done, review it" clears once the user has
  * looked: AI Juggler's seen mark, or the app's own last view, after its
  * last activity (AJ-E2107). `pinned`: the rail's pin (AI Juggler's own
@@ -206,7 +231,6 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
         : raw === "done_review" && looked < last
           ? "done_review"
           : "idle";
-  const app = first?.app || SOME_APP;
   return {
     key: `c:${c.account_id}/${c.id}`,
     session: null,
@@ -214,9 +238,10 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     title: conversationTitle(c),
     projectId: c.project_id,
     project: projectName(c.project_id) ?? (folderOf(c.cwd) || null),
-    place: first
-      ? { key: placeKey(app, first.instance, first.profile), app, appId: first.app_id ?? null, kind: first.kind ?? null, profile: first.profile ?? first.instance, appPid: first.app_pid ?? null }
-      : { key: placeKey(app, null, c.account_label), app, appId: null, kind: null, profile: c.account_label, appPid: null },
+    place:
+      first?.kind === "desktop"
+        ? { key: desktopAppKey(first.app_id ?? null, first.app, first.instance), app: desktopAppWord(first.app, c.tool, first.shown), appId: first.app_id ?? null, kind: "desktop", profile: first.instance ?? null, appPid: first.app_pid ?? null, host: null }
+        : cliPlace(c.tool, c.account_id, c.account_label, { name: first?.app || null, kind: first?.kind ?? null, pid: first?.app_pid ?? null }),
     alsoIn: places.slice(1).map((place) => place.label || place.app),
     accountId: c.account_id,
     accountLabel: c.account_label,
@@ -238,14 +263,15 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
   };
 }
 
-/** Where Go to it takes it, in words ("Claude · Work"), when that is
- * another app; `null` for a session whose own place is AI Juggler (its
- * terminal is its page here: the row already goes there). */
+/** Where Go to it takes it, in words: the desktop App ("Claude app ·
+ * b-work"), or the terminal a CLI session is in ("Terminal"); `null` for
+ * a session in AI Juggler's own terminal (its page is here: the row
+ * already goes there). */
 export function goToWhere(item: Pick<RailItem, "place" | "accountLabel" | "session">): string | null {
-  const desktop = item.session?.kind === "desktop";
-  if (item.place.key === OWN_PLACE && !desktop) return null;
-  const app = desktop ? "its app" : item.place.app;
-  return [app, item.place.profile ?? item.accountLabel].filter(Boolean).join(" · ");
+  if (item.session?.kind === "desktop") return ["its app", item.place.profile ?? item.accountLabel].filter(Boolean).join(" · ");
+  if (item.place.kind === "own") return null;
+  if (item.place.host) return item.place.host;
+  return [item.place.app, item.place.profile].filter(Boolean).join(" · ") || null;
 }
 
 export interface ItemInputs {

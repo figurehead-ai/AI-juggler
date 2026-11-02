@@ -4,10 +4,11 @@
  * Mac's sessions, models and costs in detail stay on its own Usage. With
  * no paired Mac this card isn't shown: Usage below is this Mac's already.
  */
-import { useEffect, useState, type JSX } from "react";
+import type { JSX } from "react";
 import { Card } from "./primitives";
 import { asOfWords, tokenWords } from "../lib/quotaWindow";
-import { fleetUsageByMachine, type MachineUsageInfo } from "../lib/ipc/fleet-launch";
+import type { MachineUsageInfo } from "../lib/ipc/fleet-launch";
+import { useMachineUsage } from "../lib/kept-reads";
 
 /** "1.2M tokens · ≈ $4.10 · 3 sessions". */
 export function machineUsageWords(row: MachineUsageInfo): string {
@@ -18,17 +19,9 @@ export function machineUsageWords(row: MachineUsageInfo): string {
 }
 
 export function MachineUsageCard(): JSX.Element | null {
-  const [rows, setRows] = useState<MachineUsageInfo[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    const load = () => void fleetUsageByMachine().then((all) => alive && setRows(all), () => null);
-    load();
-    const timer = window.setInterval(load, 30_000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, []);
+  // The last answer shows at once (a card that was there stays there);
+  // read again on opening and each half minute.
+  const rows = useMachineUsage();
   if (!rows || rows.length < 2) return null;
   const all = rows.reduce((sum, row) => sum + row.used_units, 0);
   return (

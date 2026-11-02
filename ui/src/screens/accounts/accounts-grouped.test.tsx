@@ -154,8 +154,8 @@ describe("AJ-E2109 accounts in words", () => {
 
   it("AJ-E2108: a profile on the session's own account gives no new room", () => {
     const targets = [
-      { profileId: "w2", label: "Work 2", recipeId: "r-w2", blocked: null, badge: null, crossTool: false, room: null, suggested: false },
-      { profileId: "p1", label: "Personal", recipeId: "r-p1", blocked: null, badge: null, crossTool: false, room: null, suggested: false },
+      { profileId: "w2", label: "Work 2", recipeId: "r-w2", blocked: null, setupNeeded: false, badge: null, crossTool: false, room: null, suggested: false },
+      { profileId: "p1", label: "Personal", recipeId: "r-p1", blocked: null, setupNeeded: false, badge: null, crossTool: false, room: null, suggested: false },
     ];
     const { others, sameAccount } = byAccount(targets, rows, "w1");
     expect(others.map((group) => group.targets.map((t) => t.profileId))).toEqual([["p1"]]);

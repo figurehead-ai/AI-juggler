@@ -4,7 +4,10 @@
  * the runway of the account it runs on, and Open (the app forward). 0.3.3:
  * an app or profile kept alive has a tile too when no session tile shows
  * it: down (why, and Start, which starts it) or running with nothing open
- * yet (Open). At most six, then "+n".
+ * yet (Open). 0.3.4 (D-64): every remembered app or profile with no
+ * session tile has one, after them (kept alive first, then the most
+ * recently seen), so an app that quits is one click from starting again.
+ * At most six, then "+n".
  */
 import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
@@ -16,7 +19,9 @@ import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
 import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
 import { groupItems, type RailGroup } from "../lib/rail-places";
-import { OWN_PLACE, type RailItem } from "../lib/rail-items";
+import { knownAppWord } from "../lib/rail-apps";
+import { appName } from "../lib/app-name";
+import type { RailItem } from "../lib/rail-items";
 
 /** Tiles shown before "+n". */
 export const TILES_SHOWN = 6;
@@ -29,7 +34,7 @@ export interface Runway {
 /** The places with something open, AI Juggler's own left out (it's here). */
 export function appPlaces(items: RailItem[]): RailGroup[] {
   return groupItems(
-    items.filter((item) => item.live && item.place.key !== OWN_PLACE),
+    items.filter((item) => item.live && item.place.kind !== "own"),
     "place",
   );
 }
@@ -44,16 +49,20 @@ function bringForward(group: RailGroup): void {
   );
 }
 
-/** 0.3.3: an app or profile kept alive that no session tile shows: down
- * (why, and Start) or running with nothing open yet (Open). */
+/** 0.3.3: an app or profile kept alive (0.3.4: any remembered one) that
+ * no session tile shows: down (why, and Start) or running with nothing
+ * open yet (Open). */
 function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const running = place.app_pid !== null;
+  // The open tiles' word for it ("Claude app"), D-64.
+  const app = knownAppWord(place);
+  const name = appName(app, place.instance ?? place.profile);
   const verb = running ? "Open" : "Start";
   const start = () => {
-    showToast({ id: "go-to", message: running ? `Bringing ${place.label} forward…` : `Starting ${place.label}…` });
+    showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
     placesOpen(place.id).then(
       (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
-      () => showToast({ id: "go-to", message: running ? `Couldn't bring ${place.label} forward` : `Couldn't start ${place.label}` }),
+      () => showToast({ id: "go-to", message: running ? `Couldn't bring ${name} forward` : `Couldn't start ${name}` }),
     );
   };
   return (
@@ -63,9 +72,9 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
       data-place={place.id}
     >
       <div className="flex min-w-0 items-start gap-3">
-        <AppIcon appId={place.app_id} appPid={null} name={place.app} size={32} />
+        <AppIcon appId={place.app_id} appPid={null} name={app} size={32} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-body font-semibold text-ink">{place.app}</span>
+          <span className="truncate text-body font-semibold text-ink">{app}</span>
           {place.profile && (
             <span className="flex min-w-0 items-center gap-1 text-meta font-semibold text-ink">
               <ProfileBadge name={place.profile} />
@@ -81,10 +90,10 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
           onClick={start}
           disabled={!running && place.cannot_start !== null}
           title={running ? undefined : (place.cannot_start ?? undefined)}
-          aria-label={`${verb} ${place.label}`}
+          aria-label={`${verb} ${name}`}
           className="rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {verb} {place.app}
+          {verb} {app}
         </button>
       </div>
     </li>
@@ -164,11 +173,13 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
   const [all, setAll] = useState(false);
   const known = useKnownPlaces();
   const places = appPlaces(items);
-  // Kept alive with no session tile (down, starting, paused, or running
-  // with nothing open yet): after the session tiles, never gone after a
-  // start.
+  // Remembered with no session tile (down, starting, paused, or running
+  // with nothing open yet): after the session tiles, kept alive first,
+  // then the most recently seen; never gone after a start.
   const shownPids = new Set(places.map((group) => group.place?.appPid ?? null));
-  const kept = (known ?? []).filter((place) => place.keep_alive && (place.app_pid === null || !shownPids.has(place.app_pid)));
+  const kept = (known ?? [])
+    .filter((place) => place.app_pid === null || !shownPids.has(place.app_pid))
+    .sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || b.seen_ms - a.seen_ms);
   const tiles: ({ group: RailGroup } | { kept: KnownPlaceInfo })[] = [...places.map((group) => ({ group })), ...kept.map((place) => ({ kept: place }))];
   if (tiles.length === 0) return null;
   // Never a tile that hides a single app behind "+1" (the 0.2 walk, F18):

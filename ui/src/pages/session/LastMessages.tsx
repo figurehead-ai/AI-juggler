@@ -9,13 +9,14 @@
  * with Go to it. A chat its app keeps on its servers has no transcript on
  * this Mac: its title is all there is.
  */
-import { useLayoutEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type JSX, type ReactNode } from "react";
 import { Button, Card } from "../../components/primitives";
 import { ToolMark } from "../../components/ToolMark";
 import { IconGoTo } from "../../components/icons-actions";
-import type { LastTurnInfo, TurnBlockInfo } from "../../lib/ipc/conversations";
+import type { LastTurnInfo } from "../../lib/ipc/conversations";
 import { agoWords } from "../../lib/time-words";
 import { Markdown, plainWords } from "./Markdown";
+import { Blocks, foldOf, Work, workWords } from "./TurnWork";
 import { useLastMessages, type Chat, type ChatReader } from "./useLastMessages";
 import { appWords, picksInSidebar, speakerName, type SessionModel } from "./model";
 
@@ -77,7 +78,7 @@ export function LastMessages({
     // Sized to what it holds, at most the column's height (then its
     // messages scroll): a short conversation has its question card right
     // under its last message, never a void between them.
-    <Card className="flex min-h-[22rem] flex-initial flex-col overflow-hidden @4xl:min-h-0" data-testid="last-messages">
+    <Card className="reading flex min-h-[22rem] flex-initial flex-col overflow-hidden @4xl:min-h-0" data-testid="last-messages">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline px-5 py-3.5">
         {head}
         <h3 className="min-w-0 max-w-full truncate text-section font-semibold text-ink">{title}</h3>
@@ -186,7 +187,16 @@ function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: Chat; mode
         )}
         <ol className="flex flex-col gap-6" data-testid="last-messages-turns">
           {chat.turns.map((turn, index) => (
-            <Turn key={index} turn={turn} tool={model.tool} speaker={speaker} asks={index === asksAt} asker={asker} />
+            <Turn
+              key={index}
+              turn={turn}
+              tool={model.tool}
+              speaker={speaker}
+              asks={index === asksAt}
+              asker={asker}
+              startedMs={chat.turns[index - 1]?.at_ms ?? null}
+              working={model.live && model.state.working && index === chat.turns.length - 1}
+            />
           ))}
         </ol>
       </div>
@@ -204,7 +214,25 @@ function When({ ms }: { ms: number | null }): JSX.Element | null {
   );
 }
 
-function Turn({ turn, tool, speaker, asks, asker }: { turn: LastTurnInfo; tool: string; speaker: string; asks: boolean; asker?: string }): JSX.Element {
+function Turn({
+  turn,
+  tool,
+  speaker,
+  asks,
+  asker,
+  startedMs,
+  working,
+}: {
+  turn: LastTurnInfo;
+  tool: string;
+  speaker: string;
+  asks: boolean;
+  asker?: string;
+  /** When the turn before it was written: its work's start. */
+  startedMs: number | null;
+  /** The session's latest turn while it works: shown open, as it goes. */
+  working: boolean;
+}): JSX.Element {
   if (turn.speaker === "you") {
     const words = turn.blocks.filter((block) => block.kind === "text").map((block) => block.text).join("\n\n");
     return (
@@ -230,83 +258,32 @@ function Turn({ turn, tool, speaker, asks, asker }: { turn: LastTurnInfo; tool: 
         <When ms={turn.at_ms} />
       </div>
       <div className="flex min-w-0 flex-col gap-3 pl-9">
-        {turn.blocks.map((block, index) => (block.kind === "steps" ? <Steps key={index} block={block} /> : <Markdown key={index} text={block.text} />))}
+        {working ? (
+          <Blocks blocks={turn.blocks} />
+        ) : (
+          (() => {
+            const { work, reply } = foldOf(turn);
+            const took = startedMs !== null && turn.at_ms !== null ? turn.at_ms - startedMs : null;
+            return (
+              <>
+                {work.length > 0 && <Work work={work} words={workWords(work, took)} />}
+                {reply && <Markdown text={reply.text} />}
+              </>
+            );
+          })()
+        )}
       </div>
     </li>
   );
 }
 
-type StepKind = "command" | "read" | "edit" | "search" | "agent" | "plan" | "web" | "other";
-
-/** What kind of call a line is, from its words (the adapters' summary). */
-export function stepKind(line: string): StepKind {
-  if (line.startsWith("ran a subagent")) return "agent";
-  if (line.startsWith('ran "')) return "command";
-  if (/^(Read|Glob)\b/.test(line) || line.startsWith("listed ")) return "read";
-  if (/^(Edit|MultiEdit|Write|NotebookEdit)\b/.test(line) || line.startsWith("edited ")) return "edit";
-  if (line.startsWith("searched the web") || line.startsWith("read ")) return "web";
-  if (line.startsWith("searched")) return "search";
-  if (line === "updated the task list") return "plan";
-  return "other";
-}
-
-/** A run of calls in one line: "Ran 2 commands, read 3 files". */
-export function stepsSummary(lines: string[]): string {
-  const count: Record<StepKind, number> = { command: 0, read: 0, edit: 0, search: 0, agent: 0, plan: 0, web: 0, other: 0 };
-  for (const line of lines) {
-    const kind = stepKind(line);
-    // "edited a.ts, b.ts" is two files.
-    count[kind] += kind === "edit" && line.startsWith("edited ") ? line.slice(7).split(", ").length : 1;
-  }
-  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
-  const parts = [
-    count.command && `ran ${n(count.command, "command", "commands")}`,
-    count.edit && `edited ${n(count.edit, "file", "files")}`,
-    count.read && `read ${n(count.read, "file", "files")}`,
-    count.search && `searched ${count.search === 1 ? "once" : `${count.search} times`}`,
-    count.web && `looked on the web ${count.web === 1 ? "once" : `${count.web} times`}`,
-    count.agent && `ran ${n(count.agent, "subagent", "subagents")}`,
-    count.plan && "updated the task list",
-    count.other && `used ${n(count.other, "tool", "tools")}`,
-  ].filter(Boolean) as string[];
-  const words = parts.join(", ");
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-function Steps({ block }: { block: TurnBlockInfo }): JSX.Element {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="flex flex-col" data-testid="last-turn-steps">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((now) => !now)}
-        className="inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-hairline bg-surface-2/60 px-2.5 py-1.5 text-left text-meta font-medium text-ink/85 outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={"shrink-0 transition-transform " + (open ? "rotate-90" : "")}>
-          <path d="M9 6l6 6-6 6" />
-        </svg>
-        <span className="truncate">{stepsSummary(block.steps)}</span>
-      </button>
-      {open && (
-        <ul className="mt-2 flex flex-col gap-1 border-l border-hairline pl-4" data-testid="last-turn-step-lines">
-          {block.hidden > 0 && <li className="text-label text-muted">{block.hidden === 1 ? "1 earlier step" : `${block.hidden} earlier steps`} not shown</li>}
-          {block.steps.map((line, index) => (
-            <li key={index} className="break-words font-mono text-meta leading-[1.5] text-ink/90">
-              {line}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/** The question an asking turn ends on: its last paragraph with a "?",
- * else its last paragraph, in plain words. */
+/** The question an asking turn ends on: its reply's last paragraph with a
+ * "?", else its last paragraph, in plain words. Only the reply (0.3.4): a
+ * "?" in the notes written while it worked isn't what it asks. */
 export function questionOf(turn: LastTurnInfo | undefined): string | null {
   if (!turn || turn.speaker !== "assistant") return null;
-  const text = turn.blocks.filter((block) => block.kind === "text").map((block) => block.text).join("\n\n");
+  const { reply } = foldOf(turn);
+  const text = reply ? reply.text : turn.blocks.filter((block) => block.kind === "text").map((block) => block.text).join("\n\n");
   const paragraphs = text
     .replace(/```[\s\S]*?```/g, "")
     .split(/\n\s*\n/)

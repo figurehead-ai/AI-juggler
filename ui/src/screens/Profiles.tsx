@@ -1,5 +1,5 @@
 import { RowPlaceholders } from "../components/Placeholder";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Card } from "../components/primitives";
 import { Field, Input, Modal } from "../components/form";
 import { IconProfiles } from "../components/icons";
@@ -10,23 +10,20 @@ import { BetaMatrix } from "../components/BetaMatrix";
 import { newWorkAdvice } from "../components/AccountRunway";
 import { useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
-import { inPlaceProviders, ownSignIn, providerDisplayName, supportsInPlace, type InPlaceSupport, limitProviders, reportsLimits } from "../lib/providers";
-import { loadSubscriptions, withLiveLabels, type SubscriptionInfo } from "../lib/subscriptions";
+import { ownSignIn, providerDisplayName, supportsInPlace, reportsLimits } from "../lib/providers";
+import { withLiveLabels } from "../lib/subscriptions";
+import { useAccountsData, useToolCapabilities } from "./accounts/useAccountsData";
+import { useQuotaDisplays } from "../lib/kept-reads";
 import { AccountCard } from "./accounts/AccountCard";
 import {
-  accountsList,
   createProfile,
   deleteProfile,
   launchSession,
-  launchRecipesList,
   pickDirectory,
-  providersCapabilities,
   type AccountInfo,
   type LaunchRecipeInfo,
   errorText,
-  quotaDisplayAll,
   type InstanceInfo,
-  type QuotaDisplayData,
 } from "../lib/bridge";
 
 export { placementWords } from "./accounts/UseOriginal";
@@ -48,7 +45,13 @@ export function ProfilesScreen({
   sessions = [],
   onAddAccounts,
   onAccountsChanged,
+  knownAccounts = null,
+  knownProfiles = null,
 }: {
+  /** 0.3.4: the app's own lists, kept current by it (`null` before its
+   * first read): the screen opens on them instead of reading them again. */
+  knownAccounts?: AccountInfo[] | null;
+  knownProfiles?: LaunchRecipeInfo[] | null;
   /** AJ-E1501: a rename, removal or new default — the rest of the app
    * (rail, Usage, New session) reads the profiles again, no restart. */
   onAccountsChanged?: () => void;
@@ -61,61 +64,15 @@ export function ProfilesScreen({
   sessions?: InstanceInfo[];
   onInspectAccount?: (id: string) => void;
 }) {
-  const [accounts, setAccounts] = useState<AccountInfo[] | null>(null);
-  const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
-  const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[] | null>(null);
   const [newProfileFor, setNewProfileFor] = useState<AccountInfo | null>(null);
   const [loginFor, setLoginFor] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   // AJ-E1501: what the last change did, in words ("Removed …").
   const [notice, setNotice] = useState<string | null>(null);
-  const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
+  const { displays } = useQuotaDisplays();
   const { all: conversations } = useConversations();
-  // ADR-0018: which tools' copies can switch to their original — the
-  // backend's static capabilities (no install probe). If the call fails
-  // the offer stays; the backend refuses what it can't adopt.
-  const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
-  // 0.0.11 walk (Q3): the tools that don't report their own limits.
-  const [limits, setLimits] = useState<InPlaceSupport>("unknown");
-  useEffect(() => {
-    let alive = true;
-    void providersCapabilities().then(
-      (rows) => {
-        if (!alive) return;
-        setInPlace(inPlaceProviders(rows));
-        setLimits(limitProviders(rows));
-      },
-      () => alive && setInPlace("unknown"),
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
-  useEffect(() => {
-    let alive = true;
-    const load = () => void quotaDisplayAll().then((rows) => alive && setDisplays(rows), () => null);
-    load();
-    const timer = window.setInterval(load, 30_000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  const refresh = useCallback(async () => {
-    try {
-      const [accountRows, profileRows, groups] = await Promise.all([accountsList(), launchRecipesList(), loadSubscriptions(true)]);
-      setAccounts(accountRows);
-      setProfiles(profileRows);
-      setSubscriptions(groups);
-    } catch (cause) {
-      setError(errorText(cause));
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  const { inPlace, limits } = useToolCapabilities();
+  const { accounts, profiles, subscriptions, refresh } = useAccountsData({ knownAccounts, knownProfiles, onError: setError });
 
   const changed = async (words: string | null) => {
     setNotice(words);
@@ -143,7 +100,7 @@ export function ProfilesScreen({
   if (accounts === null || profiles === null || subscriptions === null) {
     // AJ-E1503 Req.4: card-shaped placeholders while the accounts load.
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-content flex-col gap-5">
         <span className="block h-6 w-32 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
         <RowPlaceholders shape="card" rows={3} label="Loading accounts" />
       </div>

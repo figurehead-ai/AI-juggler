@@ -104,6 +104,16 @@ describe("History, a page at a time", () => {
     expect(items(container).length).toBeGreaterThan(0);
     await waitFor(() => expect(asked.length).toBeGreaterThan(before));
   });
+
+  it("reads its list once as it opens (no second read on top), and again when a session changes (0.3.4)", async () => {
+    const firstPages = () => asked.filter((entry) => entry.query.which === "ended" && entry.page.cursor === null).length;
+    const view = render(<History sessions={[session(1)]} projects={[]} onChanged={() => {}} />);
+    await waitFor(() => expect(items(view.container).length).toBeGreaterThan(0));
+    await act(async () => undefined);
+    expect(firstPages()).toBe(1);
+    view.rerender(<History sessions={[{ ...session(1), status: "stopped" } as InstanceInfo]} projects={[]} onChanged={() => {}} />);
+    await waitFor(() => expect(firstPages()).toBe(2));
+  });
 });
 
 describe("a session past the working set, opened from History", () => {

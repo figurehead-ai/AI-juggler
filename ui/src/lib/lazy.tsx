@@ -5,7 +5,7 @@
  * the rest is fetched in idle time ([`prefetchLazy`]), so opening a
  * screen doesn't wait.
  */
-import { lazy, Suspense, type ComponentProps, type ComponentType, type JSX } from "react";
+import { lazy, Suspense, useState, type ComponentProps, type ComponentType, type JSX } from "react";
 
 const loaders: { load: () => Promise<unknown>; first: boolean }[] = [];
 
@@ -32,13 +32,29 @@ function counted<M>(loader: () => Promise<M>): () => Promise<M> {
 /** `module[name]`, loaded on first use. It waits on its own (nothing
  * around it blanks while it loads), and is fetched after first paint
  * anyway: `first` puts it at the head of that queue (what's opened most
- * often right after start). */
+ * often right after start). Once its code is here (that prefetch, or an
+ * earlier use) it renders at once: a first open never goes through
+ * Suspense, whose reveal React holds for 300 ms (a blank main area on
+ * the first open of Projects, Usage, History or Tasks). */
 export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: K, first = false): M[K] {
-  const load = counted(loader);
-  loaders.push({ load, first });
   type C = ComponentType<Record<string, unknown>>;
+  let ready: C | null = null;
+  const counting = counted(loader);
+  const load = () =>
+    counting().then((module) => {
+      ready = module[name] as unknown as C;
+      return module;
+    });
+  loaders.push({ load, first });
   const Lazy = lazy(() => load().then((module) => ({ default: module[name] as unknown as C })));
   function Loaded(props: ComponentProps<C>): JSX.Element {
+    // Decided once per use: a part shown while it loaded keeps its
+    // Suspense, so its arrival never remounts it (and its state).
+    const [direct] = useState(() => ready);
+    if (direct) {
+      const Ready = direct;
+      return <Ready {...props} />;
+    }
     return (
       <Suspense fallback={null}>
         <Lazy {...props} />

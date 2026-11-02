@@ -8,6 +8,7 @@ import { invoke, listen } from "./transport";
 import { hasLiveBackend, refused, type LaunchResult } from "../bridge";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
+import type { StartedSessionInfo } from "../../types/generated/StartedSessionInfo";
 import type { PlaceInfo } from "../../types/generated/PlaceInfo";
 import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
 import type { LastTurnInfo } from "../../types/generated/LastTurnInfo";
@@ -68,7 +69,7 @@ function previewConversations(): ConversationInfo[] {
       title: "Refactor the settings screen",
       last_activity_ms: NOW - 60_000,
       live: true,
-      places: [{ app: "Claude", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude · Work" }],
+      places: [{ app: "Claude", shown: "Claude app", app_id: "claude-app", profile: "Work Max", instance: "Work", pid: 4242, kind: "desktop", app_pid: 4100, label: "Claude app · Work" }],
       pid: 4242,
       state: "working",
       viewed_ms: NOW - 120_000,
@@ -97,6 +98,19 @@ export async function conversationsList(): Promise<ConversationInfo[]> {
 export async function conversationsGet(accountId: string, conversationId: string): Promise<ConversationInfo | null> {
   if (!hasLiveBackend()) return previewConversations().find((c) => c.account_id === accountId && c.id === conversationId) ?? null;
   return invoke<ConversationInfo | null>("conversations_get", { accountId, conversationId });
+}
+
+export type { StartedSessionInfo };
+
+/** 0.3.4: the sessions a session started, as its app records them (the
+ * Claude app nests them under it), newest first. The preview's seam:
+ * `__AIJ_STARTED__`, by conversation id. */
+export async function conversationsStarted(tool: string, conversationId: string): Promise<StartedSessionInfo[]> {
+  if (!hasLiveBackend()) {
+    const seam = (globalThis as { __AIJ_STARTED__?: Record<string, StartedSessionInfo[]> }).__AIJ_STARTED__;
+    return seam?.[conversationId] ?? [];
+  }
+  return invoke<StartedSessionInfo[]>("conversations_started", { tool, conversationId });
 }
 
 /** The copyable line that resumes a conversation in a terminal. */

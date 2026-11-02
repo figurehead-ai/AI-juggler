@@ -13,15 +13,25 @@
  *
  * Open now's order is the one picked (`rail-order.ts`): Your order by
  * default, where nothing moves by itself.
+ *
+ * D-64 (0.3.4): grouped by App, the rail is about apps. An open app's
+ * sessions that aren't open sit under it, behind "Last 3 inactive"; the
+ * apps with nothing open follow in "Inactive apps", most recently used
+ * first, each with its last 3 behind a click (`rail-apps.ts`). The full
+ * list is the app's page (0.4) and History.
  */
 import { endedToday, needsYou, openNow, type RailItem } from "./rail-items";
 import { frozenOrder, groupItems, isQuiet, NO_POOL, quietWords, type AccountOf, type GroupBy, type PoolOf, type RailGroup } from "./rail-places";
 import { arrangeGroup, arrangeGroups, foldKey, lensOf, type OrderMode } from "./rail-order";
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
 import type { NoticeInfo } from "./ipc/notices";
+import type { KnownPlaceInfo } from "./ipc/places";
+import { appByConversation, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, RECENT_INLINE, type IdleApp } from "./rail-apps";
+
+export type SectionId = "needs" | "open" | "idle";
 
 export type Line =
-  | { kind: "section"; id: "needs" | "open"; count: number }
+  | { kind: "section"; id: SectionId; count: number }
   | { kind: "need"; item: RailItem }
   | { kind: "notice"; notice: NoticeInfo }
   | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null }
@@ -29,7 +39,15 @@ export type Line =
   | { kind: "more"; group: RailGroup; quiet: number; words: "quiet" | "more" }
   | { kind: "also" }
   | { kind: "label"; id: "ended" | "inactive"; count: number }
-  | { kind: "plain"; item: RailItem };
+  | { kind: "plain"; item: RailItem }
+  /** D-64: an app's "Last 3 inactive" (`app`: its key). */
+  | { kind: "recent"; app: string; count: number; open: boolean }
+  /** D-64: one of an app's last inactive sessions, under it. */
+  | { kind: "past"; item: RailItem; app: string }
+  /** D-64: an app with nothing open. */
+  | { kind: "idle"; app: IdleApp; open: boolean }
+  /** D-64: "Show n more" inactive apps. */
+  | { kind: "idle-more"; hidden: number };
 
 export const LINE_HEIGHT: Record<Line["kind"], number> = {
   section: 30,
@@ -41,11 +59,15 @@ export const LINE_HEIGHT: Record<Line["kind"], number> = {
   also: 36,
   label: 26,
   plain: 42,
+  recent: 26,
+  past: 42,
+  idle: 46,
+  "idle-more": 26,
 };
 
 /** Compact (AJ-E403, §2.2: rail rows 32 px): a row is one line, a
  * Needs you row two; heads and lines stay as they are. */
-export const LINE_HEIGHT_COMPACT: Record<Line["kind"], number> = { ...LINE_HEIGHT, need: 48, row: 32, plain: 32 };
+export const LINE_HEIGHT_COMPACT: Record<Line["kind"], number> = { ...LINE_HEIGHT, need: 48, row: 32, plain: 32, past: 32, idle: 32 };
 
 /** Each line's height at a density. */
 export type LineHeights = Record<Line["kind"], number>;
@@ -71,7 +93,8 @@ export interface Lines {
    * positions in it). */
   arranged: Map<string, RailItem[]>;
   needs: number;
-  /** Rows drawn (needs, open, ended, inactive). */
+  /** Rows drawn (needs, open, ended, inactive, an app's last ones, the
+   * inactive apps). */
   rows: number;
 }
 
@@ -94,6 +117,9 @@ export interface LineInputs {
   /** D-49: the rest of the backend's Needs you (not a session's), so the
    * section holds what the bell counts; left out while searching. */
   others?: NoticeInfo[];
+  /** D-64: the desktop apps remembered (the App grouping's inactive apps,
+   * and where a desktop app's past sessions were last open). */
+  known?: readonly KnownPlaceInfo[];
 }
 
 export interface OrderInputs {
@@ -108,19 +134,28 @@ export interface OrderInputs {
 
 const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded: new Set() };
 
-export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [] }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [] }: LineInputs): Lines {
   const searching = isSearching(query);
-  const shown = items.filter((item) => matches(item, view.only, query));
+  const filtering = searching || Object.keys(view.only).length > 0;
+  const shown = items.filter((item) => matches(item, view.only, query, accountOf));
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
   const keep = (list: string, rows: RailItem[]) => (frozen?.has(list) ? frozenOrder(rows, frozen.get(list)!, (item) => item.key) : rows);
 
   const needs = keep("needs", needsYou(shown));
   const open = shown.filter((item) => openNow(item) || (want("background") && item.background && item.need === null));
   const ended = shown.filter((item) => endedToday(item, now, want("archived"))).sort((a, b) => b.lastMs - a.lastMs);
-  const inactive = shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
   const background = shown.filter((item) => item.background && item.need === null);
   // The Project lens is the project board's; the Pool lens waits for a pool.
   const by: GroupBy = view.group === "account" ? "account" : view.group === "pool" && poolOf ? "pool" : "place";
+  // D-64: by App, an inactive session is under its app, not a list apart.
+  const apps = by === "place";
+  const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
+  const idle = apps ? idleSessionsByApp(shown, appByConversation(known)) : new Map<string, RailItem[]>();
+  // Its last ones, under an app: unfolded by a click, and while searching.
+  const past = (key: string, sessions: readonly RailItem[]) => {
+    const open = searching || toggled.has(`${key}#recent`);
+    return { open, rows: open ? sessions.slice(0, RECENT_INLINE) : [] };
+  };
   const groups = arrangeGroups(groupItems(open, by, accountOf, poolOf), order.mode, order.groups);
   const stable = order.mode !== "latest";
   const arranged = new Map<string, RailItem[]>();
@@ -164,7 +199,33 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     for (const item of drawn) lines.push({ kind: "row", item, group });
     rows += drawn.length;
     if (fold.hidden > 0) lines.push({ kind: "more", group, quiet: fold.hidden, words: fold.words });
+    const sessions = idle.get(group.key) ?? [];
+    if (sessions.length > 0) {
+      const last = past(group.key, sessions);
+      lines.push({ kind: "recent", app: group.key, count: sessions.length, open: last.open });
+      for (const item of last.rows) lines.push({ kind: "past", item, app: group.key });
+      rows += last.rows.length;
+    }
   });
+  if (apps) {
+    // While a search or filter is on, only the apps with something that
+    // matches.
+    // An app with something open isn't inactive, whatever a search hides.
+    const openKeys = new Set(items.filter(openNow).map((item) => item.place.key));
+    const resting = idleApps({ openKeys, known, idle }).filter((app) => !filtering || app.sessions.length > 0);
+    if (resting.length > 0) {
+      const all = filtering || toggled.has("idle#all");
+      const drawn = all ? resting : resting.slice(0, IDLE_APPS_SHOWN);
+      lines.push({ kind: "section", id: "idle", count: resting.length });
+      for (const app of drawn) {
+        const last = past(app.key, app.sessions);
+        lines.push({ kind: "idle", app, open: last.open });
+        for (const item of last.rows) lines.push({ kind: "past", item, app: app.key });
+        rows += 1 + last.rows.length;
+      }
+      if (drawn.length < resting.length) lines.push({ kind: "idle-more", hidden: resting.length - drawn.length });
+    }
+  }
   lines.push({ kind: "also" });
   if (want("ended") && ended.length > 0) {
     lines.push({ kind: "label", id: "ended", count: ended.length });
@@ -186,9 +247,9 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   };
 }
 
-/** The lines with Needs you or Open now folded: a folded section keeps
- * its head (with its count) and drops its rows and places. */
-export function foldSections(lines: Line[], folded: ReadonlySet<"needs" | "open">): Line[] {
+/** The lines with Needs you, Open now or Inactive apps folded: a folded
+ * section keeps its head (with its count) and drops its rows and places. */
+export function foldSections(lines: Line[], folded: ReadonlySet<SectionId>): Line[] {
   if (folded.size === 0) return lines;
   let hiding = false;
   return lines.filter((line) => {
@@ -199,6 +260,29 @@ export function foldSections(lines: Line[], folded: ReadonlySet<"needs" | "open"
     if (line.kind === "also") hiding = false;
     return !hiding;
   });
+}
+
+/** A line's React key: what it shows, never its place in the list. */
+export function lineKey(line: Line, index: number): string {
+  switch (line.kind) {
+    case "notice":
+      return `notice:${line.notice.subject}`;
+    case "need":
+    case "plain":
+    case "row":
+      return `${line.kind}:${line.item.key}`;
+    case "header":
+    case "more":
+      return `${line.kind}:${line.group.key}`;
+    case "past":
+      return `past:${line.app}:${line.item.key}`;
+    case "recent":
+      return `recent:${line.app}`;
+    case "idle":
+      return `idle:${line.app.key}`;
+    default:
+      return `${line.kind}:${"id" in line ? line.id : index}`;
+  }
 }
 
 /** Where a line starts, from the top of the list. */

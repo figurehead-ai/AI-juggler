@@ -4,11 +4,12 @@
  * 80 % and 100 %); nothing is ever stopped. The amounts are the cost
  * ledger's estimates at list prices, as the table below them.
  */
-import { useEffect, useState, type JSX } from "react";
+import { useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { Field, Input, Modal } from "./form";
 import { errorText, type AccountInfo, type ProjectInfo } from "../lib/bridge";
-import { budgetRemove, budgetSave, budgetsList, dollars, percentOf, type BudgetInfo } from "../lib/ipc/budgets";
+import { budgetRemove, budgetSave, dollars, percentOf, type BudgetInfo } from "../lib/ipc/budgets";
+import { budgets, useBudgets } from "../lib/kept-reads";
 import { Checkbox, Picker, Radio } from "./controls";
 
 /** What a cap counts, in words: an account's name, or its projects'. */
@@ -29,14 +30,11 @@ export function spentWords(cap: BudgetInfo): string {
 const TONE: Record<string, string> = { under: "bg-accent", near: "bg-warning", over: "bg-danger" };
 
 export function BudgetCaps({ accounts, projects }: { accounts: AccountInfo[]; projects: ProjectInfo[] }): JSX.Element {
-  const [caps, setCaps] = useState<BudgetInfo[]>([]);
+  // The last answer (Home's too) shows at once: read again on opening,
+  // every minute, and after a cap is saved or removed here.
+  const caps = useBudgets();
   const [editing, setEditing] = useState<BudgetInfo | "new" | null>(null);
-  const load = () => void budgetsList().then(setCaps, () => null);
-  useEffect(() => {
-    load();
-    const timer = window.setInterval(load, 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
+  const load = () => void budgets.refresh();
 
   return (
     <section aria-labelledby="usage-caps" className="sheen flex flex-col gap-3 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-caps">

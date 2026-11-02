@@ -6,7 +6,8 @@
  * hover and focus; ⌥⌘↑ and ⌥⌘↓ move it. 0.3.2: a right-click (or
  * Shift+F10) opens its own menu: its page, Bring it forward, Fold — never
  * the web view's (Reload). 0.3.3: a desktop app's menu also turns its Keep
- * alive on and off.
+ * alive on and off. 0.3.4 (D-64): a CLI app's menu starts a New session
+ * on its folder.
  */
 import { useState, type JSX, type MouseEvent, type ReactNode } from "react";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
@@ -34,6 +35,7 @@ export function PlaceHeader({
   arrange = null,
   children,
   keepAlive = null,
+  onNew,
 }: {
   place: RailPlace | null;
   label: string;
@@ -54,6 +56,8 @@ export function PlaceHeader({
   children?: ReactNode;
   /** 0.3.3: a desktop app AI Juggler remembers: its Keep alive. */
   keepAlive?: { on: boolean; toggle: () => void } | null;
+  /** 0.3.4: a CLI app: New session on its folder. */
+  onNew?: () => void;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
   const [menu, setMenu] = useState<MenuAt | null>(null);
@@ -84,7 +88,7 @@ export function PlaceHeader({
         data-testid="place-page"
         aria-keyshortcuts={[shortcut ? `Meta+${shortcut}` : null, arrange?.enabled ? "Alt+Meta+ArrowUp Alt+Meta+ArrowDown" : null].filter(Boolean).join(" ") || undefined}
         title={onPage ? `Open ${name}'s page` : undefined}
-        className="flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
@@ -141,6 +145,11 @@ export function PlaceHeader({
           {onOpen && (
             <MenuItem onClick={run(onOpen)} testId="place-header-menu-open">
               {openWords}
+            </MenuItem>
+          )}
+          {onNew && (
+            <MenuItem onClick={run(onNew)} testId="place-header-menu-new">
+              New session
             </MenuItem>
           )}
           {keepAlive && (

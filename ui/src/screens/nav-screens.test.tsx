@@ -223,6 +223,20 @@ describe("Tasks", () => {
     expect(view.container.textContent).not.toMatch(/New task|Add task|Edit task/);
   });
 
+  it("opened again, its counts are there at once, each column's placeholder as tall as its count (0.3.4)", async () => {
+    const first = screen();
+    await waitFor(() => expect(within(first.getByTestId("tasks-column-in_progress")).getAllByTestId("task-card")).toHaveLength(1));
+    first.unmount();
+    forgetPaged(); // the columns' rows aren't kept here: their placeholders show
+    const again = screen();
+    const column = (status: string) => again.getByTestId(`tasks-column-${status}`);
+    expect(within(column("ready")).getByRole("heading").textContent).toBe("Ready2");
+    const placeholders = (status: string) => column(status).querySelectorAll("li[aria-hidden='true']").length;
+    expect(placeholders("ready")).toBe(2);
+    expect(placeholders("in_progress")).toBe(1);
+    await waitFor(() => expect(within(column("in_progress")).getAllByTestId("task-card")).toHaveLength(1));
+  });
+
   it("moves between cards with the arrow keys: down a column, across to the next", async () => {
     const view = screen();
     const ready = await waitFor(() => {

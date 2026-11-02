@@ -51,7 +51,9 @@ function conversation(id: string, overrides: Partial<ConversationInfo> = {}): Co
 }
 
 function place(label: string, pid: number): ConversationInfo["places"][number] {
-  return { app: label.split(" · ")[0]!, app_id: null, profile: null, instance: null, pid, kind: null, app_pid: null, label };
+  // "Claude · Work": the Claude app in its profile Work; a bare name is a terminal.
+  const [app, instance] = label.split(" · ");
+  return { app: app!, shown: app === "Claude" ? "Claude app" : app!, app_id: instance ? "claude-app" : app!.toLowerCase(), profile: null, instance: instance ?? null, pid, kind: instance ? "desktop" : "terminal", app_pid: null, label };
 }
 
 function withFixture(conversations: ConversationInfo[], children: ReactNode, host: ActionHost = {}): JSX.Element {
@@ -120,7 +122,7 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));
     expect(goTo).not.toHaveBeenCalled();
     // ↗: named for where it goes, a 24 px target, never the row's click.
-    const arrow = screen.getByRole("button", { name: "Go to it in Claude · Work Max" });
+    const arrow = screen.getByRole("button", { name: "Go to it in Claude app · Work" });
     expect(arrow.className).toContain("size-6");
     fireEvent.click(arrow);
     expect(goTo).toHaveBeenCalledTimes(1);

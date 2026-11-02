@@ -9,16 +9,20 @@
 import type { JSX } from "react";
 import { AppIconTile } from "./AppIcon";
 import { ProfileBadge } from "./ProfileBadge";
-import { OWN_APP, OWN_PLACE, SOME_APP, type RailPlace } from "../lib/rail-items";
+import { OWN_APP, OWN_PLACE, SOME_APP, cliPlace, type RailPlace } from "../lib/rail-items";
+import { desktopAppKey, desktopAppWord } from "../lib/app-name";
 import type { PlaceInfo } from "../lib/ipc/conversations";
 
 export { ProfileBadge } from "./ProfileBadge";
 
-/** A place to mark from where a session runs: its first place, else
- * AI Juggler's own (a session AI Juggler runs), else an app not named. */
-export function markPlace(place: PlaceInfo | undefined, own: boolean): RailPlace {
-  if (place) return { key: `${place.app}|${place.instance ?? place.profile ?? ""}`, app: place.app || SOME_APP, appId: place.app_id ?? null, kind: place.kind ?? null, profile: place.profile ?? place.instance, appPid: place.app_pid ?? null };
-  return own ? { key: OWN_PLACE, app: OWN_APP, appId: OWN_PLACE, kind: "own", profile: null, appPid: null } : { key: "", app: SOME_APP, appId: null, kind: null, profile: null, appPid: null };
+/** The App to mark a session with (D-62): a desktop app in its instance;
+ * else tool `tool`'s CLI App on folder `folder`, its window in the
+ * terminal it runs in (or AI Juggler's own). With no tool (a task's
+ * sessions, which AI Juggler runs), AI Juggler itself. */
+export function markPlace(place: PlaceInfo | undefined, own: boolean, tool: string | null = null, folder: string | null = null): RailPlace {
+  if (place?.kind === "desktop") return { key: desktopAppKey(place.app_id ?? null, place.app, place.instance), app: desktopAppWord(place.app, tool, place.shown), appId: place.app_id ?? null, kind: "desktop", profile: place.instance ?? null, appPid: place.app_pid ?? null, host: null };
+  if (tool !== null) return cliPlace(tool, null, folder ?? place?.profile ?? "", { name: own && !place ? OWN_APP : place?.app || null, kind: own && !place ? "own" : place?.kind ?? null, pid: place?.app_pid ?? null });
+  return own ? { key: OWN_PLACE, app: OWN_APP, appId: OWN_PLACE, kind: "own", profile: null, appPid: null, host: OWN_APP } : { key: "", app: SOME_APP, appId: null, kind: null, profile: null, appPid: null, host: null };
 }
 
 /** The corner dot's diameter for an icon of `size`. */

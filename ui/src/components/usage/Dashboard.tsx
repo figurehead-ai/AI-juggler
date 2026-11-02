@@ -132,7 +132,7 @@ export function UsageDashboard({
         </p>
       )}
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4" data-testid="usage-tiles">
-        <StatTile label="Tokens in and out" icon={<IconTokens width={15} height={15} />} value={pending ? null : io} words={pending ? READING_SHORT : undefined} unit="tokens" before={data ? data.previous.tokens.input + data.previous.tokens.output : null} period={before} trend={tokensTrend} testId="tile-tokens" />
+        <StatTile label="Tokens in and out" icon={<IconTokens width={15} height={15} />} value={pending ? null : io} words={pending ? READING_SHORT : undefined} unit="tokens" before={data ? data.previous.tokens.input + data.previous.tokens.output : null} period={before} trend={tokensTrend} holdSpace={data === null} testId="tile-tokens" />
         <StatTile
           label="Estimated cost"
           icon={<IconMoney width={15} height={15} />}
@@ -147,7 +147,9 @@ export function UsageDashboard({
           period={before}
           trend={usdTrend}
           // §4.11: every cost says it is the API's price, not the bill.
-          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : `${API_PRICE}. Some models have no list price, so they aren't counted`) : data?.totals.usd != null ? API_PRICE : undefined}
+          // Before the first figures, the line it usually says holds its place.
+          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : `${API_PRICE}. Some models have no list price, so they aren't counted`) : data?.totals.usd != null || data === null ? API_PRICE : undefined}
+          holdSpace={data === null}
           testId="tile-cost"
         />
         <StatTile
@@ -160,9 +162,10 @@ export function UsageDashboard({
           period={before}
           trend={data?.sessions_per_bucket}
           note={data && data.unmeasured_sessions > 0 ? `+${data.unmeasured_sessions} not measured` : undefined}
+          holdSpace={data === null}
           testId="tile-sessions"
         />
-        <StatTile label="Active hours" icon={<IconClock width={15} height={15} />} value={pending ? null : (data?.totals.active_hours ?? null)} words={pending ? READING_SHORT : undefined} unit="count" suffix="h" before={data?.previous.active_hours ?? null} period={before} trend={hoursTrend} testId="tile-hours" />
+        <StatTile label="Active hours" icon={<IconClock width={15} height={15} />} value={pending ? null : (data?.totals.active_hours ?? null)} words={pending ? READING_SHORT : undefined} unit="count" suffix="h" before={data?.previous.active_hours ?? null} period={before} trend={hoursTrend} holdSpace={data === null} testId="tile-hours" />
       </div>
       <div className={GRID}>
         <Section

@@ -26,8 +26,10 @@ import { ProcessesView } from "../screens/processes/ProcessesView";
 import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
 import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
+import { WhenShown } from "../pages/PageShell";
 import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
+import { useQualitySignals } from "../lib/kept-reads";
 import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
   signedIn,
 } from "../lib/bridge";
@@ -224,6 +226,8 @@ export function RightInspector({
       // Each type keeps its own tab: a new type starts from its own memory.
       key={page}
       kind={page}
+      subject={selection.id}
+      tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
       tabs={tabs}
       testId="right-inspector"
       folded={folded}
@@ -1001,28 +1005,8 @@ function stuckRuleWords(rule: string): string {
 
 function QualityTab(props: PanelProps) {
   const instance = props.data.instance;
-  const [quality, setQuality] = useState<import("../lib/bridge").QualitySignalsInfo | null>(null);
+  const { quality, loadError } = useQualitySignals(instance?.id ?? null, props.visible);
   const [asTable, setAsTable] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!instance) return;
-    let alive = true;
-    import("../lib/bridge")
-      .then((bridge) => bridge.instanceQuality(instance.id))
-      .then((result) => {
-        if (alive) {
-          setQuality(result);
-          setLoadError(null);
-        }
-      })
-      .catch((cause: unknown) => {
-        if (alive) setLoadError(errorText(cause));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [instance?.id]);
 
   if (!instance) return <HonestEmpty tab="quality" />;
 
@@ -1208,7 +1192,10 @@ function ProcessesTab(props: PanelProps & { readOnly?: boolean }) {
           </p>
         </Card>
       )}
-      <ProcessesView sessionId={instance.id} onOpenSession={props.onOpenSession} height="calc(100vh - 22rem)" testId="session-processes" />
+      {/* Read once the tab is opened, not with the page (0.3.4). */}
+      <WhenShown visible={props.visible}>
+        <ProcessesView sessionId={instance.id} onOpenSession={props.onOpenSession} height="calc(100vh - 22rem)" testId="session-processes" />
+      </WhenShown>
     </div>
   );
 }

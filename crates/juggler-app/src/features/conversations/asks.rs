@@ -215,6 +215,7 @@ mod tests {
                 host: kind.map(|kind| Host {
                     app_id: None,
                     name: "App".into(),
+                    shown: "App".into(),
                     kind: Some(kind),
                     pid: 2,
                     start: None,

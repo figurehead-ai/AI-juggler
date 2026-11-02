@@ -196,6 +196,7 @@ export function SwitchTargetRows({
                   </span>
                 )}
               </button>
+              {target.held_back === "set_up" && <StartThereLink accountId={target.account_id} label={target.account_label} />}
             </li>
           );
         })}
@@ -204,5 +205,24 @@ export function SwitchTargetRows({
         What carries is checked for each pair of tools, never assumed.
       </p>
     </div>
+  );
+}
+
+/** 0.3.4: a target held back because its tool's first-run setup isn't
+ * done there: New session on it does it (the switch's own check refuses
+ * it until then). */
+export function StartThereLink({ accountId, label, onStart }: { accountId: string; label: string; onStart?: () => void }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onStart?.();
+        window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId } }));
+      }}
+      data-testid="continue-set-up"
+      className="w-fit rounded px-1 text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+    >
+      Start a session on {label} ›
+    </button>
   );
 }

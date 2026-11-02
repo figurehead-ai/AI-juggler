@@ -66,7 +66,7 @@ function elsewhere(id: string, tool: string, over: Partial<ConversationInfo> = {
   return {
     id, tool, account_id: "acc-1", account_label: "Work Max", project_id: "proj-payments", cwd: "/Users/you/Dev/payments-api", title: `Talk ${id}`,
     git_branch: "main", started_ms: NOW - 3_600_000, last_activity_ms: NOW - 60_000, tokens: null, live: true, session_id: null,
-    places: [{ app: "Terminal", app_id: "terminal", profile: "Work Max", instance: null, pid: 77, kind: "terminal", app_pid: 70, label: "Terminal" }],
+    places: [{ app: "Terminal", shown: "Terminal", app_id: "terminal", profile: "Work Max", instance: null, pid: 77, kind: "terminal", app_pid: 70, label: "Terminal" }],
     pid: 77, state: "working", probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null, ...over,
   };
 }
@@ -81,8 +81,18 @@ describe("the rail by place", () => {
     const open = view.getByTestId("rail-open-now");
     expect(needs.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const names = headers(view.getByTestId("place-board")).map((h) => h.getAttribute("data-place"));
-    expect(names).toEqual(["ai-juggler", "ChatGPT|Codex", "Claude|Personal", "Claude|Work", "Terminal|Work Max"]);
-    expect(view.getByTestId("rail-also").textContent).toMatch(/1 ended today\s*·\s*1 inactive\s*·\s*1 background\s*·\s*History ›/);
+    // D-62: one header per App. AI Juggler's session and the ones in
+    // Terminal on the same folder are one CLI App, first (AI Juggler runs
+    // one); the Claude app's profiles are Apps of their own.
+    expect(names).toEqual(["cli|claude-code|claude-work", "app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work"]);
+    expect(headers(view.getByTestId("place-board")).map((h) => within(h).getByTestId("place-open").getAttribute("aria-label"))).toEqual([
+      "Open Claude Code · Work Max",
+      "Open ChatGPT",
+      "Open Claude app · Personal",
+      "Open Claude app · Work",
+    ]);
+    // D-64: by App, an inactive session is under its app, not on Also.
+    expect(view.getByTestId("rail-also").textContent).toMatch(/1 ended today\s*·\s*1 background\s*·\s*History ›/);
   });
 
   it("a row's label leads with its state; one worked out says probably", async () => {
@@ -101,26 +111,27 @@ describe("the rail by place", () => {
     const view = board([]);
     await view.findByTestId("rail-open-now");
     // D-47: a place with one to review isn't quiet (that row stays in its place).
-    const personal = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "Claude|Personal")!;
+    const personal = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "app|claude-app|Personal")!;
     expect(within(personal).getByTestId("rail-fold").getAttribute("aria-expanded")).toBe("true");
-    const codex = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "ChatGPT|Codex")!;
+    const codex = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "app|codex-app|")!;
     const toggle = within(codex).getByTestId("rail-fold");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(toggle.getAttribute("aria-label")).toBe("Unfold ChatGPT · Codex");
-    expect(within(codex).getByTestId("place-page").textContent).toContain("Codex · 1 idle");
+    expect(toggle.getAttribute("aria-label")).toBe("Unfold ChatGPT");
+    expect(within(codex).getByTestId("place-page").textContent).toContain("1 idle");
     fireEvent.click(toggle);
     await waitFor(() => expect(view.getByTestId("place-board").querySelector("[data-conversation-id='outside-10']")).not.toBeNull());
   });
 
-  it("Open brings the running app forward by its process and says so; AI Juggler's opens its first session", async () => {
+  it("Open brings the App forward by its process (a CLI App's terminal) and says so; one AI Juggler runs a session in opens that session", async () => {
     const spy = vi.spyOn(ipc, "conversationsBringForward").mockResolvedValue({ outcome: "Brought Terminal forward", reached: "app" });
-    const view = board([own("aj")]);
+    const view = board([]);
     await view.findByTestId("rail-open-now");
-    const terminal = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "Terminal|Work Max")!;
-    fireEvent.click(within(terminal).getByRole("button", { name: /^Open Terminal/ }));
+    const cli = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "cli|claude-code|claude-work")!;
+    fireEvent.click(within(cli).getByRole("button", { name: /^Open Claude Code · Work Max/ }));
     expect(spy).toHaveBeenCalledWith(5100);
     // ⌘1–9: the place in that position.
-    act(() => void window.dispatchEvent(new CustomEvent("aij:go-place", { detail: { index: 3 } })));
+    // (By name: ChatGPT app, Claude app · Personal, Claude app · Work, …)
+    act(() => void window.dispatchEvent(new CustomEvent("aij:go-place", { detail: { index: 2 } })));
     expect(spy).toHaveBeenLastCalledWith(4100);
   });
 
@@ -152,7 +163,8 @@ describe("the rail by place", () => {
     await view.findByTestId("rail-open-now");
     const search = view.getByRole("searchbox", { name: /Search sessions/ });
     fireEvent.change(search, { target: { value: "app:terminal" } });
-    await waitFor(() => expect(headers(view.getByTestId("place-board")).map((h) => h.dataset.place)).toEqual(["Terminal|Work Max"]));
+    // `app:` takes the App's words or where its window is.
+    await waitFor(() => expect(headers(view.getByTestId("place-board")).map((h) => h.dataset.place)).toEqual(["cli|claude-code|claude-work"]));
     fireEvent.change(search, { target: { value: "is:ended pagination" } });
     await waitFor(() => expect(view.getByTestId("place-board").querySelector("[data-conversation-id='outside-2']")).not.toBeNull());
   });

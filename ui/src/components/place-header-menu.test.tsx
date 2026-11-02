@@ -23,4 +23,12 @@ describe("0.3.2 a group header's menu", () => {
     fireEvent.click(screen.getByTestId("place-header-menu-fold"));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
+
+  it("0.3.4: a CLI app's menu starts a New session on its folder", () => {
+    const onNew = vi.fn();
+    render(<PlaceHeader place={null} label="Claude Code" count={1} needs={0} folded={null} onToggle={vi.fn()} onNew={onNew} />);
+    fireEvent.contextMenu(screen.getByTestId("place-header"), { clientX: 20, clientY: 30 });
+    fireEvent.click(screen.getByTestId("place-header-menu-new"));
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
 });

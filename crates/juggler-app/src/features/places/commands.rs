@@ -43,6 +43,15 @@ pub struct KnownPlaceInfo {
     pub seen_ms: i64,
     /// Why it can't be started from here, when it can't.
     pub cannot_start: Option<String>,
+    /// 0.3.4 (D-64): the sessions seen open in it (`<tool>/<id>`, the
+    /// book's newest 100), the most recently first seen first: the rail
+    /// puts an app's sessions that aren't open under it.
+    pub recent: Vec<String>,
+}
+
+/// A place's sessions, the most recently first seen first.
+fn recent(conversations: &[String]) -> Vec<String> {
+    conversations.iter().rev().cloned().collect()
 }
 
 fn info(
@@ -70,6 +79,7 @@ fn info(
         account_id: place.account_id.clone(),
         seen_ms: place.seen_ms,
         cannot_start: super::start::plan(place, hosts, false).err(),
+        recent: recent(&place.conversations),
     }
 }
 
@@ -213,4 +223,18 @@ pub async fn places_forget(state: tauri::State<'_, Arc<AppState>>, id: String) -
         super::forget(state, &id)
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    /// D-64: the window gets an app's sessions newest first, all the book
+    /// keeps (the rail picks its last 3 itself).
+    #[test]
+    fn an_apps_sessions_go_newest_first() {
+        let book: Vec<String> = (0..100).map(|n| format!("claude-code/s-{n}")).collect();
+        let recent = super::recent(&book);
+        assert_eq!(recent.len(), 100);
+        assert_eq!(recent[0], "claude-code/s-99");
+        assert_eq!(recent[99], "claude-code/s-0");
+    }
 }

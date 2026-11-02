@@ -21,6 +21,7 @@ import { refreshPaged } from "../../lib/paged";
 import { usePools } from "../../lib/pools";
 import { onTasksChanged, type TaskCounts } from "../../lib/ipc/tasks";
 import { tasksAcrossCounts, type TasksFilterInput } from "../../lib/ipc/tasks-across";
+import { sharedReads, useSharedRead } from "../../lib/shared-read";
 import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
 import { recentProjects } from "../../lib/pickers";
 import { TaskView } from "../../pages/tasks/TaskView";
@@ -35,6 +36,9 @@ function storedView(): "board" | "plan" {
     return "board";
   }
 }
+
+/** Every column's count for a filter (its JSON), the last 16 filters kept. */
+const countsOf = sharedReads<TaskCounts>((filterKey) => tasksAcrossCounts(JSON.parse(filterKey) as TasksFilterInput), 16);
 
 /** "All" in a picker: no filter. */
 const ALL = "all";
@@ -55,7 +59,6 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   const [words, setWords] = useState("");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<OpenTask | null>(null);
-  const [counts, setCounts] = useState<TaskCounts | null>(null);
   // What's typed is looked for once typing pauses.
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(words.trim()), words ? 200 : 0);
@@ -71,17 +74,11 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   // Every list shown reads again when tasks change (their keys start
   // with `tasks`), and so do the counts.
   useEffect(() => onTasksChanged(() => refreshPaged("tasks")), []);
-  useEffect(() => {
-    let alive = true;
-    const read = () => void tasksAcrossCounts(filter).then((next) => alive && setCounts(next), () => undefined);
-    read();
-    const off = onTasksChanged(read);
-    return () => {
-      alive = false;
-      off();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey]);
+  // The counts kept per filter (0.3.4): the last ones at once (the title
+  // and the columns' size), read again on opening and when tasks change.
+  const countsSource = countsOf(filterKey);
+  const counts: TaskCounts | null = useSharedRead(countsSource) ?? null;
+  useEffect(() => onTasksChanged(() => void countsSource.refresh()), [countsSource]);
   // Esc closes the open task (when nothing inside it took the key).
   useEffect(() => {
     if (!open) return;

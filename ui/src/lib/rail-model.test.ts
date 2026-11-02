@@ -5,7 +5,7 @@
  * pointer, the View is read guarded, and search and ⌘K take its words.
  */
 import { describe, expect, it } from "vitest";
-import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, openNow, sessionItem, stateWord, OWN_PLACE } from "./rail-items";
+import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, openNow, sessionItem, placeWords, stateWord } from "./rail-items";
 import { buildLines, foldSections } from "./rail-lines";
 import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords } from "./rail-places";
 import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parseView } from "./rail-view";
@@ -20,7 +20,9 @@ const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();
 const none = () => null;
 
 function place(app: string, profile: string, pid = 10): PlaceInfo {
-  return { app, app_id: app.toLowerCase(), profile, instance: profile, pid, kind: "desktop", app_pid: pid + 1, label: `${app} · ${profile}` };
+  // Terminal is where a CLI session's window is; the Claude app runs its own.
+  const terminal = app === "Terminal";
+  return { app, shown: app === "Claude" ? "Claude app" : app, app_id: app.toLowerCase(), profile, instance: terminal ? null : profile, pid, kind: terminal ? "terminal" : "desktop", app_pid: pid + 1, label: `${app} · ${profile}` };
 }
 
 function talk(id: string, over: Partial<ConversationInfo> = {}): ConversationInfo {
@@ -107,9 +109,10 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
     expect(items.filter(openNow).map((item) => item.key)).toEqual(["s:mine", "s:lim", "c:a1/theirs", "c:a1/rev", "c:a1/calm"]);
   });
 
-  it("AI Juggler's own sessions are the place AI Juggler; a snoozed one waits in it", () => {
+  it("AI Juggler's own sessions are their CLI App, their window AI Juggler's (D-62); a snoozed one waits in it", () => {
     const item = sessionItem(own("s", { status: "waiting_user" }), none, true);
-    expect(item.place.key).toBe(OWN_PLACE);
+    expect([item.place.app, item.place.profile, item.place.kind, item.place.host]).toEqual(["Claude Code", "Work Max", "own", "AI Juggler"]);
+    expect(placeWords(item.place)).toEqual(["Claude Code", "Work Max"]);
     expect(item.need).toBeNull();
   });
 
@@ -138,9 +141,15 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
       seen: {},
     });
 
-  it("groups by app and profile in a stable order: AI Juggler first, then by app and profile", () => {
+  it("groups by App in a stable order: the Apps AI Juggler runs sessions in first, then by app and profile (D-62)", () => {
     const groups = groupItems(items(), "place");
-    expect(groups.map((group) => `${group.label}|${group.place?.profile ?? ""}`)).toEqual(["AI Juggler|", "Claude|Personal", "Claude|Work", "Terminal|Work"]);
+    // A CLI App is its tool and folder: AI Juggler's session and the one
+    // in Terminal on the same folder are one App; the Claude app's
+    // profiles are Apps of their own.
+    expect(groups.map((group) => `${group.label}|${group.place?.profile ?? ""}`)).toEqual(["Claude Code|Work Max", "Claude app|Personal", "Claude app|Work"]);
+    expect(groups[0]!.items.map((item) => item.key)).toEqual(["s:aj", "c:a1/t1"]);
+    const terminal = groups[0]!.items[1]!;
+    expect(placeWords(terminal.place)).toEqual(["Claude Code", "Work Max", "in Terminal"]);
     // A row's state changing never moves its place.
     const again = groupItems(items().map((item) => ({ ...item, state: "idle" as const })), "place");
     expect(again.map((group) => group.key)).toEqual(groups.map((group) => group.key));
@@ -176,7 +185,7 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
   });
 
   it("a quiet place folds to one header; a place shows working rows and the last 3, then +n quiet", () => {
-    const quiet = groupItems(items(), "place").find((group) => group.label === "Claude" && group.place?.profile === "Work")!;
+    const quiet = groupItems(items(), "place").find((group) => group.label === "Claude app" && group.place?.profile === "Work")!;
     expect(isQuiet(quiet)).toBe(true);
     expect(quietWords(quiet)).toBe("Work · 2 idle");
     const many = { ...quiet, items: [...Array(6)].map((_, n) => ({ ...quiet.items[0]!, key: `k${n}`, lastMs: NOW - n, state: n === 5 ? ("working" as const) : ("idle" as const) })) };
@@ -268,9 +277,10 @@ describe("profile badges (AJ-E2104 Req.2)", () => {
 });
 
 describe("the maintainer's review of 0.1.4: the way out, and folding in place", () => {
-  it("Go to it names the app and profile; AI Juggler's own terminal session has none (its page is where it runs)", () => {
-    expect(goToWhere(conversationItem(talk("c"), none, null))).toBe("Claude · Work");
-    expect(goToWhere(conversationItem(talk("bare", { places: [] }), none, null))).toBe("An app · Work Max");
+  it("Go to it names the desktop App, or the terminal a CLI session is in; AI Juggler's own terminal session has none (its page is where it runs)", () => {
+    expect(goToWhere(conversationItem(talk("c"), none, null))).toBe("Claude app · Work");
+    expect(goToWhere(conversationItem(talk("t", { places: [place("Terminal", "Work")] }), none, null))).toBe("Terminal");
+    expect(goToWhere(conversationItem(talk("bare", { places: [] }), none, null))).toBe("Claude Code · Work Max");
     const row = { id: "s", status: "running", needs_attention: null, account_id: "a1", account_label: "Work Max", project_id: null, kind: "terminal", started_at_ms: NOW, last_activity_ms: NOW } as unknown as InstanceInfo;
     expect(goToWhere(sessionItem(row, none, false))).toBeNull();
     expect(goToWhere(sessionItem({ ...row, kind: "desktop" }, none, false))).toBe("its app · Work Max");

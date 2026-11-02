@@ -64,7 +64,7 @@ describe("Home, desktop first", () => {
     // D-47: open counts every open session, the 3 that need you too (they
     // stay in their places in Open now); Needs you counts them once.
     expect(counts.textContent).toMatch(/7 open.*1 inactive.*1 ended today/);
-    fireEvent.click(within(counts).getByRole("button", { name: "1 inactive" }));
+    fireEvent.click(within(counts).getByRole("button", { name: "1 inactive session" }));
     expect(railView().show.inactive).toBe(true);
     fireEvent.click(within(counts).getByRole("button", { name: "1 ended today" }));
     expect(railView().show.ended).toBe(true);
@@ -73,9 +73,9 @@ describe("Home, desktop first", () => {
   it("Your apps: a tile per running app and profile, with its count, needs badge and Open; six, then how many more", async () => {
     const view = home([], placesConversations(NOW));
     const tiles = await view.findAllByTestId("home-app-tile");
-    expect(tiles.map((tile) => tile.dataset.place)).toEqual(["ChatGPT|Codex", "Claude|Personal", "Claude|Work", "Terminal|Work Max"]);
+    expect(tiles.map((tile) => tile.dataset.place)).toEqual(["app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work", "cli|claude-code|claude-work"]);
     const work = tiles[2]!;
-    expect(work.textContent).toContain("Work Max·2 sessions");
+    expect(work.textContent).toContain("Work·2 sessions");
     expect(within(work).getByTestId("home-app-needs").textContent).toBe("1 needs you");
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
     cleanup();
@@ -102,7 +102,7 @@ describe("Home, desktop first", () => {
     const needs = await view.findByTestId("home-needs");
     await waitFor(() => expect(needs.querySelector("[data-first='true']")?.textContent).toContain("Migrate the billing webhooks"));
     const first = needs.querySelector<HTMLElement>("[data-first='true']")!;
-    expect(first.textContent).toContain("payments-api · Claude · Work Max");
+    expect(first.textContent).toContain("payments-api · Claude app · Work");
     expect(within(first).getByRole("button", { name: /^Open its page/ })).toBeTruthy();
     expect(within(first).getByRole("button", { name: /^Continue on another account/ })).toBeTruthy();
     const limit = view.getByTestId("home-need-limit");
@@ -132,7 +132,7 @@ describe("Home, desktop first", () => {
     expect(openConversation).toHaveBeenCalledWith(expect.objectContaining({ id: "outside-3" }));
     expect(goToConversation).not.toHaveBeenCalled();
     // Always shown on a need, named for where it goes.
-    const arrow = within(first).getByRole("button", { name: "Go to it in Claude · Work Max" });
+    const arrow = within(first).getByRole("button", { name: "Go to it in Claude app · Work" });
     fireEvent.click(arrow);
     expect(goToConversation).toHaveBeenCalledTimes(1);
     expect(openConversation).toHaveBeenCalledTimes(1);
