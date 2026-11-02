@@ -28,7 +28,7 @@
 
 ## Step 1 — the words and the tables
 
-### AJ-E3201 One word per thing: Account, App, Tool, Project, Session, on screen, in the spec and in the guide | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E3201 One word per thing: Account, App, Tool, Project, Session, on screen, in the spec and in the guide | Status: IN-PROGRESS (the rail by App, the words on screen, SPEC §3/§9, the guide and the Privacy page's claims; the terminology lint's new words remain) | Priority P0 | Effort M | Depends: —
 **Goal**: Every screen, menu, filter and doc uses the maintainer's words, and a lint keeps them.
 **User story**: As someone reading the rail, "Claude app · b-work" is an App and "Work (Max)" is an Account, everywhere I see them.
 **Requirements**:
@@ -45,7 +45,7 @@
 **Research basis**: the audit's gaps table.
 **Handover note**: —
 
-### AJ-E3202 Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3201
+### AJ-E3202 Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | Status: IN-PROGRESS (v40's tables; the places book and Keep alive kept as the desktop Apps' rows; each sign-in stored as its Account; req. 3–4, the default name and plan, renewal and fee moving to the Account with a choice where folders disagree, remain) | Priority P0 | Effort L | Depends: AJ-E3201
 **Goal**: An Account is a thing you can name and set once; an App is remembered when it isn't running.
 **User story**: As someone with two Claude Code folders and a Claude app profile on one plan, I see one Account named "Work", renamable, with its renewal set once.
 **Requirements**:
@@ -81,7 +81,7 @@
 
 ## Step 2 — the pages
 
-### AJ-E3204 The App page | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3202
+### AJ-E3204 The App page | Status: IN-PROGRESS (the page, its tabs, Go to it / Start / New session, rename, and the doors from the rail and Home; Processes while it runs, the gallery, the critique and A1/A3/A4 walked remain) | Priority P0 | Effort L | Depends: AJ-E3202
 **Goal**: An App has its own page: its sessions, projects, usage, settings and processes.
 **User story**: Clicking "Claude app · b-work" in the rail opens that App, with only its own sessions.
 **Requirements**:

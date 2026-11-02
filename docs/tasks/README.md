@@ -55,7 +55,7 @@
 | [E30-pools-redesign.md](E30-pools-redesign.md) | Pools, redesigned from how people work (0.4, D-61) | AJ-E3001-E3009 |
 | [E31-everything-links.md](E31-everything-links.md) | Everything links to everything: each page leads to what's related (0.4, D-61) | AJ-E3101-E3106 |
 | [E32-account-and-app.md](E32-account-and-app.md) | Account and App: one word per thing, stored, each with its page; New session redesigned (0.4, D-62) | AJ-E3201-E3207 |
-| [E33-validated-by-use.md](E33-validated-by-use.md) | 0.4 validated by use: every combination, every real use case (0.4, D-62) | AJ-E3301-E3306 |
+| [E33-validated-by-use.md](E33-validated-by-use.md) | 0.4 validated by use: every combination, every real use case (0.4, D-62) | AJ-E3301-E3307 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

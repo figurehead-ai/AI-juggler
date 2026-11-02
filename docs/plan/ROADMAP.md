@@ -57,7 +57,7 @@ proof on real accounts of what has so far been proven with fakes.
 | New session, redesigned | It opens with your usual folder and App chosen and said in one sentence; ⌘↩ starts it; changing either is one step away; rare options folded (D-62) | AJ-E3207 |
 | Everything links to everything | Every page (project, session, App, Account, pool, Mac, Tool) leads to everything related, both ways, with counts; one list and one row everywhere; lists open on what needs you and what's active, with search and filters; every picker shows what fits where you are, then All. Approved (D-62) | E31: AJ-E3102…AJ-E3105 |
 | Pools, redesigned from how people work | A pool covers every project or the ones you pick; members are a session, an App (its new sessions join by themselves), an Account, a Tool, a Mac or everyone; a session can be in several pools; Lead, Member, Reviewer and Observer; who may talk to whom; sealed pools; other apps' sessions shown as Watched with Continue in AI Juggler; a wizard with nine templates beside a canvas that teaches; today's pools moved with nothing lost. Approved (D-62) | E30: AJ-E3002…AJ-E3009 |
-| Validated by real use | Every option combination that changes behaviour run against an independent reference; every real use case (writer and reviewer, feature team, across repositories, a reviewer for everything, rules by account, a build Mac, a sealed client, scouts, the upgrade, and the Account, App, links and New session journeys) walked by hand in the app, timed and scored; all of it again on the release candidate ([the plan](../qa/0.4-validation-plan.md)) | E33: AJ-E3301…AJ-E3306 |
+| Validated by real use | Every option combination that changes behaviour run against an independent reference; every real use case (writer and reviewer, feature team, across repositories, a reviewer for everything, rules by account, a build Mac, a sealed client, scouts, the upgrade, and the Account, App, links and New session journeys) walked by hand in the app, timed and scored; all of it again on the release candidate ([the plan](../qa/0.4-validation-plan.md)); and personas walking their day from first run, as newcomers, each step scored on whether it worked, gave value, was clear and felt good, so 0.4 is ready to announce | E33: AJ-E3301…AJ-E3307 |
 | Proven on real tools | Codex on real accounts; the runtime lab on real tools; the switching-fidelity matrix; Fleet on two Macs | AJ-E1305, AJ-E2301, AJ-E808, AJ-E710 |
 | An honest picture | The shipped work of E21, E23, E24 and E25 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, E23, E24, E25 |
 | Releases that don't stall | `just preflight`, the pre-push hook, CI parity, deterministic tests (already on `release/0.4`) | #198's follow-up |
@@ -65,6 +65,8 @@ proof on real accounts of what has so far been proven with fakes.
 **Order inside 0.4** for the approved designs: the words and the stored
 Account and App (E32), then the pages and links (E31), then pools (E30),
 each validated as it's built (E33), not after.
+
+**Not split** (2026-11-02): 0.4 ships whole and announcement ready; a release costs more time than building one.
 
 **Done when** every task above is evidenced, every scenario in the
 [validation plan](../qa/0.4-validation-plan.md) passes on the release

@@ -111,3 +111,24 @@
 **Files to touch**: `docs/qa/0.4-walks/`.
 **Research basis**: the validation plan §7–§8.
 **Handover note**: The maintainer's findings after release go to 0.4.x.
+
+### AJ-E3307 Persona-based validation: personas walk their day from first run, scored as users feel it | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3301
+> Source: the maintainer, 2026-11-02 (0.4 stays whole and announcement ready): "a full Role based / persona based validation … this is a workflow, usability, value, feeling of UI/UX test … put yourself in the shoe of the user, not the developer … Everything needs to be evidence based, ranked, quality checked."
+
+**Goal**: Before the announcement, 0.4 is used the way its users would use it, from the very beginning, and judged the way they would judge it.
+**User story**: As someone who just installed AI Juggler with three AI subscriptions, I can tell within minutes what it does for me, get my day's work done in it without asking anyone, and come away glad I installed it.
+**Requirements**:
+1. Personas built from evidence (the maintainer's own use, the personas and journeys in `docs/review/deep/07-personas-and-journeys.md`, the research), each with goals, context, skill, frustrations and daily triggers, and each one's typical day-to-day flows written down before any walk.
+2. A written protocol, research based (`docs/qa/persona-validation.md`), that guards against the tester knowing the product: the walk is done as a newcomer, from what the screen shows, never from the code or the docs; the expectation before each step is written down before the step.
+3. Each persona walked from first run, flow by flow, by hand in the built app on the throwaway lab (never a real account's data changed), each step evidenced: the screen before and after, what was expected, what happened, the time taken.
+4. Each step scored 1–5 on: it worked; it gave value; it was clear how to do it; how it felt. Each flow also scored on whether the persona's problem was solved. Every score has a one-line reason.
+5. Findings ranked by severity and by how many personas and flows they touch. Any bug is fixed at once, then that step is walked again. Anything scored under 4 is reasoned about, a better design proposed, and brought to the maintainer before it's changed.
+6. A report for the maintainer: personas, flows, the score table, the ranked findings with evidence, what was fixed, and what waits on a decision.
+**UI/UX reasoning**: tests and gates prove it works; only a user's walk proves it's worth using and clear.
+**Performance budget**: each step's time recorded; any wait over 1 s noted as a finding.
+**Quality gates**: no flow under 4 on any measure without the maintainer's decision; every bug found fixed and re-walked.
+**Evidence/validation proof**: `docs/qa/0.4-walks/personas/` (one page per persona, captures, the score table) and the report.
+**Visual testing**: every capture opened by eye; redacted with the fail-closed tool where it shows anything real.
+**Files to touch**: `docs/qa/persona-validation.md`, `docs/qa/0.4-walks/personas/`.
+**Research basis**: `docs/research/persona-validation.md` (usability methods adapted for an AI tester, and their known failure modes).
+**Handover note**: Runs on each piece as it lands (the App and Account pages first), and whole on the release candidate with AJ-E3306.
