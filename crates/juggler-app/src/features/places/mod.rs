@@ -15,6 +15,7 @@
 
 pub mod book;
 pub mod commands;
+pub mod handoff;
 pub mod keep;
 pub mod profiles;
 pub mod start;
@@ -192,6 +193,20 @@ fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
         .map(|account| account.label)
 }
 
+/// 0.3.5: the tool folder `place`'s sessions use: its account's folder,
+/// started with it so the profile stays on that account.
+pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<std::path::PathBuf> {
+    let id = place.account_id.as_deref()?;
+    state
+        .storage
+        .lock()
+        .ok()?
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(id.to_owned()))
+        .ok()
+        .map(|account| account.state_dir)
+}
+
 /// `place` in words, its profile named by its account (as the screens
 /// name it).
 fn named(state: &Arc<AppState>, place: &KnownPlace) -> String {
@@ -328,7 +343,13 @@ pub fn tick_with(
                 let Some((_, place)) = kept.iter().find(|(known, _)| *known == id) else {
                     continue;
                 };
-                match start::start(place, &hosts, starter, true) {
+                match start::start(
+                    place,
+                    &hosts,
+                    tool_folder(state, place).as_deref(),
+                    starter,
+                    true,
+                ) {
                     Ok(()) => crate::features::notifications::sources::app_started_again(
                         state,
                         &id,
@@ -413,7 +434,7 @@ pub fn set_keep_alive(state: &Arc<AppState>, id: &str, on: bool) -> AppResult<()
             .get_mut(id)
             .ok_or_else(|| AppError::Refused("AI Juggler doesn't remember that app".to_owned()))?;
         if on {
-            start::plan(place, &hosts, true).map_err(AppError::Refused)?;
+            start::plan(place, &hosts, None, true).map_err(AppError::Refused)?;
         }
         place.keep_alive = on;
         place.paused = None;
@@ -534,6 +555,7 @@ pub fn open(
     } else {
         ""
     };
+    let folder = tool_folder(state, &place);
     let state = Arc::clone(state);
     let id = id.to_owned();
     let still = label.clone();
@@ -546,7 +568,7 @@ pub fn open(
             }
             return said;
         }
-        match start::start(&place, &hosts, starter.as_ref(), false) {
+        match start::start(&place, &hosts, folder.as_deref(), starter.as_ref(), false) {
             Ok(()) => outcome(format!("Starting {label}{pick}"), "started"),
             Err(why) => outcome(why, "none"),
         }

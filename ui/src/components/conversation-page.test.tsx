@@ -13,10 +13,12 @@ import { ConversationPage, GONE_MS } from "./ConversationPage";
 import { ConversationsProvider, useConversations } from "../lib/conversations";
 import * as ipc from "../lib/ipc/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
+import { resetConversationStore } from "../lib/conversation-store";
 
 const NOW = 1_800_000_000_000;
 
 afterEach(() => {
+  resetConversationStore();
   cleanup();
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -81,7 +83,7 @@ const tabs = () => screen.getAllByRole("tab").map((tab) => tab.textContent);
 
 describe("AJ-E2108 a session's page holds still", () => {
   it("keeps both tabs while its token counts come and go, and the tab you're on", async () => {
-    vi.spyOn(ipc, "conversationsLastMessages").mockResolvedValue({ state: "none", turns: [], redacted: 0, earlier: null, stamp: null });
+    vi.spyOn(ipc, "conversationsFollow").mockResolvedValue({ state: "none", subscription: null, generation: 0, revision: 0, layout: "stretches", turns: [], earlier: null, status: null, skipped: 0 });
     render(page([conversation()]));
     // AJ-E2404: a session open in its app also has its processes.
     await waitFor(() => expect(tabs()).toEqual(["Overview", "Usage", "Processes"]));
@@ -103,7 +105,7 @@ describe("AJ-E2108 a session's page holds still", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     // Opens on Overview (the tab the test before left is remembered).
     localStorage.removeItem("aij.page.tab.conversation");
-    const read = vi.spyOn(ipc, "conversationsLastMessages").mockResolvedValue({ state: "none", turns: [], redacted: 0, earlier: null, stamp: null });
+    const read = vi.spyOn(ipc, "conversationsFollow").mockResolvedValue({ state: "none", subscription: null, generation: 0, revision: 0, layout: "stretches", turns: [], earlier: null, status: null, skipped: 0 });
     render(page([conversation()]));
     await waitFor(() => expect(screen.getByTestId("conversation-page")).toBeTruthy());
     await waitFor(() => expect(read).toHaveBeenCalledTimes(1));

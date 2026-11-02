@@ -5,7 +5,7 @@
  * in a transcript can run or style the page). Links show their words and
  * their address on hover but are never followed from here.
  */
-import { Fragment, type JSX, type ReactNode } from "react";
+import { Fragment, type JSX, type ReactNode, memo, useMemo } from "react";
 
 type Block =
   | { kind: "code"; lang: string; text: string }
@@ -175,8 +175,10 @@ function withBreaks(text: string, key: string): ReactNode[] {
   return text.split("\n").flatMap((line, index) => (index === 0 ? inline(line, `${key}-${index}`) : [<br key={`${key}-br-${index}`} />, ...inline(line, `${key}-${index}`)]));
 }
 
-export function Markdown({ text }: { text: string }): JSX.Element {
-  const blocks = blocksOf(text);
+/** 0.3.5: memoized (a conversation re-renders as it grows; text that
+ * didn't change isn't parsed again). */
+export const Markdown = memo(function Markdown({ text }: { text: string }): JSX.Element {
+  const blocks = useMemo(() => blocksOf(text), [text]);
   return (
     <div className="flex min-w-0 flex-col gap-3 text-body leading-[1.6] text-ink" data-testid="md">
       {blocks.map((block, index) => {
@@ -261,7 +263,7 @@ export function Markdown({ text }: { text: string }): JSX.Element {
       })}
     </div>
   );
-}
+});
 
 /** Plain words from markdown: marks taken off (the asks card's question). */
 export function plainWords(text: string): string {

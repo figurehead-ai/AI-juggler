@@ -11,6 +11,8 @@ import {
 } from "./ipc/transport";
 import { orderedJoin, orderedLatest } from "./ipc/ordered";
 import type { AppInfo } from "../types/generated/AppInfo";
+import type { DestinationsInfo } from "../types/generated/DestinationsInfo";
+import { previewDestinations } from "./ipc/switchDestinationsExamples";
 import type { HandoverSummaryInfo } from "../types/generated/HandoverSummaryInfo";
 import type { SavedHandoverInfo } from "../types/generated/SavedHandoverInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
@@ -2059,6 +2061,8 @@ export interface PreflightInfoData {
   /** The target's tool id (named from the catalog), and its account (its room: the one runway). */
   target_tool: string;
   target_account?: string;
+  /** 0.3.5: where it can continue (Desktop or CLI), and the default. */
+  destinations?: DestinationsInfo;
 }
 
 /** One thing a switch moves, recreates or leaves behind. */
@@ -2105,6 +2109,10 @@ export interface SwitchExecutedData {
   pid: number;
   edge_id: string;
   source_session_id: string;
+  /** 0.3.5: "desktop" | "cli"; for desktop, the conversation now in the
+   * Claude app (`conversation:<account>:<id>`), whose page opens after. */
+  continued_in?: string;
+  conversation_key?: string | null;
 }
 
 /** The no-backend preflight default (fixtures merge over it —
@@ -2142,11 +2150,11 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
   },
   redaction_items: [],
   carry_items: [
-    { label: "The whole conversation", hint: "Every message from the start, copied as the tool keeps it; the new account picks it up where it stopped.", how: "moves" },
-    { label: "Project rules", hint: "The rule files in the project folder (such as CLAUDE.md or AGENTS.md); they stay there and are read again.", how: "moves" },
-    { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; the new session works in the same folder.", how: "moves" },
-    { label: "Subagents' work", hint: "Work done by helper agents inside the session.", how: "moves" },
-    { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated" },
+    { label: "The whole conversation", hint: "Every message from the start, copied as the tool keeps it; the new account picks it up where it stopped.", how: "moves", kind: "chat" },
+    { label: "Project rules", hint: "The rule files in the project folder (such as CLAUDE.md or AGENTS.md); they stay there and are read again.", how: "moves", kind: "rules" },
+    { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; the new session works in the same folder.", how: "moves", kind: "changes" },
+    { label: "Subagents' work", hint: "Work done by helper agents inside the session.", how: "moves", kind: "subagents" },
+    { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated", kind: "tasks" },
   ],
   move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
   secrets: { asks: false, reader: "Claude Code (Anthropic)" },
@@ -2175,7 +2183,8 @@ export async function switchPreflight(
     const seam = (window as unknown as { __AIJ_SWITCH_PREFLIGHT__?: Partial<PreflightInfoData> })
       .__AIJ_SWITCH_PREFLIGHT__;
     // AJ-E2108: a session another app runs (its key) is only read.
-    const base = sessionId.startsWith("conversation:") ? { ...DEFAULT_PREFLIGHT, source_outside: true } : DEFAULT_PREFLIGHT;
+    const outside = sessionId.startsWith("conversation:") ? { source_outside: true } : {};
+    const base = { ...DEFAULT_PREFLIGHT, ...outside, destinations: previewDestinations(sessionId, targetProfileId) };
     // Merge over the default so fixtures that predate a field keep
     // working (the seam overrides only what it defines).
     if (seam) {
@@ -2345,6 +2354,8 @@ export interface SwitchTargetData {
    * "set_up", its tool's first-run setup isn't done there (a session
    * started on it once does it). */
   held_back?: "set_up" | null;
+  /** 0.3.5: its tool's own first run isn't done there; the switch does it. */
+  first_run?: boolean;
   top_factors: string[];
   factors: [string, number][];
   confidence: string;

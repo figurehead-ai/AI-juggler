@@ -10,6 +10,7 @@
 pub mod asks;
 pub mod commands;
 pub mod dto;
+pub mod feed;
 pub mod goto;
 pub mod last_messages;
 pub mod live;
@@ -68,6 +69,27 @@ struct Entry {
     conversation: Option<Conversation>,
     /// Read whole (its tokens counted), not only its quick read.
     complete: bool,
+    /// When it was last read whole.
+    counted_at: Option<std::time::Instant>,
+}
+
+/// A transcript this big is read whole (for its tokens) at most every
+/// [`WHOLE_EVERY`] while it grows; its quick read keeps the last count
+/// between (0.3.5: a 586 MB live session was read whole every 15 s and
+/// kept a core busy).
+const WHOLE_BIG: u64 = 32 * 1024 * 1024;
+
+/// How often a big, growing transcript is read whole.
+const WHOLE_EVERY: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// Whether a file of `len` bytes, last read whole at `counted_at`, is due
+/// a whole read at `now`.
+fn whole_read_due(
+    len: u64,
+    counted_at: Option<std::time::Instant>,
+    now: std::time::Instant,
+) -> bool {
+    len <= WHOLE_BIG || counted_at.is_none_or(|at| now.saturating_duration_since(at) >= WHOLE_EVERY)
 }
 
 /// Calls a pass's `progress` every `every` that read something.
@@ -144,8 +166,14 @@ fn store(
         .files
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
+    let before = files.get(path);
+    let counted_at = if complete {
+        Some(std::time::Instant::now())
+    } else {
+        before.and_then(|entry| entry.counted_at)
+    };
     let conversation =
-        conversation.map(|conversation| carry_tokens(conversation, complete, files.get(path)));
+        conversation.map(|conversation| carry_tokens(conversation, complete, before));
     files.insert(
         path.to_path_buf(),
         Entry {
@@ -153,6 +181,7 @@ fn store(
             modified,
             conversation,
             complete,
+            counted_at,
         },
     );
     Ok(())
@@ -583,18 +612,24 @@ fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
     {
         return profiles.clone();
     }
-    // Never waits on storage: a busy lock keeps the last list.
-    let accounts = match state.storage.try_lock() {
-        Ok(storage) => storage.accounts().list().unwrap_or_default(),
-        Err(_) => {
-            return state
-                .conversations
-                .profiles
-                .lock()
-                .ok()
-                .and_then(|cached| cached.as_ref().map(|(_, profiles)| profiles.clone()))
-                .unwrap_or_default();
-        }
+    // A refresh never waits on storage: a busy lock keeps the last list.
+    // The first list waits (0.3.5): with none yet, a launch's first scan
+    // found no profile folder, so its places went out unnamed and the
+    // rail said the window's folder ("b-work") until the next scan.
+    let last = state
+        .conversations
+        .profiles
+        .lock()
+        .ok()
+        .and_then(|cached| cached.as_ref().map(|(_, profiles)| profiles.clone()));
+    let accounts = match (state.storage.try_lock(), last) {
+        (Ok(storage), _) => storage.accounts().list().unwrap_or_default(),
+        (Err(_), Some(last)) => return last,
+        (Err(_), None) => state
+            .storage
+            .lock()
+            .map(|storage| storage.accounts().list().unwrap_or_default())
+            .unwrap_or_default(),
     };
     let canonical =
         |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
@@ -836,7 +871,18 @@ fn refresh_with(
     }
     // What's listed and live, at once, before the long round.
     report.flush();
+    let now = std::time::Instant::now();
     for (account, adapter, path, len, modified) in later {
+        let counted_at = state
+            .conversations
+            .files
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?
+            .get(path.as_path())
+            .and_then(|entry| entry.counted_at);
+        if !whole_read_due(*len, counted_at, now) {
+            continue;
+        }
         report.maybe();
         let summary = adapter.read_conversation(path);
         store(state, account, path, *len, *modified, summary, true)?;
@@ -1118,11 +1164,43 @@ pub fn continue_impl(
 mod tests {
     use super::*;
 
+    /// 0.3.5: storage busy at launch (its first migrations, a refresh)
+    /// no longer gives the first scan an empty list: it waits that once.
+    #[test]
+    fn the_first_profile_list_waits_for_busy_storage() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(AppState::init(dir.path().join("data")).unwrap());
+        let expected = {
+            let fresh = Arc::new(AppState::init(dir.path().join("other")).unwrap());
+            profiles(&fresh)
+        };
+        assert!(!expected.is_empty(), "each tool's default folder is listed");
+        let (held, release) = std::sync::mpsc::channel::<()>();
+        let holder = {
+            let state = Arc::clone(&state);
+            std::thread::spawn(move || {
+                let _storage = state.storage.lock().unwrap();
+                held.send(()).unwrap();
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            })
+        };
+        release.recv().unwrap();
+        let first = profiles(&state);
+        holder.join().unwrap();
+        let dirs = |list: &[scan::Profile]| {
+            list.iter()
+                .map(|p| (p.tool.clone(), p.dir.clone()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(dirs(&first), dirs(&expected));
+    }
+
     fn file(path: &str, id: &str, started: i64, last: i64, input: u64) -> Conversation {
         let mut summary = ConversationSummary {
             id: id.to_owned(),
             cwd: None,
             git_branch: None,
+            started_in: None,
             title: None,
             opening: None,
             started_ms: Some(started),
@@ -1166,7 +1244,30 @@ mod tests {
             modified: None,
             conversation: Some(conversation),
             complete,
+            counted_at: None,
         }
+    }
+
+    /// 0.3.5: a big transcript that grows is read whole at most every five
+    /// minutes; a small one, or one never read whole, every time.
+    #[test]
+    fn a_big_growing_transcript_is_read_whole_at_most_every_five_minutes() {
+        let now = std::time::Instant::now();
+        let big = WHOLE_BIG + 1;
+        assert!(
+            whole_read_due(1_000, Some(now), now),
+            "a small file: always"
+        );
+        assert!(whole_read_due(big, None, now), "never read whole: now");
+        assert!(
+            !whole_read_due(big, Some(now), now),
+            "just read whole: not again"
+        );
+        let earlier = now.checked_sub(WHOLE_EVERY).unwrap();
+        assert!(
+            whole_read_due(big, Some(earlier), now),
+            "five minutes on: again"
+        );
     }
 
     #[test]

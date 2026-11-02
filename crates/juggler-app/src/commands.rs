@@ -5294,6 +5294,8 @@ pub struct PreflightInfo {
     /// The target's account (its profile id): the UI reads its room from
     /// the one runway, as Home does (the 0.2 walk, F1).
     pub target_account: String,
+    /// 0.3.5: where it can continue, Desktop or CLI, and which is usual.
+    pub destinations: crate::features::places::handoff::DestinationsInfo,
 }
 
 /// The carry-list grouped by disposition (AJ-E206; every name is a
@@ -5406,11 +5408,7 @@ pub(crate) fn preflight_with(
     };
     let report = pipeline::preflight(&input)
         .map_err(|failure| AppError::switch(failure, &account_a.label, &account_b.label))?;
-    let warnings: Vec<String> = report
-        .warnings
-        .iter()
-        .map(|situation| pipeline::user_copy(situation.clone()))
-        .collect();
+    let warnings = user_warnings(&report);
     let source_live = matches!(source.status.as_str(), "running" | "starting");
     let stays = source_stays(state, &source, &reference, &account_a, source_live);
 
@@ -5469,6 +5467,7 @@ pub(crate) fn preflight_with(
         secrets: words.secrets,
         target_tool: account_b.harness.to_string(),
         target_account: account_b.id.to_string(),
+        destinations: switch_destinations(state, &account_a, &account_b, &reference),
     })
 }
 
@@ -5825,6 +5824,11 @@ pub struct SwitchExecutedInfo {
     pub edge_id: String,
     /// The resting source session (what undo resumes).
     pub source_session_id: String,
+    /// 0.3.5: where it continues, `desktop` or `cli`.
+    pub continued_in: String,
+    /// 0.3.5: in Desktop, the key of the conversation the app took
+    /// (`conversation:<account>:<id>`): the page to open.
+    pub conversation_key: Option<String>,
 }
 
 /// AJ-E205: executes a switch with the user's freeze choice — the
@@ -5850,6 +5854,7 @@ pub async fn switch_execute(
     redaction_unredact: Option<Vec<u32>>,
     trigger: Option<String>,
     approved: Option<Vec<String>>,
+    destination: Option<String>,
 ) -> AppResult<SwitchExecutedInfo> {
     // AJ-E1103: why the user switched (a closed word; anything else is
     // a manual switch).
@@ -5870,6 +5875,7 @@ pub async fn switch_execute(
             &redaction_unredact.unwrap_or_default(),
             trigger,
             &approved.unwrap_or_default(),
+            destination.as_deref(),
         )
     })
     .await
@@ -5915,6 +5921,32 @@ pub fn switch_execute_impl(
     )
 }
 
+/// 0.3.5: [`switch_execute_impl`] continuing in `destination` (`desktop`
+/// or `cli`), as the confirm step's choice sends it (walks and tests).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on any failure.
+pub fn switch_execute_to(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    freeze_choice: &str,
+    destination: &str,
+) -> AppResult<SwitchExecutedInfo> {
+    switch_execute_core(
+        state,
+        session_id,
+        target_profile_id,
+        freeze_choice,
+        None,
+        &[],
+        "manual",
+        &[],
+        Some(destination),
+    )
+}
+
 /// [`switch_execute_impl`] with the offers the user ticked that the switch
 /// itself carries out (see [`switch_execute`]).
 ///
@@ -5939,6 +5971,7 @@ pub fn switch_execute_with(
         redaction_unredact,
         "manual",
         approved,
+        None,
     )
 }
 
@@ -5978,6 +6011,7 @@ impl Drop for SwitchSlot<'_> {
 }
 
 #[allow(clippy::too_many_arguments)] // the switch screen's answers, each its own
+#[allow(clippy::too_many_lines)] // one switch, stage by stage: freeze, record, stage, launch, record
 fn switch_execute_core(
     state: &Arc<AppState>,
     session_id: &str,
@@ -5987,12 +6021,16 @@ fn switch_execute_core(
     redaction_unredact: &[u32],
     trigger: &'static str,
     approved: &[String],
+    destination: Option<&str>,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
     let _slot = SwitchSlot::take(state, session_id)?;
 
     let freeze = freeze_of(freeze_choice);
     let sides = switch_sides(state, session_id, target_profile_id)?;
+    // 0.3.5: Desktop continues in the target account's app profile; CLI
+    // (the default) in a terminal.
+    let desktop = desktop_place(state, &sides, destination)?;
     // AJ-E1304 (D-11): across Providers the conversation REPLAYS into a
     // primed session — one vendor's file is never installed into the
     // other's home.
@@ -6054,6 +6092,7 @@ fn switch_execute_core(
         &profile_b,
         &source,
         &new_session,
+        desktop.as_deref(),
     );
     let outcome = pipeline::execute(
         support.as_ref(),
@@ -6072,6 +6111,12 @@ fn switch_execute_core(
             return Err(error);
         }
     };
+    // In Desktop the session is the app's: kept by its account and id, as
+    // every session another app runs is.
+    let conversation_key = desktop.as_ref().map(|_| landed_key(&account_b, &record));
+    let new_session = conversation_key
+        .as_ref()
+        .map_or_else(|| new_session.clone(), |key| SessionId::new(key.clone()));
     record_edge_succeeded(
         state,
         &source,
@@ -6086,7 +6131,16 @@ fn switch_execute_core(
     )?;
 
     crate::identity::record(state, &new_session, &account_b, &assertion, "switch");
-    crate::features::handover::arrival::watch_switch(state, &account_b, &new_session, pid, &record);
+    // The app's own record already proved a Desktop hand-off arrived.
+    if desktop.is_none() {
+        crate::features::handover::arrival::watch_switch(
+            state,
+            &account_b,
+            &new_session,
+            pid,
+            &record,
+        );
+    }
     switch.succeeded();
     tasks_after_switch(state, &new_session, &account_a, &account_b);
 
@@ -6104,7 +6158,95 @@ fn switch_execute_core(
         pid,
         edge_id: edge_id.to_string(),
         source_session_id: source.id.to_string(),
+        continued_in: if desktop.is_some() { "desktop" } else { "cli" }.to_owned(),
+        conversation_key,
     })
+}
+
+/// The preflight's warnings in the screen's words (§7.1).
+fn user_warnings(report: &juggler_handover::pipeline::PreflightReport) -> Vec<String> {
+    report
+        .warnings
+        .iter()
+        .map(|situation| juggler_handover::pipeline::user_copy(situation.clone()))
+        .collect()
+}
+
+/// 0.3.5: the preflight's two choices. A session the desktop app started
+/// (its tool says so) stays in the app by default; across tools only CLI.
+fn switch_destinations(
+    state: &Arc<AppState>,
+    account_a: &Account,
+    account_b: &Account,
+    reference: &juggler_core::model::TranscriptRef,
+) -> crate::features::places::handoff::DestinationsInfo {
+    use crate::features::places::handoff::{DestinationsInfo, destinations};
+    if account_a.harness != account_b.harness {
+        return DestinationsInfo {
+            suggested: "cli".to_owned(),
+            desktop: None,
+            desktop_why_not: Some(
+                "Desktop takes a switch between two accounts of the same tool for now".to_owned(),
+            ),
+        };
+    }
+    let ran_in_desktop = reference.native_id.as_deref().is_some_and(|native| {
+        state
+            .conversations
+            .conversation_of(account_a.id.as_str(), native)
+            .is_some_and(|conversation| conversation.summary.started_in.is_some())
+    });
+    destinations(
+        state,
+        account_b.id.as_str(),
+        &account_b.label,
+        ran_in_desktop,
+    )
+}
+
+/// 0.3.5: the key of the conversation a Desktop switch handed over (the
+/// app's session, kept by its account and id).
+fn landed_key(account: &Account, record: &juggler_handover::pipeline::SwitchRecord) -> String {
+    crate::features::conversations::switch_source::source_key(
+        account.id.as_str(),
+        record
+            .install
+            .reference
+            .native_id
+            .as_deref()
+            .unwrap_or_default(),
+    )
+}
+
+/// 0.3.5: the profile a switch continues in when the user picked Desktop
+/// (`None` for CLI); refused in words when there's none to pick, or the
+/// switch crosses tools (a replay starts a new session in a terminal).
+fn desktop_place(
+    state: &Arc<AppState>,
+    sides: &SwitchSides,
+    destination: Option<&str>,
+) -> AppResult<Option<String>> {
+    if destination != Some("desktop") {
+        return Ok(None);
+    }
+    if sides.account_a.harness != sides.account_b.harness {
+        return Err(AppError::Refused(
+            "Desktop takes a switch between two accounts of the same tool for now: pick CLI"
+                .to_owned(),
+        ));
+    }
+    let offered = crate::features::places::handoff::destinations(
+        state,
+        sides.account_b.id.as_str(),
+        &sides.account_b.label,
+        true,
+    );
+    match offered.desktop {
+        Some(desktop) => Ok(Some(desktop.place_id)),
+        None => Err(AppError::Refused(offered.desktop_why_not.unwrap_or_else(
+            || "There's no desktop app profile to continue in".to_owned(),
+        ))),
+    }
 }
 
 /// AJ-E1904: a switch from `from` to `to` that landed in `session` is a
@@ -6256,6 +6398,9 @@ fn switch_sides(
             .into(),
     })?;
     crate::features::handover::access::check_switch_access(state, &reference.path, &account_b)?;
+    // 0.3.5: the switch the user started finishes the target tool's own
+    // first-run setup, the one thing left on a Claude app profile's folder.
+    crate::features::handover::access::finish_first_run(state, &account_b)?;
     Ok(SwitchSides {
         source,
         reference,
@@ -6369,6 +6514,8 @@ fn switch_replay(
         pid,
         edge_id: edge.to_string(),
         source_session_id: sides.source.id.to_string(),
+        continued_in: "cli".to_owned(),
+        conversation_key: None,
     })
 }
 
@@ -7142,9 +7289,21 @@ fn make_launch_hook<'a>(
     profile_b: &'a juggler_core::model::LaunchRecipe,
     source: &'a juggler_core::model::InstanceRecord,
     new_session: &'a SessionId,
+    desktop: Option<&'a str>,
 ) -> impl FnMut(&juggler_adapter::handover::InstallOutcome) -> Result<u32, String> + 'a {
     move |install: &juggler_adapter::handover::InstallOutcome| -> Result<u32, String> {
         let native_id = install.reference.native_id.clone().unwrap_or_default();
+        // 0.3.5 Desktop: the profile takes it from its folder, where the
+        // install put it; "switched" once it recorded it.
+        if let Some(place) = desktop {
+            return crate::features::places::handoff::hand_off(
+                state,
+                place,
+                &native_id,
+                &crate::features::places::handoff::Real,
+                crate::features::places::handoff::Waits::default(),
+            );
+        }
         let spec = adapter
             .launch_spec(
                 account_b,
@@ -13258,6 +13417,7 @@ pub enum HeldBack {
 /// One ranked, badged switch destination (the handover section's
 /// rows). Suggest-only: the click is the user's.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[allow(clippy::struct_excessive_bools)] // a target's facts, each its own: validated, cross-tool, suggested, first run
 pub struct SwitchTargetInfo {
     /// The launch recipe the switch would run under.
     pub recipe_id: String,
@@ -13284,6 +13444,10 @@ pub struct SwitchTargetInfo {
     pub filtered_reason: Option<String>,
     /// 0.3.4: why it's held back, when a step of the user's fixes it.
     pub held_back: Option<HeldBack>,
+    /// 0.3.5: its tool hasn't done its own first run there (a Claude app
+    /// profile's folder): the switch finishes it, so it's offered, and its
+    /// row says so.
+    pub first_run: bool,
     /// Top-2 contributing factors in words.
     pub top_factors: Vec<String>,
     /// All inputs for the "Why this order?" expander.
@@ -13449,9 +13613,12 @@ pub fn switch_targets_impl(
             blocker,
             Some(juggler_adapter::readiness::NotReady::NotSetUp(_))
         );
+        // 0.3.5: a first run the switch finishes never holds a target back.
+        let first_run = blocker == Some(juggler_adapter::readiness::NotReady::FirstRun);
         let reason = row.filtered_reason.clone().or_else(|| {
             blocker
                 .as_ref()
+                .filter(|_| !first_run)
                 .map(crate::features::handover::access::blocker_words)
         });
         for recipe in storage.profiles().list_by_account(&account.id)? {
@@ -13500,6 +13667,7 @@ pub fn switch_targets_impl(
                 score: row.score,
                 filtered_reason: reason.clone(),
                 held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
+                first_run,
                 top_factors: row.top_factors.clone(),
                 factors: row.factors.clone(),
                 confidence: row.confidence.clone(),

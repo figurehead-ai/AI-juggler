@@ -72,6 +72,9 @@ fn hosts() -> HostRegistry {
         tab_script: None,
         shown: None,
         siblings: false,
+        folder_env: None,
+        handoff_link: None,
+        handoff_record: None,
     }])
 }
 

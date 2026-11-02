@@ -164,6 +164,7 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
     Some(ConversationSummary {
         cwd: dir.parent().and_then(folder_of),
         git_branch: None,
+        started_in: None,
         title,
         opening,
         started_ms: first_time(

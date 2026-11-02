@@ -27,11 +27,19 @@ export function appOfTool(tool: string): AppRef {
   return { appId: spec.host_app ?? null, appPid: null, name: spec.display_name };
 }
 
-/** Where a conversation is open (by the app's name on screen, D-62:
- * "Claude app"), else its tool's app. */
+/** Where a conversation is open (by the app's name on screen: "Claude
+ * app"), else the desktop app its tool says started it (0.3.5: a Claude
+ * app session that ended is the Claude app's, not a terminal's), else its
+ * tool's app. */
 export function appOfConversation(conversation: ConversationInfo): AppRef {
   const place = conversation.live ? (conversation.places ?? [])[0] : undefined;
   if (place && (place.app_id || place.app_pid !== null)) return { appId: place.app_id ?? null, appPid: place.app_pid ?? null, name: place.shown || place.app || toolSpec(conversation.tool).display_name };
+  const started = conversation.started_in;
+  if (started) {
+    const spec = toolSpec(conversation.tool);
+    const app = spec.host_app === started && spec.desktop_app ? `${spec.desktop_app} app` : started;
+    return { appId: started, appPid: null, name: app };
+  }
   return appOfTool(conversation.tool);
 }
 

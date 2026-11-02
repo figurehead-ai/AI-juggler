@@ -329,7 +329,9 @@ fn every_page_opens_without_holding_the_main_thread() {
         .build(tauri::test::mock_context(tauri::test::noop_assets()))
         .unwrap();
     app.manage(Arc::clone(state));
+    app.manage(Arc::new(features::conversations::feed::Feeds::default()));
     let managed = || app.state::<Arc<AppState>>();
+    let feeds = || app.state::<Arc<features::conversations::feed::Feeds>>();
     let sid = fx.session.clone();
     let account = fx.account.clone();
 
@@ -451,6 +453,49 @@ fn every_page_opens_without_holding_the_main_thread() {
     .unwrap();
     // The window holds the working set; the sessions list pages them all.
     assert!(listed.len() <= features::conversations::commands::RECENT);
+    // 0.3.5 (ADR-0024): a session page follows its conversation.
+    let (_, followed) = off_main(
+        "conversations_follow (session page)",
+        state,
+        features::conversations::commands::conversations_follow(
+            managed(),
+            feeds(),
+            account.clone(),
+            "outside-0000".to_owned(),
+            Some(30),
+            tauri::ipc::Channel::new(|_| Ok(())),
+        ),
+    );
+    let followed = followed.unwrap();
+    assert_eq!(
+        followed.state, "shown",
+        "the outside conversation is followed"
+    );
+    if let Some(subscription) = followed.subscription {
+        let before = followed.turns.first().map_or(0, |turn| turn.offset);
+        without_storage(
+            "conversations_earlier",
+            state,
+            features::conversations::commands::conversations_earlier(
+                managed(),
+                feeds(),
+                subscription,
+                before,
+                Some(30),
+            ),
+        )
+        .unwrap();
+        without_storage(
+            "conversations_unfollow",
+            state,
+            features::conversations::commands::conversations_unfollow(
+                managed(),
+                feeds(),
+                subscription,
+            ),
+        )
+        .unwrap();
+    }
     let all = features::sessions::rows::sessions_counts_impl(
         state,
         &features::sessions::rows::SessionsQuery::default(),

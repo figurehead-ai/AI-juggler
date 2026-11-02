@@ -154,7 +154,7 @@ describe("the switch list and its confirm", () => {
     expect(rooms.find((row) => row.dataset.room === "out")!.textContent).toMatch(/^Out of room until /);
   });
 
-  it("Confirm says the room in credits, and the button is Switch now", async () => {
+  it("Confirm says the room in credits, and the button is Switch to CLI", async () => {
     vi.spyOn(data, "useRunways").mockReturnValue([ON_CREDITS]);
     vi.spyOn(subscriptions, "useSubscriptions").mockReturnValue(null);
     vi.spyOn(setup, "switchSetupCheck").mockResolvedValue({ from: "Work", to: "Codex", already_there: 0, offers: [] } as never);
@@ -187,7 +187,7 @@ describe("the switch list and its confirm", () => {
       render(<SwitchFlow sessionId="s-1" targetProfileId="r-codex" targetLabel="Codex" onClose={vi.fn()} onSwitched={vi.fn()} />);
       const summary = await screen.findByTestId("switch-summary-room");
       expect(summary.textContent).toMatch(/^Room on Codex: Using credits · 14,150 left\. It goes on with its credits until the window resets .+\.$/);
-      expect(screen.getByTestId("switch-confirm").textContent).toBe("Switch now");
+      expect(screen.getByTestId("switch-confirm").textContent).toBe("Switch to CLI");
       expect(screen.queryByText(/out of room/i)).toBeNull();
     } finally {
       delete (window as never as { __AIJ_SWITCH_PREFLIGHT__?: unknown }).__AIJ_SWITCH_PREFLIGHT__;

@@ -891,6 +891,8 @@ const MOVES: &[&str] = &[
     // switch_execute_impl with the ticks the switch carries out (D-51).
     "switch_execute_with",
     "switch_execute_core",
+    // 0.3.5: switch_execute_impl continuing in Desktop or CLI (walks).
+    "switch_execute_to",
     "switch_undo_impl",
     "switch_back_execute_impl",
     "switch_back_execute_to_impl",

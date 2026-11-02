@@ -16,13 +16,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { onSubagentsAsk, takeSubagentsAsk } from "../../lib/subagent-links";
-import { subagentsConversation, type SubagentInfo, type SubagentRowInfo } from "../../lib/ipc/subagents";
+import { subagentsFollow, type SubagentInfo, type SubagentRowInfo } from "../../lib/ipc/subagents";
 import { SubagentDetail } from "../subagents/SubagentDetail";
 import { SubagentsView, type SortId, type ViewMemory } from "../subagents/SubagentsView";
 import type { SubagentsSource } from "../subagents/useSubagentRows";
 import { titleOf } from "../subagents/words";
 import { LastMessages } from "./LastMessages";
-import type { ChatReader } from "./useLastMessages";
+import type { FeedSource } from "./useConversation";
 import type { SessionModel } from "./model";
 import { useHeardSubagentCounts } from "./useSubagents";
 
@@ -97,8 +97,8 @@ export function SubagentsTab({ model, title, visible, now }: { model: SessionMod
 function SubagentChat({ model, item, onBack }: { model: SessionModel; item: SubagentInfo; onBack: () => void }): JSX.Element {
   const conversationId = model.conversationId ?? "";
   const running = item.status === "running";
-  const reader = useMemo<ChatReader>(
-    () => ({ key: `subagent:${item.id}`, read: (ask) => subagentsConversation(model.profileId, conversationId, item.id, ask) }),
+  const reader = useMemo<FeedSource>(
+    () => ({ key: `${model.profileId}\u0000${conversationId}\u0000${item.id}`, follow: (max, onDelta) => subagentsFollow(model.profileId, conversationId, item.id, max, onDelta) }),
     [model.profileId, conversationId, item.id],
   );
   // Its own state: followed while it runs; it asks no one.
@@ -118,7 +118,7 @@ function SubagentChat({ model, item, onBack }: { model: SessionModel; item: Suba
       <LastMessages
         model={sub}
         visible
-        reader={reader}
+        source={reader}
         title={titleOf(item)}
         asker="The session asked"
         head={

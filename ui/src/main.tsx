@@ -22,6 +22,12 @@ let devBuild = import.meta.env.DEV;
 void fetchAppInfo().then((info) => (devBuild = devBuild || info?.edition === "dev"), () => null);
 guardContextMenu(() => devBuild);
 
+// QA: a Dev window opened at ?open=<conversation id> opens that session.
+if (import.meta.env.DEV) {
+  const open = new URL(window.location.href).searchParams.get("open");
+  if (open) void import("./lib/dev-open").then((dev) => dev.openWhenListed(open));
+}
+
 // AJ-E1525: the tools catalog first, so no screen shows a tool's id for
 // a moment (it answers from the registry, without probing anything).
 const ownTerminal = ownTerminalWindow();

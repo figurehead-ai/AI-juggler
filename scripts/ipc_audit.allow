@@ -48,8 +48,11 @@ unbounded cleanup_status  # bounded: a fixed set (settings, checks, choices or t
 unbounded cleanup_tier2_decide  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cloud_backup_list  # TO PAGE: every cloud backup
 unbounded cloud_backup_prepare_restore  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded conversations_earlier  # bounded: one page of at most 60 turns (feed::PAGE_MAX), keyset-paged by the offset where a turn starts (ADR-0024)
+unbounded conversations_follow  # bounded: the latest turns, at most 60 (feed::PAGE_MAX); changes after come on its channel, at most 100 turns each (ADR-0024)
 unbounded conversations_get  # bounded: one conversation (its places: one per process it is open in)
-unbounded conversations_last_messages  # bounded: the last 2-3 messages
+unbounded conversations_keep  # bounded: the page's own follows, at most 64 asked
+unbounded conversations_last_messages  # bounded: at most 60 turns (TURNS_MAX); deprecated for conversations_follow, removed in 0.4.0
 unbounded conversations_list  # bounded: the working set (open, in a sidebar, the newest 200 of the week); History and the Sessions tabs page the rest
 unbounded conversations_started  # bounded: the sessions one session started (its side sessions, a handful)
 unbounded cost_rollups  # TO PAGE: the UI reads only its totals (Prices and details pages cost_rows_page); its rows are still read by the real-account QA harness (qa_real_readonly, real_truth.py)
@@ -166,6 +169,7 @@ unbounded sessions_get  # bounded: the ids asked for, at most 200
 unbounded sessions_list_alias  # bounded: legacy alias of instances_list (the working set)
 unbounded source_inspect  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded subagents_detail  # bounded: one subagent's page (files capped at 200, its subagents at 50, its ancestors and matched processes few)
+unbounded subagents_follow  # bounded: as conversations_follow (at most 60 turns, ADR-0024)
 unbounded subagents_list  # paged: rows are a Page; besides it only one line per subagent type
 unbounded subagents_project  # paged: rows are a Page; besides it only one line per subagent type
 unbounded subscriptions_list  # bounded: one row per account, tool, launch setting or paired Mac

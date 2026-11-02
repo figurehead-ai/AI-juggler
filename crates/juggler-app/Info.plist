@@ -20,10 +20,12 @@
         <string>_aijuggler._tcp</string>
     </array>
     <!-- Jump to a session's window: focus asks System Events to raise it.
+         0.3.5: a switch continued in Desktop sends the Claude app profile
+         one "open this link" event (places/handoff.rs).
          Under the hardened runtime, Apple Events also need the
          com.apple.security.automation.apple-events entitlement
          (entitlements.plist); without both they're denied with no prompt. -->
     <key>NSAppleEventsUsageDescription</key>
-    <string>AI Juggler asks System Events to bring a session's window to the front when you jump to it. It doesn't control other apps otherwise.</string>
+    <string>AI Juggler asks System Events to bring a session's window to the front when you jump to it, and hands a switched session to the Claude app profile you pick when you continue it in Desktop. It doesn't control other apps otherwise.</string>
 </dict>
 </plist>

@@ -147,6 +147,21 @@ pub trait HarnessAdapter: Send + Sync {
         Ok(())
     }
 
+    /// 0.3.5: marks the tool's first-run setup done in `state_dir`, as the
+    /// tool itself records it when its own setup ends, and nothing else
+    /// (for [`crate::readiness::NotReady::FirstRun`]; only when the user
+    /// starts something that launches there).
+    ///
+    /// # Errors
+    ///
+    /// The tool has no such step, or the write failed.
+    fn complete_first_run(&self, state_dir: &Path) -> Result<(), AdapterError> {
+        let _ = state_dir;
+        Err(AdapterError::Unsupported(
+            "this tool has no first-run setup to finish".into(),
+        ))
+    }
+
     /// AJ-E1303: finds the transcript of a session this Account started
     /// in `cwd` at or after `since_ms` (epoch ms) — the file the vendor
     /// created for it, read-only. Files in `taken` (linked to other

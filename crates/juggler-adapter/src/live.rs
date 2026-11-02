@@ -204,6 +204,23 @@ pub struct HostApp {
     /// doesn't say so.
     #[serde(default)]
     pub siblings: bool,
+    /// 0.3.5: the environment variable its instances' sessions read their
+    /// tool's folder from (`CLAUDE_CONFIG_DIR`). Starting a profile passes
+    /// it with the folder that profile's sessions use, as a launcher that
+    /// pairs a profile with its folder does; without it the profile's
+    /// sessions would go to the tool's default folder.
+    #[serde(default)]
+    pub folder_env: Option<String>,
+    /// 0.3.5: a link, with `{id}`, that hands one of the tool's sessions
+    /// to an instance of this app (it takes the session from its folder).
+    /// Sent to that instance's own process, never to the app at large.
+    #[serde(default)]
+    pub handoff_link: Option<String>,
+    /// 0.3.5: the folder, inside an instance folder, where the app
+    /// records a session it took: a `local_{id}.json` below it is the
+    /// proof the hand-off arrived.
+    #[serde(default)]
+    pub handoff_record: Option<String>,
 }
 
 impl HostApp {
@@ -217,15 +234,29 @@ impl HostApp {
     /// isn't plain letters, digits, `-` and `_` gets none (never passed).
     #[must_use]
     pub fn thread_link_for(&self, id: &str) -> Option<String> {
-        let plain = !id.is_empty()
-            && id
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
         self.thread_link
             .as_ref()
-            .filter(|_| plain)
+            .filter(|_| plain_id(id))
             .map(|link| link.replace("{id}", id))
     }
+
+    /// The link that hands session `id` to an instance, when it takes
+    /// one; never for an id that isn't plain (as [`HostApp::thread_link_for`]).
+    #[must_use]
+    pub fn handoff_link_for(&self, id: &str) -> Option<String> {
+        self.handoff_link
+            .as_ref()
+            .filter(|_| plain_id(id))
+            .map(|link| link.replace("{id}", id))
+    }
+}
+
+/// Plain letters, digits, `-` and `_`: an id that may go into a link.
+fn plain_id(id: &str) -> bool {
+    !id.is_empty()
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// A file's text when it is small enough to be one of these state files
@@ -336,6 +367,9 @@ mod tests {
             tab_script: None,
             shown: None,
             siblings: false,
+            folder_env: None,
+            handoff_link: None,
+            handoff_record: None,
         };
         assert_eq!(
             app.thread_link_for("0199-ab_c").as_deref(),

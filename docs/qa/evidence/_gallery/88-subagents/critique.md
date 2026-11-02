@@ -1,4 +1,4 @@
-<!-- captures: f81dab114349 -->
+<!-- captures: 4817e5581b7e -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -83,3 +83,13 @@ The maintainer, testing 0.3.3: "a quick way to switch conversation of a session 
 - At 1280 the conversation pane narrows to about 415 px while the switcher shows; a wider window gives it more. Folding the side column when the switcher is open is a 0.4 question (AJ-E3106).
 - A started session shows only while its app is open: the app's own record is read from its running instances, as its sidebar is.
 
+
+## 0.3.5
+
+The maintainer on 0.3.4's Overview column: "you need to be clearer what is this session, and what are subagents … right now it is not clear that what you are seeing is subagents. Why not use lines and branch graphics like Claude does."
+
+**switcher-own, switcher-subagent.** The column is a tree now. At the top, the root: a ring mark, "This session", and under it "Its terminal" (or "Its main conversation"). A line runs down from it; each kind of conversation hangs off it on an elbow: "Subagents running · 3", "Sessions it started · 1", "Finished subagents · 7" (folded). Each of them has its own elbows to its leaves, and each leaf a mark for its kind: a stack for a subagent (with a live dot while it runs, red when it failed), a chat mark for a session it started. The group names say what they hold; their tooltips add "helpers working for it now" and "separate sessions, each with its own page". The lines are the faint hairline colour, so they guide without competing with the names.
+
+## Weak
+
+- On a narrow page the tree sits in its own small scrolling box above the conversation, where the lines take a little of the width.

@@ -66,12 +66,15 @@ pub fn is_session_server(exe: Option<&Path>, args: &[String]) -> bool {
     codex && args.iter().skip(1).any(|arg| arg == "app-server")
 }
 
+/// The Codex app's id in the host registry.
+pub const CODEX_APP_HOST: &str = "codex-app";
+
 /// The Codex app, as data: the Dock calls it `ChatGPT`, and a thread opens
 /// with its documented link.
 #[must_use]
 pub fn host_apps() -> Vec<HostApp> {
     vec![HostApp {
-        id: "codex-app".to_owned(),
+        id: CODEX_APP_HOST.to_owned(),
         name: "ChatGPT".to_owned(),
         bundle: "ChatGPT.app".to_owned(),
         bundle_id: Some("com.openai.codex".to_owned()),
@@ -84,6 +87,9 @@ pub fn host_apps() -> Vec<HostApp> {
         tab_script: None,
         shown: None,
         siblings: false,
+        folder_env: None,
+        handoff_link: None,
+        handoff_record: None,
     }]
 }
 

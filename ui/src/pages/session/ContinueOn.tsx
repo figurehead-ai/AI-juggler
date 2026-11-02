@@ -6,7 +6,8 @@
  * so it isn't offered. The click opens the switch screen and its checks
  * (AJ-E1542/1543), never a copy of them. The same for a session AI
  * Juggler runs and one another app runs: that one is read, never touched,
- * and continues as a new session here while it stays open in its app.
+ * and continues on the other account, on Desktop or the CLI, while it
+ * stays open in its app.
  * 0.3: Save handover… at its foot, ending with Reveal in Finder.
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
@@ -21,6 +22,7 @@ import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/
 import { appWords, sessionAppName, type SessionModel } from "./model";
 import { cliAppName } from "../../lib/app-name";
 import { CardTitle } from "./CardTitle";
+import { toolSpec } from "../../lib/tools";
 import { SaveHandover } from "../../components/HandoverView";
 import { ContinueDialog } from "../../components/ContinueDialog";
 
@@ -37,6 +39,8 @@ export type Target = {
   /** 0.3.4: held back because its tool's first-run setup isn't done there
    * ("Start a session on it" does it). */
   setupNeeded: boolean;
+  /** 0.3.5: its tool's own first run isn't done there; the switch does it. */
+  firstRun?: boolean;
   /** What the move carries ("Full story, fresh start · Beta"), when known. */
   badge: { words: string; validated: boolean } | null;
   /** Another tool than the session's. */
@@ -46,6 +50,13 @@ export type Target = {
   /** The one with the most room (the one order by room, `lib/room`). */
   suggested: boolean;
 };
+
+/** 0.3.5: a target whose tool hasn't done its own first run (a Claude app
+ * profile's folder) says the switch does it, after what else it needs. */
+export function withFirstRun(words: string | null, firstRun: boolean): string | null {
+  if (!firstRun) return words;
+  return words ? `${words} · its first-run setup too` : "Its first-run setup is done as it switches";
+}
 
 /** The one-line check, in words. */
 export function setupWords(check: SetupCheckInfo | null | undefined): string | null {
@@ -96,6 +107,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
       recipeId: row.recipe_id,
       blocked: row.filtered_reason,
       setupNeeded: row.held_back === "set_up",
+      firstRun: row.first_run === true,
       badge: row.badge ? { words: row.badge, validated: row.validated } : null,
       crossTool: row.cross_provider,
     }));
@@ -194,7 +206,7 @@ export function ContinueOn({
               </span>
               {room && <RoomLine name={name} room={room} testId="continue-room" />}
               {group.targets.map((target) => {
-                const words = target.recipeId in checks ? setupWords(checks[target.recipeId]) : null;
+                const words = withFirstRun(target.recipeId in checks ? setupWords(checks[target.recipeId]) : null, target.firstRun === true);
                 return (
                   <div key={target.profileId + target.recipeId} className="flex flex-col gap-0.5">
                     <Button
@@ -235,9 +247,8 @@ export function ContinueOn({
     {outside && (
       <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
         <p className="text-meta leading-[1.5] text-ink-2">
-          {model.live
-            ? `Picking one continues it as a new session here in AI Juggler. The original stays open in ${app ?? "its app"}, untouched.`
-            : "Picking one continues it as a new session here in AI Juggler. The original stays as it is."}
+          {/* 0.3.5: where it goes on, said plainly: Desktop or CLI, chosen before it switches. */}
+          {`Picking one continues it on that account, in the ${toolSpec(model.tool).desktop_app ?? "desktop"} app (Desktop) or in a terminal (CLI): you choose before it switches. ${model.live ? `The original stays open in ${app ?? "its app"}, untouched.` : "The original stays as it is."}`}
         </p>
         {model.live ? (
           <p className="text-label text-muted" data-testid="continue-same-profile">

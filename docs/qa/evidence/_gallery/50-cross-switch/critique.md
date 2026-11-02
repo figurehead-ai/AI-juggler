@@ -1,4 +1,4 @@
-<!-- captures: 97285ad898a8 -->
+<!-- captures: 684b72a3df68 -->
 # 50-cross-switch: continuing a session on another account or Mac: the target list, the switch wizard's steps, progress, conflicts and switching back
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -11,3 +11,9 @@ targets opens the switch list as a "Continue on another account · Now on Work M
 
 - progress: a focus outline boxes the dialog title.
 - targets: the dialog is titled "Continue on another account" but half of it is "Continue on another machine".
+
+## 0.3.5
+
+Re-shot with the switch dialog's shared frame. The step pills are tinted now: done steps green with a check, the current one accent (confirm: Target, Project, What's carried, then Confirm). The steps themselves are unchanged. A switch to another Mac continues there in a terminal, as before.
+
+Its last button names where it continues, as on this Mac: "Switch to CLI on Mac mini" (it was "Switch now"); a session on another Mac starts there in a terminal.

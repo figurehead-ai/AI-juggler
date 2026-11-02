@@ -22,11 +22,11 @@ impl start::Starter for Recorder {
         Ok(())
     }
 
-    fn start(&self, bundle: &Path, how: Start, args: &[String]) -> Result<(), String> {
+    fn start(&self, launch: &start::Launch) -> Result<(), String> {
         self.starts
             .lock()
             .unwrap()
-            .push((bundle.to_path_buf(), how, args.to_vec()));
+            .push((launch.bundle.clone(), launch.how, launch.args.clone()));
         Ok(())
     }
 }

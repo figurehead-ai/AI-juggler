@@ -6,7 +6,8 @@
  * with my approval"). One row stands for all of them, as a question, never
  * ticked for the user. A note the other account has with other words is
  * kept as it is, and the row says so. The consequence, an example and the
- * guide's section are under "What does this mean?", as on every row.
+ * guide's section are under "What does this mean?", as on every row
+ * (0.3.5: the row itself is one line, the question).
  *
  * When the other account's tool keeps no notes like these (Codex), the
  * same row asks whether to include them in the handover, the file the new
@@ -20,6 +21,7 @@ import { GUIDE } from "../../lib/switch-words";
 import { Meaning } from "../SwitchSetupTurnOn";
 import { IN_HANDOVER } from "../../lib/useSwitchSetup";
 import { Checkbox } from "../controls";
+import { CarryIcon } from "./carry-marks";
 
 /** The offer kind the backend gives this project's notes. */
 export const NOTES_KIND = "memory";
@@ -85,18 +87,23 @@ export function NotesRow({
     <li className="flex items-start gap-2" data-testid="switch-setup-row" data-verdict={offer.verdict} data-kind={NOTES_KIND}>
       <Checkbox id={id} className="mt-1" checked={picked.has(offer.id)} onChange={() => onToggle(offer.id)} />
       <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor={id} className="text-body text-ink" data-testid="switch-notes-question">
-          {handover ? handoverQuestion(count, check.from) : notesQuestion(count, check.from, check.to)}
+        <label htmlFor={id} className="flex items-start gap-1.5 text-body text-ink">
+          <CarryIcon kind={NOTES_KIND} className="mt-[3px] text-accent-hi" />
+          <span data-testid="switch-notes-question">{handover ? handoverQuestion(count, check.from) : notesQuestion(count, check.from, check.to)}</span>
         </label>
-        {offer.note && (
-          <span className="text-meta text-ink" data-testid={handover ? "switch-notes-left-out" : "switch-notes-kept"}>
-            {/[.!?]$/.test(offer.note) ? offer.note : `${offer.note}.`}
-          </span>
-        )}
-        <span className="text-meta text-ink" data-testid="switch-setup-consequence">
-          {handover ? handoverConsequence(check.to) : notesConsequence(check.to)}
-        </span>
-        <Meaning {...(handover ? handoverMeaning(check.from, check.to) : notesMeaning(check.from, check.to))} guide={GUIDE.notes} />
+        {/* 0.3.5: one line; what ticking does is under "What does this mean?". */}
+        <Meaning
+          {...(handover ? handoverMeaning(check.from, check.to) : notesMeaning(check.from, check.to))}
+          guide={GUIDE.notes}
+          lead={
+            <>
+              {offer.note && (
+                <p data-testid={handover ? "switch-notes-left-out" : "switch-notes-kept"}>{/[.!?]$/.test(offer.note) ? offer.note : `${offer.note}.`}</p>
+              )}
+              <p data-testid="switch-setup-consequence">{handover ? handoverConsequence(check.to) : notesConsequence(check.to)}</p>
+            </>
+          }
+        />
       </div>
     </li>
   );

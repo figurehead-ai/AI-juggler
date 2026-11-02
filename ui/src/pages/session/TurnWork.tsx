@@ -1,10 +1,12 @@
 /**
- * 0.3.4 — a finished turn as the tools' own windows show it: its work
- * (notes written while it worked, its steps) folded into one row that
- * opens onto it, then its final reply (`LastMessages` draws the turn).
+ * 0.3.4 — a finished turn as ChatGPT's Codex shows it (the `folded`
+ * layout): its work (notes written while it worked, its steps) folded
+ * into one row that opens onto it, then its final reply. 0.3.5: the same
+ * elements while it works and after (no remount: what the reader opened
+ * stays open), the row shown once it's done.
  */
 import { useState, type JSX } from "react";
-import type { LastTurnInfo, TurnBlockInfo } from "../../lib/ipc/conversations";
+import type { TurnInfo, TurnBlockInfo } from "../../lib/ipc/conversations";
 import { ageWords } from "../../lib/process-states";
 import { Markdown } from "./Markdown";
 
@@ -14,7 +16,7 @@ import { Markdown } from "./Markdown";
  * steps, and the steps) folded into one row, then its final reply. A turn
  * that ends on a step has no reply yet: all of it is work.
  */
-export function foldOf(turn: LastTurnInfo): { work: TurnBlockInfo[]; reply: TurnBlockInfo | null } {
+export function foldOf(turn: TurnInfo): { work: TurnBlockInfo[]; reply: TurnBlockInfo | null } {
   const last = turn.blocks[turn.blocks.length - 1];
   return last?.kind === "text" ? { work: turn.blocks.slice(0, -1), reply: last } : { work: turn.blocks, reply: null };
 }
@@ -34,18 +36,28 @@ export function workWords(work: TurnBlockInfo[], tookMs: number | null): string 
 }
 
 export function Blocks({ blocks }: { blocks: TurnBlockInfo[] }): JSX.Element {
-  return <>{blocks.map((block, index) => (block.kind === "steps" ? <Steps key={index} block={block} /> : <Markdown key={index} text={block.text} />))}</>;
+  return <>{blocks.map((block, index) => (block.kind === "steps" ? block.steps.length > 0 && <Steps key={index} block={block} /> : <Markdown key={index} text={block.text} />))}</>;
 }
 
-/** A turn's work, folded: one row that opens onto it, as it was written. */
-export function Work({ work, words }: { work: TurnBlockInfo[]; words: string }): JSX.Element {
-  const [open, setOpen] = useState(false);
+/** A turn's work, folded: one row that opens onto it, as it was written.
+ * While it works (`live`) its blocks show as they come, with no row. */
+export function Work({ work, words, live = false }: { work: TurnBlockInfo[]; words: string; live?: boolean }): JSX.Element {
+  // The reader's choice, once they make one; folded by default.
+  const [choice, setOpen] = useState<boolean | null>(null);
+  const open = choice ?? false;
+  if (live) {
+    return (
+      <div className="flex flex-col gap-3" data-testid="last-turn-live">
+        <Blocks blocks={work} />
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col" data-testid="last-turn-work">
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((now) => !now)}
+        onClick={() => setOpen(!open)}
         className="inline-flex w-fit max-w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-meta font-medium text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         data-testid="last-turn-work-toggle"
       >
@@ -100,7 +112,7 @@ export function stepsSummary(lines: string[]): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-function Steps({ block }: { block: TurnBlockInfo }): JSX.Element {
+export function Steps({ block }: { block: TurnBlockInfo }): JSX.Element {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex flex-col" data-testid="last-turn-steps">

@@ -33,6 +33,12 @@ pub struct ConversationSummary {
     pub last_ms: Option<i64>,
     /// Tokens, each message counted once.
     pub tokens: TokenCounts,
+    /// 0.3.5: the desktop app it was started from, as the tool recorded it
+    /// (a host registry id, `HostApp::id`), when it was; `None` for a
+    /// terminal's or a headless run's. A Claude app session that AI
+    /// Juggler never saw open is still that app's (the maintainer's walk:
+    /// six Claude app sessions read as a Claude Code app on the folder).
+    pub started_in: Option<String>,
 }
 
 /// AJ-E1602: a conversation a tool keeps in a store with all the others

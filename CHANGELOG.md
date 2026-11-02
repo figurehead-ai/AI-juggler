@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (0.3.5)
+
+- **Switch to Desktop or CLI** (docs/releases/0.3.5.md): the preflight's
+  `destinations` (the target account's app profile, the usual choice);
+  `switch_execute`'s `destination`; Desktop installs as before, then
+  `places::handoff` sends `claude://resume?session=` to that profile's
+  own process (`apps::send_link`, an Apple event to one pid) and waits
+  for its `local_<id>.json`. The switch screen asks where, simple first.
+
+### Fixed (0.3.5)
+
+- **A profile starts on its tool folder** (`HostApp::folder_env`,
+  `open --env CLAUDE_CONFIG_DIR=`): Open, Keep alive and the hand-off.
+- **The conversation feed** (ADR-0024, docs/releases/0.3.5.md): a page
+  follows a conversation (`conversations_follow`, a Channel of deltas
+  under stable `generation:offset` turn ids) instead of re-reading a
+  2 MiB tail every 4 s; turns append, earlier pages come on scroll
+  (`conversations_earlier`), the scroll stays put.
+- **Claude turns as the Claude app draws them**: every text in full and
+  each run of calls one titled fold (`claude_folds`, `claude_tool_words`:
+  the app's own words, never a raw tool name); a mid-turn message splits
+  the turn. Codex keeps its "Worked for" row.
+- **Desktop profiles named by their folder** (`ConversationInfo.started_in`
+  from `entrypoint` / `originator`): a Claude app session never seen open
+  belongs to that profile, never to a CLI app; the first scan waits for
+  the profile folders once.
+- **A Claude app profile is a switch target again**
+  (`NotReady::FirstRun`, `complete_first_run`): the switch sets Claude
+  Code's `hasCompletedOnboarding` in that profile as it switches.
+- **The Overview's column is a tree** (This session, Subagents running,
+  Sessions it started, Finished subagents) and keeps its height on a
+  narrow page.
+
 ### Added (0.3.4)
 
 - **The Overview's switcher** (docs/releases/0.3.4.md): beside a session's

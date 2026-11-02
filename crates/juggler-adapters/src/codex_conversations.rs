@@ -115,6 +115,9 @@ fn summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
     summary.finish(name)
 }
 
+/// The `originator` Codex writes for a thread the Codex app runs.
+const DESKTOP_ORIGINATOR: &str = "Codex Desktop";
+
 /// A rollout's summary, built a line at a time: what a conversation's row
 /// needs and nothing more, so a rollout of any size reads in bounded
 /// memory.
@@ -126,6 +129,9 @@ struct Summary {
     /// The first `session_meta` seen (a subagent's says so there).
     meta_seen: bool,
     subagent: bool,
+    /// 0.3.5: the Codex app, when it started the thread
+    /// (`session_meta.payload.originator` is `Codex Desktop`).
+    started_in: Option<String>,
     /// From a `session_meta` in the first five lines.
     id: Option<String>,
     cwd: Option<String>,
@@ -181,6 +187,9 @@ impl Summary {
             if !self.meta_seen {
                 self.meta_seen = true;
                 self.subagent = value.pointer("/payload/source/subagent").is_some();
+                self.started_in = (field("/payload/originator").as_deref()
+                    == Some(DESKTOP_ORIGINATOR))
+                .then(|| crate::codex_live::CODEX_APP_HOST.to_owned());
             }
             // `session_meta.payload.git.branch`, when Codex recorded the repo.
             if let Some(branch) = field("/payload/git/branch") {
@@ -217,6 +226,7 @@ impl Summary {
             started_ms: self.started_ms,
             last_ms: self.last_ms,
             git_branch: self.git_branch,
+            started_in: self.started_in,
         })
     }
 }
@@ -376,11 +386,37 @@ mod tests {
         assert_eq!(summary.cwd.as_deref(), Some(Path::new("/w/api")));
         assert_eq!(summary.git_branch.as_deref(), Some("main"));
         assert_eq!(summary.title.as_deref(), Some("Speed up the import job"));
+        assert_eq!(summary.started_in, None, "no originator: a terminal's");
         assert_eq!(summary.last_ms.unwrap() - summary.started_ms.unwrap(), 9500);
         assert_eq!((summary.tokens.input, summary.tokens.output), (100, 20));
         assert_eq!(conversation_files(dir.path()), vec![path]);
         // Small: no quick read, the whole file is as quick.
         assert!(read_conversation_quick(&summary_path(&dir)).is_none());
+    }
+
+    /// 0.3.5: a thread the Codex app started is that app's, even when it
+    /// isn't open (the maintainer's walk: 59 app threads read as a
+    /// terminal's).
+    #[test]
+    fn a_thread_the_codex_app_started_says_so() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir
+            .path()
+            .join("rollout-2026-10-21T10-00-00-0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b.jsonl");
+        std::fs::write(
+            &path,
+            [
+                r#"{"timestamp":"2026-10-21T10:00:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b","cwd":"/w/api","originator":"Codex Desktop"}}"#,
+                r#"{"timestamp":"2026-10-21T10:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Speed up the import job"}]}}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        let summary = read_conversation(&path).unwrap();
+        assert_eq!(
+            summary.started_in.as_deref(),
+            Some(crate::codex_live::CODEX_APP_HOST)
+        );
     }
 
     /// The 0.1.5 review: a Codex app thread was titled with the block the

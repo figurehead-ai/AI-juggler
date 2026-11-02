@@ -97,6 +97,9 @@ pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
     Some(summary)
 }
 
+/// The `entrypoint` Claude Code writes for a session the Claude app runs.
+const DESKTOP_ENTRYPOINT: &str = "claude-desktop";
+
 /// What a transcript's lines (all, or its two ends) say.
 fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<ConversationSummary> {
     let mut summary = ConversationSummary::default();
@@ -128,6 +131,11 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
         }
         if let Some(branch) = str_of("gitBranch").filter(|branch| !branch.is_empty()) {
             summary.git_branch = Some(branch.to_owned());
+        }
+        // Claude Code records where it runs on every line: the Claude app's
+        // Code tab is `claude-desktop`.
+        if summary.started_in.is_none() && str_of("entrypoint") == Some(DESKTOP_ENTRYPOINT) {
+            summary.started_in = Some(crate::claude_live::CLAUDE_APP_HOST.to_owned());
         }
         if let Some(at) = str_of("timestamp").and_then(timestamp_ms) {
             summary.started_ms = Some(summary.started_ms.map_or(at, |first| first.min(at)));
@@ -223,6 +231,26 @@ mod tests {
         path
     }
 
+    /// 0.3.5: a session the Claude app ran is that app's, even when it
+    /// isn't open (the maintainer's walk: six Claude app sessions read as
+    /// a Claude Code app on their folder).
+    #[test]
+    fn a_session_the_claude_app_ran_says_so() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write(
+            dir.path(),
+            "projects/-w-proj/abc.jsonl",
+            &[
+                r#"{"type":"user","sessionId":"s-1","cwd":"/w/proj","entrypoint":"claude-desktop","timestamp":"2026-10-21T10:00:00.000Z","message":{"role":"user","content":"why does login fail?"}}"#,
+            ],
+        );
+        let summary = read_conversation(&path).unwrap();
+        assert_eq!(
+            summary.started_in.as_deref(),
+            Some(crate::claude_live::CLAUDE_APP_HOST)
+        );
+    }
+
     #[test]
     fn a_conversation_reads_its_id_folder_branch_title_times_and_tokens_once() {
         let dir = tempfile::tempdir().unwrap();
@@ -242,6 +270,7 @@ mod tests {
         assert_eq!(summary.cwd.as_deref(), Some(Path::new("/w/proj")));
         assert_eq!(summary.git_branch.as_deref(), Some("fix/login"));
         assert_eq!(summary.title.as_deref(), Some("Fix the flaky login test"));
+        assert_eq!(summary.started_in, None, "no entrypoint: a terminal's");
         assert_eq!(summary.last_ms.unwrap() - summary.started_ms.unwrap(), 6000);
         assert_eq!(
             (
