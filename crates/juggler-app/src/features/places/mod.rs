@@ -158,6 +158,24 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
     }
 }
 
+/// D-62 (AJ-E3204): the desktop App each session was last seen open in
+/// (`<tool>/<id>` → App id), the most recently seen App winning, as the
+/// rail puts a session under its app. Empty when the book can't be read.
+pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeMap<String, String> {
+    with_book(state, |book| {
+        let mut places: Vec<(&String, &KnownPlace)> = book.places.iter().collect();
+        places.sort_by_key(|(_, place)| std::cmp::Reverse(place.seen_ms));
+        let mut out = std::collections::BTreeMap::new();
+        for (id, place) in places {
+            for key in &place.conversations {
+                out.entry(key.clone()).or_insert_with(|| id.clone());
+            }
+        }
+        out
+    })
+    .unwrap_or_default()
+}
+
 /// The name of the account `place`'s sessions ran on.
 fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
     let id = place.account_id.as_deref()?;

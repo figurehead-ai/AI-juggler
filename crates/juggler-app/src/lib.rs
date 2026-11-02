@@ -530,6 +530,9 @@ macro_rules! app_commands {
             // 0.3.3: the apps and profiles remembered; Open starts one
             // that isn't running; Keep alive starts it again. Never from
             // the read-only bridge (each may start an app).
+            // D-62 (AJ-E3204): the Apps; naming one changes nothing it runs.
+            Read  features::apps::commands::apps_list,
+            Write features::apps::commands::apps_rename,
             Read  features::places::commands::places_list,
             Read  features::places::commands::places_find,
             Write features::places::commands::places_open,

@@ -7,7 +7,7 @@
  * live in the header and its ⋯ menu, never in a tab of their own.
  */
 
-export type PageKind = "session" | "conversation" | "project" | "account" | "tool" | "machine" | "remote-session" | "pool";
+export type PageKind = "session" | "conversation" | "project" | "app" | "account" | "tool" | "machine" | "remote-session" | "pool";
 
 /** The type, in words, on every page's header. A conversation started
  * outside AI Juggler is a session too (it says "outside AI Juggler"). */
@@ -15,6 +15,9 @@ export const PAGE_LABELS: Record<PageKind, string> = {
   session: "Session",
   conversation: "Session",
   project: "Project",
+  // D-62 (AJ-E3204): an App's own page; `account` is a CLI App's folder
+  // page until the Account page (AJ-E3205) takes its place.
+  app: "App",
   account: "App",
   tool: "Tool",
   machine: "Machine",
@@ -37,7 +40,9 @@ export type PageTabId =
   | "tasks"
   | "subagents"
   | "access"
-  | "pool";
+  | "pool"
+  | "projects"
+  | "settings";
 
 export type PageTab = {
   id: PageTabId;
@@ -64,6 +69,8 @@ const TAB: Record<PageTabId, PageTab> = {
   subagents: { id: "subagents", label: "Subagents", source: "the tool's own records of its subagents, read-only" },
   access: { id: "access", label: "Agent access", source: "your choices for this pool" },
   pool: { id: "pool", label: "Pool", source: "AI Juggler's pools and the sessions' own transcripts" },
+  projects: { id: "projects", label: "Projects", source: "the tools' own session files" },
+  settings: { id: "settings", label: "Settings", source: "your choices for this app" },
 };
 
 /** What decides which tabs a page has: only what it has to show. */
@@ -95,6 +102,7 @@ export type TabFacts = {
 const OVERVIEW_SOURCE: Partial<Record<PageKind, string>> = {
   project: "AI Juggler's projects and the tools' session files",
   account: "the app's settings and usage tracking",
+  app: "the apps' own session files and usage tracking",
   tool: "the tool's install and its apps",
   // AJ-E2108: where it runs, and its last messages from its transcript's end.
   session: "the apps' own session files and the end of its transcript",
@@ -124,6 +132,11 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // its pool, its sessions' subagents, its usage and its past sessions.
     case "project":
       return [TAB.overview, TAB.sessions, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pool, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
+    // D-62 (AJ-E3204): what's open there and its room, then all its
+    // sessions, the projects it worked in, its usage (where its folder
+    // is known) and its settings.
+    case "app":
+      return [TAB.overview, TAB.sessions, TAB.projects, ...when(facts.hasUsage, "usage"), TAB.settings];
     case "account":
       return [TAB.overview, ...when(facts.hasSessions, "sessions")];
     case "conversation":

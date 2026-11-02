@@ -20,6 +20,8 @@ import { AppIcon } from "../../components/AppIcon";
 import { showToast } from "../../components/Toast";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
 import { placeWords, useKnownPlaces } from "../../lib/places";
+import { appName } from "../../lib/app-name";
+import { knownAppWord } from "../../lib/rail-apps";
 import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
@@ -214,13 +216,15 @@ function HotkeyRow(): JSX.Element {
 
 /** One app or profile: what it is now, Start (Open while it runs), and
  * Keep alive. */
-function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
+export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?: string }): JSX.Element {
+  // D-62: named as its App ("Claude app · Work"), or as you named it.
+  const name = named ?? appName(knownAppWord(place), place.instance ?? place.profile);
   const id = useId();
   const [error, setError] = useState<string | null>(null);
   const running = place.app_pid !== null;
   const open = () => {
     setError(null);
-    showToast({ id: "go-to", message: running ? `Bringing ${place.label} forward…` : `Starting ${place.label}…` });
+    showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
     placesOpen(place.id).then(
       (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
       (cause) => setError(errorText(cause)),
@@ -228,7 +232,7 @@ function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   };
   return (
     <SettingRow
-      title={place.label}
+      title={name}
       titleId={`${id}-title`}
       description={placeWords(place)}
       icon={<AppIcon appId={place.app_id} appPid={place.app_pid} name={place.app} size={24} />}
@@ -236,11 +240,11 @@ function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
       control={
         <>
           {!running && !place.keep_alive && (
-            <Button size="sm" variant="ghost" onClick={() => void placesForget(place.id).catch((cause) => setError(errorText(cause)))} aria-label={`Forget ${place.label}`} data-testid="desktop-place-forget">
+            <Button size="sm" variant="ghost" onClick={() => void placesForget(place.id).catch((cause) => setError(errorText(cause)))} aria-label={`Forget ${name}`} data-testid="desktop-place-forget">
               Forget
             </Button>
           )}
-          <Button size="sm" variant="secondary" onClick={open} disabled={!running && place.cannot_start !== null} title={running ? undefined : (place.cannot_start ?? undefined)} aria-label={`${running ? "Open" : "Start"} ${place.label}`} data-testid="desktop-place-open">
+          <Button size="sm" variant="secondary" onClick={open} disabled={!running && place.cannot_start !== null} title={running ? undefined : (place.cannot_start ?? undefined)} aria-label={`${running ? "Open" : "Start"} ${name}`} data-testid="desktop-place-open">
             {running ? "Open" : "Start"}
           </Button>
           <span id={`${id}-keep`} className="ml-1 text-xs font-medium text-muted">

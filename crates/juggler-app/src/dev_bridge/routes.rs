@@ -248,6 +248,7 @@ read_routes! {
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
     // 0.3.3: the apps and profiles remembered (reads only; Open and Keep
     // alive start apps, so they never come over the bridge).
+    "apps_list" => async_result features::apps::commands::apps_list(state; page: Option<crate::paging::PageRequest>);
     "places_list" => async_result features::places::commands::places_list(state; page: Option<crate::paging::PageRequest>);
     "places_find" => async_result features::places::commands::places_find(state; tool: String, conversation_id: String);
     "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);

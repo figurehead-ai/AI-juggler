@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as places from "../lib/ipc/places";
 import { RailIdleApp, idleWords } from "./RailIdleApp";
 import type { IdleApp } from "../lib/rail-apps";
+import { OPEN_APP } from "../lib/apps";
 import type { RailItem } from "../lib/rail-items";
 
 const NOW = new Date(2026, 10, 1, 15, 0, 0).getTime();
@@ -75,6 +76,22 @@ describe("D-64 an inactive app in the rail", () => {
     expect(screen.getByTestId("rail-idle-menu-fold").textContent).toBe("Show its last 3");
     fireEvent.click(screen.getByTestId("rail-idle-menu-fold"));
     expect(onToggle).toHaveBeenCalledTimes(2);
+  });
+
+  it("D-62: its name opens its App page (its menu too), a desktop one's and a CLI one's", () => {
+    const opened = vi.fn();
+    const listen = (event: Event) => opened((event as CustomEvent<{ id: string }>).detail.id);
+    window.addEventListener(OPEN_APP, listen);
+    const desk = render(<RailIdleApp app={app()} open={false} onToggle={vi.fn()} now={NOW} />);
+    const name = screen.getByTitle("Open Claude app · Work's page");
+    fireEvent.click(name);
+    fireEvent.contextMenu(screen.getByTestId("rail-idle-app"), { clientX: 10, clientY: 10 });
+    fireEvent.click(screen.getByTestId("rail-idle-menu-page"));
+    desk.unmount();
+    render(<RailIdleApp app={app({ kind: "cli", placeId: null, accountId: "a2", name: "Claude Code · Personal" })} open={false} onToggle={vi.fn()} now={NOW} />);
+    fireEvent.click(screen.getByTitle("Open Claude Code · Personal's page"));
+    window.removeEventListener(OPEN_APP, listen);
+    expect(opened.mock.calls.map((call) => call[0])).toEqual(["app:claude-app:/p/Work", "app:claude-app:/p/Work", "cli:a2"]);
   });
 
   it("Keep alive from its menu", () => {

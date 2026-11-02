@@ -74,8 +74,8 @@ describe("Settings › Desktop apps: your apps", () => {
     const chat = screen.getByTestId("desktop-place-codex-app");
     expect(within(chat).getByTestId("desktop-place-open").textContent).toContain("Open");
     expect(within(chat).queryByTestId("desktop-place-forget")).toBeNull();
-    // The switch is named by its words and the place.
-    const keep = within(lab).getByRole("switch", { name: "Keep alive Claude · b-lab" });
+    // The switch is named by its words and the App (D-62).
+    const keep = within(lab).getByRole("switch", { name: "Keep alive Claude app · b-lab" });
     fireEvent.click(keep);
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.keep_alive).toBe(true));
     await waitFor(() => expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).getByRole("switch").getAttribute("aria-checked")).toBe("true"));

@@ -19,6 +19,7 @@ import { IconStateRunning } from "./icons";
 import { IconPlus } from "./icons-actions";
 import { showToast } from "./Toast";
 import { placesOpen } from "../lib/ipc/places";
+import { openApp } from "../lib/apps";
 import { agoWords } from "../lib/time-words";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
 
@@ -73,6 +74,9 @@ export function RailIdleApp({
       () => showToast({ id: "go-to", message: running ? `Couldn't bring ${app.name} forward` : `Couldn't start ${app.name}` }),
     );
   };
+  // D-62: its name opens its App page, as an open App's header does.
+  const page = app.kind === "desktop" ? app.placeId : app.accountId ? `cli:${app.accountId}` : null;
+  const openPage = page !== null ? () => openApp(page) : null;
   const run = (action: () => void) => () => (setMenu(null), action());
   const has = app.sessions.length > 0;
   const lastWords = `Show its last ${Math.min(app.sessions.length, RECENT_INLINE)}`;
@@ -97,9 +101,10 @@ export function RailIdleApp({
       {has ? <FoldButton open={open} label={app.name} onToggle={onToggle} /> : <span aria-hidden="true" className="w-6 shrink-0" />}
       <button
         type="button"
-        onClick={has ? onToggle : act}
+        onClick={openPage ?? (has ? onToggle : act)}
         data-rail-nav
-        aria-expanded={has ? open : undefined}
+        aria-expanded={openPage === null && has ? open : undefined}
+        title={openPage ? `Open ${app.name}'s page` : undefined}
         className="relative flex min-h-10 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="sr-only">{`${app.name}, ${idleWords(app, now)}`}</span>
@@ -142,6 +147,11 @@ export function RailIdleApp({
                   ✓
                 </span>
               </span>
+            </MenuItem>
+          )}
+          {openPage && (
+            <MenuItem onClick={run(openPage)} testId="rail-idle-menu-page">
+              Open its page
             </MenuItem>
           )}
           {has && (

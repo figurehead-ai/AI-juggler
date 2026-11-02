@@ -33,6 +33,12 @@ pub struct SessionsQuery {
     /// One account's sessions.
     #[serde(default)]
     pub account_id: Option<String>,
+    /// D-62 (AJ-E3204): one App's sessions (`cli:<folder>`,
+    /// `app:<host>:<instance folder>`), as the rail groups them: where a
+    /// desktop app was last seen showing it, else its tool and folder.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub app_id: Option<String>,
     /// `all` (the default), `open`, `ended` (not archived) or `archived`.
     #[serde(default)]
     pub which: Option<String>,
@@ -320,12 +326,21 @@ fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
             storage.sessions().lifecycle_latest().unwrap_or_default(),
         )
     };
+    let desktop = if query.app_id.is_some() {
+        crate::features::places::desktop_app_by_session(state)
+    } else {
+        std::collections::BTreeMap::new()
+    };
+    let in_app = |app: String| query.app_id.as_ref().is_none_or(|want| *want == app);
     let mut candidates = Vec::new();
     for (index, record) in records.iter().enumerate() {
         let join = crate::commands::resolved_join(&recipes, &accounts, &record.profile.to_string());
         let project = record.project.as_ref().map(ToString::to_string);
         if (query.project_id.is_some() && project != query.project_id)
             || (query.account_id.is_some() && join.0 != query.account_id)
+            || !in_app(juggler_core::storage::cli_app_id(
+                join.0.as_deref().unwrap_or_default(),
+            ))
         {
             continue;
         }
@@ -354,6 +369,15 @@ fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
                 .account_id
                 .as_ref()
                 .is_some_and(|account| *account != conversation.account_id)
+            || !in_app(
+                desktop
+                    .get(&crate::features::places::book::conversation_key(
+                        &conversation.tool,
+                        &conversation.id,
+                    ))
+                    .cloned()
+                    .unwrap_or_else(|| juggler_core::storage::cli_app_id(&conversation.account_id)),
+            )
         {
             continue;
         }

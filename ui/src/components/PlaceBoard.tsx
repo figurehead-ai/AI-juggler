@@ -26,6 +26,7 @@ import { placeFor, useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow } from "../lib/rail-items";
 import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line, type SectionId } from "../lib/rail-lines";
 import { recentWords } from "../lib/rail-apps";
+import { appIdOfRailKey, openApp } from "../lib/apps";
 import { renamedPlaces, type RailGroup } from "../lib/rail-places";
 import { dayOf, lensOf, LONG_GROUP, rankOf } from "../lib/rail-order";
 import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
@@ -132,13 +133,18 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     if (!root.current?.contains(active) && !root.current?.matches(":hover")) setFrozen(null);
   };
 
-  // A header's own click: its profile's page here (an account's in the
+  // A header's own click: its App's page here (an account's in the
   // Account lens, a pool's in the Pool lens); AI Juggler's own place is Home.
   const host = useActionHost();
   const pageOf = (group: RailGroup): (() => void) | undefined => {
     if (lens === "pool") {
       const pool = group.poolId;
       return pool !== null && host.openPool ? () => host.openPool!(pool) : undefined;
+    }
+    // D-62: grouped by App, the App's own page.
+    if (lens === "place" && group.place) {
+      const app = appIdOfRailKey(group.place.key, group.items[0]?.accountId ?? null, places);
+      if (app !== null) return () => openApp(app);
     }
     const id = group.accountId ?? group.items[0]?.accountId ?? null;
     return id !== null && host.openAccountById ? () => host.openAccountById!(id) : undefined;

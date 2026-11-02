@@ -279,3 +279,24 @@ fn nothing_starts_unless_keep_alive_was_turned_on() {
     }
     assert!(starter.starts.lock().unwrap().is_empty());
 }
+
+/// D-62: a session belongs to the desktop App it was last seen open in.
+#[test]
+fn a_session_belongs_to_the_desktop_app_it_was_last_seen_in() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, chat) = state_with_places(root.path());
+    let by_session = desktop_app_by_session(&state);
+    assert_eq!(by_session.get("claude-code/s-1"), Some(&work));
+    assert_eq!(by_session.get("codex/t-1"), Some(&chat));
+    // Seen later in the Codex app too: the newer App has it.
+    with_book(&state, |book| {
+        let place = book.places.get_mut(&chat).unwrap();
+        place.conversations.push("claude-code/s-1".into());
+        place.seen_ms = 5;
+    })
+    .unwrap();
+    assert_eq!(
+        desktop_app_by_session(&state).get("claude-code/s-1"),
+        Some(&chat)
+    );
+}

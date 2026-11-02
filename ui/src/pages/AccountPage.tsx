@@ -144,7 +144,7 @@ export function AccountSessions(props: AccountPanelProps) {
 
 /** 0.1.5: the profile's limits first: a gauge per window with its reset
  * and the reading's age, the last week's windows, and its tokens. */
-function AccountLimits({ account, now }: { account: AccountInfo; now: number }) {
+export function AccountLimits({ account, now }: { account: AccountInfo; now: number }) {
   const [display, setDisplay] = useState<QuotaDisplayData | null>(null);
   useEffect(() => {
     let alive = true;
@@ -178,7 +178,7 @@ function AccountLimits({ account, now }: { account: AccountInfo; now: number }) 
 }
 
 /** The profile's usage: the dashboard scoped to it, by project. */
-function AccountUsage({ account, accounts }: { account: AccountInfo; accounts: AccountInfo[] }) {
+export function AccountUsage({ account, accounts }: { account: AccountInfo; accounts: AccountInfo[] }) {
   const [range, setRange] = useRange("account");
   return (
     <section aria-label="Usage" className="flex flex-col gap-3">

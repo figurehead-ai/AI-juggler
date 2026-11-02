@@ -16,7 +16,7 @@ import { useCleanupCount } from "./lib/cleanup-count";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
 import {
-  ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
+  AppPage, ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
   SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage, NavScreen,
 } from "./lazyParts";
@@ -29,14 +29,9 @@ import { SkipLink } from "./components/SkipLink";
 import { RailHeader } from "./components/RailHeader";
 import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
-import {
-  DENSITY_EVENT,
-  nextDensity,
-  readDensity,
-  storeDensity,
-  toggledDensity,
-  type Density,
-} from "./lib/density";
+import { toggledDensity, type Density } from "./lib/density";
+import { OPEN_APP } from "./lib/apps";
+import { useStoredDensity } from "./lib/use-density";
 import {
   fleetRemote,
   fleetRemoteFocus,
@@ -53,7 +48,7 @@ import { staleSubscriptions } from "./lib/subscriptions";
 import { useScrollMemory } from "./lib/scroll-memory";
 import { useNewSessionSheet } from "./lib/new-session-sheet";
 import { ToastHost } from "./components/Toast";
-import { fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
+import { fleetPeers, launchPortWarning, statsEvent, type PortWarningInfo } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
  * the retired Overview aren't either — the schema keeps the name). */
@@ -108,44 +103,15 @@ type Selection =
   | { kind: "provider"; id: string }
   | { kind: "conversation"; accountId: string; id: string; projectId: string | null } // AJ-E1529
   | { kind: "pool"; id: string } // AJ-E1703: a pool's page
+  | { kind: "app"; id: string } // D-62 (AJ-E3204): an App's page
   // AJ-E705: a paired machine (instanceId null) or an Instance on it.
   | { kind: "remote"; machineId: string; instanceId: string | null };
 
 export default function App() {
   // The rest of the app, fetched once the first window has painted.
   useEffect(() => prefetchLazy(), []);
-  // Density (AJ-E403): persisted in `aij.density`; the legacy
-  // `aij.rail.collapsed` boolean migrates into `minimal` on first read.
-  const [density, setDensity] = useState<Density>(() => readDensity());
-  // D-25: density lives in Settings › Appearance now; follow its changes.
-  useEffect(() => {
-    const follow = () => setDensity(readDensity());
-    window.addEventListener(DENSITY_EVENT, follow);
-    return () => window.removeEventListener(DENSITY_EVENT, follow);
-  }, []);
-  // AJ-E1103: the display preferences, as this week's gauges.
-  useEffect(() => {
-    statsGauge("ui.density", density);
-  }, [density]);
-  useEffect(() => {
-    const report = () => void import("./theme").then((theme) => statsGauge("ui.theme", theme.storedTheme()));
-    report();
-    window.addEventListener("aij:theme-changed", report);
-    return () => window.removeEventListener("aij:theme-changed", report);
-  }, []);
-  const cycleStoredDensity = useCallback(() => {
-    setDensity((current) => {
-      const next = nextDensity(current);
-      storeDensity(next);
-      return next;
-    });
-    window.setTimeout(() => window.dispatchEvent(new Event(DENSITY_EVENT)), 0);
-  }, []);
-  const setDensityAndStore = useCallback((next: Density) => {
-    setDensity(next);
-    storeDensity(next);
-    window.dispatchEvent(new Event(DENSITY_EVENT));
-  }, []);
+  // Density (AJ-E403), stored and followed from Settings › Appearance.
+  const { density, cycleStoredDensity, setDensityAndStore } = useStoredDensity();
   // D-25: below 1100 px (lib/window.ts) the rail folds to its icon column by itself and
   // comes back when the window widens. In a narrow window ⌘B, the logo,
   // the density shortcut and a double-click on the rail only open or
@@ -350,7 +316,8 @@ export default function App() {
     // AJ-E2503/E2507: a notice's Continue elsewhere; your menu's shortcuts.
     const limit = (event: Event) => setLimitFor((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null);
     const shortcuts = () => setShortcutsOpen(true);
-    const on: [string, EventListener][] = [["aij:open-accounts", openAccounts], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:switch-back", (event: Event) => setSwitchBack((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null)], ["aij:open-shortcuts", shortcuts]];
+    const openApp = (event: Event) => { const id = (event as CustomEvent<{ id?: string }>).detail?.id; if (id) { setGlobal(null); setSelection({ kind: "app", id }); } };
+    const on: [string, EventListener][] = [[OPEN_APP, openApp], ["aij:open-accounts", openAccounts], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:switch-back", (event: Event) => setSwitchBack((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null)], ["aij:open-shortcuts", shortcuts]];
     on.forEach(([name, run]) => window.addEventListener(name, run));
     return () => on.forEach(([name, run]) => window.removeEventListener(name, run));
   }, []);
@@ -859,6 +826,10 @@ export default function App() {
               ) : selection.kind === "conversation" ? (
                 <div className="min-h-0 flex-1" data-testid="conversation-scroll">
                   <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} onSwitch={(sessionId, targetProfileId, targetLabel) => setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
+                </div>
+              ) : selection.kind === "app" ? (
+                <div className="min-h-0 flex-1" data-testid="app-scroll">
+                  <AppPage id={selection.id} sessions={railSessions} projects={projects} accounts={accounts} now={now} onOpenSession={selectSession} onOpenProject={selectProject} />
                 </div>
               ) : selection.kind === "pool" ? (
                 // The band above takes its height: the page shrinks to fit, never runs past the window (0.3.1).

@@ -13,6 +13,12 @@ project_id: string | null,
  */
 account_id: string | null, 
 /**
+ * D-62 (AJ-E3204): one App's sessions (`cli:<folder>`,
+ * `app:<host>:<instance folder>`), as the rail groups them: where a
+ * desktop app was last seen showing it, else its tool and folder.
+ */
+app_id?: string | null, 
+/**
  * `all` (the default), `open`, `ended` (not archived) or `archived`.
  */
 which: string | null, 
