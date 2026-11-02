@@ -6,8 +6,8 @@
  */
 export type SubagentsQuery = { 
 /**
- * `running`, `attention` (failed, stopped, unknown) or `all` (the
- * default).
+ * `running`, `attention` (failed, stopped, unknown), `done` (every
+ * one not running) or `all` (the default).
  */
 view: string | null, 
 /**

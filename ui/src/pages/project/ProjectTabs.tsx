@@ -5,7 +5,7 @@
  * subagents, its past sessions) load the first time they're shown and
  * stay, so going back to one keeps its scroll and what was open.
  */
-import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
+import { useMemo, type JSX } from "react";
 import { lazyNamed } from "../../lib/lazy";
 import { defaultPoolIdOf } from "../../lib/pools";
 import { useProjectTasks } from "./useProjectTasks";
@@ -13,6 +13,7 @@ import { isActiveStatus } from "../../components/indicator";
 import { openTasks } from "../../lib/project-summary";
 import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
 import type { PageTabId } from "../registry";
+import { WhenShown } from "../PageShell";
 import { ProjectOverview, ProjectSessions, type ProjectPanelProps } from "../ProjectPage";
 import { ProjectUsage } from "../ProjectUsage";
 
@@ -22,14 +23,8 @@ const ProjectPool = lazyNamed(() => import("./ProjectPool"), "ProjectPool");
 const ProjectSubagents = lazyNamed(() => import("./ProjectSubagents"), "ProjectSubagents");
 const History = lazyNamed(() => import("../../screens/History"), "History");
 
-/** Mounted the first time it's shown, and kept. */
-function Once({ visible, children }: { visible: boolean; children: ReactNode }): JSX.Element | null {
-  const [shown, setShown] = useState(visible);
-  useEffect(() => {
-    if (visible) setShown(true);
-  }, [visible]);
-  return shown || visible ? <>{children}</> : null;
-}
+/** Mounted the first time it's shown, and kept (pages/PageShell). */
+const Once = WhenShown;
 
 /** The numbers beside a project's tabs: its open sessions, open tasks. */
 export function useProjectTabCounts(project: ProjectInfo | null | undefined, sessions: InstanceInfo[]): Partial<Record<PageTabId, number>> | undefined {

@@ -11,6 +11,7 @@
  */
 import { Component, useState, type ErrorInfo, type JSX, type ReactNode } from "react";
 import { crashUiError } from "../lib/bridge";
+import { useScrollMemory } from "../lib/scroll-memory";
 import { Button, Card } from "./primitives";
 
 type Props = {
@@ -103,10 +104,13 @@ function ProblemPanel({
   );
 }
 
-/** A screen that scrolls in the main area, inside its own boundary. */
-export function ScrollingScreen({ screen, label, children }: { screen: string; label: string; children: ReactNode }): JSX.Element {
+/** A screen that scrolls in the main area, inside its own boundary. It
+ * opens where it was left (0.3.4), unless what it shows changed
+ * (`subject`: a search, a section), which starts at the top. */
+export function ScrollingScreen({ screen, label, subject, children }: { screen: string; label: string; subject?: string; children: ReactNode }): JSX.Element {
+  const scroll = useScrollMemory(`screen:${screen}`, { subject });
   return (
-    <div className="relative h-full overflow-y-auto">
+    <div ref={scroll} className="relative h-full overflow-y-auto">
       <ScreenBoundary screen={screen} label={label}>
         {children}
       </ScreenBoundary>

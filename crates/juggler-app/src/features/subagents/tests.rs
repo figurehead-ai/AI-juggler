@@ -530,6 +530,50 @@ fn views_search_type_and_order_narrow_and_keep_the_tree() {
 }
 
 #[test]
+fn a_subagent_with_no_type_recorded_can_be_picked_by_type() {
+    // 0.3.4: the Type picker listed only recorded types, so these could
+    // not be reached; now they're "-" (No type recorded), last.
+    let dir = tempfile::tempdir().unwrap();
+    let mut found = found_turns(dir.path());
+    let id = found.agents[0].id.clone();
+    found.agents[0].kind = None;
+    let info = view::listed(&found, &SubagentsQuery::default(), &PageRequest::first(50)).unwrap();
+    let kinds: Vec<(&str, u32)> = info
+        .kinds
+        .iter()
+        .map(|k| (k.kind.as_str(), k.count))
+        .collect();
+    assert_eq!(kinds.last(), Some(&(view::NO_KIND, 1)));
+    let picked = rows_for(
+        &found,
+        &SubagentsQuery {
+            kind: Some(view::NO_KIND.to_owned()),
+            ..SubagentsQuery::default()
+        },
+        50,
+    );
+    let agents: Vec<String> = picked
+        .iter()
+        .filter_map(|row| row.agent.as_ref().map(|a| a.id.clone()))
+        .collect();
+    assert!(agents.contains(&id), "{agents:?}");
+    assert!(
+        picked
+            .iter()
+            .filter_map(|row| row.agent.as_ref())
+            .filter(|a| !row_is_context(&picked, &a.id))
+            .all(|a| a.kind.is_none()),
+        "only the untyped ones match (a parent may show as context)"
+    );
+}
+
+/// Whether `id`'s row is shown only as another's context.
+fn row_is_context(rows: &[dto::SubagentRowInfo], id: &str) -> bool {
+    rows.iter()
+        .any(|row| row.context && row.agent.as_ref().is_some_and(|a| a.id == id))
+}
+
+#[test]
 fn subagents_tokens_are_a_share_of_the_sessions_never_added_on_top() {
     let dir = tempfile::tempdir().unwrap();
     let found = found_turns(dir.path());

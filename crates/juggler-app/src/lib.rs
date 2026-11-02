@@ -512,6 +512,7 @@ macro_rules! app_commands {
             Write manage::session_set_pinned,
             Read  features::conversations::commands::conversations_list,
             Read  features::conversations::commands::conversations_get,
+            Read  features::conversations::commands::conversations_started,
             Read  features::conversations::commands::conversations_resume_command,
             // AJ-E2108: reads message text: never over the bridge.
             Write features::conversations::commands::conversations_last_messages,

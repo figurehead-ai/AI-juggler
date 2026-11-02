@@ -17,6 +17,14 @@ running: number,
  */
 failed: number, 
 /**
+ * Stopped before it finished.
+ */
+stopped: number, 
+/**
+ * How it ended isn't on record.
+ */
+unknown: number, 
+/**
  * Failed, stopped or unknown: the Needs attention view.
  */
 attention: number, 

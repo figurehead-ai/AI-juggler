@@ -202,6 +202,60 @@ pub struct LiveModel {
     pub inactive: Vec<(String, String)>,
     /// Each verified session pid's profile folder.
     pub pid_dirs: BTreeMap<u32, PathBuf>,
+    /// 0.3.4: the sessions each session started, as a running app records
+    /// them (the Claude app's `spawnedFrom`; archived ones left out, as
+    /// its sidebar does).
+    pub started: Vec<StartedLink>,
+}
+
+/// One session another started, from its app's own record.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StartedLink {
+    /// Its tool.
+    pub tool: String,
+    /// The conversation it was started from.
+    pub parent: String,
+    /// Its own conversation.
+    pub session_id: String,
+    /// Its title in the app's sidebar.
+    pub title: Option<String>,
+    /// Its last activity, epoch ms.
+    pub last_activity_ms: Option<i64>,
+}
+
+/// Each app session started from another (both named by their app ids),
+/// as conversation ids: the parent's and its own.
+fn started_links(app_sessions: &[AppEntry]) -> Vec<StartedLink> {
+    let by_host: HashMap<(&str, &str), &str> = app_sessions
+        .iter()
+        .filter_map(|(tool, _, app)| {
+            Some((
+                (tool.as_str(), app.host_session_id.as_str()),
+                app.session_id.as_deref()?,
+            ))
+        })
+        .collect();
+    let mut links: Vec<StartedLink> = app_sessions
+        .iter()
+        .filter(|(_, _, app)| !app.archived)
+        .filter_map(|(tool, _, app)| {
+            let parent = by_host.get(&(tool.as_str(), app.spawned_from.as_deref()?))?;
+            Some(StartedLink {
+                tool: tool.clone(),
+                parent: (*parent).to_owned(),
+                session_id: app.session_id.clone()?,
+                title: app.title.clone(),
+                last_activity_ms: app.last_activity_ms,
+            })
+        })
+        .collect();
+    links.sort_by(|a, b| {
+        b.last_activity_ms
+            .cmp(&a.last_activity_ms)
+            .then_with(|| a.session_id.cmp(&b.session_id))
+    });
+    links.dedup_by(|a, b| a.tool == b.tool && a.session_id == b.session_id);
+    links
 }
 
 /// A file as last read.
@@ -646,6 +700,7 @@ fn build(
         entries,
         inactive,
         pid_dirs,
+        started: started_links(app_sessions),
     }
 }
 

@@ -34,6 +34,45 @@ describe("lazyNamed and prefetchLazy", () => {
     expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(false);
   });
 
+  it("renders a part already fetched in its first frame, never through Suspense (0.3.4)", async () => {
+    vi.resetModules();
+    vi.useFakeTimers();
+    const { lazyNamed, prefetchLazy } = await import("./lazy");
+    const Part = lazyNamed(() => Promise.resolve({ Panel: ({ label }: { label: string }) => <p data-testid="panel">{label}</p> }), "Panel");
+    prefetchLazy();
+    for (let i = 0; i < 10; i++) await vi.advanceTimersByTimeAsync(100);
+    vi.useRealTimers();
+    // The idle prefetch fetched it: the first open shows it at once (React
+    // holds a Suspense reveal 300 ms: a blank screen on first open).
+    const view = render(<Part label="Usage" />);
+    expect(view.getByTestId("panel").textContent).toBe("Usage");
+  });
+
+  it("keeps a part shown while it loaded in its Suspense (no remount when it arrives)", async () => {
+    vi.resetModules();
+    const { lazyNamed } = await import("./lazy");
+    const { useEffect } = await import("react");
+    let mounts = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const Part = lazyNamed(
+      () =>
+        gate.then(() => ({
+          Panel: ({ label }: { label: string }) => {
+            useEffect(() => void (mounts += 1), []);
+            return <p data-testid="panel">{label}</p>;
+          },
+        })),
+      "Panel",
+    );
+    const view = render(<Part label="One" />);
+    release();
+    await view.findByTestId("panel");
+    view.rerender(<Part label="Two" />);
+    expect(view.getByTestId("panel").textContent).toBe("Two");
+    expect(mounts).toBe(1);
+  });
+
   it("fetches every part after the first paint, the likeliest first, once", async () => {
     vi.resetModules();
     vi.useFakeTimers();

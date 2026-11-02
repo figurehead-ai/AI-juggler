@@ -7,5 +7,11 @@
  * passing test is no slower; only a real failure takes longer to say so.
  */
 import { configure } from "@testing-library/react";
+import { afterEach } from "vitest";
+import { forgetSharedReads } from "../lib/shared-read";
 
 configure({ asyncUtilTimeout: 10_000 });
+
+// 0.3.4: what screens keep between visits (the last answers, scroll
+// positions, a session's tabs) never carries from one test to the next.
+afterEach(forgetSharedReads);

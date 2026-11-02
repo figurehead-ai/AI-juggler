@@ -12,6 +12,7 @@ import { accountDisplay, accountLine, accountName, accountOfProfile, useSubscrip
 import { HandoverSection } from "../../components/HandoverSection";
 import { Runway } from "./Runway";
 import { SessionColumns } from "./SessionColumns";
+import { ConversationSwitcher } from "./ConversationSwitcher";
 import { WhereItRuns } from "./WhereItRuns";
 import { useProfiles, useRunways } from "./data";
 import { fromInstance } from "./model";
@@ -50,7 +51,9 @@ export function OwnTerminalOverview({
   return (
     <SessionColumns
       testId="own-session-overview"
-      main={terminal}
+      // 0.3.4: its subagents and the sessions it started, beside it on its
+      // left, each one click away; the terminal stays as it is meanwhile.
+      main={<ConversationSwitcher model={model} visible own={terminal} ownWords="Its terminal" />}
       side={
         <>
           <WhereItRuns

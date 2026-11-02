@@ -52,4 +52,10 @@ seen_ms: number,
 /**
  * Why it can't be started from here, when it can't.
  */
-cannot_start: string | null, };
+cannot_start: string | null, 
+/**
+ * 0.3.4 (D-64): the sessions seen open in it (`<tool>/<id>`, the
+ * book's newest 100), the most recently first seen first: the rail
+ * puts an app's sessions that aren't open under it.
+ */
+recent: Array<string>, };

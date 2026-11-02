@@ -1,4 +1,4 @@
-<!-- captures: 76869cb6eca6 -->
+<!-- captures: f81dab114349 -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -56,3 +56,30 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 ## 0.3.2
 
 The subagents table is a raised card on the darker canvas (white on grey in light), and the state pills (Running cyan, Done green, Failed red, each with its mark) stay readable in both themes; the failed reason in detail-failed is a red-bordered box that reads in both. The search field stretches, so tab-all-grouped, tab-running and tab-none-match line the controls up edge to edge. After the design fixes the dark accent is lighter: it shows on the logo mark, New session, the selected Subagents or Usage tab, tab-search's focused field ring, usage-line's Input bar and dot and the "see which ›" link, a little brighter on the dark cards; the light captures are unchanged apart from the header. The detail pages still end their right column (Usage, Processes) long before the left one in detail-done and detail-failed. On every tab-* and detail-* capture at 1280 the rail is still scrolled so its search box, the App/Project/Account switch and the Needs you header are out of view and the first row is "Personal · Limit reached", which makes the rail look headless. row-count shows its subject again: the fifth Open now row carries "+3 agents" beside Working, and after the second pass's last fix the row cuts the project and keeps the age: "ai-… · 1 h ago · +3 agents"; the same headless rail applies. The second pass otherwise only touches the rail here: the Probably asks you row reads "ai-j… · 3 h ago" on every tab-* and detail-* capture. tab-most-tokens still shows a single row under a group that says "6 subagents" with All selected, so the sort reads like a filter. Only row-count has an earlier committed render to compare against; the tab-*, detail-* and usage-line captures are committed for the first time in this round.
+
+## 0.3.4: the Overview's switcher, and the summary that adds up
+
+The maintainer, testing 0.3.3: "a quick way to switch conversation of a session between subagents, so I can easily and quickly drill in", matching how the tools' own apps show them; the Subagents tab stays the full list.
+
+| Check | Finding |
+|---|---|
+| Grid | At 1280 the switcher is a 12 rem column on the conversation's left; the conversation keeps the rest (about 415 px), the side column its 340 px. Narrower than 576 px, the list sits above the conversation in a short scrolling box, never clipped. |
+| Hierarchy | "This session" first, chosen; then Running · 3, Started from here · 1, and Done · 7 folded: what runs, what it started, then history. |
+| Spacing | Rows on the rail's rhythm: a dot, a two-line title, its kind or time under it. |
+| Icons | A live dot pulses on running ones (still under reduced motion), a red one on a failed ended one; no new icons. |
+| Shared controls | Back is the shared Button, the same as the Subagents tab's conversation; Done is a disclosure like the work row's. |
+| Plain words | "This session · Its terminal", "Running · 3", "Started from here · 1", "Done · 7", "All 10 in Subagents ›". |
+| Type sizes | Titles 13 px medium, their second lines 12 px muted, section heads 12 px semibold muted. |
+| Both themes | Checked dark and light; axe clean on both shots. |
+| The summary line | "· 2 with no recorded end" beside "1 failed": the line adds up to Needs attention 3. |
+
+### Good
+
+- One click from the conversation to a running subagent's, Esc back; the terminal is hidden, never rebuilt, and keeps its place.
+- What the native apps list beside a session is here in the same order of importance: running now, the sessions it started, then what ended.
+
+### Weak
+
+- At 1280 the conversation pane narrows to about 415 px while the switcher shows; a wider window gives it more. Folding the side column when the switcher is open is a 0.4 question (AJ-E3106).
+- A started session shows only while its app is open: the app's own record is read from its running instances, as its sidebar is.
+

@@ -9,26 +9,52 @@ import { subscriptionsList, type SubscriptionInfo } from "./ipc/subscriptions";
 import { runwayOf } from "../components/AccountRunway";
 import { toolSpec } from "./tools";
 import type { QuotaDisplayData } from "./bridge";
+import { whenForgotten } from "./shared-read";
 
 export type { SubscriptionInfo };
 
 /** Read once per half minute at most: each read checks every profile's
  * sign-in. */
 const FRESH_MS = 30_000;
-let cache: { at: number; rows: Promise<SubscriptionInfo[]> } | null = null;
+/** `value`: the last answer, kept so a view opened again shows it in its
+ * first frame (0.3.4) while it's read again behind it. */
+let cache: { at: number; rows: Promise<SubscriptionInfo[]>; value?: SubscriptionInfo[] } | null = null;
 
-/** Every account, with its profiles (from the cache when fresh). */
+/** Every account, with its profiles (from the cache when fresh). A read
+ * that fails keeps the last answer. */
 export function loadSubscriptions(force = false): Promise<SubscriptionInfo[]> {
   if (!force && cache && Date.now() - cache.at < FRESH_MS) return cache.rows;
-  const rows = subscriptionsList().catch(() => [] as SubscriptionInfo[]);
-  cache = { at: Date.now(), rows };
-  return rows;
+  const kept = cache?.value;
+  const entry: NonNullable<typeof cache> = { at: Date.now(), rows: Promise.resolve([]), value: kept };
+  entry.rows = subscriptionsList().then(
+    (rows) => {
+      entry.value = rows;
+      return rows;
+    },
+    () => kept ?? [],
+  );
+  cache = entry;
+  return entry.rows;
 }
 
-/** The accounts, `null` while they load; `version` re-reads them;
- * `wanted` false reads nothing (a view that doesn't show them). */
+/** The last answer, if any (it may be older than half a minute). */
+export function cachedSubscriptions(): SubscriptionInfo[] | null {
+  return cache?.value ?? null;
+}
+
+/** Marks the accounts read as old (the next view reads them again, while
+ * showing them): a sign-in started, an account added or changed. */
+export function staleSubscriptions(): void {
+  if (cache) cache.at = 0;
+}
+
+whenForgotten(() => (cache = null));
+
+/** The accounts, `null` until known (the last answer at once, when there
+ * is one); `version` re-reads them; `wanted` false reads nothing (a view
+ * that doesn't show them). */
 export function useSubscriptions(version = 0, wanted = true): SubscriptionInfo[] | null {
-  const [rows, setRows] = useState<SubscriptionInfo[] | null>(null);
+  const [rows, setRows] = useState<SubscriptionInfo[] | null>(() => (wanted ? cachedSubscriptions() : null));
   useEffect(() => {
     if (!wanted) return;
     let alive = true;

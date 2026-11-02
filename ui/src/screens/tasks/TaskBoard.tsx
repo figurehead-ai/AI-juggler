@@ -59,7 +59,9 @@ function Column({ status, count, ...shared }: Shared & { status: string; count: 
       </h3>
       <ul className="flex flex-col gap-2" aria-label={STATUS_WORDS[status]} aria-busy={list.loading}>
         {list.loading ? (
-          <Skeleton rows={2} />
+          // As many cards as the count says (0.3.4: two everywhere was
+          // taller than most columns); an empty column, its note's height.
+          count === 0 ? <li aria-hidden="true" className="h-[2.875rem] rounded-lg bg-skeleton motion-safe:animate-pulse" /> : <Skeleton rows={count === null ? 2 : Math.min(count, COLUMN_PAGE)} />
         ) : list.items.length === 0 ? (
           <li className="rounded-lg border border-dashed border-hairline px-3 py-3 text-meta text-muted">{EMPTY[status]}</li>
         ) : (

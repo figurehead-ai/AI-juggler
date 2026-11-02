@@ -3,9 +3,10 @@
  * profiles share), its limits and its last week, each opening the
  * account's first profile page.
  */
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useMemo, type JSX } from "react";
 import { useActionHost } from "../ItemMenu";
-import { quotaDisplayAll, type AccountInfo, type QuotaDisplayData } from "../../lib/bridge";
+import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
+import { useQuotaDisplays } from "../../lib/kept-reads";
 import { accountDisplay, accountLine, useSubscriptions } from "../../lib/subscriptions";
 import { runwayOf } from "../AccountRunway";
 import { BurnDowns } from "../BurnDown";
@@ -14,20 +15,10 @@ import { accountGroups, type AccountGroup } from "./accounts";
 import { RunwayPanel } from "./Runway";
 import { useMinute, useUsageHistory } from "./useUsage";
 
-/** Every account's two clocks, read now and each half minute. */
+/** Every account's two clocks, read now and each half minute (the last
+ * answer, any screen's, at once). */
 export function useDisplays(): QuotaDisplayData[] {
-  const [displays, setDisplays] = useState<QuotaDisplayData[]>([]);
-  useEffect(() => {
-    let alive = true;
-    const load = () => void quotaDisplayAll().then((rows) => alive && setDisplays(rows), () => null);
-    load();
-    const timer = window.setInterval(load, 30_000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, []);
-  return displays;
+  return useQuotaDisplays().displays;
 }
 
 /** The last 7 days per profile, for the runway cards' usage lines. */

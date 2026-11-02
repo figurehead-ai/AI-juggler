@@ -4,17 +4,15 @@
  * files that differ, each with what to do), and the sessions open there
  * now, each opening its page.
  */
-import { useCallback, useEffect, useState, type JSX } from "react";
+import { useState, type JSX } from "react";
 import { createPortal } from "react-dom";
 import { useActionHost } from "../../components/ItemMenu";
-import { PROJECT_SYNC_EVENT, ProjectSyncSheet } from "../../components/ProjectSyncSheet";
+import { ProjectSyncSheet } from "../../components/ProjectSyncSheet";
 import { Section } from "../../components/charts/ChartCard";
 import { IconGit, IconPlay, IconRules } from "../../components/usage/controls";
-import { projectSyncRules } from "../../lib/ipc/projectSync";
-import { projectsGitStatus } from "../../lib/ipc/projects";
+import { useProjectGit, useProjectRules } from "./checkout";
 import { homeRelative } from "../../lib/project-words";
 import type { ProjectInfo } from "../../lib/bridge";
-import type { GitStatusInfo } from "../../types/generated/GitStatusInfo";
 import { PagedSessions, type Row } from "../SessionsList";
 import { sessionsQuery } from "../../lib/ipc/sessions";
 
@@ -39,37 +37,11 @@ function Item({ tone, icon, title, words, action, testId }: { tone: "warning" | 
 /** The checkout: git's state and the rules files, said plainly with what to do. */
 export function CheckoutCallout({ project, sharedBy, className = "" }: { project: ProjectInfo; sharedBy: number; className?: string }): JSX.Element | null {
   const host = useActionHost();
-  const [git, setGit] = useState<GitStatusInfo | null | undefined>(undefined);
-  const [rules, setRules] = useState<{ words: string; inSync: boolean } | null>(null);
+  // The header's reads, kept per project (0.3.4): the last answer at
+  // once, read again as the page opens and when the rules sheet closes.
+  const git = useProjectGit(project.id);
+  const rules = useProjectRules(project.id) ?? null;
   const [compare, setCompare] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    projectsGitStatus(project.id).then(
-      (status) => alive && setGit(status),
-      () => alive && setGit(null),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [project.id]);
-  const readRules = useCallback(() => {
-    let alive = true;
-    projectSyncRules(project.id).then(
-      (read) => alive && setRules(read.summary ? { words: read.summary, inSync: read.in_sync } : null),
-      () => alive && setRules(null),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [project.id]);
-  useEffect(readRules, [readRules]);
-  useEffect(() => {
-    const again = (event: Event) => {
-      if ((event as CustomEvent<string>).detail === project.id) readRules();
-    };
-    window.addEventListener(PROJECT_SYNC_EVENT, again);
-    return () => window.removeEventListener(PROJECT_SYNC_EVENT, again);
-  }, [project.id, readRules]);
 
   const uncommitted = git ? git.changed + git.untracked : 0;
   const ahead = git?.ahead ?? 0;

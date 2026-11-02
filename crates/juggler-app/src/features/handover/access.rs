@@ -33,14 +33,37 @@ pub fn check_switch_access(
     Ok(())
 }
 
+/// 0.3.4: what would stop a launch on `target` (its tool's own check),
+/// for the switch's target list, so a target a switch would refuse is
+/// never offered as ready (the maintainer's walk: personal-max read
+/// "Ready", then the switch said it wasn't set up). Read-only.
+#[must_use]
+pub fn launch_blocker(state: &Arc<AppState>, target: &Account) -> Option<NotReady> {
+    state
+        .registry
+        .get(&target.harness)?
+        .launch_ready(&target.state_dir)
+        .err()
+}
+
+/// What stops it, in a target list's words: what to do, without the
+/// switch's "Nothing was changed".
+#[must_use]
+pub fn blocker_words(not: &NotReady) -> String {
+    match not {
+        NotReady::Blocked(path) => format!(
+            "The system isn't letting AI Juggler read {} (another app's data). Allow AI Juggler in System Settings › Privacy & Security › Files & Folders (or Full Disk Access), then try again.",
+            home_short(path)
+        ),
+        NotReady::NotSetUp(why) => why.clone(),
+    }
+}
+
 /// The words for what stops it.
 #[must_use]
 pub fn refusal_words(not: &NotReady, target: &str) -> String {
     match not {
-        NotReady::Blocked(path) => format!(
-            "The system isn't letting AI Juggler read {} (another app's data). Allow AI Juggler in System Settings › Privacy & Security › Files & Folders (or Full Disk Access), then try again. Nothing was changed.",
-            home_short(path)
-        ),
+        NotReady::Blocked(_) => format!("{} Nothing was changed.", blocker_words(not)),
         NotReady::NotSetUp(why) => {
             format!("Can't continue on {target} yet. {why} Nothing was changed.")
         }

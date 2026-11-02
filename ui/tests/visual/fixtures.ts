@@ -431,6 +431,17 @@ export async function openSwitch(page: import("@playwright/test").Page): Promise
   await expect(page.getByTestId("continue-dialog")).toBeVisible();
 }
 
+/** Opens the first Work Max session the rail lists, as the specs did
+ * before D-62 named the app's header "Claude Code · Work Max": a row
+ * ("…, on Work Max") in the list, else an icon of the folded rail
+ * ("Claude provider, Work Max, …"). Never the app's header. */
+export async function openWorkMaxSession(page: import("@playwright/test").Page): Promise<void> {
+  const row = page.getByRole("button", { name: /\bon Work Max\b/ });
+  const icon = page.getByRole("button", { name: /, Work Max, |· Claude Code · Work Max/ });
+  await expect(row.or(icon).first()).toBeVisible();
+  await ((await row.count()) > 0 ? row : icon).first().click();
+}
+
 /** The ranked rows of the switch list, wherever it shows: the dialog
  * while it's open (the card then says so), else the card. */
 export function switchRows(page: import("@playwright/test").Page): import("@playwright/test").Locator {

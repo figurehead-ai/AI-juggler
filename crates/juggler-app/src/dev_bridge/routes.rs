@@ -251,6 +251,7 @@ read_routes! {
     "places_list" => async_result features::places::commands::places_list(state; page: Option<crate::paging::PageRequest>);
     "places_find" => async_result features::places::commands::places_find(state; tool: String, conversation_id: String);
     "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);
+    "conversations_started" => async_result features::conversations::commands::conversations_started(state; tool: String, conversation_id: String);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
     "sessions_page" => async_result features::sessions::commands::sessions_page(state; query: features::sessions::rows::SessionsQuery, page: crate::paging::PageRequest);

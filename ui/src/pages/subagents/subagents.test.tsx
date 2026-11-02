@@ -84,7 +84,7 @@ describe("AJ-E1520 (0.3) the links to the Subagents tab", () => {
       state: "listed",
       reason: null,
       page: { items: [], next_cursor: null, total: 0 },
-      summary: { total: 437, running: 3, failed: 2, attention: 2, tokens: 9_000_000, share_pct: 41, counted: "in_session" },
+      summary: { total: 437, running: 3, failed: 2, stopped: 0, unknown: 0, attention: 2, tokens: 9_000_000, share_pct: 41, counted: "in_session" },
       kinds: [],
       matched: 0,
       running: 3,

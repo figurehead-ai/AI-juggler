@@ -64,7 +64,7 @@ describe("Home, desktop first", () => {
     // D-47: open counts every open session, the 3 that need you too (they
     // stay in their places in Open now); Needs you counts them once.
     expect(counts.textContent).toMatch(/7 open.*1 inactive.*1 ended today/);
-    fireEvent.click(within(counts).getByRole("button", { name: "1 inactive" }));
+    fireEvent.click(within(counts).getByRole("button", { name: "1 inactive session" }));
     expect(railView().show.inactive).toBe(true);
     fireEvent.click(within(counts).getByRole("button", { name: "1 ended today" }));
     expect(railView().show.ended).toBe(true);

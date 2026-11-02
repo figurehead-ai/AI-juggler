@@ -25,17 +25,7 @@ import { historyKey } from "../lib/prefetch-data";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
-import {
-  errorText,
-  hasLiveBackend,
-  instanceArchive,
-  instanceUnarchive,
-  transcriptSearch,
-  type TranscriptHitInfo,
-  type AccountInfo,
-  type InstanceInfo,
-  type ProjectInfo,
-} from "../lib/bridge";
+import { errorText, hasLiveBackend, instanceArchive, instanceUnarchive, transcriptSearch, type TranscriptHitInfo, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { Picker } from "../components/controls";
 
 type ListId = "ended" | "archived";
@@ -238,8 +228,12 @@ export function History({
     [live, sessions, all.length, snippets],
   );
   const changes = useMemo(() => sessions.map((s) => `${s.id}:${s.status}:${s.lifecycle ?? ""}`).join(","), [sessions]);
+  // Only when a session changed since it opened (the list reads itself then; 0.3.4).
+  const readFor = useRef(changes);
   useEffect(() => {
-    if (live) refreshPaged("history:");
+    if (!live || readFor.current === changes) return;
+    readFor.current = changes;
+    refreshPaged("history:");
   }, [live, changes]);
   const changed = () => {
     refreshPaged("history:");

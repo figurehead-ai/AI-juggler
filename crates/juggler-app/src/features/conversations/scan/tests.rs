@@ -450,3 +450,39 @@ fn count_on_this_mac() {
         costs[2], costs[4]
     );
 }
+
+/// 0.3.4: an app session started from another, by the app's own ids.
+fn app(host: &str, session: &str, from: Option<&str>, archived: bool, at: i64) -> AppEntry {
+    (
+        "claude-code".to_owned(),
+        PathBuf::from("/i/b-work"),
+        AppSession {
+            host_session_id: host.to_owned(),
+            session_id: Some(session.to_owned()),
+            cwd: None,
+            title: Some(format!("Title {session}")),
+            archived,
+            last_activity_ms: Some(at),
+            last_focused_ms: None,
+            outcome: None,
+            spawned_from: from.map(str::to_owned),
+        },
+    )
+}
+
+#[test]
+fn the_sessions_a_session_started_come_from_its_apps_record_newest_first_archived_left_out() {
+    let links = started_links(&[
+        app("local_p", "parent", None, false, 1),
+        app("local_a", "child-a", Some("local_p"), false, 10),
+        app("local_b", "child-b", Some("local_p"), false, 30),
+        app("local_c", "child-c", Some("local_p"), true, 40),
+        app("local_d", "child-d", Some("local_unknown"), false, 50),
+    ]);
+    let seen: Vec<(&str, &str)> = links
+        .iter()
+        .map(|link| (link.parent.as_str(), link.session_id.as_str()))
+        .collect();
+    assert_eq!(seen, [("parent", "child-b"), ("parent", "child-a")]);
+    assert_eq!(links[0].title.as_deref(), Some("Title child-b"));
+}

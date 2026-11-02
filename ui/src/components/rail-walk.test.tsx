@@ -148,14 +148,16 @@ describe("every rail element opens a page here (place lens)", () => {
     fireEvent.click(within(header(list, "app|claude-app|Personal")).getByTestId("rail-fold"));
     expect(row(list, "c:claude-personal/outside-4")).toBeNull();
 
-    // "Also: 1 inactive" shows them, and takes focus to their head.
-    fireEvent.click(view.getByTestId("rail-also-inactive"));
-    const inactive = await view.findByTestId("rail-also-view-inactive");
-    await waitFor(() => expect(document.activeElement).toBe(within(inactive).getByRole("button")));
-    expect(row(list, "c:claude-work/outside-8")).toBeTruthy();
-    // Its head folds it away again.
-    fireEvent.click(within(inactive).getByRole("button"));
-    await waitFor(() => expect(view.queryByTestId("rail-also-view-inactive")).toBeNull());
+    // D-64: an app's inactive sessions are under it: "Last n inactive"
+    // shows them in place, and hides them again.
+    expect(view.queryByTestId("rail-also-inactive")).toBeNull();
+    expect(row(list, "c:claude-work/outside-8")).toBeNull();
+    const recent = view.getAllByTestId("rail-recent");
+    recent.forEach((link) => fireEvent.click(link));
+    await waitFor(() => expect(row(list, "c:claude-work/outside-8")).toBeTruthy());
+    expect(recent.every((link) => link.getAttribute("aria-expanded") === "true")).toBe(true);
+    view.getAllByTestId("rail-recent").forEach((link) => fireEvent.click(link));
+    await waitFor(() => expect(row(list, "c:claude-work/outside-8")).toBeNull());
     // History › opens History.
     const screens: unknown[] = [];
     const onScreen = (event: Event) => screens.push((event as CustomEvent<{ id: string }>).detail.id);

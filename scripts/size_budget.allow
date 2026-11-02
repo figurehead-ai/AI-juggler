@@ -30,4 +30,3 @@ ui/src/screens/FleetScreen.tsx 765
 ui/src/screens/Home.tsx 596
 ui/src/screens/NewSession.tsx 509
 ui/src/screens/PairingWizard.tsx 816
-ui/src/screens/Profiles.tsx 408

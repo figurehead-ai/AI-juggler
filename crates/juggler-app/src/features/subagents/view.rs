@@ -267,6 +267,8 @@ pub fn summary(found: &Found, tree: &Tree<'_>) -> SubagentsSummaryInfo {
         total: u32::try_from(tree.nodes.len()).unwrap_or(u32::MAX),
         running: u32::try_from(count("running")).unwrap_or(u32::MAX),
         failed: u32::try_from(count("failed")).unwrap_or(u32::MAX),
+        stopped: u32::try_from(count("stopped")).unwrap_or(u32::MAX),
+        unknown: u32::try_from(count("unknown")).unwrap_or(u32::MAX),
         attention: u32::try_from(count("failed") + count("stopped") + count("unknown"))
             .unwrap_or(u32::MAX),
         tokens,
@@ -338,16 +340,20 @@ impl Filter {
         let view = match self.view.as_str() {
             "running" => node.status == "running",
             "attention" => matches!(node.status, "failed" | "stopped" | "unknown"),
+            // 0.3.4: the session page's switcher, its ended ones newest first.
+            "done" => node.status != "running",
             _ => true,
         };
-        view && self
-            .kind
-            .as_deref()
-            .is_none_or(|kind| node.agent.kind.as_deref() == Some(kind))
-            && self
-                .words
-                .iter()
-                .all(|w| node.clean.hay.contains(w.as_str()))
+        view && self.kind.as_deref().is_none_or(|kind| {
+            if kind == NO_KIND {
+                node.agent.kind.is_none()
+            } else {
+                node.agent.kind.as_deref() == Some(kind)
+            }
+        }) && self
+            .words
+            .iter()
+            .all(|w| node.clean.hay.contains(w.as_str()))
             && self
                 .kinds
                 .iter()
@@ -608,13 +614,20 @@ fn walk(
     }
 }
 
-/// Each type and how many.
+/// The type filter's value for the subagents whose type isn't recorded
+/// (0.3.4: they could not be picked).
+pub const NO_KIND: &str = "-";
+
+/// Each type and how many; the ones with no type recorded last, as
+/// [`NO_KIND`], when there are any besides typed ones.
 #[must_use]
 pub fn kinds(tree: &Tree<'_>) -> Vec<SubagentKindInfo> {
     let mut counts: HashMap<&str, u32> = HashMap::new();
+    let mut untyped: u32 = 0;
     for node in &tree.nodes {
-        if let Some(kind) = node.agent.kind.as_deref() {
-            *counts.entry(kind).or_default() += 1;
+        match node.agent.kind.as_deref() {
+            Some(kind) => *counts.entry(kind).or_default() += 1,
+            None => untyped = untyped.saturating_add(1),
         }
     }
     let mut out: Vec<SubagentKindInfo> = counts
@@ -625,6 +638,12 @@ pub fn kinds(tree: &Tree<'_>) -> Vec<SubagentKindInfo> {
         })
         .collect();
     out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.kind.cmp(&b.kind)));
+    if untyped > 0 && !out.is_empty() {
+        out.push(SubagentKindInfo {
+            kind: NO_KIND.to_owned(),
+            count: untyped,
+        });
+    }
     out
 }
 

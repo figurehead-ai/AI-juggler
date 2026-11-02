@@ -224,3 +224,29 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "tab-437", theme);
   });
 }
+
+/** 0.3.4: a session it started (the Claude app's own record), for the
+ * Overview's switcher. */
+const STARTED = { [CONVERSATION]: [{ tool: "claude-code", conversation_id: "started-1", title: "Nightly: skip docs-only changes", last_activity_ms: T0 - 4 * MIN }] };
+
+for (const theme of ["dark", "light"] as const) {
+  test(`0.3.4: the Overview switches its conversation to a subagent's, in place, and back — ${theme}`, async ({ page }) => {
+    await page.addInitScript((started) => void ((window as unknown as Record<string, unknown>).__AIJ_STARTED__ = started), STARTED);
+    await seed(page, theme);
+    await page.locator(`[data-instance-id="${SESSION}"]`).first().click();
+    const list = page.getByTestId("switcher-list");
+    await expect(list).toBeVisible();
+    await expect(page.getByTestId("switcher-own")).toHaveAttribute("aria-current", "true");
+    await expect(page.getByTestId("switcher-running").getByTestId("switcher-subagent")).toHaveCount(3);
+    await expect(page.getByTestId("switcher-started").getByTestId("switcher-started-session")).toHaveCount(1);
+    await expect(page.getByTestId("switcher-done-toggle")).toContainText("Done · 7");
+    await shoot(page, "switcher-own", theme);
+    await page.getByTestId("switcher-done-toggle").click();
+    await page.getByTestId("switcher-subagent").filter({ hasText: "Find where the suite's fixtures are written" }).click();
+    await expect(page.getByTestId("last-turn")).toHaveCount(2);
+    await expect(page.getByTestId("switcher-back")).toBeVisible();
+    await shoot(page, "switcher-subagent", theme);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("switcher-own")).toHaveAttribute("aria-current", "true");
+  });
+}

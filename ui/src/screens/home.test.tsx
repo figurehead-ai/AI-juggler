@@ -173,6 +173,22 @@ describe("D-25 Home — the screen", () => {
     expect(getByTestId("home").textContent).toContain("Not measured yet");
   });
 
+  it("before the first reading each runway row keeps its meter's height; opened again, the last reading shows at once (0.3.4)", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [
+      { account: "work", five_hour: { percentage: 90, state: "measured", resets_at_ms: null }, weekly: { percentage: 20, state: "measured", resets_at_ms: null } },
+    ];
+    const first = renderHome([mk("r")]);
+    // The first frame: no reading yet, each row's meter track holds its place.
+    expect(first.getAllByTestId("home-runway-meter-pending")).toHaveLength(2);
+    await waitFor(() => expect(first.getByTestId("home").textContent).toContain("10% left in the 5-hour window"));
+    expect(first.queryAllByTestId("home-runway-meter-pending")).toHaveLength(0);
+    first.unmount();
+    const again = renderHome([mk("r")]);
+    expect(again.getByTestId("home").textContent).toContain("10% left in the 5-hour window");
+    expect(again.queryAllByTestId("home-runway-meter-pending")).toHaveLength(0);
+    delete w().__AIJ_QUOTA_DISPLAY__;
+  });
+
   it("a tool without a limits feed keeps its Runway row and says so, from the backend's capability (0.0.11 walk, Q3)", async () => {
     // The backend reads the adapter's capability and sends the reason on
     // the account's display; the one runway shows it (Home and the cards).

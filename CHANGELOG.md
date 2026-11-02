@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (0.3.4)
+
+- **The Overview's switcher** (docs/releases/0.3.4.md): beside a session's
+  conversation, its running subagents, the sessions it started
+  (`conversations_started`, from the Claude app's `spawnedFrom`) and the
+  ended ones, each one click to its conversation in place; the own pane is
+  never unmounted (a terminal never rebuilt).
+- **Inactive apps in the rail** (D-64, docs/releases/0.3.4.md): grouped by
+  App, an open app's sessions that aren't open sit under it behind "Last
+  3 inactive" (a desktop app's from `KnownPlaceInfo.recent`); after Open
+  now, "Inactive apps" lists every remembered desktop app and every CLI
+  app with recent sessions and nothing open, with Start, Bring forward or
+  New session (`aij:new-session { accountId }`), Keep alive in its menu.
+  Home gives every remembered closed app a Start tile. A CLI app's header
+  menu has New session.
+
+### Changed (0.3.4)
+
+- **Switch targets prefer the session's own tool** among those with room
+  (`rankByRoom`'s `preferred`).
+- **"Also:"** no longer lists inactive sessions grouped by App; Home says
+  "n inactive sessions".
+
+- **Page switching** (lib/shared-read, lib/scroll-memory): kept answers
+  painted first and read again behind, scroll kept per page and tab,
+  lazy screens rendered at once once loaded, hidden tabs read when shown;
+  layout shift over 22 switches 0.24 → 0.009.
+- **A conversation shows like the tools' own windows**
+  (docs/releases/0.3.4.md, docs/research/native-conversation-display.md):
+  a finished turn's work (its notes and steps) folds into one row
+  ("Worked for 4 min · Ran 3 commands · 2 notes") before its reply; the
+  latest turn of a working session shows open; the question card reads
+  only the reply; a conversation sits on a near-black, neutral `.reading`
+  surface in the dark theme.
+
+### Fixed (0.3.4)
+
+- **A switch target the switch would refuse is held back**:
+  `switch_targets` runs the target tool's launch check
+  (`handover::access::launch_blocker`) and sets `filtered_reason` and
+  `setup_needed`; the words say a Claude app session doesn't do the
+  terminal Claude Code's first run (and a sign-in change asks again), and
+  an unparsable settings file says so instead.
+- **The shell no longer scrolls under a long rail**: screen-reader names
+  in rail rows and headers are positioned by their own buttons.
+- **The Subagents tab**: opens on Running only when something runs (chosen
+  each time it's shown, AJ-E2810 req 2); the summary names stopped and
+  "with no recorded end" beside failed; "No type recorded" can be picked;
+  another app's session page gets D-48's subagents line.
+
 ### Added (0.3.3)
 
 - **Open starts an app or profile that isn't running; Keep alive per app

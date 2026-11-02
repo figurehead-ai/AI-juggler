@@ -287,9 +287,13 @@ export default function PreviewNeeds({
       tasks,
     ],
   );
+  // The caps answer too before the first list goes out, as the backend's
+  // one read has them: what needs you comes in one order, never by which
+  // read answered first.
+  const capsKnown = capNeeds.known;
   useEffect(() => {
-    if (!ready || !loaded) return;
+    if (!ready || !loaded || !capsKnown) return;
     applySummary(standInNeeds(JSON.parse(body) as StandInNeed[]));
-  }, [ready, loaded, body]);
+  }, [ready, loaded, capsKnown, body]);
   return null;
 }

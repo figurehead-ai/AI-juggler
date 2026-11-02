@@ -267,6 +267,33 @@ body {
   color: transparent;
 }
 
+/* A conversation to read (a session's or a subagent's, 0.3.4): long
+   text on a near-black, neutral surface in the dark theme, as the tools'
+   own windows show it, never white on blue-grey. The theme's tokens are
+   redefined inside it, so every chip, line and word in it follows; each
+   pair keeps its contrast (muted on the darkest step 8:1, on surface-2
+   7:1). */
+.reading {
+  --color-surface: #0d0d0e;
+  --color-surface-2: #1b1b1d;
+  --color-surface-3: #242427;
+  --color-hairline: #2b2b2e;
+  --color-ink: #f2f2f0;
+  --color-ink-2: #e2e2de;
+  --color-muted: #ababa6;
+  --color-faint: #8f8f8a;
+}
+[data-theme="light"] .reading {
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f4f3;
+  --color-surface-3: #e8e8e6;
+  --color-hairline: #dcdcd9;
+  --color-ink: #141414;
+  --color-ink-2: #2e2e2c;
+  --color-muted: #55554f;
+  --color-faint: #66665f;
+}
+
 /* Card sheen: 1px top light edge — the "material" read. */
 .sheen {
   position: relative;

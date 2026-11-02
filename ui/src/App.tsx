@@ -49,6 +49,9 @@ import { NARROW_RAIL_PX, useNarrowWindow } from "./lib/window";
 import { readInspectorFolded, storeInspectorFolded } from "./lib/shortcuts";
 import { holdStop, sessionLabel } from "./lib/stop";
 import { useWindowFolderDrop } from "./lib/use-folder-drop";
+import { staleSubscriptions } from "./lib/subscriptions";
+import { useScrollMemory } from "./lib/scroll-memory";
+import { useNewSessionSheet } from "./lib/new-session-sheet";
 import { ToastHost } from "./components/Toast";
 import { fleetPeers, launchPortWarning, statsEvent, statsGauge, type PortWarningInfo } from "./lib/bridge";
 
@@ -274,15 +277,8 @@ export default function App() {
   // AJ-E1503 Req.4: until the first load answers, lists show row-shaped
   // placeholders, never a false "nothing here".
   const [loaded, setLoaded] = useState(false);
-  const [newSessionDir, setNewSessionDir] = useState<string | null>(null);
-  const [loginTerminals, setLoginTerminals] = useState<
-    { id: string; title: string; ended: boolean }[]
-  >([]);
-  const [newSession, setNewSession] = useState(false);
-  const closeNewSession = () => {
-    setNewSession(false);
-    setNewSessionDir(null);
-  };
+  const [loginTerminals, setLoginTerminals] = useState<{ id: string; title: string; ended: boolean }[]>([]);
+  const newSheet = useNewSessionSheet();
   // AJ-E205: the executing switch flow (freeze dialog → stages →
   // source-safe failure banner). Null = closed.
   // D-25: Accounts › Add account reuses first run's steps, for this tool
@@ -336,14 +332,9 @@ export default function App() {
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);
   // AJ-E510: the ONE-time crash-recovery summary — shown until
   // dismissed; a second relaunch (no new findings) shows nothing.
-  const [recovery, setRecovery] = useState<
-    import("./lib/bridge").RecoverySummaryData | null
-  >(null);
+  const [recovery, setRecovery] = useState<import("./lib/bridge").RecoverySummaryData | null>(null);
   useEffect(() => {
-    void import("./lib/bridge")
-      .then((bridge) => bridge.recoverySummaryGet())
-      .then((summary) => setRecovery(summary))
-      .catch(() => setRecovery(null));
+    void import("./lib/bridge").then((bridge) => bridge.recoverySummaryGet()).then(setRecovery, () => setRecovery(null));
   }, []);
 
   useEffect(() => {
@@ -355,12 +346,11 @@ export default function App() {
   // the Start-first-session CTA route to the real surfaces.
   useEffect(() => {
     const openAccounts = () => setGlobal("accounts");
-    const newSession = () => setNewSession(true);
     const openScreen = (event: Event) => { setGlobal((current) => globalId((event as CustomEvent<{ id?: unknown }>).detail?.id) ?? current); focusPageSoon(); };
     // AJ-E2503/E2507: a notice's Continue elsewhere; your menu's shortcuts.
     const limit = (event: Event) => setLimitFor((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null);
     const shortcuts = () => setShortcutsOpen(true);
-    const on: [string, EventListener][] = [["aij:open-accounts", openAccounts], ["aij:new-session", newSession], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:switch-back", (event: Event) => setSwitchBack((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null)], ["aij:open-shortcuts", shortcuts]];
+    const on: [string, EventListener][] = [["aij:open-accounts", openAccounts], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:switch-back", (event: Event) => setSwitchBack((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null)], ["aij:open-shortcuts", shortcuts]];
     on.forEach(([name, run]) => window.addEventListener(name, run));
     return () => on.forEach(([name, run]) => window.removeEventListener(name, run));
   }, []);
@@ -404,6 +394,16 @@ export default function App() {
     }
   }), [baselineFreshness]);
 
+  // 0.3.4: Home opens where it was left.
+  const homeScroll = useScrollMemory("home");
+
+  // An account added, renamed, signed in or removed: the app's lists now,
+  // and the accounts' sign-ins on the next view of them.
+  const accountsChanged = useCallback(() => {
+    staleSubscriptions();
+    void refresh();
+  }, [refresh]);
+
   // Day one: the REAL project history from imported transcripts (an idempotent
   // scan); AJ-E1529: again when the files change (not when only what's open did).
   useEffect(() => {
@@ -412,7 +412,7 @@ export default function App() {
   }, [refresh]);
 
   // A dropped folder → New session with it (an open New project sheet takes it).
-  useWindowFolderDrop((path) => (setNewSessionDir(path), setNewSession(true)), newProjectDir !== null);
+  useWindowFolderDrop((path) => newSheet.show({ dir: path }), newProjectDir !== null);
 
   useEffect(() => {
     void refresh();
@@ -450,6 +450,9 @@ export default function App() {
   // Login flows (Accounts screen) hand their terminal here; it joins the
   // Sessions rail list and gets selected.
   const openLoginTerminal = useCallback((id: string, title: string) => {
+    // A sign-in may change what the accounts read says: the next view of
+    // them reads it again.
+    staleSubscriptions();
     setLoginTerminals((current) =>
       current.some((t) => t.id === id) ? current : [...current, { id, title, ended: false }],
     );
@@ -555,7 +558,7 @@ export default function App() {
     openShortcuts: () => setShortcutsOpen(true),
     togglePalette: () => setGoToOpen((openNow) => !openNow),
     toggleNotifications: toggleCentre,
-    newSession: () => setNewSession(true), newProject: () => setNewProjectDir((current) => current ?? ""),
+    newSession: () => newSheet.show(), newProject: () => setNewProjectDir((current) => current ?? ""),
     toggleRail,
     toggleInspector,
     cycleDensity,
@@ -606,7 +609,7 @@ export default function App() {
       selectPool={(id) => { setGlobal(null); setSelection({ kind: "pool", id }); }}
       openAccounts={() => setGlobal("accounts")} openHome={() => { setGlobal(null); setSelection({ kind: "none" }); }}
       stopSession={stopSession}
-      newSessionIn={(project) => { setNewSessionDir(project.root); setNewSession(true); }}
+      newSessionIn={(project) => newSheet.show({ dir: project.root })}
       refresh={() => void refresh()}
     >
     <div className="relative flex h-screen w-screen overflow-hidden">
@@ -628,7 +631,7 @@ export default function App() {
           loginTerminals.some((t) => t.id === id) ? selectLogin(id) : selectSession(id)
         }
         onSelectProject={selectProject}
-        onNewSession={() => setNewSession(true)}
+        onNewSession={() => newSheet.show()}
         onNewProject={() => setNewProjectDir((current) => current ?? "")}
         freshness={freshness}
         now={now}
@@ -669,7 +672,7 @@ export default function App() {
           cleanupCount={cleanupCount}
           sessions={sessions}
           onOpenThisMac={() => setGlobal("thismac")}
-          onNewSession={() => setNewSession(true)}
+          onNewSession={() => newSheet.show()}
           onPick={(id) => {
             if (PRIMARY_NAV.some((item) => item.id === id)) (setSettingsFocusCloud(false), setSettingsSection(undefined));
             if (id === "home") (setGlobal(null), setSelection({ kind: "none" }));
@@ -703,9 +706,11 @@ export default function App() {
             <ScrollingScreen key="accounts" screen="accounts" label="Accounts">
               <ProfilesScreen
                 key={accountsNonce}
+                knownAccounts={loaded ? accounts : null}
+                knownProfiles={loaded ? profiles : null}
                 sessions={sessions}
                 onAddAccounts={() => startAddAccount()}
-                onAccountsChanged={() => void refresh()}
+                onAccountsChanged={accountsChanged}
                 openTerminal={openLoginTerminal}
                 onInspectAccount={(id) => {
                   setGlobal(null);
@@ -714,7 +719,7 @@ export default function App() {
               />
             </ScrollingScreen>
           ) : global === "history" ? (
-            <ScrollingScreen key="history" screen="history" label="History">
+            <ScrollingScreen key="history" screen="history" label="History" subject={historyQuery}>
               <History key={historyQuery} initialQuery={historyQuery} sessions={sessions} projects={projects} accounts={accounts} onChanged={() => void refresh()} />
             </ScrollingScreen>
           ) : global === "usage" ? (
@@ -744,7 +749,7 @@ export default function App() {
             // Settings › Privacy, a frame from now (the redirect above).
             null
           ) : global === "settings" ? (
-            <ScrollingScreen key="settings" screen="settings" label="Settings">
+            <ScrollingScreen key="settings" screen="settings" label="Settings" subject={settingsSection ?? ""}>
               <SettingsScreen key={settingsSection ?? "top"} focusCloud={settingsFocusCloud} focusSection={settingsSection} />
             </ScrollingScreen>
           ) : selectedLogin ? (
@@ -809,7 +814,7 @@ export default function App() {
                     onLaunch={() => {}}
                     onStopped={() => void refresh()}
                     onHandover={() => {}}
-                    onNew={() => setNewSession(true)}
+                    onNew={() => newSheet.show()}
                     onRemoteBack={() => setGlobal("fleet")}
                     onRemoteSelect={(instanceId) => inspectRemote(machine.machine_id, instanceId)}
                     onRemoteActionDone={() => setRemoteNow(Date.now())}
@@ -827,7 +832,7 @@ export default function App() {
                 <NotificationRegion onOpenRemote={(machineId) => inspectRemote(machineId, null)} hideMachineAlerts={selection.kind === "none"} sessions={sessions} accounts={accounts} />
               </div>
               {selection.kind === "none" ? (
-                <div className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
+                <div ref={homeScroll} className="relative min-h-0 flex-1 overflow-y-auto" data-testid="home-scroll">
                   <ScreenBoundary key="home" screen="home" label="Home">
                     <HomeScreen
                       loading={!loaded}
@@ -836,14 +841,14 @@ export default function App() {
                       projects={projects}
                       now={now}
                       onOpenSession={selectSession}
-                      onNewSession={() => setNewSession(true)}
+                      onNewSession={() => newSheet.show()}
                       // No account yet: "Find my accounts" comes back to first
                       // run (every tool at once), as its Not now promises.
                       onAddAccounts={() => setFirstRun(true)}
                       onFreshAccount={() => startAddAccount(true)}
                       onLimit={setLimitFor}
                       openLoginTerminal={openLoginTerminal}
-                      onAccountsChanged={() => void refresh()}
+                      onAccountsChanged={accountsChanged}
                       onChanged={() => void refresh()}
                       thisMac={thisMacInfo}
                       onOpenCleanup={() => setGlobal("cleanup")}
@@ -928,7 +933,7 @@ export default function App() {
                 void sessionHandover; // superseded by the E205 flow
                 setSwitchFlow({ sessionId, targetProfileId, targetLabel });
               }}
-              onNew={() => setNewSession(true)}
+              onNew={() => newSheet.show()}
             />
               </div>
               )}
@@ -993,7 +998,7 @@ export default function App() {
         selectedConversation={selection.kind === "conversation" ? { accountId: selection.accountId, id: selection.id } : null}
         app={{
           openScreen: (id) => (id === "home" ? openHome() : id === "settings" ? (setSettingsFocusCloud(false), setSettingsSection(undefined), setGlobal(id)) : setGlobal(id)),
-          newSession: () => setNewSession(true), newProject: () => setNewProjectDir((current) => current ?? ""), notifications: () => setCentreOpen(true),
+          newSession: () => newSheet.show(), newProject: () => setNewProjectDir((current) => current ?? ""), notifications: () => setCentreOpen(true),
           shortcuts: () => setShortcutsOpen(true), toggleRail, searchHistory: (words) => (setHistoryQuery(words), setGlobal("history")), fleet: pairedCount > 0,
         }}
         projects={projects}
@@ -1010,7 +1015,7 @@ export default function App() {
             setFirstRun(false);
             void refresh();
           }}
-          onAccountsChanged={() => void refresh()}
+          onAccountsChanged={accountsChanged}
         />
       )}
 
@@ -1021,7 +1026,7 @@ export default function App() {
             setChooseTool(false);
             setAddAccounts(provider);
           }}
-          onServiceAdded={() => (setChooseTool(false), setAccountsNonce((n) => n + 1), void refresh())}
+          onServiceAdded={() => (setChooseTool(false), setAccountsNonce((n) => n + 1), accountsChanged())}
         />
       )}
 
@@ -1034,9 +1039,9 @@ export default function App() {
           onDone={() => {
             setAddAccounts(null);
             setAccountsNonce((n) => n + 1);
-            void refresh();
+            accountsChanged();
           }}
-          onAccountsChanged={() => void refresh()}
+          onAccountsChanged={accountsChanged}
         />
       )}
 
@@ -1101,24 +1106,25 @@ export default function App() {
       {shortcutsOpen && <ShortcutSheet fleet={pairedCount > 0} onClose={() => setShortcutsOpen(false)} />}
       <QuitSheet />
       <PoolSheetHost sessions={railSessions} projects={projects} />
-      {newSession && (
+      {newSheet.open && (
         <NewSessionModal
           projects={shownProjects}
           accounts={accounts}
           sessions={sessions}
-          initialDirectory={newSessionDir}
+          initialDirectory={newSheet.dir}
+          initialAccount={newSheet.account}
           openLoginTerminal={openLoginTerminal}
-          onClose={closeNewSession}
+          onClose={newSheet.close}
           onLaunched={(sessionId) => {
             // AJ-E309 Req.6: once per install (the backend dedupes and
             // computes seconds_since_install itself).
             funnelEvent("first_launch");
-            closeNewSession();
+            newSheet.close();
             void refresh();
             selectSession(sessionId);
           }}
           onManageLaunchSettings={() => {
-            closeNewSession();
+            newSheet.close();
             setGlobal("accounts");
           }}
         />
@@ -1139,7 +1145,7 @@ export default function App() {
             selectSession(sessionId);
           }}
           openLoginTerminal={openLoginTerminal}
-          onAccountsChanged={() => void refresh()}
+          onAccountsChanged={accountsChanged}
           onManageLaunchSettings={() => {
             setNewProjectDir(null);
             setGlobal("accounts");

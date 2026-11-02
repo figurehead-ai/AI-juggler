@@ -2,55 +2,28 @@
  * AJ-E2108 — what a session's page reads besides the session: every
  * account's runway and the profiles' names. Read once per half minute at
  * most and shared by every session page (a page that opens, a tab that
- * comes back, a live refresh never asks again while it's fresh).
+ * comes back, a live refresh never asks again while it's fresh). 0.3.4:
+ * the last answer shows in a page's first frame (lib/shared-read); the
+ * runways are the ones Home, Accounts and Usage keep current.
  */
-import { useEffect, useState } from "react";
-import { accountsList, quotaDisplayAll, type AccountInfo, type QuotaDisplayData } from "../../lib/bridge";
+import { accountsList, type AccountInfo, type QuotaDisplayData } from "../../lib/bridge";
+import { useQuotaDisplays } from "../../lib/kept-reads";
+import { sharedRead, useSharedRead } from "../../lib/shared-read";
 
 const FRESH_MS = 30_000;
 
-type Cached<T> = { at: number; value: Promise<T> };
+/** Every profile, as the session pages last read it. */
+export const profiles = sharedRead<AccountInfo[]>(() => accountsList());
 
-function cachedRead<T>(read: () => Promise<T>, fallback: T) {
-  let cache: Cached<T> | null = null;
-  return {
-    load(now = Date.now()): Promise<T> {
-      if (cache && now - cache.at < FRESH_MS) return cache.value;
-      const value = read().catch(() => fallback);
-      cache = { at: now, value };
-      return value;
-    },
-    /** Tests: forget what was read. */
-    reset() {
-      cache = null;
-    },
-  };
-}
-
-export const runways = cachedRead<QuotaDisplayData[]>(quotaDisplayAll, []);
-export const profiles = cachedRead<AccountInfo[]>(accountsList, []);
-
-function useCached<T>(source: { load: () => Promise<T> }, initial: T): T {
-  const [value, setValue] = useState<T>(initial);
-  useEffect(() => {
-    let alive = true;
-    void source.load().then((next) => alive && setValue(next));
-    return () => {
-      alive = false;
-    };
-  }, [source]);
-  return value;
-}
-
-const NO_RUNWAYS: QuotaDisplayData[] = [];
 const NO_PROFILES: AccountInfo[] = [];
 
-/** Every account's runway (shared, fresh for half a minute). */
+/** Every account's runway (the shared one; read when older than half a
+ * minute). */
 export function useRunways(): QuotaDisplayData[] {
-  return useCached(runways, NO_RUNWAYS);
+  return useQuotaDisplays({ pollMs: 0, maxAgeMs: FRESH_MS }).displays;
 }
 
 /** Every profile (shared, fresh for half a minute). */
 export function useProfiles(): AccountInfo[] {
-  return useCached(profiles, NO_PROFILES);
+  return useSharedRead(profiles, { maxAgeMs: FRESH_MS }) ?? NO_PROFILES;
 }

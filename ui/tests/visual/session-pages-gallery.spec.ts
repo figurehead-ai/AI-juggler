@@ -212,6 +212,8 @@ for (const theme of ["dark", "light"] as const) {
     await openConversation(page, "Fix the flaky checkout test");
     await page.getByTestId("last-messages-scroll").evaluate((box) => (box.scrollTop = 0));
     await expect(page.getByTestId("last-messages-earlier")).toBeVisible();
+    // 0.3.4: a turn's work is folded under one row first; its steps inside.
+    await page.getByTestId("last-turn-work-toggle").first().click();
     await page.getByTestId("last-turn-steps").first().getByRole("button").click();
     await expect(page.getByTestId("last-turn-step-lines").first()).toContainText('ran "pnpm vitest run checkout --repeat 40"');
     await page.getByTestId("last-messages-earlier").click();

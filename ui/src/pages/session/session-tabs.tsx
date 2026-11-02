@@ -12,13 +12,14 @@ import { useMemo, type JSX } from "react";
 import type { InstanceInfo } from "../../lib/bridge";
 import { lazyNamed } from "../../lib/lazy";
 import { provideProcessesLink } from "../../lib/task-links";
-import { useSessionMessages } from "../messages/useSessionMessages";
-import { useSessionTasks } from "../tasks/useSessionTasks";
+import { useSessionMessagesFact } from "../messages/useSessionMessages";
+import { useSessionTasksFact } from "../tasks/useSessionTasks";
 import { rememberTab } from "../registry";
 import { useHasSubagents } from "./useSubagents";
 import { useSessionHasHistory } from "./useSessionHasHistory";
 import { fromInstance } from "./model";
 import { sessionTitle } from "../../components/ManageWork";
+import { WhenShown } from "../PageShell";
 
 const SessionMessages = lazyNamed(() => import("../messages/PoolMessages"), "SessionMessages");
 const SessionTasks = lazyNamed(() => import("../tasks/PoolTasks"), "SessionTasks");
@@ -27,24 +28,31 @@ const SessionHistoryTab = lazyNamed(() => import("./HistoryTab"), "SessionHistor
 
 provideProcessesLink(() => ({ label: "Its processes", open: () => rememberTab("session", "processes") }));
 
-/** Which of these tabs a session's page shows (its `pageTabs` facts). */
-export function useSessionTabs(session: InstanceInfo | null): { hasMessages: boolean; hasTasks: boolean; hasSubagents: boolean; hasHistory: boolean } {
+/** Which of these tabs a session's page shows (its `pageTabs` facts);
+ * `known` once Messages and Tasks are (read, or kept from before). */
+export function useSessionTabs(session: InstanceInfo | null): { hasMessages: boolean; hasTasks: boolean; hasSubagents: boolean; hasHistory: boolean; known: boolean } {
   const sessionId = session?.id ?? null;
-  const messagesPool = useSessionMessages(sessionId);
-  const hasTasks = useSessionTasks(sessionId);
+  const messages = useSessionMessagesFact(sessionId);
+  const tasks = useSessionTasksFact(sessionId);
   const live = session ? ["starting", "running", "waiting_user", "stuck", "quota_blocked"].includes(session.status) : false;
   const hasSubagents = useHasSubagents(session?.account_id ?? null, session?.conversation_id ?? null, live);
   // wf09: its History, once it has something recorded.
   const hasHistory = useSessionHasHistory(sessionId);
-  return { hasMessages: messagesPool !== null, hasTasks, hasSubagents, hasHistory };
+  return { hasMessages: messages.poolId !== null, hasTasks: tasks.has, hasSubagents, hasHistory, known: messages.known && tasks.known };
 }
 
 type SessionTabId = "messages" | "tasks" | "subagents" | "history";
 
 /** The Messages, Tasks, Subagents or History tab of a session. */
-export function SessionTab({ tab, session, now, visible = true, onOpenProject }: { tab: SessionTabId; session: InstanceInfo; now: number; visible?: boolean; onOpenProject: (id: string) => void }): JSX.Element {
+export function SessionTab({ tab, session, now, visible = true, onOpenProject }: { tab: SessionTabId; session: InstanceInfo; now: number; visible?: boolean; onOpenProject: (id: string) => void }): JSX.Element | null {
   if (tab === "history") return <SessionHistoryTab session={session} onOpenProject={onOpenProject} />;
-  if (tab === "subagents") return <InstanceSubagents session={session} now={now} visible={visible} />;
+  // Read once the tab is opened, not with the page (0.3.4).
+  if (tab === "subagents")
+    return (
+      <WhenShown visible={visible}>
+        <InstanceSubagents session={session} now={now} visible={visible} />
+      </WhenShown>
+    );
   return tab === "messages" ? <SessionMessages session={session} now={now} /> : <SessionTasks session={session} now={now} />;
 }
 

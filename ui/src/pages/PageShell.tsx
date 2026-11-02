@@ -4,11 +4,12 @@
  * toggle `hidden` (a terminal never remounts on a tab switch); the tab
  * a type of page was left on is remembered for that type only.
  */
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { useScrollMemory } from "../lib/scroll-memory";
 import { HANDOVER_EVENT } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/bridge";
-import { PAGE_LABELS, rememberTab, rememberedTab, type PageKind, type PageTab, type PageTabId } from "./registry";
+import { PAGE_LABELS, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
 
 const SHOW_TAB = "aij:page-tab";
 
@@ -140,8 +141,17 @@ export function PageShell({
   folded = false,
   focusTabsRequest = 0,
   testId = "page",
+  subject,
+  tabsKnown = true,
 }: {
   kind: PageKind;
+  /** 0.3.4: the item shown (its id): the page and each of its tabs open
+   * where they were left for it; another item starts at the top. */
+  subject?: string;
+  /** False while tabs that show only when the item has some (a session's
+   * Messages, Tasks) may still come: the tab this type of page was left
+   * on is kept for them until then, the body shown meanwhile. */
+  tabsKnown?: boolean;
   tabs: PageTab[];
   header: ReactNode;
   /** A tab's body; `visible` while it's the shown one (previews pause). */
@@ -153,9 +163,19 @@ export function PageShell({
   focusTabsRequest?: number;
   testId?: string;
 }) {
-  const [picked, setPicked] = useState<PageTabId>(() => rememberedTab(kind, tabs));
+  // The remembered tab even when it isn't here yet: one that shows only
+  // when the item has some comes once that's known.
+  const [picked, setPicked] = useState<PageTabId>(() => rememberedTabId(kind) ?? rememberedTab(kind, tabs));
   // A tab that went away (nothing left to show) falls back to the body.
   const tab = tabs.some((entry) => entry.id === picked) ? picked : tabs[0]!.id;
+  // Once every tab is known, a remembered one this item hasn't is let go
+  // (a message arriving later doesn't pull the page off its body).
+  const settled = useRef(false);
+  useEffect(() => {
+    if (!tabsKnown || settled.current) return;
+    settled.current = true;
+    if (picked !== tab) setPicked(tab);
+  }, [tabsKnown, picked, tab]);
   const tabsRef = useRef<HTMLDivElement | null>(null);
 
   const choose = (next: PageTabId) => {
@@ -211,6 +231,14 @@ export function PageShell({
   // page that is its body alone, once it's there to take it.
   const pendingFocus = useRef(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const keep = useScrollMemory(subject === undefined ? null : `page:${kind}:${subject}`);
+  const root = useCallback(
+    (element: HTMLDivElement | null) => {
+      rootRef.current = element;
+      return keep(element);
+    },
+    [keep],
+  );
   useEffect(() => {
     if (focusTabsRequest > 0) pendingFocus.current = focusTabsRequest;
   }, [focusTabsRequest]);
@@ -232,7 +260,7 @@ export function PageShell({
     // whole instead of squeezing its body to nothing.
     // The shared page frame (0.1.5): header, tabs and body in one centred
     // 1440 px column, so a wide window never strands the header.
-    <div ref={rootRef} className="mx-auto flex h-full min-h-0 w-full max-w-content flex-col gap-3 overflow-y-auto" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
+    <div ref={root} className="mx-auto flex h-full min-h-0 w-full max-w-content flex-col gap-3 overflow-y-auto" data-testid={testId} data-page-kind={kind} data-folded={folded ? "true" : undefined}>
       {header}
       {strip && (
         <div ref={tabsRef} role="tablist" hidden={folded} aria-label={`${PAGE_LABELS[kind]} tabs`} className="flex flex-wrap gap-1 border-b border-hairline pb-2">
@@ -267,22 +295,42 @@ export function PageShell({
       )}
       <div className="flex min-h-64 flex-1 flex-col">
         {tabs.map((entry) => (
-          <section
-            key={entry.id}
-            role={strip ? "tabpanel" : undefined}
-            id={`page-panel-${entry.id}`}
-            aria-labelledby={strip ? `page-tab-${entry.id}` : undefined}
-            data-testid={`page-panel-${entry.id}`}
-            hidden={tab !== entry.id}
-            // A panel scrolls: reachable by keyboard (APG tabs; WCAG 2.1.1).
-            tabIndex={0}
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-          >
+          <TabPanel key={entry.id} id={entry.id} strip={strip} shown={tab === entry.id} scrollKey={subject === undefined ? null : `page:${kind}:${subject}:${entry.id}`}>
             {render(entry.id, tab === entry.id)}
             {footer?.(entry)}
-          </section>
+          </TabPanel>
         ))}
       </div>
     </div>
   );
+}
+
+/** One tab's body: it scrolls, and opens where it was left (0.3.4). */
+function TabPanel({ id, strip, shown, scrollKey, children }: { id: PageTabId; strip: boolean; shown: boolean; scrollKey: string | null; children: ReactNode }) {
+  const scroll = useScrollMemory<HTMLElement>(scrollKey, { active: shown });
+  return (
+    <section
+      ref={scroll}
+      role={strip ? "tabpanel" : undefined}
+      id={`page-panel-${id}`}
+      aria-labelledby={strip ? `page-tab-${id}` : undefined}
+      data-testid={`page-panel-${id}`}
+      hidden={!shown}
+      // A panel scrolls: reachable by keyboard (APG tabs; WCAG 2.1.1).
+      tabIndex={0}
+      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+    >
+      {children}
+    </section>
+  );
+}
+
+/** Its children once the tab has been shown, kept after (a hidden tab
+ * reads nothing until it's opened). */
+export function WhenShown({ visible, children }: { visible: boolean; children: ReactNode }): JSX.Element | null {
+  const [shown, setShown] = useState(visible);
+  useEffect(() => {
+    if (visible) setShown(true);
+  }, [visible]);
+  return shown || visible ? <>{children}</> : null;
 }

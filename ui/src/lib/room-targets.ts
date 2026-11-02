@@ -37,7 +37,8 @@ export function roomOfProfile(profileId: string, accounts: SubscriptionInfo[] | 
 }
 
 /** `targets` by room, the best "Suggested". One the ranking holds back,
- * or on the source's own account (no new room), can't be suggested. */
+ * or on the source's own account (no new room), can't be suggested. The
+ * source's own tool comes first among the ones with room (0.3.4). */
 export function rankTargets(
   targets: readonly SwitchTargetData[],
   accounts: SubscriptionInfo[] | null,
@@ -49,7 +50,7 @@ export function rankTargets(
     target.filtered_reason == null &&
     target.account_id !== sourceProfile &&
     !(accounts && sourceProfile && shareAccount(accounts, sourceProfile, target.account_id));
-  return rankByRoom(targets, (target) => rooms.get(target)!.left, usable, (target) => rooms.get(target)!.credits !== null).map(({ item, kind, suggested }) => ({
+  return rankByRoom(targets, (target) => rooms.get(target)!.left, usable, (target) => rooms.get(target)!.credits !== null, (target) => !target.cross_provider).map(({ item, kind, suggested }) => ({
     ...item,
     suggested,
     room: { ...rooms.get(item)!, kind },
