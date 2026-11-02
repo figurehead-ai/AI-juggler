@@ -5,10 +5,12 @@
 #
 # Beta needs: the build exists, its user-facing notes
 # (docs/releases/X.Y.Z.md on main) pass the notes check, the
-# accessibility gate passes on the exact commit it was built from, and
+# accessibility gate passed on the exact commit it was built from (a scan
+# CI already ran on that tree counts; otherwise it runs here), and
 # the D-24 requirements hold: the build is 3+ days old (real use as AI
 # Juggler Nightly) and no `blocker` issue is open.
-# Stable also needs: 14+ days on beta, no open `blocker`, the beta gate
+# Stable also needs: the accessibility gate run here again, on the
+# commit, whatever CI ran; 14+ days on beta, no open `blocker`, the beta gate
 # (docs/qa/gate-beta.md, AJ-E807) signed, and a CHANGELOG section. A
 # D-24 requirement can be overridden only with a written reason, which
 # is kept in the channel tag.
@@ -52,8 +54,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Whether CI already scanned this tree for accessibility (below).
+      checks: read
+      pull-requests: read
     outputs:
       ref: ${{ steps.check.outputs.ref }}
+      scanned: ${{ steps.scanned.outputs.on }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -112,13 +118,53 @@ jobs:
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "Promote $VERSION ($ref) to $CHANNEL" >> "$GITHUB_STEP_SUMMARY"
+      # ADR-0024: the same gate on the same content gives the same answer.
+      # A beta promotion reuses a full accessibility scan CI passed on this
+      # commit, or on the head of the pull request merged as it when the
+      # two trees are identical (a push to main with its PR's tree runs
+      # nothing again). Only a scan counts: every shard passed
+      # (scripts/gate_passed.py a11y). Stable always scans again here.
+      - name: Did CI already scan this tree?
+        id: scanned
+        if: inputs.channel == 'beta'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ steps.check.outputs.ref }}
+        run: |
+          set -euo pipefail
+          runs() {
+            gh api --paginate "repos/$REPO/commits/$1/check-runs?per_page=100" \
+              --jq '.check_runs[] | {name, status, conclusion, completed_at, app: .app.slug}' > "$RUNNER_TEMP/runs.jsonl"
+            python3 scripts/gate_passed.py a11y "$RUNNER_TEMP/runs.jsonl"
+          }
+          candidates="$REF"
+          pr="$(gh api "repos/$REPO/commits/$REF/pulls" \
+            --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$REF\")][0] // empty | \"\(.number) \(.head.sha)\"")"
+          if [ -n "$pr" ]; then
+            number="${pr% *}" head="${pr#* }"
+            git fetch -q --no-tags origin "refs/pull/$number/head"
+            if [ "$(git rev-parse FETCH_HEAD)" = "$head" ] \
+              && [ "$(git rev-parse "$REF^{tree}")" = "$(git rev-parse 'FETCH_HEAD^{tree}')" ]; then
+              candidates="$candidates $head"
+            fi
+          fi
+          for sha in $candidates; do
+            if runs "$sha"; then
+              echo "on=$sha" >> "$GITHUB_OUTPUT"
+              echo "Accessibility: CI's full scan of $sha (the same tree) passed; it doesn't run again." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          done
+          echo "Accessibility: no passed full scan of this tree in CI; it runs here." >> "$GITHUB_STEP_SUMMARY"
 
   # AJ-E804: no build reaches beta or stable with a critical or serious
-  # accessibility violation or a broken keyboard flow. The full scan is
-  # ~10 min on 30 cores, so it runs in four shards; `a11y` summarises.
+  # accessibility violation or a broken keyboard flow. The full scan runs
+  # in six shards, split by test as CI's are; `a11y` summarises.
   a11y-shard:
-    name: a11y (${{ matrix.shard }}/4)
+    name: a11y (${{ matrix.shard }}/6)
     needs: check
+    if: needs.check.outputs.scanned == ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -126,7 +172,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --ipc=host
@@ -139,12 +185,13 @@ jobs:
         working-directory: ui
         # The release's pnpm, pinned with its sha512 as build-macos.yml does.
         run: corepack enable && corepack prepare "pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd" --activate && pnpm install --frozen-lockfile
-      - name: Accessibility gate, shard ${{ matrix.shard }}/4
+      - name: Accessibility gate, shard ${{ matrix.shard }}/6
         env:
           A11Y_SKIP_SUMMARY: "1"
+          SHARD: ${{ matrix.shard }}
         # Split by test, not by file: the gate is mostly one large spec, so
         # file-level shards left shards 2–4 empty and shard 1 near its timeout.
-        run: ./scripts/a11y_gate.sh --fully-parallel --shard=${{ matrix.shard }}/4
+        run: ./scripts/a11y_gate.sh --fully-parallel --shard="$SHARD/6"
       - name: Scans
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -156,20 +203,39 @@ jobs:
   a11y:
     name: a11y
     needs: [check, a11y-shard]
+    # Runs when the shards were skipped because CI's scan of this tree
+    # counts, and fails unless they passed otherwise.
+    if: ${{ !cancelled() && needs.check.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
+      - name: CI's scan of this tree
+        if: needs.check.outputs.scanned != ''
+        env:
+          SCANNED: ${{ needs.check.outputs.scanned }}
+        run: |
+          echo "Accessibility gate: passed in CI on $SCANNED (the same tree)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Every shard passed
+        if: needs.check.outputs.scanned == ''
+        env:
+          SHARDS: ${{ needs.a11y-shard.result }}
+        run: |
+          [ "$SHARDS" = success ] \
+            || { echo "::error::an accessibility shard failed ($SHARDS) — see its log and the a11y-shard-* artifacts"; exit 1; }
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: needs.check.outputs.scanned == ''
         with:
           persist-credentials: false
           ref: ${{ needs.check.outputs.ref }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: needs.check.outputs.scanned == ''
         with:
           pattern: a11y-shard-*
           path: docs/qa/evidence/AJ-E804/
           merge-multiple: true
       - name: Every gallery state, summarised (0 critical, 0 serious)
+        if: needs.check.outputs.scanned == ''
         run: |
           python3 scripts/axe_summary.py
           cat docs/qa/evidence/AJ-E804/axe-summary.md >> "$GITHUB_STEP_SUMMARY"
