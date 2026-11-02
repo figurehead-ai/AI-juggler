@@ -2069,60 +2069,15 @@ for (const theme of THEMES) {
 }
 
 /**
- * AJ-E611 — the ranking + notification surfaces: the NewSession
- * ranked list (Suggested badge + top-2 factors + TTE, greyed filtered
- * row with its reason, "Why this order?" expander) and the
- * notification region (actionable 90% line, the hourly digest's
+ * AJ-E611 — the ranking + notification surfaces (New session's ranked
+ * list went with AJ-E3207: its App picker is gallery 99-new-session) and
+ * the notification region (actionable 90% line, the hourly digest's
  * renewal item visually distinct, reset-queue queued/ready rows with
  * an explicit Resume click) across the required 1440×900 + 1280×800 ×
  * light+dark matrix. Copy conformance is asserted before every
  * capture (≥2 factors without hover, badge adjacent, no silent
  * drops).
  */
-const rankedRows: Record<string, unknown>[] = [
-  {
-    account: "claude-work",
-    account_label: "Work Max",
-    score: 0.87,
-    top_factors: ["82% headroom (Measured)", "used most here"],
-    factors: [["headroom 82%", 0.37], ["affinity", 0.2], ["fidelity", 0.075], ["cost fit", 0.1], ["calm", 0.1]],
-    headroom_unknown: false,
-    confidence: "Measured",
-    tte_min: 210,
-    suggested: true,
-  },
-  {
-    account: "claude-personal",
-    account_label: "Personal",
-    score: 0.54,
-    top_factors: ["headroom unknown — ranked without quota", "low session load"],
-    factors: [["headroom unknown", 0], ["affinity", 0.04], ["fidelity", 0.075], ["cost fit", 0.05], ["calm", 0.1]],
-    headroom_unknown: true,
-    confidence: "Estimate",
-    suggested: false,
-  },
-  {
-    account: "claude-lab",
-    filtered_reason: "logged out — sign in from the Ready home",
-    top_factors: [],
-    factors: [],
-    headroom_unknown: true,
-    confidence: "Estimate",
-    suggested: false,
-  },
-];
-
-/** Work Max's room (82% left this week, measured): what makes it Suggested. */
-const rankedRoom = [
-  {
-    account: "claude-work",
-    five_hour: null,
-    weekly: { state: "tracking", percentage: 18, badge: "measured", resets_at_ms: T0 + 3 * 86_400_000, burned_tokens: 340_000 },
-    renewal: { state: "none", label: "", entered_by_user: false },
-    forecast: { state: "exhausts", tte_min: 210, range_min: 150, range_max: 260, badge: "measured" },
-  },
-];
-
 /** AJ-E2501: what the alert pass told the notification model — an
  * account almost out of room (a need), and the digest's renewal line
  * (what happened) — in the model's own words. */
@@ -2146,67 +2101,6 @@ const queueRows: Record<string, unknown>[] = [
 
 for (const theme of THEMES) {
   for (const vp of RAIL_QUOTA_VP) {
-    test(`ranking — NewSession ranked list — ${vp.name} — ${theme}`, gate("27-ranking"), async ({ page }) => {
-      await page.addInitScript(
-        ({ fixture, t0, theme: themeName, ranked, room }) => {
-          const w = window as unknown as Record<string, unknown>;
-          w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_RANKING__ = ranked;
-          // The 0.2 walk (F1/F17): Suggested is the most room, read as
-          // Home's Runway reads it (the one order by room).
-          w.__AIJ_QUOTA_DISPLAY__ = room;
-          localStorage.setItem("aij.theme", themeName);
-          localStorage.setItem("aij.onboarding.dismissed", "1");
-          sessionStorage.setItem("aij.ready.skipped", "1");
-          Date.now = () => t0;
-        },
-        { fixture: allStatuses, t0: T0, theme, ranked: rankedRows, room: rankedRoom },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/");
-      await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
-      await expect(page.getByTestId("ranked-rows")).toBeVisible();
-      // Copy conformance before capture: Suggested badge, ≥2 factors
-      // without hover, TTE, and the greyed filtered row keeps its seat.
-      await expect(page.getByTestId("ranked-rows").getByText("Suggested", { exact: true })).toBeVisible();
-      // F17: the pick says why it's the pick.
-      await expect(page.getByTestId("launch-default")).toHaveText("Suggested: the most room");
-      await expect(page.getByText(/82% headroom \(Measured\)/)).toBeVisible();
-      await expect(page.getByText(/exhausts ≈210 min/)).toBeVisible();
-      await expect(page.getByText("logged out — sign in from the Ready home")).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `27-ranking/ranked-${vp.name}-${theme}.png`),
-      });
-    });
-
-    test(`ranking — why-this-order expanded — ${vp.name} — ${theme}`, async ({ page }) => {
-      await page.addInitScript(
-        ({ fixture, t0, theme: themeName, ranked }) => {
-          const w = window as unknown as Record<string, unknown>;
-          w.__AIJ_FIXTURE__ = fixture;
-          w.__AIJ_RANKING__ = ranked;
-          localStorage.setItem("aij.theme", themeName);
-          localStorage.setItem("aij.onboarding.dismissed", "1");
-          sessionStorage.setItem("aij.ready.skipped", "1");
-          Date.now = () => t0;
-        },
-        { fixture: allStatuses, t0: T0, theme, ranked: rankedRows },
-      );
-      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/");
-      await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
-      await page.getByRole("button", { name: "Why this order?" }).click();
-      // All five inputs are listed once expanded (both scored rows
-      // expand — assert on the first).
-      await expect(page.getByText(/calm/).first()).toBeVisible();
-      await expect(page.getByText(/fidelity/).first()).toBeVisible();
-      await page.screenshot({
-        path: resolve(GALLERY, `27-ranking/why-${vp.name}-${theme}.png`),
-      });
-    });
-
     test(`notification — actionable + digest — ${vp.name} — ${theme}`, async ({ page }) => {
       await page.addInitScript(
         ({ fixture, t0, theme: themeName, events }) => {
@@ -3630,23 +3524,20 @@ for (const theme of THEMES) {
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
       await expect(page.getByTestId("new-session-sheet")).toBeVisible();
-      await page
-        .getByRole("button", { name: /ai-juggler.*prior sessions/s })
-        .click();
+      // AJ-E3207: the usual is chosen and said; an Ok verdict is silent
+      // (only what changes the decision speaks).
       const pre = page.getByTestId("launch-preselected");
-      await expect(pre).toContainText("Enough room left");
+      await expect(page.getByTestId("new-session-sentence")).toContainText("Start in ");
+      await expect(pre).not.toContainText("Enough room left");
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/e-launch-ok-${vp.name}-${theme}.png`),
         fullPage: true,
       });
-      await page
-        .getByRole("button", { name: "Customise", exact: true })
-        .click();
-      await expect(page.getByTestId("sign-in-first")).toBeVisible();
-      // Unknown room reads in the one runway's words; no verdict chip
-      // beside it (QA P26b: one claim per row).
-      await expect(page.getByTestId("launch-sheet-accounts")).toContainText("Not measured yet");
-      await expect(page.getByTestId("launch-sheet-accounts")).not.toContainText("Room left unknown");
+      // Change app: the one signed out is listed last and says so; unknown
+      // room says nothing (QA P26b: one claim per row).
+      await page.getByTestId("change-app").click();
+      await expect(page.getByTestId("change-app-claude-personal")).toContainText("Not signed in");
+      await expect(page.getByRole("menu")).not.toContainText("Room left unknown");
       await page.screenshot({
         path: resolve(GALLERY, `38-flows-cde/e-launch-expanded-${vp.name}-${theme}.png`),
         fullPage: true,
@@ -3685,9 +3576,6 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
-      await page
-        .getByRole("button", { name: /ai-juggler.*prior sessions/s })
-        .click();
       await expect(page.getByTestId("launch-preselected")).toContainText(
         "Tight — this session may use most of the room left",
       );

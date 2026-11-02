@@ -1,34 +1,36 @@
-import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEscapeCloses } from "../lib/use-escape-closes";
-import { homeRelative } from "../lib/project-words";
-import { Button, Card, Chip } from "../components/primitives";
-import { IconProjects, IconTerminal } from "../components/icons";
-import { RunwayWords } from "../components/AccountRunway";
-import { RankedRows } from "../components/RankedRows";
-import { launchRoom, pickLaunch } from "../lib/launch-pick";
-import { LaunchPickBadge, LaunchPickWhy } from "../components/LaunchPickWhy";
-import { IconChevronDown, IconChevronRight } from "../components/icons-controls";
-import { ExpertSetup } from "../components/ExpertSetup";
-import { MachineAdviceLine, MachineChip } from "../components/MachineAdvice";
-import { machineAdvice, type MachineAdviceInfo } from "../lib/machine";
-import { launchSession, pickDirectory, terminalSpawnLogin, quotaDisplayAll, rankingRows, errorText, signedIn } from "../lib/bridge";
-import type { RankedRowData, QuotaDisplayData, AccountInfo, LaunchRecipeInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
-import { launchSettingsName, launchTitle } from "../lib/account-words";
+import { Button, Card } from "../components/primitives";
+import { IconTerminal } from "../components/icons";
+import { launchSession, terminalSpawnLogin, errorText, signedIn } from "../lib/bridge";
+import type { AccountInfo, LaunchRecipeInfo, InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { launchTitle } from "../lib/account-words";
 import { sessionTitle } from "../components/ManageWork";
-import { useTwinToggle } from "../lib/use-twin-toggle";
 import { useFolderDrop } from "../lib/use-folder-drop";
 import { PackPicker, usePack } from "../components/OpenPack";
-import { MachinePicker, RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
+import { RemoteSessionSheet, useWhere } from "../components/RemoteLaunch";
 import { useRuntimePick } from "../components/RuntimePick";
+import { appsByRoom, chooseApp, chooseFolder, type AppWhy, type FolderChoice } from "../lib/new-session-choice";
+import { useNewSessionData } from "./new-session/useNewSessionData";
+import { folderName, StatedChoice } from "./new-session/StatedChoice";
+import { MoreOptions } from "./new-session/MoreOptions";
+
+const FOCUSABLE = "button:not(:disabled), a[href], input, summary, [tabindex]:not([tabindex='-1'])";
 
 /**
- * New session — zero typing: recent projects (real history), a native
- * folder picker, or drag a folder onto the window; then an account whose sign-in state is visible before you commit.
+ * New session (AJ-E3207): the usual folder and App, chosen and said in
+ * one sentence with a short why, from what's kept (no wait before the
+ * choice shows); ⌘↩ or the one primary button starts it. Change folder
+ * and Change app are one step away; the rare options sit behind one fold
+ * that says their values. Out of room never moves the choice (D-31): the
+ * sheet says so and offers the App with room. A folder dropped on the
+ * window becomes where it works.
  */
 export function NewSessionModal({
   projects,
   accounts,
   sessions = [],
+  recipes: kept,
   initialDirectory, initialAccount,
   onClose,
   onLaunched,
@@ -36,11 +38,14 @@ export function NewSessionModal({
   onManageLaunchSettings,
 }: {
   projects: ProjectInfo[];
+  /** The config folders (each CLI App's own). */
   accounts: AccountInfo[];
   /** The sessions the app already has: names for "Closing … frees about …". */
   sessions?: InstanceInfo[];
+  /** The launch settings the app already holds: the choice in the first frame. */
+  recipes?: LaunchRecipeInfo[];
   initialDirectory: string | null;
-  /** 0.3.4: the account it opens on (the user can still change it). */
+  /** The App (its folder) it opens on: the door that opened it chose it. */
   initialAccount?: string | null;
   onClose: () => void;
   onLaunched: (sessionId: string, title: string) => void;
@@ -51,26 +56,25 @@ export function NewSessionModal({
   onManageLaunchSettings?: () => void;
 }) {
   const [directory, setDirectory] = useState<string | null>(initialDirectory);
-  const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
+  const [chosenApp, setChosenApp] = useState<string | null>(initialAccount ?? null);
+  const [chosenSettings, setChosenSettings] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { dragging, zone } = useFolderDrop(setDirectory); // wf10: a dropped folder
-  const pack = usePack(setDirectory); // AJ-E1511: started from a context pack
+  const pack = usePack(setDirectory); // AJ-E1511: started from a saved handover
   const where = useWhere(); // AJ-E1515: or on a paired Mac
   const runtimePick = useRuntimePick(); // AJ-E2304: this session's runtime
-  const customise = useTwinToggle(); // AJ-E306 flow (e): under Customise ▸; "Main" preselected, ⌘↩ launches it
-  const customiseOpen = customise.open;
   const sheetRef = useRef<HTMLDivElement | null>(null);
+  const startRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const now = Date.now();
 
   // AJ-E306 a11y: the sheet traps focus and returns it on close (Esc cancels: the overlay).
   useEffect(() => {
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
-      const focusables = sheetRef.current?.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), a[href], input, [tabindex]:not([tabindex='-1'])",
-      );
+      const focusables = sheetRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
       if (focusables === undefined || focusables.length === 0) return;
       const first = focusables[0]!;
       const last = focusables[focusables.length - 1]!;
@@ -87,13 +91,11 @@ export function NewSessionModal({
       }
     };
     window.addEventListener("keydown", onKey);
-    // AJ-E804: opening the sheet moves focus into it (WCAG 2.4.3).
+    // AJ-E804: opening the sheet moves focus into it (WCAG 2.4.3): onto
+    // Start when it can, so Return starts the usual.
     const frame = requestAnimationFrame(() => {
-      if (!sheetRef.current?.contains(document.activeElement)) {
-        sheetRef.current
-          ?.querySelector<HTMLElement>("button:not(:disabled), a[href], input, [tabindex]:not([tabindex='-1'])")
-          ?.focus();
-      }
+      if (sheetRef.current?.contains(document.activeElement)) return;
+      (startRef.current && !startRef.current.disabled ? startRef.current : sheetRef.current?.querySelector<HTMLElement>(FOCUSABLE))?.focus();
     });
     return () => {
       cancelAnimationFrame(frame);
@@ -102,121 +104,43 @@ export function NewSessionModal({
     };
   }, []);
 
-  useEffect(() => {
-    void import("../lib/bridge").then((bridge) =>
-      bridge.launchRecipesList().then(setProfiles),
-    );
-  }, []);
-
-  // E14 (AJ-E1407): "Has this Mac got room?" per launch setting, and the
-  // running sessions' names for "Closing … frees about …".
-  // AJ-E1535: the names come from the sessions the app already has (one
-  // read fewer on every open), named as everywhere else.
-  const [advice, setAdvice] = useState<Map<string, MachineAdviceInfo>>(new Map());
-  const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
-  const sessionsOf = (accountId: string) => sessions.filter((row) => row.account_id === accountId);
-  useEffect(() => {
-    let alive = true;
-    void machineAdvice().then(
-      (rows) => alive && setAdvice(new Map(rows.map((row) => [row.recipe_id, row]))),
-      () => null,
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const loginByAccount = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const account of accounts) map.set(account.id, account.login_state);
-    return map;
-  }, [accounts]);
-
-  // AJ-E611: the explainable ranking (suggest-only — clicking a row
-  // highlights that account's recipes; the launch stays the user's
-  // own click on a recipe).
-  const [ranked, setRanked] = useState<RankedRowData[]>([]);
-  const [pickedAccount, setPickedAccount] = useState<string | undefined>(initialAccount ?? undefined);
-  // F17: for the folder picked ("used most here" only where it was).
-  const projectId = projects.find((row) => row.root === directory)?.id;
-  useEffect(() => {
-    let alive = true;
-    rankingRows(projectId).then((rows) => {
-      if (alive) setRanked(rows);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [projectId]);
-  // AJ-E610: the account's two-clock display for the row chip (one
-  // query for all rows; typed states render as copy, never 0%).
-  const [quotaByAccount, setQuotaByAccount] = useState<Record<string, QuotaDisplayData> | undefined>(undefined);
-  useEffect(() => {
-    let alive = true;
-    quotaDisplayAll().then((all) => {
-      if (!alive) return;
-      const map: Record<string, QuotaDisplayData> = {};
-      for (const entry of all) map[entry.account] = entry;
-      setQuotaByAccount(map);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // AJ-E306 flow (e): the admission verdict per account (SPEC §5.2)
-  // rides the ranked rows — Ok/Tight/No inline, unknown as TEXT.
-  const verdictByAccount = useMemo(() => {
-    const map = new Map<string, { admission?: "ok" | "tight" | "no"; unknown: boolean }>();
-    for (const row of ranked) {
-      map.set(row.account, { admission: row.admission ?? undefined, unknown: row.headroom_unknown });
+  const asked = useMemo(() => chooseFolder(projects, directory), [projects, directory]);
+  const data = useNewSessionData({ folders: accounts, sessions, kept, projectId: asked?.project?.id });
+  const recipes = useMemo(() => data.recipes ?? [], [data.recipes]);
+  const ranked = useMemo(() => appsByRoom({ recipes, folders: accounts, roomOf: data.roomOf }), [recipes, accounts, data]);
+  // The pick never jumps under the cursor: once said with the room known,
+  // it stays for this folder until the user changes it (a fresh read only
+  // updates its room and notes).
+  const steady = useRef<{ folder: string | null; app: string; why: AppWhy } | null>(null);
+  const app = useMemo(() => {
+    const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, roomOf: data.roomOf, accountOf: data.accountKeyOf };
+    const held = steady.current;
+    if (chosenApp === null && held && held.folder === (asked?.root ?? null)) {
+      const kept = chooseApp({ ...inputs, chosen: held.app });
+      if (kept?.recipe.account_id === held.app) return { ...kept, why: held.why };
     }
-    return map;
-  }, [ranked]);
-
-  const project = useMemo(
-    () => projects.find((row) => row.root === directory) ?? null,
-    [projects, directory],
-  );
-  // F17: a pick of yours, else the Suggested one (the one order by room);
-  // a row picked above becomes the pick.
-  const pick = useMemo(
-    () => (profiles !== null ? pickLaunch(profiles, project, Object.values(quotaByAccount ?? {}), accounts, pickedAccount ?? null, sessions) : null),
-    [profiles, project, quotaByAccount, accounts, pickedAccount, sessions],
-  );
-  const preselected = pick?.recipe ?? null;
-
-  const recents = useMemo(
-    () =>
-      projects.filter((project) => !project.missing) // a moved one waits for Relocate…
-        .sort(
-          (a, b) => (b.last_activity_ms ?? 0) - (a.last_activity_ms ?? 0),
-        )
-        .slice(0, 6),
-    [projects],
-  );
+    const fresh = chooseApp({ ...inputs, chosen: chosenApp });
+    if (chosenApp === null && fresh && data.roomKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, why: fresh.why };
+    return fresh;
+  }, [recipes, asked, accounts, chosenApp, sessions, data]);
+  const settings = app ? recipes.filter((row) => row.account_id === app.recipe.account_id) : [];
+  const recipe = settings.find((row) => row.id === chosenSettings) ?? app?.recipe ?? null;
+  // No folder known: the App's own, from its launch settings.
+  const folder: FolderChoice | null = asked ?? (recipe?.default_cwd ? { root: recipe.default_cwd, project: projects.find((row) => row.root === recipe.default_cwd) ?? null, why: "app-folder" } : null);
+  const ready = recipe !== null && signedIn(accounts.find((row) => row.id === recipe.account_id)?.login_state ?? "logged_in");
+  const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
+  const sessionName = (id: string) => sessionNames.get(id) ?? null;
 
   useEscapeCloses(onClose);
 
-  // ⌘↩ launches the preselected Launch settings (flow (e) HIG).
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !busy && preselected) {
-        event.preventDefault();
-        void launch(preselected);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, preselected, directory]);
-
-  const launch = async (recipe: LaunchRecipeInfo) => {
+  const launch = async () => {
+    if (!recipe || !ready || busy) return;
     setBusy(true);
     setError(null);
+    const cwd = folder?.root ?? null;
     try {
-      if (!pack.opened && !(await runtimePick.confirm(recipe.id, directory))) return setBusy(false); // Lab 2: the folder's trust
-      const result = pack.opened ? await pack.start(recipe.id, directory) : await launchSession(recipe.id, directory, runtimePick.runtime);
+      if (!pack.opened && !(await runtimePick.confirm(recipe.id, cwd))) return setBusy(false); // Lab 2: the folder's trust
+      const result = pack.opened ? await pack.start(recipe.id, cwd) : await launchSession(recipe.id, cwd, runtimePick.runtime);
       if (!result) {
         setError("Preview mode — no backend connected.");
         setBusy(false);
@@ -229,7 +153,23 @@ export function NewSessionModal({
     }
   };
 
+  // ⌘↩ starts the stated choice, wherever focus is in the sheet.
+  const launchRef = useRef(launch);
+  launchRef.current = launch;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        void launchRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   if (where.machine) return <RemoteSessionSheet where={where} onClose={onClose} />;
+  const appName = app ? data.appNameOf(app.recipe) : null;
+  const startWords = folder ? `Start in ${folderName(folder)}` : appName ? `Start on ${appName}` : "Start";
   return (
     <div
       ref={sheetRef}
@@ -245,265 +185,74 @@ export function NewSessionModal({
             <IconTerminal width={16} height={16} />
           </span>
           <h3 className="text-sm font-semibold">New session</h3>
-          <div className="ml-auto flex items-center gap-2">
-            {directory && (
-              <Chip tone="accent">
-                <span className="max-w-64 truncate font-mono text-label">
-                  {directory.split("/").pop()}
-                </span>
-              </Chip>
-            )}
-          </div>
         </div>
 
         <div
-          className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
+          className={"min-h-0 flex-1 overflow-y-auto px-6 py-5 " + (dragging ? "bg-accent-soft/40 outline-dashed outline-1 -outline-offset-8 outline-accent/60" : "")}
           data-testid="new-session-drop"
           {...zone}
         >
-          <MachinePicker where={where} />
-          {runtimePick.element}
-          <PackPicker pack={pack} />
-          {/* Step 1 — where */}
-          <p className="text-section font-semibold text-ink">
-            Where do you want to work?
-          </p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {recents.map((project) => (
-              <button
-                key={project.id}
-                type="button"
-                onClick={() => setDirectory(project.root)}
-                className={
-                  "flex min-w-0 flex-col gap-1 rounded-xl border px-3 py-2.5 text-left transition-colors " +
-                  (directory === project.root
-                    ? "border-accent/40 bg-accent-soft"
-                    : "border-hairline hover:border-hairline/80 hover:bg-surface")
-                }
-              >
-                <span className="flex items-center gap-1.5">
-                  <IconProjects width={12} height={12} />
-                  <span className="truncate text-xs font-medium">
-                    {project.name}
-                  </span>
-                  {project.active_instance && (
-                    <span className="dot-live ml-auto size-1.5 rounded-full bg-live" />
-                  )}
-                </span>
-                <span className="truncate text-label text-muted">
-                  {project.history_sessions > 0 ? `${project.history_sessions} prior session${project.history_sessions === 1 ? "" : "s"} · ${project.accounts_used.join(", ")}` : homeRelative(project.root)}
-                </span>
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={async () => {
-                const picked = await pickDirectory();
-                if (picked) setDirectory(picked);
-              }}
-              className={
-                "flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed px-3 py-2.5 text-center transition-colors " +
-                (dragging
-                  ? "border-accent/60 bg-accent-soft text-accent-hi"
-                  : "border-hairline text-muted hover:border-accent/40 hover:text-ink")
-              }
-            >
-              <IconProjects width={14} height={14} />
-              <span className="text-xs font-medium">Choose folder…</span>
-              <span className="text-label text-muted">or drop it anywhere</span>
-            </button>
-          </div>
-
-          {/* Step 2 — who (AJ-E306 flow (e)): the recommended Launch
-              settings preselected; the full list under Customise ▸. */}
-          {ranked.length > 0 && (
-            <div className="mt-5">
-              <RankedRows rows={ranked} leftOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).left} creditsOf={(account) => launchRoom(quotaByAccount?.[account], sessionsOf(account)).credits !== null} activeAccount={preselected?.account_id} onPick={setPickedAccount} />
+          {pack.opened && (
+            <div className="mb-4">
+              <PackPicker pack={pack} />
             </div>
           )}
-          <p className="mt-5 text-section font-semibold text-ink">Which app?</p>
-          <div className="mt-2 flex flex-col gap-1.5" data-testid="launch-sheet-accounts">
-            {profiles !== null && profiles.length > 0 && preselected !== null && !customiseOpen && (
-              <div
-                className="flex flex-col gap-1.5 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5"
-                data-testid="launch-preselected"
-              >
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <IconTerminal width={13} height={13} />
-                  <span className="font-medium">{preselected.account_label}</span>
-                  {pick && <LaunchPickBadge pick={pick} />}
-                  <RunwayWords display={quotaByAccount?.[preselected.account_id]} sessions={sessionsOf(preselected.account_id)} loading={!quotaByAccount} />
-                  <span className="text-muted">·</span>
-                  <span className="text-muted">Launch settings: {preselected.name}</span>
-                  {preselected.model && (
-                    <span className="font-mono text-label text-muted">{preselected.model}</span>
-                  )}
-                  <VerdictChip verdict={verdictByAccount.get(preselected.account_id)} />
-                  {pick && <LaunchPickWhy pick={pick} quota={quotaByAccount ?? {}} onUse={setPickedAccount} />}
-                </div>
-                <MachineAdviceLine advice={advice.get(preselected.id)} nameOf={(id) => sessionNames.get(id) ?? null} />
-                <div className="flex flex-wrap gap-2">
-                  {/* 0.3: Launch is the footer's, beside Close. */}
-                  <Button
-                    ref={customise.showRef}
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => customise.toggle(true)}
-                    aria-expanded={customiseOpen}
-                  >
-                    Customise
-                    <IconChevronRight width={13} height={13} strokeWidth={2} aria-hidden="true" className="-mr-1" />
-                  </Button>
-                  {!signedIn(loginByAccount.get(preselected.account_id)) && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={async () => {
-                        const terminal = await terminalSpawnLogin(preselected.account_id);
-                        openLoginTerminal?.(terminal.id, `Sign in · ${preselected.account_label}`);
-                      }}
-                    >
-                      Sign in first
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-            {customiseOpen && (
-              <button
-                ref={customise.hideRef}
-                type="button"
-                onClick={() => customise.toggle(false)}
-                className="flex items-center gap-1 self-start rounded text-label text-muted underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
-                aria-expanded={customiseOpen}
-              >
-                <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" />
-                Customise (hide Launch settings)
-              </button>
-            )}
-            {(customiseOpen || preselected === null) &&
-              (profiles ?? []).map((recipe) => {
-                const login = loginByAccount.get(recipe.account_id) ?? "logged_out";
-                const ready = signedIn(login);
-                return (
-                  <div
-                    key={recipe.id}
-                    className={
-                      "flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs " +
-                      (ready ? "border-hairline" : "border-hairline/50") // AJ-E804: no opacity — text keeps 4.5:1
-                    }
-                  >
-                    <IconTerminal width={13} height={13} />
-                    <span className="font-medium">{recipe.account_label}</span>
-                    <RunwayWords display={quotaByAccount?.[recipe.account_id]} sessions={sessionsOf(recipe.account_id)} loading={!quotaByAccount} />
-                    <span className="text-muted">·</span>
-                    <span className="text-muted">Launch settings: {launchSettingsName(recipe.name)}</span>
-                    <VerdictChip verdict={verdictByAccount.get(recipe.account_id)} />
-                    <MachineChip advice={advice.get(recipe.id)} />
-                    <span className="flex-1" />
-                    {ready ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => void launch(recipe)}
-                      >
-                        Launch →
-                      </Button>
-                    ) : (
-                      // Req.8: disabled with its reason + the one-tap
-                      // detour that RETURNS (the sheet never closes).
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={async () => {
-                          const terminal = await terminalSpawnLogin(recipe.account_id);
-                          openLoginTerminal?.(terminal.id, `Sign in · ${recipe.account_label}`);
-                        }}
-                        data-testid="sign-in-first"
-                      >
-                        Sign in first
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            {profiles !== null && profiles.length === 0 && (
-              <p className="py-3 text-center text-xs text-ink-2">
-                No launch settings yet — add an app first (Accounts, top right).
-              </p>
-            )}
-            {profiles === null && (
-              <p className="py-3 text-center text-xs text-ink-2">Loading…</p>
-            )}
-          </div>
-
-          {/* AJ-E309 Req.5: the expert hatch for the account this
-              sheet would launch (folder, shell line, env overrides). */}
-          {preselected !== null && (
-            <div className="mt-3">
-              <ExpertSetup
-                provider={
-                  accounts.find((entry) => entry.id === preselected.account_id)?.provider ??
-                  preselected.provider
-                }
-                accounts={[{ id: preselected.account_id, label: preselected.account_label }]}
-                surface="launch"
-                onManageLaunchSettings={onManageLaunchSettings}
-              />
-            </div>
+          <StatedChoice
+            folder={folder}
+            app={app}
+            data={data}
+            ranked={ranked}
+            projects={projects}
+            handover={pack.opened !== null}
+            now={now}
+            onFolder={(root) => {
+              setDirectory(root);
+              setChosenSettings(null);
+            }}
+            onApp={(id) => {
+              setChosenApp(id);
+              setChosenSettings(null);
+            }}
+            onSignIn={async (id, name) => {
+              const terminal = await terminalSpawnLogin(id);
+              openLoginTerminal?.(terminal.id, `Sign in · ${name}`);
+            }}
+            onAddApp={onManageLaunchSettings}
+            sessionName={sessionName}
+          />
+          <MoreOptions
+            recipe={recipe}
+            settings={settings}
+            onSettings={setChosenSettings}
+            runtime={runtimePick.runtime}
+            runtimeElement={runtimePick.element}
+            where={where}
+            pack={pack}
+            advice={recipe ? data.adviceOf(recipe.id) : undefined}
+            sessionName={sessionName}
+            folders={accounts}
+            onManageLaunchSettings={onManageLaunchSettings}
+          />
+          {error && (
+            <p role="alert" className="mt-3 text-xs text-danger">
+              {error}
+            </p>
           )}
-
-          {error && <p className="mt-3 text-xs text-danger">{error}</p>}
         </div>
 
-        <div className="flex items-center justify-between border-t border-hairline/60 px-6 py-4">
-          {/* AJ-E1535: the footer speaks only when a folder is picked. */}
-          <span className="text-label text-muted">{directory ? `Launching in ${directory.split("/").pop()}` : null}</span>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="secondary" onClick={onClose}>
-              Close
-            </Button>
-            {preselected !== null && !customiseOpen && (profiles ?? []).length > 0 && (
-              <Button size="sm" variant="primary" disabled={busy || !signedIn(loginByAccount.get(preselected.account_id))} onClick={() => void launch(preselected)} data-testid="launch-now">
-                Launch on {preselected.account_label}
-              </Button>
-            )}
-          </div>
+        <div className="flex items-center justify-end gap-2 border-t border-hairline/60 bg-surface-2 px-6 py-4">
+          <Button size="sm" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button ref={startRef} size="sm" variant="primary" disabled={busy || !ready} onClick={() => void launch()} aria-keyshortcuts="Meta+Enter" data-testid="launch-now">
+            {busy ? "Starting…" : startWords}
+            {pack.opened && !busy && " with handover"}
+            <kbd aria-hidden="true" className="ml-2 font-sans text-label">
+              ⌘↩
+            </kbd>
+          </Button>
         </div>
       </Card>
     </div>
   );
 }
-
-/**
- * AJ-E306 Req.7/8: the admission verdict as words — never a bare
- * colour, never a fabricated percentage. Tight/No explain and NEVER
- * block the launch click; unknown headroom says so in text.
- */
-function VerdictChip({
-  verdict,
-}: {
-  verdict?: { admission?: "ok" | "tight" | "no"; unknown: boolean };
-}): JSX.Element | null {
-  // No verdict: the runway line beside it already says what is known
-  // (QA, P26b: "0% Estimate … Room left unknown" was two claims in a row).
-  if (verdict === undefined) return null;
-  if (verdict.admission === "tight") {
-    return (
-      <Chip tone="neutral" >
-        Tight — this session may use most of the room left
-      </Chip>
-    );
-  }
-  if (verdict.admission === "no") {
-    return (
-      <Chip tone="neutral">Probably not enough room left — you can still start</Chip>
-    );
-  }
-  if (verdict.admission === "ok") {
-    return <Chip tone="neutral">Enough room left</Chip>;
-  }
-  return null;
-}
-

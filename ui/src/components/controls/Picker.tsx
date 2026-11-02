@@ -58,6 +58,8 @@ const LOOKS = {
   field: "border border-hairline bg-surface-2 text-ink hover:border-muted/30 hover:bg-surface-3",
   /** Inline in a line of words or a toolbar: no box until hovered. */
   quiet: "text-ink hover:bg-surface-2",
+  /** A link beside what it changes ("Change folder"): accent words. */
+  link: "text-accent-hi hover:bg-accent/10",
 } as const;
 
 export function Picker<T extends string>({
@@ -79,6 +81,7 @@ export function Picker<T extends string>({
   groups = [],
   searchLabel = "Search",
   allHeading = "All",
+  label,
 }: {
   value: T | null | undefined;
   options: readonly PickerOption<T>[];
@@ -93,6 +96,9 @@ export function Picker<T extends string>({
   ariaLabel?: string;
   /** A sentence-case line on top of the menu. */
   heading?: string;
+  /** The button's words in place of the value ("Change folder" beside a
+   * stated choice); the value stays in its name and on its ✓ line. */
+  label?: ReactNode;
   /** Words before the value, inside the button ("Tool:"). */
   prefix?: ReactNode;
   placeholder?: string;
@@ -134,7 +140,8 @@ export function Picker<T extends string>({
     if (option.value !== value) onChange(option.value);
   };
   const why = disabled && reason ? `${base}-why` : undefined;
-  const Icon = chosen?.icon;
+  // A link's own words stand in for the value: no value icon beside them.
+  const Icon = label ? undefined : chosen?.icon;
   return (
     <>
       <button
@@ -165,7 +172,7 @@ export function Picker<T extends string>({
       >
         {Icon && <Icon aria-hidden="true" width={14} height={14} className="shrink-0 text-muted" />}
         {prefix && <span className="shrink-0 font-normal text-muted">{prefix}</span>}
-        <span className={"min-w-0 flex-1 truncate text-left " + (chosen ? "" : "text-muted")}>{shown}</span>
+        <span className={"min-w-0 flex-1 truncate text-left " + (chosen || label ? "" : "text-muted")}>{label ?? shown}</span>
         <IconChevronDown aria-hidden="true" width={14} height={14} strokeWidth={2} className="shrink-0 text-muted" />
       </button>
       {why && (
@@ -181,25 +188,27 @@ export function Picker<T extends string>({
           minWidth={at.width}
           onClose={() => setAt(null)}
           focusFirst={options.length >= SEARCH_FROM ? "input[data-picker-search]" : undefined}
+          field={
+            options.length >= SEARCH_FROM ? (
+              <input
+                data-picker-search
+                type="search"
+                value={query}
+                aria-label={searchLabel}
+                placeholder={`${searchLabel}…`}
+                data-testid={testId ? `${testId}-search` : undefined}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  const first = sections(options, groups, query, allHeading).flatMap((section) => section.options).find((option) => !option.disabled);
+                  if (first) pick(first);
+                }}
+                className="mx-0.5 mb-1 h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-body text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent/60"
+              />
+            ) : undefined
+          }
         >
-          {options.length >= SEARCH_FROM && (
-            <input
-              data-picker-search
-              type="search"
-              value={query}
-              aria-label={searchLabel}
-              placeholder={`${searchLabel}…`}
-              data-testid={testId ? `${testId}-search` : undefined}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                const first = sections(options, groups, query, allHeading).flatMap((section) => section.options).find((option) => !option.disabled);
-                if (first) pick(first);
-              }}
-              className="mx-0.5 mb-1 h-8 rounded-lg border border-hairline bg-surface-2 px-2.5 text-body text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
-          )}
           {lines(sections(options, groups, query, allHeading), (option, key, index) => (
             <MenuItem
               key={key}

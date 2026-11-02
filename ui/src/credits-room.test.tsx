@@ -19,11 +19,10 @@ import type { CreditsDisplay } from "./lib/ipc/quota";
 import { creditsConsequence, creditsCover, usingCredits, usingCreditsWords, wholeNumber } from "./lib/credits";
 import { rankByRoom, roomKind } from "./lib/room";
 import { rankTargets } from "./lib/room-targets";
-import { pickLaunch } from "./lib/launch-pick";
+import { chooseApp } from "./lib/new-session-choice";
 import { newWorkAdvice, runwayLines, runwayOf } from "./components/AccountRunway";
 import { SwitchTargetRows } from "./components/SwitchTargetRows";
 import { SwitchFlow } from "./components/SwitchFlow";
-import { LaunchPickWhy } from "./components/LaunchPickWhy";
 import { RunwayPanel } from "./components/usage/Runway";
 import { NotificationCentre } from "./components/NotificationCentre";
 import { NotificationRegion } from "./components/NotificationRegion";
@@ -196,32 +195,30 @@ describe("the switch list and its confirm", () => {
   });
 });
 
-describe("New session's pick", () => {
+describe("New session's pick (AJ-E3207)", () => {
   const recipe = (account: string, label: string) => ({ id: `r-${account}`, name: "Default", account_id: account, account_label: label, provider: "codex", model: null, default_cwd: null, restart_on_crash: null }) as unknown as bridge.LaunchRecipeInfo;
   const accounts = [
     { id: "codex", label: "Codex", login_state: "logged_in", provider: "codex", is_default: true },
     { id: "b", label: "Account B", login_state: "logged_in", provider: "codex" },
   ] as unknown as AccountInfo[];
+  const roomOf = (quota: Record<string, QuotaDisplayData>) => (id: string) => {
+    const run = runwayOf(quota[id]);
+    return { left: run.left, resetsAtMs: run.resetsAtMs ?? null, credits: !!run.credits };
+  };
 
-  it("your default on credits stays the pick (a session there goes on), and says so", () => {
-    const recipes = [recipe("codex", "Codex"), recipe("b", "Account B")];
+  it("your default on credits stays the pick (a session there goes on), with nothing offered", () => {
     const quota = { codex: ON_CREDITS, b: display("b", 80) };
-    const pick = pickLaunch(recipes, null, Object.values(quota), accounts)!;
-    expect(pick.recipe.account_id).toBe("codex");
-    expect(pick.passedOver).toBeNull();
-    render(<LaunchPickWhy pick={pick} quota={quota} onUse={vi.fn()} />);
-    expect(screen.getByTestId("launch-credits").textContent).toMatch(/^A session there goes on with its credits until the window resets .+\.$/);
-    expect(screen.queryByTestId("launch-passed-over")).toBeNull();
+    const choice = chooseApp({ recipes: [recipe("codex", "Codex"), recipe("b", "Account B")], project: null, folders: accounts, roomOf: roomOf(quota) })!;
+    expect(choice).toMatchObject({ why: "your-default", kind: "credits", roomier: null });
+    expect(choice.recipe.account_id).toBe("codex");
   });
 
-  it("with a balance of 0 it is passed over, as today", () => {
-    const recipes = [recipe("codex", "Codex"), recipe("b", "Account B")];
+  it("with a balance of 0 it stays the pick too, said out of room, the one with room offered (D-31)", () => {
     const quota = { codex: ZERO, b: display("b", 80) };
-    const pick = pickLaunch(recipes, null, Object.values(quota), accounts)!;
-    expect(pick.recipe.account_id).toBe("b");
-    render(<LaunchPickWhy pick={pick} quota={quota} onUse={vi.fn()} />);
-    expect(screen.getByTestId("launch-passed-over").textContent).toMatch(/Codex \(your default\): Out of room until /);
-    expect(screen.queryByTestId("launch-credits")).toBeNull();
+    const choice = chooseApp({ recipes: [recipe("codex", "Codex"), recipe("b", "Account B")], project: null, folders: accounts, roomOf: roomOf(quota) })!;
+    expect(choice.recipe.account_id).toBe("codex");
+    expect(choice.kind).toBe("out");
+    expect(choice.roomier?.account_id).toBe("b");
   });
 });
 

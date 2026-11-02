@@ -59,7 +59,7 @@ export function usePack(onFolder: (folder: string) => void): PackChoice {
 export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
   if (!pack.opened) {
     return (
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-label">
+      <div className="flex flex-wrap items-center gap-2 text-label">
         <button type="button" onClick={() => void pack.choose()} className="inline-flex min-h-6 items-center text-accent-hi underline-offset-2 hover:underline" data-testid="pack-choose">
           Start from a saved handover…
         </button>
@@ -73,7 +73,7 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
   }
   const { info } = pack.opened;
   return (
-    <section className="mb-4 flex flex-col gap-2 rounded-xl border border-accent/30 bg-accent-soft/40 p-3" aria-labelledby="pack-title" data-testid="pack-summary">
+    <section className="flex flex-col gap-2 rounded-xl border border-accent/30 bg-accent-soft/40 p-3" aria-labelledby="pack-title" data-testid="pack-summary">
       <div className="flex items-center gap-2">
         <h4 id="pack-title" className="text-xs font-semibold">
           Starting from a saved handover

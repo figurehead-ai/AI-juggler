@@ -1083,7 +1083,7 @@ export default function App() {
           accounts={accounts}
           sessions={sessions}
           initialDirectory={newSheet.dir}
-          initialAccount={newSheet.account}
+          initialAccount={newSheet.account} recipes={profiles}
           openLoginTerminal={openLoginTerminal}
           onClose={newSheet.close}
           onLaunched={(sessionId) => {

@@ -131,7 +131,7 @@
 **Research basis**: the audit's top gaps.
 **Handover note**: —
 
-### AJ-E3207 New session: the usual choice made and said, one button, the rest a step away | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3202
+### AJ-E3207 New session: the usual choice made and said, one button, the rest a step away | Status: IN-PROGRESS (built: one sentence with its why from the cached launch settings, runways and Accounts, ⌘↩ and one primary; Change folder and Change app on the shared picker (Recent, Pinned, then All; Apps by room, the ones not signed in last); the rare options behind one fold whose label says their values; no history guesses with why; out of room said with the App that has room offered, never switched (D-31); the choice pure in lib/new-session-choice with unit tests; gallery 99-new-session critiqued. The L3 pairs run, the live start in the lab, and new regression baselines for the sheet (the maintainer's approval) remain) | Priority P0 | Effort M | Depends: AJ-E3202
 **Goal**: Starting the usual session is one key, and nothing rare is in the way.
 **User story**: New session opens with "Start in web-shop on Claude Code · Work" and ⌘↩ starts it.
 **Requirements**:

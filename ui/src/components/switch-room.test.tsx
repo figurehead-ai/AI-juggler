@@ -22,8 +22,7 @@ import { ContinueOn } from "../pages/session/ContinueOn";
 import { fromInstance } from "../pages/session/model";
 import { SwitchFlow } from "./SwitchFlow";
 import { CarryList, withSetup } from "./switch/CarryList";
-import { LaunchPickBadge, LaunchPickWhy } from "./LaunchPickWhy";
-import { pickLaunch } from "../lib/launch-pick";
+import { appGroups, appsByRoom, appWhyWords, chooseApp } from "../lib/new-session-choice";
 import { resetToasts } from "./Toast";
 
 const RESET = new Date(2026, 9, 29, 8, 0).getTime();
@@ -263,31 +262,24 @@ describe("F12 what's carried agrees with the set-up check", () => {
   });
 });
 
-describe("F17 New session's pick says why, and offers the Suggested one", () => {
+describe("F17 New session's pick says why, and offers the Suggested one (AJ-E3207)", () => {
   const recipe = (account: string, label: string) => ({ id: `r-${account}`, name: "Default", account_id: account, account_label: label, provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null }) as unknown as bridge.LaunchRecipeInfo;
+  const recipes = [recipe("g", "Account G"), recipe("b", "Account B")];
+  const accounts = [{ ...profile("g", "Account G"), is_default: true }, profile("b", "Account B")] as AccountInfo[];
+  const roomOf = (left: Record<string, number>) => (id: string) => ({ left: left[id] ?? null, resetsAtMs: null, credits: false });
 
-  it("your default with room stays the pick, the Suggested one is one click away", () => {
-    const recipes = [recipe("g", "Account G"), recipe("b", "Account B")];
-    const accounts = [{ ...profile("g", "Account G"), is_default: true }, profile("b", "Account B")] as AccountInfo[];
-    const quota = { g: display("g", 75), b: display("b", 98) };
-    const pick = pickLaunch(recipes, null, Object.values(quota), accounts)!;
-    expect(pick.recipe.account_id).toBe("g");
-    const onUse = vi.fn();
-    render(<><LaunchPickBadge pick={pick} /><LaunchPickWhy pick={pick} quota={quota} onUse={onUse} /></>);
-    expect(screen.getByTestId("launch-default").textContent).toBe("your default");
-    expect(screen.getByTestId("launch-suggested").textContent).toContain("Suggested: Claude Code · Account B has the most room (98% left).");
-    fireEvent.click(screen.getByTestId("launch-use-suggested"));
-    expect(onUse).toHaveBeenCalledWith("b");
+  it("your default with room stays the pick; the most room is Suggested beside it", () => {
+    const choice = chooseApp({ recipes, project: null, folders: accounts, roomOf: roomOf({ g: 75, b: 98 }) })!;
+    expect(choice).toMatchObject({ why: "your-default", kind: "room", roomier: null });
+    expect(appWhyWords(choice.why)).toBe("your default");
+    const ranked = appsByRoom({ recipes, folders: accounts, roomOf: roomOf({ g: 75, b: 98 }) });
+    expect(appGroups(choice, ranked, null)[0]).toEqual({ label: "Suggested", values: ["g", "b"] });
   });
 
-  it("your default out of room gives way, and the sheet says until when", () => {
-    const recipes = [recipe("g", "Account G"), recipe("b", "Account B")];
-    const accounts = [{ ...profile("g", "Account G"), is_default: true }, profile("b", "Account B")] as AccountInfo[];
-    const quota = { g: display("g", 0), b: display("b", 98) };
-    const pick = pickLaunch(recipes, null, Object.values(quota), accounts)!;
-    expect(pick.recipe.account_id).toBe("b");
-    render(<><LaunchPickBadge pick={pick} /><LaunchPickWhy pick={pick} quota={quota} onUse={vi.fn()} /></>);
-    expect(screen.getByTestId("launch-default").textContent).toBe("Suggested: the most room");
-    expect(screen.getByTestId("launch-passed-over").textContent).toMatch(/Account G \(your default\): Out of room until .+ A session there would stop at its limit at once/);
+  it("your default out of room stays the pick, said so, and the one with room is offered (D-31)", () => {
+    const choice = chooseApp({ recipes, project: null, folders: accounts, roomOf: roomOf({ g: 0, b: 98 }) })!;
+    expect(choice.recipe.account_id).toBe("g");
+    expect(choice).toMatchObject({ why: "your-default", kind: "out" });
+    expect(choice.roomier?.account_id).toBe("b");
   });
 });

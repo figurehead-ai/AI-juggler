@@ -157,7 +157,7 @@ test("flow (d): add an Account ≤ 3 primary clicks (one tool: no choice, no gat
   expect(primaryClicks).toBeLessThanOrEqual(3);
 });
 
-test("flow (e): launch ≤ 2 clicks; Profile never a sheet noun; verdict words not %", async ({
+test("flow (e): launch in 1 click; Profile never a sheet noun; verdict words not %", async ({
   page,
 }) => {
   await page.addInitScript(
@@ -191,28 +191,17 @@ test("flow (e): launch ≤ 2 clicks; Profile never a sheet noun; verdict words n
   await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "New session" })).toBeVisible();
 
-  let clicks = 0;
-  // Click 1: the recent dir tile (New session tiles read
-  // "name · N prior sessions · accounts").
-  await page
-    .getByRole("button", { name: /ai-juggler.*prior sessions/s })
-    .click();
-  clicks += 1;
+  // AJ-E3207: the usual folder and App are chosen and said; one click
+  // (or ⌘↩) starts it.
   const preselected = page.getByTestId("launch-preselected");
   await expect(preselected).toBeVisible();
   await expect(preselected).toContainText("Tight — this session may use most of the room left");
   // Words, never a fabricated percentage (Req.8 regression).
-  await expect(page.getByTestId("launch-sheet-accounts")).not.toContainText("%");
-  // Click 2: Launch →.
+  await expect(preselected).not.toContainText("%");
   await page.getByTestId("launch-now").click();
-  clicks += 1;
   await expect(page.getByText("Preview mode — no backend connected.")).toBeVisible();
-  expect(clicks).toBeLessThanOrEqual(2);
   // The D-02/D-10 noun law: "Profile" never names a sheet thing.
-  const sheetText = await page
-    .getByRole("heading", { name: "New session" })
-    .locator("xpath=ancestor::div[3]")
-    .innerText();
+  const sheetText = await page.getByTestId("new-session-sheet").innerText();
   expect(sheetText).not.toMatch(/\bProfile\b/);
-  expect(sheetText).toContain("Launch settings");
+  expect(sheetText).toContain("launch settings");
 });
