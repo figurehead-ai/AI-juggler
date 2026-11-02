@@ -69,6 +69,27 @@ struct Entry {
     conversation: Option<Conversation>,
     /// Read whole (its tokens counted), not only its quick read.
     complete: bool,
+    /// When it was last read whole.
+    counted_at: Option<std::time::Instant>,
+}
+
+/// A transcript this big is read whole (for its tokens) at most every
+/// [`WHOLE_EVERY`] while it grows; its quick read keeps the last count
+/// between (0.3.5: a 586 MB live session was read whole every 15 s and
+/// kept a core busy).
+const WHOLE_BIG: u64 = 32 * 1024 * 1024;
+
+/// How often a big, growing transcript is read whole.
+const WHOLE_EVERY: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// Whether a file of `len` bytes, last read whole at `counted_at`, is due
+/// a whole read at `now`.
+fn whole_read_due(
+    len: u64,
+    counted_at: Option<std::time::Instant>,
+    now: std::time::Instant,
+) -> bool {
+    len <= WHOLE_BIG || counted_at.is_none_or(|at| now.saturating_duration_since(at) >= WHOLE_EVERY)
 }
 
 /// Calls a pass's `progress` every `every` that read something.
@@ -145,8 +166,14 @@ fn store(
         .files
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
+    let before = files.get(path);
+    let counted_at = if complete {
+        Some(std::time::Instant::now())
+    } else {
+        before.and_then(|entry| entry.counted_at)
+    };
     let conversation =
-        conversation.map(|conversation| carry_tokens(conversation, complete, files.get(path)));
+        conversation.map(|conversation| carry_tokens(conversation, complete, before));
     files.insert(
         path.to_path_buf(),
         Entry {
@@ -154,6 +181,7 @@ fn store(
             modified,
             conversation,
             complete,
+            counted_at,
         },
     );
     Ok(())
@@ -843,7 +871,18 @@ fn refresh_with(
     }
     // What's listed and live, at once, before the long round.
     report.flush();
+    let now = std::time::Instant::now();
     for (account, adapter, path, len, modified) in later {
+        let counted_at = state
+            .conversations
+            .files
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?
+            .get(path.as_path())
+            .and_then(|entry| entry.counted_at);
+        if !whole_read_due(*len, counted_at, now) {
+            continue;
+        }
         report.maybe();
         let summary = adapter.read_conversation(path);
         store(state, account, path, *len, *modified, summary, true)?;
@@ -1205,7 +1244,30 @@ mod tests {
             modified: None,
             conversation: Some(conversation),
             complete,
+            counted_at: None,
         }
+    }
+
+    /// 0.3.5: a big transcript that grows is read whole at most every five
+    /// minutes; a small one, or one never read whole, every time.
+    #[test]
+    fn a_big_growing_transcript_is_read_whole_at_most_every_five_minutes() {
+        let now = std::time::Instant::now();
+        let big = WHOLE_BIG + 1;
+        assert!(
+            whole_read_due(1_000, Some(now), now),
+            "a small file: always"
+        );
+        assert!(whole_read_due(big, None, now), "never read whole: now");
+        assert!(
+            !whole_read_due(big, Some(now), now),
+            "just read whole: not again"
+        );
+        let earlier = now.checked_sub(WHOLE_EVERY).unwrap();
+        assert!(
+            whole_read_due(big, Some(earlier), now),
+            "five minutes on: again"
+        );
     }
 
     #[test]
