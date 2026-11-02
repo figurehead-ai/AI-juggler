@@ -197,6 +197,13 @@ pub struct HostApp {
     /// and grouping keep [`HostApp::name`].
     #[serde(default)]
     pub shown: Option<String>,
+    /// D-62 (AJ-E3203): its instances other than the default one are
+    /// kept side by side in one folder (the Claude app's profiles), so the
+    /// names of that folder's other folders are its instances that aren't
+    /// running ([`HostApp::sibling_instances`]). Off for every app that
+    /// doesn't say so.
+    #[serde(default)]
+    pub siblings: bool,
 }
 
 impl HostApp {
@@ -328,6 +335,7 @@ mod tests {
             folder_command: None,
             tab_script: None,
             shown: None,
+            siblings: false,
         };
         assert_eq!(
             app.thread_link_for("0199-ab_c").as_deref(),

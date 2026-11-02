@@ -63,7 +63,7 @@
 **Research basis**: the audit's "What the code has today".
 **Handover note**: Schema numbers follow 0.3.x and AJ-E3003's.
 
-### AJ-E3203 Claude app profiles found when they aren't running | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3202
+### AJ-E3203 Claude app profiles found when they aren't running | Status: IN-PROGRESS (built: the adapter says which app keeps its profiles side by side (`HostApp::siblings`, the Claude app) and lists the folder names beside one that ran, names only, never home or outside it, never beside the default instance, at most 64, under 50 ms; asked once on the App page ("Find this app's other profiles", naming the folder), kept, off in Settings › Desktop apps, which forgets what it found; each found profile is a desktop App row that starts from its sibling's bundle with only its folder; a profile is named by its Claude Code folder once its sessions link one, else its own folder; the Privacy page's line with its tests, including that nothing inside a profile folder is opened; gallery 99-app-profiles critiqued. L2 on the replica and A6 walked on the real setup remain) | Priority P1 | Effort M | Depends: AJ-E3202
 **Goal**: Every Claude app profile is an App, even when it's closed.
 **User story**: As someone with six Claude app profiles, the App list shows all six, including the ones I haven't opened today.
 **Requirements**:

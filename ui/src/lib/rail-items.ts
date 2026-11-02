@@ -17,7 +17,7 @@ import type { InstanceInfo, ProjectInfo } from "./bridge";
 import type { ConversationInfo } from "./ipc/conversations";
 import { conversationTitle } from "./conversations";
 import { appOfTool } from "./app-of";
-import { cliAppKey, desktopAppKey, desktopAppWord, hostWords } from "./app-name";
+import { cliAppKey, desktopAppKey, desktopAppWord, desktopProfile, hostWords } from "./app-name";
 import { toolSpec } from "./tools";
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
@@ -240,7 +240,7 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     project: projectName(c.project_id) ?? (folderOf(c.cwd) || null),
     place:
       first?.kind === "desktop"
-        ? { key: desktopAppKey(first.app_id ?? null, first.app, first.instance), app: desktopAppWord(first.app, c.tool, first.shown), appId: first.app_id ?? null, kind: "desktop", profile: first.instance ?? null, appPid: first.app_pid ?? null, host: null }
+        ? { key: desktopAppKey(first.app_id ?? null, first.app, first.instance), app: desktopAppWord(first.app, c.tool, first.shown), appId: first.app_id ?? null, kind: "desktop", profile: desktopProfile(first.instance, first.profile), appPid: first.app_pid ?? null, host: null }
         : cliPlace(c.tool, c.account_id, c.account_label, { name: first?.app || null, kind: first?.kind ?? null, pid: first?.app_pid ?? null }),
     alsoIn: places.slice(1).map((place) => place.label || place.app),
     accountId: c.account_id,

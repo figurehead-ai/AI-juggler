@@ -538,6 +538,10 @@ macro_rules! app_commands {
             Write features::places::commands::places_open,
             Write features::places::commands::places_keep_alive,
             Write features::places::commands::places_forget,
+            // AJ-E3203: the user's yes to reading the folder names beside
+            // a profile; never from the read-only bridge.
+            Read  features::places::commands::places_profiles,
+            Write features::places::commands::places_profiles_set,
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::subscriptions::commands::subscriptions_list,

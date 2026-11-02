@@ -13,7 +13,7 @@
  * Pure, so the grouping and order are unit-tested.
  */
 import type { KnownPlaceInfo } from "./ipc/places";
-import { appName, desktopAppKey, desktopAppWord } from "./app-name";
+import { appName, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
 import { toolSpec, tools } from "./tools";
 import { openNow, type RailItem } from "./rail-items";
 
@@ -116,14 +116,17 @@ export function idleApps({
     if (openKeys.has(key)) continue;
     const sessions = idle.get(key) ?? [];
     const app = knownAppWord(place);
+    const profile = desktopProfile(place.instance, place.profile);
     out.push({
       key,
       kind: "desktop",
-      name: appName(app, place.instance),
+      name: appName(app, profile),
       app,
-      profile: place.instance,
+      profile,
       appId: place.app_id,
-      lastMs: Math.max(sessions[0]?.lastMs ?? 0, place.seen_ms),
+      // AJ-E3203: one only found by its folder was never seen running:
+      // no "just now", and it goes after the ones you've used.
+      lastMs: Math.max(sessions[0]?.lastMs ?? 0, place.found ? 0 : place.seen_ms),
       appPid: place.app_pid,
       placeId: place.id,
       cannotStart: place.cannot_start,

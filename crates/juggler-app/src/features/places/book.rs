@@ -68,6 +68,12 @@ pub struct KnownPlace {
     /// it was stopped from AI Juggler); `None` while it watches.
     #[serde(default)]
     pub paused: Option<String>,
+    /// AJ-E3203: found by its folder's name beside a profile that ran
+    /// (with the user's yes), and not seen running since. Started with
+    /// that profile's bundle and its own folder; forgotten when its folder
+    /// goes or finding is turned off.
+    #[serde(default)]
+    pub found: bool,
 }
 
 impl KnownPlace {
@@ -183,6 +189,7 @@ impl Book {
                 seen_ms: now_ms,
                 keep_alive: false,
                 paused: None,
+                found: false,
             });
             place.name =
                 host.map_or_else(|| app.app_id.clone(), |host| host.shown_name().to_owned());
@@ -190,6 +197,7 @@ impl Book {
             place.bundle.clone_from(&app.bundle);
             place.exe.clone_from(&app.exe);
             place.given.clone_from(&app.given);
+            place.found = false;
             if now_ms.saturating_sub(place.seen_ms) >= SEEN_STEP_MS {
                 place.seen_ms = now_ms;
             }
@@ -225,7 +233,8 @@ impl Book {
     }
 
     /// Room for one more: below [`MAX`], or the place seen longest ago
-    /// that isn't kept alive forgotten. `false` when all are kept alive.
+    /// that isn't kept alive forgotten (one only found beside another
+    /// first). `false` when all are kept alive.
     fn make_room(&mut self) -> bool {
         if self.places.len() < MAX {
             return true;
@@ -234,7 +243,7 @@ impl Book {
             .places
             .iter()
             .filter(|(_, place)| !place.keep_alive)
-            .min_by_key(|(_, place)| place.seen_ms)
+            .min_by_key(|(_, place)| (!place.found, place.seen_ms))
             .map(|(id, _)| id.clone());
         oldest.is_some_and(|id| self.places.remove(&id).is_some())
     }
@@ -272,6 +281,7 @@ mod tests {
             folder_command: None,
             tab_script: None,
             shown: None,
+            siblings: false,
         }])
     }
 

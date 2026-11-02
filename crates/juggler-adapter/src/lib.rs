@@ -33,6 +33,7 @@ pub mod readiness;
 pub mod registry;
 pub mod reports;
 pub mod runtime;
+pub mod siblings;
 pub mod spec;
 pub mod subagents;
 pub mod system_tools;

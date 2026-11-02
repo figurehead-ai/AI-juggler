@@ -91,6 +91,7 @@ fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
                 seen_ms: 1,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
         book.places.insert(
@@ -108,6 +109,7 @@ fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
                 seen_ms: 1,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
     })

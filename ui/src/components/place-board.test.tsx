@@ -89,7 +89,7 @@ describe("the rail by place", () => {
       "Open Claude Code · Work Max",
       "Open ChatGPT",
       "Open Claude app · Personal",
-      "Open Claude app · Work",
+      "Open Claude app · Work Max",
     ]);
     // D-64: by App, an inactive session is under its app, not on Also.
     expect(view.getByTestId("rail-also").textContent).toMatch(/1 ended today\s*·\s*1 background\s*·\s*History ›/);
@@ -130,7 +130,7 @@ describe("the rail by place", () => {
     fireEvent.click(within(cli).getByRole("button", { name: /^Open Claude Code · Work Max/ }));
     expect(spy).toHaveBeenCalledWith(5100);
     // ⌘1–9: the place in that position.
-    // (By name: ChatGPT app, Claude app · Personal, Claude app · Work, …)
+    // (By name: ChatGPT app, Claude app · Personal, Claude app · Work Max, …)
     act(() => void window.dispatchEvent(new CustomEvent("aij:go-place", { detail: { index: 2 } })));
     expect(spy).toHaveBeenLastCalledWith(4100);
   });

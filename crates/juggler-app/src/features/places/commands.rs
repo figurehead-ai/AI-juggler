@@ -47,6 +47,30 @@ pub struct KnownPlaceInfo {
     /// book's newest 100), the most recently first seen first: the rail
     /// puts an app's sessions that aren't open under it.
     pub recent: Vec<String>,
+    /// AJ-E3203: found by its folder's name beside a profile that ran,
+    /// and not seen running since.
+    pub found: bool,
+}
+
+/// AJ-E3203: finding a desktop app's profiles that aren't running.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct FindProfilesInfo {
+    /// `ask` until the user answers, then `on` or `off`.
+    pub answer: String,
+    /// The folders whose names it reads (or would): one per folder of
+    /// profiles beside a profile that ran.
+    pub folders: Vec<ProfilesFolderInfo>,
+}
+
+/// One folder of profiles.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ProfilesFolderInfo {
+    /// The host registry's id for the app whose profiles it holds.
+    pub app_id: String,
+    /// The folder, `~` for the home folder.
+    pub folder: String,
 }
 
 /// A place's sessions, the most recently first seen first.
@@ -80,6 +104,7 @@ fn info(
         seen_ms: place.seen_ms,
         cannot_start: super::start::plan(place, hosts, false).err(),
         recent: recent(&place.conversations),
+        found: place.found,
     }
 }
 
@@ -208,6 +233,57 @@ pub async fn places_keep_alive(
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "keep alive", move |state| {
         super::set_keep_alive(state, &id, on)
+    })
+    .await
+}
+
+/// Where finding the profiles that aren't running stands, and the
+/// folders whose names it reads.
+fn profiles_info(state: &Arc<AppState>) -> AppResult<FindProfilesInfo> {
+    let answer = super::profiles::answer(state)?;
+    let hosts = HostRegistry::of(&state.registry);
+    let home = dirs::home_dir().unwrap_or_default();
+    let folders = super::with_book(state, |book| super::profiles::folders(book, &hosts, &home))?;
+    Ok(FindProfilesInfo {
+        answer: answer.word().to_owned(),
+        folders: folders
+            .into_iter()
+            .map(|folder| ProfilesFolderInfo {
+                app_id: folder.app_id,
+                folder: super::profiles::shown(&folder.folder, &home),
+            })
+            .collect(),
+    })
+}
+
+/// AJ-E3203: whether AI Juggler finds the profiles that aren't running
+/// (asked once, on an App's page), and where it looks.
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+#[tauri::command]
+pub async fn places_profiles(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<FindProfilesInfo> {
+    crate::ipc::blocking(state.inner(), "finding profiles", profiles_info).await
+}
+
+/// AJ-E3203: the user's answer. Yes reads the folder names now; no (or
+/// off, from Settings) forgets the profiles found that way.
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+#[tauri::command]
+pub async fn places_profiles_set(
+    state: tauri::State<'_, Arc<AppState>>,
+    on: bool,
+) -> AppResult<FindProfilesInfo> {
+    crate::ipc::blocking(state.inner(), "finding profiles", move |state| {
+        let home = dirs::home_dir().unwrap_or_default();
+        super::profiles::set(state, on, &home, crate::commands::now_millis())?;
+        profiles_info(state)
     })
     .await
 }

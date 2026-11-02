@@ -21,7 +21,7 @@ import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
 import { groupItems, type RailGroup } from "../lib/rail-places";
 import { knownAppWord } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp } from "../lib/apps";
-import { appName } from "../lib/app-name";
+import { appName, desktopProfile } from "../lib/app-name";
 import type { RailItem } from "../lib/rail-items";
 
 /** Tiles shown before "+n". */
@@ -57,7 +57,8 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const running = place.app_pid !== null;
   // The open tiles' word for it ("Claude app"), D-64.
   const app = knownAppWord(place);
-  const name = appName(app, place.instance ?? place.profile);
+  const profile = desktopProfile(place.instance, place.profile);
+  const name = appName(app, profile);
   const verb = running ? "Open" : "Start";
   const start = () => {
     showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
@@ -78,10 +79,10 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
           <AppName id={place.id} name={name}>
             {app}
           </AppName>
-          {place.profile && (
+          {profile && (
             <span className="flex min-w-0 items-center gap-1 text-meta font-semibold text-ink">
-              <ProfileBadge name={place.profile} />
-              <span className="truncate">{place.profile}</span>
+              <ProfileBadge name={profile} />
+              <span className="truncate">{profile}</span>
             </span>
           )}
         </div>
@@ -201,7 +202,9 @@ export function HomeApps({ items, runwayOf }: { items: RailItem[]; runwayOf: (ac
   const shownPids = new Set(places.map((group) => group.place?.appPid ?? null));
   const kept = (known ?? [])
     .filter((place) => place.app_pid === null || !shownPids.has(place.app_pid))
-    .sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || b.seen_ms - a.seen_ms);
+    // Kept alive first, then the most recently seen; a profile only found
+    // by its folder (AJ-E3203) after the ones you've used.
+    .sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || Number(a.found) - Number(b.found) || b.seen_ms - a.seen_ms);
   const tiles: ({ group: RailGroup } | { kept: KnownPlaceInfo })[] = [...places.map((group) => ({ group })), ...kept.map((place) => ({ kept: place }))];
   if (tiles.length === 0) return null;
   // Never a tile that hides a single app behind "+1" (the 0.2 walk, F18):

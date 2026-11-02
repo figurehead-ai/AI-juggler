@@ -74,10 +74,10 @@ it("opens to the App, its account, the working folder and a door to each of thei
   ]);
 });
 
-it("names a desktop App by its app and instance, and works before sign-in is known", () => {
+it("names a desktop App by its app and its config folder, and works before sign-in is known", () => {
   const desktop = { ...model, places: [{ app: "Claude", app_id: "claude", profile: "Work", instance: "b-work", pid: 7, kind: "desktop", app_pid: 6, label: "Claude · b-work" }] } as SessionModel;
   let view = render(<SessionChips model={desktop} account={signedIn} now={Date.now()} />);
-  expect(view.getByTestId("session-account-menu").getAttribute("aria-label")).toBe("App: Claude app · b-work");
+  expect(view.getByTestId("session-account-menu").getAttribute("aria-label")).toBe("App: Claude app · Work");
   cleanup();
   view = render(<SessionChips model={model} account={undefined} now={Date.now()} />);
   fireEvent.click(view.getByTestId("session-account-menu"));

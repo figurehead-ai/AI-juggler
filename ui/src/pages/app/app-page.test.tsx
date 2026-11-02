@@ -41,7 +41,7 @@ function page(id: string) {
 describe("D-62 the App page", () => {
   it("a running Claude app profile: its name, Go to it, and only its own sessions (A1)", async () => {
     page(WORK);
-    expect(await screen.findByTestId("page-name")).toHaveProperty("textContent", "Claude app · Work");
+    expect(await screen.findByTestId("page-name")).toHaveProperty("textContent", "Claude app · Work Max");
     expect(screen.getByTestId("app-go").textContent).toBe("Go to it");
     const open = await screen.findByTestId("app-open");
     await waitFor(() => expect(within(open).getAllByTestId("page-session-item").length).toBeGreaterThan(0));

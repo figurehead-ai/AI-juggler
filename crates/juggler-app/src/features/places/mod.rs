@@ -10,11 +10,13 @@
 //! A place is started exactly as it last ran: its bundle and the
 //! instance folder it was given ([`start`]), so an account never changes.
 //! What is remembered is in [`book`]; how it's found, in the live view's
-//! scan (`conversations::places::running_apps`).
+//! scan (`conversations::places::running_apps`), and, once the user says
+//! yes, beside a profile that ran ([`profiles`], AJ-E3203).
 
 pub mod book;
 pub mod commands;
 pub mod keep;
+pub mod profiles;
 pub mod start;
 mod store;
 
@@ -131,6 +133,7 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
     }) else {
         return;
     };
+    let found = profiles::after_scan(state, &hosts, &home, now);
     let moved = state.places.watch.lock().is_ok_and(|mut watch| {
         let before = watch.known();
         for app in running {
@@ -153,7 +156,7 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
         was.sort();
         after != was
     });
-    if changed_book || moved {
+    if changed_book || found || moved {
         changed(state);
     }
 }

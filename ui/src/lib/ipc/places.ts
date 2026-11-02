@@ -8,9 +8,10 @@ import { invoke, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
+import type { FindProfilesInfo } from "../../types/generated/FindProfilesInfo";
 import { knownPlacesPreview } from "../../preview/places";
 
-export type { KnownPlaceInfo };
+export type { FindProfilesInfo, KnownPlaceInfo };
 
 /** The event the backend sends when a place changed. */
 export const PLACES_CHANGED = "places-changed";
@@ -22,6 +23,9 @@ interface PreviewPlaces {
   places: KnownPlaceInfo[];
   /** `tool/id` → place id: where an ended session was last open. */
   sessions?: Record<string, string>;
+  /** AJ-E3203: finding the profiles that aren't running, and the ones a
+   * yes finds. */
+  profiles?: FindProfilesInfo & { beside?: KnownPlaceInfo[] };
 }
 
 /** The preview's places: a spec's fixture, else the places desktop's
@@ -100,6 +104,33 @@ export async function placesForget(id: string): Promise<void> {
     return;
   }
   return invoke<void>("places_forget", { id });
+}
+
+/** AJ-E3203: whether AI Juggler finds the profiles that aren't running
+ * (asked once), and the folders whose names it reads. */
+export async function placesProfiles(): Promise<FindProfilesInfo> {
+  if (!hasLiveBackend()) {
+    const profiles = preview().profiles;
+    return { answer: profiles?.answer ?? "ask", folders: profiles?.folders ?? [] };
+  }
+  return invoke<FindProfilesInfo>("places_profiles");
+}
+
+/** AJ-E3203: the user's answer. Yes reads the folder names now; no
+ * forgets the profiles found that way. */
+export async function placesProfilesSet(on: boolean): Promise<FindProfilesInfo> {
+  if (!hasLiveBackend()) {
+    const host = preview();
+    const profiles = (host.profiles ??= { answer: "ask", folders: [] });
+    profiles.answer = on ? "on" : "off";
+    host.places = host.places.filter((place) => !place.found);
+    if (on) host.places.push(...(profiles.beside ?? []).map((place) => ({ ...place })));
+    changedHere();
+    return { answer: profiles.answer, folders: profiles.folders };
+  }
+  const info = await invoke<FindProfilesInfo>("places_profiles_set", { on });
+  changedHere();
+  return info;
 }
 
 /** Calls `on` whenever a place changes; returns the unsubscribe. */

@@ -6,8 +6,20 @@ every app, and gets you to any of it in one step.
 ## Apps
 
 The list groups sessions by **app**: one app in one of its profiles, for
-example **Claude app · Work** or **Claude Code · Work Max**. See
+example **Claude app · Work Max** or **Claude Code · Work Max**. See
 [Accounts and apps](accounts.md).
+
+A Claude app profile is named by the Claude Code folder its sessions use,
+as you name it there (**Claude app · team-max**). Until one of its
+sessions has run, it's named by its own folder (**Claude app · b-team**).
+
+The Claude app keeps each of your profiles in a folder of its own, side by
+side. The first time you open one profile's page, AI Juggler asks **Find
+this app's other profiles**: with your yes, it reads the names of the
+folders beside it (never anything inside them), so the profiles you
+haven't opened today are apps too, each with **Start**. Settings ›
+Desktop apps › **Find profiles that aren't running** turns it off, and
+forgets the profiles it found that way.
 
 A Claude Code or Codex session sits under its tool and folder, such as
 **Claude Code · Work Max**. The terminal it runs in is a detail on its row
@@ -211,7 +223,9 @@ too.
   one that isn't running, in its own profile; **Open** brings a running
   one forward. **Keep alive** starts it again
   whenever it stops ([Keep work going](keep-work-going.md#keep-apps-alive)
-  says when it doesn't). **Forget** removes one you no longer use.
+  says when it doesn't). **Forget** removes one you no longer use. A
+  profile found beside another has no Forget: remove its folder, or turn
+  off **Find profiles that aren't running** below the list.
 - **Last messages:** on by default. Turn it off and session pages don't
   read transcripts.
 

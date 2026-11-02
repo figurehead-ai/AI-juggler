@@ -120,6 +120,7 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
                 seen_ms: 0,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
     })

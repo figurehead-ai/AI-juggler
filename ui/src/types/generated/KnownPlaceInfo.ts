@@ -58,4 +58,9 @@ cannot_start: string | null,
  * book's newest 100), the most recently first seen first: the rail
  * puts an app's sessions that aren't open under it.
  */
-recent: Array<string>, };
+recent: Array<string>, 
+/**
+ * AJ-E3203: found by its folder's name beside a profile that ran,
+ * and not seen running since.
+ */
+found: boolean, };

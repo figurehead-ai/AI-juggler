@@ -132,6 +132,7 @@ mod tests {
             folder_command: None,
             tab_script: None,
             shown: None,
+            siblings: false,
         }])
     }
 
@@ -149,6 +150,7 @@ mod tests {
             seen_ms: 0,
             keep_alive: false,
             paused: None,
+            found: false,
         }
     }
 

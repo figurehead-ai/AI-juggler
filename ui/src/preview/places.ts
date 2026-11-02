@@ -83,6 +83,7 @@ export function knownPlacesPreview(now: number): { places: KnownPlaceInfo[]; ses
     seen_ms: now - 3_600_000,
     cannot_start: null,
     recent: [],
+    found: false,
     ...over,
   });
   return {
@@ -95,4 +96,27 @@ export function knownPlacesPreview(now: number): { places: KnownPlaceInfo[]; ses
     ],
     sessions: { "claude-code/outside-2": "app:claude-app:/Users/you/Profiles/Personal" },
   };
+}
+
+/** AJ-E3203: finding the profiles that aren't running, not asked yet:
+ * the Claude app's profiles folder beside Work and Personal holds two
+ * more, Design and Research, which a yes finds (named by their folders). */
+export function foundProfilesPreview(now: number): { answer: string; folders: { app_id: string; folder: string }[]; beside: KnownPlaceInfo[] } {
+  const found = (name: string): KnownPlaceInfo => ({
+    id: `app:claude-app:/Users/you/Profiles/${name}`,
+    app_id: "claude-app",
+    app: "Claude",
+    instance: name,
+    profile: name,
+    label: `Claude · ${name}`,
+    app_pid: null,
+    keep_alive: false,
+    paused: null,
+    account_id: null,
+    seen_ms: now,
+    cannot_start: null,
+    recent: [],
+    found: true,
+  });
+  return { answer: "ask", folders: [{ app_id: "claude-app", folder: "~/Profiles" }], beside: [found("Design"), found("Research")] };
 }

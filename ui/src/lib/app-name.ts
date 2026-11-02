@@ -24,6 +24,15 @@ export function desktopAppWord(app: string, tool: string | null, shown?: string 
   return spec.desktop_app === app && spec.display_name.startsWith(app) ? `${app} app` : app;
 }
 
+/** AJ-E3203: a desktop App's profile in words. A profile is named by
+ * the config folder its sessions use, as the user names it there
+ * ("team-max", from its Code sessions), else by its own folder
+ * ("b-team"). The app's default instance, and an app that runs one,
+ * have none: "Claude app", "ChatGPT". */
+export function desktopProfile(instance: string | null | undefined, folder: string | null | undefined): string | null {
+  return instance ? folder || instance : null;
+}
+
 /** An App's name: its app, then its profile when it has one. */
 export function appName(app: string, profile: string | null | undefined): string {
   return profile ? `${app} · ${profile}` : app;

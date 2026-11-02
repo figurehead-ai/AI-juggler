@@ -31,6 +31,7 @@ function place(over: Partial<KnownPlaceInfo>): KnownPlaceInfo {
     account_id: null,
     seen_ms: NOW - 2 * 3_600_000,
     cannot_start: null,
+    found: false,
     ...over,
   };
 }

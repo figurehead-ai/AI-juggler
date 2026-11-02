@@ -22,7 +22,7 @@ const folder = (id: string, label: string): AccountInfo => ({ id, label, provide
 function known(instance: string, over: Partial<KnownPlaceInfo> = {}): KnownPlaceInfo {
   return {
     id: `app:claude-app:/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null,
-    keep_alive: false, paused: null, account_id: null, seen_ms: NOW - 5 * H, cannot_start: null, recent: [], ...over,
+    keep_alive: false, paused: null, account_id: null, seen_ms: NOW - 5 * H, cannot_start: null, recent: [], found: false, ...over,
   };
 }
 
@@ -66,6 +66,27 @@ describe("D-62 the Apps", () => {
     const apps = appsOf({ stored: [], places: [known("Lab", { account_id: "work" })], folders: [folder("work", "Work Max")] });
     expect(apps.map((app) => app.name)).toEqual(["Claude Code · Work Max", "Claude app · Lab"]);
     expect(apps[1]!.folder?.id).toBe("work");
+  });
+
+  it("AJ-E3203: a profile is named by the config folder its sessions use, else by its own folder; one found beside it is an App too", () => {
+    const apps = appsOf({
+      stored: [],
+      places: [
+        known("b-team", { profile: "team-max", account_id: "team" }),
+        known("b-side", { found: true }),
+        known("", { id: "app:claude-app:", instance: null, profile: "Default" }),
+      ],
+      folders: [],
+    });
+    const desktop = apps.filter((app) => app.kind === "desktop");
+    expect(desktop.map((app) => [app.name, app.profile])).toEqual([
+      ["Claude app · team-max", "team-max"],
+      ["Claude app · b-side", "b-side"],
+      ["Claude app", null],
+    ]);
+    // The rail still keys a profile by its own folder.
+    expect(desktop[0]!.railKey).toBe("app|claude-app|b-team");
+    expect(desktop[1]!.place?.found).toBe(true);
   });
 
   it("a rail group's App: a CLI group by its folder, a desktop one by its remembered place", () => {

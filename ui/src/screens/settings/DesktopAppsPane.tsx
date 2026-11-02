@@ -5,7 +5,8 @@
  * anywhere) and the session page's Last messages. Every permission is
  * offered here and nowhere else: a click on Go to it never raises one.
  * 0.3.3: the apps and profiles AI Juggler has seen, each with Start (or
- * Open, while it runs) and Keep alive.
+ * Open, while it runs) and Keep alive. AJ-E3203: finding the profiles
+ * that aren't running, asked on an App's page, is turned off here.
  */
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
@@ -20,7 +21,8 @@ import { AppIcon } from "../../components/AppIcon";
 import { showToast } from "../../components/Toast";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
 import { placeWords, useKnownPlaces } from "../../lib/places";
-import { appName } from "../../lib/app-name";
+import { useFindProfiles } from "../../lib/find-profiles";
+import { appName, desktopProfile } from "../../lib/app-name";
 import { knownAppWord } from "../../lib/rail-apps";
 import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
 
@@ -217,8 +219,8 @@ function HotkeyRow(): JSX.Element {
 /** One app or profile: what it is now, Start (Open while it runs), and
  * Keep alive. */
 export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?: string }): JSX.Element {
-  // D-62: named as its App ("Claude app · Work"), or as you named it.
-  const name = named ?? appName(knownAppWord(place), place.instance ?? place.profile);
+  // D-62: named as its App ("Claude app · Work Max"), or as you named it.
+  const name = named ?? appName(knownAppWord(place), desktopProfile(place.instance, place.profile));
   const id = useId();
   const [error, setError] = useState<string | null>(null);
   const running = place.app_pid !== null;
@@ -239,7 +241,9 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
       testId={`desktop-place-${place.app_id}${place.instance ? `-${place.instance}` : ""}`}
       control={
         <>
-          {!running && !place.keep_alive && (
+          {/* A profile found by its folder comes back while finding is on:
+              its folder, or Find profiles, decides. */}
+          {!running && !place.keep_alive && !place.found && (
             <Button size="sm" variant="ghost" onClick={() => void placesForget(place.id).catch((cause) => setError(errorText(cause)))} aria-label={`Forget ${name}`} data-testid="desktop-place-forget">
               Forget
             </Button>
@@ -270,6 +274,33 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
   );
 }
 
+/** AJ-E3203: finding the profiles that aren't running, by the names of
+ * the folders beside one that ran. Shown once there's a folder to read,
+ * or it's on. */
+function FindProfilesRow(): JSX.Element | null {
+  const { info, answer } = useFindProfiles();
+  const [note, setNote] = useState<string | null>(null);
+  if (info === null || (info.folders.length === 0 && info.answer !== "on")) return null;
+  const where = info.folders.map((folder) => folder.folder).join(", ");
+  return (
+    <SwitchRow
+      title="Find profiles that aren't running"
+      description={
+        <>
+          Reads the names of the folders beside a profile that ran{where ? <> (<span className="break-all font-mono">{where}</span>)</> : null}, and nothing inside them. Off forgets the profiles found that way.
+        </>
+      }
+      checked={info.answer === "on"}
+      note={note}
+      testId="desktop-find-profiles"
+      onChange={(next) => {
+        setNote(null);
+        answer(next).catch((cause) => setNote(errorText(cause)));
+      }}
+    />
+  );
+}
+
 /** 0.3.3: the apps and profiles seen running, with Start and Keep alive. */
 function YourApps(): JSX.Element | null {
   const places = useKnownPlaces();
@@ -287,6 +318,7 @@ function YourApps(): JSX.Element | null {
       ) : (
         places.map((place) => <PlaceRow key={place.id} place={place} />)
       )}
+      <FindProfilesRow />
     </PaneSection>
   );
 }

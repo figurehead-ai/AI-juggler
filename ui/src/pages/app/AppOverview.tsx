@@ -14,6 +14,7 @@ import { IconHistory } from "../../components/icons-places";
 import { SessionRowBody } from "../SessionRow";
 import { conversationRow, sessionRow, type Row } from "../SessionsList";
 import { AccountLimits } from "../AccountPage";
+import { FindProfiles } from "./FindProfiles";
 import { showTab } from "../PageShell";
 import type { ActionHost } from "../../lib/action-host";
 import type { AppModel } from "../../lib/apps";
@@ -67,6 +68,7 @@ export function AppOverview({
     // Nothing yet: one card that says what to do, not three empty ones.
     return (
       <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="app-overview">
+        <FindProfiles key={app.id} app={app} />
         <Section title="No sessions yet" icon={<IconPlay />} testId="app-empty">
           <p className="text-body text-ink-2">
             {app.kind === "desktop"
@@ -80,6 +82,7 @@ export function AppOverview({
   }
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="app-overview">
+      <FindProfiles key={app.id} app={app} />
       {signedOut && <SignedOut name={app.name} />}
       <div className="grid grid-cols-1 gap-grid @min-[900px]:grid-cols-2">
         <Section title="Open now" icon={<IconPlay />} sub={open.length > 0 ? `${open.length} open` : undefined} testId="app-open">

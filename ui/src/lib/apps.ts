@@ -1,8 +1,9 @@
 /**
  * D-62 (AJ-E3204) — the Apps, as their page, Home and the rail's doors
  * see them: one per folder in use (a CLI tool on it: "Claude Code · Work
- * Max") and one per desktop app or profile seen running ("Claude app ·
- * b-work"). The stored rows give the user's name and the Account; the
+ * Max") and one per desktop app or profile seen running, or found beside
+ * one (AJ-E3203): "Claude app · Work Max" once its sessions name its
+ * config folder, else "Claude app · b-work". The stored rows give the user's name and the Account; the
  * places and folders give the rest, so an App the backend hasn't stored
  * yet (and every App in the preview) is still one.
  *
@@ -11,7 +12,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import type { AccountInfo } from "./bridge";
-import { appName, cliAppKey } from "./app-name";
+import { appName, cliAppKey, desktopProfile } from "./app-name";
 import { appOfTool } from "./app-of";
 import { APPS_CHANGED, appsList, type StoredAppInfo } from "./ipc/apps";
 import type { KnownPlaceInfo } from "./ipc/places";
@@ -86,7 +87,8 @@ export function appsOf({
   for (const place of places) {
     const row = byId.get(place.id);
     const app = knownAppWord(place);
-    const defaultName = appName(app, place.instance);
+    const profile = desktopProfile(place.instance, place.profile);
+    const defaultName = appName(app, profile);
     const folderId = row?.folder_id ?? place.account_id;
     out.push({
       id: place.id,
@@ -94,7 +96,7 @@ export function appsOf({
       tool: row?.tool || null,
       appId: place.app_id,
       app,
-      profile: place.instance,
+      profile,
       name: row?.label ?? defaultName,
       defaultName,
       named: Boolean(row?.label),

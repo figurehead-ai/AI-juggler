@@ -23,6 +23,9 @@ struct Ran {
     exe: PathBuf,
     #[serde(default)]
     given: Option<PathBuf>,
+    /// AJ-E3203: found beside a profile that ran, not seen running yet.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    found: bool,
 }
 
 /// The book, from the rows (0.3's book moved into them first).
@@ -84,6 +87,7 @@ fn row(id: &str, place: &KnownPlace, tool: &str) -> App {
         bundle: place.bundle.clone(),
         exe: place.exe.clone(),
         given: place.given.clone(),
+        found: place.found,
     };
     App {
         id: id.to_owned(),
@@ -136,6 +140,7 @@ fn place(app: &App) -> Option<KnownPlace> {
             .paused_json
             .as_deref()
             .and_then(|json| serde_json::from_str(json).ok()),
+        found: ran.found,
     })
 }
 
@@ -161,6 +166,7 @@ mod tests {
             seen_ms: 3_600_000,
             keep_alive,
             paused: keep_alive.then(|| "it stopped too often".to_owned()),
+            found: false,
         }
     }
 

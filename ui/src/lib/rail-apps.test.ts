@@ -33,7 +33,7 @@ const past = (id: string, hours: number, over: Partial<ConversationInfo> = {}) =
 function known(instance: string, over: Partial<KnownPlaceInfo> = {}): KnownPlaceInfo {
   return {
     id: `claude-app|/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null,
-    keep_alive: false, paused: null, account_id: null, seen_ms: NOW - 5 * H, cannot_start: null, recent: [], ...over,
+    keep_alive: false, paused: null, account_id: null, seen_ms: NOW - 5 * H, cannot_start: null, recent: [], found: false, ...over,
   };
 }
 
@@ -85,6 +85,16 @@ describe("D-64 an app's sessions that aren't open belong to it", () => {
     expect(apps[0]!.appPid).toBe(42);
     expect(apps[1]).toMatchObject({ accountId: "a2", tool: "claude-code", profile: "Personal" });
     expect(apps[1]!.sessions.map((item) => item.key)).toEqual(["c:a2/c1"]);
+  });
+
+  it("AJ-E3203: a profile found by its folder sorts after the ones you've used, with no time, named by its config folder once known", () => {
+    const places = [known("b-side", { found: true, seen_ms: NOW }), known("Old", { seen_ms: NOW - 9 * 24 * H }), known("b-team", { profile: "team-max", seen_ms: NOW - H })];
+    const apps = idleApps({ openKeys: new Set(), known: places, idle: new Map() });
+    expect(apps.map((app) => [app.name, app.lastMs > 0])).toEqual([
+      ["Claude app · team-max", true],
+      ["Claude app · Old", true],
+      ["Claude app · b-side", false],
+    ]);
   });
 
   it("says how many it shows", () => {

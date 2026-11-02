@@ -87,7 +87,7 @@ async function tab(page: Page, label: RegExp) {
 for (const theme of ["dark", "light"] as const) {
   test(`a running Claude app profile: its Overview — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await openFromRail(page, "Claude app · Work");
+    await openFromRail(page, "Claude app · Work Max");
     await expect(page.getByTestId("app-go")).toHaveText("Go to it");
     await expect(page.getByTestId("app-open").getByTestId("page-session-item").first()).toBeVisible();
     await shoot(page, "app-overview", theme);
@@ -97,7 +97,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`its Sessions and its Settings — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await openFromRail(page, "Claude app · Work");
+    await openFromRail(page, "Claude app · Work Max");
     await tab(page, /^Sessions/);
     await expect(page.getByTestId("page-sessions-list")).toBeVisible();
     await shoot(page, "app-sessions", theme);
