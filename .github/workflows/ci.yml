@@ -339,11 +339,13 @@ jobs:
             echo "::warning::Only ${free} GB free after the test build (#198 ran out)."
           fi
 
-  # Every test, in four partitions of the one build. A process per test;
+  # Every test, in six slices of the one build (nextest's `slice`: the
+  # tests dealt out in turn, so a serial group spreads over all six; `hash`
+  # left one partition with twice the others' work). A process per test;
   # .config/nextest.toml keeps the ones that share a resource or time the
   # clock apart, and never retries.
   rust-test:
-    name: tests (${{ matrix.partition }}/4)
+    name: tests (${{ matrix.partition }}/6)
     needs: [plan, rust-build]
     if: needs.plan.outputs.tested == ''
     runs-on: ubuntu-latest
@@ -351,7 +353,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        partition: [1, 2, 3, 4]
+        partition: [1, 2, 3, 4, 5, 6]
     steps:
       # The same path as the build's checkout: the tests reach their
       # fixtures through the paths they were compiled with.
@@ -387,12 +389,12 @@ jobs:
       # The archive unpacks into target/ here, where the build had it.
       # --no-fail-fast: every failing test in one run (#198 took four runs
       # to show four problems).
-      - name: Tests, partition ${{ matrix.partition }} of 4 (no retries)
+      - name: Tests, partition ${{ matrix.partition }} of 6 (no retries)
         env:
           PARTITION: ${{ matrix.partition }}
         run: |
           mkdir -p target/tmp
-          cargo-nextest nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . --extract-to . --extract-overwrite --partition "hash:$PARTITION/4" --profile ci --no-fail-fast
+          cargo-nextest nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . --extract-to . --extract-overwrite --partition "slice:$PARTITION/6" --profile ci --no-fail-fast
           ./scripts/leaked_fixtures.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
@@ -465,7 +467,7 @@ jobs:
             echo "::error::verify: not every part passed ($failed)"
             exit 1
           fi
-          echo "verify: static, the test build, all four test partitions, the doctests and dev-bridge passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "verify: static, the test build, all six test partitions, the doctests and dev-bridge passed." >> "$GITHUB_STEP_SUMMARY"
 
   # The coverage artifact, off the critical path and never gating
   # (strictness is enforced at gates via the local llvm-cov numbers). It
