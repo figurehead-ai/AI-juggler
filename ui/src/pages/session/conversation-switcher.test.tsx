@@ -89,7 +89,10 @@ describe("0.3.4 the Overview's switcher", () => {
     const list = await screen.findByTestId("switcher-list");
     expect(within(list).getByTestId("switcher-own").textContent).toContain("Its terminal");
     expect(within(screen.getByTestId("switcher-running")).getAllByTestId("switcher-subagent")).toHaveLength(1);
-    expect(screen.getByTestId("switcher-done-toggle").textContent).toContain("Done · 1");
+    expect(screen.getByTestId("switcher-done-toggle").textContent).toContain("Finished subagents · 1");
+    // 0.3.5: a tree that says what each branch is, the session its root.
+    expect(screen.getByTestId("switcher-own").textContent).toContain("This session");
+    expect(screen.getByTestId("switcher-running").textContent).toContain("Subagents running");
     fireEvent.click(within(screen.getByTestId("switcher-running")).getByTestId("switcher-subagent"));
     await waitFor(() => expect(screen.getByTestId("switcher-back")).toBeTruthy());
     expect(screen.getByTestId("switcher-own-pane").hidden).toBe(true);

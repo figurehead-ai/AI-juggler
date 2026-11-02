@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { Button } from "../../components/primitives";
+import { IconSessions, IconSubtasks } from "../../components/icons";
 import { useActionHost } from "../../components/ItemMenu";
 import { useConversations } from "../../lib/conversations";
 import { conversationsStarted, type StartedSessionInfo } from "../../lib/ipc/conversations";
@@ -73,7 +74,7 @@ export function useSwitcherLists(model: SessionModel, visible: boolean): { runni
 
 /** `ownWords`: what the session's own pane is ("Its terminal", "Its
  * conversation"), under "This session" in the list. */
-export function ConversationSwitcher({ model, visible, own, ownWords = "Its conversation" }: { model: SessionModel; visible: boolean; own: ReactNode; ownWords?: string }): JSX.Element {
+export function ConversationSwitcher({ model, visible, own, ownWords = "Its main conversation" }: { model: SessionModel; visible: boolean; own: ReactNode; ownWords?: string }): JSX.Element {
   const { running, done, started, total } = useSwitcherLists(model, visible);
   const [picked, setPicked] = useState<Picked>({ kind: "own" });
   const back = useCallback(() => setPicked({ kind: "own" }), []);
@@ -136,91 +137,158 @@ function SwitcherList({
     (next.kind === "subagent" && picked.kind === "subagent" && next.agent.id === picked.agent.id) ||
     (next.kind === "started" && picked.kind === "started" && next.session.conversation_id === picked.session.conversation_id);
   const ended = Math.max(0, total - running.length);
-  return (
-    <nav aria-label="Conversations in this session" className="flex max-h-40 min-h-0 flex-col gap-3 overflow-y-auto rounded-card border border-hairline p-1.5 @xl:max-h-none @xl:rounded-none @xl:border-0 @xl:p-0 @xl:pr-1" data-testid="switcher-list">
-      <ul className="flex flex-col gap-0.5">
-        <Item picked={isPicked({ kind: "own" })} onClick={() => onPick({ kind: "own" })} testId="switcher-own" dot={model.state.working ? "live" : null} title="This session" meta={ownWords} />
-      </ul>
-      {running.length > 0 && (
-        <Section label={`Running · ${running.length}`} testId="switcher-running">
-          {running.map((agent) => (
-            <Item key={agent.id} picked={isPicked({ kind: "subagent", agent })} onClick={() => onPick({ kind: "subagent", agent })} dot="live" title={titleOf(agent)} meta={kindWords(agent.kind) ?? "Subagent"} testId="switcher-subagent" />
+  // 0.3.5 (the maintainer: "not clear that what you are seeing is
+  // subagents"): a tree, as Claude draws one. The session is the root; its
+  // subagents and the sessions it started branch off it, each kind with its
+  // own name and mark, joined by lines.
+  const branches: { key: string; node: ReactNode }[] = [];
+  if (running.length > 0) {
+    branches.push({
+      key: "running",
+      node: (
+        <Branch label="Subagents running" count={running.length} hint="helpers working for it now" testId="switcher-running">
+          {running.map((agent, index) => (
+            <Leaf key={agent.id} last={index === running.length - 1} picked={isPicked({ kind: "subagent", agent })} onClick={() => onPick({ kind: "subagent", agent })} mark="subagent" live title={titleOf(agent)} meta={kindWords(agent.kind) ?? "Subagent"} testId="switcher-subagent" />
           ))}
-        </Section>
-      )}
-      {started.length > 0 && (
-        <Section label={`Started from here · ${started.length}`} testId="switcher-started">
-          {started.map((session) => (
-            <Item
+        </Branch>
+      ),
+    });
+  }
+  if (started.length > 0) {
+    branches.push({
+      key: "started",
+      node: (
+        <Branch label="Sessions it started" count={started.length} hint="separate sessions, each with its own page" testId="switcher-started">
+          {started.map((session, index) => (
+            <Leaf
               key={session.conversation_id}
+              last={index === started.length - 1}
               picked={isPicked({ kind: "started", session })}
               onClick={() => onPick({ kind: "started", session })}
-              dot={null}
+              mark="session"
               title={session.title || "A session"}
               meta={session.last_activity_ms ? agoWords(session.last_activity_ms, now) : "A session"}
               testId="switcher-started-session"
             />
           ))}
-        </Section>
-      )}
-      {ended > 0 && (
-        <section className="flex flex-col gap-1" data-testid="switcher-done">
+        </Branch>
+      ),
+    });
+  }
+  if (ended > 0) {
+    branches.push({
+      key: "done",
+      node: (
+        <section className="flex flex-col gap-0.5" data-testid="switcher-done">
           <button
             type="button"
             aria-expanded={doneOpen}
             onClick={() => setDoneOpen((open) => !open)}
-            className="flex items-center gap-1.5 rounded px-1.5 py-1 text-left text-label font-semibold text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+            className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-label font-semibold text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
             data-testid="switcher-done-toggle"
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={"shrink-0 transition-transform " + (doneOpen ? "rotate-90" : "")}>
               <path d="M9 6l6 6-6 6" />
             </svg>
-            Done · {ended}
+            Finished subagents · {ended.toLocaleString()}
           </button>
           {doneOpen && (
-            <ul className="flex flex-col gap-0.5">
+            <ul className="flex flex-col">
               {done.map((agent) => (
-                <Item key={agent.id} picked={isPicked({ kind: "subagent", agent })} onClick={() => onPick({ kind: "subagent", agent })} dot={agent.status === "failed" ? "danger" : null} title={titleOf(agent)} meta={agent.status === "failed" ? "Failed" : (kindWords(agent.kind) ?? "Subagent")} testId="switcher-subagent" />
+                <Leaf key={agent.id} last={false} picked={isPicked({ kind: "subagent", agent })} onClick={() => onPick({ kind: "subagent", agent })} mark="subagent" danger={agent.status === "failed"} title={titleOf(agent)} meta={agent.status === "failed" ? "Failed" : (kindWords(agent.kind) ?? "Subagent")} testId="switcher-subagent" />
               ))}
-              <li>
-                <button type="button" onClick={() => showTab("subagents")} className="w-full rounded px-2 py-1 text-left text-label text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="switcher-all">
+              <li className="relative pl-4">
+                <span aria-hidden="true" className="absolute left-0 top-0 h-3 w-3 rounded-bl-md border-b border-l border-faint" />
+                <button type="button" onClick={() => showTab("subagents")} className="w-full rounded px-1.5 py-1 text-left text-label text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="switcher-all">
                   All {total.toLocaleString()} in Subagents ›
                 </button>
               </li>
             </ul>
           )}
         </section>
-      )}
+      ),
+    });
+  }
+  return (
+    <nav aria-label="This session and the conversations it started" className="flex max-h-40 min-h-0 flex-col overflow-y-auto rounded-card border border-hairline p-1.5 @xl:max-h-none @xl:rounded-none @xl:border-0 @xl:p-0 @xl:pr-1" data-testid="switcher-list">
+      <Root picked={isPicked({ kind: "own" })} onClick={() => onPick({ kind: "own" })} live={model.state.working} title="This session" meta={ownWords} />
+      {/* The trunk: each branch hangs off the session's line. */}
+      <ul className="ml-[9px] flex flex-col" data-testid="switcher-branches">
+        {branches.map((branch, index) => (
+          <li key={branch.key} className="relative pl-4 pt-2">
+            <span aria-hidden="true" className="absolute left-0 top-0 h-[17px] w-3 rounded-bl-md border-b border-l border-faint" />
+            {index < branches.length - 1 && <span aria-hidden="true" className="absolute bottom-0 left-0 top-[17px] border-l border-faint" />}
+            {branch.node}
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }
 
-function Section({ label, testId, children }: { label: string; testId: string; children: ReactNode }): JSX.Element {
+/** The session itself: the root every branch hangs off. */
+function Root({ picked, onClick, live, title, meta }: { picked: boolean; onClick: () => void; live: boolean; title: string; meta: string }): JSX.Element {
   return (
-    <section className="flex flex-col gap-1" data-testid={testId}>
-      <h3 className="px-1.5 text-label font-semibold text-muted">{label}</h3>
-      <ul className="flex flex-col gap-0.5">{children}</ul>
+    <button
+      type="button"
+      aria-current={picked ? "true" : undefined}
+      onClick={onClick}
+      title={title}
+      className={
+        "flex w-full min-w-0 items-start gap-2 rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        (picked ? "bg-surface-2 text-ink" : "text-ink-2 hover:bg-surface-2/60 hover:text-ink")
+      }
+      data-testid="switcher-own"
+    >
+      <span aria-hidden="true" className={"mt-1 flex size-2.5 shrink-0 rounded-full border-2 " + (live ? "border-live bg-live/40" : "border-ink-2 bg-surface")} />
+      <span className="flex min-w-0 flex-col">
+        <span className="line-clamp-2 break-words text-meta font-semibold leading-[1.35] text-ink">{title}</span>
+        <span className="text-label text-muted">{meta}</span>
+      </span>
+    </button>
+  );
+}
+
+/** A kind of conversation hanging off the session: its name, how many,
+ * what they are, then its leaves. */
+function Branch({ label, count, hint, testId, children }: { label: string; count: number; hint: string; testId: string; children: ReactNode }): JSX.Element {
+  return (
+    <section className="flex flex-col gap-0.5" data-testid={testId}>
+      <h3 className="px-1 text-label font-semibold text-ink-2" title={hint}>
+        {label} · {count}
+      </h3>
+      <ul className="flex flex-col">{children}</ul>
     </section>
   );
 }
 
-const DOTS = { live: "bg-live motion-safe:animate-pulse", danger: "bg-danger" } as const;
+const MARKS = {
+  subagent: <IconSubtasks width={12} height={12} aria-hidden="true" />,
+  session: <IconSessions width={12} height={12} aria-hidden="true" />,
+} as const;
 
-function Item({ picked, onClick, dot, title, meta, testId }: { picked: boolean; onClick: () => void; dot: keyof typeof DOTS | null; title: string; meta: ReactNode; testId: string }): JSX.Element {
+/** One conversation on a branch: an elbow to it, its kind's mark, its
+ * name and what it is. */
+function Leaf({ last, picked, onClick, mark, live = false, danger = false, title, meta, testId }: { last: boolean; picked: boolean; onClick: () => void; mark: keyof typeof MARKS; live?: boolean; danger?: boolean; title: string; meta: ReactNode; testId: string }): JSX.Element {
   return (
-    <li>
+    <li className="relative pl-4">
+      <span aria-hidden="true" className="absolute left-0 top-0 h-[15px] w-3 rounded-bl-md border-b border-l border-faint" />
+      {!last && <span aria-hidden="true" className="absolute bottom-0 left-0 top-[15px] border-l border-faint" />}
       <button
         type="button"
         aria-current={picked ? "true" : undefined}
         onClick={onClick}
         title={title}
         className={
-          "flex w-full min-w-0 items-start gap-2 rounded-lg px-2 py-1.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+          "flex w-full min-w-0 items-start gap-1.5 rounded-lg px-1.5 py-1 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
           (picked ? "bg-surface-2 text-ink" : "text-ink-2 hover:bg-surface-2/60 hover:text-ink")
         }
         data-testid={testId}
       >
-        <span aria-hidden="true" className={"mt-[7px] size-1.5 shrink-0 rounded-full " + (dot ? DOTS[dot] : "bg-transparent")} />
+        <span aria-hidden="true" className={"relative mt-[2px] flex shrink-0 " + (danger ? "text-danger" : live ? "text-live" : "text-muted")}>
+          {MARKS[mark]}
+          {live && <span className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-live motion-safe:animate-pulse" />}
+        </span>
         <span className="flex min-w-0 flex-col">
           <span className="line-clamp-2 break-words text-meta font-medium leading-[1.35]">{title}</span>
           <span className="flex items-center gap-1 text-label text-muted">{meta}</span>
