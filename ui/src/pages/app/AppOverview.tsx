@@ -24,11 +24,12 @@ const RECENT_SHOWN = 5;
 /** Projects it shows before "All projects". */
 const PROJECTS_SHOWN = 5;
 
-/** A rail item as the shared session row. */
-export function rowOf(item: RailItem, now: number, onOpenSession: (id: string) => void, host: ActionHost): Row | null {
-  if (item.session) return sessionRow(item.session, now, onOpenSession);
-  if (item.conversation) return conversationRow(item.conversation, now, host);
-  return null;
+/** A rail item as the shared session row; `app`, the App it belongs to
+ * when the caller knows it (its icon and "in …" then say that App). */
+export function rowOf(item: RailItem, now: number, onOpenSession: (id: string) => void, host: ActionHost, app?: AppModel | null): Row | null {
+  const row = item.session ? sessionRow(item.session, now, onOpenSession) : item.conversation ? conversationRow(item.conversation, now, host) : null;
+  if (row && app) row.app = { appId: app.appId, appPid: app.place?.app_pid ?? null, name: app.name };
+  return row;
 }
 
 export function AppOverview({
@@ -125,7 +126,7 @@ export function AppProjects({ projects, sessions, now, onOpenProject }: { projec
   );
 }
 
-function ProjectRows({ projects, now, onOpenProject }: { projects: AppProject[]; now: number; onOpenProject: (id: string) => void }): JSX.Element {
+export function ProjectRows({ projects, now, onOpenProject }: { projects: AppProject[]; now: number; onOpenProject: (id: string) => void }): JSX.Element {
   if (projects.length === 0) return <p className="px-2 py-1.5 text-meta text-ink-2">No project yet: its sessions so far ran outside one.</p>;
   return (
     <ul className="flex flex-col">
@@ -150,20 +151,20 @@ function ProjectRows({ projects, now, onOpenProject }: { projects: AppProject[];
 }
 
 /** A row and the project it names. */
-type Shown = { row: Row; project: { id: string; name: string | null } | null };
+export type Shown = { row: Row; project: { id: string; name: string | null } | null };
 
-function RowList({ rows, empty }: { rows: Shown[]; empty: string }): JSX.Element {
+export function RowList({ rows, empty, within = "app" }: { rows: Shown[]; empty: string; within?: "app" | "account" }): JSX.Element {
   if (rows.length === 0) return <p className="text-meta text-ink-2">{empty}</p>;
   return (
     <ul className="-mx-2 flex flex-col">
       {rows.map(({ row, project }) => (
-        <SessionRowBody key={row.key} as="li" row={row} project={project} inApp />
+        <SessionRowBody key={row.key} as="li" row={row} project={project} inApp={within === "app"} inAccount={within === "account"} />
       ))}
     </ul>
   );
 }
 
-function MoreLink({ label, onOpen, testId }: { label: string; onOpen: () => void; testId: string }): JSX.Element {
+export function MoreLink({ label, onOpen, testId }: { label: string; onOpen: () => void; testId: string }): JSX.Element {
   return (
     <button type="button" onClick={onOpen} className="rounded text-meta text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid={testId}>
       {label} <span aria-hidden="true">›</span>

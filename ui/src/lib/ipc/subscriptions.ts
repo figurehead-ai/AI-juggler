@@ -31,8 +31,28 @@ async function previewSubscriptions(): Promise<SubscriptionInfo[]> {
   return [...signedInRows, ...out.values()];
 }
 
-/** Every profile, grouped into the account it's signed in to. */
+/** The names the preview gives its accounts (no backend to keep them). */
+const previewNames = new Map<string, string>();
+
+/** Every profile, grouped into the account it's signed in to. In the
+ * preview, each signed-in account is stored under its key (D-62). */
 export async function subscriptionsList(): Promise<SubscriptionInfo[]> {
-  if (!hasLiveBackend()) return previewSubscriptions();
+  if (!hasLiveBackend()) {
+    return (await previewSubscriptions()).map((row) => {
+      const id = row.account_id ?? (row.state === "signed_in" ? `acct:preview:${row.key}` : null);
+      return { ...row, account_id: id, name: (id && previewNames.get(id)) ?? row.name ?? null };
+    });
+  }
   return invoke<SubscriptionInfo[]>("subscriptions_list");
+}
+
+/** D-62 (AJ-E3205): names an Account (`null` or blank: its default). */
+export async function subscriptionsRename(id: string, name: string | null): Promise<void> {
+  if (!hasLiveBackend()) {
+    const named = name?.trim() ?? "";
+    if (named) previewNames.set(id, named);
+    else previewNames.delete(id);
+    return;
+  }
+  await invoke<void>("subscriptions_rename", { id, name });
 }

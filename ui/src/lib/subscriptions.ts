@@ -77,22 +77,37 @@ export function shareAccount(rows: SubscriptionInfo[], a: string, b: string): bo
   return account !== undefined && account.state === "signed_in" && account.profiles.some((profile) => profile.id === b);
 }
 
-/** An account's name: the names you gave its profiles (the 0.2 walk, F3:
- * five seats in one team all read the team's name), the one the rail,
- * tiles and filters use. One profile is its name; two are "A and B";
- * more are "A, B and 2 more". A group of profiles not signed in is "Not
- * signed in"; with no name at all, its tool and plan ("Claude Max"). */
-export function accountName(row: SubscriptionInfo): string {
+/** An account's name (D-62, AJ-E3202 req. 3): the name you gave it; else
+ * its team; else its tool and plan ("Claude Max 20x"); else its masked
+ * email. Never a folder's or an app's name: those are Apps. A group of
+ * profiles not signed in is "Not signed in"; a sign-in that can't be read
+ * is "Account unknown" (A10). Given every account (`all`), two that would
+ * read the same say their masked email too. */
+export function accountName(row: SubscriptionInfo, all?: readonly SubscriptionInfo[]): string {
   if (row.state === "signed_out") return "Not signed in";
-  const labels = [...new Set(row.profiles.map((profile) => profile.label?.trim()).filter((label): label is string => !!label))];
-  if (labels.length === 1) return labels[0]!;
-  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
-  if (labels.length > 2) return `${labels[0]}, ${labels[1]} and ${labels.length - 2} more`;
+  if (row.name) return row.name;
   // AJ-E1601: an account through another service is named for it.
   if (row.service) return row.service.name;
+  if (row.state === "unverified") return "Account unknown";
+  const base = defaultAccountName(row);
+  const twin = all?.some((other) => other.key !== row.key && other.state === "signed_in" && !other.name && !other.service && defaultAccountName(other) === base);
+  return twin && row.email && base !== row.email ? `${base} · ${row.email}` : base;
+}
+
+function defaultAccountName(row: SubscriptionInfo): string {
   if (row.organisation) return row.organisation;
-  const tool = toolSpec(row.tool).short_name || toolSpec(row.tool).display_name;
-  return row.plan ? `${tool} ${row.plan}` : `${tool} account`;
+  const tool = row.tool ? toolSpec(row.tool).short_name || toolSpec(row.tool).display_name : "Your";
+  if (row.plan) return `${tool} ${planWords(row.plan)}`;
+  return row.email ?? `${tool} account`;
+}
+
+/** A plan as it's said: "max-20x" → "Max 20x", "pro" → "Pro". */
+export function planWords(plan: string): string {
+  return plan
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 /** The account with its profiles' names as they are now (a name changed
@@ -101,11 +116,12 @@ export function withLiveLabels(row: SubscriptionInfo, accounts: readonly { id: s
   return { ...row, profiles: row.profiles.map((p) => ({ ...p, label: accounts.find((a) => a.id === p.id)?.label ?? p.label })) };
 }
 
-/** Its team, sign-in and plan, in one line ("Acme · o…@work.com · Max"):
- * the team is the second line, never the title. */
-export function accountLine(row: SubscriptionInfo): string | null {
+/** Its team, sign-in and plan, in one line ("Acme · o…@work.com · Max"),
+ * leaving out what its name already says. */
+export function accountLine(row: SubscriptionInfo, all?: readonly SubscriptionInfo[]): string | null {
   if (row.service) return [row.service.name, serviceLine(row)].filter(Boolean).join(" · ");
-  const parts = [row.organisation, row.email, row.plan].filter(Boolean);
+  const name = accountName(row, all);
+  const parts = [row.organisation, row.email, row.plan ? planWords(row.plan) : null].filter((part): part is string => !!part && !name.includes(part));
   if (row.state === "unverified") parts.push(row.reason ?? "its sign-in can't be read");
   return parts.length > 0 ? parts.join(" · ") : null;
 }

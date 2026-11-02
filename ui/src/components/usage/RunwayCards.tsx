@@ -3,6 +3,7 @@
  * profiles share), its limits and its last week, each opening the
  * account's first profile page.
  */
+import { openAccount } from "../../lib/accounts-page";
 import { useMemo, type JSX } from "react";
 import { useActionHost } from "../ItemMenu";
 import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
@@ -69,7 +70,7 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
                 <span aria-hidden="true" className="size-3 shrink-0 rounded-full" style={{ background: group.color }} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   {first ? (
-                    <button type="button" onClick={() => host.openAccount?.(first)} className="truncate text-left text-section text-ink outline-none hover:text-accent-hi focus-visible:ring-2 focus-visible:ring-accent/60">
+                    <button type="button" onClick={() => (sub?.account_id ? openAccount(sub.account_id) : host.openAccount?.(first))} className="truncate text-left text-section text-ink outline-none hover:text-accent-hi focus-visible:ring-2 focus-visible:ring-accent/60">
                       {group.label}
                     </button>
                   ) : (

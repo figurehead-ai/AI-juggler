@@ -53,6 +53,9 @@ pub struct SubscriptionInfo {
     /// a sign-in that could be read; never a vendor id.
     #[ts(optional = nullable)]
     pub account_id: Option<String>,
+    /// D-62 (AJ-E3205): the name you gave the Account; `null`: its default.
+    #[ts(optional = nullable)]
+    pub name: Option<String>,
     /// The tool its profiles run.
     pub tool: String,
     /// `signed_in`, `signed_out` (its profiles aren't signed in) or
@@ -171,6 +174,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
             SubscriptionInfo {
                 key: opaque(&key),
                 account_id: None,
+                name: None,
                 tool: row.tool,
                 state: state.to_owned(),
                 email,
@@ -301,14 +305,46 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         })
         .collect();
     let stored = store_accounts(state, &rows);
+    let names: BTreeMap<String, String> = lock_storage_arc(state)?
+        .subscriptions()
+        .list()?
+        .into_iter()
+        .filter_map(|account| Some((account.id, account.name?)))
+        .collect();
     let mut accounts = group(rows);
     for account in &mut accounts {
         account.account_id = account
             .profiles
             .iter()
             .find_map(|profile| stored.get(&profile.id).cloned());
+        account.name = account
+            .account_id
+            .as_ref()
+            .and_then(|id| names.get(id).cloned());
     }
     Ok(accounts)
+}
+
+/// Names Account `id` (`None` or blank: its default name).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for an Account that isn't stored, or a name
+/// over 60 characters; storage errors.
+pub fn rename_impl(state: &Arc<AppState>, id: &str, name: Option<&str>) -> AppResult<()> {
+    if name.is_some_and(|name| name.trim().chars().count() > 60) {
+        return Err(crate::error::AppError::Refused(
+            "A name is 60 characters at most".to_owned(),
+        ));
+    }
+    let storage = lock_storage_arc(state)?;
+    if storage.subscriptions().get(id)?.is_none() {
+        return Err(crate::error::AppError::Refused(
+            "AI Juggler doesn't know that account".to_owned(),
+        ));
+    }
+    storage.subscriptions().rename(id, name)?;
+    Ok(())
 }
 
 /// The Account a profile's read names (`vendor`, sign-in hash): a

@@ -8,6 +8,7 @@
  * (`PagedSessions`: the backend's `sessions_page`, drawn by `PagedList`);
  * `SessionsList` stays for short lists the UI already holds.
  */
+import type { AppRef } from "../lib/app-of";
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { isActiveStatus } from "../components/indicator";
 import { STATE_TONE, conversationItem, sessionState, stateWord, type RailState } from "../lib/rail-items";
@@ -53,6 +54,9 @@ export type Row = {
   outside: boolean;
   /** A search's words in context, when its transcript matched. */
   snippet?: string | null;
+  /** D-62: the App it belongs to, when the caller knows it (a session
+   * that ended in the Claude app is the Claude app's, not its tool's). */
+  app?: AppRef | null;
   open: () => void;
 };
 
@@ -220,9 +224,12 @@ export function PagedSessions({
   groupOf,
   counted = false,
   inApp = false,
+  inAccount = false,
 }: {
   /** D-62: an App's list: its rows don't repeat the app and account. */
   inApp?: boolean;
+  /** D-62: an Account's list: its rows don't repeat the account. */
+  inAccount?: boolean;
   /** Names the list and everything that shapes it (its memory's key). */
   listKey: string;
   /** A heading for each run of rows that share it (History's days). */
@@ -313,6 +320,7 @@ export function PagedSessions({
                 below={below?.(row)}
                 badge={badge?.(row)}
                 inApp={inApp}
+                inAccount={inAccount}
               />
             </>
           );

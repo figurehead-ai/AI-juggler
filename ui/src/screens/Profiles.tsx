@@ -158,6 +158,8 @@ export function ProfilesScreen({
               <AccountCard
                 key={sub.key}
                 subscription={sub}
+                all={grouped.map((group) => group.sub)}
+                toolWords={new Set(grouped.map((group) => group.sub.tool)).size > 1}
                 profiles={rows}
                 recipes={profiles}
                 displays={displays}

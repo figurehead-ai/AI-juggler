@@ -39,6 +39,11 @@ pub struct SessionsQuery {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub app_id: Option<String>,
+    /// D-62 (AJ-E3205): one Account's sessions: those on any folder whose
+    /// sign-in was last read as it (`acct:<vendor>:<hash>`).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub subscription_id: Option<String>,
     /// `all` (the default), `open`, `ended` (not archived) or `archived`.
     #[serde(default)]
     pub which: Option<String>,
@@ -300,6 +305,56 @@ impl Lookup {
 
 /// Every row in `query`'s scope that matches its search (not yet narrowed
 /// to open, ended or archived).
+/// D-62: a query's App and Account (AJ-E3204, AJ-E3205), as the rail
+/// groups sessions: a session is in the desktop App it was last seen open
+/// in, else in its folder's CLI App; on the Account its folder signed in
+/// to.
+struct Narrow {
+    app: Option<String>,
+    desktop: std::collections::BTreeMap<String, String>,
+    account: bool,
+    folders: std::collections::BTreeSet<String>,
+}
+
+impl Narrow {
+    fn new(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Self> {
+        let desktop = if query.app_id.is_some() {
+            crate::features::places::desktop_app_by_session(state)
+        } else {
+            std::collections::BTreeMap::new()
+        };
+        let folders = match query.subscription_id.as_deref() {
+            Some(account) => lock_storage_arc(state)?
+                .subscriptions()
+                .folders()?
+                .into_iter()
+                .filter(|(_, of)| of.as_deref() == Some(account))
+                .map(|(folder, _)| folder)
+                .collect(),
+            None => std::collections::BTreeSet::new(),
+        };
+        Ok(Self {
+            app: query.app_id.clone(),
+            desktop,
+            account: query.subscription_id.is_some(),
+            folders,
+        })
+    }
+
+    /// A session on folder `folder` (`key`: `<tool>/<id>` for one another
+    /// app runs, which may be a desktop App's) passes.
+    fn passes(&self, folder: Option<&str>, key: Option<String>) -> bool {
+        let on_account = !self.account || folder.is_some_and(|id| self.folders.contains(id));
+        let in_app = self.app.as_ref().is_none_or(|want| {
+            let app = key
+                .and_then(|key| self.desktop.get(&key).cloned())
+                .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()));
+            *want == app
+        });
+        on_account && in_app
+    }
+}
+
 fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
     let mut lookup = Lookup::new(state, query)?;
     // Outside conversations from the index (in memory), before storage
@@ -326,21 +381,14 @@ fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
             storage.sessions().lifecycle_latest().unwrap_or_default(),
         )
     };
-    let desktop = if query.app_id.is_some() {
-        crate::features::places::desktop_app_by_session(state)
-    } else {
-        std::collections::BTreeMap::new()
-    };
-    let in_app = |app: String| query.app_id.as_ref().is_none_or(|want| *want == app);
+    let narrow = Narrow::new(state, query)?;
     let mut candidates = Vec::new();
     for (index, record) in records.iter().enumerate() {
         let join = crate::commands::resolved_join(&recipes, &accounts, &record.profile.to_string());
         let project = record.project.as_ref().map(ToString::to_string);
         if (query.project_id.is_some() && project != query.project_id)
             || (query.account_id.is_some() && join.0 != query.account_id)
-            || !in_app(juggler_core::storage::cli_app_id(
-                join.0.as_deref().unwrap_or_default(),
-            ))
+            || !narrow.passes(join.0.as_deref(), None)
         {
             continue;
         }
@@ -369,14 +417,12 @@ fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
                 .account_id
                 .as_ref()
                 .is_some_and(|account| *account != conversation.account_id)
-            || !in_app(
-                desktop
-                    .get(&crate::features::places::book::conversation_key(
-                        &conversation.tool,
-                        &conversation.id,
-                    ))
-                    .cloned()
-                    .unwrap_or_else(|| juggler_core::storage::cli_app_id(&conversation.account_id)),
+            || !narrow.passes(
+                Some(&conversation.account_id),
+                Some(crate::features::places::book::conversation_key(
+                    &conversation.tool,
+                    &conversation.id,
+                )),
             )
         {
             continue;
@@ -484,6 +530,44 @@ pub fn sessions_counts_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// D-62: an App's list holds what the rail puts under it (a session
+    /// last seen in a desktop App is that App's, else its folder's CLI
+    /// App's); an Account's, what's on any folder signed in to it.
+    #[test]
+    fn an_app_and_an_account_narrow_like_the_rail() {
+        let desktop: std::collections::BTreeMap<String, String> = [(
+            "claude-code/c-1".to_owned(),
+            "app:claude-app:/p/Work".to_owned(),
+        )]
+        .into();
+        let app = |id: &str| Narrow {
+            app: Some(id.to_owned()),
+            desktop: desktop.clone(),
+            account: false,
+            folders: std::collections::BTreeSet::new(),
+        };
+        let work = app("app:claude-app:/p/Work");
+        assert!(work.passes(Some("work"), Some("claude-code/c-1".into())));
+        assert!(!work.passes(Some("work"), Some("claude-code/c-2".into())));
+        assert!(
+            !work.passes(Some("work"), None),
+            "AI Juggler's own: its CLI App"
+        );
+        let cli = app("cli:work");
+        assert!(cli.passes(Some("work"), Some("claude-code/c-2".into())));
+        assert!(cli.passes(Some("work"), None));
+        assert!(!cli.passes(Some("work"), Some("claude-code/c-1".into())));
+        let account = Narrow {
+            app: None,
+            desktop: std::collections::BTreeMap::new(),
+            account: true,
+            folders: ["work".to_owned(), "side".to_owned()].into(),
+        };
+        assert!(account.passes(Some("side"), None));
+        assert!(!account.passes(Some("home"), None));
+        assert!(!account.passes(None, None));
+    }
 
     #[test]
     fn every_word_must_match_some_field() {

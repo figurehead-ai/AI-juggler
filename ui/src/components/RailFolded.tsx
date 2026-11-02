@@ -22,7 +22,8 @@
  */
 import { useId, useMemo, useRef, type JSX } from "react";
 import { PlaceMark, ProfileBadge } from "./PlaceMarks";
-import { ToolMark } from "./ToolMark";
+import { AppIconTile } from "./AppIcon";
+import { appOfTool } from "../lib/app-of";
 import { IconView } from "./icons-places";
 import { providerDisplayName } from "../lib/providers";
 import { RailCalm } from "./RailCalm";
@@ -189,12 +190,14 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
   );
 }
 
-/** An AI Juggler session's mark: its tool's, with its account's dot at
- * the corner where a place's mark has its profile's. */
+/** An AI Juggler session's mark: its App's icon (AJ-E3205 req. 5: never
+ * the tool's letter, "C" for Claude Code and Codex alike), with its
+ * account's dot at the corner where a place's mark has its profile's. */
 function OwnMark({ tool, account }: { tool: string; account: string }): JSX.Element {
+  const app = appOfTool(tool);
   return (
-    <span className="relative inline-flex size-[22px] shrink-0 items-center justify-center rounded-md bg-surface-3" data-testid="folded-tool-mark">
-      <ToolMark tool={tool} size={16} />
+    <span className="relative inline-flex size-[22px] shrink-0 items-center justify-center" data-testid="folded-tool-mark" data-app={app.appId ?? tool}>
+      <AppIconTile appId={app.appId} appPid={null} name={app.name} size={22} />
       <span className="absolute -bottom-0.5 -right-0.5 flex">
         <ProfileBadge name={account} size={7} ring="var(--color-canvas)" />
       </span>

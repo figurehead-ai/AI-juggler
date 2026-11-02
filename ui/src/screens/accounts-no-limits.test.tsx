@@ -36,13 +36,15 @@ it("a tool that doesn't report its limits says so once; Claude Code keeps its wi
   const note = await view.findByTestId("account-no-limits");
   expect(note.textContent).toBe("Codex doesn't report its limits to AI Juggler yet.");
   expect(view.getAllByTestId("account-no-limits")).toHaveLength(1);
-  const cards = view.getAllByTestId("account-tool-mark").map((mark) => mark.closest("[class*='overflow-hidden']")!);
+  const cards = view.getAllByTestId("account-card");
   const codex = cards.find((card) => card.textContent?.includes("Codex doesn't report"))!;
   expect(codex.textContent).not.toMatch(/5-hour|This week|Not measured yet/);
   const claude = cards.find((card) => card !== codex)!;
   await waitFor(() => expect(claude.textContent).toMatch(/5-hour|This week|Not measured yet/));
-  // Each tool's own mark, not Claude's spark on every card.
-  expect(view.getAllByTestId("account-tool-mark").map((mark) => mark.getAttribute("data-provider"))).toEqual(["claude-code", "codex"]);
+  // AJ-E3205 req. 4: no lone letter ("C" for both); with accounts on two
+  // tools, each card names its tool in words.
+  expect(view.queryByTestId("account-tool-mark")).toBeNull();
+  expect(view.getAllByTestId("account-line").map((line) => line.textContent?.split(" · ")[0])).toEqual(["Claude Code", "Codex"]);
 });
 
 it("a failed capabilities call, or a tool it doesn't name, keeps the limit rows", () => {
@@ -59,6 +61,6 @@ it("a failed capabilities call, or a tool it doesn't name, keeps the limit rows"
 
 it("Codex reports its limits now (rollout rate_limits): no 'doesn't report' line", async () => {
   const view = render(<ProfilesScreen onAddAccounts={() => {}} openTerminal={() => {}} />);
-  await waitFor(() => expect(view.getAllByTestId("account-tool-mark")).toHaveLength(2));
+  await waitFor(() => expect(view.getAllByTestId("account-card")).toHaveLength(2));
   expect(view.queryByTestId("account-no-limits")).toBeNull();
 });

@@ -155,3 +155,21 @@ it("keeps one door to the grouping switch and View: Group and View shows the lis
   );
   expect(bare.queryByTestId("rail-folded-show-list")).toBeNull();
 });
+
+/** AJ-E3205 req. 5: folded, AI Juggler's own Claude Code and Codex
+ * sessions are told apart by their apps' icons, never one tool letter
+ * ("C") for both. */
+it("tells a Claude Code session from a Codex one by their apps, not a letter", async () => {
+  const { genericTool, setToolsForTests } = await import("../lib/tools");
+  setToolsForTests([
+    { ...genericTool("claude-code"), display_name: "Claude Code", host_app: "claude-app" } as never,
+    { ...genericTool("codex"), display_name: "Codex", host_app: "codex-app" } as never,
+  ]);
+  const own = (id: string, provider: string) =>
+    ({ id, provider, account_id: "acc", account_label: "Work", status: "running", kind: "terminal", started_at_ms: NOW - 60_000, last_activity_ms: NOW, project_id: null, cwd: "/w/app", git_branch: "main", title: id }) as unknown as InstanceInfo;
+  const { view } = folded([own("s-claude", "claude-code"), own("s-codex", "codex")]);
+  await waitFor(() => expect(view.getAllByTestId("folded-tool-mark")).toHaveLength(2));
+  const apps = view.getAllByTestId("folded-tool-mark").map((mark) => mark.getAttribute("data-app"));
+  expect(new Set(apps)).toEqual(new Set(["claude-app", "codex-app"]));
+  setToolsForTests([]);
+});

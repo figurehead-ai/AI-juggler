@@ -10,11 +10,10 @@ import { runwayOf } from "../../components/AccountRunway";
 import { RunwayPanel } from "../../components/usage/Runway";
 import { useWeekByProfile } from "../../components/usage/RunwayCards";
 import { accountKeyColor } from "../../components/usage/accounts";
-import { providerMark } from "../../components/indicator";
-import { LetterMark } from "../../components/ToolMark";
 import { providerDisplayName, noLimitsWords } from "../../lib/providers";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
-import { accountDisplay, accountName, serviceLine, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountDisplay, accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
+import { openAccount } from "../../lib/accounts-page";
 import { ReplaceKeyModal, ServiceUsage } from "./ServiceParts";
 import { toolSpec } from "../../lib/tools";
 import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, QuotaDisplayData } from "../../lib/bridge";
@@ -75,11 +74,15 @@ export type AccountCardProps = {
   onLogin: (account: AccountInfo) => void;
   onInspect?: (id: string) => void;
   onRechecked: () => Promise<void>;
+  /** Every account on the screen: two that would read the same say
+   * their email too (D-62). */
+  all?: readonly SubscriptionInfo[];
+  /** The accounts span more than one tool: the line names this one's. */
+  toolWords?: boolean;
 };
 
 export function AccountCard(props: AccountCardProps): JSX.Element {
   const { subscription: sub, profiles } = props;
-  const mark = providerMark(sub.tool);
   const signedOut = sub.state === "signed_out";
   const display = accountDisplay(sub, props.displays);
   const ownSessions = props.sessions.filter((s) => profiles.some((p) => p.id === s.account_id));
@@ -89,11 +92,12 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const service = sub.service ?? null;
   const first = profiles[0];
   const [newKey, setNewKey] = useState(false);
-  // The 0.2 walk (F3): your names are the title; the team is the line.
+  // D-62: the Account's own name is the title; the line says the rest
+  // once (its tool in words only where the accounts span several).
+  const name = accountName(sub, props.all);
   const line = [
-    service ? service.name : sub.organisation,
-    service ? serviceLine(sub) : sub.email,
-    !service ? sub.plan : null,
+    props.toolWords && !service ? providerDisplayName(sub.tool) : null,
+    accountLine(sub, props.all),
     renewal && renewal.tier === "date" ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
   ].filter(Boolean);
@@ -101,18 +105,16 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
-        <span
-          className="relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-hairline bg-surface-2 text-ink"
-          title={service?.name ?? providerDisplayName(sub.tool)}
-          data-testid="account-tool-mark"
-          data-provider={sub.tool}
-        >
-          {service ? <LetterMark name={service.name} size={20} /> : <mark.Icon width={18} height={18} aria-hidden="true" />}
-        </span>
         <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: accountKeyColor(sub) }} title="This account's colour in the charts" />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-section text-ink" data-testid="account-name">
-            {accountName(sub)}
+            {sub.account_id ? (
+              <button type="button" onClick={() => openAccount(sub.account_id!)} title={`Open ${name}'s page`} className="max-w-full truncate rounded text-left outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-page">
+                {name}
+              </button>
+            ) : (
+              name
+            )}
           </h3>
           <p className="truncate text-meta text-ink-2" data-testid="account-line">
             {signedOut
@@ -153,7 +155,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
                 usage={week.values(profiles.map((p) => p.id))}
                 usageTotal={week.total(profiles.map((p) => p.id))}
                 color={accountKeyColor(sub)}
-                name={accountName(sub)}
+                name={name}
                 now={props.now}
                 compact
               />
@@ -175,7 +177,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           )}
         </div>
       )}
-      <ul className="divide-y divide-hairline border-t border-hairline" aria-label={`Apps on ${accountName(sub)}`}>
+      <ul className="divide-y divide-hairline border-t border-hairline" aria-label={`Apps on ${name}`}>
         {profiles.map((profile) => {
           const open = openOn(profile.id, props.sessions, props.conversations);
           return (

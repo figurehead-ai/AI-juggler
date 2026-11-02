@@ -15,6 +15,7 @@ import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge"
 import { runwayOf } from "./AccountRunway";
 import type { CreditsCover } from "../lib/credits";
 import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { openAccount } from "../lib/accounts-page";
 
 export interface AccountGroup {
   key: string;
@@ -35,7 +36,7 @@ export function accountGroups(accounts: AccountInfo[], subscriptions: Subscripti
     const profiles = accounts.filter((account) => subscription.profiles.some((profile) => profile.id === account.id));
     if (profiles.length === 0) continue;
     for (const profile of profiles) placed.add(profile.id);
-    out.push({ key: subscription.key, name: accountName(subscription), detail: accountLine(subscription), profiles, subscription });
+    out.push({ key: subscription.key, name: accountName(subscription, subscriptions ?? undefined), detail: accountLine(subscription, subscriptions ?? undefined), profiles, subscription });
   }
   for (const account of accounts.filter((account) => !placed.has(account.id))) {
     out.push({ key: account.id, name: account.label, detail: account.plan, profiles: [account], subscription: null });
@@ -75,7 +76,14 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advic
                 <span className="flex min-w-0 items-center gap-2">
                   <AccountAvatar accountId={first.id} label={group.name} size={18} />
                   <span className="flex min-w-0 flex-col">
-                    <span className="truncate font-medium text-ink">{group.name}</span>
+                    {group.subscription?.account_id ? (
+                      // D-62 (AJ-E3205): the account's name opens its page.
+                      <button type="button" onClick={() => openAccount(group.subscription!.account_id!)} title={`Open ${group.name}'s page`} className="truncate rounded text-left font-medium text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-runway-name">
+                        {group.name}
+                      </button>
+                    ) : (
+                      <span className="truncate font-medium text-ink">{group.name}</span>
+                    )}
                     {group.detail && <span className="truncate text-label text-muted">{group.detail}</span>}
                   </span>
                 </span>
@@ -104,7 +112,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advic
                 {row.words}
                 {(row.words.startsWith("Not measured") || row.words.startsWith("Last reading")) && <button
                   type="button"
-                  onClick={() => host.openAccount?.(first)}
+                  onClick={() => (group.subscription?.account_id ? openAccount(group.subscription.account_id) : host.openAccount?.(first))}
                   className="self-start rounded text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
                 >
                   Measure its limits ›<span className="sr-only"> — {group.name}</span>

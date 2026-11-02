@@ -26,7 +26,7 @@ const model = {
   profileLabel: "Work",
 } as unknown as SessionModel;
 
-const signedIn = { state: "signed_in", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
+const signedIn = { state: "signed_in", tool: "claude-code", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
 
 it("shows two chips: the state, and the App menu named by its App", () => {
   const view = render(<SessionChips model={model} account={signedIn} now={Date.now()} />);
@@ -49,8 +49,9 @@ it("opens to the App, its account, the working folder and the door to the App's 
   const panel = view.getByTestId("session-account-panel");
   expect(panel.getAttribute("role")).toBe("menu");
   expect(within(panel).getByTestId("session-account-profile").textContent).toBe("Claude Code · Work");
-  // The account is the subscription behind the App.
-  expect(within(panel).getByTestId("session-account-account").textContent).toBe("AccountWork Max · you@example.com · max-20x");
+  // The account is the subscription behind the App, named its own way
+  // (D-62: its plan here), never by the App's folder.
+  expect(within(panel).getByTestId("session-account-account").textContent).toBe("AccountClaude Max 20x · you@example.com");
   expect(within(panel).getByTestId("session-account-folder").textContent).toBe("Working folder~/Dev/ai-juggler");
   expect(within(panel).getByTestId("session-account-open").textContent).toContain("Open Claude Code · Work's page");
   fireEvent.click(within(panel).getByTestId("session-account-open"));

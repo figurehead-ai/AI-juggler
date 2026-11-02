@@ -5,6 +5,8 @@
  * snooze, mute. Opening a notice marks it read. Nothing here runs by
  * itself: every function is called from a click (or ↵ on a focused row).
  */
+import { openAccount } from "./accounts-page";
+import { accountOfProfile, cachedSubscriptions } from "./subscriptions";
 import { useActionHost } from "../components/ItemMenu";
 import { showToast } from "../components/Toast";
 import { useConversations } from "./conversations";
@@ -66,7 +68,12 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     // 0.3.3: keep alive's notices open its switches.
     if (target.page === "desktop_apps") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } }));
     if (target.page && SCREENS[target.page]) return openScreen(SCREENS[target.page]!);
-    if (target.account_id) return host.openAccountById?.(target.account_id);
+    // D-62 (AJ-E3205): a notice about an account's limits or renewal
+    // opens the Account (its subscription) when its sign-in is known.
+    if (target.account_id) {
+      const account = accountOfProfile(cachedSubscriptions() ?? [], target.account_id)?.account_id;
+      return account ? openAccount(account) : host.openAccountById?.(target.account_id);
+    }
     if (target.project_id) return host.openProjectById?.(target.project_id);
   };
   const primary = (notice: NoticeInfo) => {

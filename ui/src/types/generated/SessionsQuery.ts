@@ -19,6 +19,11 @@ account_id: string | null,
  */
 app_id?: string | null, 
 /**
+ * D-62 (AJ-E3205): one Account's sessions: those on any folder whose
+ * sign-in was last read as it (`acct:<vendor>:<hash>`).
+ */
+subscription_id?: string | null, 
+/**
  * `all` (the default), `open`, `ended` (not archived) or `archived`.
  */
 which: string | null, 

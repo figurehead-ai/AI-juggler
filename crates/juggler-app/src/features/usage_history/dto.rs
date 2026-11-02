@@ -17,10 +17,27 @@ pub struct UsageQueryInput {
     pub group_by: String,
     /// Only this profile's usage.
     pub profile: Option<String>,
+    /// D-62 (AJ-E3205): only these profiles' usage (an Account's folders).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub profiles: Option<Vec<String>>,
     /// Only this project's usage.
     pub project: Option<String>,
     /// How many of the top sessions to list (at most 50; 10 when absent).
     pub top: Option<u32>,
+}
+
+impl UsageQueryInput {
+    /// Whether profile `id` is in the asked scope (`profile`, then
+    /// `profiles`).
+    #[must_use]
+    pub fn wants_profile(&self, id: &str) -> bool {
+        self.profile.as_deref().is_none_or(|only| only == id)
+            && self
+                .profiles
+                .as_ref()
+                .is_none_or(|only| only.iter().any(|one| one == id))
+    }
 }
 
 /// A range's usage, summarised for the charts.

@@ -85,9 +85,10 @@ describe("AJ-E2109 the Accounts screen", () => {
     ]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
     const cards = await screen.findAllByTestId("account-card");
-    expect(cards.map((card) => card.querySelector("[data-testid='account-name']")?.textContent)).toEqual(["Work, Work 2 and 1 more", "Personal and Weekend", "Not signed in"]);
-    // The team is the second line, never the title (the 0.2 walk, F3).
-    expect(cards[0]!.querySelector("[data-testid='account-line']")?.textContent).toBe("Acme · o…@work.com · Team");
+    // D-62: an Account is named its own way (its team, else its plan),
+    // never by its Apps' names; the line says the rest, once.
+    expect(cards.map((card) => card.querySelector("[data-testid='account-name']")?.textContent)).toEqual(["Acme", "Claude Max", "Not signed in"]);
+    expect(cards[0]!.querySelector("[data-testid='account-line']")?.textContent).toBe("o…@work.com · Team");
     expect(within(cards[0]!).getAllByTestId("account-label").map((n) => n.textContent)).toEqual(["Work", "Work 2", "Client"]);
     expect(within(cards[0]!).getByTestId("account-profiles-count").textContent).toBe("3 apps share this account");
     // One runway per account, none for profiles that aren't signed in.
@@ -127,18 +128,24 @@ describe("AJ-E2109 the Accounts screen", () => {
 describe("AJ-E2109 accounts in words", () => {
   const rows = [account("work", ["w1", "w2"]), account("me", ["p1"], { email: "o…@me.com", plan: null })];
 
-  it("names an account by your names for its profiles, never its team's (the 0.2 walk, F3)", () => {
-    const seat = (id: string) => account(id, [id], { organisation: "Acme" });
-    // Five seats in one team: five names, the team on the second line.
-    expect(["a", "b", "c"].map((id) => accountName(seat(id)))).toEqual(["Profile a", "Profile b", "Profile c"]);
-    expect(accountLine(seat("a"))).toBe("Acme · o…@work.com · Max");
-    expect(accountName(rows[0]!)).toBe("Profile w1 and Profile w2");
-    expect(accountName(account("x", ["1", "2", "3", "4"]))).toBe("Profile 1, Profile 2 and 2 more");
-    expect(accountName(rows[1]!)).toBe("Profile p1");
-    // No name at all: its team, else its tool and plan.
-    expect(accountName(account("t", [], { organisation: "Acme" }))).toBe("Acme");
+  it("names an account its own way: your name, else its team, else its plan, else its email (D-62)", () => {
+    // Five seats in one team (the 0.2 walk, F3): each is told apart by its
+    // email beside the team's name, never five "Acme"s.
+    const seats = ["a", "b", "c"].map((id) => account(id, [id], { organisation: "Acme", email: `${id}…@acme.com` }));
+    expect(seats.map((seat) => accountName(seat, seats))).toEqual(["Acme · a…@acme.com", "Acme · b…@acme.com", "Acme · c…@acme.com"]);
+    expect(accountLine(seats[0]!, seats)).toBe("Max");
+    // One team account alone: the team; its line, the rest.
+    expect(accountName(seats[0]!)).toBe("Acme");
+    expect(accountLine(seats[0]!)).toBe("a…@acme.com · Max");
+    // Named by you: your name, whatever its folders are called.
+    expect(accountName({ ...rows[0]!, name: "Day job" })).toBe("Day job");
+    // No team: its tool and plan; no plan: its email; nothing: the tool's.
     expect(accountName(account("t", []))).toBe("Claude Max");
-    expect(accountName(account("t", [], { plan: null }))).toBe("Claude account");
+    expect(accountName(rows[1]!)).toBe("o…@me.com");
+    expect(accountName(account("t", [], { plan: null, email: null }))).toBe("Claude account");
+    // A sign-in that can't be read, and folders not signed in.
+    expect(accountName(account("u", ["u"], { state: "unverified" }))).toBe("Account unknown");
+    expect(accountName(account("o", ["o"], { state: "signed_out" }))).toBe("Not signed in");
   });
 
   it("never shows a sign-in that records no email (Codex's is an id)", () => {

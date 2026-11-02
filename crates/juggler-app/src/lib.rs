@@ -541,6 +541,7 @@ macro_rules! app_commands {
             // Launches a session: never from the read-only bridge.
             Write features::conversations::commands::conversations_continue,
             Read  features::subscriptions::commands::subscriptions_list,
+            Write features::subscriptions::commands::subscriptions_rename,
             // AJ-E1601: the services' published facts; no key, no secret.
             Read  features::service_accounts::commands::service_accounts_catalog,
             // Takes a key into the Keychain: never over the bridge.

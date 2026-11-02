@@ -7,7 +7,7 @@
  * live in the header and its ⋯ menu, never in a tab of their own.
  */
 
-export type PageKind = "session" | "conversation" | "project" | "app" | "account" | "tool" | "machine" | "remote-session" | "pool";
+export type PageKind = "session" | "conversation" | "project" | "app" | "subscription" | "account" | "tool" | "machine" | "remote-session" | "pool";
 
 /** The type, in words, on every page's header. A conversation started
  * outside AI Juggler is a session too (it says "outside AI Juggler"). */
@@ -18,6 +18,8 @@ export const PAGE_LABELS: Record<PageKind, string> = {
   // D-62 (AJ-E3204): an App's own page; `account` is a CLI App's folder
   // page until the Account page (AJ-E3205) takes its place.
   app: "App",
+  // D-62 (AJ-E3205): an Account (a subscription) has its own page.
+  subscription: "Account",
   account: "App",
   tool: "Tool",
   machine: "Machine",
@@ -42,7 +44,8 @@ export type PageTabId =
   | "access"
   | "pool"
   | "projects"
-  | "settings";
+  | "settings"
+  | "apps";
 
 export type PageTab = {
   id: PageTabId;
@@ -71,6 +74,7 @@ const TAB: Record<PageTabId, PageTab> = {
   pool: { id: "pool", label: "Pool", source: "AI Juggler's pools and the sessions' own transcripts" },
   projects: { id: "projects", label: "Projects", source: "the tools' own session files" },
   settings: { id: "settings", label: "Settings", source: "your choices for this app" },
+  apps: { id: "apps", label: "Apps", source: "AI Juggler's apps and their sign-ins" },
 };
 
 /** What decides which tabs a page has: only what it has to show. */
@@ -103,6 +107,7 @@ const OVERVIEW_SOURCE: Partial<Record<PageKind, string>> = {
   project: "AI Juggler's projects and the tools' session files",
   account: "the app's settings and usage tracking",
   app: "the apps' own session files and usage tracking",
+  subscription: "its apps' sign-ins, limits and usage tracking",
   tool: "the tool's install and its apps",
   // AJ-E2108: where it runs, and its last messages from its transcript's end.
   session: "the apps' own session files and the end of its transcript",
@@ -137,6 +142,10 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // is known), its open sessions' processes, and its settings.
     case "app":
       return [TAB.overview, TAB.sessions, TAB.projects, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
+    // D-62 (AJ-E3205): its limits and what's open on it, then its Apps,
+    // sessions, projects, usage and its own name and terms.
+    case "subscription":
+      return [TAB.overview, TAB.apps, TAB.sessions, TAB.projects, TAB.usage, { ...TAB.settings, source: "your choices for this account" }];
     case "account":
       return [TAB.overview, ...when(facts.hasSessions, "sessions")];
     case "conversation":

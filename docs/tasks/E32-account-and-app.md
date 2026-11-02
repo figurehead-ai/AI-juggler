@@ -45,7 +45,7 @@
 **Research basis**: the audit's gaps table.
 **Handover note**: —
 
-### AJ-E3202 Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | Status: IN-PROGRESS (v40's tables; the places book and Keep alive kept as the desktop Apps' rows; each sign-in stored as its Account; req. 3–4, the default name and plan, renewal and fee moving to the Account with a choice where folders disagree, remain) | Priority P0 | Effort L | Depends: AJ-E3201
+### AJ-E3202 Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | Status: IN-PROGRESS (v40's tables; the places book and Keep alive kept as the desktop Apps' rows; each sign-in stored as its Account; req. 3 done: the Account's own name, team else plan else masked email, renamable, twins told apart by email; req. 4, plan, renewal and fee kept on the Account rather than written to each folder, with a choice where they disagree, remains) | Priority P0 | Effort L | Depends: AJ-E3201
 **Goal**: An Account is a thing you can name and set once; an App is remembered when it isn't running.
 **User story**: As someone with two Claude Code folders and a Claude app profile on one plan, I see one Account named "Work", renamable, with its renewal set once.
 **Requirements**:
@@ -81,7 +81,7 @@
 
 ## Step 2 — the pages
 
-### AJ-E3204 The App page | Status: IN-PROGRESS (the page, its tabs, Go to it / Start / New session, rename, and the doors from the rail and Home; Processes while it runs, the gallery, the critique and A1/A3/A4 walked remain) | Priority P0 | Effort L | Depends: AJ-E3202
+### AJ-E3204 The App page | Status: IN-PROGRESS (built: the page, its tabs with Processes, Go to it / Start / New session, rename, the doors from the rail and Home, gallery 99-app-page critiqued; A1 and A4 hold in tests and captures; the persona walk and A3, which needs AJ-E3206, remain) | Priority P0 | Effort L | Depends: AJ-E3202
 **Goal**: An App has its own page: its sessions, projects, usage, settings and processes.
 **User story**: Clicking "Claude app · b-work" in the rail opens that App, with only its own sessions.
 **Requirements**:
@@ -97,7 +97,7 @@
 **Research basis**: the audit's "Proposed App page".
 **Handover note**: —
 
-### AJ-E3205 The Account page | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3202
+### AJ-E3205 The Account page | Status: IN-PROGRESS (built: the page with limits first, its Apps, sessions, projects, usage across its folders and its Settings; the Accounts cards, Home's runway, the runway cards, "Measure its limits" and limit notices open it; no tool letter on the cards (req. 4); the folded rail's own sessions show their app's icon (req. 5); gallery 99-account-page critiqued. Pools waits for E30; A2 and A5 walked remain) | Priority P0 | Effort M | Depends: AJ-E3202
 **Goal**: The subscription has its own page, with its limits first.
 **User story**: From a session's Account chip, I see the account's room, its Apps, sessions, projects and pools.
 **Requirements**:

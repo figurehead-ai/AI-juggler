@@ -12,7 +12,9 @@ import { toolSpec } from "../../lib/tools";
 import { modelName, seriesColor, type GroupBy } from "../charts/colors";
 import type { Series } from "../charts/scale";
 
-export type Scope = { profile?: string | null; project?: string | null };
+/** Whose usage: one profile, several (an Account's folders, D-62), a
+ * project. */
+export type Scope = { profile?: string | null; profiles?: string[] | null; project?: string | null };
 
 /** The range a page shows, remembered for that page. */
 export function useRange(page: string, initial: RangeId = "30d"): [RangeId, (next: RangeId) => void] {
@@ -60,14 +62,15 @@ export function useUsageHistory(range: RangeId, groupBy: GroupBy, scope: Scope, 
   const now = useMinute();
   const profile = scope.profile ?? null;
   const project = scope.project ?? null;
+  const profiles = scope.profiles ?? null;
   const first = useCached<number | null>(range === "all" ? `first:${profile ?? "*"}` : null, () => usageHistoryFirst(profile), 300_000);
   const firstMs = first.data ?? null;
   // The hour pins the cut: a minute's tick doesn't read the range again.
   const hour = Math.floor(now / 3_600_000);
   const cut = useMemo(() => cutRange(range, now, firstMs), [range, hour, firstMs]);
   const ready = range !== "all" || !first.loading;
-  const key = ready ? JSON.stringify({ e: [cut.edges[0], cut.edges[cut.edges.length - 1], cut.edges.length], groupBy, profile, project, top }) : null;
-  const result = useCached<UsageHistoryInfo>(key, () => usageHistory({ edges_ms: cut.edges, group_by: groupBy, profile, project, top }));
+  const key = ready ? JSON.stringify({ e: [cut.edges[0], cut.edges[cut.edges.length - 1], cut.edges.length], groupBy, profile, profiles, project, top }) : null;
+  const result = useCached<UsageHistoryInfo>(key, () => usageHistory({ edges_ms: cut.edges, group_by: groupBy, profile, profiles, project, top }));
   // The 0.2 walk (F6): while the first read of the history runs, read
   // again every few seconds, so its figures show as soon as they're in.
   const reading = result.data?.reading != null;

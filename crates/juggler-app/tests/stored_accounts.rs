@@ -105,4 +105,20 @@ fn one_plan_on_two_folders_is_one_stored_account() {
             .unwrap(),
         stored
     );
+
+    // Named once: every read says it; blank is its default again.
+    let id = folders[&work].clone().unwrap();
+    juggler_app::features::subscriptions::rename_impl(&state, &id, Some(" Work plan ")).unwrap();
+    let named = list_impl(&state).unwrap();
+    let plan = named
+        .iter()
+        .find(|a| a.account_id.as_deref() == Some(id.as_str()))
+        .unwrap();
+    assert_eq!(plan.name.as_deref(), Some("Work plan"));
+    juggler_app::features::subscriptions::rename_impl(&state, &id, Some("  ")).unwrap();
+    assert!(list_impl(&state).unwrap().iter().all(|a| a.name.is_none()));
+    assert!(
+        juggler_app::features::subscriptions::rename_impl(&state, "acct:nope:1", Some("x"))
+            .is_err()
+    );
 }

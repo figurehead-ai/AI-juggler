@@ -99,7 +99,7 @@ fn scope_of(state: &Arc<AppState>, input: &UsageQueryInput) -> AppResult<Scope> 
             .insert(project.id.to_string(), project.name);
     }
     let wanted = |profile: &str, project: Option<&String>| {
-        input.profile.as_deref().is_none_or(|only| only == profile)
+        input.wants_profile(profile)
             && input
                 .project
                 .as_ref()
@@ -128,12 +128,7 @@ fn scope_of(state: &Arc<AppState>, input: &UsageQueryInput) -> AppResult<Scope> 
     let mut profiles: Vec<String> = lookups
         .profiles
         .keys()
-        .filter(|id| {
-            input
-                .profile
-                .as_deref()
-                .is_none_or(|only| only == id.as_str())
-        })
+        .filter(|id| input.wants_profile(id))
         .cloned()
         .collect();
     profiles.sort();
@@ -254,10 +249,7 @@ pub fn history_impl(state: &Arc<AppState>, input: &UsageQueryInput) -> AppResult
             .switches_between(start, end, input.project.as_deref(), 200)?
             .into_iter()
             .filter(|row| {
-                input
-                    .profile
-                    .as_deref()
-                    .is_none_or(|only| row.from_account == only || row.to_account == only)
+                input.wants_profile(&row.from_account) || input.wants_profile(&row.to_account)
             })
             .map(|row| dto::UsageSwitchInfo {
                 at_ms: row.at_ms,

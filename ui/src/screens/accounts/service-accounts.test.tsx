@@ -150,7 +150,8 @@ describe("the account card", () => {
   it("shows OpenCode Go as one account, an estimate, with both tools' profiles beneath", () => {
     const view = card(account(go, ["go", "go-codex"]), [profile("go", "claude-code", "Go"), profile("go-codex", "codex", "Go Codex")]);
     // Your names are the title; the service says which on the line.
-    expect(view.getByTestId("account-name").textContent).toBe("Profile go and Profile go-codex");
+    // D-62: an account through a service is named for it.
+    expect(view.getByTestId("account-name").textContent).toBe("OpenCode Go");
     expect(view.getByTestId("account-line").textContent).toBe("OpenCode Go · Go Plus · estimate");
     const usage = view.getByTestId("account-service-usage");
     expect(usage.getAttribute("data-usage")).toBe("estimate");

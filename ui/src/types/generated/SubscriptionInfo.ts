@@ -16,6 +16,10 @@ key: string,
  */
 account_id?: string | null, 
 /**
+ * D-62 (AJ-E3205): the name you gave the Account; `null`: its default.
+ */
+name?: string | null, 
+/**
  * The tool its profiles run.
  */
 tool: string, 

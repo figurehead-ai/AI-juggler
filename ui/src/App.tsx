@@ -16,7 +16,7 @@ import { useCleanupCount } from "./lib/cleanup-count";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
 import {
-  AppPage, ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
+  ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
   SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage, NavScreen,
 } from "./lazyParts";
@@ -31,6 +31,8 @@ import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { LegendPopover } from "./components/LegendPopover";
 import { toggledDensity, type Density } from "./lib/density";
 import { OPEN_APP } from "./lib/apps";
+import { OPEN_ACCOUNT } from "./lib/accounts-page";
+import { EntityPage } from "./pages/EntityPage";
 import { useStoredDensity } from "./lib/use-density";
 import {
   fleetRemote,
@@ -103,7 +105,7 @@ type Selection =
   | { kind: "provider"; id: string }
   | { kind: "conversation"; accountId: string; id: string; projectId: string | null } // AJ-E1529
   | { kind: "pool"; id: string } // AJ-E1703: a pool's page
-  | { kind: "app"; id: string } // D-62 (AJ-E3204): an App's page
+  | { kind: "app"; id: string } | { kind: "subscription"; id: string } // D-62: an App's page (AJ-E3204), an Account's (AJ-E3205)
   // AJ-E705: a paired machine (instanceId null) or an Instance on it.
   | { kind: "remote"; machineId: string; instanceId: string | null };
 
@@ -316,8 +318,8 @@ export default function App() {
     // AJ-E2503/E2507: a notice's Continue elsewhere; your menu's shortcuts.
     const limit = (event: Event) => setLimitFor((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null);
     const shortcuts = () => setShortcutsOpen(true);
-    const openApp = (event: Event) => { const id = (event as CustomEvent<{ id?: string }>).detail?.id; if (id) { setGlobal(null); setSelection({ kind: "app", id }); } };
-    const on: [string, EventListener][] = [[OPEN_APP, openApp], ["aij:open-accounts", openAccounts], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:switch-back", (event: Event) => setSwitchBack((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null)], ["aij:open-shortcuts", shortcuts]];
+    const page = (kind: "app" | "subscription") => (event: Event) => { const id = (event as CustomEvent<{ id?: string }>).detail?.id; if (id) { setGlobal(null); setSelection({ kind, id }); } };
+    const on: [string, EventListener][] = [[OPEN_APP, page("app")], [OPEN_ACCOUNT, page("subscription")], ["aij:open-accounts", openAccounts], ["aij:open-screen", openScreen], ["aij:limit", limit], ["aij:switch-back", (event: Event) => setSwitchBack((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId ?? null)], ["aij:open-shortcuts", shortcuts]];
     on.forEach(([name, run]) => window.addEventListener(name, run));
     return () => on.forEach(([name, run]) => window.removeEventListener(name, run));
   }, []);
@@ -827,10 +829,8 @@ export default function App() {
                 <div className="min-h-0 flex-1" data-testid="conversation-scroll">
                   <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} onSwitch={(sessionId, targetProfileId, targetLabel) => setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
                 </div>
-              ) : selection.kind === "app" ? (
-                <div className="min-h-0 flex-1" data-testid="app-scroll">
-                  <AppPage id={selection.id} sessions={railSessions} projects={projects} accounts={accounts} now={now} onOpenSession={selectSession} onOpenProject={selectProject} />
-                </div>
+              ) : selection.kind === "app" || selection.kind === "subscription" ? (
+                <EntityPage kind={selection.kind} id={selection.id} sessions={railSessions} projects={projects} accounts={accounts} now={now} onOpenSession={selectSession} onOpenProject={selectProject} />
               ) : selection.kind === "pool" ? (
                 // The band above takes its height: the page shrinks to fit, never runs past the window (0.3.1).
                 <div className="min-h-0 flex-1" data-testid="pool-scroll">

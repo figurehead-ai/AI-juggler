@@ -17,8 +17,10 @@ import { askedKey, untitledName, useAskedWords } from "../lib/session-titles";
 import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
 import type { Row } from "./SessionsList";
 
-/** D-38: the app a row shows: where it is open, else its tool's app. */
-export function appOfRow(row: Pick<Row, "item">): AppRef {
+/** D-38: the app a row shows: the App the caller says it belongs to,
+ * else where it is open, else its tool's app. */
+export function appOfRow(row: Pick<Row, "item" | "app">): AppRef {
+  if (row.app) return row.app;
   return row.item.kind === "conversation" ? appOfConversation(row.item.conversation) : appOfSession(row.item.session);
 }
 
@@ -54,10 +56,13 @@ export function SessionRowBody({
   badge,
   as,
   inApp = false,
+  inAccount = false,
 }: {
   /** D-62: on an App's page, its app and account are the page's: the
    * row doesn't repeat them. */
   inApp?: boolean;
+  /** D-62: on an Account's page, the account is the page's. */
+  inAccount?: boolean;
   row: Row;
   project: { id: string; name: string | null } | null;
   below?: ReactNode;
@@ -98,7 +103,7 @@ export function SessionRowBody({
             <span className={row.tone} data-testid="page-session-state">{row.state}</span>
             {row.detail && row.detail !== row.title && !title.startsWith(`${row.detail} · `) && <> · {row.detail}</>}
             {row.outside && !inApp && ` · in ${appOfRow(row).name}`}
-            {!inApp && <span className="@[34rem]:hidden" aria-hidden="true"> · {row.accountLabel}</span>}
+            {!inApp && !inAccount && <span className="@[34rem]:hidden" aria-hidden="true"> · {row.accountLabel}</span>}
           </span>
           {/* Said once for a screen reader, whichever way the account shows. */}
           <span className="sr-only">{providerDisplayName(row.tool)} on {row.accountLabel}</span>
@@ -109,7 +114,7 @@ export function SessionRowBody({
             <span className="truncate">{project.name ?? "a moved project"}</span>
           </span>
         )}
-        {!inApp && (
+        {!inApp && !inAccount && (
           <span className="hidden w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted @[34rem]:flex">
             <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={16} />
             <span aria-hidden="true" className="truncate">{row.accountLabel}</span>
