@@ -31,6 +31,7 @@ fn state_with_profile(root: &Path, account: Option<&str>) -> (Arc<AppState>, Str
                 seen_ms: 1,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
     })
@@ -199,6 +200,7 @@ fn an_app_that_cant_take_a_session_is_named_as_the_reason() {
                 seen_ms: 1,
                 keep_alive: false,
                 paused: None,
+                found: false,
             },
         );
     })

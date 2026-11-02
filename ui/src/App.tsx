@@ -7,7 +7,7 @@ import { backendAnswered, backendFailed } from "./lib/backend-health";
 import { setCentreOpen, toggleCentre } from "./lib/notices-store";
 import { useAppKeys } from "./lib/app-keys";
 import { ConversationsProvider } from "./lib/conversations";
-import { onConversationsChanged, parseSourceKey } from "./lib/ipc/conversations";
+import { onConversationsChanged, sessionTarget } from "./lib/ipc/conversations";
 import { servicesList } from "./lib/ipc/services";
 import { withMarks, withPalette } from "./lib/palette";
 import { useFirstRun } from "./lib/first-run";
@@ -402,8 +402,7 @@ export default function App() {
 
   const selectSession = useCallback((id: string) => {
     setGlobal(null);
-    const key = parseSourceKey(id); // 0.3.5: a switch to Desktop ends on the Claude app's conversation, by its key
-    setSelection(key ? { kind: "conversation", accountId: key.accountId, id: key.id, projectId: null } : { kind: "session", id });
+    setSelection(sessionTarget(id));
   }, []);
 
   const selectProject = useCallback((id: string) => {

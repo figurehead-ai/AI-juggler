@@ -76,11 +76,11 @@ impl Starter for Recorder {
     fn trusted(&self, _: &Path) -> Result<(), String> {
         Ok(())
     }
-    fn start(&self, bundle: &Path, how: Start, args: &[String]) -> Result<(), String> {
+    fn start(&self, launch: &start::Launch) -> Result<(), String> {
         self.0
             .lock()
             .unwrap()
-            .push((bundle.to_path_buf(), how, args.to_vec()));
+            .push((launch.bundle.clone(), launch.how, launch.args.clone()));
         Ok(())
     }
 }
@@ -105,7 +105,7 @@ fn the_profiles_beside_one_that_ran_become_apps_that_start_in_their_own_folder()
     assert_eq!(side.seen_ms, 99);
     // Started from the bundle its sibling ran from, with only its folder.
     let starter = Recorder::default();
-    start::start(side, &hosts(), &starter, false).unwrap();
+    start::start(side, &hosts(), None, &starter, false).unwrap();
     let starts = starter.0.lock().unwrap();
     let (started, how, args) = &starts[0];
     assert_eq!(started, &bundle);

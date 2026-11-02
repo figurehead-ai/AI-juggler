@@ -215,7 +215,7 @@
         },
         {
           "id": "profile-start-folder",
-          "text": "Starting a Claude app profile passes it only its own folder and the Claude Code folder its sessions use, as your own launcher does, so it stays on its account. The app's default instance starts as it is.",
+          "text": "Starting a Claude app profile passes it only its own folder and the Claude Code folder its sessions use, as your own launcher does, so it stays on its account. The app without a profile starts as it is.",
           "tests": [
             "crates/juggler-app/src/features/places/start.rs::a_profile_starts_on_its_own_tool_folder",
             "crates/juggler-platform/src/apps.rs::a_paired_profile_starts_with_its_folder_variable"
@@ -358,7 +358,7 @@
       "claims": [
         {
           "id": "no-ai-provider",
-          "text": "It makes no requests to Anthropic, OpenAI or any other AI provider. Your tools talk to their providers themselves.",
+          "text": "It makes no requests to Anthropic, OpenAI or any other AI provider. Your tools talk to their AI providers themselves.",
           "tests": [
             "crates/juggler-app/tests/trust.rs::only_the_listed_crates_can_reach_the_network",
             "crates/juggler-app/tests/trust.rs::the_app_reaches_only_its_own_addresses",
@@ -368,7 +368,7 @@
         },
         {
           "id": "no-proxy",
-          "text": "It never sits between your tools and their providers: it sets no proxy for them. It sets a provider address only for an account you add through another service, and only the address that service publishes.",
+          "text": "It never sits between your tools and their AI providers: it sets no proxy for them. It sets an AI provider's address only for an account you add through another service, and only the address that service publishes.",
           "tests": [
             "crates/juggler-app/tests/trust.rs::ai_juggler_never_points_a_tool_at_another_address",
             "crates/juggler-app/tests/trust.rs::a_provider_address_is_only_ever_one_a_service_publishes"
