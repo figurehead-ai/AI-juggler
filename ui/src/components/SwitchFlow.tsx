@@ -13,7 +13,8 @@
  * a close × (but while the copy runs, §4.9: Esc and × wait, "Finishing
  * copy…"); the keys question only when the words go somewhere new; the
  * carry list in plain words; and a confirm screen to read. 0.3: done,
- * what the other tool was told (`switch/DoneStep`).
+ * what the other tool was told (`switch/DoneStep`). 0.3.5: where it
+ * continues, Desktop or CLI, chosen on the last screen (`WhereChoice`).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
@@ -27,6 +28,7 @@ import { CarryList } from "./switch/CarryList";
 import { DoneStep } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
+import { defaultDestination, destinationsOf, switchLabel, type Destination } from "./switch/WhereChoice";
 import { toolSpec } from "../lib/tools";
 import {
   switchPreflight,
@@ -41,8 +43,8 @@ import {
 type Phase =
   | { kind: "preflight" }
   | { kind: "confirm"; preflight: PreflightInfoData }
-  | { kind: "executing"; startedAt: number }
-  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData }
+  | { kind: "executing"; startedAt: number; app: string | null }
+  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData; continuedIn: Destination }
   // A failure keeps what it failed on: Retry runs the switch again from
   // there (or checks it again when the check itself failed).
   | { kind: "failed"; message: string; preflight: PreflightInfoData | null };
@@ -63,6 +65,7 @@ export function SwitchFlow({
   const [phase, setPhase] = useState<Phase>({ kind: "preflight" });
   const [attempt, setAttempt] = useState(0);
   const [freeze, setFreeze] = useState<FreezeChoice>("finish-turn");
+  const [destination, setDestination] = useState<Destination>("cli"); // where the original ran, at first
   const [step, setStep] = useState(0);
   // The keys question: this switch's answer, whether to remember it, a
   // remembered choice being changed, and the ones shown anyway.
@@ -118,6 +121,7 @@ export function SwitchFlow({
       .then((preflight) => {
         if (alive) {
           setStep(0);
+          setDestination(defaultDestination(destinationsOf(preflight)));
           setPhase({ kind: "confirm", preflight });
           // The door shown, counted once per opening (local only).
           if (attempt === 0) void switchDoorCount(preflight.door, preflight.wizard_steps).catch(() => undefined);
@@ -155,26 +159,28 @@ export function SwitchFlow({
     if (preflight === null || started.current) return;
     started.current = true;
     setHolding(false);
-    // AJ-E2108: a session another app runs has nothing here to undo to
-    // (it stayed as it was): the done step says so instead of the toast.
+    // AJ-E2108: a session another app runs has nothing here to undo to (it
+    // stayed as it was), nor one on Desktop: the done step says so instead.
     const oneClick = preflight.door === "one-click" && !preflight.source_outside;
     const choice = keysChoice(preflight, answer);
     runningRef.current = true;
-    setPhase({ kind: "executing", startedAt: Date.now() });
+    setPhase({ kind: "executing", startedAt: Date.now(), app: destination === "desktop" ? toolSpec(preflight.target_tool).desktop_app : null });
     try {
       // "Remember my choice": saved as the policy before the switch reads it.
       if (remember && answer !== null) await redactionPolicySetGlobal(answer);
       // AJ-E1542: what the user picked is set up first, so the target
       // starts with it.
       const applied = await setupCheck.applyPicked();
-      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved());
-      if (oneClick && applied.length === 0) {
+      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination);
+      const continuedIn: Destination = result.continued_in === "desktop" ? "desktop" : "cli";
+      const opened = (continuedIn === "desktop" && result.conversation_key) || result.session_id; // its page: the Claude app's conversation
+      if (oneClick && applied.length === 0 && continuedIn === "cli") {
         // The modal closes into the undo window (App renders the
         // toast); the graph keeps the edge as the undo handle.
-        onSwitched(result.session_id, { edgeId: result.edge_id });
+        onSwitched(opened, { edgeId: result.edge_id });
         return;
       }
-      setPhase({ kind: "done", sessionId: result.session_id, edgeId: result.edge_id, preflight });
+      setPhase({ kind: "done", sessionId: opened, edgeId: result.edge_id, preflight, continuedIn });
     } catch (cause) {
       started.current = false;
       runningRef.current = false;
@@ -207,6 +213,8 @@ export function SwitchFlow({
       room={room}
       freeze={freeze}
       onFreeze={setFreeze}
+      destination={destination}
+      onDestination={setDestination}
       setup={setup}
       picked={picked}
       onToggle={togglePicked}
@@ -228,8 +236,8 @@ export function SwitchFlow({
       className={keysPending ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
-      {/* 0.3.2: from another app's session, the button says where it goes on. */}
-      {preflight.source_outside ? (risky(room) ? "Continue here anyway" : "Continue here in AI Juggler") : risky(room) ? "Switch anyway" : "Switch now"}
+      {/* 0.3.5: the button says where it goes on: Desktop or CLI. */}
+      {switchLabel(destination, risky(room))}
     </button>
   );
   const cancelButton = <CancelButton onClick={cancel} testId="switch-cancel" />;
@@ -274,9 +282,9 @@ export function SwitchFlow({
           </div>
         );
       case "executing":
-        return <Executing target={targetLabel} holding={holding} />;
+        return <Executing target={targetLabel} holding={holding} app={phase.app} />;
       case "done":
-        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} />;
+        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} continuedIn={phase.continuedIn} />;
       case "failed":
         // A short title, then the failure's own words: what happened and
         // what to do next, each said once (`SwitchFailure::words`; any
@@ -328,8 +336,8 @@ export function SwitchFlow({
         return null;
       case "done":
         return (
-          <button type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} className={PRIMARY}>
-            Go to the new session
+          <button type="button" data-autofocus onClick={() => onSwitched(phase.sessionId, null)} className={PRIMARY} data-testid="switch-go">
+            {phase.continuedIn === "desktop" ? "Open its page" : "Go to the new session"}
           </button>
         );
       case "failed":

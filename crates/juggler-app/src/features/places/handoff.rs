@@ -70,11 +70,9 @@ pub fn destinations(
         app_id: place.app_id.clone(),
         place_id: id,
     });
-    let desktop_why_not = desktop.is_none().then(|| {
-        format!(
-            "No desktop app profile on {label} yet. Open a session on it in the app once, and Desktop is offered here."
-        )
-    });
+    let desktop_why_not = desktop
+        .is_none()
+        .then(|| why_no_desktop(state, account, label));
     DestinationsInfo {
         suggested: if ran_in_desktop && desktop.is_some() {
             "desktop"
@@ -85,6 +83,25 @@ pub fn destinations(
         desktop,
         desktop_why_not,
     }
+}
+
+/// Why `account` has no Desktop: its app can't take a session (`ChatGPT`
+/// today), or AI Juggler hasn't seen a profile of an app that can.
+fn why_no_desktop(state: &Arc<AppState>, account: &str, label: &str) -> String {
+    let hosts = HostRegistry::of(&state.registry);
+    let app = with_book(state, |book| {
+        book.places
+            .values()
+            .filter(|place| place.account_id.as_deref() == Some(account))
+            .find_map(|place| hosts.by_id(&place.app_id))
+            .map(|host| host.shown_name().to_owned())
+    })
+    .ok()
+    .flatten();
+    app.map_or_else(
+        || format!("No desktop app profile on {label} yet. Open a session on it in the app once, and Desktop is offered here."),
+        |app| format!("{app} can't pick up a switched session yet."),
+    )
 }
 
 /// The remembered profile whose sessions run on `account`, of an app that

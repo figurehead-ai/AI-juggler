@@ -28,15 +28,23 @@ export function foundWords(items: { kind: string; preview: string }[]): string {
   return `We found ${items.length}: ${list}${more}.`;
 }
 
-/** What runs, in order, while the switch works (plain names). */
-export function stageWords(target: string): string[] {
-  return ["Pausing the original", "Copying the conversation", "Checking the copy", `Starting on ${target}`, "Saving a record of the switch"];
+/** What runs, in order, while the switch works (plain names); `app`:
+ * the desktop app it opens in (0.3.5: Desktop), else a terminal. */
+export function stageWords(target: string, app?: string | null): string[] {
+  const start = app ? `Opening it in the ${app} app on ${target}` : `Starting it in a terminal on ${target}`;
+  return ["Pausing the original", "Copying the conversation", "Checking the copy", start, "Saving a record of the switch"];
 }
 
 /** The badge, the same everywhere in the dialog: what the move does, and
  * how sure that is. */
 export function badgeWords(fidelityWords: string, validated: boolean | undefined): string {
   return `${fidelityWords} · ${validated ? "Proven" : "Beta · Not proven yet"}`;
+}
+
+/** The badge's words as `FidelityBadge` takes them (it adds "Not proven
+ * yet" itself): "Same conversation, new account · Beta". */
+export function moveBadge(preflight: { fidelity_words: string; validated?: boolean }): string {
+  return preflight.validated ? badgeWords(preflight.fidelity_words, true) : `${preflight.fidelity_words} · Beta`;
 }
 
 /** The user guide's switching page, for "Learn more" (opened by the app,

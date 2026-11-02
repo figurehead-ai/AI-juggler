@@ -3,7 +3,8 @@
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let (Some(pid), Some(link)) = (args.next().and_then(|pid| pid.parse().ok()), args.next()) else {
+    let (Some(pid), Some(link)) = (args.next().and_then(|pid| pid.parse().ok()), args.next())
+    else {
         eprintln!("usage: send_link <pid> <link>");
         std::process::exit(2);
     };

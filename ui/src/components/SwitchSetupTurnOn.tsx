@@ -7,7 +7,7 @@
  * same. Also the "What does this mean?" disclosure every choice there
  * carries, with its example and the switching guide.
  */
-import { useId, useState, type JSX } from "react";
+import { useId, useState, type JSX, type ReactNode } from "react";
 import { SWITCHING_GUIDE_URL, switchSetupOpen, type GetItInfo } from "../lib/ipc/switchSetup";
 import { errorText } from "../lib/bridge";
 import { trustOpen } from "../lib/ipc/trust";
@@ -116,10 +116,13 @@ export function TurnOnSteps({
 
 /** "What does this mean?": the choice in a sentence, an example, and the
  * guide's section. */
-export function Meaning({ text, example, guide }: { text: string; example: string; guide?: string }): JSX.Element {
+export function Meaning({ text, example, guide, lead }: { text: string; example: string; guide?: string; lead?: ReactNode }): JSX.Element {
   return (
     <Disclosure className="text-meta" testId="setup-meaning" summary="What does this mean?">
       <div className="mt-1 flex flex-col gap-1 text-ink">
+        {/* 0.3.5: what the row would have said under it (where it's from,
+            what ticking does), folded here so the row stays one line. */}
+        {lead}
         <p>{text}</p>
         <p>For example: {example}</p>
         <p>

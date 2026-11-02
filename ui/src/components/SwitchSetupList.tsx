@@ -172,25 +172,21 @@ function SetupRow({
         <span aria-hidden="true" className="mt-1 inline-block w-[13px] shrink-0" />
       )}
       <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor={settable ? id : undefined} className="text-body text-ink">
+        <label htmlFor={settable ? id : undefined} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-ink">
           {/* One of a kind (an account's permissions, its status line): its
               kind is its name, said once. */}
           {kind.toLowerCase() === offer.name.toLowerCase() ? (
             <span className="font-medium">{kind}</span>
           ) : (
-            <>
+            <span>
               <span className="font-medium">{offer.name}</span> <span className="text-meta text-muted">· {kind}</span>
-            </>
+            </span>
           )}
+          <VerdictTag verdict={offer.verdict} />
           {offer.used === true && (
-            <span className="ml-2 rounded border border-hairline px-1.5 py-px text-label text-muted">Used here</span>
+            <span className="rounded-full border border-hairline px-1.5 py-px text-label text-muted">Used here</span>
           )}
         </label>
-        {offer.about && <span className="text-meta text-ink">{offer.about}</span>}
-        {from && <span className="text-meta text-muted">{from}</span>}
-        <span className="text-meta text-ink" data-testid="switch-setup-consequence">
-          {consequence(offer, check)}
-        </span>
         {offer.verdict === "turn-on" && offer.get_it && (
           <TurnOnSteps getIt={offer.get_it} name={offer.name} onCheckAgain={checkAgain} />
         )}
@@ -203,10 +199,34 @@ function SetupRow({
             Copy {offer.name} to {check.to} now instead (only if you made it)
           </label>
         )}
-        <Meaning {...meaning(offer, check)} />
+        <Meaning
+          {...meaning(offer, check)}
+          lead={
+            <>
+              {offer.about && <p>{offer.about}</p>}
+              {from && <p className="text-muted">{from}</p>}
+              <p data-testid="switch-setup-consequence">{consequence(offer, check)}</p>
+            </>
+          }
+        />
       </div>
     </li>
   );
+}
+
+/** What can happen to it, in a word or two, tinted (0.3.5): AI Juggler
+ * can set it up (when ticked), it needs a step from you, you turn it on,
+ * or it can't go along. */
+const VERDICT_TAGS: Record<string, { words: string; tone: string }> = {
+  copy: { words: "Can copy", tone: "border-success/30 bg-success-soft text-success" },
+  translate: { words: "Can set up", tone: "border-success/30 bg-success-soft text-success" },
+  "needs-you": { words: "Needs a step from you", tone: "border-warning/35 bg-warning-soft text-warning" },
+  "turn-on": { words: "You turn it on", tone: "border-accent/30 bg-accent-soft text-accent-hi" },
+};
+
+function VerdictTag({ verdict }: { verdict: string }): JSX.Element {
+  const tag = VERDICT_TAGS[verdict] ?? { words: "Can't go along", tone: "border-warning/35 bg-warning-soft text-warning" };
+  return <span className={"rounded-full border px-1.5 py-px text-label font-medium " + tag.tone} data-testid="switch-setup-tag">{tag.words}</span>;
 }
 
 export function SwitchSetupList({
@@ -215,6 +235,7 @@ export function SwitchSetupList({
   onToggle,
   onCheckAgain,
   bare = false,
+  titled = true,
 }: {
   check: SetupCheckInfo;
   picked: ReadonlySet<string>;
@@ -226,6 +247,9 @@ export function SwitchSetupList({
   /** The rows only, under a line that already says what they are
    * (AJ-E1508's "Start with the same settings as …"). */
   bare?: boolean;
+  /** Its own title; off under a heading that already says it ("Before
+   * you switch", 0.3.5: one heading, not two stacked). */
+  titled?: boolean;
 }): JSX.Element | null {
   if (check.offers.length === 0) {
     // Nothing missing: one line, and the switch screen stays short.
@@ -249,14 +273,16 @@ export function SwitchSetupList({
     <section
       className="flex flex-col gap-2"
       data-testid="switch-setup"
-      aria-labelledby={bare ? undefined : "switch-setup-title"}
-      aria-label={bare ? `What comes from ${check.from}` : undefined}
+      aria-labelledby={bare || !titled ? undefined : "switch-setup-title"}
+      aria-label={bare ? `What comes from ${check.from}` : titled ? undefined : `Set up on ${check.to}`}
     >
       {!bare && (
         <>
-          <h4 id="switch-setup-title" className="text-section text-ink">
-            Set up on {check.to}
-          </h4>
+          {titled && (
+            <h4 id="switch-setup-title" className="text-section text-ink">
+              Set up on {check.to}
+            </h4>
+          )}
           <p className="text-meta text-ink" data-testid="switch-setup-summary">
             {setupSummary(check, picked)}
           </p>

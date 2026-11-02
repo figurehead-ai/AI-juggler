@@ -82,7 +82,7 @@ describe("AJ-E706 wizard", () => {
     fireEvent.click(q("cross-switch-next")!);
     expect(q("switch-carry-stays")!.textContent).toContain("MCP servers");
     fireEvent.click(q("cross-switch-next")!);
-    expect(q("cross-switch-go")!.textContent).toBe("Switch now");
+    expect(q("cross-switch-go")!.textContent).toBe("Switch to CLI on Studio Mac");
     expect(calls()).toEqual([]);
     await act(async () => {
       fireEvent.click(q("cross-switch-go")!);
@@ -185,7 +185,7 @@ describe("AJ-E706 the shared switch frame", () => {
       }
       if (next) fireEvent.click(next);
     }
-    expect(q("cross-switch-go")!.textContent).toBe("Switch now");
+    expect(q("cross-switch-go")!.textContent).toBe("Switch to CLI on Studio Mac");
     fireEvent.click(q("cross-switch-cancel")!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });

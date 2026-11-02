@@ -178,3 +178,37 @@ fn a_record_is_found_by_its_name_alone_and_the_walk_is_bounded() {
     std::fs::write(near.join(format!("local_{SESSION}.json")), "{}").unwrap();
     assert!(taken(&records, SESSION));
 }
+
+#[test]
+fn an_app_that_cant_take_a_session_is_named_as_the_reason() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, _, _) = state_with_profile(root.path(), None);
+    with_book(&state, |book| {
+        book.places.insert(
+            book::place_id("codex-app", None),
+            KnownPlace {
+                app_id: "codex-app".into(),
+                name: "ChatGPT".into(),
+                instance: None,
+                bundle: root.path().join("ChatGPT.app"),
+                exe: root.path().join("ChatGPT.app/Contents/MacOS/ChatGPT"),
+                given: None,
+                instance_dir: None,
+                account_id: Some("acct-codex".into()),
+                conversations: Vec::new(),
+                seen_ms: 1,
+                keep_alive: false,
+                paused: None,
+            },
+        );
+    })
+    .unwrap();
+    let codex = destinations(&state, "acct-codex", "Codex work", true);
+    assert!(codex.desktop.is_none());
+    assert_eq!(codex.suggested, "cli");
+    let why = codex.desktop_why_not.unwrap();
+    assert!(
+        why.ends_with("can't pick up a switched session yet."),
+        "{why}"
+    );
+}

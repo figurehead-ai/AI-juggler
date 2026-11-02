@@ -6,7 +6,8 @@
  * so it isn't offered. The click opens the switch screen and its checks
  * (AJ-E1542/1543), never a copy of them. The same for a session AI
  * Juggler runs and one another app runs: that one is read, never touched,
- * and continues as a new session here while it stays open in its app.
+ * and continues on the other account, on Desktop or the CLI, while it
+ * stays open in its app.
  * 0.3: Save handover… at its foot, ending with Reveal in Finder.
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
@@ -20,6 +21,7 @@ import { rankTargets, type RoomTarget, type TargetRoom } from "../../lib/room-ta
 import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, type SessionModel } from "./model";
 import { CardTitle } from "./CardTitle";
+import { toolSpec } from "../../lib/tools";
 import { SaveHandover } from "../../components/HandoverView";
 import { ContinueDialog } from "../../components/ContinueDialog";
 
@@ -239,9 +241,8 @@ export function ContinueOn({
     {outside && (
       <div className="flex flex-col gap-2 border-t border-hairline pt-3" data-testid="continue-outside">
         <p className="text-meta leading-[1.5] text-ink-2">
-          {model.live
-            ? `Picking one continues it as a new session here in AI Juggler. The original stays open in ${app ?? "its app"}, untouched.`
-            : "Picking one continues it as a new session here in AI Juggler. The original stays as it is."}
+          {/* 0.3.5: where it goes on, said plainly: Desktop or CLI, chosen before it switches. */}
+          {`Picking one continues it on that account, in the ${toolSpec(model.tool).desktop_app ?? "desktop"} app (Desktop) or in a terminal (CLI): you choose before it switches. ${model.live ? `The original stays open in ${app ?? "its app"}, untouched.` : "The original stays as it is."}`}
         </p>
         {model.live ? (
           <p className="text-label text-muted" data-testid="continue-same-profile">

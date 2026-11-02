@@ -31,6 +31,17 @@ export function switchSourceOf(conversation: Pick<ConversationInfo, "session_id"
   return conversation.session_id ?? `conversation:${conversation.account_id}:${conversation.id}`;
 }
 
+/** A switch source key's account and conversation (`switchSourceOf`'s
+ * other half; 0.3.5: a switch to Desktop ends on one), else null. A
+ * conversation id with a colon in it stays whole, as the backend reads it. */
+export function parseSourceKey(key: string): { accountId: string; id: string } | null {
+  if (!key.startsWith("conversation:")) return null;
+  const rest = key.slice("conversation:".length);
+  const at = rest.indexOf(":");
+  if (at <= 0 || at === rest.length - 1) return null;
+  return { accountId: rest.slice(0, at), id: rest.slice(at + 1) };
+}
+
 const NOW = Date.now();
 
 function placesPreview(): boolean {
