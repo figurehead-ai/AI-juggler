@@ -18,6 +18,7 @@ import { providerDisplayName } from "../lib/providers";
 import { paletteMatches, parseQuery } from "../lib/rail-view";
 import type { ResolvedAction } from "../lib/actions";
 import type { ConversationInfo } from "../lib/ipc/conversations";
+import { canFocusRemote, domId } from "./palette-helpers";
 
 /**
  * "Go to instance…" (AJ-E414 Req.4): summoned by the global hotkey
@@ -388,15 +389,4 @@ function placeLine(entry: Extract<PaletteRow, { where: "local" | "outside" }>): 
  * sessions, then projects. */
 function sectionOf(entry: PaletteRow): string {
   return entry.where === "action" ? "Selected" : entry.where === "command" ? (entry.command.id === "search-history" ? "Search" : "Actions") : entry.where === "project" ? "Projects" : "Sessions";
-}
-
-/** A remote focus is offered only where that machine allows control and
- * is connected now (it decides again when the request arrives). */
-function canFocusRemote(machine: RemoteMachineInfo): boolean {
-  return machine.permission === "control" && machine.connection === "connected";
-}
-
-/** Option ids must be valid DOM ids. */
-function domId(id: string): string {
-  return id.replace(/[^A-Za-z0-9_-]/g, "_");
 }

@@ -99,7 +99,7 @@ pub struct App {
     pub id: String,
     /// `cli` or `desktop`.
     pub kind: String,
-    /// Its tool (`claude-code`, `codex`).
+    /// Its tool's id (Claude Code's, Codex's).
     pub tool: String,
     /// A desktop App's host registry id (`claude-app`).
     pub host_app_id: Option<String>,
