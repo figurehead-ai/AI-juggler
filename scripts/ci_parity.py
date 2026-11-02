@@ -3,7 +3,7 @@
 
 `just verify` is meant to be CI's verify on this Mac; the two drifted once
 (CI ran `cargo deny check`, the justfile didn't) and a push found out.
-CI's verify is split across jobs (ADR-0024): VERIFY_JOBS, which the
+CI's verify is split across jobs (ADR-0025): VERIFY_JOBS, which the
 `verify` job needs, so the required check stays one name. This reads the
 `run:` commands of those jobs in .github/workflows/ci.yml, expands the
 justfile's `verify` recipe (its `just <recipe>` lines included), and fails

@@ -118,7 +118,7 @@ jobs:
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "Promote $VERSION ($ref) to $CHANNEL" >> "$GITHUB_STEP_SUMMARY"
-      # ADR-0024: the same gate on the same content gives the same answer.
+      # ADR-0025: the same gate on the same content gives the same answer.
       # A beta promotion reuses a full accessibility scan CI passed on this
       # commit, or on the head of the pull request merged as it when the
       # two trees are identical (a push to main with its PR's tree runs

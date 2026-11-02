@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Did a commit's CI already pass? (ADR-0024)
+"""Did a commit's CI already pass? (ADR-0025)
 
 Reads a commit's check runs (JSON lines of `name`, `status`, `conclusion`,
 `completed_at`, as `gh api --paginate .../commits/SHA/check-runs --jq

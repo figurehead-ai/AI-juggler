@@ -110,7 +110,7 @@ jobs:
   # Each architecture compiles on its own runner, at the same time (the
   # tauri-action, Zed and GitButler pattern); `build` joins them into the
   # universal app. One runner compiled both, one after the other, in
-  # 24–26 minutes (ADR-0024).
+  # 24–26 minutes (ADR-0025).
   compile:
     name: compile ${{ matrix.edition }} ${{ matrix.arch }}
     needs: preflight

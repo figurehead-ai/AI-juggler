@@ -87,7 +87,7 @@ pnpm --dir ui exec playwright test       # visual states + a11y (for UI changes)
 ```
 
 CI runs every one of them on each pull request, split across GitHub's
-runners ([ADR-0024](docs/adr/0024-heavy-gates-on-github-runners.md)).
+runners ([ADR-0025](docs/adr/0025-heavy-gates-on-github-runners.md)).
 Before a push to `main` or a `release/*` branch, run the fast local check
 on the commit you're pushing:
 

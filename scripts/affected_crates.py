@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The workspace packages whose tests a change can affect (ADR-0024).
+"""The workspace packages whose tests a change can affect (ADR-0025).
 
 Preflight's fast mode runs only these packages' tests; GitHub runs every
 test on every pull request. From the files changed between BASE and HEAD:

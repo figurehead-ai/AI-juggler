@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The local check of the commit about to be pushed (ADR-0024). GitHub
+# The local check of the commit about to be pushed (ADR-0025). GitHub
 # runs every gate on every pull request, split across its free runners;
 # this catches what would fail there, quickly and with little load on a
 # Mac other projects share.

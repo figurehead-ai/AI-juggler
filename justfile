@@ -62,7 +62,7 @@ test-packages +packages:
     cargo nextest run --no-fail-fast {{ prepend("-p ", packages) }}
     cargo test --doc {{ prepend("-p ", packages) }}
 
-# ADR-0024: release notes, the static checks (stops at a failure), the
+# ADR-0025: release notes, the static checks (stops at a failure), the
 # tests of the packages the change can affect, vitest and the UI build,
 # at low priority on a snapshot of the commit; GitHub runs every gate.
 # Stamps the commit for scripts/hooks/pre-push.

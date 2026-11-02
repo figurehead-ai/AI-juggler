@@ -216,7 +216,7 @@ The app icon is generated at build time from
 `crates/juggler-app/icons/icon.png`. Replace it with a 1024×1024 brand
 icon before the first public release.
 
-## From a change to a release (ADR-0024)
+## From a change to a release (ADR-0025)
 
 GitHub runs every gate; this Mac, shared with other projects, runs a fast,
 low-load check before a push. A release goes like this:
@@ -386,7 +386,7 @@ fails on one of them, re-run its failed jobs from the run page.
    open `blocker`), and the accessibility gate (`just a11y-gate`, AJ-E804)
    on the exact commit: a full scan CI already passed on that tree (the
    commit, or the head of the pull request merged as it, with an identical
-   tree; every shard passed) counts, otherwise it runs there (ADR-0024).
+   tree; every shard passed) counts, otherwise it runs there (ADR-0025).
    Then it waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
    the release and in its feed, and tags it `beta/vX.Y.Z`.
 7. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper

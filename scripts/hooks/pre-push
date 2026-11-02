@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # A push to main or release/* only of a commit `scripts/preflight.sh`
-# passed (#198): its fast mode (the default, ADR-0024) or `--full`. Either
+# passed (#198): its fast mode (the default, ADR-0025) or `--full`. Either
 # stamps the commit; GitHub then runs every gate on the pull request.
 # Other branches push freely. Installed by `just hooks` (core.hooksPath).
 # In an emergency, AIJ_PREFLIGHT_SKIP="the reason" lets one push through

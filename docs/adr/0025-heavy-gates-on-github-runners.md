@@ -1,4 +1,4 @@
-# ADR-0024: The heavy gates run on GitHub's runners; a fast local preflight
+# ADR-0025: The heavy gates run on GitHub's runners; a fast local preflight
 
 **Status:** Accepted
 **Date:** 2026-11-02

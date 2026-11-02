@@ -1,6 +1,6 @@
 name: CI
 
-# ADR-0024: every gate runs here, split across GitHub's standard runners
+# ADR-0025: every gate runs here, split across GitHub's standard runners
 # (free for a public repository; larger runners are billed, so none is
 # used). The required checks keep their names: `verify` and `visual` (and
 # `a11y`) are jobs that need their parts and fail unless every part passed,
@@ -169,7 +169,7 @@ jobs:
         run: python3 scripts/gen_usage_stats_doc.py --check
       - name: Every sub-second timer says why (AJ-E805)
         run: python3 scripts/polling_audit.py > /dev/null
-      - name: Release and CI scripts (D-20, D-24, ADR-0024 self-tests)
+      - name: Release and CI scripts (D-20, D-24, ADR-0025 self-tests)
         run: |
           python3 scripts/gate_passed.py --selftest
           python3 scripts/affected_crates.py --selftest
