@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # A push to main or release/* only of a commit `scripts/preflight.sh`
-# passed (#198). Other branches push freely. Installed by `just hooks`
-# (core.hooksPath). In an emergency, AIJ_PREFLIGHT_SKIP="the reason"
-# lets one push through and says so; the release PR's CI still runs.
+# passed (#198): its fast mode (the default, ADR-0024) or `--full`. Either
+# stamps the commit; GitHub then runs every gate on the pull request.
+# Other branches push freely. Installed by `just hooks` (core.hooksPath).
+# In an emergency, AIJ_PREFLIGHT_SKIP="the reason" lets one push through
+# and says so; the release PR's CI still runs.
 set -uo pipefail
 STAMPS="$(git rev-parse --git-common-dir)/aij-preflight"
 status=0
@@ -19,7 +21,7 @@ while read -r local_ref local_sha remote_ref _remote_sha; do
     echo "pre-push: ${local_sha:0:12} to ${remote_ref#refs/heads/} WITHOUT preflight: $AIJ_PREFLIGHT_SKIP" >&2
     continue
   fi
-  echo "pre-push: ${local_sha:0:12} (${local_ref#refs/heads/}) hasn't passed scripts/preflight.sh; run it on this commit before pushing to ${remote_ref#refs/heads/}." >&2
+  echo "pre-push: ${local_sha:0:12} (${local_ref#refs/heads/}) hasn't passed preflight; run \`just preflight\` on this commit (a few minutes, low load) before pushing to ${remote_ref#refs/heads/}." >&2
   status=1
 done
 exit $status
