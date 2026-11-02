@@ -6,9 +6,10 @@
 import { appKeyOf } from "./rail-apps";
 import type { RailItem } from "./rail-items";
 
-/** Open in its app now (a pin doesn't make it so here). */
+/** Running in its app now, in the background too (a pin doesn't make it
+ * so here). */
 export function openHere(item: RailItem): boolean {
-  return item.live && !item.background && item.state !== "ended";
+  return item.live && item.state !== "ended";
 }
 
 /** App `railKey`'s sessions (archived ones left out): open first, then

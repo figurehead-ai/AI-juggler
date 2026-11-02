@@ -1,0 +1,72 @@
+/**
+ * D-62 (AJ-E3204): an App's page. A Claude app profile's page has only
+ * its own sessions (A1), says whether it runs with the one thing to do
+ * there, counts its tabs, and is renamed from its Settings.
+ */
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { AppPage } from "./AppPage";
+import { ActionHostProvider } from "../../components/ItemMenu";
+import { ConversationsProvider } from "../../lib/conversations";
+import { knownPlacesPreview, placesConversations } from "../../preview/places";
+import type { AccountInfo } from "../../lib/bridge";
+
+const NOW = Date.now();
+const WORK = "app:claude-app:/Users/you/Profiles/Work";
+const seams = () => window as unknown as Record<string, unknown>;
+const folders = [{ id: "claude-work", label: "Work Max", provider: "claude-code", login_state: "logged_in" } as AccountInfo];
+
+afterEach(() => {
+  cleanup();
+  delete seams().__AIJ_FIXTURE__;
+  delete seams().__AIJ_PLACES__;
+  localStorage.clear();
+});
+
+function page(id: string) {
+  seams().__AIJ_FIXTURE__ = { conversations: placesConversations(NOW) };
+  seams().__AIJ_PLACES__ = knownPlacesPreview(NOW);
+  return render(
+    <ConversationsProvider>
+      <ActionHostProvider host={{}}>
+        <AppPage id={id} sessions={[]} projects={[]} accounts={folders} now={NOW} onOpenSession={() => {}} onOpenProject={() => {}} />
+      </ActionHostProvider>
+    </ConversationsProvider>,
+  );
+}
+
+describe("D-62 the App page", () => {
+  it("a running Claude app profile: its name, Go to it, and only its own sessions (A1)", async () => {
+    page(WORK);
+    expect(await screen.findByTestId("page-name")).toHaveProperty("textContent", "Claude app · Work");
+    expect(screen.getByTestId("app-go").textContent).toBe("Go to it");
+    const open = await screen.findByTestId("app-open");
+    await waitFor(() => expect(within(open).getAllByTestId("page-session-item").length).toBeGreaterThan(0));
+    // Its sessions are the ones last seen in Work; Personal's aren't here.
+    const keys = [...document.querySelectorAll("[data-testid='page-session-item']")].map((row) => row.getAttribute("data-key"));
+    expect(keys.some((key) => key?.endsWith("/outside-1"))).toBe(true);
+    expect(keys.some((key) => key?.endsWith("/outside-5") || key?.endsWith("/outside-2"))).toBe(false);
+    const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+    expect(tabs[0]).toBe("Overview");
+    expect(tabs.some((tab) => tab?.startsWith("Sessions"))).toBe(true);
+    expect(tabs).toContain("Settings");
+  });
+
+  it("one that isn't running offers Start; renamed, its new name shows", async () => {
+    page("app:claude-app:/Users/you/Profiles/Lab");
+    expect((await screen.findByTestId("app-go")).textContent).toBe("Start");
+    fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Settings")!);
+    fireEvent.click(await screen.findByTestId("app-rename"));
+    fireEvent.change(screen.getByTestId("app-rename-sheet-name"), { target: { value: "Experiments" } });
+    fireEvent.click(screen.getByTestId("app-rename-sheet-save"));
+    await waitFor(() => expect(screen.getByTestId("page-name").textContent).toBe("Experiments"));
+    // Back to the default, from the same place.
+    fireEvent.click(await screen.findByTestId("app-name-reset"));
+    await waitFor(() => expect(screen.getByTestId("page-name").textContent).toBe("Claude app · Lab"));
+  });
+
+  it("one AI Juggler doesn't know now says so", async () => {
+    page("app:claude-app:/nowhere");
+    expect((await screen.findByTestId("app-page-gone")).textContent).toContain("doesn't know this app");
+  });
+});

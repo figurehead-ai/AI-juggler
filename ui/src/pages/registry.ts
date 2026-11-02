@@ -134,9 +134,9 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
       return [TAB.overview, TAB.sessions, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pool, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
     // D-62 (AJ-E3204): what's open there and its room, then all its
     // sessions, the projects it worked in, its usage (where its folder
-    // is known) and its settings.
+    // is known), its open sessions' processes, and its settings.
     case "app":
-      return [TAB.overview, TAB.sessions, TAB.projects, ...when(facts.hasUsage, "usage"), TAB.settings];
+      return [TAB.overview, TAB.sessions, TAB.projects, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
     case "account":
       return [TAB.overview, ...when(facts.hasSessions, "sessions")];
     case "conversation":

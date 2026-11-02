@@ -229,6 +229,9 @@ pub struct ProcessQueryInput {
     pub view: String,
     /// Only this session (its id), for a session's Processes tab.
     pub session_id: Option<String>,
+    /// D-62 (AJ-E3204): only these sessions (an App's open ones), for an
+    /// App's Processes tab; empty: no such limit.
+    pub session_ids: Vec<String>,
     /// Only these states (words), when any.
     pub states: Vec<String>,
     /// Only this app (its row key or name).

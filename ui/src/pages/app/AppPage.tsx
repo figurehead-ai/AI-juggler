@@ -5,8 +5,9 @@
  * do there: Go to it or Start (a desktop App), New session (a CLI App).
  * Its tabs: Overview (open now, last used, its account's room and who
  * shares it, where it works), Sessions (all of them, paged), Projects,
- * Usage (where its folder is known) and Settings (its name, Start and
- * Keep alive, its folder's settings).
+ * Usage (where its folder is known), Processes (while something's open
+ * in it) and Settings (its name, Start and Keep alive, its folder's
+ * settings).
  *
  * Its sessions are the rail's under this App (lib/app-items.ts), so a
  * page and the rail never disagree.
@@ -23,6 +24,7 @@ import { PagedSessions } from "../SessionsList";
 import { AccountUsage } from "../AccountPage";
 import { AppOverview, AppProjects, rowOf } from "./AppOverview";
 import { AppSettings } from "./AppSettings";
+import { ProcessesView } from "../../screens/processes/ProcessesView";
 import { errorText, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { useApps, type AppModel } from "../../lib/apps";
 import { appItems, appProjects, openHere } from "../../lib/app-items";
@@ -98,11 +100,12 @@ function AppBody({
     return appItems(all, app.railKey, appByConversation(places));
   }, [sessions, conversations, projects, seen, app.railKey, places]);
   const worked = useMemo(() => appProjects(items), [items]);
-  const open = items.filter(openHere).length;
+  const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);
+  const open = openIds.length;
   const sharedWith = app.accountId ? apps.filter((other) => other.id !== app.id && other.accountId === app.accountId) : [];
   const tabs = useMemo(
-    () => pageTabs("app", { hasUsage: app.folder !== null, counts: { sessions: items.length, projects: worked.length } }),
-    [app.folder, items.length, worked.length],
+    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, counts: { sessions: items.length, projects: worked.length } }),
+    [app.folder, items.length, worked.length, open],
   );
   return (
     <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col" data-testid="app-page" data-app-id={app.id}>
@@ -137,12 +140,16 @@ function AppBody({
                   empty={`No sessions in ${app.name} yet.`}
                   projects={projects}
                   onOpenSession={onOpenSession}
+                  inApp
                 />
               );
             case "projects":
-              return <AppProjects projects={worked} now={now} onOpenProject={onOpenProject} />;
+              return <AppProjects projects={worked} sessions={items.length} now={now} onOpenProject={onOpenProject} />;
             case "usage":
               return app.folder && visible ? <AccountUsage account={app.folder} accounts={accounts} /> : null;
+            case "processes":
+              // Its open sessions' processes, each whole (AJ-E2404's view).
+              return visible ? <ProcessesView sessionIds={openIds} height="calc(100vh - 22rem)" testId="app-processes" /> : null;
             case "settings":
               return <AppSettings app={app} now={now} />;
             default:

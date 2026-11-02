@@ -17,7 +17,7 @@ export function AppSettings({ app, now }: { app: AppModel; now: number }): JSX.E
   const [renaming, setRenaming] = useState(false);
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="app-settings">
-      <PaneSection id="app-name" title="Name" card>
+      <PaneSection id="app-name" title="Name">
         <SettingRow
           title={app.name}
           description={app.named ? `Your name for ${app.defaultName}.` : "The name AI Juggler gives it: its app, then its profile."}
@@ -37,7 +37,7 @@ export function AppSettings({ app, now }: { app: AppModel; now: number }): JSX.E
         />
       </PaneSection>
       {app.place && (
-        <PaneSection id="app-running" title="Start and keep alive" card>
+        <PaneSection id="app-running" title="Start and keep alive">
           <PlaceRow place={app.place} name={app.name} />
         </PaneSection>
       )}

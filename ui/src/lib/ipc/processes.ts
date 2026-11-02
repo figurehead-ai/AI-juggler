@@ -48,6 +48,7 @@ export function processQuery(over: Partial<ProcessQueryInput> = {}): ProcessQuer
   return {
     view: "attention",
     session_id: null,
+    session_ids: [],
     states: [],
     app: null,
     account_id: null,

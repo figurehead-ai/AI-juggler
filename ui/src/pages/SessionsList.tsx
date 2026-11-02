@@ -219,7 +219,10 @@ export function PagedSessions({
   onTotal,
   groupOf,
   counted = false,
+  inApp = false,
 }: {
+  /** D-62: an App's list: its rows don't repeat the app and account. */
+  inApp?: boolean;
   /** Names the list and everything that shapes it (its memory's key). */
   listKey: string;
   /** A heading for each run of rows that share it (History's days). */
@@ -309,6 +312,7 @@ export function PagedSessions({
                 project={names && row.projectId ? { id: row.projectId, name: names.get(row.projectId) ?? null } : null}
                 below={below?.(row)}
                 badge={badge?.(row)}
+                inApp={inApp}
               />
             </>
           );

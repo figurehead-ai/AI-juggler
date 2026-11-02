@@ -41,9 +41,10 @@ const VIEWS: { id: ViewId; label: string }[] = [
 
 /** The views: the page's own tabs; inside a page that has tabs of its
  * own (a session's), a choice of one (radio buttons), never tabs in tabs. */
-export function ViewTabs({ view, counts, onView, embedded = false }: { view: ViewId; counts: ProcessCountsInfo | null; onView: (view: ViewId) => void; embedded?: boolean }): JSX.Element {
+export function ViewTabs({ view, counts, onView, embedded = false, history = true }: { view: ViewId; counts: ProcessCountsInfo | null; onView: (view: ViewId) => void; embedded?: boolean; history?: boolean }): JSX.Element {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const views = embedded ? VIEWS.filter((item) => item.id !== "ports" && item.id !== "attention") : VIEWS;
+  // An App's tab has no History of its own (D-62): it's its sessions'.
+  const views = (embedded ? VIEWS.filter((item) => item.id !== "ports" && item.id !== "attention") : VIEWS).filter((item) => history || item.id !== "history");
   const move = (at: number) => {
     const next = (at + views.length) % views.length;
     onView(views[next]!.id);

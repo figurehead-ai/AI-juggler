@@ -59,6 +59,21 @@ export function AppOverview({
       return row ? [{ row, project: item.projectId ? { id: item.projectId, name: item.project } : null }] : [];
     });
   const folder = app.folder;
+  if (items.length === 0) {
+    // Nothing yet: one card that says what to do, not three empty ones.
+    return (
+      <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="app-overview">
+        <Section title="No sessions yet" icon={<IconPlay />} testId="app-empty">
+          <p className="text-body text-ink-2">
+            {app.kind === "desktop"
+              ? `Sessions you open in ${app.name} show here, with the projects it works in. Start it, then start a session in it.`
+              : `Sessions you run with ${app.name} show here, with the projects it works in. New session starts one.`}
+          </p>
+        </Section>
+        {folder && <AccountLimits account={folder} now={now} />}
+      </div>
+    );
+  }
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="app-overview">
       <div className="grid grid-cols-1 gap-grid @min-[900px]:grid-cols-2">
@@ -71,7 +86,7 @@ export function AppOverview({
           actions={items.length > open.length + recent.length ? <MoreLink label="All sessions" onOpen={() => showTab("sessions")} testId="app-all-sessions" /> : undefined}
           testId="app-recent"
         >
-          <RowList rows={rows(recent)} empty="No other sessions here yet." />
+          <RowList rows={rows(recent)} empty="Everything here is open now." />
         </Section>
       </div>
       {folder && (
@@ -98,7 +113,8 @@ export function AppOverview({
 }
 
 /** The Projects tab: every project the App worked in. */
-export function AppProjects({ projects, now, onOpenProject }: { projects: AppProject[]; now: number; onOpenProject: (id: string) => void }): JSX.Element {
+export function AppProjects({ projects, sessions, now, onOpenProject }: { projects: AppProject[]; sessions: number; now: number; onOpenProject: (id: string) => void }): JSX.Element {
+  if (sessions === 0) return <p className="text-meta text-ink-2" data-testid="app-projects">No sessions yet, so no projects either.</p>;
   return (
     <div className="flex w-full max-w-content flex-col gap-2" data-testid="app-projects">
       <p className="text-meta text-ink-2">{projects.length === 1 ? "1 project" : `${projects.length} projects`}</p>
@@ -141,7 +157,7 @@ function RowList({ rows, empty }: { rows: Shown[]; empty: string }): JSX.Element
   return (
     <ul className="-mx-2 flex flex-col">
       {rows.map(({ row, project }) => (
-        <SessionRowBody key={row.key} as="li" row={row} project={project} />
+        <SessionRowBody key={row.key} as="li" row={row} project={project} inApp />
       ))}
     </ul>
   );

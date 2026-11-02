@@ -65,6 +65,7 @@ function useDebounced(value: string, ms: number): string {
 
 export function ProcessesView({
   sessionId = null,
+  sessionIds,
   onOpenSession,
   onOpenConversation,
   accounts = [],
@@ -74,6 +75,8 @@ export function ProcessesView({
 }: {
   /** Only this session (a session's Processes tab). */
   sessionId?: string | null;
+  /** D-62: only these sessions (an App's Processes tab, its open ones). */
+  sessionIds?: string[];
   onOpenSession?: (id: string) => void;
   onOpenConversation?: (accountId: string, id: string) => void;
   accounts?: Choice[];
@@ -81,7 +84,8 @@ export function ProcessesView({
   height?: string;
   testId?: string;
 }): JSX.Element {
-  const embedded = sessionId !== null;
+  const embedded = sessionId !== null || sessionIds !== undefined;
+  const scope = sessionIds?.join("\n") ?? "";
   const [view, setView] = useState<ViewId>(() => (embedded ? "running" : savedView()));
   const [search, setSearch] = useState("");
   /** An alert's "Show it": the process to focus once its row shows. */
@@ -111,6 +115,7 @@ export function ProcessesView({
       processQuery({
         view: view === "history" || view === "ports" ? "attention" : view,
         session_id: sessionId,
+        session_ids: scope ? scope.split("\n") : [],
         states: filters.states,
         app: filters.app,
         account_id: filters.account,
@@ -123,7 +128,7 @@ export function ProcessesView({
         expanded,
         collapsed,
       }),
-    [view, sessionId, filters, words, expanded, collapsed],
+    [view, sessionId, scope, filters, words, expanded, collapsed],
   );
   const { rows, total, counts, degraded, loading, current, error, hasMore, loadMore, refresh } = useProcessRows(query);
 
@@ -190,7 +195,7 @@ export function ProcessesView({
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid={testId}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ViewTabs view={view} counts={embedded ? null : counts} onView={chooseView} embedded={embedded} />
+        <ViewTabs view={view} counts={embedded ? null : counts} onView={chooseView} embedded={embedded} history={sessionIds === undefined} />
         {view !== "history" && view !== "ports" && (
           <div className="flex flex-wrap items-center gap-2">
             <SearchBox value={search} onChange={setSearch} />

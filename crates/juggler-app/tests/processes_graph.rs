@@ -574,6 +574,19 @@ fn search_filters_and_one_session_narrow_the_rows() {
         .filter_map(|row| row.process.as_ref().map(|p| p.pid))
         .collect();
     assert_eq!(pids, [500, 501]);
+    // D-62: an App's Processes tab: its open sessions together, each
+    // whole, nothing else.
+    let mut app = input("running");
+    app.session_ids = vec!["conv-live".into(), "s-ok".into()];
+    let pids: Vec<u32> = query::rows(&graph, &app)
+        .iter()
+        .filter_map(|row| row.process.as_ref().map(|p| p.pid))
+        .collect();
+    assert!(
+        pids.contains(&500) && pids.contains(&501) && pids.contains(&100),
+        "{pids:?}"
+    );
+    assert!(!pids.contains(&300), "another session's: {pids:?}");
     // Filters: has a port; a state.
     let mut ports = input("running");
     ports.has_port = true;

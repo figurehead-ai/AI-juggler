@@ -53,7 +53,11 @@ export function SessionRowBody({
   below,
   badge,
   as,
+  inApp = false,
 }: {
+  /** D-62: on an App's page, its app and account are the page's: the
+   * row doesn't repeat them. */
+  inApp?: boolean;
   row: Row;
   project: { id: string; name: string | null } | null;
   below?: ReactNode;
@@ -93,8 +97,8 @@ export function SessionRowBody({
           <span className="truncate text-meta text-muted">
             <span className={row.tone} data-testid="page-session-state">{row.state}</span>
             {row.detail && row.detail !== row.title && !title.startsWith(`${row.detail} · `) && <> · {row.detail}</>}
-            {row.outside && ` · in ${appOfRow(row).name}`}
-            <span className="@[34rem]:hidden" aria-hidden="true"> · {row.accountLabel}</span>
+            {row.outside && !inApp && ` · in ${appOfRow(row).name}`}
+            {!inApp && <span className="@[34rem]:hidden" aria-hidden="true"> · {row.accountLabel}</span>}
           </span>
           {/* Said once for a screen reader, whichever way the account shows. */}
           <span className="sr-only">{providerDisplayName(row.tool)} on {row.accountLabel}</span>
@@ -105,10 +109,12 @@ export function SessionRowBody({
             <span className="truncate">{project.name ?? "a moved project"}</span>
           </span>
         )}
-        <span className="hidden w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted @[34rem]:flex">
-          <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={16} />
-          <span aria-hidden="true" className="truncate">{row.accountLabel}</span>
-        </span>
+        {!inApp && (
+          <span className="hidden w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted @[34rem]:flex">
+            <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={16} />
+            <span aria-hidden="true" className="truncate">{row.accountLabel}</span>
+          </span>
+        )}
         {badge}
         <span className="w-24 shrink-0 whitespace-nowrap text-right text-meta tabular-nums text-muted">{row.when}</span>
       </button>

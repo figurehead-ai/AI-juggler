@@ -135,6 +135,8 @@ export function previewRows(source: PreviewMac, input: ProcessQueryInput): Proce
     const sessions: PreviewSession[] = [];
     for (const session of app.sessions) {
       if (input.session_id && session.session_id !== input.session_id && session.key !== input.session_id) continue;
+      // D-62: an App's tab, its open sessions.
+      if (input.session_ids.length > 0 && !input.session_ids.some((id) => session.session_id === id || session.key === id)) continue;
       if (input.account_id && session.account_id !== input.account_id) continue;
       if (input.project_id && session.project_id !== input.project_id) continue;
       const passes = (node: PreviewNode) =>
@@ -148,8 +150,8 @@ export function previewRows(source: PreviewMac, input: ProcessQueryInput): Proce
         find.words.every((word) =>
           [node.name, node.role_words, node.label ?? "", session.title, app.name, node.state].some((hay) => hay.toLowerCase().includes(word)),
         );
-      const keep = session.processes.filter((node) => passes(node) && matches(node) && (input.session_id || running || attention(node, now)));
-      if (keep.length === 0 && !input.session_id) continue;
+      const keep = session.processes.filter((node) => passes(node) && matches(node) && (input.session_id || input.session_ids.length > 0 || running || attention(node, now)));
+      if (keep.length === 0 && !input.session_id && input.session_ids.length === 0) continue;
       const shown = new Set(keep.map((node) => node.key));
       if (!running || narrowed) {
         const byPid = new Map(session.processes.map((node) => [node.pid, node]));
