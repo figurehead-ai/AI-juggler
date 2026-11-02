@@ -113,8 +113,9 @@ describe("the rules and servers sheet", () => {
     expect(within(servers).getByText(/GITHUB_TOKEN stays behind/)).toBeTruthy();
     fireEvent.click(within(servers).getByRole("button", { name: "Copy github to Codex" }));
     await waitFor(() => expect(within(servers).getByRole("status").textContent).toContain("Set up the MCP server github"));
-    // The Copy button has gone: focus is on what happened, inside the sheet.
-    expect(document.activeElement).toBe(within(servers).getByRole("status"));
+    // The Copy button has gone: focus is on what happened, inside the sheet
+    // (moved after the status shows: waited for, as on a slow runner).
+    await waitFor(() => expect(document.activeElement).toBe(within(servers).getByRole("status")));
     expect(within(servers).queryByRole("button", { name: "Copy github to Codex" })).toBeNull();
     expect(within(servers).getByText("Every app has the same servers.")).toBeTruthy();
   });

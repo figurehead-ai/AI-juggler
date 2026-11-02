@@ -273,6 +273,8 @@ pub fn file_identity(metadata: &std::fs::Metadata) -> u64 {
     metadata.ino()
 }
 
+/// A file's identity: none to read on this system, so 0 (only a shorter
+/// file is told apart from the one that was there).
 #[cfg(not(unix))]
 #[must_use]
 pub fn file_identity(_metadata: &std::fs::Metadata) -> u64 {
