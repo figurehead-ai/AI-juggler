@@ -159,10 +159,12 @@ jobs:
           echo "Accessibility: no passed full scan of this tree in CI; it runs here." >> "$GITHUB_STEP_SUMMARY"
 
   # AJ-E804: no build reaches beta or stable with a critical or serious
-  # accessibility violation or a broken keyboard flow. The full scan runs
-  # in six shards, split by test as CI's are; `a11y` summarises.
+  # accessibility violation or a broken keyboard flow. The full scan is
+  # ~10 min on 30 cores, so it runs in four shards; `a11y` summarises.
+  # (Its steps are kept as they were: code scanning's reviewed finding on
+  # this job, a false positive, follows their text.)
   a11y-shard:
-    name: a11y (${{ matrix.shard }}/6)
+    name: a11y (${{ matrix.shard }}/4)
     needs: check
     if: needs.check.outputs.scanned == ''
     runs-on: ubuntu-latest
@@ -172,7 +174,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4]
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --ipc=host
@@ -185,13 +187,12 @@ jobs:
         working-directory: ui
         # The release's pnpm, pinned with its sha512 as build-macos.yml does.
         run: corepack enable && corepack prepare "pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd" --activate && pnpm install --frozen-lockfile
-      - name: Accessibility gate, shard ${{ matrix.shard }}/6
+      - name: Accessibility gate, shard ${{ matrix.shard }}/4
         env:
           A11Y_SKIP_SUMMARY: "1"
-          SHARD: ${{ matrix.shard }}
         # Split by test, not by file: the gate is mostly one large spec, so
         # file-level shards left shards 2–4 empty and shard 1 near its timeout.
-        run: ./scripts/a11y_gate.sh --fully-parallel --shard="$SHARD/6"
+        run: ./scripts/a11y_gate.sh --fully-parallel --shard=${{ matrix.shard }}/4
       - name: Scans
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
