@@ -14,7 +14,7 @@
 //! minute ([`Feeds::keep`]); a page that went away without unfollowing
 //! (reloaded, closed) stops being sent anything when its lease runs out.
 //!
-//! Changes are read by one thread ([`watch`]): woken by the folders of
+//! Changes are read by one thread (`watch`): woken by the folders of
 //! the followed files changing, with a check every second as the
 //! fallback, batched so a burst of appends is one change. A file that is
 //! replaced, made shorter or swapped for another (a resumed Codex thread

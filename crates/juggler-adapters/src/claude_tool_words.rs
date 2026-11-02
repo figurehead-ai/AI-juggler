@@ -7,10 +7,10 @@
 //!   typed, captured page +2"), Claude in Chrome in the same words,
 //!   computer use, a simulator, and its session tools ("Updated plan");
 //! - its built-in tools by kind ("Loaded tools", "Proposed a plan");
-//! - any other as "Used <server>: <Tool>" ("Used visualize: Show
-//!   widget"), or "Used <Tool>" outside MCP: never a tool's raw name.
+//! - any other as "Used `<server>`: `<Tool>`" ("Used visualize: Show
+//!   widget"), or "Used `<Tool>`" outside MCP: never a tool's raw name.
 //!
-//! The tables in [`table`] are the app's own, generated from it. Pure.
+//! The tables in `table` are the app's own, generated from it. Pure.
 
 mod table;
 

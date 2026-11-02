@@ -873,14 +873,7 @@ fn refresh_with(
     report.flush();
     let now = std::time::Instant::now();
     for (account, adapter, path, len, modified) in later {
-        let counted_at = state
-            .conversations
-            .files
-            .lock()
-            .map_err(|_| AppError::StatePoisoned)?
-            .get(path.as_path())
-            .and_then(|entry| entry.counted_at);
-        if !whole_read_due(*len, counted_at, now) {
+        if !whole_read_due(*len, counted_at(state, path)?, now) {
             continue;
         }
         report.maybe();
@@ -889,6 +882,26 @@ fn refresh_with(
         changed_any = true;
         report.read();
     }
+    Ok(forget_unseen(state, seen)? || changed_any)
+}
+
+/// When `path` was last read whole, if it was.
+fn counted_at(
+    state: &Arc<AppState>,
+    path: &std::path::Path,
+) -> AppResult<Option<std::time::Instant>> {
+    Ok(state
+        .conversations
+        .files
+        .lock()
+        .map_err(|_| AppError::StatePoisoned)?
+        .get(path)
+        .and_then(|entry| entry.counted_at))
+}
+
+/// Forgets every file a pass didn't see (gone from its folder); whether
+/// any was.
+fn forget_unseen(state: &Arc<AppState>, seen: Vec<PathBuf>) -> AppResult<bool> {
     let mut files = state
         .conversations
         .files
@@ -897,7 +910,7 @@ fn refresh_with(
     let before = files.len();
     let seen: std::collections::HashSet<PathBuf> = seen.into_iter().collect();
     files.retain(|path, _| seen.contains(path));
-    Ok(changed_any || files.len() != before)
+    Ok(files.len() != before)
 }
 
 /// The conversation `id` on `account_id`, from the index.

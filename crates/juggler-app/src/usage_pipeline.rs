@@ -172,7 +172,7 @@ fn pause_after(elapsed: std::time::Duration) -> std::time::Duration {
     if elapsed >= cadence {
         cadence
     } else {
-        cadence - elapsed
+        cadence.saturating_sub(elapsed)
     }
 }
 

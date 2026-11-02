@@ -10,7 +10,7 @@
 //! same in every read: an appended tool call extends the open turn under
 //! its id ([`FeedTurn::revision`] goes up) instead of making a new list.
 //!
-//! The rules, in one place: who spoke ([`crate::conversation_lines`]);
+//! The rules, in one place: who spoke (`conversation_lines`);
 //! consecutive messages of one speaker are one turn, its parts in the
 //! order they came; a line the tool put in the conversation (a task's
 //! notification, a command's output: a `<tag>` line of yours) ends the
