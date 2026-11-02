@@ -92,11 +92,14 @@ beforeEach(() => {
 describe("AJ-E411 threshold labels (TS mirror of renewal.rs)", () => {
   it("renders every boundary tier with the exact copy", () => {
     expect(renewalLabel(null, NOW)).toBeNull(); // unknown, never guessed
-    expect(renewalLabel(daysOut(15), NOW)).toEqual({ tier: "date", text: `Renews ${daysOut(15)}` });
+    // A date as every date is said, never the stored ISO string.
+    expect(renewalLabel(daysOut(15), NOW)).toEqual({ tier: "date", text: "Renews 29 Oct" });
+    expect(renewalLabel("2027-01-05", NOW)?.text).toBe("Renews 5 Jan 2027");
     expect(renewalLabel(daysOut(14), NOW)?.text).toBe("Renews in 14 days");
     expect(renewalLabel(daysOut(8), NOW)?.tier).toBe("countdown");
     expect(renewalLabel(daysOut(7), NOW)).toEqual({ tier: "warning", text: "Renews in 7 days" });
-    expect(renewalLabel(daysOut(1), NOW)?.text).toBe("Renews in 1 days");
+    expect(renewalLabel(daysOut(2), NOW)?.text).toBe("Renews in 2 days");
+    expect(renewalLabel(daysOut(1), NOW)).toEqual({ tier: "warning", text: "Renews tomorrow" });
     expect(renewalLabel(daysOut(0), NOW)).toEqual({ tier: "danger", text: "Renewal date passed" });
     expect(renewalLabel(daysOut(-1), NOW)?.text).toBe("Renewal date passed");
     // Row visibility: only at <= 7 days (Req.2/Req.5).
@@ -116,7 +119,7 @@ describe("AJ-E411 an App's renewal states + editor (its Settings)", () => {
 
   it("renders the date-only, countdown, warning, and danger states as text chips", () => {
     const cases: Array<[string, string, string]> = [
-      [daysOut(20), `Renews ${daysOut(20)}`, "plain"],
+      [daysOut(20), "Renews 3 Nov", "plain"],
       [daysOut(10), "Renews in 10 days", "plain"],
       [daysOut(6), "Renews in 6 days", "warning"],
       [daysOut(0), "Renewal date passed", "danger"],

@@ -5,6 +5,7 @@
  * renewal dates: 12 Nov or 3 Dec?", with what the choice changes.
  */
 import { planWords } from "./subscriptions";
+import { dateWords } from "./time-words";
 import type { SubscriptionInfo, Term, TermChoiceInfo } from "./ipc/subscriptions";
 
 /** What a term is called, one and several. */
@@ -40,12 +41,7 @@ export function termConsequence(term: Term): string {
 export function termValueWords(term: Term, value: string, now: number): string {
   if (term === "plan") return planWords(value);
   if (term === "fee") return `$${value}/month`;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return value;
-  const [, y, m, d] = match;
-  const date = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
-  const sameYear = Number(y) === new Date(now).getFullYear();
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }), timeZone: "UTC" });
+  return dateWords(value, now);
 }
 
 /** "A", "A and B", "A, B and C". */
