@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (0.3.5)
+
+- **Switch to Desktop or CLI** (docs/releases/0.3.5.md): the preflight's
+  `destinations` (the target account's app profile, the usual choice);
+  `switch_execute`'s `destination`; Desktop installs as before, then
+  `places::handoff` sends `claude://resume?session=` to that profile's
+  own process (`apps::send_link`, an Apple event to one pid) and waits
+  for its `local_<id>.json`. The switch screen asks where, simple first.
+
 ### Fixed (0.3.5)
 
+- **A profile starts on its tool folder** (`HostApp::folder_env`,
+  `open --env CLAUDE_CONFIG_DIR=`): Open, Keep alive and the hand-off.
 - **The conversation feed** (ADR-0024, docs/releases/0.3.5.md): a page
   follows a conversation (`conversations_follow`, a Channel of deltas
   under stable `generation:offset` turn ids) instead of re-reading a
