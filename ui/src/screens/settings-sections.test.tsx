@@ -213,6 +213,11 @@ describe("wireframe 26 — the policies the user owns", () => {
     await waitFor(() => expect(days.getAttribute("data-value")).toBe("7"));
     const rows = await findAllByTestId("settings-renewal");
     expect(rows).toHaveLength(2);
+    // D-62: a signed-in app's row is its Account's (set once for its apps);
+    // one not signed in has no Account and keeps its own.
+    expect(rows[0].getAttribute("data-account-id")).toMatch(/^acct:/);
+    expect((rows[0].querySelector("input[type='date']") as HTMLInputElement).value).not.toBe("");
+    expect(rows[1].getAttribute("data-account-id")).toBeNull();
     expect(rows[1].textContent).toContain("Not set: no renewal reminders");
     fireEvent.click(days);
     await act(async () => {

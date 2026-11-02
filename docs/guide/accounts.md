@@ -138,12 +138,24 @@ Under the launch settings' options, **If a session crashes** can follow
 Settings, always restart it, or leave it ended. See
 [Keep work going](keep-work-going.md).
 
-## Renewal dates
+## Plan, renewal and fee
 
-In Settings › Accounts › **Renewal dates**, enter when each subscription
-renews if you'd like a reminder, and how many days before. AI Juggler
-never reads your billing and never guesses a date. The pane has a link to
-the Accounts page.
+An account's plan, renewal date and monthly fee are set once, on the
+account, and every app on it uses them. Open the account from the
+Accounts page, then **Settings**. An app's own Settings show them, and
+**Set on its account** takes you there.
+
+If two apps on one account were set up with different values before 0.4,
+the account asks you once, for example "Work and Work 2 say different
+renewal dates: 12 Nov or 3 Dec?". Its card and its page say **Choose its
+renewal date** until you do. Until then each app keeps its own value, and
+nothing is lost either way.
+
+In Settings › Accounts › **Renewal dates**, each account has one row:
+enter when it renews if you'd like a reminder, and how many days before.
+An app whose sign-in AI Juggler can't read yet has a row of its own. AI
+Juggler never reads your billing and never guesses a date. The pane has a
+link to the Accounts page.
 
 ## Rename or remove an app
 

@@ -2,7 +2,9 @@
  * D-62 (AJ-E3204) — an App's Settings: its name (yours, or the default),
  * then what it runs with. A desktop App: Start and Keep alive, the same
  * row as Settings › Desktop apps. A CLI App: its folder's settings
- * (renewal, fee, tidy-up and the window preview), as its folder page had.
+ * (tidy-up and the window preview), as its folder page had. Plan, renewal
+ * and fee are its Account's (AJ-E3202 req. 4): shown here, set there; a
+ * folder with no Account yet keeps its own editors.
  */
 import { useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
@@ -13,9 +15,13 @@ import { AccountSettingsSection } from "../account/Settings";
 import { AccountCapture } from "../AccountCapture";
 import { appsRename } from "../../lib/ipc/apps";
 import type { AppModel } from "../../lib/apps";
+import { useSubscriptions } from "../../lib/subscriptions";
+import { AppTerms, accountForApp } from "./AppTerms";
 
 export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; now: number; resetsAtMs?: number | null }): JSX.Element {
   const [renaming, setRenaming] = useState(false);
+  const subs = useSubscriptions();
+  const sub = subs ? accountForApp(subs, app.folder?.id ?? null, app.folder?.subscription_id ?? app.accountId) : null;
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="app-settings">
       <PaneSection id="app-name" title="Name">
@@ -42,7 +48,8 @@ export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; no
           <PlaceRow place={app.place} name={app.name} />
         </PaneSection>
       )}
-      {app.kind === "cli" && app.folder && <AccountSettingsSection account={app.folder} now={now} resetsAtMs={resetsAtMs} />}
+      {sub && subs && <AppTerms sub={sub} all={subs} now={now} />}
+      {app.kind === "cli" && app.folder && <AccountSettingsSection account={app.folder} now={now} resetsAtMs={resetsAtMs} termsOnAccount={sub !== null} />}
       {/* AJ-E1530 Req.1: opt-in, shown only where it applies, last. */}
       {app.kind === "cli" && app.folder && <AccountCapture accountId={app.folder.id} />}
       {renaming && (

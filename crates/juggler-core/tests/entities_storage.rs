@@ -45,11 +45,13 @@ fn v40_makes_one_cli_app_per_folder_in_use_and_nothing_else() {
             .mark_removed(&AccountId::new("old"))
             .unwrap();
     }
-    // Back to v39, as an upgrade finds it: v40 runs on the next open.
+    // Back to v39, as an upgrade finds it: v40 (and v41) run on the next
+    // open.
     {
         let conn = Connection::open(&db).unwrap();
         conn.execute_batch(
-            "ALTER TABLE instances DROP COLUMN app_id;
+            "ALTER TABLE accounts DROP COLUMN terms_moved;
+             ALTER TABLE instances DROP COLUMN app_id;
              ALTER TABLE accounts DROP COLUMN subscription_id;
              DROP TABLE apps;
              DROP TABLE subscriptions;

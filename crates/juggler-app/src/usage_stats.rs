@@ -981,6 +981,30 @@ pub mod enabled {
         }
     }
 
+    /// How many Accounts have a renewal date (D-62: set once per Account,
+    /// its folders read it; a folder with no Account counts alone).
+    fn renewals_entered(
+        storage: &juggler_core::storage::Storage,
+        accounts: &[juggler_core::model::Account],
+    ) -> usize {
+        let terms = storage.terms();
+        accounts
+            .iter()
+            .filter_map(|a| {
+                let id = a.id.as_str();
+                terms.effective(id).ok()?.renewal_date?;
+                Some(
+                    terms
+                        .owner(id)
+                        .ok()
+                        .flatten()
+                        .unwrap_or_else(|| id.to_owned()),
+                )
+            })
+            .collect::<std::collections::BTreeSet<String>>()
+            .len()
+    }
+
     /// Accounts and launch settings per Provider.
     fn account_gauges(
         storage: &juggler_core::storage::Storage,
@@ -1036,8 +1060,7 @@ pub mod enabled {
             count: u64::try_from(storage.projects().list().map_or(0, |p| p.len())).unwrap_or(0),
         });
         out.push(StatGauge::RenewalDatesEntered {
-            count: u64::try_from(accounts.iter().filter(|a| a.renewal_date.is_some()).count())
-                .unwrap_or(0),
+            count: u64::try_from(renewals_entered(&storage, &accounts)).unwrap_or(0),
         });
         let policy = match crate::commands::redaction_global_of(&storage) {
             Some(juggler_handover::redaction::RedactionPolicy::Strip) => "redact",

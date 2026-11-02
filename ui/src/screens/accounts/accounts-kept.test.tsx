@@ -43,6 +43,7 @@ const account = (key: string, ids: string[]): SubscriptionInfo => ({
   renewal_date: null,
   fee_usd: null,
   differs: [],
+  choices: [],
 });
 
 const WORK = [profile("w1", "Work")];

@@ -68,21 +68,36 @@ describe("D-62 the App page", () => {
     await waitFor(() => expect(screen.getByTestId("page-name").textContent).toBe("Claude app · Lab"));
   });
 
-  it("a CLI App: New session, its folder's renewal and tidy-up in Settings (the folder's page is its App's)", async () => {
+  it("a CLI App: New session, tidy-up in Settings, and its plan, renewal and fee shown as its Account's, set there (AJ-E3202 req. 4)", async () => {
     page("cli:claude-work");
     expect((await screen.findByTestId("page-name")).textContent).toBe("Claude Code · Work Max");
     expect(screen.getByTestId("app-new-session")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Settings")!);
-    expect(await screen.findByTestId("renewal-editor")).toBeTruthy();
+    expect((await screen.findByTestId("app-terms-account")).textContent).toContain("They're its account's");
+    expect(screen.getByTestId("app-terms-renewal").textContent).toContain("Renewal date");
+    // Read-only here: no editors of its own.
+    expect(screen.queryByTestId("renewal-editor")).toBeNull();
+    expect(screen.queryByTestId("fee-editor")).toBeNull();
     expect(screen.getByTestId("account-cleanup-toggle")).toBeTruthy();
+    // "Set on its account" opens the Account's Settings.
+    const opened: string[] = [];
+    const on = (event: Event) => opened.push((event as CustomEvent<{ id: string }>).detail.id);
+    window.addEventListener("aij:open-account", on);
+    fireEvent.click(screen.getByTestId("app-terms-open"));
+    window.removeEventListener("aij:open-account", on);
+    expect(opened).toEqual([expect.stringMatching(/^acct:/)]);
+    expect(localStorage.getItem("aij.page.tab.subscription")).toBe("settings");
     // Its ⋯: the folder's own actions.
     expect(screen.getByTestId("header-menu")).toBeTruthy();
   });
 
-  it("a CLI App that's signed out says so, and where to sign in", async () => {
+  it("a CLI App that's signed out says so, and where to sign in; with no Account, its folder keeps its own renewal", async () => {
     page("cli:z-out");
     expect((await screen.findAllByTestId("app-signed-out")).length).toBeGreaterThan(0);
     expect(screen.queryByTestId("account-limits")).toBeNull();
+    fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Settings")!);
+    expect(await screen.findByTestId("renewal-editor")).toBeTruthy();
+    expect(screen.queryByTestId("app-terms-account")).toBeNull();
   });
 
   it("one AI Juggler doesn't know now says so", async () => {

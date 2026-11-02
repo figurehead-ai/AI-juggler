@@ -31,6 +31,7 @@ const account = (key: string, tool: string, ids: string[], plan: string): Subscr
   renewal_date: null,
   fee_usd: null,
   differs: [],
+  choices: [],
 });
 
 // Two Claude accounts (Work has two profiles) and a Codex one.

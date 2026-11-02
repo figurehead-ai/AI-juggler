@@ -17,7 +17,7 @@ provider: string,
  */
 label: string, 
 /**
- * Plan tier, if set.
+ * Plan tier, if set: its Account's once moved there (AJ-E3202).
  */
 plan: string | null, 
 /**
@@ -30,7 +30,7 @@ login_state: string,
 cleanup_opt_in: boolean, 
 /**
  * Optional user-entered renewal date, local calendar `YYYY-MM-DD`
- * (D-12); `null` renders `Expiry: unknown` — never inferred.
+ * (D-12; its Account's once moved); `null`: `Expiry: unknown`.
  */
 renewal_date: string | null, 
 /**
@@ -66,4 +66,9 @@ is_default?: boolean | null,
  * profile added through another service; its sign-in state then says
  * whether its key is in the Keychain.
  */
-service?: string | null, };
+service?: string | null, 
+/**
+ * D-62: the Account its sign-in was last read as (its plan, renewal
+ * and fee are set there), when known.
+ */
+subscription_id?: string | null, };

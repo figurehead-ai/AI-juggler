@@ -24,6 +24,7 @@ import { AccountLimits } from "../AccountPage";
 import { AppProjects, MoreLink, ProjectRows, RowList, rowOf, type Shown } from "../app/AppOverview";
 import { AccountAppRows } from "./AccountApps";
 import { AccountSettings } from "./AccountSettings";
+import { ChooseChip } from "./TermChoice";
 import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../../lib/bridge";
 import { accountApps, accountItems } from "../../lib/account-items";
 import { appProjects, openHere } from "../../lib/app-items";
@@ -116,6 +117,7 @@ function AccountBody({ sub, all, onChanged, sessions, projects, accounts, now, o
               </span>
             }
             name={name}
+            chips={<ChooseChip sub={sub} onOpen={() => showTab("settings")} />}
             facts={facts.map((part, index) => (
               <span key={part} className="flex items-center gap-2">
                 {index > 0 && <span aria-hidden="true">·</span>}
@@ -158,7 +160,7 @@ function AccountBody({ sub, all, onChanged, sessions, projects, accounts, now, o
             case "usage":
               return visible ? <AccountUsageTab name={name} folders={[...folderIds]} accounts={accounts} /> : null;
             case "settings":
-              return <AccountSettings sub={sub} all={all} onChanged={onChanged} />;
+              return <AccountSettings sub={sub} all={all} now={now} onChanged={onChanged} />;
             default:
               return null;
           }

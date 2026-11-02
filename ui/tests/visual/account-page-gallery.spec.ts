@@ -3,7 +3,11 @@
  * screen that leads to it. The Accounts screen's cards named their own
  * way, with no tool letter; the Account opened from its card's name: its
  * Overview at 1280 and 1024 (limits first, its Apps, what's open), its
- * Apps, its Settings. Both themes, axe 0 critical/serious on each.
+ * Apps, its Settings. Then AJ-E3202 req. 4: an Account whose two Apps
+ * say different renewal dates asks once (the call on its card, the
+ * question on its Settings), and an App's Settings show its Account's
+ * plan, renewal and fee with "Set on its account". Both themes, axe 0
+ * critical/serious on each.
  */
 import { type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -45,9 +49,31 @@ function conversations() {
   return [...rows, ended("side-1", "Sketch the landing page", 20), ended("side-2", "Try the new chart library", 50)];
 }
 
+/** AJ-E3202 req. 4: Work Max and Work 2 on one Max plan, set up apart in
+ * 0.3: the plan and fee agree (moved to the account), the renewal dates
+ * don't (12 Nov and 3 Dec), so the account asks once. */
+const SPLIT_ACCOUNTS = [...ACCOUNTS, { ...ACCOUNTS[0]!, id: "claude-work-2", label: "Work 2", plan: "max-20x" }];
+const member = (id: string, label: string, renewal: string | null) => ({ id, label, folder: `~/.claude-${id}`, plan: "max-20x", renewal_date: renewal, fee_usd: 200 });
+const base = { name: null, tool: "claude-code", state: "signed_in", organisation: null, reason: null, plan: null, renewal_date: null, fee_usd: null, differs: [], choices: [] };
+const SPLIT = [
+  {
+    ...base,
+    key: "k-work",
+    account_id: "acct:anthropic:work",
+    email: "w…@example.com",
+    profiles: [member("claude-work", "Work Max", "2026-11-12"), member("claude-work-2", "Work 2", "2026-12-03")],
+    plan: "max-20x",
+    fee_usd: 200,
+    differs: ["renewal"],
+    choices: [{ term: "renewal", options: [{ value: "2026-11-12", folders: ["claude-work"], account: false }, { value: "2026-12-03", folders: ["claude-work-2"], account: false }] }],
+  },
+  { ...base, key: "k-me", account_id: "acct:anthropic:me", email: "p…@example.com", profiles: [{ ...member("claude-personal", "Personal", null), plan: null, fee_usd: null }] },
+  { ...base, key: "k-side", account_id: "acct:anthropic:side", email: "s…@example.com", profiles: [{ ...member("claude-side", "Side project", null), plan: null, fee_usd: null }] },
+];
+
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-async function seed(page: Page, theme: "dark" | "light") {
+async function seed(page: Page, theme: "dark" | "light", split = false) {
   await page.addInitScript(
     ({ fixture, known, theme, t0 }) => {
       const w = window as unknown as Record<string, unknown>;
@@ -58,7 +84,7 @@ async function seed(page: Page, theme: "dark" | "light") {
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture: { accounts: ACCOUNTS, projects: PROJECTS, sessions: [], conversations: conversations() }, known: knownPlacesPreview(T0), theme, t0: T0 },
+    { fixture: { accounts: split ? SPLIT_ACCOUNTS : ACCOUNTS, projects: PROJECTS, sessions: [], conversations: conversations(), ...(split ? { subscriptions: SPLIT } : {}) }, known: knownPlacesPreview(T0), theme, t0: T0 },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -67,7 +93,7 @@ async function seed(page: Page, theme: "dark" | "light") {
 }
 
 async function shoot(page: Page, name: string, theme: string) {
-  await expect(page.getByTestId(name.startsWith("accounts") ? "account-card" : "account-page").first()).toBeVisible();
+  await expect(page.getByTestId(name.startsWith("accounts") ? "account-card" : name.startsWith("app-") ? "app-page" : "account-page").first()).toBeVisible();
   await page.mouse.move(0, 0);
   await page.screenshot({ path: resolve(OUT, `${name}-${theme}.png`) });
   const bad = (await scan(page)).filter((finding) => finding.impact === "critical" || finding.impact === "serious");
@@ -116,5 +142,39 @@ for (const theme of ["dark", "light"] as const) {
     await tab(page, /^Settings/);
     await expect(page.getByTestId("account-name-row")).toBeVisible();
     await shoot(page, "account-settings", theme);
+  });
+
+  test(`two Apps said different renewal dates: the account asks once, then has one — ${theme}`, async ({ page }) => {
+    await seed(page, theme, true);
+    await openAccounts(page);
+    // The call to choose on its card opens its Settings.
+    await expect(page.getByTestId("account-choose")).toHaveText(/Choose its renewal date/);
+    await shoot(page, "accounts-choose", theme);
+    await page.getByTestId("account-choose").click();
+    const choice = page.getByTestId("account-term-choice");
+    await expect(choice).toContainText("Work Max and Work 2 say different renewal dates: 12 Nov or 3 Dec?");
+    await shoot(page, "account-choice", theme);
+    await choice.getByTestId("account-term-option").filter({ hasText: "3 Dec" }).click();
+    await expect(page.getByTestId("account-term-choice")).toHaveCount(0);
+    await expect(page.getByTestId("account-renewal-input")).toHaveValue("2026-12-03");
+    await shoot(page, "account-chosen", theme);
+  });
+
+  test(`an App's Settings show its account's plan, renewal and fee, set there — ${theme}`, async ({ page }) => {
+    await seed(page, theme, true);
+    await openAccounts(page);
+    await page.getByTestId("account-choose").click();
+    await page.getByTestId("account-term-option").filter({ hasText: "3 Dec" }).click();
+    await expect(page.getByTestId("account-term-choice")).toHaveCount(0);
+    await tab(page, /^Apps/);
+    await page.getByTestId("account-apps-tab").locator('[data-app-id="cli:claude-work"]').click();
+    await expect(page.getByTestId("app-page")).toHaveAttribute("data-app-id", "cli:claude-work");
+    await tab(page, /^Settings/);
+    await expect(page.getByTestId("app-terms-renewal")).toContainText("3 Dec");
+    await expect(page.getByTestId("renewal-editor")).toHaveCount(0);
+    await shoot(page, "app-settings-terms", theme);
+    // "Set on its account" opens the account's Settings.
+    await page.getByTestId("app-terms-open").click();
+    await expect(page.getByTestId("account-settings-tab")).toBeVisible();
   });
 }

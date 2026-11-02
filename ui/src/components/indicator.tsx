@@ -455,7 +455,8 @@ export function RenewalAnnouncer({ accounts, now = Date.now() }: { accounts: Acc
     for (const account of accounts) {
       const label = renewalLabel(account.renewal_date, now);
       if (!renewalRowVisible(label)) continue;
-      const key = `aij.renewal.announced.${account.id}`;
+      // D-62: one renewal per Account, however many of its apps are listed.
+      const key = `aij.renewal.announced.${account.subscription_id ?? account.id}`;
       if (localStorage.getItem(key) === today) continue;
       localStorage.setItem(key, today);
       parts.push(`${account.label} renewal: ${label?.text ?? "Renewal date passed"}`);

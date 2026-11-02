@@ -459,9 +459,14 @@ pub fn quota_display_inner(
             .map(|raw| QuotaCap::decode(&raw))
             .unwrap_or_default()
     };
+    // D-62: the renewal its Account is set with (its own until moved).
+    let renewal_date = storage
+        .terms()
+        .applying(account)
+        .map_or_else(|_| account.renewal_date.clone(), |terms| terms.renewal_date);
     let clock = SubscriptionClock {
-        renewal_date: account.renewal_date.clone(),
-        entered_by_user: account.renewal_date.is_some(),
+        entered_by_user: renewal_date.is_some(),
+        renewal_date: renewal_date.clone(),
         from_vendor_feed: false,
     };
     let today = epoch_today(now_ms);
@@ -606,10 +611,7 @@ pub fn quota_display_inner(
             } else {
                 (
                     "set",
-                    format!(
-                        "Renews {}",
-                        account.renewal_date.clone().unwrap_or_default()
-                    ),
+                    format!("Renews {}", renewal_date.clone().unwrap_or_default()),
                 )
             };
             RenewalDisplay {

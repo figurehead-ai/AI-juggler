@@ -17,6 +17,7 @@ import { providerDisplayName, noLimitsWords } from "../../lib/providers";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
 import { accountDisplay, accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
 import { openAccount } from "../../lib/accounts-page";
+import { ChooseChip } from "../../pages/subscription/TermChoice";
 import { ReplaceKeyModal, ServiceUsage } from "./ServiceParts";
 import { toolSpec } from "../../lib/tools";
 import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, QuotaDisplayData } from "../../lib/bridge";
@@ -138,6 +139,8 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
             {renewal.tier === "danger" ? "⛔" : "⚠"} {renewal.text}
           </Chip>
         )}
+        {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
+        <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
         {profiles.length > 1 && !signedOut && (
           <span className="text-meta text-muted" data-testid="account-profiles-count">
             {profiles.length} apps share this account

@@ -53,7 +53,7 @@ export function RenameAccountModal({
         <Field label="Name">
           <Input autoFocus value={label} onChange={(event) => setLabel(event.target.value)} data-testid="rename-account-label" maxLength={64} />
         </Field>
-        <Field label="Plan (optional)" hint="Shown beside the name, like Max or Pro.">
+        <Field label="Plan (optional)" hint={account.subscription_id ? "Its account's plan, like Max or Pro: set once for every app on it." : "Shown beside the name, like Max or Pro."}>
           <Input value={plan} placeholder="Max" onChange={(event) => setPlan(event.target.value)} data-testid="rename-account-plan" />
         </Field>
         {error && (

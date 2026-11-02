@@ -46,6 +46,7 @@ const account = (key: string, ids: string[], extra: Partial<SubscriptionInfo> = 
   renewal_date: null,
   fee_usd: null,
   differs: [],
+  choices: [],
   ...extra,
 });
 

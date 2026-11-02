@@ -176,12 +176,12 @@ fn scoped_cost_events(
     } else {
         events = usage.events_for_account(&account, 0).unwrap_or_default();
     }
+    // D-62: the fee its Account is set with (the folder's own until moved).
     let fee = storage
-        .app_settings()
-        .get(&format!("subscription_fee:{account}"))
+        .terms()
+        .effective(&account)
         .ok()
-        .flatten()
-        .and_then(|value| value.parse::<f64>().ok());
+        .and_then(|terms| terms.fee_usd);
     (account, events, fee)
 }
 

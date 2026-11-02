@@ -118,8 +118,11 @@ it is never a rail noun and never means Account (D-02/D-10).
 > Code on the same folder are two Apps. "Profile" appears only inside an
 > App's name or as a fact on its page; the config folder is the App's
 > **folder**. Launch settings stay launch settings, under a CLI App. In
-> the code an `Account` row is still one config folder (a CLI App) until
-> the stored Account and App land (AJ-E3202).
+> the code an `Account` row is still one config folder (a CLI App); the
+> stored Account is a `subscriptions` row (AJ-E3202). Its plan, renewal
+> date and monthly fee are set once on it: moved from its folders where
+> they agree, chosen once by the user where they don't (each folder keeps
+> its own until then); an App's Settings show them and point there.
 
 ```rust
 // crates/juggler-core/src/model.rs (sketch; aliases noted are the

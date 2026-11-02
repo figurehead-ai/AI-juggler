@@ -45,7 +45,7 @@
 **Research basis**: the audit's gaps table.
 **Handover note**: —
 
-### AJ-E3202 Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | Status: IN-PROGRESS (v40's tables; the places book and Keep alive kept as the desktop Apps' rows; each sign-in stored as its Account; req. 3 done: the Account's own name, team else plan else masked email, renamable, twins told apart by email; req. 4, plan, renewal and fee kept on the Account rather than written to each folder, with a choice where they disagree, remains) | Priority P0 | Effort L | Depends: AJ-E3201
+### AJ-E3202 Accounts and Apps stored: two additive tables, named, with plan, renewal and fee set once | Status: IN-PROGRESS (v40's tables; the places book and Keep alive kept as the desktop Apps' rows; each sign-in stored as its Account; req. 3 done: the Account's own name, team else plan else masked email, renamable, twins told apart by email; req. 4 done: v41 marks which of a folder's plan, renewal and fee moved to its Account, moved on read where the folders agree, asked once on the Account's Settings where they don't (each folder keeps its own until then, nothing cleared), every reader (runway renewal, reminders, cost fee, the Accounts cards, Settings › Accounts) through one rule, an App's Settings read-only with Set on its account, gallery 99-account-page critiqued. L2 on the replica and A8–A10 walked on the real setup remain) | Priority P0 | Effort L | Depends: AJ-E3201
 **Goal**: An Account is a thing you can name and set once; an App is remembered when it isn't running.
 **User story**: As someone with two Claude Code folders and a Claude app profile on one plan, I see one Account named "Work", renamable, with its renewal set once.
 **Requirements**:

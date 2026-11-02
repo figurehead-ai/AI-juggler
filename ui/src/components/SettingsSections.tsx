@@ -26,6 +26,8 @@ import {
   type FleetPeerInfo,
 } from "../lib/bridge";
 import { CardTitle } from "./CardTitle";
+import { AccountRenewalRow } from "../screens/settings/AccountRenewalRow";
+import { useSubscriptions } from "../lib/subscriptions";
 import { Checkbox, Picker } from "./controls";
 
 export function accountName(account: AccountInfo): string {
@@ -215,8 +217,15 @@ function RenewalRow({ account }: { account: AccountInfo }): JSX.Element {
   );
 }
 
-/** D-12: renewal dates are entered by the user, never guessed. */
+/** D-12: renewal dates are entered by the user, never guessed. D-62:
+ * one row per Account (set once for its Apps); an App whose sign-in
+ * isn't read yet keeps its own row. */
 export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
+  const [version, setVersion] = useState(0);
+  const subs = useSubscriptions(version);
+  const onAccount = (subs ?? []).filter((sub) => sub.account_id);
+  const covered = new Set(onAccount.flatMap((sub) => sub.profiles.map((profile) => profile.id)));
+  const loose = accounts.filter((account) => !covered.has(account.id));
   const [warnDays, setWarnDays] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   useEffect(() => {
@@ -261,7 +270,20 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
       </div>
       <Status status={status} error={null} />
       <div className="flex flex-col divide-y divide-hairline">
-        {accounts.length === 0 ? <NoAccounts /> : accounts.map((account) => <RenewalRow key={account.id} account={account} />)}
+        {accounts.length === 0 ? (
+          <NoAccounts />
+        ) : (
+          subs !== null && (
+            <>
+              {onAccount.map((sub) => (
+                <AccountRenewalRow key={sub.key} sub={sub} all={subs} onChanged={() => setVersion((was) => was + 1)} />
+              ))}
+              {loose.map((account) => (
+                <RenewalRow key={account.id} account={account} />
+              ))}
+            </>
+          )
+        )}
       </div>
     </Card>
   );

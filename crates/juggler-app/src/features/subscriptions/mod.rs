@@ -11,8 +11,13 @@
 //! and a team seat on one email are two (their organisations differ).
 //! Profiles that aren't signed in are grouped last, per tool; one whose
 //! sign-in can't be read stands alone (it can't be told apart).
+//!
+//! D-62 (AJ-E3202): each sign-in is stored as its Account, and its plan,
+//! renewal and fee are kept there ([`terms`]), moved from its folders
+//! where they agree; where they don't, the Account says what to choose.
 
 pub mod commands;
+pub mod terms;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -34,11 +39,11 @@ pub struct SubscriptionProfileInfo {
     pub label: String,
     /// Its folder, `~`-relative.
     pub folder: String,
-    /// Its plan, as set on it.
+    /// Its own plan, as set on it (before 0.4, or while it has no Account).
     pub plan: Option<String>,
-    /// Its renewal date, as set on it.
+    /// Its own renewal date, as set on it.
     pub renewal_date: Option<String>,
-    /// Its monthly fee, USD, as set on it.
+    /// Its own monthly fee, USD, as set on it.
     #[ts(type = "number | null")]
     pub fee_usd: Option<f64>,
 }
@@ -70,16 +75,20 @@ pub struct SubscriptionInfo {
     pub reason: Option<String>,
     /// Its profiles, in the order AI Juggler lists them.
     pub profiles: Vec<SubscriptionProfileInfo>,
-    /// The plan every profile that names one agrees on.
+    /// Its plan: the stored Account's; for one not stored (not signed in,
+    /// a sign-in that can't be read), what every profile naming one says.
     pub plan: Option<String>,
-    /// The renewal every profile that names one agrees on.
+    /// Its renewal date, the same way.
     pub renewal_date: Option<String>,
-    /// The fee every profile that names one agrees on.
+    /// Its monthly fee, USD, the same way.
     #[ts(type = "number | null")]
     pub fee_usd: Option<f64>,
     /// Which of `plan`, `renewal` and `fee` its profiles disagree on (each
-    /// then shows per profile).
+    /// then shows per profile, and reads its own until chosen).
     pub differs: Vec<String>,
+    /// D-62 (AJ-E3202 req. 4): what the user chooses once, for a stored
+    /// Account whose folders disagree.
+    pub choices: Vec<terms::TermChoiceInfo>,
     /// AJ-E1601 (D-34): set for an account through another service (its
     /// kind is then "endpoint"): the service, and how honest its usage can
     /// be (`estimate` or `unknown`). Its profiles may run different tools;
@@ -185,6 +194,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
                 renewal_date: None,
                 fee_usd: None,
                 differs: Vec::new(),
+                choices: Vec::new(),
                 service: row.service.map(|service| service.info),
             },
         ));
@@ -272,12 +282,8 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         let fees: BTreeMap<String, f64> = accounts
             .iter()
             .filter_map(|account| {
-                let raw = storage
-                    .app_settings()
-                    .get(&format!("subscription_fee:{}", account.id))
-                    .ok()
-                    .flatten()?;
-                Some((account.id.to_string(), raw.parse().ok()?))
+                let own = storage.terms().own(account.id.as_str()).ok()??;
+                Some((account.id.to_string(), own.fee_usd?))
             })
             .collect();
         (accounts, fees)
@@ -305,24 +311,47 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         })
         .collect();
     let stored = store_accounts(state, &rows);
-    let names: BTreeMap<String, String> = lock_storage_arc(state)?
+    let mut accounts = group(rows);
+    let storage = lock_storage_arc(state)?;
+    let names: BTreeMap<String, String> = storage
         .subscriptions()
         .list()?
         .into_iter()
         .filter_map(|account| Some((account.id, account.name?)))
         .collect();
-    let mut accounts = group(rows);
     for account in &mut accounts {
         account.account_id = account
             .profiles
             .iter()
             .find_map(|profile| stored.get(&profile.id).cloned());
-        account.name = account
-            .account_id
-            .as_ref()
-            .and_then(|id| names.get(id).cloned());
+        let Some(id) = account.account_id.clone() else {
+            continue;
+        };
+        account.name = names.get(&id).cloned();
+        on_account(&storage, &id, account)?;
     }
     Ok(accounts)
+}
+
+/// D-62 (AJ-E3202 req. 4): a stored Account's plan, renewal and fee are
+/// its own, moved from its folders where they agree; where they don't,
+/// the choice it waits for (each folder reads its own until then).
+fn on_account(
+    storage: &juggler_core::storage::Storage,
+    id: &str,
+    account: &mut SubscriptionInfo,
+) -> AppResult<()> {
+    let choices = storage.terms().settle(id)?;
+    let terms = storage.terms().account(id)?.unwrap_or_default();
+    account.plan = terms.plan;
+    account.renewal_date = terms.renewal_date;
+    account.fee_usd = terms.fee_usd;
+    account.differs = choices
+        .iter()
+        .map(|choice| choice.term.as_str().to_owned())
+        .collect();
+    account.choices = choices.into_iter().map(Into::into).collect();
+    Ok(())
 }
 
 /// Names Account `id` (`None` or blank: its default name).

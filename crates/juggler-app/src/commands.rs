@@ -443,6 +443,9 @@ fn step_account_alerts(
 
     let mut out = Vec::new();
     let id = account.id.as_str().to_owned();
+    // D-62: one renewal line per Account, however many folders are on it.
+    let owner = |key: &str| storage.terms().owner(key).ok().flatten();
+    let mine = owner(&id);
     let display = quota_display_inner(storage, account, now);
     let confidence = match display.forecast.badge.as_str() {
         "measured" => juggler_core::model::Confidence::Measured,
@@ -452,10 +455,10 @@ fn step_account_alerts(
     // One buffered line per distinct copy — the label changes as the
     // date nears, which is the natural dedupe key.
     if display.renewal.state == "approaching"
-        && !digest
-            .entries
-            .iter()
-            .any(|line| line.key == id && line.text == display.renewal.label)
+        && !digest.entries.iter().any(|line| {
+            line.text == display.renewal.label
+                && (line.key == id || (mine.is_some() && owner(&line.key) == mine))
+        })
     {
         *digest = juggler_core::alerts::digest_add(digest, &id, &display.renewal.label);
         crate::usage_stats::count("renewal.warning_shown", &[]);
@@ -760,7 +763,7 @@ pub async fn reset_queue_dismiss(
 
 /// AJ-E610 Req.3/E609 Req.4: the user-entered flat subscription fee
 /// (USD/month) behind the dual view's ratio. Explicit set/clear only;
-/// no plan-tier inference ever writes this.
+/// no plan-tier inference ever writes this. D-62: on the folder's Account.
 ///
 /// # Errors
 ///
@@ -772,29 +775,9 @@ pub async fn account_set_fee(
     fee_usd: Option<f64>,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "account set fee", move |state| {
-        if let Some(fee) = fee_usd
-            && !(0.0..=100_000.0).contains(&fee)
-        {
-            return Err(AppError::Validation {
-                subject: "subscription fee",
-                message: "must be between 0 and 100000 USD/month".into(),
-            });
-        }
-        let storage = lock_storage_arc(state)?;
-        let key = format!("subscription_fee:{account}");
-        match fee_usd {
-            Some(fee) => storage
-                .app_settings()
-                .set(&key, &fee.to_string())
-                .map_err(AppError::from)?,
-            None => {
-                storage
-                    .app_settings()
-                    .set(&key, "")
-                    .map_err(AppError::from)?;
-            }
-        }
-        Ok(())
+        let fee = fee_usd.map(|fee| fee.to_string());
+        let term = juggler_core::storage::Term::Fee;
+        crate::features::subscriptions::terms::set_for_folder(state, &account, term, fee.as_deref())
     })
     .await
 }
@@ -910,14 +893,14 @@ pub struct AccountInfo {
     pub provider: String,
     /// User label.
     pub label: String,
-    /// Plan tier, if set.
+    /// Plan tier, if set: its Account's once moved there (AJ-E3202).
     pub plan: Option<String>,
     /// Login state: `logged_in` or `logged_out`.
     pub login_state: String,
     /// D-08 Tier-1 cleanup opt-in (off by default — notify-only tier).
     pub cleanup_opt_in: bool,
     /// Optional user-entered renewal date, local calendar `YYYY-MM-DD`
-    /// (D-12); `null` renders `Expiry: unknown` — never inferred.
+    /// (D-12; its Account's once moved); `null`: `Expiry: unknown`.
     pub renewal_date: Option<String>,
     /// AJ-E415 per-Account live-preview switch (off by default; the
     /// enable is the Screen-Recording consent moment).
@@ -944,6 +927,10 @@ pub struct AccountInfo {
     /// whether its key is in the Keychain.
     #[ts(optional = nullable)]
     pub service: Option<String>,
+    /// D-62: the Account its sign-in was last read as (its plan, renewal
+    /// and fee are set there), when known.
+    #[ts(optional = nullable)]
+    pub subscription_id: Option<String>,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -1299,7 +1286,7 @@ pub fn accounts_info(state: &Arc<AppState>) -> AppResult<Vec<AccountInfo>> {
     };
     let mut out = Vec::new();
     for account in accounts {
-        let mut info = account_info_of(&state.registry, &account);
+        let mut info = account_info_of(state, &account);
         info.is_default = Some(default.as_deref() == Some(account.id.as_str()));
         out.push(info);
     }
@@ -1361,10 +1348,8 @@ pub fn create_account(
     };
     lock_storage_arc(state)?.accounts().insert(&account)?;
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
-    Ok(account_info_of(
-        &state.registry,
-        &find_account_arc(state, account.id.as_str()).unwrap_or(account),
-    ))
+    let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
+    Ok(account_info_of(state, &account))
 }
 
 /// Re-probes an account's login state (metadata-only; ADR-0003).
@@ -2219,7 +2204,7 @@ pub fn account_use_original_impl(
 ) -> AppResult<AccountInfo> {
     let account = find_account_arc(state, account_id)?;
     if account.in_place {
-        return Ok(account_info_of(&state.registry, &account));
+        return Ok(account_info_of(state, &account));
     }
     let Some(source) = account.import_source_path.clone() else {
         return Err(AppError::Validation {
@@ -2287,7 +2272,7 @@ pub fn account_use_original_impl(
     // Its usage is read from a new place now: start the offsets fresh
     // (the store dedupes anything read twice).
     crate::usage_pipeline::forget_account_offsets(state, updated.id.as_str());
-    Ok(account_info_of(&state.registry, &updated))
+    Ok(account_info_of(state, &updated))
 }
 
 /// How a setup comes in (ADR-0018).
@@ -2453,7 +2438,7 @@ fn bring_in_setup(
     crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
     let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
     Ok(ImportResult {
-        account: account_info_of(&state.registry, &account),
+        account: account_info_of(state, &account),
         files_copied: outcome.files_copied,
         bytes_copied: outcome.bytes_copied,
         skipped: outcome.skipped,
@@ -2727,10 +2712,7 @@ pub(crate) fn engine_usage_snapshot(
         Err(_) => return juggler_core::model::UsageSnapshot::default(),
     };
     let account = account.as_str().to_string();
-    let Ok(account_row) = storage
-        .accounts()
-        .get(&juggler_core::model::AccountId::new(account.clone()))
-    else {
+    let Ok(Some(_)) = storage.terms().own(&account) else {
         return juggler_core::model::UsageSnapshot::default();
     };
     let now_ms = Timestamp::now().millis();
@@ -2758,9 +2740,14 @@ pub(crate) fn engine_usage_snapshot(
             .map(|raw| QuotaCap::decode(&raw))
             .unwrap_or_default()
     };
+    let renewal_date = storage
+        .terms()
+        .effective(&account)
+        .ok()
+        .and_then(|t| t.renewal_date);
     let subscription = SubscriptionClock {
-        renewal_date: account_row.renewal_date.clone(),
-        entered_by_user: account_row.renewal_date.is_some(),
+        entered_by_user: renewal_date.is_some(),
+        renewal_date,
         from_vendor_feed: false,
     };
     let evaluation = quota::evaluate_account(quota::AccountEvaluation {
@@ -3509,7 +3496,7 @@ pub async fn account_set_preview_opt_in(
             storage.accounts().update(&account)?;
             account
         };
-        Ok(account_info_of(&state.registry, &account))
+        Ok(account_info_of(state, &account))
     })
     .await
 }
@@ -4361,15 +4348,28 @@ pub(crate) fn lock_storage_arc(
     state.storage.lock().map_err(|_| AppError::StatePoisoned)
 }
 
-fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Account) -> AccountInfo {
+/// The folder's row for the UI, with the plan and renewal that apply to
+/// it (its Account's once moved, D-62). Takes the storage lock: never
+/// call with it held.
+fn account_info_of(state: &Arc<AppState>, account: &Account) -> AccountInfo {
+    let (terms, owner) = lock_storage_arc(state).map_or((None, None), |storage| {
+        let terms = storage.terms();
+        let id = account.id.as_str();
+        (terms.applying(account).ok(), terms.owner(id).ok().flatten())
+    });
+    let terms = terms.unwrap_or_else(|| juggler_core::storage::Terms {
+        plan: account.plan.as_ref().map(ToString::to_string),
+        renewal_date: account.renewal_date.clone(),
+        fee_usd: None,
+    });
     AccountInfo {
-        login_state: login_state_name(login_state_of(registry, account)).to_string(),
+        login_state: login_state_name(login_state_of(&state.registry, account)).to_string(),
         id: account.id.to_string(),
         provider: account.harness.to_string(),
         label: account.label.clone(),
-        plan: account.plan.as_ref().map(ToString::to_string),
+        plan: terms.plan,
         cleanup_opt_in: account.cleanup_opt_in,
-        renewal_date: account.renewal_date.clone(),
+        renewal_date: terms.renewal_date,
         preview_opt_in: account.preview_opt_in,
         import_source_path: account.import_source_path.clone(),
         import_origin: account.import_origin.clone(),
@@ -4377,6 +4377,7 @@ fn account_info_of(registry: &juggler_adapter::AdapterRegistry, account: &Accoun
         in_place: account.in_place,
         is_default: None,
         service: None,
+        subscription_id: owner,
     }
 }
 
@@ -9676,12 +9677,13 @@ pub fn account_set_cleanup_arc(
         storage.accounts().update(&account)?;
         account
     };
-    Ok(account_info_of(&state.registry, &account))
+    Ok(account_info_of(state, &account))
 }
 
 /// Sets or clears the optional user-entered renewal date (AJ-E411,
 /// D-12). `date` must be a valid local calendar `YYYY-MM-DD` (strictly
-/// validated — honest rejection, never a repair); `None` clears it.
+/// validated — honest rejection, never a repair); `None` clears it. D-62:
+/// it's set on the folder's Account when it has one.
 ///
 /// # Errors
 ///
@@ -9710,24 +9712,12 @@ pub fn account_set_renewal_arc(
     account_id: &str,
     date: Option<&str>,
 ) -> AppResult<AccountInfo> {
-    if let Some(raw) = date
-        && juggler_core::renewal::CalendarDate::parse(raw).is_none()
-    {
-        return Err(AppError::Validation {
-            subject: "renewal date",
-            message: format!("must be YYYY-MM-DD (got {raw:?})"),
-        });
-    }
-    let account = {
-        let storage = lock_storage_arc(state)?;
-        let mut account = storage
-            .accounts()
-            .get(&AccountId::new(account_id.to_string()))?;
-        account.renewal_date = date.map(ToString::to_string);
-        storage.accounts().update(&account)?;
-        account
-    };
-    Ok(account_info_of(&state.registry, &account))
+    let term = juggler_core::storage::Term::Renewal;
+    crate::features::subscriptions::terms::set_for_folder(state, account_id, term, date)?;
+    Ok(account_info_of(
+        state,
+        &find_account_arc(state, account_id)?,
+    ))
 }
 
 /// The exit-snapshot hook (AJ-E410 Req.3): journals the pre-exit

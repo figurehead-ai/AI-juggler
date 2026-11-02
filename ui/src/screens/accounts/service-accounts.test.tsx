@@ -118,6 +118,7 @@ const account = (service: (typeof PREVIEW_SERVICES)[number]["service"], ids: str
   renewal_date: null,
   fee_usd: null,
   differs: [],
+  choices: [],
   service,
   ...extra,
 });

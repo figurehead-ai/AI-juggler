@@ -18,14 +18,14 @@ label: string,
  */
 folder: string, 
 /**
- * Its plan, as set on it.
+ * Its own plan, as set on it (before 0.4, or while it has no Account).
  */
 plan: string | null, 
 /**
- * Its renewal date, as set on it.
+ * Its own renewal date, as set on it.
  */
 renewal_date: string | null, 
 /**
- * Its monthly fee, USD, as set on it.
+ * Its own monthly fee, USD, as set on it.
  */
 fee_usd: number | null, };

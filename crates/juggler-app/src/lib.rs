@@ -546,6 +546,7 @@ macro_rules! app_commands {
             Write features::conversations::commands::conversations_continue,
             Read  features::subscriptions::commands::subscriptions_list,
             Write features::subscriptions::commands::subscriptions_rename,
+            Write features::subscriptions::commands::subscriptions_set_term,
             // AJ-E1601: the services' published facts; no key, no secret.
             Read  features::service_accounts::commands::service_accounts_catalog,
             // Takes a key into the Keychain: never over the bridge.

@@ -316,25 +316,21 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v40, the stored Accounts
-    // and Apps) is undone by hand and runs again on open.
+    // One version behind: the last migration (v41, which of a folder's
+    // terms moved to its Account) is undone by hand and runs again on
+    // open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 40,
-        "a new migration landed: undo it here instead (this test's undo is v40's)"
+        version, 41,
+        "a new migration landed: undo it here instead (this test's undo is v41's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch(
-            "ALTER TABLE instances DROP COLUMN app_id;
-             ALTER TABLE accounts DROP COLUMN subscription_id;
-             DROP TABLE apps;
-             DROP TABLE subscriptions;",
-        )
-        .unwrap();
+        conn.execute_batch("ALTER TABLE accounts DROP COLUMN terms_moved;")
+            .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }

@@ -11,35 +11,39 @@ import { accountSetFee, type AccountInfo } from "../../lib/bridge";
 import { renewalLabel } from "../../lib/renewal";
 import { Checkbox } from "../../components/controls";
 
-export function AccountSettingsSection({ account, now, resetsAtMs }: { account: AccountInfo; now: number; resetsAtMs: number | null }) {
+/** `termsOnAccount`: its plan, renewal and fee are its Account's (D-62),
+ * shown and set there, so they aren't here. */
+export function AccountSettingsSection({ account, now, resetsAtMs, termsOnAccount = false }: { account: AccountInfo; now: number; resetsAtMs: number | null; termsOnAccount?: boolean }) {
   const label = renewalLabel(account.renewal_date, now);
   return (
     <Section title="Settings" icon={<IconSettings />} sub="for this app" testId="account-settings">
         <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-body @min-[700px]:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <dt className="text-meta font-semibold text-ink">Plan and renewal</dt>
-            <dd className="flex flex-col gap-2 text-meta">
-              <span className="flex flex-wrap items-center gap-2">
-                <Chip tone="success">signed in</Chip>
-                <span className="text-muted">
-                  plan: <span className="text-ink">{account.plan ?? "unknown"}</span>
+          {!termsOnAccount && (
+            <div className="flex flex-col gap-1.5">
+              <dt className="text-meta font-semibold text-ink">Plan and renewal</dt>
+              <dd className="flex flex-col gap-2 text-meta">
+                <span className="flex flex-wrap items-center gap-2">
+                  <Chip tone="success">signed in</Chip>
+                  <span className="text-muted">
+                    plan: <span className="text-ink">{account.plan ?? "unknown"}</span>
+                  </span>
                 </span>
-              </span>
-              <span data-testid="account-renewal" className="flex flex-wrap items-center gap-1.5">
-                {account.renewal_date === null ? (
-                  <span className="text-muted">Expiry: unknown</span>
-                ) : label?.tier === "warning" ? (
-                  <Chip tone="warning">⚠ {label.text}</Chip>
-                ) : label?.tier === "danger" ? (
-                  <Chip tone="danger">⛔ {label.text}</Chip>
-                ) : (
-                  <span className="text-muted">{label?.text ?? "Expiry: unknown"}</span>
-                )}
-              </span>
-              <RenewalEditor account={account} />
-              <FeeEditor account={account} />
-            </dd>
-          </div>
+                <span data-testid="account-renewal" className="flex flex-wrap items-center gap-1.5">
+                  {account.renewal_date === null ? (
+                    <span className="text-muted">Expiry: unknown</span>
+                  ) : label?.tier === "warning" ? (
+                    <Chip tone="warning">⚠ {label.text}</Chip>
+                  ) : label?.tier === "danger" ? (
+                    <Chip tone="danger">⛔ {label.text}</Chip>
+                  ) : (
+                    <span className="text-muted">{label?.text ?? "Expiry: unknown"}</span>
+                  )}
+                </span>
+                <RenewalEditor account={account} />
+                <FeeEditor account={account} />
+              </dd>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <dt className="text-meta font-semibold text-ink">Tidying up</dt>
             <dd className="text-meta">
