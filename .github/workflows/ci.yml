@@ -365,7 +365,7 @@ jobs:
         run: |
           [ "${{ needs.a11y-shard.result }}" = "success" ] \
             || { echo "::error::an accessibility shard failed (${{ needs.a11y-shard.result }}) — see its log and the a11y-shard-* artifacts"; exit 1; }
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: needs.a11y-scope.outputs.ui == 'true'
         with:
           pattern: a11y-shard-*
