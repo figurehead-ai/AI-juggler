@@ -40,7 +40,7 @@ export function globalId(id: unknown): GlobalId | null {
  * account's under Accounts. A session's page names its own place. */
 // A paired Mac's session ("Fleet › Mac mini › Session") lights Fleet (the
 // 0.3 re-render found no tab lit there).
-export const PAGE_UNDER: Partial<Record<string, GlobalId>> = { project: "projects", pool: "pools", account: "accounts", remote: "fleet" };
+export const PAGE_UNDER: Partial<Record<string, GlobalId>> = { project: "projects", pool: "pools", app: "accounts", subscription: "accounts", remote: "fleet" };
 
 /** Opens a global screen and brings one of its sections into view
  * (`anchor`: the section's element id), focused for the keyboard. The

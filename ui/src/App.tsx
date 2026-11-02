@@ -101,7 +101,6 @@ type Selection =
   | { kind: "project"; id: string }
   | { kind: "session"; id: string }
   | { kind: "login"; id: string }
-  | { kind: "account"; id: string }
   | { kind: "provider"; id: string }
   | { kind: "conversation"; accountId: string; id: string; projectId: string | null } // AJ-E1529
   | { kind: "pool"; id: string } // AJ-E1703: a pool's page
@@ -488,7 +487,8 @@ export default function App() {
   );
 
   const selectedAccount = useMemo(
-    () => (selection.kind === "account" ? (accounts.find((a) => a.id === selection.id) ?? null) : null),
+    // D-62: a CLI App's page is its folder's (⌘K offers the folder's actions).
+    () => (selection.kind === "app" && selection.id.startsWith("cli:") ? (accounts.find((a) => `cli:${a.id}` === selection.id) ?? null) : null),
     [selection, accounts],
   );
   const selectedProvider = useMemo(() => {
@@ -554,8 +554,8 @@ export default function App() {
         ? (selectedProject?.name ?? "Project")
         : selection.kind === "provider"
         ? providerDisplayName(selection.id)
-        : selection.kind === "account"
-        ? (selectedAccount?.label ?? "App")
+        : selection.kind === "app" || selection.kind === "subscription"
+        ? (selection.kind === "app" ? "App" : "Account")
         : selectedSession
           ? // D-25: the session's project (the view below names its place).
             (projects.find((p) => p.id === selectedSession.project_id)?.name ?? "Session")
@@ -573,7 +573,7 @@ export default function App() {
       selectConversation={(conversation) => { setGlobal(null); setSelection({ kind: "conversation", accountId: conversation.account_id, id: conversation.id, projectId: conversation.project_id }); }}
       selectSession={selectSession}
       selectProject={selectProject}
-      selectAccount={(id) => { setGlobal(null); setSelection({ kind: "account", id }); }}
+      selectAccount={(id) => { setGlobal(null); setSelection({ kind: "app", id: `cli:${id}` }); }} // D-62: a folder is its CLI App
       selectTool={() => openToolInSettings()}
       selectPool={(id) => { setGlobal(null); setSelection({ kind: "pool", id }); }}
       openAccounts={() => setGlobal("accounts")} openHome={() => { setGlobal(null); setSelection({ kind: "none" }); }}
@@ -683,7 +683,7 @@ export default function App() {
                 openTerminal={openLoginTerminal}
                 onInspectAccount={(id) => {
                   setGlobal(null);
-                  setSelection({ kind: "account", id });
+                  setSelection({ kind: "app", id: `cli:${id}` });
                 }}
               />
             </ScrollingScreen>
@@ -830,7 +830,7 @@ export default function App() {
                   <ConversationPage accountId={selection.accountId} id={selection.id} now={now} projects={projects} onSwitch={(sessionId, targetProfileId, targetLabel) => setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
                 </div>
               ) : selection.kind === "app" || selection.kind === "subscription" ? (
-                <EntityPage kind={selection.kind} id={selection.id} sessions={railSessions} projects={projects} accounts={accounts} now={now} onOpenSession={selectSession} onOpenProject={selectProject} />
+                <EntityPage kind={selection.kind} id={selection.id} sessions={railSessions} projects={projects} accounts={accounts} now={now} onOpenSession={selectSession} onOpenProject={selectProject} onChanged={() => void refresh()} />
               ) : selection.kind === "pool" ? (
                 // The band above takes its height: the page shrinks to fit, never runs past the window (0.3.1).
                 <div className="min-h-0 flex-1" data-testid="pool-scroll">

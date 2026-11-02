@@ -20,7 +20,7 @@ crates/juggler-app/src/usage_stats.rs 2088
 ui/src/App.tsx 1132
 ui/src/components/KillSheet.tsx 589
 ui/src/components/RemoteTabs.tsx 467
-ui/src/components/RightInspector.tsx 1218
+ui/src/components/RightInspector.tsx 1146
 ui/src/components/UpdatesCard.tsx 417
 ui/src/components/WorkflowRail.tsx 926
 ui/src/components/indicator.tsx 490

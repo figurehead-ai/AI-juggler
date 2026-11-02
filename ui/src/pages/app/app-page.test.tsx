@@ -14,7 +14,10 @@ import type { AccountInfo } from "../../lib/bridge";
 const NOW = Date.now();
 const WORK = "app:claude-app:/Users/you/Profiles/Work";
 const seams = () => window as unknown as Record<string, unknown>;
-const folders = [{ id: "claude-work", label: "Work Max", provider: "claude-code", login_state: "logged_in" } as AccountInfo];
+const folders = [
+  { id: "claude-work", label: "Work Max", provider: "claude-code", login_state: "logged_in", renewal_date: null, cleanup_opt_in: false, preview_opt_in: false } as AccountInfo,
+  { id: "z-out", label: "Old laptop", provider: "claude-code", login_state: "logged_out", renewal_date: null, cleanup_opt_in: false, preview_opt_in: false } as AccountInfo,
+];
 
 afterEach(() => {
   cleanup();
@@ -63,6 +66,23 @@ describe("D-62 the App page", () => {
     // Back to the default, from the same place.
     fireEvent.click(await screen.findByTestId("app-name-reset"));
     await waitFor(() => expect(screen.getByTestId("page-name").textContent).toBe("Claude app · Lab"));
+  });
+
+  it("a CLI App: New session, its folder's renewal and tidy-up in Settings (the folder's page is its App's)", async () => {
+    page("cli:claude-work");
+    expect((await screen.findByTestId("page-name")).textContent).toBe("Claude Code · Work Max");
+    expect(screen.getByTestId("app-new-session")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Settings")!);
+    expect(await screen.findByTestId("renewal-editor")).toBeTruthy();
+    expect(screen.getByTestId("account-cleanup-toggle")).toBeTruthy();
+    // Its ⋯: the folder's own actions.
+    expect(screen.getByTestId("header-menu")).toBeTruthy();
+  });
+
+  it("a CLI App that's signed out says so, and where to sign in", async () => {
+    page("cli:z-out");
+    expect((await screen.findAllByTestId("app-signed-out")).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("account-limits")).toBeNull();
   });
 
   it("one AI Juggler doesn't know now says so", async () => {

@@ -115,7 +115,7 @@
 **Research basis**: the review's Account page wireframe.
 **Handover note**: —
 
-### AJ-E3206 Every name opens its own page | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3204, AJ-E3205
+### AJ-E3206 Every name opens its own page | Status: IN-PROGRESS (an App's name opens the App: the rail's App headers, inactive apps, Home's tiles, a session's App chip and "Where it runs"; an Account's opens the Account: the Account grouping's headers, the session menu and "Where it runs" (A3), the Accounts cards, runway names and limit notices; a folder is its CLI App now, its page retired; the Accounts tab stays lit on both pages. Req. 2 (one mark and colour per App), ⌘K and pickers (with AJ-E3105), and req. 3 (needs the Tool page, AJ-E3104) remain) | Priority P0 | Effort M | Depends: AJ-E3204, AJ-E3205
 **Goal**: An App's name opens the App, an Account's name opens the Account, and ↗ brings the real app forward, on every screen.
 **User story**: In the App grouping, a header opens the App; in the Account grouping, the Account.
 **Requirements**:

@@ -6,6 +6,8 @@
  * folder, and opens the App's page (the profile chip it replaced was no
  * door). Where it runs is on the facts line.
  */
+import { OPEN_APP } from "../../lib/apps";
+import { OPEN_ACCOUNT } from "../../lib/accounts-page";
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ActionHostProvider } from "../../components/ItemMenu";
@@ -26,7 +28,7 @@ const model = {
   profileLabel: "Work",
 } as unknown as SessionModel;
 
-const signedIn = { state: "signed_in", tool: "claude-code", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
+const signedIn = { state: "signed_in", account_id: "acct:anthropic:work", tool: "claude-code", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
 
 it("shows two chips: the state, and the App menu named by its App", () => {
   const view = render(<SessionChips model={model} account={signedIn} now={Date.now()} />);
@@ -38,10 +40,13 @@ it("shows two chips: the state, and the App menu named by its App", () => {
   for (const gone of ["session-where-chip", "session-profile-chip", "session-account-chip", "session-folder-chip", "session-more-chips"]) expect(view.queryByTestId(gone)).toBeNull();
 });
 
-it("opens to the App, its account, the working folder and the door to the App's page", () => {
-  const openAccountById = vi.fn();
+it("opens to the App, its account, the working folder and a door to each of their pages (A3)", () => {
+  const opened = vi.fn();
+  const listen = (event: Event) => opened(event.type, (event as CustomEvent<{ id: string }>).detail.id);
+  window.addEventListener(OPEN_APP, listen);
+  window.addEventListener(OPEN_ACCOUNT, listen);
   const view = render(
-    <ActionHostProvider host={{ openAccountById }}>
+    <ActionHostProvider host={{}}>
       <SessionChips model={model} account={signedIn} now={Date.now()} />
     </ActionHostProvider>,
   );
@@ -54,9 +59,19 @@ it("opens to the App, its account, the working folder and the door to the App's 
   expect(within(panel).getByTestId("session-account-account").textContent).toBe("AccountClaude Max 20x · you@example.com");
   expect(within(panel).getByTestId("session-account-folder").textContent).toBe("Working folder~/Dev/ai-juggler");
   expect(within(panel).getByTestId("session-account-open").textContent).toContain("Open Claude Code · Work's page");
+  expect(within(panel).getByTestId("session-account-open-account").textContent).toContain("Open Claude Max 20x's page");
   fireEvent.click(within(panel).getByTestId("session-account-open"));
-  expect(openAccountById).toHaveBeenCalledWith("claude-work");
   expect(view.queryByTestId("session-account-panel")).toBeNull();
+  fireEvent.click(view.getByTestId("session-account-menu"));
+  fireEvent.click(view.getByTestId("session-account-open-account"));
+  window.removeEventListener(OPEN_APP, listen);
+  window.removeEventListener(OPEN_ACCOUNT, listen);
+  // A terminal session's App is its folder's CLI App; its Account, the
+  // subscription it's signed in to.
+  expect(opened.mock.calls).toEqual([
+    [OPEN_APP, "cli:claude-work"],
+    [OPEN_ACCOUNT, "acct:anthropic:work"],
+  ]);
 });
 
 it("names a desktop App by its app and instance, and works before sign-in is known", () => {
@@ -68,8 +83,9 @@ it("names a desktop App by its app and instance, and works before sign-in is kno
   fireEvent.click(view.getByTestId("session-account-menu"));
   expect(view.getByTestId("session-account-profile").textContent).toBe("Claude Code · Work");
   expect(view.queryByTestId("session-account-account")).toBeNull();
-  // No host door: no line that does nothing.
-  expect(view.queryByTestId("session-account-open")).toBeNull();
+  // Before its sign-in is known: its App's page, no Account's yet.
+  expect(view.getByTestId("session-account-open")).toBeTruthy();
+  expect(view.queryByTestId("session-account-open-account")).toBeNull();
 });
 
 it("says where it runs on the facts line", () => {

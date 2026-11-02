@@ -25,6 +25,7 @@ import { AccountUsage } from "../AccountPage";
 import { AppOverview, AppProjects, rowOf } from "./AppOverview";
 import { AppSettings } from "./AppSettings";
 import { ProcessesView } from "../../screens/processes/ProcessesView";
+import { FolderMenu } from "../../components/InspectorHeaderMenu";
 import { errorText, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { useApps, type AppModel } from "../../lib/apps";
 import { appItems, appProjects, openHere } from "../../lib/app-items";
@@ -44,6 +45,7 @@ export function AppPage({
   now,
   onOpenSession,
   onOpenProject,
+  onChanged,
 }: {
   id: string;
   sessions: InstanceInfo[];
@@ -52,6 +54,8 @@ export function AppPage({
   now: number;
   onOpenSession: (id: string) => void;
   onOpenProject: (id: string) => void;
+  /** Its folder changed (renamed, signed in, removed). */
+  onChanged?: () => void;
 }): JSX.Element {
   const apps = useApps(accounts);
   const app = apps?.find((one) => one.id === id) ?? null;
@@ -69,7 +73,7 @@ export function AppPage({
       </p>
     );
   }
-  return <AppBody app={app} apps={apps} sessions={sessions} projects={projects} accounts={accounts} now={now} onOpenSession={onOpenSession} onOpenProject={onOpenProject} />;
+  return <AppBody app={app} apps={apps} sessions={sessions} projects={projects} accounts={accounts} now={now} onOpenSession={onOpenSession} onOpenProject={onOpenProject} onChanged={onChanged ?? (() => {})} />;
 }
 
 function AppBody({
@@ -81,7 +85,9 @@ function AppBody({
   now,
   onOpenSession,
   onOpenProject,
+  onChanged,
 }: {
+  onChanged: () => void;
   app: AppModel;
   apps: AppModel[];
   sessions: InstanceInfo[];
@@ -124,7 +130,12 @@ function AppBody({
             }
             name={app.name}
             facts={<AppFacts app={app} open={open} total={items.length} now={now} />}
-            actions={<AppAction app={app} />}
+            actions={
+              <>
+                <AppAction app={app} />
+                {app.kind === "cli" && app.folder && <FolderMenu account={app.folder} sessions={sessions} onChanged={onChanged} />}
+              </>
+            }
           />
         }
         render={(tab, visible) => {
@@ -151,7 +162,7 @@ function AppBody({
               // Its open sessions' processes, each whole (AJ-E2404's view).
               return visible ? <ProcessesView sessionIds={openIds} height="calc(100vh - 22rem)" testId="app-processes" /> : null;
             case "settings":
-              return <AppSettings app={app} now={now} />;
+              return <AppSettings app={app} now={now} resetsAtMs={soonestReset(sessions, app.folder?.id ?? null)} />;
             default:
               return null;
           }
@@ -159,6 +170,14 @@ function AppBody({
       />
     </div>
   );
+}
+
+/** When the folder's newest limit resets: the reading of its session with
+ * the least left (the folder page's rule). */
+function soonestReset(sessions: InstanceInfo[], folder: string | null): number | null {
+  const read = sessions.filter((session) => session.account_id === folder && session.quota !== null);
+  read.sort((a, b) => a.quota!.used_percentage - b.quota!.used_percentage);
+  return read.at(-1)?.quota?.resets_at_ms ?? null;
 }
 
 /** What it is and whether it runs: its app, its state, its sessions. */

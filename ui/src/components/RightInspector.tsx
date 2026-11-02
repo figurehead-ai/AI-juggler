@@ -5,7 +5,6 @@ import { InspectorHeader, statusTone, toolRunning } from "../pages/ItemHeader";
 import { since } from "../lib/time-words";
 import { pageTabs, type PageKind, type PageTabId } from "../pages/registry";
 import { ProjectTab, useProjectTabCounts } from "../pages/project/ProjectTabs";
-import { AccountOverview, AccountSessions } from "../pages/AccountPage";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
@@ -53,7 +52,7 @@ import { memorySize } from "../lib/compact";
  * the tabs with something to show. Kept on its old name for its callers.
  */
 
-export type InspectorKind = "instance" | "provider" | "account" | "project" | "machine";
+export type InspectorKind = "instance" | "provider" | "project" | "machine";
 
 export type InspectorSelection =
   | { kind: "none" }
@@ -100,7 +99,6 @@ function pageKindOf(kind: InspectorKind, remote: RemoteContext | null): PageKind
       return "session";
     case "provider":
       return "tool";
-    case "account":
     case "project":
     case "machine":
       return kind;
@@ -198,10 +196,6 @@ export function RightInspector({
     ...sessionTabs,
     hasUsage: projectUsage,
     counts: projectCounts,
-    hasSessions: data.account
-      ? sessions.some((s) => s.account_id === data.account!.id) ||
-        outside(conversations).some((c) => c.account_id === data.account!.id)
-      : false,
   });
   const panelProps = {
     kind,
@@ -342,15 +336,6 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
       }
     case "project": // 0.3: its seven tabs (pages/project/ProjectTabs).
       return props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null;
-    case "account":
-      switch (tab) {
-        case "overview":
-          return props.data.account ? <AccountOverview {...props} account={props.data.account} /> : null;
-        case "sessions":
-          return props.data.account ? <AccountSessions {...props} account={props.data.account} /> : null;
-        default:
-          return null;
-      }
     case "provider":
       return tab === "overview" ? <ProviderOverview {...props} /> : null;
     case "machine":
@@ -783,47 +768,6 @@ function InstanceOverview(props: PanelProps) {
             )}
           </Card>
         </div>
-      </div>
-    );
-  }
-
-  if (kind === "account" && data.account) {
-    const account = data.account;
-    const rows = sessions.filter((s) => s.account_id === account.id);
-    return (
-      <div className="flex flex-col gap-3">
-        <Card className="flex flex-col gap-2 p-4">
-          <p className="text-section font-semibold text-ink">App</p>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-meta">
-            <span>
-              tool: <span className="text-muted">{providerDisplayName(account.provider)}</span>
-            </span>
-            <span>
-              plan: <span className="text-muted">{account.plan ?? "unknown"}</span>
-            </span>
-            <Chip tone={signedIn(account.login_state) ? "success" : "neutral"}>
-              {signedIn(account.login_state) ? "signed in" : "signed out"}
-            </Chip>
-          </div>
-        </Card>
-        <Card className="flex flex-col gap-2 p-4">
-          <p className="text-section font-semibold text-ink">Sessions in this app</p>
-          {rows.length === 0 ? (
-            <p className="text-xs text-ink-2">No sessions recorded yet.</p>
-          ) : (
-            rows.slice(0, 8).map((row) => (
-              <button
-                key={row.id}
-                type="button"
-                onClick={() => props.onOpenSession(row.id)}
-                className="flex items-center gap-2 py-1.5 text-left text-xs"
-              >
-                <span className="min-w-0 flex-1 truncate font-medium">{row.account_label}</span>
-                <Chip tone={statusTone(row.status).tone}>{statusTone(row.status).label}</Chip>
-              </button>
-            ))
-          )}
-        </Card>
       </div>
     );
   }

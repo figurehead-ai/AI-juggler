@@ -10,10 +10,11 @@ import { RenameSheet } from "../../components/ManageWork";
 import { PaneSection, SettingRow } from "../../screens/settings/parts";
 import { PlaceRow } from "../../screens/settings/DesktopAppsPane";
 import { AccountSettingsSection } from "../account/Settings";
+import { AccountCapture } from "../AccountCapture";
 import { appsRename } from "../../lib/ipc/apps";
 import type { AppModel } from "../../lib/apps";
 
-export function AppSettings({ app, now }: { app: AppModel; now: number }): JSX.Element {
+export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; now: number; resetsAtMs?: number | null }): JSX.Element {
   const [renaming, setRenaming] = useState(false);
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="app-settings">
@@ -41,7 +42,9 @@ export function AppSettings({ app, now }: { app: AppModel; now: number }): JSX.E
           <PlaceRow place={app.place} name={app.name} />
         </PaneSection>
       )}
-      {app.kind === "cli" && app.folder && <AccountSettingsSection account={app.folder} now={now} resetsAtMs={null} />}
+      {app.kind === "cli" && app.folder && <AccountSettingsSection account={app.folder} now={now} resetsAtMs={resetsAtMs} />}
+      {/* AJ-E1530 Req.1: opt-in, shown only where it applies, last. */}
+      {app.kind === "cli" && app.folder && <AccountCapture accountId={app.folder.id} />}
       {renaming && (
         <RenameSheet
           title={`Rename ${app.name}`}

@@ -19,6 +19,12 @@ import { profileColor } from "../../lib/profile-marks";
 import { shortPath } from "../../screens/AccountManage";
 import { accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
 import { sessionAppName, type SessionModel } from "./model";
+import { IconGauge } from "../../components/usage/controls";
+import { appIdOfRailKey, openApp } from "../../lib/apps";
+import { openAccount } from "../../lib/accounts-page";
+import { desktopAppKey } from "../../lib/app-name";
+import { useKnownPlaces } from "../../lib/places";
+import type { KnownPlaceInfo } from "../../lib/ipc/places";
 
 /** The profile's name as the rail's badge reads it (its place's, else
  * its folder's): one colour and monogram everywhere. */
@@ -33,6 +39,14 @@ export function accountWordsOf(account: SubscriptionInfo | undefined): string | 
   if (!account || account.state !== "signed_in") return null;
   const line = accountLine(account);
   return `${accountName(account)}${line ? ` · ${line}` : ""}`;
+}
+
+/** The App a session runs in: the desktop app and profile it's open in,
+ * else its folder's CLI App. */
+export function appIdOfSession(model: SessionModel, places: readonly KnownPlaceInfo[] | null): string | null {
+  const place = model.places.find((one) => one.kind === "desktop");
+  if (place) return appIdOfRailKey(desktopAppKey(place.app_id ?? null, place.app, place.instance), null, places);
+  return model.profileId ? `cli:${model.profileId}` : null;
 }
 
 /** One fact in the menu: a small muted label over its value. */
@@ -56,7 +70,12 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
     const rect = button.current?.getBoundingClientRect();
     if (rect) setAt({ x: rect.left, y: rect.bottom + 6, above: rect.top - 6, right: rect.right });
   };
-  const openPage = host.openAccountById && model.profileId ? () => host.openAccountById!(model.profileId) : null;
+  // D-62 (AJ-E3206, A3): the App it runs in (a Claude app profile, else
+  // its folder's CLI App) and the Account behind it, a click each.
+  const places = useKnownPlaces();
+  const appId = appIdOfSession(model, places);
+  const openPage = appId ? () => openApp(appId) : host.openAccountById && model.profileId ? () => host.openAccountById!(model.profileId) : null;
+  const accountId = account?.state === "signed_in" ? (account.account_id ?? null) : null;
   return (
     <>
       <button
@@ -92,6 +111,11 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
                 <ChoiceLine icon={IconProfiles} label={`Open ${app}'s page`} />
               </MenuItem>
             </>
+          )}
+          {accountId && account && (
+            <MenuItem onClick={() => (setAt(null), openAccount(accountId))} testId="session-account-open-account">
+              <ChoiceLine icon={IconGauge} label={`Open ${accountName(account)}'s page`} />
+            </MenuItem>
           )}
         </RowMenu>
       )}

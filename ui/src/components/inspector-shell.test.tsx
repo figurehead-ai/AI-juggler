@@ -112,7 +112,7 @@ function shell(selection: InspectorSelection, data = {}) {
       data={{
         instance: selection.kind === "instance" ? instance : null,
         project: selection.kind === "project" ? project : null,
-        account: selection.kind === "account" ? account : null,
+        account: null,
         provider: selection.kind === "provider" ? { id: "claude-code", name: "claude-code" } : null,
         machineId: "this-mac",
         ...data,
@@ -132,7 +132,6 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Usage", "Processes"] },
     // A tool's page is its body alone: no tab strip.
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
-    { kind: { kind: "account", id: "claude-work" }, name: "Work Max", type: "App", tabs: ["Overview", "Sessions"] },
     // Nothing measured yet: no Usage tab (no empty tabs).
     // 0.3: a project's seven doors (Usage once something is measured);
     // its crumb's last step is its name ("Projects › alpha").

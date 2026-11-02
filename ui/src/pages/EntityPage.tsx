@@ -15,6 +15,8 @@ export function EntityPage({ kind, ...props }: {
   now: number;
   onOpenSession: (id: string) => void;
   onOpenProject: (id: string) => void;
+  /** An App's folder changed (its ⋯). */
+  onChanged?: () => void;
 }): JSX.Element {
   return (
     <div className="min-h-0 flex-1" data-testid={kind === "app" ? "app-scroll" : "account-scroll"}>

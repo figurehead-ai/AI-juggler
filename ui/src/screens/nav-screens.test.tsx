@@ -103,7 +103,9 @@ describe("the header's doors", () => {
   it("light the tab a page sits under: the lit tab is the title", () => {
     expect(navLit("projects", null, "project")).toBe(true);
     expect(navLit("pools", null, "pool")).toBe(true);
-    expect(navLit("accounts", null, "account")).toBe(true);
+    // D-62: an App's page and an Account's sit under Accounts.
+    expect(navLit("accounts", null, "app")).toBe(true);
+    expect(navLit("accounts", null, "subscription")).toBe(true);
     expect(navLit("home", null, "none")).toBe(true);
     expect(navLit("home", null, "session")).toBe(false);
     expect(navLit("tasks", "tasks", "none")).toBe(true);

@@ -7,7 +7,7 @@
  * live in the header and its ⋯ menu, never in a tab of their own.
  */
 
-export type PageKind = "session" | "conversation" | "project" | "app" | "subscription" | "account" | "tool" | "machine" | "remote-session" | "pool";
+export type PageKind = "session" | "conversation" | "project" | "app" | "subscription" | "tool" | "machine" | "remote-session" | "pool";
 
 /** The type, in words, on every page's header. A conversation started
  * outside AI Juggler is a session too (it says "outside AI Juggler"). */
@@ -15,12 +15,10 @@ export const PAGE_LABELS: Record<PageKind, string> = {
   session: "Session",
   conversation: "Session",
   project: "Project",
-  // D-62 (AJ-E3204): an App's own page; `account` is a CLI App's folder
-  // page until the Account page (AJ-E3205) takes its place.
+  // D-62: an App's own page (AJ-E3204; a folder is its CLI App), and an
+  // Account's, a subscription (AJ-E3205).
   app: "App",
-  // D-62 (AJ-E3205): an Account (a subscription) has its own page.
   subscription: "Account",
-  account: "App",
   tool: "Tool",
   machine: "Machine",
   "remote-session": "Session",
@@ -105,7 +103,6 @@ export type TabFacts = {
  * source named for all). */
 const OVERVIEW_SOURCE: Partial<Record<PageKind, string>> = {
   project: "AI Juggler's projects and the tools' session files",
-  account: "the app's settings and usage tracking",
   app: "the apps' own session files and usage tracking",
   subscription: "its apps' sign-ins, limits and usage tracking",
   tool: "the tool's install and its apps",
@@ -146,8 +143,6 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // sessions, projects, usage and its own name and terms.
     case "subscription":
       return [TAB.overview, TAB.apps, TAB.sessions, TAB.projects, TAB.usage, { ...TAB.settings, source: "your choices for this account" }];
-    case "account":
-      return [TAB.overview, ...when(facts.hasSessions, "sessions")];
     case "conversation":
       return [TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes")];
     case "tool":

@@ -1,10 +1,10 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RightInspector } from "./RightInspector";
+import { AccountSettingsSection } from "../pages/account/Settings";
 import { RenewalAnnouncer } from "./indicator";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { sortSessions } from "../lib/railview";
-import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
+import type { AccountInfo, InstanceInfo } from "../lib/bridge";
 
 /**
  * AJ-E411 evidence (D-12): the renewal-date states at every threshold
@@ -78,31 +78,9 @@ function instance(id: string, overrides: Partial<InstanceInfo> = {}): InstanceIn
   };
 }
 
-const base = {
-  projects: [] as ProjectInfo[],
-  profiles: [] as LaunchRecipeInfo[],
-  terminalTitle: null,
-  freshness: {},
-  now: NOW,
-  onOpenProject: () => {},
-  onOpenSession: () => {},
-  onLaunch: async () => {},
-  onStopped: () => {},
-  onHandover: () => {},
-  onNew: () => {},
-};
-
+/** D-62: renewal is in a CLI App's Settings (its folder's section). */
 function accountShell(row: AccountInfo) {
-  const view = render(
-    <RightInspector
-      selection={{ kind: "account", id: row.id }}
-      data={{ instance: null, project: null, account: row, provider: null, machineId: "this-mac" }}
-      sessions={[]}
-      accounts={[row]}
-      {...base}
-    />,
-  );
-  return view;
+  return render(<AccountSettingsSection account={row} now={NOW} resetsAtMs={null} />);
 }
 
 afterEach(cleanup);
@@ -128,7 +106,7 @@ describe("AJ-E411 threshold labels (TS mirror of renewal.rs)", () => {
   });
 });
 
-describe("AJ-E411 Account inspector states + editor", () => {
+describe("AJ-E411 an App's renewal states + editor (its Settings)", () => {
   it("renders Expiry: unknown when no date exists", () => {
     const { container } = accountShell(account());
     expect(container.querySelector('[data-testid="account-renewal"]')!.textContent).toContain(
@@ -171,19 +149,6 @@ describe("AJ-E411 Account inspector states + editor", () => {
     expect(editor.querySelector("button")!.textContent).toContain("Clear");
   });
 
-  it("the renewal date is edited on the account's own page (AJ-E1533: no Actions tab)", () => {
-    const row = account();
-    const { getByTestId } = render(
-      <RightInspector
-        selection={{ kind: "account", id: row.id }}
-        data={{ instance: null, project: null, account: row, provider: null, machineId: "this-mac" }}
-        sessions={[]}
-        accounts={[row]}
-        {...base}
-      />,
-    );
-    expect(getByTestId("renewal-editor").closest("section")!.hasAttribute("hidden")).toBe(false);
-  });
 });
 
 describe("AJ-E411 once-per-day polite announcement", () => {

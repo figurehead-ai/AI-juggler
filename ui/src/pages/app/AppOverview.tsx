@@ -7,6 +7,8 @@
  */
 import type { JSX } from "react";
 import { Section } from "../../components/charts/ChartCard";
+import { Button, Card } from "../../components/primitives";
+import { signedIn } from "../../lib/bridge";
 import { IconFolder, IconPlay } from "../../components/usage/controls";
 import { IconHistory } from "../../components/icons-places";
 import { SessionRowBody } from "../SessionRow";
@@ -60,6 +62,7 @@ export function AppOverview({
       return row ? [{ row, project: item.projectId ? { id: item.projectId, name: item.project } : null }] : [];
     });
   const folder = app.folder;
+  const signedOut = folder !== null && !signedIn(folder.login_state);
   if (items.length === 0) {
     // Nothing yet: one card that says what to do, not three empty ones.
     return (
@@ -71,12 +74,13 @@ export function AppOverview({
               : `Sessions you run with ${app.name} show here, with the projects it works in. New session starts one.`}
           </p>
         </Section>
-        {folder && <AccountLimits account={folder} now={now} />}
+        {signedOut ? <SignedOut name={app.name} /> : folder && <AccountLimits account={folder} now={now} />}
       </div>
     );
   }
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="app-overview">
+      {signedOut && <SignedOut name={app.name} />}
       <div className="grid grid-cols-1 gap-grid @min-[900px]:grid-cols-2">
         <Section title="Open now" icon={<IconPlay />} sub={open.length > 0 ? `${open.length} open` : undefined} testId="app-open">
           <RowList rows={rows(open)} empty={app.kind === "desktop" ? `Nothing open in ${app.name} now.` : `Nothing running on ${app.name} now.`} />
@@ -90,7 +94,7 @@ export function AppOverview({
           <RowList rows={rows(recent)} empty="Everything here is open now." />
         </Section>
       </div>
-      {folder && (
+      {folder && !signedOut && (
         <div className="flex flex-col gap-2" data-testid="app-room">
           <AccountLimits account={folder} now={now} />
           {sharedWith.length > 0 && (
@@ -110,6 +114,22 @@ export function AppOverview({
         <ProjectRows projects={projects.slice(0, PROJECTS_SHOWN)} now={now} onOpenProject={onOpenProject} />
       </Section>
     </div>
+  );
+}
+
+/** A folder that isn't signed in: nothing to measure, and where to sign
+ * in (nothing is deleted). */
+function SignedOut({ name }: { name: string }): JSX.Element {
+  return (
+    <Card className="flex flex-wrap items-center justify-between gap-3 p-4" data-testid="app-signed-out">
+      <span className="flex flex-col gap-0.5">
+        <span className="text-body font-medium text-ink">{name} is signed out</span>
+        <span className="text-meta text-ink-2">Its limits and usage show again once it's signed in. Nothing is deleted.</span>
+      </span>
+      <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))}>
+        Sign in from Accounts
+      </Button>
+    </Card>
   );
 }
 

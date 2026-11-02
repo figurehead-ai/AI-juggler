@@ -3,7 +3,6 @@
  * PageShell's PageHeader): its mark and name, its parent as the crumb,
  * its state, two or three facts, and its actions with its ⋯ menu.
  */
-import { AccountAvatar } from "../components/Avatar";
 import { focusHandover } from "../lib/handover-focus";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageShell";
@@ -17,13 +16,12 @@ import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
 import { useActionHost } from "../components/ItemMenu";
 import { sessionTitle } from "../components/ManageWork";
 import { freshnessText } from "../components/RemoteTabs";
-import { IconFleet, IconJuggler, IconProfiles, IconProjects, IconTerminal } from "../components/icons";
+import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../components/icons";
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
 import { outside, useConversations } from "../lib/conversations";
 import { resourceLine, useHeavyNote } from "../lib/machine";
 import { since } from "../lib/time-words";
-import { useTools } from "../lib/tools";
-import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
+import type { InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
@@ -38,8 +36,6 @@ function KindIcon({ kind }: { kind: InspectorKind }) {
       return <IconTerminal {...props} />;
     case "provider":
       return <IconJuggler {...props} />;
-    case "account":
-      return <IconProfiles {...props} />;
     case "project":
       return <IconProjects {...props} />;
     case "machine":
@@ -94,7 +90,6 @@ export function InspectorHeader({
   onToggleFold?: () => void;
 }) {
   const host = useActionHost();
-  const tools = useTools();
   const { all: conversations } = useConversations();
   const subscriptions = useSubscriptions();
   const remote = data.remote ?? null;
@@ -136,10 +131,8 @@ export function InspectorHeader({
     );
   }
 
-  const menu = <InspectorHeaderMenu kind={kind} data={data} sessions={sessions} onChanged={onStopped} />;
+  const menu = <InspectorHeaderMenu kind={kind} data={data} onChanged={onStopped} />;
   const project = data.project ?? (instance ? (projects.find((p) => p.id === instance.project_id) ?? null) : null);
-  const account = data.account ?? null;
-  const tool = account ? tools.find((t) => t.id === account.provider) : undefined;
 
   const name =
     kind === "instance"
@@ -148,17 +141,13 @@ export function InspectorHeader({
         : "Session"
       : kind === "provider"
         ? (data.provider?.name ?? "Tool")
-        : kind === "account"
-          ? (account?.label ?? "App")
-          : kind === "project"
+        : kind === "project"
             ? (data.project?.name ?? "Project")
             : "Machine";
   const crumbs: Crumb[] =
     kind === "instance" && project
       ? [{ label: project.name, onOpen: () => onOpenProject(project.id), testId: "crumb-project" }]
-      : kind === "account" && tool
-        ? [{ label: tool.display_name, onOpen: () => host.openTool?.(tool), testId: "crumb-tool" }]
-        : kind === "project"
+      : kind === "project"
           ? [{ label: "Projects", onOpen: () => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "projects" } })), testId: "crumb-projects" }]
           : [];
   const state = instance && kind === "instance" ? statusTone(instance.status) : null;
@@ -175,8 +164,6 @@ export function InspectorHeader({
     <SessionMark model={model} />
   ) : kind === "provider" && data.provider ? (
     <ToolMark tool={data.provider.id} size={18} />
-  ) : kind === "account" && account ? (
-    <AccountAvatar accountId={account.id} label={account.label} size={28} />
   ) : kind === "project" && data.project ? (
       <ProjectMark projectId={data.project.id} size={28} />
     ) : (
@@ -234,8 +221,6 @@ export function InspectorHeader({
       </>
     ) : kind === "project" && data.project ? (
       <ProjectFacts project={data.project} sessions={sessions} />
-    ) : kind === "account" && account ? (
-      <span>{accountFacts(account, tool?.display_name ?? account.provider)}</span>
     ) : kind === "provider" && data.provider ? (
       <span>{toolFacts(data.provider.id, sessions, conversations)}</span>
     ) : null;
@@ -319,11 +304,6 @@ function sessionFacts(session: InstanceInfo, now: number, withAccount: boolean):
   return [withAccount ? session.account_label : null, `started ${since(session.started_at_ms, now)} ago`, lowLeftWords(session)]
     .filter(Boolean)
     .join(" · ");
-}
-
-/** An account's facts: its tool, and whether it's signed in. */
-function accountFacts(account: AccountInfo, toolName: string): string {
-  return [toolName, signedIn(account.login_state) ? "signed in" : "not signed in"].join(" · ");
 }
 
 /** How many of a tool's sessions run now, outside ones too (AJ-E1529). */

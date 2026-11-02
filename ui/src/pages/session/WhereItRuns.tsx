@@ -5,6 +5,10 @@
  * ones it knows; then whatever the page adds (a session AI Juggler runs:
  * its project and its details).
  */
+import { appIdOfSession } from "./AccountMenu";
+import { openApp } from "../../lib/apps";
+import { openAccount } from "../../lib/accounts-page";
+import { useKnownPlaces } from "../../lib/places";
 import type { JSX, ReactNode } from "react";
 import { Card } from "../../components/primitives";
 import { shortPath } from "../../screens/AccountManage";
@@ -17,10 +21,13 @@ export function WhereItRuns({
   accountWords,
   outside,
   project,
+  accountId = null,
   children,
 }: {
   model: SessionModel;
   accountWords: string | null;
+  /** D-62 (A3): its Account, a link to its page. */
+  accountId?: string | null;
   /** Started outside AI Juggler: said once, quietly, at the end. */
   outside: boolean;
   /** Its project, a link to its page. */
@@ -36,6 +43,13 @@ export function WhereItRuns({
   // Where its window is: a CLI App's terminal or editor; not open now, the
   // last one known. A desktop App's window is the App itself.
   const runsIn = host ?? (desktop ? null : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now");
+  // D-62 (AJ-E3206, A3): its App and its Account open their pages.
+  const places = useKnownPlaces();
+  const appId = appIdOfSession(model, places);
+  const doors: Record<string, (() => void) | undefined> = {
+    App: appId ? () => openApp(appId) : undefined,
+    Account: accountId ? () => openAccount(accountId) : undefined,
+  };
   const rows: [string, string, boolean?][] = [
     ["App", sessionAppName(model)],
     ...(runsIn ? ([["Runs in", runsIn]] as [string, string][]) : []),
@@ -52,7 +66,13 @@ export function WhereItRuns({
           <div key={label} className="contents">
             <dt className="text-muted">{label}</dt>
             <dd className={"min-w-0 truncate text-ink " + (mono ? "font-mono text-meta" : "")} title={value}>
-              {value}
+              {doors[label] ? (
+                <button type="button" onClick={doors[label]} className="max-w-full truncate rounded text-left text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid={`where-${label.toLowerCase()}`}>
+                  {value}
+                </button>
+              ) : (
+                value
+              )}
             </dd>
           </div>
         ))}

@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, installWords } from "./RightInspector";
+import { AccountLimits } from "../pages/AccountPage";
+import { AccountSettingsSection } from "../pages/account/Settings";
 import { useToolInstall } from "../lib/useToolInstall";
 import { since } from "../lib/time-words";
 import { quotaDisplay, windowDisplay } from "../lib/wire";
@@ -94,14 +96,14 @@ const RECIPES: LaunchRecipeInfo[] = [
   { id: "p-personal", name: "Weekend", account_id: "claude-personal", account_label: "Personal", provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null },
 ];
 
-function shell(kind: "provider" | "account" | "project", id: string) {
+function shell(kind: "provider" | "project", id: string) {
   return render(
     <RightInspector
       selection={{ kind, id }}
       data={{
         instance: null,
         project: kind === "project" ? PROJECTS.find((p) => p.id === id) ?? null : null,
-        account: kind === "account" ? ACCOUNTS.find((a) => a.id === id) ?? null : null,
+        account: null,
         provider: kind === "provider" ? { id, name: providerDisplayName(id) } : null,
         machineId: "this-mac",
       }}
@@ -221,7 +223,7 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
   });
 
   it("no tab of the tool, account or project views shows a task code or an internal id (D-25)", () => {
-    for (const [kind, id] of [["provider", "claude-code"], ["account", "claude-work"], ["project", "proj-1"], ["project", "proj-2"]] as const) {
+    for (const [kind, id] of [["provider", "claude-code"], ["project", "proj-1"], ["project", "proj-2"]] as const) {
       const { container } = shell(kind, id);
       const tabs = [...container.querySelectorAll<HTMLElement>("[role='tab']")].map((tab) => tab.id.replace("page-tab-", ""));
       for (const tab of tabs.length > 0 ? tabs : ["body"]) {
@@ -236,7 +238,7 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
   });
 });
 
-describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
+describe("AJ-E408 an App's limits and settings (§5.4, Req.3-4; D-62: the App page)", () => {
   it("Overview: rings carry % text and aria labels; reset countdown; affinity; renewal honest", async () => {
     // AJ-E610: the account card renders engine-evaluated two-clock
     // rings — seed the display seam (5h: 55% used Measured with a
@@ -259,7 +261,14 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
         forecast: { state: "learning", badge: "estimated" },
       },
     ];
-    const { container } = shell("account", "claude-work");
+    // D-62: a CLI App's limits (its Overview) and its folder's settings.
+    const work = ACCOUNTS.find((a) => a.id === "claude-work")!;
+    const { container } = render(
+      <>
+        <AccountLimits account={work} now={NOW} />
+        <AccountSettingsSection account={work} now={NOW} resetsAtMs={NOW + 3_600_000} />
+      </>,
+    );
     const rings = container.querySelector('[data-testid="account-rings"]')!;
     // 0.1.5: a gauge per window, what's left in words and in its ring.
     await waitFor(() =>
@@ -272,34 +281,14 @@ describe("AJ-E408 Account (§5.4, Req.3-4)", () => {
     expect(fiveHourAria).toContain("in 1 h");
     expect(container.querySelector('[data-testid="account-reset"]')?.textContent).toContain("in 1 h");
     expect(container.querySelector('[data-testid="account-renewal"]')?.textContent).toContain("Expiry: unknown");
-    expect(container.querySelector('[data-testid="account-affinity"]')?.textContent).toContain("ai-juggler");
     // AJ-E410 (D-08): the Tier-1 cleanup opt-in toggle — off by default.
     const toggle = container.querySelector('[data-testid="account-cleanup-toggle"]')! as HTMLInputElement;
     expect(toggle).not.toBeNull();
     expect(toggle.querySelector("input")!.checked).toBe(false);
-    expect(container.querySelector('[data-testid="account-overview"]')!.textContent).toContain(
-      "Both off by default",
-    );
-    expect(container.querySelector('[data-testid="account-overview"]')!.textContent).toContain(
-      "every stop is written to the log",
-    );
+    expect(container.textContent).toContain("Both off by default");
+    expect(container.textContent).toContain("every stop is written to the log");
   });
 
-  it("logged-out accounts collapse Overview to the sign-in card", () => {
-    const { container } = shell("account", "z-glm");
-    expect(container.querySelector('[data-testid="account-signin-card"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="account-rings"]')).toBeNull();
-    expect(container.textContent).toContain("signed out");
-  });
-
-  it("Sessions lists the account's sessions with how long ago; its actions are the header's (D-25)", () => {
-    const { container, getAllByTestId } = shell("account", "claude-work");
-    open(container, "sessions");
-    expect(getAllByTestId("page-session-row").length).toBeGreaterThan(0);
-    expect(container.textContent).not.toContain("now ago");
-    expect(container.querySelector("#page-tab-actions")).toBeNull();
-    expect(container.textContent).not.toContain("New profile");
-  });
 });
 
 describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
