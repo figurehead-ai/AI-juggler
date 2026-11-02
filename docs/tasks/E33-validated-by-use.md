@@ -112,7 +112,7 @@
 **Research basis**: the validation plan §7–§8.
 **Handover note**: The maintainer's findings after release go to 0.4.x.
 
-### AJ-E3307 Persona-based validation: personas walk their day from first run, scored as users feel it | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3301
+### AJ-E3307 Persona-based validation: personas walk their day from first run, scored as users feel it | Status: IN-PROGRESS (the research and the protocol written, 2026-11-02; personas, walks and the report remain) | Priority P0 | Effort L | Depends: AJ-E3301
 > Source: the maintainer, 2026-11-02 (0.4 stays whole and announcement ready): "a full Role based / persona based validation … this is a workflow, usability, value, feeling of UI/UX test … put yourself in the shoe of the user, not the developer … Everything needs to be evidence based, ranked, quality checked."
 
 **Goal**: Before the announcement, 0.4 is used the way its users would use it, from the very beginning, and judged the way they would judge it.
