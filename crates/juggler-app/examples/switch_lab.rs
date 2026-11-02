@@ -6,6 +6,9 @@
 //! exists (a walk fills it with `just dev-bridge-data`). Run it on lab
 //! setups only: it hands a session to a real app profile.
 //!
+//! It prints constant words chosen by branch, never anything read from an
+//! account (no names, ids or error texts that could carry them).
+//!
 //! `cargo run -p juggler-app --example switch_lab -- <source key> <target account label> [desktop|cli]`
 //! (no third word: the targets and the preflight only, nothing switched)
 
@@ -13,6 +16,11 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use juggler_app::edition::{self, Edition};
+
+fn fail(words: &str) -> ExitCode {
+    eprintln!("switch_lab: {words}");
+    ExitCode::FAILURE
+}
 
 fn main() -> ExitCode {
     edition::set_current(Edition::Dev);
@@ -23,72 +31,59 @@ fn main() -> ExitCode {
     };
     let destination = args.next();
     let Ok(data_dir) = juggler_app::state::resolve_data_dir() else {
-        eprintln!("switch_lab: no data folder");
-        return ExitCode::FAILURE;
+        return fail("no data folder");
     };
     if data_dir.file_name().and_then(|name| name.to_str()) != Some(Edition::Dev.data_dir_name())
         || !data_dir.exists()
     {
-        eprintln!("switch_lab: only an existing AI Juggler Dev data folder");
-        return ExitCode::FAILURE;
+        return fail("only an existing AI Juggler Dev data folder");
     }
-    let state = match juggler_app::state::AppState::init(data_dir) {
-        Ok(state) => Arc::new(state),
-        Err(error) => {
-            eprintln!("switch_lab: {error}");
-            return ExitCode::FAILURE;
-        }
+    let Ok(state) = juggler_app::state::AppState::init(data_dir).map(Arc::new) else {
+        return fail("AI Juggler Dev's data couldn't be opened");
     };
     // The conversations index, as the app's first refresh builds it.
-    if let Err(error) = juggler_app::features::conversations::commands::list_impl(&state) {
-        eprintln!("switch_lab: {error}");
-        return ExitCode::FAILURE;
+    if juggler_app::features::conversations::commands::list_impl(&state).is_err() {
+        return fail("the conversations couldn't be listed");
     }
-    let targets = match juggler_app::commands::switch_targets_impl(&state, &source) {
-        Ok(targets) => targets,
-        Err(error) => {
-            eprintln!("switch_lab: targets: {error}");
-            return ExitCode::FAILURE;
-        }
+    let Ok(targets) = juggler_app::commands::switch_targets_impl(&state, &source) else {
+        return fail("the targets couldn't be read");
     };
     let Some(pick) = targets.iter().find(|row| row.account_label == target) else {
-        eprintln!("switch_lab: no such target ({} listed)", targets.len());
-        return ExitCode::FAILURE;
+        return fail("no such target");
     };
-    match juggler_app::commands::switch_preflight_impl(&state, &source, &pick.recipe_id) {
-        // Kinds and yes/no only: no account, profile or session names.
-        Ok(preflight) => println!(
-            "preflight: suggested {}; desktop offered: {}; its profile running: {}",
-            preflight.destinations.suggested,
-            preflight.destinations.desktop.is_some(),
-            preflight
-                .destinations
-                .desktop
-                .as_ref()
-                .is_some_and(|desktop| desktop.running)
-        ),
-        Err(error) => {
-            eprintln!("switch_lab: preflight: {error}");
-            return ExitCode::FAILURE;
-        }
-    }
+    let Ok(preflight) =
+        juggler_app::commands::switch_preflight_impl(&state, &source, &pick.recipe_id)
+    else {
+        return fail("the preflight refused");
+    };
+    let suggested = if preflight.destinations.suggested == "desktop" {
+        "desktop"
+    } else {
+        "cli"
+    };
+    let desktop = match &preflight.destinations.desktop {
+        Some(desktop) if desktop.running => "offered, its profile running",
+        Some(_) => "offered, its profile closed",
+        None => "not offered",
+    };
+    println!("preflight: suggested {suggested}; desktop {desktop}");
     let Some(destination) = destination else {
         return ExitCode::SUCCESS;
     };
-    match juggler_app::commands::switch_execute_to(
+    let Ok(done) = juggler_app::commands::switch_execute_to(
         &state,
         &source,
         &pick.recipe_id,
         "finish-turn",
         &destination,
-    ) {
-        Ok(done) => {
-            println!("switched: continued in {}", done.continued_in);
-            ExitCode::SUCCESS
-        }
-        Err(error) => {
-            eprintln!("switch_lab: switch: {error}");
-            ExitCode::FAILURE
-        }
-    }
+    ) else {
+        return fail("the switch failed (its reason is in the Dev app's log)");
+    };
+    let place = if done.continued_in == "desktop" {
+        "desktop"
+    } else {
+        "cli"
+    };
+    println!("switched: continued in {place}");
+    ExitCode::SUCCESS
 }
