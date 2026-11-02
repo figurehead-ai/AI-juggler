@@ -99,7 +99,11 @@ export function ConversationSwitcher({ model, visible, own, ownWords = "Its main
   // own pane is never remounted when the list arrives or goes.
   return (
     <div className="@container flex min-h-0 flex-1 flex-col" data-testid={any ? "conversation-switcher" : undefined}>
-      <div className={"grid min-h-0 flex-1 grid-cols-1 gap-3 " + (any ? "@xl:grid-cols-[12rem_minmax(0,1fr)]" : "")}>
+      {/* In one column (a narrow page) the list stands above the
+          conversation at its own height and the page scrolls: held to the
+          page's height, the grid squeezed the scrolling list to its border
+          (0.3.5). Side by side, both fit the page. */}
+      <div className={"grid grid-cols-1 gap-3 " + (any ? "@xl:min-h-0 @xl:flex-1 @xl:grid-cols-[12rem_minmax(0,1fr)]" : "min-h-0 flex-1")}>
         {any ? <SwitcherList model={model} ownWords={ownWords} picked={picked} onPick={setPicked} running={running} done={done} started={started} total={total} /> : null}
         <div className={"flex min-w-0 flex-col " + (any ? "min-h-[28rem] @xl:min-h-0" : "min-h-0 flex-1")}>
           {ownPane}

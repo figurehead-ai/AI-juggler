@@ -584,18 +584,24 @@ fn profiles(state: &Arc<AppState>) -> Vec<scan::Profile> {
     {
         return profiles.clone();
     }
-    // Never waits on storage: a busy lock keeps the last list.
-    let accounts = match state.storage.try_lock() {
-        Ok(storage) => storage.accounts().list().unwrap_or_default(),
-        Err(_) => {
-            return state
-                .conversations
-                .profiles
-                .lock()
-                .ok()
-                .and_then(|cached| cached.as_ref().map(|(_, profiles)| profiles.clone()))
-                .unwrap_or_default();
-        }
+    // A refresh never waits on storage: a busy lock keeps the last list.
+    // The first list waits (0.3.5): with none yet, a launch's first scan
+    // found no profile folder, so its places went out unnamed and the
+    // rail said the window's folder ("b-work") until the next scan.
+    let last = state
+        .conversations
+        .profiles
+        .lock()
+        .ok()
+        .and_then(|cached| cached.as_ref().map(|(_, profiles)| profiles.clone()));
+    let accounts = match (state.storage.try_lock(), last) {
+        (Ok(storage), _) => storage.accounts().list().unwrap_or_default(),
+        (Err(_), Some(last)) => return last,
+        (Err(_), None) => state
+            .storage
+            .lock()
+            .map(|storage| storage.accounts().list().unwrap_or_default())
+            .unwrap_or_default(),
     };
     let canonical =
         |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
@@ -1118,6 +1124,37 @@ pub fn continue_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 0.3.5: storage busy at launch (its first migrations, a refresh)
+    /// no longer gives the first scan an empty list: it waits that once.
+    #[test]
+    fn the_first_profile_list_waits_for_busy_storage() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(AppState::init(dir.path().join("data")).unwrap());
+        let expected = {
+            let fresh = Arc::new(AppState::init(dir.path().join("other")).unwrap());
+            profiles(&fresh)
+        };
+        assert!(!expected.is_empty(), "each tool's default folder is listed");
+        let (held, release) = std::sync::mpsc::channel::<()>();
+        let holder = {
+            let state = Arc::clone(&state);
+            std::thread::spawn(move || {
+                let _storage = state.storage.lock().unwrap();
+                held.send(()).unwrap();
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            })
+        };
+        release.recv().unwrap();
+        let first = profiles(&state);
+        holder.join().unwrap();
+        let dirs = |list: &[scan::Profile]| {
+            list.iter()
+                .map(|p| (p.tool.clone(), p.dir.clone()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(dirs(&first), dirs(&expected));
+    }
 
     fn file(path: &str, id: &str, started: i64, last: i64, input: u64) -> Conversation {
         let mut summary = ConversationSummary {

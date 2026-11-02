@@ -4,7 +4,7 @@
  * backend reads them from each tool's own files and says when they
  * change (`conversations://changed`).
  */
-import { invoke, listen } from "./transport";
+import { channel, invoke, listen } from "./transport";
 import { hasLiveBackend, refused, type LaunchResult } from "../bridge";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
@@ -17,7 +17,6 @@ import type { TurnCallInfo } from "../../types/generated/TurnCallInfo";
 import type { ConversationDeltaInfo } from "../../types/generated/ConversationDeltaInfo";
 import type { ConversationSnapshotInfo } from "../../types/generated/ConversationSnapshotInfo";
 import type { EarlierPageInfo } from "../../types/generated/EarlierPageInfo";
-import { Channel } from "@tauri-apps/api/core";
 import { previewEarlier, previewFollow, previewKeep, previewUnfollow, previewWithout, seedTurn, type SeededTurn } from "../../preview/conversation-feed";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 import { placesConversations } from "../../preview/places";
@@ -263,9 +262,7 @@ export async function conversationsFollow(accountId: string, conversationId: str
     if (seeded.state !== "shown") return previewWithout(seeded.state);
     return previewFollow(`${accountId}\u0000${conversationId}`, seeded.turns, seeded.layout ?? "stretches", max, onDelta);
   }
-  const channel = new Channel<ConversationDeltaInfo>();
-  channel.onmessage = onDelta;
-  return invoke<ConversationSnapshotInfo>("conversations_follow", { accountId, conversationId, max, channel });
+  return invoke<ConversationSnapshotInfo>("conversations_follow", { accountId, conversationId, max, channel: channel(onDelta) });
 }
 
 /** 0.3.5: stops following (the page closed or was hidden). */

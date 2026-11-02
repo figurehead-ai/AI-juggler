@@ -6,7 +6,7 @@
  * The backend asks the session's tool's adapter, read-only; a saved
  * index makes a long session open at once.
  */
-import { invoke } from "./transport";
+import { channel, invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { PageRequest } from "../../types/generated/PageRequest";
 import type { SubagentsInfo } from "../../types/generated/SubagentsInfo";
@@ -18,7 +18,6 @@ import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
 import type { LastMessagesAsk } from "./conversations";
 import type { ConversationDeltaInfo } from "../../types/generated/ConversationDeltaInfo";
 import type { ConversationSnapshotInfo } from "../../types/generated/ConversationSnapshotInfo";
-import { Channel } from "@tauri-apps/api/core";
 import { previewFollow, previewWithout, seedTurn } from "../../preview/conversation-feed";
 import { previewDetail, previewList, previewProject, seededTurns } from "./subagents-preview";
 
@@ -75,7 +74,5 @@ export async function subagentsFollow(accountId: string, conversationId: string,
     const turns = seededTurns(conversationId, subagentId);
     return turns ? previewFollow(`${accountId}\u0000${conversationId}\u0000${subagentId}`, turns, "stretches", max, onDelta) : previewWithout("none");
   }
-  const channel = new Channel<ConversationDeltaInfo>();
-  channel.onmessage = onDelta;
-  return invoke<ConversationSnapshotInfo>("subagents_follow", { accountId, conversationId, subagentId, max, channel });
+  return invoke<ConversationSnapshotInfo>("subagents_follow", { accountId, conversationId, subagentId, max, channel: channel(onDelta) });
 }
