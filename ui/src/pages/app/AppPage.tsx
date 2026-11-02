@@ -125,7 +125,7 @@ function AppBody({
             mark={
               <span className="flex items-center gap-1.5">
                 <AppIcon appId={app.appId} appPid={app.place?.app_pid ?? null} name={app.app} size={32} />
-                {app.profile && <ProfileBadge name={app.profile} />}
+                {app.profile && <ProfileBadge app={app.slot} name={app.profile} />}
               </span>
             }
             name={app.name}

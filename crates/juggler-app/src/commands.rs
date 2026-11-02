@@ -931,6 +931,14 @@ pub struct AccountInfo {
     /// and fee are set there), when known.
     #[ts(optional = nullable)]
     pub subscription_id: Option<String>,
+    /// AJ-E3206: the colour of the folder's CLI App (`cli:<id>`), given
+    /// once and stored (an index into the UI's `PROFILE_HUES`).
+    #[ts(optional = nullable)]
+    pub app_colour_slot: Option<u8>,
+    /// AJ-E3206: the colour of its Account (`subscription_id`), when it
+    /// has one, given the same way.
+    #[ts(optional = nullable)]
+    pub account_colour_slot: Option<u8>,
 }
 
 /// A Launch settings row for the UI (AJ-E107).
@@ -4352,11 +4360,21 @@ pub(crate) fn lock_storage_arc(
 /// it (its Account's once moved, D-62). Takes the storage lock: never
 /// call with it held.
 fn account_info_of(state: &Arc<AppState>, account: &Account) -> AccountInfo {
-    let (terms, owner) = lock_storage_arc(state).map_or((None, None), |storage| {
-        let terms = storage.terms();
-        let id = account.id.as_str();
-        (terms.applying(account).ok(), terms.owner(id).ok().flatten())
-    });
+    let (terms, owner, app_slot, account_slot) =
+        lock_storage_arc(state).map_or((None, None, None, None), |storage| {
+            let terms = storage.terms();
+            let id = account.id.as_str();
+            let owner = terms.owner(id).ok().flatten();
+            let app_slot = storage
+                .apps()
+                .cli_colour_slot(account.harness.as_str(), id, now_millis())
+                .ok()
+                .flatten();
+            let account_slot = owner
+                .as_deref()
+                .and_then(|owner| storage.subscriptions().colour_slot(owner).ok().flatten());
+            (terms.applying(account).ok(), owner, app_slot, account_slot)
+        });
     let terms = terms.unwrap_or_else(|| juggler_core::storage::Terms {
         plan: account.plan.as_ref().map(ToString::to_string),
         renewal_date: account.renewal_date.clone(),
@@ -4378,6 +4396,8 @@ fn account_info_of(state: &Arc<AppState>, account: &Account) -> AccountInfo {
         is_default: None,
         service: None,
         subscription_id: owner,
+        app_colour_slot: app_slot,
+        account_colour_slot: account_slot,
     }
 }
 

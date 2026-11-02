@@ -53,7 +53,7 @@ export function SessionCard({ session, onSelect }: { session: InstanceInfo; onSe
           <mark.Icon width={12} height={12} className="text-accent-hi" />
           {mark.abbrev}
         </span>
-        <AccountAvatar accountId={session.account_id} label={session.account_label} size={20} />
+        <AccountAvatar account={{ folder: session.account_id }} label={session.account_label} size={20} />
         <span className="min-w-0 truncate text-label text-ink">{session.account_label}</span>
         <span className="min-w-0 shrink-0 truncate text-label text-muted">
           {session.model ?? <span className="text-muted">default model</span>}

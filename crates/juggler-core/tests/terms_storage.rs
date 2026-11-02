@@ -67,14 +67,22 @@ fn v41_adds_one_column_and_changes_nothing_else() {
             .unwrap();
         storage.app_settings().set(&fee_key("work"), "200").unwrap();
     }
-    // Back to v40, as an upgrade finds it: v41 runs on the next open.
+    // Back to v40, as an upgrade finds it: v41 (and v42) run on the next
+    // open.
     Connection::open(&db)
         .unwrap()
-        .execute_batch("ALTER TABLE accounts DROP COLUMN terms_moved; PRAGMA user_version = 40;")
+        .execute_batch(
+            "ALTER TABLE accounts DROP COLUMN terms_moved;
+             DROP TRIGGER apps_colour_slot;
+             DROP TRIGGER subscriptions_colour_slot;
+             ALTER TABLE apps DROP COLUMN colour_slot;
+             ALTER TABLE subscriptions DROP COLUMN colour_slot;
+             PRAGMA user_version = 40;",
+        )
         .unwrap();
     let storage = Storage::open(&db).unwrap();
     assert!(storage.migrated_on_open());
-    assert_eq!(storage.user_version().unwrap(), 41);
+    assert_eq!(storage.user_version().unwrap(), 42);
     // Nothing moved by the migration: the folder reads as it did.
     assert_eq!(
         storage.terms().effective("work").unwrap(),

@@ -11,7 +11,7 @@ import { launchRecipesList, rankingRows, type AccountInfo, type InstanceInfo, ty
 import { useQuotaDisplays } from "../../lib/kept-reads";
 import { accountDisplay, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { useApps } from "../../lib/apps";
-import { cliAppName } from "../../lib/app-name";
+import { cliAppId, cliAppName } from "../../lib/app-name";
 import { launchRoom } from "../../lib/launch-pick";
 import { machineAdvice, type MachineAdviceInfo } from "../../lib/machine";
 import type { Room } from "../../lib/new-session-choice";
@@ -113,7 +113,7 @@ export function useNewSessionData({
         const account = accountOf(folderId);
         return account && account.state === "signed_in" ? accountName(account, subscriptions ?? undefined) : null;
       },
-      appNameOf: (recipe: LaunchRecipeInfo) => apps?.find((app) => app.id === `cli:${recipe.account_id}`)?.name ?? cliAppName(recipe.provider, recipe.account_label),
+      appNameOf: (recipe: LaunchRecipeInfo) => apps?.find((app) => app.id === cliAppId(recipe.account_id))?.name ?? cliAppName(recipe.provider, recipe.account_label),
       verdictOf: (folderId: string) => ranked.find((row) => row.account === folderId)?.admission ?? undefined,
       adviceOf: (recipeId: string) => advice.get(recipeId),
     };

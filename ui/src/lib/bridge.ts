@@ -20,6 +20,8 @@ import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { QuitPlanInfo } from "../types/generated/QuitPlanInfo";
 import type { ReopenBlockInfo } from "../types/generated/ReopenBlockInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
+import { previewFolderSlots } from "./ipc/preview-slots";
 import type { AccountRemovedInfo } from "../types/generated/AccountRemovedInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../types/generated/ImportResult";
@@ -232,8 +234,10 @@ function renewalFixtureInDays(days: number): string {
 }
 
 const MOCK_ACCOUNTS: AccountInfo[] = [
-  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: Some("max-20x"), login_state: "logged_in", cleanup_opt_in: false, renewal_date: Some(renewalFixtureInDays(6)), preview_opt_in: false, in_place: false },
-  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: None(), login_state: "logged_out", cleanup_opt_in: false, renewal_date: None(), preview_opt_in: false, in_place: false },
+  // AJ-E3206: each folder's CLI App and its Account wear the slots the
+  // backend would give them (the first App, the first Account: 0).
+  { id: "claude-work", provider: "claude-code", label: "Work Max", plan: Some("max-20x"), login_state: "logged_in", cleanup_opt_in: false, renewal_date: Some(renewalFixtureInDays(6)), preview_opt_in: false, in_place: false, app_colour_slot: 0, subscription_id: "acct:preview:k-claude-work", account_colour_slot: 0 },
+  { id: "claude-personal", provider: "claude-code", label: "Personal", plan: None(), login_state: "logged_out", cleanup_opt_in: false, renewal_date: None(), preview_opt_in: false, in_place: false, app_colour_slot: 1, subscription_id: null, account_colour_slot: null },
 ];
 
 const MOCK_PROFILES: LaunchRecipeInfo[] = [
@@ -553,9 +557,17 @@ export async function accountsList(): Promise<AccountInfo[]> {
     if (hang) return hang;
     // A new array each time (the rows are shared): a change made in
     // preview mode re-renders like a real refresh does.
-    return [...(seeded.accounts ?? MOCK_ACCOUNTS)];
+    return [...previewFolders()];
   }
   return invoke<AccountInfo[]>("accounts_list");
+}
+
+/** The preview's folders (the rows are shared), each with the colours
+ * the backend would give its CLI App and its Account (AJ-E3206: filled
+ * once, kept). */
+export function previewFolders(): AccountInfo[] {
+  const subscriptions = (seeded as { subscriptions?: SubscriptionInfo[] }).subscriptions;
+  return previewFolderSlots(seeded.accounts ?? MOCK_ACCOUNTS, subscriptions, signedIn);
 }
 
 export async function createAccount(

@@ -12,7 +12,7 @@ import { RunwayPanel } from "../components/usage/Runway";
 import { useWeekByProfile } from "../components/usage/RunwayCards";
 import { IconGauge, Segmented } from "../components/usage/controls";
 import { useRange } from "../components/usage/useUsage";
-import { accountColor } from "../lib/palette";
+import { accountColor } from "../lib/marks";
 import { RANGES } from "../lib/usage/range";
 import { quotaDisplay, type AccountInfo, type QuotaDisplayData } from "../lib/bridge";
 
@@ -30,7 +30,8 @@ export function AccountLimits({ account, now }: { account: AccountInfo; now: num
     };
   }, [account.id]);
   const week = useWeekByProfile();
-  const color = accountColor(account.id);
+  // Limits are the Account's: its one colour (AJ-E3206).
+  const color = accountColor({ folder: account.id });
   const measuredHere = display !== null && runwayOf(display).left !== null;
   return (
     <Section title="Limits" icon={<IconGauge />} sub={display?.unavailable_reason ? undefined : "what's left in each window, and the last 7 days"} className="@container" testId="account-limits">

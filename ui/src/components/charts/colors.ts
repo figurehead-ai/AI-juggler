@@ -1,10 +1,13 @@
 /**
  * ADR-0021 — a series' colour comes from what it is, never its rank: a
- * profile wears its badge's swatch (`accountColor`, the same on every
- * page), a project its mark's, a tool its place in the catalog, a model
- * its family. "Other" is a neutral grey, so it never reads as an entity.
+ * folder wears its CLI App's colour (`appColor`, stored once, the same on
+ * every page), a project its mark's, a tool its place in the catalog, a
+ * model its family. "Other" is a neutral grey, so it never reads as an
+ * entity.
  */
-import { accountColor, markOf, paletteIndex, swatchColor } from "../../lib/palette";
+import { markOf, paletteIndex, swatchColor } from "../../lib/palette";
+import { appColor } from "../../lib/marks";
+import { cliAppId } from "../../lib/app-name";
 import { tools } from "../../lib/tools";
 
 /** The folded series' key (the backend's `fold::OTHER`). */
@@ -27,7 +30,7 @@ export function seriesColor(groupBy: GroupBy, key: string): string {
   if (key === OTHER_KEY || key === "") return "var(--color-faint)";
   switch (groupBy) {
     case "profile":
-      return accountColor(key);
+      return appColor(cliAppId(key));
     case "project": {
       const mark = markOf(key);
       return mark ? swatchColor(mark.swatch) : swatchColor(paletteIndex(`project:${key}`));

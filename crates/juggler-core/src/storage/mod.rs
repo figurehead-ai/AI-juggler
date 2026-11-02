@@ -52,7 +52,8 @@ pub use cleanup_audit::{
 };
 pub use cleanup_settings::{CleanupSettingsRepo, CleanupTierSettings};
 pub use entities::{
-    App, AppsRepo, Subscription, SubscriptionsRepo, cli_app_id, desktop_app_id, subscription_id,
+    App, AppsRepo, COLOUR_SLOTS, Subscription, SubscriptionsRepo, cli_app_id, desktop_app_id,
+    subscription_id,
 };
 pub use fleet_sync::{FleetSyncRepo, SyncEntry};
 pub use footprints::{
@@ -645,10 +646,14 @@ const V40: &str = entities::MIGRATION;
 /// were moved to its Account ([`terms::MIGRATION`]).
 const V41: &str = terms::MIGRATION;
 
+/// v42 (AJ-E3206 req. 2): one colour per App and per Account, given once
+/// and stored ([`entities::COLOUR_SLOTS_MIGRATION`]).
+const V42: &str = entities::COLOUR_SLOTS_MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41,
+    V41, V42,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a

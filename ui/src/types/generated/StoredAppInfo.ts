@@ -36,4 +36,9 @@ account_id: string | null,
 /**
  * When it was last seen running, epoch ms (a CLI App: when made).
  */
-last_seen_ms: number, };
+last_seen_ms: number, 
+/**
+ * AJ-E3206: its colour, given once and stored (an index into the
+ * UI's `PROFILE_HUES`); the same on every screen that marks it.
+ */
+colour_slot?: number | null, };

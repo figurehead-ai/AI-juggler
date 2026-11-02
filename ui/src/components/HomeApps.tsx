@@ -81,7 +81,7 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
           </AppName>
           {profile && (
             <span className="flex min-w-0 items-center gap-1 text-meta font-semibold text-ink">
-              <ProfileBadge name={profile} />
+              <ProfileBadge app={place.colour_slot ?? place.id} name={profile} />
               <span className="truncate">{profile}</span>
             </span>
           )}
@@ -140,7 +140,7 @@ function Tile({ group, runway, kept, appId }: { group: RailGroup; runway: Runway
           <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-meta text-muted">
             {place.profile && (
               <span className="flex min-w-0 max-w-full items-center gap-1 font-semibold text-ink">
-                <ProfileBadge name={place.profile} />
+                <ProfileBadge app={place.key} name={place.profile} />
                 <span className="truncate">{place.profile}</span>
               </span>
             )}

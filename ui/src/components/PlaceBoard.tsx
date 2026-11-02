@@ -18,6 +18,7 @@ import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
 import { useActionHost } from "./ItemMenu";
 import { AccountAvatar } from "./Avatar";
+import { useMarks } from "../lib/marks";
 import { showToast } from "./Toast";
 import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
@@ -33,7 +34,6 @@ import { renamedPlaces, type RailGroup } from "../lib/rail-places";
 import { dayOf, lensOf, LONG_GROUP, rankOf } from "../lib/rail-order";
 import { reconcileOrder, toggleFold, useRailOrder } from "../lib/rail-order-store";
 import { parseQuery, RAIL_REVEAL_EVENT, showInRail, useRailView } from "../lib/rail-view";
-import { assignProfiles } from "../lib/profile-marks";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
@@ -77,7 +77,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   );
   const shownKeys = new Set(items.map((item) => item.key));
   const others = needsNow.rows.filter((row) => !needsNow.needOf.has(row.subject) || !shownKeys.has(row.subject));
-  assignProfiles(items.map((item) => item.place.profile ?? ""));
+  useMarks(); // the rows' edges follow what the lists say of each App (AJ-E3206)
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
   const toggle = (key: string) =>
     setToggled((current) => {
@@ -306,7 +306,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
             keepAlive={known ? { on: known.keep_alive, toggle: () => void placesKeepAlive(known.id, !known.keep_alive).catch(() => showToast({ id: "keep-alive", message: `Couldn't change keep alive for ${known.label}` })) } : null}
           >
-            {lens === "account" ? <AccountAvatar accountId={group.accountId} label={group.label} size={16} /> : undefined}
+            {lens === "account" ? <AccountAvatar account={{ folder: group.accountId }} label={group.label} size={16} /> : undefined}
           </PlaceHeader>
         );
       }

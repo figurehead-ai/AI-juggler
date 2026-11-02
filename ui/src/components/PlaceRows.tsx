@@ -38,7 +38,7 @@ import { markSeen } from "../lib/seen";
 import { rememberTab } from "../pages/registry";
 import { showTab } from "../pages/PageShell";
 import { markHasSubagents } from "../pages/session/useSubagents";
-import { profileColor } from "../lib/profile-marks";
+import { appColor } from "../lib/marks";
 import { togglePin } from "../lib/rail-order-store";
 
 import { placeWords } from "../lib/rail-items";
@@ -363,7 +363,7 @@ export function PlaceRow({ compact = false, ...props }: RowProps & { edge: strin
   );
 }
 
-/** The left edge a place's rows carry: its profile's colour. */
+/** The left edge a place's rows carry: its App's colour. */
 export function edgeOf(place: RailPlace | null): string | null {
-  return place?.profile ? profileColor(place.profile) : null;
+  return place?.profile ? appColor(place.key) : null;
 }

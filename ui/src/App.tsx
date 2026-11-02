@@ -1,5 +1,5 @@
 import { AppActions } from "./components/AppActions";
-import { cliAppName } from "./lib/app-name";
+import { cliAppId, cliAppName } from "./lib/app-name";
 import { AppHeader } from "./components/AppHeader";
 import { NoticeOpeners } from "./components/NoticeOpeners";
 import { OfflineBanner } from "./components/OfflineBanner";
@@ -10,6 +10,7 @@ import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged, sessionTarget } from "./lib/ipc/conversations";
 import { servicesList } from "./lib/ipc/services";
 import { withMarks, withPalette } from "./lib/palette";
+import { learnFolders } from "./lib/marks";
 import { useFirstRun } from "./lib/first-run";
 import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
 import { useCleanupCount } from "./lib/cleanup-count";
@@ -335,7 +336,8 @@ export default function App() {
         ]);
       setProjects(withMarks(projectRows)); // AJ-E1532: each project its mark
       setSessions(sessionRows);
-      setAccounts(withPalette(accountRows)); // AJ-E1532: each account its own colour
+      learnFolders(accountRows); // AJ-E3206: each App's and Account's stored colour
+      setAccounts(withPalette(accountRows)); // AJ-E1532: each folder its initials
       setProfiles(profileRows);
       setSwitchBackCards(backSuggestions);
       if (!boardInteractiveCounted) {
@@ -488,7 +490,7 @@ export default function App() {
 
   const selectedAccount = useMemo(
     // D-62: a CLI App's page is its folder's (⌘K offers the folder's actions).
-    () => (selection.kind === "app" && selection.id.startsWith("cli:") ? (accounts.find((a) => `cli:${a.id}` === selection.id) ?? null) : null),
+    () => (selection.kind === "app" && selection.id.startsWith("cli:") ? (accounts.find((a) => cliAppId(a.id) === selection.id) ?? null) : null),
     [selection, accounts],
   );
   const selectedProvider = useMemo(() => {
@@ -573,7 +575,7 @@ export default function App() {
       selectConversation={(conversation) => { setGlobal(null); setSelection({ kind: "conversation", accountId: conversation.account_id, id: conversation.id, projectId: conversation.project_id }); }}
       selectSession={selectSession}
       selectProject={selectProject}
-      selectAccount={(id) => { setGlobal(null); setSelection({ kind: "app", id: `cli:${id}` }); }} // D-62: a folder is its CLI App
+      selectAccount={(id) => { setGlobal(null); setSelection({ kind: "app", id: cliAppId(id) }); }} // D-62: a folder is its CLI App
       selectTool={() => openToolInSettings()}
       selectPool={(id) => { setGlobal(null); setSelection({ kind: "pool", id }); }}
       openAccounts={() => setGlobal("accounts")} openHome={() => { setGlobal(null); setSelection({ kind: "none" }); }}
@@ -683,7 +685,7 @@ export default function App() {
                 openTerminal={openLoginTerminal}
                 onInspectAccount={(id) => {
                   setGlobal(null);
-                  setSelection({ kind: "app", id: `cli:${id}` });
+                  setSelection({ kind: "app", id: cliAppId(id) });
                 }}
               />
             </ScrollingScreen>

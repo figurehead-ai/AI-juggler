@@ -44,7 +44,7 @@ function AppList({ apps, now, compact }: { apps: AccountApp[]; now: number; comp
               <span className="truncate text-body font-medium text-ink">{app.app}</span>
               {app.profile && (
                 <span className="flex min-w-0 items-center gap-1 text-body text-ink-2">
-                  <ProfileBadge name={app.profile} />
+                  <ProfileBadge app={app.slot} name={app.profile} />
                   <span className="truncate">{app.named ? app.name : app.profile}</span>
                 </span>
               )}

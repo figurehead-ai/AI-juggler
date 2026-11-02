@@ -165,7 +165,7 @@ describe("account avatars", () => {
       { id: "a-work", label: "claude-work" },
       { id: "a-personal", label: "claude-personal" },
     ]);
-    render(<AccountAvatar accountId="a-work" label="claude-work" size={24} />);
+    render(<AccountAvatar account={{ folder: "a-work" }} label="claude-work" size={24} />);
     const avatar = screen.getByTestId("account-avatar");
     expect(avatar.textContent).toBe("Wo");
     expect(avatar.title).toBe("claude-work");
@@ -174,7 +174,7 @@ describe("account avatars", () => {
   });
 
   it("under 24 px is its colour alone, never letters under 12 px", () => {
-    render(<AccountAvatar accountId="a-work" label="claude-work" size={16} />);
+    render(<AccountAvatar account={{ folder: "a-work" }} label="claude-work" size={16} />);
     expect(screen.getByTestId("account-avatar").textContent).toBe("");
     expect(screen.getByTestId("account-avatar").title).toBe("claude-work");
   });

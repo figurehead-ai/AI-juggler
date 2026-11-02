@@ -61,6 +61,10 @@ pub struct SubscriptionInfo {
     /// D-62 (AJ-E3205): the name you gave the Account; `null`: its default.
     #[ts(optional = nullable)]
     pub name: Option<String>,
+    /// AJ-E3206: the stored Account's colour, given once (an index into
+    /// the UI's `PROFILE_HUES`); `null` for one not stored.
+    #[ts(optional = nullable)]
+    pub colour_slot: Option<u8>,
     /// The tool its profiles run.
     pub tool: String,
     /// `signed_in`, `signed_out` (its profiles aren't signed in) or
@@ -184,6 +188,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
                 key: opaque(&key),
                 account_id: None,
                 name: None,
+                colour_slot: None,
                 tool: row.tool,
                 state: state.to_owned(),
                 email,
@@ -319,6 +324,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         .into_iter()
         .filter_map(|account| Some((account.id, account.name?)))
         .collect();
+    let slots = storage.subscriptions().colour_slots()?;
     for account in &mut accounts {
         account.account_id = account
             .profiles
@@ -328,6 +334,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             continue;
         };
         account.name = names.get(&id).cloned();
+        account.colour_slot = slots.get(&id).copied();
         on_account(&storage, &id, account)?;
     }
     Ok(accounts)

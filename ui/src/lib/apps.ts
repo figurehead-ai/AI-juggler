@@ -12,13 +12,14 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import type { AccountInfo } from "./bridge";
-import { appName, cliAppKey, desktopProfile } from "./app-name";
+import { appName, cliAppId, cliAppKey, desktopProfile } from "./app-name";
 import { appOfTool } from "./app-of";
 import { APPS_CHANGED, appsList, type StoredAppInfo } from "./ipc/apps";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { useKnownPlaces } from "./places";
 import { knownAppWord, knownKey } from "./rail-apps";
 import { toolSpec } from "./tools";
+import { appSlot } from "./marks";
 
 export interface AppModel {
   /** `cli:<folder>` or the place's id (`app:<host>:<instance folder>`). */
@@ -47,6 +48,8 @@ export interface AppModel {
   accountId: string | null;
   /** A desktop App's place (Open, Keep alive, whether it runs). */
   place: KnownPlaceInfo | null;
+  /** AJ-E3206: its one colour's slot, as stored (lib/marks). */
+  slot: number;
 }
 
 /** The Apps: CLI ones in the folders' order, then the desktop ones as
@@ -64,7 +67,7 @@ export function appsOf({
   const folderOf = new Map(folders.map((folder) => [folder.id, folder]));
   const out: AppModel[] = [];
   for (const folder of folders) {
-    const id = `cli:${folder.id}`;
+    const id = cliAppId(folder.id);
     const row = byId.get(id);
     const app = toolSpec(folder.provider).display_name;
     const defaultName = appName(app, folder.label);
@@ -82,6 +85,7 @@ export function appsOf({
       folder,
       accountId: row?.account_id ?? null,
       place: null,
+      slot: row?.colour_slot ?? folder.app_colour_slot ?? appSlot(id),
     });
   }
   for (const place of places) {
@@ -104,6 +108,7 @@ export function appsOf({
       folder: folderId ? (folderOf.get(folderId) ?? null) : null,
       accountId: row?.account_id ?? null,
       place,
+      slot: row?.colour_slot ?? place.colour_slot ?? appSlot(place.id),
     });
   }
   return out;
@@ -118,7 +123,7 @@ export function appByRailKey(apps: readonly AppModel[], railKey: string): AppMod
  * (`cliFolder`, the group's sessions' folder), else the remembered
  * desktop app or profile keyed so. `null` when it isn't one. */
 export function appIdOfRailKey(railKey: string, cliFolder: string | null, places: readonly KnownPlaceInfo[] | null): string | null {
-  if (railKey.startsWith("cli|")) return cliFolder ? `cli:${cliFolder}` : null;
+  if (railKey.startsWith("cli|")) return cliFolder ? cliAppId(cliFolder) : null;
   return places?.find((place) => knownKey(place) === railKey)?.id ?? null;
 }
 

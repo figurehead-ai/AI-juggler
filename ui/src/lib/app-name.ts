@@ -43,6 +43,11 @@ export function cliAppName(tool: string, folder: string | null | undefined): str
   return appName(toolSpec(tool).display_name, folder);
 }
 
+/** A CLI App's stored id: its folder's row (the backend's `cli_app_id`). */
+export function cliAppId(folderId: string): string {
+  return `cli:${folderId}`;
+}
+
 /** A CLI App's key: its tool and its folder's row. */
 export function cliAppKey(tool: string, accountId: string | null, folder: string): string {
   return `cli|${tool}|${accountId ?? folder}`;

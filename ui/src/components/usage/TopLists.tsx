@@ -15,7 +15,8 @@ import { useConversations } from "../../lib/conversations";
 import { usePagedList } from "../../lib/paged";
 import { usageHistorySessions, type UsageHistoryInfo, type UsageSessionInfo, type UsageShareInfo } from "../../lib/ipc/usageHistory";
 import { RANGES, type RangeId } from "../../lib/usage/range";
-import { accountColor } from "../../lib/palette";
+import { appColor } from "../../lib/marks";
+import { cliAppId } from "../../lib/app-name";
 import { Section } from "../charts/ChartCard";
 import { ShareBar } from "../charts/StatTile";
 import { exact, short, usdWords } from "../charts/scale";
@@ -53,7 +54,7 @@ function SeeAll({ count, noun, onOpen }: { count: number; noun: string; onOpen: 
 const TH = "sticky top-0 bg-surface px-2.5 pb-2 text-meta font-semibold text-muted";
 
 function profileParts(share: UsageShareInfo, labels: Map<string, string>) {
-  return share.profiles.map((part) => ({ key: part.profile, label: labels.get(part.profile) ?? "An app", value: part.io, color: accountColor(part.profile) }));
+  return share.profiles.map((part) => ({ key: part.profile, label: labels.get(part.profile) ?? "An app", value: part.io, color: appColor(cliAppId(part.profile)) }));
 }
 
 export function TopProjects({ data, busy, className = "" }: { data: UsageHistoryInfo | null; busy: boolean; className?: string }): JSX.Element {
@@ -151,7 +152,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
         </span>
       </span>
       <span className="flex min-w-0 items-center gap-2 text-meta text-ink">
-        <AccountAvatar accountId={row.profile} label={profile} size={20} />
+        <AccountAvatar account={{ folder: row.profile }} label={profile} size={20} />
         <span className="truncate">
           <span className="sr-only">in </span>
           {profile}

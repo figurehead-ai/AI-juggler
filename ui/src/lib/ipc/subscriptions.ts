@@ -5,10 +5,11 @@
  * `subscriptions` instead, or one account per signed-in profile.
  */
 import { invoke } from "./transport";
-import { accountsList, hasLiveBackend, signedIn } from "../bridge";
+import { accountsList, hasLiveBackend, previewFolders, signedIn } from "../bridge";
 import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
 import type { SubscriptionProfileInfo } from "../../types/generated/SubscriptionProfileInfo";
 import type { TermChoiceInfo } from "../../types/generated/TermChoiceInfo";
+import { previewAccountId, previewAccountSlots } from "./preview-slots";
 
 export type { SubscriptionInfo, SubscriptionProfileInfo, TermChoiceInfo };
 
@@ -60,10 +61,11 @@ function withPreviewTerms(row: SubscriptionInfo): SubscriptionInfo {
  * preview, each signed-in account is stored under its key (D-62). */
 export async function subscriptionsList(): Promise<SubscriptionInfo[]> {
   if (!hasLiveBackend()) {
-    return (await previewSubscriptions()).map((row) => {
-      const id = row.account_id ?? (row.state === "signed_in" ? `acct:preview:${row.key}` : null);
+    const rows = (await previewSubscriptions()).map((row) => {
+      const id = previewAccountId(row);
       return withPreviewTerms({ ...row, choices: row.choices ?? [], account_id: id, name: (id && previewNames.get(id)) ?? row.name ?? null });
     });
+    return previewAccountSlots(rows, previewFolders());
   }
   return invoke<SubscriptionInfo[]>("subscriptions_list");
 }

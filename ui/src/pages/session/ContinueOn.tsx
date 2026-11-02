@@ -12,7 +12,7 @@
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
-import { AccountAvatar } from "../../components/Avatar";
+import { CliAppMark, ProfileBadge } from "../../components/PlaceMarks";
 import { Button, Card } from "../../components/primitives";
 import { FidelityBadge, RoomLine, StartThereLink, SuggestedMark } from "../../components/SwitchTargetRows";
 import { switchTargets, type QuotaDisplayData, type SwitchBackSuggestionData, type SwitchTargetData } from "../../lib/bridge";
@@ -20,7 +20,7 @@ import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup
 import { rankTargets, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
 import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, sessionAppName, type SessionModel } from "./model";
-import { cliAppName } from "../../lib/app-name";
+import { cliAppId, cliAppName } from "../../lib/app-name";
 import { CardTitle } from "./CardTitle";
 import { toolSpec } from "../../lib/tools";
 import { SaveHandover } from "../../components/HandoverView";
@@ -45,6 +45,8 @@ export type Target = {
   badge: { words: string; validated: boolean } | null;
   /** Another tool than the session's. */
   crossTool: boolean;
+  /** Its tool (its App's icon), when known. */
+  tool?: string | null;
   /** Its account's room, as Home's Runway reads it (`lib/room-targets`). */
   room: TargetRoom | null;
   /** The one with the most room (the one order by room, `lib/room`). */
@@ -110,6 +112,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
       firstRun: row.first_run === true,
       badge: row.badge ? { words: row.badge, validated: row.validated } : null,
       crossTool: row.cross_provider,
+      tool: row.provider ?? null,
     }));
 }
 
@@ -220,7 +223,7 @@ export function ContinueOn({
                       data-cross-tool={target.crossTool ? "true" : undefined}
                       data-suggested={target.suggested ? "true" : undefined}
                     >
-                      <AccountAvatar accountId={target.profileId} label={target.label} size={14} />
+                      {target.tool ? <CliAppMark tool={target.tool} folderId={target.profileId} folder={target.label} size={16} ring="var(--color-surface-2)" /> : <ProfileBadge app={cliAppId(target.profileId)} name={target.label} />}
                       <span className="truncate">{target.name ?? target.label}</span>
                       {target.suggested && <SuggestedMark className="ml-auto" />}
                     </Button>

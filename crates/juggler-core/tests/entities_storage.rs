@@ -5,7 +5,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
 
 use juggler_core::model::{Account, AccountId, HarnessId};
-use juggler_core::storage::{Storage, cli_app_id, desktop_app_id, subscription_id};
+use juggler_core::storage::{
+    App, COLOUR_SLOTS, Storage, cli_app_id, desktop_app_id, subscription_id,
+};
 use rusqlite::Connection;
 
 fn folder(id: &str, tool: &str) -> Account {
@@ -239,4 +241,228 @@ fn a_desktop_app_is_written_whole_and_keeps_the_users_name() {
         "a folder that isn't stored is left unset"
     );
     assert_eq!((row.first_seen, row.last_seen), (10, 20));
+}
+
+// --- v42 (AJ-E3206 req. 2): one colour per App and per Account ------------
+
+fn desktop(id: &str, first_seen: i64) -> App {
+    App {
+        id: id.into(),
+        kind: "desktop".into(),
+        tool: "claude-code".into(),
+        host_app_id: Some("claude-app".into()),
+        instance_dir: Some(format!("/u/{id}")),
+        folder_id: None,
+        label: None,
+        hidden: false,
+        keep_alive: false,
+        paused_json: None,
+        launch_json: None,
+        sessions_json: None,
+        first_seen,
+        last_seen: first_seen,
+    }
+}
+
+/// The folders a CLI App needs (`apps.folder_id` → `accounts.id`).
+fn folders(storage: &Storage, ids: &[&str]) {
+    for id in ids {
+        storage
+            .accounts()
+            .insert(&folder(id, "claude-code"))
+            .unwrap();
+    }
+}
+
+fn slot(storage: &Storage, id: &str) -> u8 {
+    storage
+        .apps()
+        .colour_slot(id)
+        .unwrap()
+        .expect("a stored App has a slot")
+}
+
+#[test]
+fn a_new_app_takes_the_least_used_slot_lowest_first_whichever_way_its_inserted() {
+    let storage = Storage::open_in_memory().unwrap();
+    folders(&storage, &["f0", "f3", "f6", "f8", "f9"]);
+    let apps = storage.apps();
+    let mut ids = Vec::new();
+    for n in 0..COLOUR_SLOTS {
+        let id = match n % 3 {
+            0 => apps.upsert_cli("claude-code", &format!("f{n}"), n).unwrap(),
+            1 => apps
+                .upsert_desktop("claude-code", "claude-app", Some(&format!("/u/p{n}")), n)
+                .unwrap(),
+            _ => {
+                let app = desktop(&format!("app:claude-app:/u/d{n}"), n);
+                apps.put_desktop(&app).unwrap();
+                app.id
+            }
+        };
+        ids.push(id);
+    }
+    let slots: Vec<u8> = ids.iter().map(|id| slot(&storage, id)).collect();
+    assert_eq!(
+        slots,
+        (0..8).collect::<Vec<u8>>(),
+        "the first eight never share a colour"
+    );
+    // A ninth shares the lowest slot; a tenth the next.
+    let ninth = apps.upsert_cli("codex", "f8", 8).unwrap();
+    let tenth = apps.upsert_cli("codex", "f9", 9).unwrap();
+    assert_eq!((slot(&storage, &ninth), slot(&storage, &tenth)), (0, 1));
+}
+
+#[test]
+fn an_apps_slot_holds_through_renames_reruns_rewrites_and_others_coming_and_going() {
+    let storage = Storage::open_in_memory().unwrap();
+    folders(&storage, &["a", "c", "d", "e"]);
+    let apps = storage.apps();
+    let a = apps.upsert_cli("claude-code", "a", 1).unwrap();
+    let b = apps
+        .upsert_desktop("claude-code", "claude-app", Some("/u/b"), 2)
+        .unwrap();
+    let c = apps.upsert_cli("codex", "c", 3).unwrap();
+    let before: Vec<u8> = [&a, &b, &c].iter().map(|id| slot(&storage, id)).collect();
+    assert_eq!(before, vec![0, 1, 2]);
+
+    apps.rename(&a, Some("Zebra")).unwrap();
+    apps.upsert_cli("claude-code", "a", 50).unwrap();
+    apps.upsert_desktop("claude-code", "claude-app", Some("/u/b"), 60)
+        .unwrap();
+    let mut whole = desktop(&b, 2);
+    whole.keep_alive = true;
+    whole.last_seen = 70;
+    apps.put_desktop(&whole).unwrap();
+    apps.set_keep_alive(&b, false, None).unwrap();
+    // One forgotten: nobody else moves, and the next new App takes the
+    // slot it freed (the least used, lowest first).
+    apps.forget(&a).unwrap();
+    assert_eq!((slot(&storage, &b), slot(&storage, &c)), (1, 2));
+    let d = apps.upsert_cli("claude-code", "d", 80).unwrap();
+    assert_eq!(slot(&storage, &d), 0, "the slot a forgotten App freed");
+    let e = apps.upsert_cli("claude-code", "e", 90).unwrap();
+    assert_eq!(slot(&storage, &e), 3);
+    assert_eq!(apps.colour_slot("app:nothing:").unwrap(), None);
+}
+
+#[test]
+fn a_folders_cli_app_slot_is_read_and_its_app_made_when_missing() {
+    let storage = Storage::open_in_memory().unwrap();
+    folders(&storage, &["work"]);
+    let apps = storage.apps();
+    apps.upsert_desktop("claude-code", "claude-app", None, 1)
+        .unwrap();
+    assert_eq!(
+        apps.cli_colour_slot("claude-code", "work", 2).unwrap(),
+        Some(1),
+        "made now, after the desktop App"
+    );
+    assert!(apps.get(&cli_app_id("work")).unwrap().is_some());
+    assert_eq!(
+        apps.cli_colour_slot("claude-code", "work", 3).unwrap(),
+        Some(1)
+    );
+    assert_eq!(
+        apps.colour_slots().unwrap().get(&cli_app_id("work")),
+        Some(&1)
+    );
+}
+
+#[test]
+fn an_account_takes_the_least_used_slot_and_keeps_it() {
+    let storage = Storage::open_in_memory().unwrap();
+    let subs = storage.subscriptions();
+    let ids: Vec<String> = (0..9)
+        .map(|n| subs.upsert("anthropic", &format!("{n:04}"), n).unwrap())
+        .collect();
+    let slots: Vec<u8> = ids
+        .iter()
+        .map(|id| subs.colour_slot(id).unwrap().unwrap())
+        .collect();
+    assert_eq!(slots, vec![0, 1, 2, 3, 4, 5, 6, 7, 0]);
+    // Seen again, renamed, its terms set: the same colour. Apps don't
+    // take an Account's slots (each table counts its own).
+    subs.upsert("anthropic", "0003", 99).unwrap();
+    subs.rename(&ids[3], Some("Team")).unwrap();
+    subs.set_terms(&ids[3], Some("max"), None, None).unwrap();
+    assert_eq!(subs.colour_slot(&ids[3]).unwrap(), Some(3));
+    folders(&storage, &["f"]);
+    let app = storage.apps().upsert_cli("claude-code", "f", 1).unwrap();
+    assert_eq!(slot(&storage, &app), 0);
+    assert_eq!(subs.colour_slots().unwrap().len(), 9);
+}
+
+#[test]
+fn v42_gives_the_rows_already_there_their_slots_in_list_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    {
+        let storage = Storage::open(&db).unwrap();
+        folders(
+            &storage,
+            &["f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "new"],
+        );
+        let apps = storage.apps();
+        // Inserted out of list order: desktop first, CLI after.
+        apps.upsert_desktop("claude-code", "claude-app", Some("/u/late"), 30)
+            .unwrap();
+        apps.upsert_desktop("claude-code", "claude-app", Some("/u/early"), 10)
+            .unwrap();
+        for n in 0..8 {
+            apps.upsert_cli("claude-code", &format!("f{n}"), 100 + n)
+                .unwrap();
+        }
+        storage.subscriptions().upsert("openai", "bbbb", 5).unwrap();
+        storage
+            .subscriptions()
+            .upsert("anthropic", "aaaa", 5)
+            .unwrap();
+        storage
+            .subscriptions()
+            .upsert("anthropic", "cccc", 1)
+            .unwrap();
+    }
+    // Back to v41, as an upgrade finds it: v42 runs on the next open.
+    Connection::open(&db)
+        .unwrap()
+        .execute_batch(
+            "DROP TRIGGER apps_colour_slot;
+             DROP TRIGGER subscriptions_colour_slot;
+             ALTER TABLE apps DROP COLUMN colour_slot;
+             ALTER TABLE subscriptions DROP COLUMN colour_slot;
+             PRAGMA user_version = 41;",
+        )
+        .unwrap();
+    let storage = Storage::open(&db).unwrap();
+    assert!(storage.migrated_on_open());
+    assert_eq!(storage.user_version().unwrap(), 42);
+    // The list's order (CLI first, then by when first seen), round robin.
+    let listed: Vec<(String, u8)> = storage
+        .apps()
+        .list()
+        .unwrap()
+        .into_iter()
+        .map(|app| {
+            let slot = slot(&storage, &app.id);
+            (app.id, slot)
+        })
+        .collect();
+    let slots: Vec<u8> = listed.iter().map(|(_, slot)| *slot).collect();
+    assert_eq!(slots, vec![0, 1, 2, 3, 4, 5, 6, 7, 0, 1], "{listed:?}");
+    assert_eq!(
+        listed[8].0,
+        desktop_app_id("claude-app", Some("/u/early")),
+        "the desktop Apps after the CLI ones, first seen first"
+    );
+    let subs = storage.subscriptions();
+    let by_id = subs.colour_slots().unwrap();
+    assert_eq!(by_id[&subscription_id("anthropic", "cccc")], 0);
+    // Seen at the same time: by id ("acct:anthropic:…" before "acct:openai:…").
+    assert_eq!(by_id[&subscription_id("anthropic", "aaaa")], 1);
+    assert_eq!(by_id[&subscription_id("openai", "bbbb")], 2);
+    // And the rule holds for the next one.
+    let next = storage.apps().upsert_cli("codex", "new", 500).unwrap();
+    assert_eq!(slot(&storage, &next), 2);
 }

@@ -12,7 +12,7 @@ import { Card, Chip } from "../../components/primitives";
 import { runwayOf } from "../../components/AccountRunway";
 import { RunwayPanel } from "../../components/usage/Runway";
 import { useWeekByProfile } from "../../components/usage/RunwayCards";
-import { accountKeyColor } from "../../components/usage/accounts";
+import { accountColor } from "../../lib/marks";
 import { providerDisplayName, noLimitsWords } from "../../lib/providers";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
 import { accountDisplay, accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
@@ -115,7 +115,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
-        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: accountKeyColor(sub) }} title="This account's colour in the charts" />
+        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: accountColor(sub) }} title="This account's colour in the charts" />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-section text-ink" data-testid="account-name">
             {sub.account_id ? (
@@ -166,7 +166,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
                 limitsProfile={display && !unmeasured ? display.account : null}
                 usage={week.values(profiles.map((p) => p.id))}
                 usageTotal={week.total(profiles.map((p) => p.id))}
-                color={accountKeyColor(sub)}
+                color={accountColor(sub)}
                 name={name}
                 now={props.now}
                 compact

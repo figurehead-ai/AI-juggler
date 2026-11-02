@@ -4,7 +4,7 @@
  * first) and its Overview (accounts, sessions ever, checkouts, which
  * account starts work here, how the work travelled).
  */
-import { AccountAvatar } from "../components/Avatar";
+import { CliAppMark } from "../components/PlaceMarks";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ProjectSyncSheet } from "../components/ProjectSyncSheet";
@@ -215,7 +215,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
                 onClick={() => launch(recipe)}
                 className="flex w-full items-center gap-2.5 rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-left text-meta text-ink outline-none hover:border-accent/40 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
               >
-                <AccountAvatar accountId={recipe.account_id} label={recipe.account_label} size={20} />
+                <CliAppMark tool={recipe.provider} folderId={recipe.account_id} folder={recipe.account_label} size={20} ring="var(--color-surface-2)" />
                 <span className="min-w-0 flex-1 truncate font-medium">
                   {cliAppName(recipe.provider, recipe.account_label)}
                   {/* An app with several launch settings: say which. */}

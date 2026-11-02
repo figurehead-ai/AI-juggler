@@ -172,7 +172,7 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
         {word}, {item.title}, {where}
       </span>
       <span aria-hidden="true" className="flex">
-        {item.session ? <OwnMark tool={item.tool} account={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
+        {item.session ? <OwnMark tool={item.tool} app={item.place.key} profile={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
       </span>
       <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-2 rounded-full ring-2 ring-canvas " + tone.dot} />
       {needs && (
@@ -191,15 +191,15 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
 }
 
 /** An AI Juggler session's mark: its App's icon (AJ-E3205 req. 5: never
- * the tool's letter, "C" for Claude Code and Codex alike), with its
- * account's dot at the corner where a place's mark has its profile's. */
-function OwnMark({ tool, account }: { tool: string; account: string }): JSX.Element {
+ * the tool's letter, "C" for Claude Code and Codex alike), with its App's
+ * dot at the corner, as a place's mark has it (AJ-E3206). */
+function OwnMark({ tool, app: key, profile }: { tool: string; app: string; profile: string }): JSX.Element {
   const app = appOfTool(tool);
   return (
     <span className="relative inline-flex size-[22px] shrink-0 items-center justify-center" data-testid="folded-tool-mark" data-app={app.appId ?? tool}>
       <AppIconTile appId={app.appId} appPid={null} name={app.name} size={22} />
       <span className="absolute -bottom-0.5 -right-0.5 flex">
-        <ProfileBadge name={account} size={7} ring="var(--color-canvas)" />
+        <ProfileBadge app={key} name={profile} size={7} ring="var(--color-canvas)" />
       </span>
     </span>
   );

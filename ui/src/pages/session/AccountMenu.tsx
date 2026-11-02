@@ -15,19 +15,19 @@ import { ChoiceLine } from "../../components/controls";
 import { IconChevronDown } from "../../components/icons-controls";
 import { IconProfiles } from "../../components/icons";
 import { useActionHost } from "../../components/ItemMenu";
-import { profileColor } from "../../lib/profile-marks";
+import { appColor, useMarks } from "../../lib/marks";
 import { shortPath } from "../../screens/AccountManage";
 import { accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
 import { sessionAppName, type SessionModel } from "./model";
 import { IconGauge } from "../../components/usage/controls";
 import { appIdOfRailKey, openApp } from "../../lib/apps";
 import { openAccount } from "../../lib/accounts-page";
-import { desktopAppKey } from "../../lib/app-name";
+import { cliAppId, desktopAppKey } from "../../lib/app-name";
 import { useKnownPlaces } from "../../lib/places";
 import type { KnownPlaceInfo } from "../../lib/ipc/places";
 
 /** The profile's name as the rail's badge reads it (its place's, else
- * its folder's): one colour and monogram everywhere. */
+ * its folder's). */
 export function profileName(model: SessionModel): string {
   const place = model.places[0];
   return place?.profile ?? place?.instance ?? model.profileLabel;
@@ -41,12 +41,21 @@ export function accountWordsOf(account: SubscriptionInfo | undefined): string | 
   return `${accountName(account)}${line ? ` · ${line}` : ""}`;
 }
 
+/** The App a session runs in, as its mark keys it (AJ-E3206): the
+ * desktop app and profile it's open in (the rail's key for it), else its
+ * folder's CLI App; with neither, the session itself (a fallback by id). */
+export function sessionAppMark(model: SessionModel): string {
+  const place = model.places.find((one) => one.kind === "desktop");
+  if (place) return desktopAppKey(place.app_id ?? null, place.app, place.instance);
+  return model.profileId ? cliAppId(model.profileId) : `session:${model.sessionId ?? model.conversationId ?? ""}`;
+}
+
 /** The App a session runs in: the desktop app and profile it's open in,
  * else its folder's CLI App. */
 export function appIdOfSession(model: SessionModel, places: readonly KnownPlaceInfo[] | null): string | null {
-  const place = model.places.find((one) => one.kind === "desktop");
-  if (place) return appIdOfRailKey(desktopAppKey(place.app_id ?? null, place.app, place.instance), null, places);
-  return model.profileId ? `cli:${model.profileId}` : null;
+  const mark = sessionAppMark(model);
+  if (mark.startsWith("app|")) return appIdOfRailKey(mark, null, places);
+  return mark.startsWith("cli:") ? mark : null;
 }
 
 /** One fact in the menu: a small muted label over its value. */
@@ -64,6 +73,8 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
   const [at, setAt] = useState<MenuAt | null>(null);
   const button = useRef<HTMLButtonElement | null>(null);
   const badge = profileName(model);
+  useMarks();
+  const mark = sessionAppMark(model);
   const words = accountWordsOf(account);
   const app = sessionAppName(model);
   const open = () => {
@@ -87,10 +98,10 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
         title={words ? `${app}\nAccount: ${words}` : app}
         onClick={() => (at ? setAt(null) : open())}
         className="inline-flex min-w-0 max-w-full shrink items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-meta font-medium leading-5 text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
-        style={{ borderColor: profileColor(badge) }}
+        style={{ borderColor: appColor(mark) }}
         data-testid="session-account-menu"
       >
-        <ProfileBadge name={badge} size={16} />
+        <ProfileBadge app={mark} name={badge} size={16} />
         <span className="truncate">{app}</span>
         <IconChevronDown width={12} height={12} aria-hidden="true" className="shrink-0 text-muted" />
       </button>

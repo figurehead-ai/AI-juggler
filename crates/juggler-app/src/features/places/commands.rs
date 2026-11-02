@@ -50,6 +50,10 @@ pub struct KnownPlaceInfo {
     /// AJ-E3203: found by its folder's name beside a profile that ran,
     /// and not seen running since.
     pub found: bool,
+    /// AJ-E3206: its colour as an App, given once and stored (an index
+    /// into the UI's `PROFILE_HUES`).
+    #[ts(optional = nullable)]
+    pub colour_slot: Option<u8>,
 }
 
 /// AJ-E3203: finding a desktop app's profiles that aren't running.
@@ -84,6 +88,7 @@ fn info(
     pid: Option<u32>,
     hosts: &HostRegistry,
     accounts: &std::collections::HashMap<String, String>,
+    slots: &std::collections::BTreeMap<String, u8>,
 ) -> KnownPlaceInfo {
     let account = place
         .account_id
@@ -105,6 +110,7 @@ fn info(
         cannot_start: super::start::plan(place, hosts, None, false).err(),
         recent: recent(&place.conversations),
         found: place.found,
+        colour_slot: slots.get(id).copied(),
     }
 }
 
@@ -121,12 +127,17 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
         &pids.iter().map(|(_, pid, _)| *pid).collect::<Vec<_>>(),
     );
     let hosts = HostRegistry::of(&state.registry);
-    let accounts: std::collections::HashMap<String, String> = state
+    let (folders, slots) = state
         .storage
         .lock()
         .ok()
-        .and_then(|storage| storage.accounts().list().ok())
-        .unwrap_or_default()
+        .map_or_else(Default::default, |storage| {
+            (
+                storage.accounts().list().ok().unwrap_or_default(),
+                storage.apps().colour_slots().ok().unwrap_or_default(),
+            )
+        });
+    let accounts: std::collections::HashMap<String, String> = folders
         .into_iter()
         .map(|account| (account.id.to_string(), account.label))
         .collect();
@@ -142,7 +153,7 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
                     })
                 })
                 .map(|(_, pid, _)| *pid);
-            info(id, place, pid, &hosts, &accounts)
+            info(id, place, pid, &hosts, &accounts, &slots)
         })
         .collect())
 }

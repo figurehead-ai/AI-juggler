@@ -14,7 +14,7 @@ import { ShareBar, StatTile } from "./StatTile";
 import { TimeChart, timeTable } from "./TimeChart";
 import { change, exact, niceAxis, percentOf, short, stackOf, usdWords } from "./scale";
 import { modelName, seriesColor } from "./colors";
-import { accountColor } from "../../lib/palette";
+import { appColor } from "../../lib/marks";
 
 afterEach(cleanup);
 
@@ -65,8 +65,8 @@ describe("scale", () => {
 });
 
 describe("colour follows the entity", () => {
-  it("a profile's series wears its badge's colour; Other is neutral", () => {
-    expect(seriesColor("profile", "claude-work")).toBe(accountColor("claude-work"));
+  it("a folder's series wears its CLI App's colour; Other is neutral", () => {
+    expect(seriesColor("profile", "claude-work")).toBe(appColor("cli:claude-work"));
     expect(seriesColor("model", "__other")).toBe("var(--color-faint)");
     expect(seriesColor("model", "claude-opus-4-5")).toBe(seriesColor("model", "claude-opus-4-1-20250805"));
   });

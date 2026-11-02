@@ -1,10 +1,11 @@
 /**
- * AJ-E2104 with D-38 — a place's marks, one set everywhere a session or a
- * place shows: the app's own icon as installed on this Mac (`AppIcon`),
- * and the profile it runs in as its own badge (`ProfileBadge`): a dot at
- * the icon's corner, ringed in the colour of what it sits on, or a pill
- * beside the name. The badge never covers the icon; one app's profiles
- * share its icon. Decorative: the row or header names both in words.
+ * AJ-E2104 with D-38 and AJ-E3206 — an App's marks, one set everywhere a
+ * session, a place or an App shows: the app's own icon as installed on
+ * this Mac (`AppIcon`), and the App's one colour as its profile's badge
+ * (`ProfileBadge`, keyed by the App, never by a name): a dot at the icon's
+ * corner, ringed in the colour of what it sits on, or a pill beside the
+ * name. The badge never covers the icon; one app's profiles share its
+ * icon. Decorative: the row or header names both in words.
  */
 import type { JSX } from "react";
 import { AppIconTile } from "./AppIcon";
@@ -43,9 +44,16 @@ export function PlaceMark({ place, profile, size = 24, ring = "var(--color-canva
       <AppIconTile appId={place.appId} appPid={place.appPid} name={place.app} size={size} />
       {name && (
         <span className="absolute flex" style={{ right: offset, bottom: offset }} data-testid="place-mark-profile">
-          <ProfileBadge name={name} size={dot} ring={ring} />
+          <ProfileBadge app={place.key} name={name} size={dot} ring={ring} />
         </span>
       )}
     </span>
   );
+}
+
+/** A CLI App's mark (tool `tool` on folder `folderId`, labelled
+ * `folder`) where a row names it without a place: the same icon and dot
+ * as the rail's. */
+export function CliAppMark({ tool, folderId, folder, size = 24, ring }: { tool: string; folderId: string; folder: string; size?: number; ring?: string }): JSX.Element {
+  return <PlaceMark place={cliPlace(tool, folderId, folder, { name: null, kind: null, pid: null })} size={size} ring={ring} />;
 }

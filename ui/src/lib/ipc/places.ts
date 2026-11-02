@@ -5,7 +5,8 @@
  * (`places-changed`). The preview and tests set `window.__AIJ_PLACES__`.
  */
 import { invoke, listen } from "./transport";
-import { hasLiveBackend } from "../bridge";
+import { hasLiveBackend, previewFolders } from "../bridge";
+import { previewPlaceSlots } from "./preview-slots";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 import type { FindProfilesInfo } from "../../types/generated/FindProfilesInfo";
@@ -52,6 +53,9 @@ function changedHere(): void {
 /** Every place remembered: kept alive first, then by name. */
 export async function placesList(): Promise<KnownPlaceInfo[]> {
   if (!hasLiveBackend()) {
+    // AJ-E3206: each with the colour the backend would give, after the
+    // CLI Apps' (filled once, kept).
+    previewPlaceSlots(preview().places, previewFolders());
     return [...preview().places].sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || a.label.localeCompare(b.label));
   }
   const page = await invoke<{ items: KnownPlaceInfo[] }>("places_list", { page: ALL });

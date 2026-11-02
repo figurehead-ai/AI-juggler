@@ -69,6 +69,87 @@ UPDATE instances SET app_id = 'cli:' || (
 );
 ";
 
+/// How many colours an App or an Account can wear: the UI's
+/// `PROFILE_HUES` (`ui/src/lib/marks.ts`), in its order. Its slot is an
+/// index into them.
+pub const COLOUR_SLOTS: i64 = 8;
+
+/// v42 (AJ-E3206 req. 2): each App and each Account wears one colour,
+/// given once and stored, so it never shifts as others are added, renamed
+/// or re-sorted. A new row takes the least-used slot among the rows of its
+/// table (the lowest on a tie), whichever way it's inserted (a trigger, so
+/// no insert can skip it); a deleted row frees its slot for the next one
+/// and no other row moves. The rows already there are given theirs in the
+/// order they're listed (Apps: the CLI ones, then by when first seen;
+/// Accounts: by when first seen), which is the same rule run over them one
+/// by one from empty. Additive: nothing existing changes meaning.
+pub(super) const COLOUR_SLOTS_MIGRATION: &str = "
+ALTER TABLE apps ADD COLUMN colour_slot INTEGER;
+ALTER TABLE subscriptions ADD COLUMN colour_slot INTEGER;
+UPDATE apps SET colour_slot = (
+    SELECT COUNT(*) FROM apps AS earlier
+    WHERE (earlier.kind, earlier.first_seen, earlier.id) < (apps.kind, apps.first_seen, apps.id)
+) % 8;
+UPDATE subscriptions SET colour_slot = (
+    SELECT COUNT(*) FROM subscriptions AS earlier
+    WHERE (earlier.created_at, earlier.id) < (subscriptions.created_at, subscriptions.id)
+) % 8;
+CREATE TRIGGER apps_colour_slot AFTER INSERT ON apps WHEN NEW.colour_slot IS NULL
+BEGIN
+    UPDATE apps SET colour_slot = (
+        SELECT slot FROM (SELECT 0 AS slot UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                          UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7) AS slots
+        ORDER BY (SELECT COUNT(*) FROM apps AS used WHERE used.colour_slot = slots.slot), slot
+        LIMIT 1
+    ) WHERE id = NEW.id;
+END;
+CREATE TRIGGER subscriptions_colour_slot AFTER INSERT ON subscriptions WHEN NEW.colour_slot IS NULL
+BEGIN
+    UPDATE subscriptions SET colour_slot = (
+        SELECT slot FROM (SELECT 0 AS slot UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                          UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7) AS slots
+        ORDER BY (SELECT COUNT(*) FROM subscriptions AS used WHERE used.colour_slot = slots.slot), slot
+        LIMIT 1
+    ) WHERE id = NEW.id;
+END;
+";
+
+/// Each row's colour slot, by id, from `table`'s `colour_slot` (v42).
+fn colour_slots(
+    conn: &Connection,
+    table: &str,
+) -> Result<std::collections::BTreeMap<String, u8>, CoreError> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT id, colour_slot FROM {table} WHERE colour_slot IS NOT NULL"
+    ))?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+    })?;
+    let mut out = std::collections::BTreeMap::new();
+    for row in rows {
+        let (id, slot) = row?;
+        out.insert(id, slot_of(slot));
+    }
+    Ok(out)
+}
+
+/// Row `id`'s colour slot in `table` (v42).
+fn colour_slot(conn: &Connection, table: &str, id: &str) -> Result<Option<u8>, CoreError> {
+    let slot: Option<Option<i64>> = conn
+        .query_row(
+            &format!("SELECT colour_slot FROM {table} WHERE id = ?1"),
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(slot.flatten().map(slot_of))
+}
+
+/// A stored slot as the UI takes it (always under [`COLOUR_SLOTS`]).
+fn slot_of(slot: i64) -> u8 {
+    u8::try_from(slot.rem_euclid(COLOUR_SLOTS)).unwrap_or(0)
+}
+
 /// A stored Account (a subscription).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Subscription {
@@ -279,6 +360,24 @@ impl<'a> SubscriptionsRepo<'a> {
         Ok(changed > 0)
     }
 
+    /// Each Account's colour slot, by id (v42).
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn colour_slots(&self) -> Result<std::collections::BTreeMap<String, u8>, CoreError> {
+        colour_slots(self.conn, "subscriptions")
+    }
+
+    /// Account `id`'s colour slot (v42), when it's stored.
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn colour_slot(&self, id: &str) -> Result<Option<u8>, CoreError> {
+        colour_slot(self.conn, "subscriptions", id)
+    }
+
     /// The Account each folder was last read as, by folder.
     ///
     /// # Errors
@@ -429,6 +528,45 @@ impl<'a> AppsRepo<'a> {
             "SELECT {APP_COLUMNS} FROM apps ORDER BY kind, first_seen, id"
         ))?;
         collect(stmt.query_map([], app_row)?)
+    }
+
+    /// Each App's colour slot, by id (v42).
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn colour_slots(&self) -> Result<std::collections::BTreeMap<String, u8>, CoreError> {
+        colour_slots(self.conn, "apps")
+    }
+
+    /// App `id`'s colour slot (v42), when it's stored.
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn colour_slot(&self, id: &str) -> Result<Option<u8>, CoreError> {
+        colour_slot(self.conn, "apps", id)
+    }
+
+    /// The colour slot of tool `tool`'s CLI App on folder `folder_id`,
+    /// the App made first when it isn't stored yet (a folder added since
+    /// the Apps were last listed).
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn cli_colour_slot(
+        &self,
+        tool: &str,
+        folder_id: &str,
+        now_ms: i64,
+    ) -> Result<Option<u8>, CoreError> {
+        let id = cli_app_id(folder_id);
+        if let Some(slot) = self.colour_slot(&id)? {
+            return Ok(Some(slot));
+        }
+        self.upsert_cli(tool, folder_id, now_ms)?;
+        self.colour_slot(&id)
     }
 
     /// The user's name for it (`None`: back to the default).

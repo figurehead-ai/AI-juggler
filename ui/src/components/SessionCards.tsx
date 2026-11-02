@@ -137,7 +137,7 @@ export function SessionRow({
             <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
             <span className="truncate">{mark.abbrev}</span>
           </span>
-          <AccountAvatar accountId={session.account_id} label={session.account_label} />
+          <AccountAvatar account={{ folder: session.account_id }} label={session.account_label} />
           <span className="sr-only">{session.account_label}</span>
           <span className="ml-auto inline-flex shrink-0 items-center gap-1">
             {badge ? (
@@ -232,7 +232,7 @@ export function SessionRow({
           <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
           <span className="truncate">{mark.abbrev}</span>
         </span>
-        <AccountAvatar accountId={session.account_id} label={session.account_label} />
+        <AccountAvatar account={{ folder: session.account_id }} label={session.account_label} />
           <span className="sr-only">{session.account_label}</span>
         {identityWords(session) && (
           <span

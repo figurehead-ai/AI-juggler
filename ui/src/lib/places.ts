@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { onPlacesChanged, placesFind, placesList, type KnownPlaceInfo } from "./ipc/places";
+import { learnPlaces } from "./marks";
 
 /** The places remembered (`null` until read). */
 export function useKnownPlaces(): KnownPlaceInfo[] | null {
@@ -13,7 +14,10 @@ export function useKnownPlaces(): KnownPlaceInfo[] | null {
     let live = true;
     const load = () =>
       void placesList().then(
-        (rows) => live && setPlaces(rows),
+        (rows) => {
+          learnPlaces(rows); // AJ-E3206: each desktop App's stored colour
+          if (live) setPlaces(rows);
+        },
         () => live && setPlaces((was) => was ?? []),
       );
     load();

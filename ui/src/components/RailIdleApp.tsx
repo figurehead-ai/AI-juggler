@@ -21,6 +21,7 @@ import { showToast } from "./Toast";
 import { placesOpen } from "../lib/ipc/places";
 import { openApp } from "../lib/apps";
 import { agoWords } from "../lib/time-words";
+import { cliAppId } from "../lib/app-name";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
 
 /** What the app's one action is, in words and as an icon. */
@@ -75,7 +76,7 @@ export function RailIdleApp({
     );
   };
   // D-62: its name opens its App page, as an open App's header does.
-  const page = app.kind === "desktop" ? app.placeId : app.accountId ? `cli:${app.accountId}` : null;
+  const page = app.kind === "desktop" ? app.placeId : app.accountId ? cliAppId(app.accountId) : null;
   const openPage = page !== null ? () => openApp(page) : null;
   const run = (action: () => void) => () => (setMenu(null), action());
   const has = app.sessions.length > 0;
@@ -113,7 +114,7 @@ export function RailIdleApp({
           <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink-2">{app.app}</span>
           {app.profile && (
             <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted">
-              <ProfileBadge name={app.profile} size={6} />
+              <ProfileBadge app={app.key} name={app.profile} size={6} />
               <span className="truncate">{app.profile}</span>
             </span>
           )}

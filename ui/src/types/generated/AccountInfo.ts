@@ -71,4 +71,14 @@ service?: string | null,
  * D-62: the Account its sign-in was last read as (its plan, renewal
  * and fee are set there), when known.
  */
-subscription_id?: string | null, };
+subscription_id?: string | null, 
+/**
+ * AJ-E3206: the colour of the folder's CLI App (`cli:<id>`), given
+ * once and stored (an index into the UI's `PROFILE_HUES`).
+ */
+app_colour_slot?: number | null, 
+/**
+ * AJ-E3206: the colour of its Account (`subscription_id`), when it
+ * has one, given the same way.
+ */
+account_colour_slot?: number | null, };

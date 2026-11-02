@@ -98,7 +98,7 @@ export function PlaceHeader({
               folded summary gives way first. */}
           {place?.profile && (
             <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted" data-testid="place-profile">
-              <ProfileBadge name={place.profile} size={6} />
+              <ProfileBadge app={place.key} name={place.profile} size={6} />
               <span className="truncate">{place.profile}</span>
             </span>
           )}

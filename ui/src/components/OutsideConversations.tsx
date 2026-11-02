@@ -163,7 +163,7 @@ export function ConversationRow({
           </span>
         </span>
         <AppIcon {...appOfConversation(conversation)} size={16} />
-        <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
+        <AccountAvatar account={{ folder: conversation.account_id }} label={conversation.account_label} size={16} />
       </button>
       {goTo}
       {menu.button({ label: `Conversation actions for ${title}`, className: "absolute bottom-0 left-0" })}
@@ -242,7 +242,7 @@ export function HomeOutsideRows({ rows, now }: { rows: ConversationInfo[]; now: 
             </span>
             <span className="flex items-center gap-1.5 text-xs text-muted">
               <AppIcon {...appOfConversation(conversation)} size={16} />
-              <AccountAvatar accountId={conversation.account_id} label={conversation.account_label} size={16} />
+              <AccountAvatar account={{ folder: conversation.account_id }} label={conversation.account_label} size={16} />
               <span><span className="sr-only">{providerDisplayName(conversation.tool)} on </span>{conversation.account_label}</span>
             </span>
             {/* Its last activity: a resumed one can be months old. */}

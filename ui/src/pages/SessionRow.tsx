@@ -116,7 +116,7 @@ export function SessionRowBody({
         )}
         {!inApp && !inAccount && (
           <span className="hidden w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted @[34rem]:flex">
-            <AccountAvatar accountId={row.accountId} label={row.accountLabel} size={16} />
+            <AccountAvatar account={{ folder: row.accountId }} label={row.accountLabel} size={16} />
             <span aria-hidden="true" className="truncate">{row.accountLabel}</span>
           </span>
         )}

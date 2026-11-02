@@ -63,4 +63,9 @@ recent: Array<string>,
  * AJ-E3203: found by its folder's name beside a profile that ran,
  * and not seen running since.
  */
-found: boolean, };
+found: boolean, 
+/**
+ * AJ-E3206: its colour as an App, given once and stored (an index
+ * into the UI's `PROFILE_HUES`).
+ */
+colour_slot?: number | null, };

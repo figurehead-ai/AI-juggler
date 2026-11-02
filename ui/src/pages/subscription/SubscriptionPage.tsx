@@ -13,7 +13,7 @@ import { IconHistory } from "../../components/icons-places";
 import { IconProfiles } from "../../components/icons";
 import { Button } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
-import { accountKeyColor } from "../../components/usage/accounts";
+import { accountColor } from "../../lib/marks";
 import { UsageDashboard } from "../../components/usage/Dashboard";
 import { Segmented } from "../../components/usage/controls";
 import { useRange } from "../../components/usage/useUsage";
@@ -113,7 +113,7 @@ function AccountBody({ sub, all, onChanged, sessions, projects, accounts, now, o
             kind="subscription"
             mark={
               <span className="flex size-8 items-center justify-center rounded-lg border border-hairline bg-surface-2">
-                <span aria-hidden="true" className="size-3 rounded-full" style={{ background: accountKeyColor(sub) }} />
+                <span aria-hidden="true" className="size-3 rounded-full" style={{ background: accountColor(sub) }} />
               </span>
             }
             name={name}

@@ -12,7 +12,7 @@ import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parse
 import { parseSeen } from "./seen";
 import { contrast, luminance } from "./oklch";
 import { swatchOf } from "./palette";
-import { PROFILE_HUES, STATUS_HUES, assignProfiles, profileMonogram } from "./profile-marks";
+import { PROFILE_HUES, STATUS_HUES } from "./marks";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { InstanceInfo } from "./bridge";
 
@@ -268,11 +268,6 @@ describe("profile badges (AJ-E2104 Req.2)", () => {
       expect(contrast(luminance(swatchOf(hue)), 1), `hue ${hue}`).toBeGreaterThanOrEqual(4.5);
       for (const status of STATUS_HUES) expect(apart(hue, status), `${hue} vs ${status}`).toBeGreaterThanOrEqual(20);
     }
-  });
-
-  it("profiles sharing a first word get letters that tell them apart", () => {
-    assignProfiles(["b-work", "b-personal"]);
-    expect(profileMonogram("b-work")).not.toBe(profileMonogram("b-personal"));
   });
 });
 

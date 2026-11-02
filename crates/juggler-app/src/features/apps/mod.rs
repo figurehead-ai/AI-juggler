@@ -37,6 +37,10 @@ pub struct StoredAppInfo {
     /// When it was last seen running, epoch ms (a CLI App: when made).
     #[ts(type = "number")]
     pub last_seen_ms: i64,
+    /// AJ-E3206: its colour, given once and stored (an index into the
+    /// UI's `PROFILE_HUES`); the same on every screen that marks it.
+    #[ts(optional = nullable)]
+    pub colour_slot: Option<u8>,
 }
 
 /// Every App the user hasn't hidden: one CLI App per folder in use (made
@@ -58,6 +62,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
         folders.iter().map(|folder| folder.id.as_str()).collect();
     let accounts: BTreeMap<String, Option<String>> =
         storage.subscriptions().folders()?.into_iter().collect();
+    let slots = storage.apps().colour_slots()?;
     Ok(storage
         .apps()
         .list()?
@@ -76,6 +81,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
                 .folder_id
                 .as_ref()
                 .and_then(|folder| accounts.get(folder).cloned().flatten()),
+            colour_slot: slots.get(&app.id).copied(),
             id: app.id,
             kind: app.kind,
             tool: app.tool,
@@ -153,5 +159,49 @@ mod tests {
         assert_eq!(work.label.as_deref(), Some("Day job"));
         assert!(rename_impl(&state, "cli:nope", Some("x")).is_err());
         assert!(rename_impl(&state, "cli:work", Some(&"x".repeat(61))).is_err());
+    }
+
+    /// AJ-E3206: an App's colour is the one stored for it, the same on its
+    /// row as on its folder's, and a name never moves it.
+    #[test]
+    fn an_apps_colour_is_its_stored_slot_on_every_row_that_names_it() {
+        let root = tempfile::tempdir().unwrap();
+        let state = Arc::new(AppState::init(root.path().join("data")).unwrap());
+        {
+            let storage = state.storage.lock().unwrap();
+            for id in ["zeta", "alpha"] {
+                storage.accounts().insert(&folder(id)).unwrap();
+            }
+        }
+        // A folder's row first: it makes its CLI App (and slot) at once.
+        let folders = crate::commands::accounts_info(&state).unwrap();
+        let slot_of = |id: &str| {
+            folders
+                .iter()
+                .find(|folder| folder.id == id)
+                .and_then(|folder| folder.app_colour_slot)
+        };
+        let (zeta, alpha) = (slot_of("zeta"), slot_of("alpha"));
+        assert!(zeta.is_some() && alpha.is_some());
+        assert_ne!(zeta, alpha, "two Apps, two colours");
+        let listed = |state: &Arc<AppState>| {
+            list_impl(state)
+                .unwrap()
+                .into_iter()
+                .map(|app| (app.id, app.colour_slot))
+                .collect::<BTreeMap<_, _>>()
+        };
+        let apps = listed(&state);
+        assert_eq!(apps["cli:zeta"], zeta);
+        assert_eq!(apps["cli:alpha"], alpha);
+        rename_impl(&state, "cli:zeta", Some("Aardvark")).unwrap();
+        assert_eq!(listed(&state)["cli:zeta"], zeta, "renamed: the same colour");
+        assert!(
+            crate::commands::accounts_info(&state)
+                .unwrap()
+                .iter()
+                .all(|folder| folder.account_colour_slot.is_none()),
+            "no Account read yet: none to colour"
+        );
     }
 }

@@ -894,7 +894,7 @@ export function RailRow({
       {/* AJ-E1532 with D-38: the tool (its own app's icon), and the account serving it now (its avatar
           follows the session when it switches accounts). */}
       <AppIcon {...appOfSession(session)} size={16} />
-      <AccountAvatar accountId={session.account_id} label={session.account_label} size={16} />
+      <AccountAvatar account={{ folder: session.account_id }} label={session.account_label} size={16} />
     </button>
   );
 }

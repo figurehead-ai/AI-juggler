@@ -99,6 +99,15 @@ fn agreed_terms_move_and_a_disagreement_is_chosen_once() {
     assert_eq!(account.renewal_date, None);
     assert_eq!(account.differs, ["renewal"]);
     assert_eq!(account.choices.len(), 1);
+    // AJ-E3206: one colour for the Account, the same on both its folders.
+    assert_eq!(account.colour_slot, Some(0));
+    let folders = juggler_app::commands::accounts_info(&state).unwrap();
+    assert!(
+        folders
+            .iter()
+            .all(|row| row.account_colour_slot == account.colour_slot),
+        "both folders wear their Account's colour"
+    );
     let choice = &account.choices[0];
     assert_eq!(choice.term, "renewal");
     let options: Vec<(&str, &[String])> = choice

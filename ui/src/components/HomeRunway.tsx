@@ -74,7 +74,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advic
             <div key={group.key} className="flex flex-col gap-1.5 border-t border-hairline/60 py-3 first:border-t-0" data-testid="home-runway-account">
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="flex min-w-0 items-center gap-2">
-                  <AccountAvatar accountId={first.id} label={group.name} size={18} />
+                  <AccountAvatar account={group.subscription ?? { folder: first.id }} label={group.name} size={18} />
                   <span className="flex min-w-0 flex-col">
                     {group.subscription?.account_id ? (
                       // D-62 (AJ-E3205): the account's name opens its page.

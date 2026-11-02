@@ -7,12 +7,11 @@
  * swatch stands out from both themes' surfaces (palette.test.ts checks
  * all three, and the ΔE between neighbouring hues).
  *
- * A project's swatch comes from the backend (`ProjectInfo.mark`); an
- * account's is given here, by id, as the list loads. A project's mark is
- * a rounded square and an account's avatar is round, so the two never
- * read as one.
+ * A project's swatch comes from the backend (`ProjectInfo.mark`). An App's
+ * and an Account's colours are their own, stored once each (lib/marks).
+ * A project's mark is a rounded square and an account's avatar is round,
+ * so the two never read as one.
  */
-import { assignProfiles, profileColor } from "./profile-marks";
 import type { ProjectInfo } from "./bridge";
 import type { ProjectMarkInfo } from "../types/generated/ProjectMarkInfo";
 import { luminance, maxChroma, type Oklch } from "./oklch";
@@ -57,9 +56,8 @@ export function swatchColor(index: number): string {
 
 // --- accounts ---------------------------------------------------------------
 
-/** The user's accounts, each with its own slot (by id, so the same account
- * keeps its colour), and its initials. */
-const assigned = new Map<string, number>();
+/** The user's folders, each with the initials that tell it from the
+ * others (by id). */
 const initials = new Map<string, string>();
 let known: { id: string; label: string }[] = [];
 
@@ -112,15 +110,11 @@ export function distinctInitials(labels: string[]): string[] {
   });
 }
 
-/** Give each of the user's accounts its slot and initials (call when the
- * list loads; cheap and idempotent). */
+/** Give each of the user's folders its initials (call when the list
+ * loads; cheap and idempotent). */
 export function assignPalette(accounts: { id: string; label: string }[]): void {
   const sorted = [...new Map(accounts.map((account) => [account.id, account])).values()].sort((a, b) => (a.id < b.id ? -1 : 1));
   known = sorted.map(({ id, label }) => ({ id, label }));
-  assigned.clear();
-  sorted.forEach((account, index) => assigned.set(account.id, index % PALETTE.length));
-  // One colour per profile: its name joins the badges' set.
-  assignProfiles(sorted.map((account) => account.label));
   initials.clear();
   const letters = distinctInitials(sorted.map((account) => account.label));
   sorted.forEach((account, index) => initials.set(account.id, letters[index]!));
@@ -131,11 +125,9 @@ export function knownAccounts(): { id: string; label: string }[] {
   return known;
 }
 
-/** A stable index into the palette for `key`: its assigned slot, else a
- * hash (a key the list doesn't know yet). */
+/** A stable index into the palette for `key` (a project, tool or model
+ * the backend gave no swatch): made from the key itself. */
 export function paletteIndex(key: string | null): number {
-  const slot = key === null ? undefined : assigned.get(key);
-  if (slot !== undefined) return slot;
   const text = key ?? "unknown";
   let hash = 0;
   for (let i = 0; i < text.length; i += 1) {
@@ -144,20 +136,13 @@ export function paletteIndex(key: string | null): number {
   return hash % PALETTE.length;
 }
 
-/** A profile's colour by its id, as CSS: its badge's (`profileColor` of
- * its name), so a chart by profile, its avatar and its badge agree. */
-export function accountColor(accountId: string | null): string {
-  const label = accountId === null ? null : (known.find((account) => account.id === accountId)?.label ?? null);
-  return profileColor(label ?? accountId ?? "unknown");
-}
-
 /** An account's initials: told apart from the user's other accounts when
  * the list has loaded, else from its label alone. */
 export function accountInitials(accountId: string | null, label: string): string {
   return (accountId !== null ? initials.get(accountId) : undefined) ?? initialsOf(label);
 }
 
-/** The user's accounts, as loaded: each given its slot on the way in. */
+/** The user's folders, as loaded: each given its initials on the way in. */
 export function withPalette<T extends { id: string; label: string }>(accounts: T[]): T[] {
   assignPalette(accounts);
   return accounts;
