@@ -488,7 +488,20 @@ pub fn conversation_impl(
     if !last_messages::enabled(state) {
         return Ok(LastMessagesInfo::without("off"));
     }
-    let transcript = found(state, account, id, 0).ok().and_then(|found| {
+    let transcript = transcript_of(state, account, id, subagent);
+    Ok(last_messages::read_subagent(transcript.as_deref(), ask))
+}
+
+/// 0.3.5: a subagent's own transcript, when its tool keeps one this app
+/// reads (the feed follows it, ADR-0024).
+#[must_use]
+pub fn transcript_of(
+    state: &Arc<AppState>,
+    account: &str,
+    id: &str,
+    subagent: &str,
+) -> Option<std::path::PathBuf> {
+    found(state, account, id, 0).ok().and_then(|found| {
         if !matches!(
             found.support,
             SubagentSupport::Supported {
@@ -503,8 +516,7 @@ pub fn conversation_impl(
             .into_iter()
             .find(|agent| agent.id == subagent)?
             .transcript
-    });
-    Ok(last_messages::read_subagent(transcript.as_deref(), ask))
+    })
 }
 
 #[cfg(test)]

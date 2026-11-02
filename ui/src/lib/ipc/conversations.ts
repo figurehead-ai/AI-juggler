@@ -11,12 +11,18 @@ import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { StartedSessionInfo } from "../../types/generated/StartedSessionInfo";
 import type { PlaceInfo } from "../../types/generated/PlaceInfo";
 import type { LastMessagesInfo } from "../../types/generated/LastMessagesInfo";
-import type { LastTurnInfo } from "../../types/generated/LastTurnInfo";
+import type { TurnInfo } from "../../types/generated/TurnInfo";
 import type { TurnBlockInfo } from "../../types/generated/TurnBlockInfo";
+import type { TurnCallInfo } from "../../types/generated/TurnCallInfo";
+import type { ConversationDeltaInfo } from "../../types/generated/ConversationDeltaInfo";
+import type { ConversationSnapshotInfo } from "../../types/generated/ConversationSnapshotInfo";
+import type { EarlierPageInfo } from "../../types/generated/EarlierPageInfo";
+import { Channel } from "@tauri-apps/api/core";
+import { previewEarlier, previewFollow, previewKeep, previewUnfollow, previewWithout, seedTurn, type SeededTurn } from "../../preview/conversation-feed";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 import { placesConversations } from "../../preview/places";
 
-export type { ConversationInfo, GoToOutcomeInfo, LastMessagesInfo, LastTurnInfo, PlaceInfo, TurnBlockInfo };
+export type { ConversationInfo, ConversationDeltaInfo, ConversationSnapshotInfo, EarlierPageInfo, GoToOutcomeInfo, LastMessagesInfo, PlaceInfo, TurnBlockInfo, TurnCallInfo, TurnInfo };
 
 /** AJ-E2108: what a switch starts from, where a session id goes: AI
  * Juggler's session when it runs this conversation, else the conversation
@@ -184,30 +190,32 @@ export function onConversationsChanged(handler: (change: ConversationsChange) =>
  * page's start, or everything `from` one; `known` is the stamp it shows. */
 export type LastMessagesAsk = { known?: string | null; before?: number | null; from?: number | null; max?: number };
 
-/** A fixture's turn: the backend's shape, or speaker and text only. */
-type SeededTurn = Partial<LastTurnInfo> & { speaker: string; text?: string };
 const none = (state: string): LastMessagesInfo => ({ state, turns: [], redacted: 0, earlier: null, stamp: null });
+
+type SeededChat = { state: string; redacted: number; layout?: string; turns: SeededTurn[] };
+
+/** The fixture's chat for a conversation id (the preview's own when a
+ * spec seeds none); `null`: no transcript here. */
+function seededChat(conversationId: string): SeededChat | null | "off" {
+  const w = window as unknown as {
+    __AIJ_FIXTURE__?: { last_messages?: Record<string, SeededChat> };
+    __AIJ_APP_SETTINGS__?: Record<string, string>;
+  };
+  // Off in Settings: nothing is read.
+  if (w.__AIJ_APP_SETTINGS__?.show_last_messages === "0") return "off";
+  const fixture = w.__AIJ_FIXTURE__;
+  return fixture?.last_messages?.[conversationId] ?? (fixture?.last_messages ? null : PREVIEW_TURNS);
+}
 
 /** The preview's last messages: the fixture's per conversation id (paged
  * by turn index, as the backend pages by offset), else a short exchange
  * ending in a question (a key in it shows redacted). */
 function previewLastMessages(conversationId: string, ask: LastMessagesAsk): LastMessagesInfo {
-  const w = window as unknown as {
-    __AIJ_FIXTURE__?: { last_messages?: Record<string, { state: string; redacted: number; turns: SeededTurn[] }> };
-    __AIJ_APP_SETTINGS__?: Record<string, string>;
-  };
-  // Off in Settings: nothing is read.
-  if (w.__AIJ_APP_SETTINGS__?.show_last_messages === "0") return none("off");
-  const fixture = w.__AIJ_FIXTURE__;
-  const seeded = fixture?.last_messages?.[conversationId] ?? (fixture?.last_messages ? null : PREVIEW_TURNS);
+  const seeded = seededChat(conversationId);
+  if (seeded === "off") return none("off");
   if (!seeded) return none("none");
   if (seeded.state !== "shown") return none(seeded.state);
-  const all: LastTurnInfo[] = seeded.turns.map((turn) => ({
-    speaker: turn.speaker,
-    blocks: turn.blocks ?? [{ kind: "text", text: turn.text ?? "", steps: [], hidden: 0 }],
-    at_ms: turn.at_ms ?? null,
-    model: turn.model ?? null,
-  }));
+  const all: TurnInfo[] = seeded.turns.map((turn, index) => seedTurn(turn, index));
   const stamp = `preview:${all.length}`;
   if (ask.before == null && ask.known === stamp) return { ...none("unchanged"), stamp };
   const max = Math.min(Math.max(ask.max ?? 30, 1), 60);
@@ -216,7 +224,7 @@ function previewLastMessages(conversationId: string, ask: LastMessagesAsk): Last
   return { state: "shown", redacted: seeded.redacted, turns: all.slice(start, end), earlier: start > 0 ? start : null, stamp };
 }
 
-const PREVIEW_TURNS: { state: string; redacted: number; turns: SeededTurn[] } = {
+const PREVIEW_TURNS: SeededChat = {
   state: "shown",
   redacted: 1,
   turns: [
@@ -228,7 +236,9 @@ const PREVIEW_TURNS: { state: string; redacted: number; turns: SeededTurn[] } = 
 
 /** AJ-E2108: a session's last messages (up to 30 turns), read from the
  * end of its transcript now, redacted; kept nowhere. `before` pages back,
- * `from` follows along, and `known` answers "unchanged" without a read. */
+ * `from` follows along, and `known` answers "unchanged" without a read.
+ * @deprecated 0.3.5: pages follow the conversation (`conversationsFollow`);
+ * kept for the read-only preview callers until 0.4.0. */
 export async function conversationsLastMessages(accountId: string, conversationId: string, ask: LastMessagesAsk = {}): Promise<LastMessagesInfo> {
   if (!hasLiveBackend()) return previewLastMessages(conversationId, ask);
   return invoke<LastMessagesInfo>("conversations_last_messages", {
@@ -239,4 +249,40 @@ export async function conversationsLastMessages(accountId: string, conversationI
     from: ask.from ?? null,
     max: ask.max ?? null,
   });
+}
+
+/** 0.3.5 (ADR-0024): follows a conversation while its page shows it:
+ * its latest turns (up to `max`) now, redacted, then each change to
+ * `onDelta` (turns new or grown, under stable ids). Kept in memory only;
+ * nothing is read when the setting is off. */
+export async function conversationsFollow(accountId: string, conversationId: string, max: number, onDelta: (delta: ConversationDeltaInfo) => void): Promise<ConversationSnapshotInfo> {
+  if (!hasLiveBackend()) {
+    const seeded = seededChat(conversationId);
+    if (seeded === "off") return previewWithout("off");
+    if (!seeded) return previewWithout("none");
+    if (seeded.state !== "shown") return previewWithout(seeded.state);
+    return previewFollow(`${accountId}\u0000${conversationId}`, seeded.turns, seeded.layout ?? "stretches", max, onDelta);
+  }
+  const channel = new Channel<ConversationDeltaInfo>();
+  channel.onmessage = onDelta;
+  return invoke<ConversationSnapshotInfo>("conversations_follow", { accountId, conversationId, max, channel });
+}
+
+/** 0.3.5: stops following (the page closed or was hidden). */
+export async function conversationsUnfollow(subscription: number): Promise<void> {
+  if (!hasLiveBackend()) return previewUnfollow(subscription);
+  return invoke<void>("conversations_unfollow", { subscription });
+}
+
+/** 0.3.5: the page still follows these; answers the ones that ended. */
+export async function conversationsKeep(subscriptions: number[]): Promise<number[]> {
+  if (!hasLiveBackend()) return previewKeep(subscriptions);
+  return invoke<number[]>("conversations_keep", { subscriptions });
+}
+
+/** 0.3.5: the turns before `before` in a followed conversation. No turns
+ * with an `earlier` set: a long stretch with none was passed, read on. */
+export async function conversationsEarlier(subscription: number, before: number, max = 30): Promise<EarlierPageInfo> {
+  if (!hasLiveBackend()) return previewEarlier(subscription, before, max);
+  return invoke<EarlierPageInfo>("conversations_earlier", { subscription, before, max });
 }

@@ -87,6 +87,8 @@ pub async fn subagents_project(
 /// One subagent's conversation, read like the session's own last
 /// messages (`before` pages back, `from` follows along, `known` answers
 /// `unchanged` without a read), redacted, kept nowhere; off with them.
+/// Deprecated in 0.3.5 for [`subagents_follow`] (ADR-0024); removed in
+/// 0.4.0.
 ///
 /// # Errors
 ///
@@ -111,6 +113,44 @@ pub async fn subagents_conversation(
     };
     crate::ipc::blocking(state.inner(), "the subagent's messages", move |state| {
         super::conversation_impl(state, &account_id, &conversation_id, &subagent_id, &ask)
+    })
+    .await
+}
+
+/// 0.3.5 (ADR-0024): follows one subagent's conversation while it shows
+/// (as `conversations_follow` does a session's): its latest turns now,
+/// then each change on `channel`.
+///
+/// # Errors
+///
+/// None today; the snapshot says what it couldn't read.
+#[tauri::command]
+pub async fn subagents_follow(
+    state: tauri::State<'_, Arc<AppState>>,
+    feeds: tauri::State<'_, Arc<crate::features::conversations::feed::Feeds>>,
+    account_id: String,
+    conversation_id: String,
+    subagent_id: String,
+    max: Option<u32>,
+    channel: tauri::ipc::Channel<crate::features::conversations::feed::dto::ConversationDeltaInfo>,
+) -> AppResult<crate::features::conversations::feed::dto::ConversationSnapshotInfo> {
+    use crate::features::conversations::feed;
+    let feeds = Arc::clone(feeds.inner());
+    crate::ipc::blocking(state.inner(), "the subagent's messages", move |state| {
+        let path = super::transcript_of(state, &account_id, &conversation_id, &subagent_id);
+        let key = feed::FeedKey {
+            account: account_id,
+            conversation: conversation_id,
+            subagent: Some(subagent_id),
+        };
+        Ok(feed::follow_impl(
+            state,
+            &feeds,
+            key,
+            path,
+            max,
+            Arc::new(channel),
+        ))
     })
     .await
 }

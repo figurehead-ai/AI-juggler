@@ -20,8 +20,11 @@ import type { SessionModel } from "./model";
 import { ConversationSubagents, SessionNotes, subagentsLineWords } from "../../components/SessionNotes";
 import { MOCK_SESSIONS } from "../../lib/bridge";
 import { pick } from "../../test/pick";
+import { seedTurn } from "../../preview/conversation-feed";
+import { resetConversationStore } from "../../lib/conversation-store";
 
 afterEach(() => {
+  resetConversationStore();
   cleanup();
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -261,18 +264,22 @@ describe("AJ-E1520 the Subagents tab", () => {
   it("from a subagent's page, its conversation, and back", async () => {
     vi.spyOn(ipc, "subagentsList").mockResolvedValue(listed(TREE));
     vi.spyOn(ipc, "subagentsDetail").mockResolvedValue({ ...(await ipc.subagentsDetail("x", "y", "z")), state: "shown", agent: agent("a2") });
-    const read = vi.spyOn(ipc, "subagentsConversation").mockResolvedValue({
+    const read = vi.spyOn(ipc, "subagentsFollow").mockResolvedValue({
       state: "shown",
-      redacted: 0,
+      subscription: 4,
+      generation: 1,
+      revision: 1,
+      layout: "stretches",
       earlier: null,
-      stamp: "s",
-      turns: [{ speaker: "you", blocks: [{ kind: "text", text: "Review it", steps: [], hidden: 0 }], at_ms: null, model: null }],
+      status: null,
+      skipped: 0,
+      turns: [seedTurn({ speaker: "you", text: "Review it" }, 0)],
     });
     render(<SubagentsTab model={model} title="Fix the cart totals" visible now={NOW} />);
     fireEvent.click((await screen.findAllByTestId("subagent-row"))[2]!);
     fireEvent.click(await screen.findByTestId("subagent-open-conversation"));
     await waitFor(() => expect(screen.getAllByTestId("last-turn")).toHaveLength(1));
-    expect(read).toHaveBeenCalledWith("work", "c1", "a2", undefined);
+    expect(read.mock.calls[0]!.slice(0, 4)).toEqual(["work", "c1", "a2", 30]);
     fireEvent.click(screen.getByTestId("subagent-back"));
     expect(await screen.findByTestId("subagent-detail")).toBeTruthy();
   });
