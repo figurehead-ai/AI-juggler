@@ -101,22 +101,22 @@ failed=()
 step() {
   local name="$1"; shift
   local log
-  log="$LOGS/$(echo "$name" | tr ' /:' '___').log"
+  log="$LOGS/$(printf '%s' "$name" | tr -c 'A-Za-z0-9.-' '_').log"
   local t0=$SECONDS
-  printf '  %-36s' "$name"
+  printf '  %-44s' "$name"
   if "${NICE[@]}" "$@" >"$log" 2>&1; then
     printf 'ok    (%ss)\n' $((SECONDS - t0))
-    printf '%-36s ok    %5ss\n' "$name" $((SECONDS - t0)) >> "$SUMMARY"
+    printf '%-44s ok    %5ss\n' "$name" $((SECONDS - t0)) >> "$SUMMARY"
     return 0
   fi
   printf 'FAIL  (%ss)  %s\n' $((SECONDS - t0)) "$log"
-  printf '%-36s FAIL  %5ss  %s\n' "$name" $((SECONDS - t0)) "$log" >> "$SUMMARY"
+  printf '%-44s FAIL  %5ss  %s\n' "$name" $((SECONDS - t0)) "$log" >> "$SUMMARY"
   failed+=("$name")
   return 1
 }
 skip() {
-  printf '  %-36s%s\n' "$1" "skipped: $2"
-  printf '%-36s skip         %s\n' "$1" "$2" >> "$SUMMARY"
+  printf '  %-44s%s\n' "$1" "skipped: $2"
+  printf '%-44s skip         %s\n' "$1" "$2" >> "$SUMMARY"
 }
 finish() {
   local total=$((SECONDS - started))
