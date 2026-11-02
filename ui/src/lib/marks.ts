@@ -14,7 +14,8 @@
  *
  * The two marks have different shapes so they're never confused: an App
  * is the dot or pill beside its app's icon (`ProfileBadge`), an Account
- * the round avatar (`AccountAvatar`). Both draw from these hues: one
+ * the round avatar (`AccountAvatar`), its hues started half way round
+ * (`ACCOUNT_HUE_OFFSET`). Both draw from these hues: one
  * luminance, white text 4.5:1 or better on each, kept 20° or more away
  * from the status colours, so neither is read as a state.
  *
@@ -150,7 +151,14 @@ export function accountSlot(account: AccountMark): number {
   return account.colour_slot ?? fallbackSlot(account.account_id ?? account.key);
 }
 
+/** Where an Account's hues start: half way round the list. Most people's
+ * first folder is both their first CLI App and their first Account, so
+ * both would be slot 0; started apart, an Account never wears the colour
+ * of any of the first four Apps, and an App's dot under its Account's
+ * avatar never reads as that Account's own. */
+export const ACCOUNT_HUE_OFFSET = PROFILE_HUES.length / 2;
+
 /** An Account's one colour, as CSS. */
 export function accountColor(account: AccountMark): string {
-  return slotColor(accountSlot(account));
+  return slotColor(accountSlot(account) + ACCOUNT_HUE_OFFSET);
 }

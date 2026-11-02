@@ -49,8 +49,10 @@ describe("AJ-E3206 the hues", () => {
     const colours = PROFILE_HUES.map((_, slot) => appColor(slot));
     expect(new Set(colours).size).toBe(PROFILE_HUES.length);
     expect(appColor(PROFILE_HUES.length)).toBe(appColor(0));
-    // An App's and an Account's slot n are one hue: the shape tells them apart.
-    expect(accountColor(3)).toBe(appColor(3));
+    // An Account's hues start half way round: the first Account never wears
+    // the first four Apps' colours (most people's first folder is both).
+    expect(accountColor(0)).toBe(appColor(PROFILE_HUES.length / 2));
+    for (let app = 0; app < PROFILE_HUES.length / 2; app += 1) expect(accountColor(0)).not.toBe(appColor(app));
   });
 });
 
