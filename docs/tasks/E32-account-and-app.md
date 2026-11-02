@@ -105,6 +105,7 @@
 2. Tabs: Overview, Apps, Sessions, Projects, Pools, Usage; quiet Apps last on a tinted surface.
 3. Every "account" door today (runway cards, Home's runway, Accounts cards, "Measure its limits", notices for limits and renewal) SHALL open it.
 4. The Accounts screen's cards SHALL drop the lone tool letter in the header (the maintainer, 2026-10-31, on the "C" on every card: "what does that represent ??"). The tool shows on each App row ("Claude Code · …", "Claude app · …"). The header names a tool, in words, only when the Accounts span more than one tool. No mark there reads as a button. ("Even Codex account has it": Claude Code and Codex both draw "C", so the letter told them apart for no one. A test pins a Claude and a Codex card being told apart in words.)
+5. The folded rail's icons (the rail at its icon column, narrow windows and phone width) SHALL show each session's app icon, never the same tool letter ("C" for Claude Code and Codex alike). Found in 0.3.4's gate review (`folded-390x844`): the App grouping kept the letters. A test pins a Claude Code and a Codex session told apart in the folded rail.
 **UI/UX reasoning**: the account is where limits live.
 **Performance budget**: opens ≤ 150 ms from cache.
 **Quality gates**: L3 pairs; usage numbers equal the vendor's own (oracle).
