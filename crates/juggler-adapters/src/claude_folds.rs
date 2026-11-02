@@ -6,9 +6,9 @@
 //!   past tense ("Record X and commit Y" → "Recorded X and committed Y"),
 //!   only when it opens with a known verb, else as written; with no
 //!   description the command itself, and "Ran a command" with neither.
-//!   A read is "Read <file>", a write or edit "Created" or "Updated"
-//!   <file> (from its result), a subagent "Ran agent <task>", a web
-//!   search "Searched web <words>";
+//!   A read is "Read `<file>`", a write or edit "Created" or "Updated"
+//!   `<file>` (from its result), a subagent "Ran agent `<task>`", a web
+//!   search "Searched web `<words>`";
 //! - several calls: one phrase per kind of call, in the order each kind
 //!   first came ("ran 3 commands", "read a file"), counting distinct
 //!   commands and files; when every file the run touched is one file,
