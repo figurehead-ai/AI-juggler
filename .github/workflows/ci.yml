@@ -255,7 +255,7 @@ jobs:
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
 
   # The test binaries, built once (cargo-nextest's archive) for the
-  # partitions below. The doctests run here (nextest doesn't run them).
+  # partitions below, which wait for this whole job: nothing else runs here.
   rust-build:
     name: tests (build)
     needs: plan
@@ -330,8 +330,6 @@ jobs:
             ~/.cargo/git/db
             target
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
-      - name: Doctests
-        run: cargo test --workspace --doc
       - name: Room left on the runner
         shell: bash
         run: |
@@ -378,6 +376,10 @@ jobs:
           echo "$NEXTEST_SHA256  $RUNNER_TEMP/$NEXTEST" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/$NEXTEST" -C "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # Some tests read the dependency graph (`cargo metadata --offline`,
+      # trust.rs): the crates, as locked, without building them.
+      - name: Crates, exactly as locked
+        run: cargo fetch --locked
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: nextest-archive
@@ -400,11 +402,11 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-  # The read-only test bridge's tests, and the proof it never ships
-  # (docs/qa/DEV-BRIDGE.md): it builds the app with another feature set,
-  # so it runs beside the test build rather than inside it.
+  # The doctests (nextest doesn't run them), the read-only test bridge's
+  # tests, and the proof it never ships (docs/qa/DEV-BRIDGE.md): beside
+  # the test build, so the partitions don't wait for them.
   dev-bridge:
-    name: dev-bridge
+    name: doctests, dev-bridge
     needs: plan
     if: needs.plan.outputs.tested == ''
     runs-on: ubuntu-latest
@@ -437,6 +439,8 @@ jobs:
             target
           key: ${{ runner.os }}-verify-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: ${{ runner.os }}-verify-cargo-lt-
+      - name: Doctests
+        run: cargo test --workspace --doc
       - name: Read-only test bridge's tests (Dev builds only)
         run: cargo test -p juggler-app --features dev-bridge --lib dev_bridge
       - name: The bridge never ships
@@ -465,7 +469,7 @@ jobs:
             echo "::error::verify: not every part passed ($failed)"
             exit 1
           fi
-          echo "verify: static, the test build, all four test partitions and dev-bridge passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "verify: static, the test build, all four test partitions, the doctests and dev-bridge passed." >> "$GITHUB_STEP_SUMMARY"
 
   # The coverage artifact, off the critical path and never gating
   # (strictness is enforced at gates via the local llvm-cov numbers). It

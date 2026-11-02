@@ -44,6 +44,7 @@ RUNNER_ONLY = (
     "mv ",
     "deny=",
     "rustup component add",
+    "cargo fetch",
     "rm -rf target",
     "for ",
     "done",
