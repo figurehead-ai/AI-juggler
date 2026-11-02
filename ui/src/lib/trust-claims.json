@@ -203,6 +203,23 @@
           ]
         },
         {
+          "id": "profile-start-folder",
+          "text": "Starting a Claude app profile passes it only its own folder and the Claude Code folder its sessions use, as your own launcher does, so it stays on its account. The app's default instance starts as it is.",
+          "tests": [
+            "crates/juggler-app/src/features/places/start.rs::a_profile_starts_on_its_own_tool_folder",
+            "crates/juggler-platform/src/apps.rs::a_paired_profile_starts_with_its_folder_variable"
+          ]
+        },
+        {
+          "id": "desktop-handoff",
+          "text": "Continuing a switch in Desktop sends one link to that profile's own Claude app process, never to the app at large, and confirms it arrived by the name of the file the app writes, nothing more. A profile that's already running is never started a second time.",
+          "tests": [
+            "crates/juggler-app/src/features/places/handoff_tests.rs::a_running_profile_gets_the_session_at_its_own_process_and_is_never_started_again",
+            "crates/juggler-app/src/features/places/handoff_tests.rs::a_record_is_found_by_its_name_alone_and_the_walk_is_bounded",
+            "crates/juggler-app/src/features/places/handoff_tests.rs::an_id_that_isnt_plain_is_never_sent"
+          ]
+        },
+        {
           "id": "only-what-you-apply",
           "text": "It changes your setups and projects only when you apply a change, shows it first, and can undo it.",
           "tests": [
