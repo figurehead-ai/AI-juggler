@@ -706,6 +706,10 @@ impl HarnessAdapter for CodexAdapter {
         })
     }
 
+    fn sign_in_vendor(&self) -> String {
+        "openai".to_owned()
+    }
+
     /// AJ-E1303: the `tokens.account_id` field of `auth.json` is the
     /// subject; the label is that id masked. No token is decoded — the
     /// email and plan exist only inside the `id_token`, a credential.

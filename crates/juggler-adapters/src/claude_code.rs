@@ -776,6 +776,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         })
     }
 
+    fn sign_in_vendor(&self) -> String {
+        "anthropic".to_owned()
+    }
+
     /// AJ-E1001: reads ONLY the `oauthAccount` object of the state
     /// dir's `.claude.json` — the account id, email and organisation
     /// name Claude Code records there. Credentials live elsewhere (the

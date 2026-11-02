@@ -19,7 +19,7 @@ const NOW = Date.UTC(2026, 9, 31, 12);
 function place(over: Partial<KnownPlaceInfo>): KnownPlaceInfo {
   return {
     recent: [],
-    id: "claude-app|/Users/you/Profiles/b-lab",
+    id: "app:claude-app:/Users/you/Profiles/b-lab",
     app_id: "claude-app",
     app: "Claude",
     instance: "b-lab",
@@ -62,7 +62,7 @@ describe("the words for a place", () => {
 
 describe("Settings › Desktop apps: your apps", () => {
   it("lists each with Start or Open, and Keep alive turns on and off", async () => {
-    seams().__AIJ_PLACES__ = { places: [place({}), place({ id: "codex-app|", app_id: "codex-app", app: "ChatGPT", instance: null, profile: null, label: "ChatGPT", app_pid: 20 })] };
+    seams().__AIJ_PLACES__ = { places: [place({}), place({ id: "app:codex-app:", app_id: "codex-app", app: "ChatGPT", instance: null, profile: null, label: "ChatGPT", app_pid: 20 })] };
     render(
       <ConversationsProvider>
         <DesktopAppsPane />
@@ -130,7 +130,7 @@ describe("Home: an app that isn't running", () => {
 
 describe("an ended session's app", () => {
   it("is the place it was last open in, by its tool and id", async () => {
-    seams().__AIJ_PLACES__ = { places: [place({})], sessions: { "claude-code/s-1": "claude-app|/Users/you/Profiles/b-lab" } };
+    seams().__AIJ_PLACES__ = { places: [place({})], sessions: { "claude-code/s-1": "app:claude-app:/Users/you/Profiles/b-lab" } };
     expect((await placesFind("claude-code", "s-1"))?.label).toBe("Claude · b-lab");
     expect(await placesFind("claude-code", "s-2")).toBeNull();
   });

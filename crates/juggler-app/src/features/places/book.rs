@@ -1,6 +1,7 @@
-//! The apps and profiles AI Juggler has seen running, remembered (one
-//! JSON value in app settings under [`KEY`], which the window's setting
-//! writer refuses): enough to start one again exactly as it ran (its
+//! The apps and profiles AI Juggler has seen running, remembered (as the
+//! desktop Apps' rows since D-62, see `store`; 0.3 kept one JSON value in
+//! app settings under [`KEY`], which the window's setting writer refuses):
+//! enough to start one again exactly as it ran (its
 //! bundle and the instance folder it was given, nothing else) and to say
 //! which of the user's sessions were open in it.
 //!
@@ -14,7 +15,7 @@ use std::path::{Path, PathBuf};
 use crate::features::conversations::places::{HostRegistry, RunningApp};
 use crate::features::conversations::scan::LiveEntry;
 
-/// The app setting the book is kept under.
+/// The app setting 0.3 kept the book under (moved into the rows when read).
 pub const KEY: &str = "places.known";
 /// The keys only this module writes (the window's setting writer refuses
 /// them: a place names a program AI Juggler may start).
@@ -104,14 +105,12 @@ impl KnownPlace {
     }
 }
 
-/// A place's id: its app and instance folder.
+/// A place's id: its App's (`app:<app>:<instance folder>`, D-62).
 #[must_use]
 pub fn place_id(app_id: &str, instance_dir: Option<&Path>) -> String {
-    format!(
-        "{app_id}|{}",
-        instance_dir
-            .map(|dir| dir.to_string_lossy())
-            .unwrap_or_default()
+    juggler_core::storage::desktop_app_id(
+        app_id,
+        instance_dir.map(|dir| dir.to_string_lossy()).as_deref(),
     )
 }
 

@@ -185,3 +185,56 @@ fn an_app_is_one_row_however_often_it_runs_and_forget_keeps_its_sessions_rows() 
     assert!(apps.get(&desk).unwrap().is_none());
     assert_eq!(apps.list().unwrap().len(), 2);
 }
+
+#[test]
+fn a_desktop_app_is_written_whole_and_keeps_the_users_name() {
+    let storage = Storage::open_in_memory().unwrap();
+    storage
+        .accounts()
+        .insert(&folder("work", "claude-code"))
+        .unwrap();
+    let apps = storage.apps();
+    let id = desktop_app_id("claude-app", Some("/u/b-work"));
+    let mut app = juggler_core::storage::App {
+        id: id.clone(),
+        kind: "desktop".into(),
+        tool: "claude-code".into(),
+        host_app_id: Some("claude-app".into()),
+        instance_dir: Some("/u/b-work".into()),
+        folder_id: Some("work".into()),
+        label: None,
+        hidden: false,
+        keep_alive: true,
+        paused_json: None,
+        launch_json: Some(r#"{"bundle":"/Applications/Claude.app"}"#.into()),
+        sessions_json: Some(r#"["claude-code/s-1"]"#.into()),
+        first_seen: 10,
+        last_seen: 10,
+    };
+    apps.put_desktop(&app).unwrap();
+    apps.rename(&id, Some("Work desk")).unwrap();
+    app.keep_alive = false;
+    app.paused_json = Some(r#""it stopped too often""#.into());
+    app.sessions_json = Some(r#"["claude-code/s-1","claude-code/s-2"]"#.into());
+    app.folder_id = Some("gone".into());
+    app.first_seen = 99;
+    app.last_seen = 20;
+    apps.put_desktop(&app).unwrap();
+    let row = apps.get(&id).unwrap().unwrap();
+    assert_eq!(
+        row.label.as_deref(),
+        Some("Work desk"),
+        "the user's name stays"
+    );
+    assert!(!row.keep_alive);
+    assert_eq!(
+        row.paused_json.as_deref(),
+        Some(r#""it stopped too often""#)
+    );
+    assert_eq!(row.sessions_json, app.sessions_json);
+    assert_eq!(
+        row.folder_id, None,
+        "a folder that isn't stored is left unset"
+    );
+    assert_eq!((row.first_seen, row.last_seen), (10, 20));
+}

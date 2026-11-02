@@ -49,6 +49,10 @@ pub struct SubscriptionProfileInfo {
 pub struct SubscriptionInfo {
     /// Stable for this read (the UI's key); never a vendor id.
     pub key: String,
+    /// D-62 (AJ-E3202): the stored Account (`acct:<vendor>:<hash>`), for
+    /// a sign-in that could be read; never a vendor id.
+    #[ts(optional = nullable)]
+    pub account_id: Option<String>,
     /// The tool its profiles run.
     pub tool: String,
     /// `signed_in`, `signed_out` (its profiles aren't signed in) or
@@ -166,6 +170,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
             key.clone(),
             SubscriptionInfo {
                 key: opaque(&key),
+                account_id: None,
                 tool: row.tool,
                 state: state.to_owned(),
                 email,
@@ -274,7 +279,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         (accounts, fees)
     };
     let mut services = crate::features::service_accounts::profile_services(state);
-    let rows = accounts
+    let rows: Vec<ProfileRead> = accounts
         .iter()
         .map(|account| ProfileRead {
             service: services.remove(account.id.as_str()),
@@ -295,7 +300,72 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
             },
         })
         .collect();
-    Ok(group(rows))
+    let stored = store_accounts(state, &rows);
+    let mut accounts = group(rows);
+    for account in &mut accounts {
+        account.account_id = account
+            .profiles
+            .iter()
+            .find_map(|profile| stored.get(&profile.id).cloned());
+    }
+    Ok(accounts)
+}
+
+/// The Account a profile's read names (`vendor`, sign-in hash): a
+/// vendor's sign-in (subject and organisation), or the key a service
+/// profile runs on. `None` when there's no sign-in to read.
+fn sign_in(state: &Arc<AppState>, row: &ProfileRead) -> Option<(String, String)> {
+    if let Some(service) = &row.service {
+        return service.key.then(|| {
+            (
+                "service".to_owned(),
+                hash(&format!("svc|{}", service.account)),
+            )
+        });
+    }
+    let IdentityProbe::SignedIn { subject, org, .. } = &row.probe else {
+        return None;
+    };
+    let vendor = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new(row.tool.clone()))
+        .map_or_else(|| row.tool.clone(), |adapter| adapter.sign_in_vendor());
+    let identity = hash(&format!(
+        "{vendor}|{subject}|{}",
+        org.as_deref().unwrap_or("")
+    ));
+    Some((vendor, identity))
+}
+
+fn hash(key: &str) -> String {
+    juggler_adapter::handover::sha256_hex(key.as_bytes())
+}
+
+/// D-62 (AJ-E3202): each profile's sign-in stored as its Account (made
+/// the first time it's read), and the folder pointed at it; a folder
+/// with no sign-in to read points at none. The stored Account by folder.
+fn store_accounts(state: &Arc<AppState>, rows: &[ProfileRead]) -> BTreeMap<String, String> {
+    let found: Vec<(String, Option<(String, String)>)> = rows
+        .iter()
+        .map(|row| (row.profile.id.clone(), sign_in(state, row)))
+        .collect();
+    let Ok(storage) = lock_storage_arc(state) else {
+        return BTreeMap::new();
+    };
+    let now = crate::commands::now_millis();
+    let mut stored = BTreeMap::new();
+    for (folder, sign_in) in found {
+        let account = sign_in.and_then(|(vendor, identity)| {
+            storage.subscriptions().upsert(&vendor, &identity, now).ok()
+        });
+        let _ = storage
+            .subscriptions()
+            .set_folder(&folder, account.as_deref());
+        if let Some(account) = account {
+            stored.insert(folder, account);
+        }
+    }
+    stored
 }
 
 #[cfg(test)]

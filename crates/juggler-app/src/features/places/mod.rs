@@ -16,6 +16,7 @@ pub mod book;
 pub mod commands;
 pub mod keep;
 pub mod start;
+mod store;
 
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -73,11 +74,12 @@ pub fn with_book<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Book) -> T) ->
         .book
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
+    let tool_of = |host: &str| tool_of(state, host);
     if slot.is_none() {
-        let stored = crate::commands::lock_storage_arc(state)?
-            .app_settings()
-            .get(book::KEY)?;
-        *slot = Some(Book::parse(stored.as_deref()));
+        *slot = Some(store::load(
+            &*crate::commands::lock_storage_arc(state)?,
+            &tool_of,
+        )?);
     }
     let Some(book) = slot.as_mut() else {
         return Err(AppError::StatePoisoned);
@@ -85,11 +87,30 @@ pub fn with_book<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Book) -> T) ->
     let before = book.clone();
     let answer = body(book);
     if *book != before {
-        crate::commands::lock_storage_arc(state)?
-            .app_settings()
-            .set(book::KEY, &book.to_json())?;
+        store::save(
+            &*crate::commands::lock_storage_arc(state)?,
+            &before,
+            book,
+            &tool_of,
+        )?;
     }
     Ok(answer)
+}
+
+/// The tool whose desktop app `host` is (the host's id when no adapter
+/// names it).
+fn tool_of(state: &Arc<AppState>, host: &str) -> String {
+    state
+        .registry
+        .ids()
+        .into_iter()
+        .find(|id| {
+            state
+                .registry
+                .get(id)
+                .is_some_and(|adapter| adapter.host_apps().iter().any(|app| app.id == host))
+        })
+        .map_or_else(|| host.to_owned(), |id| id.to_string())
 }
 
 /// The live view's full scan found `running` with `entries` open: they

@@ -24,7 +24,7 @@ const app = (over: Partial<IdleApp> = {}): IdleApp => ({
   appId: "claude-app",
   lastMs: NOW - 3 * 3_600_000,
   appPid: null,
-  placeId: "claude-app|/p/Work",
+  placeId: "app:claude-app:/p/Work",
   cannotStart: null,
   accountId: null,
   tool: null,
@@ -42,7 +42,7 @@ describe("D-64 an inactive app in the rail", () => {
     const action = screen.getByTestId("rail-idle-action");
     expect(action.getAttribute("aria-label")).toBe("Start: Claude app · Work");
     fireEvent.click(action);
-    expect(open).toHaveBeenCalledWith("claude-app|/p/Work");
+    expect(open).toHaveBeenCalledWith("app:claude-app:/p/Work");
     fireEvent.contextMenu(screen.getByTestId("rail-idle-app"), { clientX: 10, clientY: 10 });
     fireEvent.click(screen.getByTestId("rail-idle-menu-act"));
     expect(open).toHaveBeenCalledTimes(2);

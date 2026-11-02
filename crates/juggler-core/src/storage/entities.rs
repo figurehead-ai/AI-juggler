@@ -49,6 +49,7 @@ CREATE TABLE apps (
     keep_alive   INTEGER NOT NULL DEFAULT 0,
     paused_json  TEXT,
     launch_json  TEXT,
+    sessions_json TEXT,
     first_seen   INTEGER NOT NULL,
     last_seen    INTEGER NOT NULL
 );
@@ -118,6 +119,9 @@ pub struct App {
     /// How Open starts it (JSON: bundle, executable, the folder it was
     /// given), as it last ran.
     pub launch_json: Option<String>,
+    /// A desktop App's sessions seen open in it (JSON, `<tool>/<id>`, the
+    /// newest last): the only way to know a desktop app's sessions.
+    pub sessions_json: Option<String>,
     /// First seen, epoch ms.
     pub first_seen: i64,
     /// Last seen running, epoch ms.
@@ -288,7 +292,7 @@ impl<'a> SubscriptionsRepo<'a> {
     }
 }
 
-const APP_COLUMNS: &str = "id, kind, tool, host_app_id, instance_dir, folder_id, label, hidden, keep_alive, paused_json, launch_json, first_seen, last_seen";
+const APP_COLUMNS: &str = "id, kind, tool, host_app_id, instance_dir, folder_id, label, hidden, keep_alive, paused_json, launch_json, sessions_json, first_seen, last_seen";
 
 fn app_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<App> {
     Ok(App {
@@ -303,8 +307,9 @@ fn app_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<App> {
         keep_alive: row.get::<_, i64>(8)? != 0,
         paused_json: row.get(9)?,
         launch_json: row.get(10)?,
-        first_seen: row.get(11)?,
-        last_seen: row.get(12)?,
+        sessions_json: row.get(11)?,
+        first_seen: row.get(12)?,
+        last_seen: row.get(13)?,
     })
 }
 
@@ -361,6 +366,41 @@ impl<'a> AppsRepo<'a> {
             params![id, tool, host_app_id, instance_dir, now_ms],
         )?;
         Ok(id)
+    }
+
+    /// Writes desktop App `app` whole, as the places book holds it (its
+    /// name and whether it's hidden stay the user's). A folder that isn't
+    /// stored is left unset.
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn put_desktop(&self, app: &App) -> Result<(), CoreError> {
+        self.conn.execute(
+            "INSERT INTO apps (id, kind, tool, host_app_id, instance_dir, folder_id, keep_alive,
+                               paused_json, launch_json, sessions_json, first_seen, last_seen)
+             VALUES (?1, 'desktop', ?2, ?3, ?4, (SELECT id FROM accounts WHERE id = ?5), ?6,
+                     ?7, ?8, ?9, ?10, ?11)
+             ON CONFLICT (id) DO UPDATE SET
+                 tool = excluded.tool, folder_id = excluded.folder_id,
+                 keep_alive = excluded.keep_alive, paused_json = excluded.paused_json,
+                 launch_json = excluded.launch_json, sessions_json = excluded.sessions_json,
+                 last_seen = excluded.last_seen",
+            params![
+                app.id,
+                app.tool,
+                app.host_app_id,
+                app.instance_dir,
+                app.folder_id,
+                i64::from(app.keep_alive),
+                app.paused_json,
+                app.launch_json,
+                app.sessions_json,
+                app.first_seen,
+                app.last_seen
+            ],
+        )?;
+        Ok(())
     }
 
     /// One App.

@@ -106,6 +106,13 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// D-62 (AJ-E3202): whose sign-ins [`Self::probe_identity`] reads
+    /// (`anthropic`, `openai`): one sign-in seen by two tools of one
+    /// vendor is one Account. Default: the tool's own id.
+    fn sign_in_vendor(&self) -> String {
+        self.id().to_string()
+    }
+
     /// AJ-E1001: who this Account's state dir is signed in as —
     /// metadata only (a stable account id and a masked label), never
     /// credential content. Default: `Unverifiable` (the Instance shows

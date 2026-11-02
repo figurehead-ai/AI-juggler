@@ -11,6 +11,11 @@ export type SubscriptionInfo = {
  */
 key: string, 
 /**
+ * D-62 (AJ-E3202): the stored Account (`acct:<vendor>:<hash>`), for
+ * a sign-in that could be read; never a vendor id.
+ */
+account_id?: string | null, 
+/**
  * The tool its profiles run.
  */
 tool: string, 
