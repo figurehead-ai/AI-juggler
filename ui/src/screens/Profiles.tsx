@@ -1,4 +1,5 @@
 import { RowPlaceholders } from "../components/Placeholder";
+import { useApps } from "../lib/apps";
 import { useState } from "react";
 import { Button, Card } from "../components/primitives";
 import { Field, Input, Modal } from "../components/form";
@@ -74,6 +75,7 @@ export function ProfilesScreen({
   const { all: conversations } = useConversations();
   const { inPlace, limits } = useToolCapabilities();
   const { accounts, profiles, subscriptions, refresh } = useAccountsData({ knownAccounts, knownProfiles, onError: setError });
+  const apps = useApps(accounts ?? []);
 
   const changed = async (words: string | null) => {
     setNotice(words);
@@ -159,6 +161,7 @@ export function ProfilesScreen({
                 key={sub.key}
                 subscription={sub}
                 all={grouped.map((group) => group.sub)}
+                apps={apps ?? undefined}
                 toolWords={new Set(grouped.map((group) => group.sub.tool)).size > 1}
                 profiles={rows}
                 recipes={profiles}

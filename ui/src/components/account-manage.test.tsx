@@ -114,7 +114,7 @@ describe("AJ-E1501 the account card's menu", () => {
     await waitFor(() => expect(view.queryByTestId("rename-account")).toBeNull());
     expect(rename).toHaveBeenLastCalledWith("acc-copy", "Max (personal)", "Max");
     await waitFor(() =>
-      expect([...view.container.querySelectorAll("[data-testid='account-label']")].map((n) => n.textContent)).toEqual(["Mine", "Max (personal)"]),
+      expect([...view.container.querySelectorAll("[data-testid='account-label']")].map((n) => n.textContent)).toEqual(["Claude Code · Mine", "Claude Code · Max (personal)"]),
     );
     expect(view.getByTestId("accounts-notice").textContent).toBe("Renamed to Max (personal).");
     expect(view.onAccountsChanged).toHaveBeenCalled();

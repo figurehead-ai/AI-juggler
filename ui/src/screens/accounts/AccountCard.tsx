@@ -4,6 +4,9 @@
  * plan, the renewal and the fee; its profiles share them. Profiles that
  * aren't signed in to anything sit last, under "Not signed in".
  */
+import { AccountAppRows } from "../../pages/subscription/AccountApps";
+import type { AccountApp } from "../../lib/account-items";
+import type { AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
 import { Card, Chip } from "../../components/primitives";
 import { runwayOf } from "../../components/AccountRunway";
@@ -79,6 +82,8 @@ export type AccountCardProps = {
   all?: readonly SubscriptionInfo[];
   /** The accounts span more than one tool: the line names this one's. */
   toolWords?: boolean;
+  /** Every App (D-62): its desktop ones on this account get rows too. */
+  apps?: readonly AppModel[];
 };
 
 export function AccountCard(props: AccountCardProps): JSX.Element {
@@ -102,6 +107,10 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
   ].filter(Boolean);
   const week = useWeekByProfile();
+  const folderIds = new Set(profiles.map((profile) => profile.id));
+  const desktop: AccountApp[] = (props.apps ?? [])
+    .filter((app) => app.kind === "desktop" && ((sub.account_id && app.accountId === sub.account_id) || (app.folder !== null && folderIds.has(app.folder.id))))
+    .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, lastMs: app.place?.seen_ms ?? 0 }));
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
@@ -201,6 +210,13 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
             />
           );
         })}
+        {/* D-62: the desktop Apps signed in to it (a Claude app profile on
+            one of its folders), each a door to its App page. */}
+        {desktop.length > 0 && (
+          <li className="px-3 py-2" data-testid="account-desktop-apps">
+            <AccountAppRows apps={desktop} now={props.now} compact />
+          </li>
+        )}
       </ul>
     </Card>
   );

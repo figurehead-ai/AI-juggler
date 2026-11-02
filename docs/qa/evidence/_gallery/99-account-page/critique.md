@@ -1,4 +1,4 @@
-<!-- captures: 06310ee6695e -->
+<!-- captures: bfdfb5e29506 -->
 # 99-account-page: an Account's own page, and the Accounts screen that leads to it (0.4, D-62, AJ-E3205)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -7,7 +7,7 @@ Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 
 
 The audit: an account (a subscription) had no page; its name was its folders' names ("Work, Work 2 and 1 more"), every card carried a lone "C" that told Claude Code from Codex for no one, and limits, renewal and fee were set per folder. Four screens, both themes, on the places desktop: the Work Max folder signed in to a Max 20x plan, used by Claude Code in a terminal and by the Claude app's Work profile; a Personal folder on another sign-in.
 
-**accounts-screen.** Each card's title is the Account's own name: "Claude Max 20x" (its plan; no team, no name given), "p…@example.com" (no plan either). Under it one line with what the name doesn't already say (the masked email, the renewal, the fee). No tool letter in the header: the colour dot (its colour in the charts) is the only mark. With accounts on one tool the line doesn't name the tool; on two tools it would. The title is a button with "Open Claude Max 20x's page".
+**accounts-screen.** Each card's title is the Account's own name: "Claude Max 20x" (its plan; no team, no name given), "p…@example.com" (no plan either). Under it one line with what the name doesn't already say (the masked email, the renewal, the fee). No tool letter in the header: the colour dot (its colour in the charts) is the only mark. With accounts on one tool the line doesn't name the tool; on two tools it would. The title is a button with "Open Claude Max 20x's page". Under the limits, one row per App (AJ-E3206 req. 2): "Claude Code · Work Max", its folder's CLI App, marked with the app's icon and the profile's dot as the rail marks it (no "WM" initials), with where its sessions are open and its folder; then "Claude app · Work", the desktop App signed in to the same plan, "3 sessions · 1 h ago" and a chevron to its page.
 
 **account-overview.** "Account" over the name, a tile with the account's chart colour, "Claude Max 20x", then "w…@example.com · 2 apps · 5 open", and New session at the right. Tabs: Overview, Apps 2, Sessions 6, Projects 2, Usage, Settings. Limits first (the account is where limits live), then "Its apps, they share these limits": Claude Code · Work Max and Claude app · Work, each with "3 open · 3 in all" and a chevron to the App's page. Then Open now and Last used across both Apps; each row names its App ("in Claude app · Work", "in Terminal") and not the account. Then Projects. At 1024 the cards stack the same, the rows cut with an ellipsis.
 

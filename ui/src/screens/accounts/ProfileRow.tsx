@@ -8,7 +8,8 @@
 import { AppIcon } from "../../components/AppIcon";
 import type { AppRef } from "../../lib/app-of";
 import { useState, type JSX } from "react";
-import { AccountAvatar } from "../../components/Avatar";
+import { ProfileBadge } from "../../components/ProfileBadge";
+import { appOfTool } from "../../lib/app-of";
 import { ToolMark } from "../../components/ToolMark";
 import { Button, Chip } from "../../components/primitives";
 import { useItemMenu } from "../../components/ItemMenu";
@@ -87,12 +88,19 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
   return (
     <li className="flex flex-col" data-testid="profile-row" data-profile={account.id}>
       <div className="group flex flex-wrap items-center gap-3 px-5 py-3" {...menu.triggerProps}>
-        <AccountAvatar accountId={account.id} label={account.label} size={28} live={props.openNow > 0} />
+        {/* D-62 (AJ-E3206 req. 2): one mark per App, as everywhere: its
+            app's icon with its profile's dot, never initials. */}
+        <span className="relative inline-flex shrink-0" data-testid="profile-app-mark">
+          <AppIcon appId={appOfTool(account.provider).appId} appPid={null} name={appOfTool(account.provider).name} size={24} />
+          <span className="absolute -bottom-0.5 -right-0.5 flex">
+            <ProfileBadge name={account.label} size={8} ring="var(--color-surface)" />
+          </span>
+        </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-2">
             {service && <ToolMark tool={account.provider} size={13} className="text-muted" />}
-            <button type="button" onClick={props.onInspect} title={`Open ${name}`} className="truncate rounded text-body font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
-              {account.label}
+            <button type="button" onClick={props.onInspect} title={`Open ${name}'s page`} className="truncate rounded text-body font-semibold outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-label">
+              {name}
             </button>
             {account.is_default && (
               <span title="New sessions start with this app, unless a project picks its own" data-testid="account-default">
