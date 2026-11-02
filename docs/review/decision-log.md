@@ -2229,3 +2229,45 @@ and thing user do a lot."
 **Amends.** D-36 (the rail's "Also: inactive" line, in the App grouping),
 D-47 (an app that quits keeps its place among the apps).
 
+
+### D-65 0.5 and 0.6 merged: the first Stable is a 0.5.x; no per-release VoiceOver pass; the Floor planned for 0.5 — SETTLED (2026-11-02)
+
+**Ruling.** The maintainer, 2026-11-02, on the roadmap: "we should remove
+VoiceOver check on every release in 0.6. this is just going to require
+manual work (mine) and it is going to bring very little benefit at this
+point", "why can't we merge 0.6 and 0.5 and have 0.5 become our first
+stable release ???? or one of the 0.5.* versions when we get to a fully
+working stable one", and a new page "possibly as early as 0.5": every
+App, session and pool in one live, zoomable visual, "you are the boss,
+and agents are your company, and you are in the factory seeing all
+agents work", with research, inspiration and examples before a design
+is settled.
+
+**What changed.**
+
+- **0.5 holds 0.6's Stable work** ([`docs/plan/ROADMAP.md`](../plan/ROADMAP.md)):
+  the load proof and cold start budget (AJ-E805), updates and release
+  integrity (AJ-E1010), the gate packet (AJ-E807) and two weeks of the
+  maintainer's use (AJ-E809). The first Stable is the 0.5.x release
+  candidate that holds up; the Stable channel opens with it.
+- **Windows is 0.6 and Linux 0.7** (were 0.7 and 0.8); 1.0 still waits
+  for Windows' first release to succeed (D-53).
+- **No manual VoiceOver pass per release** (AJ-E804 req. 3 dropped).
+  Accessibility stays proven on every release by the automated gates:
+  axe on every gallery state, keyboard traversals, contrast.
+- **The Floor** joins 0.5: research and concepts first, shown to the
+  maintainer, built once a design is approved.
+- **Public promotion** is no longer an open decision (allowed since
+  2026-10-31).
+
+**Why.** 0.6 held only gates and use, no features: a version of its own
+costs a whole release for work that fits beside 0.5's. A screen-reader
+pass by hand on every release is the maintainer's time for a benefit the
+automated gates mostly give.
+
+- Risk: 0.5 carries new tools and a new page while becoming the Stable.
+  The Stable is a 0.5.x, not 0.5.0, so 0.5's new work settles through its
+  patch releases first; a tool not proven live by then is marked as a
+  preview and never holds the Stable back.
+
+**Amends.** D-59 (the versions to 1.0).

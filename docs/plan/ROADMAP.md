@@ -1,7 +1,7 @@
 # AI Juggler — Roadmap
 
 The versions ahead, what each is for, and what it holds. Locked in by
-the maintainer on 2026-10-30 (D-59). Each item names its task, so the
+the maintainer on 2026-10-30 (D-59); 0.5 and 0.6 merged on 2026-11-02 (D-65). Each item names its task, so the
 detail and the evidence live in [`docs/tasks/`](../tasks/README.md); this
 page is the order and the reason.
 
@@ -11,9 +11,10 @@ page is the order and the reason.
 |---|---|---|
 | 0.1 | Beta | Accounts and profiles, sessions, switching A→B→Codex→A with history, tasks and context kept, honest usage, This Mac, onboarding |
 | 0.2 | Beta | Switching to the account with the most room, one Needs you, notifications, pools with messages and tasks between agents, OpenCode, Grok Build and Kimi Code, Processes |
-| 0.3 | Beta (2026-10-30) | Projects, Pools and Tasks in the header, the pool canvas, Subagents, the local cache (D-58), the redesign (E28). 0.3.1, in preparation: deleting launch settings keeps their sessions (D-60), Esc on New session, steadier tests |
+| 0.3 | Beta (2026-10-30) | Projects, Pools and Tasks in the header, the pool canvas, Subagents, the local cache (D-58), the redesign (E28) |
+| 0.3.1–0.3.5 | Beta | Deleting launch settings keeps their sessions (D-60); Open starts a closed app, Keep alive (D-63); inactive apps in the App grouping (D-64); a switch continues in Desktop or the CLI; the conversation drawn as the Claude app draws it, growing live; lower CPU at rest |
 
-Nothing is on Stable yet: the first Stable is 0.6.
+Nothing is on Stable yet: the first Stable is a 0.5.x (D-65).
 
 ## How releases flow
 
@@ -29,7 +30,9 @@ Nothing is on Stable yet: the first Stable is 0.6.
 - **At most one release a day,** a hotfix or security fix excepted; a
   round of fixes ships together ([RELEASING.md](../RELEASING.md)).
 - **Before a push to `main` or `release/*`:** `just preflight` on that
-  commit, the whole of CI on this Mac ([QUALITY.md](./QUALITY.md) §7).
+  commit, a fast low-load check on this Mac; every heavy gate runs on
+  GitHub's runners, split across jobs, and a merge needs them all green
+  ([QUALITY.md](./QUALITY.md) §7, ADR-0025).
 
 ## 0.4 — Trust and the finished basics
 
@@ -60,7 +63,7 @@ proof on real accounts of what has so far been proven with fakes.
 | Validated by real use | Every option combination that changes behaviour run against an independent reference; every real use case (writer and reviewer, feature team, across repositories, a reviewer for everything, rules by account, a build Mac, a sealed client, scouts, the upgrade, and the Account, App, links and New session journeys) walked by hand in the app, timed and scored; all of it again on the release candidate ([the plan](../qa/0.4-validation-plan.md)); and personas walking their day from first run, as newcomers, each step scored on whether it worked, gave value, was clear and felt good, so 0.4 is ready to announce | E33: AJ-E3301…AJ-E3307 |
 | Proven on real tools | Codex on real accounts; the runtime lab on real tools; the switching-fidelity matrix; Fleet on two Macs | AJ-E1305, AJ-E2301, AJ-E808, AJ-E710 |
 | An honest picture | The shipped work of E21, E23, E24 and E25 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, E23, E24, E25 |
-| Releases that don't stall | `just preflight`, the pre-push hook, CI parity, deterministic tests (already on `release/0.4`) | #198's follow-up |
+| Releases that don't stall | A fast local preflight, the heavy gates on GitHub's free runners, release PRs merged as merge commits, deterministic tests | #198's follow-up; ADR-0025 |
 
 **Order inside 0.4** for the approved designs: the words and the stored
 Account and App (E32), then the pages and links (E31), then pools (E30),
@@ -73,10 +76,12 @@ each validated as it's built (E33), not after.
 candidate with nothing scored under 4, the full preflight passes, the
 maintainer has used it, and its findings are fixed.
 
-## 0.5 — More tools, and teams
+## 0.5 — More tools, teams, and the first Stable
 
-**Intent.** Bring the tools people use next, and let work move between
-people as easily as between accounts.
+**Intent.** Bring the tools people use next, let work move between
+people as easily as between accounts, and make AI Juggler a macOS
+release people can rely on. The first Stable is the 0.5.x that holds up
+after the maintainer's use (D-65), not a version of its own.
 
 | Area | Tasks |
 |---|---|
@@ -88,31 +93,29 @@ people as easily as between accounts.
 | A context pack handed to a colleague | AJ-E1011 |
 | Crash reports behind their own setting | AJ-E1107 |
 | Pair review, model arbitrage and an outage day: falsified first, then built or dropped | AJ-E1006, AJ-E1008 |
-
-## 0.6 — The first Stable
-
-**Intent.** A polished macOS release people can rely on, and the start
-of public promotion.
-
-| Area | Tasks |
-|---|---|
+| The Floor: every App, session and pool on one live, zoomable picture, who's working, how they link and who needs you; research and concepts first, built once a design is approved | to be filed |
 | The 10-account, 50-session load proof; a cold start budget on the release build | AJ-E805 |
-| VoiceOver on every release | AJ-E804 |
 | Updates and release integrity finished | AJ-E1010 |
 | The gate packet signed | AJ-E807 |
-| Two weeks of the maintainer's use, then a 0.6.x release candidate | AJ-E809 |
+| Two weeks of the maintainer's use, then a 0.5.x release candidate that becomes the first Stable | AJ-E809 |
 
-The Stable channel opens with it (SPEC §15, open question 2), and the
-stricter Beta rule (D-24's three days of use) applies from then on.
+Accessibility stays proven by the automated gates on every release
+(axe on every gallery state, keyboard traversals, contrast); the manual
+VoiceOver pass per release is dropped (D-65).
 
-## 0.7 — AI Juggler for Windows
+The Stable channel opens with that 0.5.x (SPEC §15, open question 2),
+and the stricter Beta rule (D-24's three days of use) applies from then
+on. A tool added in 0.5 that hasn't been proven live by then is marked
+as a preview inside the Stable, so it never holds the Stable back.
+
+## 0.6 — AI Juggler for Windows
 
 A dedicated first release, then Windows in every release on the same
 version and channels (D-52, [E26](../tasks/E26-windows-release.md)).
 Packaging, signing and scope are the maintainer's decisions first
 (AJ-E2601).
 
-## 0.8 — AI Juggler for Linux
+## 0.7 — AI Juggler for Linux
 
 A dedicated first release, then Linux in every release (D-52,
 [E27](../tasks/E27-linux-release.md)). Formats, repository and the
@@ -131,6 +134,6 @@ macOS, Windows and Linux.
 | Publishing the Claude Code plugin (D-43 point 6) | AJ-E1905 |
 | Kimi Code's usage source | AJ-E1603 |
 | The pools spike's policy rulings | AJ-E1701, AJ-E1705 |
-| When public promotion starts | D-24's strict Beta rule; 0.6 |
-| Windows: packaging, signing, scope | AJ-E2601, then 0.7 |
-| Linux: formats, repository, support matrix | AJ-E2701, then 0.8 |
+| Windows: packaging, signing, scope | AJ-E2601, then 0.6 |
+| Linux: formats, repository, support matrix | AJ-E2701, then 0.7 |
+| The Floor's look, once its concepts are shown | its build in 0.5 |
