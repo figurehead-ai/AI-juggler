@@ -12,6 +12,7 @@ import * as subagents from "../../lib/ipc/subagents";
 import * as conversations from "../../lib/ipc/conversations";
 import type { SubagentInfo, SubagentRowInfo, SubagentsInfo } from "../../lib/ipc/subagents";
 import type { SessionModel } from "./model";
+import { resetConversationStore } from "../../lib/conversation-store";
 
 vi.mock("./useSubagents", () => ({
   useHeardSubagentCounts: () => counts,
@@ -21,6 +22,7 @@ let counts: { total: number; running: number } | null = null;
 const { ConversationSwitcher } = await import("./ConversationSwitcher");
 
 afterEach(() => {
+  resetConversationStore();
   cleanup();
   vi.restoreAllMocks();
   counts = null;
@@ -64,7 +66,7 @@ const page = (agents: SubagentInfo[]): SubagentsInfo =>
 function seed(running: SubagentInfo[], done: SubagentInfo[], started: conversations.StartedSessionInfo[] = []) {
   counts = { total: running.length + done.length, running: running.length };
   vi.spyOn(subagents, "subagentsList").mockImplementation(async (_a, _c, _p, query) => page(query?.view === "running" ? running : done));
-  vi.spyOn(subagents, "subagentsConversation").mockResolvedValue({ state: "shown", reason: null, turns: [], earlier: null, redacted: 0, stamp: null } as never);
+  vi.spyOn(subagents, "subagentsFollow").mockResolvedValue({ state: "none", subscription: null, generation: 0, revision: 0, layout: "stretches", turns: [], earlier: null, status: null, skipped: 0 });
   vi.spyOn(conversations, "conversationsStarted").mockResolvedValue(started);
 }
 

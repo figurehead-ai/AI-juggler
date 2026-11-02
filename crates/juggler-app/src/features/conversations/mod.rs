@@ -10,6 +10,7 @@
 pub mod asks;
 pub mod commands;
 pub mod dto;
+pub mod feed;
 pub mod goto;
 pub mod last_messages;
 pub mod live;

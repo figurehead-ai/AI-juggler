@@ -106,12 +106,15 @@
         },
         {
           "id": "last-messages",
-          "text": "A session's last messages are read from the end of its transcript on your Mac while its page is open, and kept nowhere. One switch in Settings › Desktop apps turns them off.",
+          "text": "A session's last messages are read from its transcript on your Mac while its page is open, kept in memory only while it's open (and a minute after), and written nowhere. One switch in Settings › Desktop apps turns them off.",
           "tests": [
             "ui/src/screens/settings/desktop-apps.test.tsx::Last messages are on until you turn them off, and only off is kept",
-            "ui/src/pages/session/last-messages.test.tsx::are read only once the page is shown, and once",
+            "ui/src/pages/session/last-messages.test.tsx::is followed only while its page is shown: once, and let go when it isn't",
             "ui/src/pages/session/last-messages.test.tsx::a paired Mac's session is never read here",
-            "crates/juggler-adapters/src/last_turns.rs::only_the_end_is_read_and_a_cut_line_is_skipped",
+            "crates/juggler-adapters/src/last_turns_tests.rs::only_the_end_is_read_and_a_turn_begun_before_the_window_is_dropped",
+            "crates/juggler-app/src/features/conversations/feed/tests.rs::a_key_in_an_appended_turn_arrives_redacted_and_counted",
+            "crates/juggler-app/src/features/conversations/feed/tests.rs::an_unfollowed_feed_is_kept_a_minute_then_let_go",
+            "crates/juggler-app/src/features/conversations/feed/tests.rs::turned_off_every_page_hears_it_and_all_is_let_go",
             "crates/juggler-app/src/features/conversations/last_messages.rs::an_api_key_in_a_turn_shows_redacted",
             "crates/juggler-app/src/features/conversations/last_messages.rs::a_private_key_block_is_taken_out_whole",
             "crates/juggler-app/src/features/conversations/last_messages.rs::nothing_is_kept_written_or_logged",

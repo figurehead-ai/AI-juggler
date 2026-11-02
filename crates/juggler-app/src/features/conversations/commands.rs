@@ -385,7 +385,9 @@ pub async fn conversations_bring_forward(
 
 /// AJ-E2108: a session's last messages (up to 30 turns), read from the
 /// end of its transcript while its page shows, with keys and tokens taken
-/// out; kept nowhere. `before` pages back, `from` follows along, `known`
+/// out; kept nowhere. Deprecated in 0.3.5 for [`conversations_follow`]
+/// (ADR-0024); kept for the read-only preview callers until its removal
+/// in 0.4.0. `before` pages back, `from` follows along, `known`
 /// (the stamp the page shows) answers `unchanged` without a read. Nothing
 /// is read when the setting is off.
 ///
@@ -410,6 +412,108 @@ pub async fn conversations_last_messages(
     };
     crate::ipc::blocking(state.inner(), "the last messages", move |state| {
         super::last_messages::last_messages_impl(state, &account_id, &conversation_id, &ask)
+    })
+    .await
+}
+
+/// 0.3.5 (ADR-0024): follows a conversation while its page shows it:
+/// its latest turns now (up to `max`, at most 60), redacted, then each
+/// change on `channel` (turns new or grown, under stable ids), until the
+/// page unfollows or stops saying it follows ([`conversations_keep`]).
+/// Kept in memory only. Nothing is read when the setting is off.
+///
+/// # Errors
+///
+/// None today; the snapshot says what it couldn't read.
+#[tauri::command]
+pub async fn conversations_follow(
+    state: tauri::State<'_, Arc<AppState>>,
+    feeds: tauri::State<'_, Arc<super::feed::Feeds>>,
+    account_id: String,
+    conversation_id: String,
+    max: Option<u32>,
+    channel: tauri::ipc::Channel<super::feed::dto::ConversationDeltaInfo>,
+) -> AppResult<super::feed::dto::ConversationSnapshotInfo> {
+    let feeds = Arc::clone(feeds.inner());
+    crate::ipc::blocking(state.inner(), "the conversation", move |state| {
+        let path = state.conversations.path_of(&account_id, &conversation_id);
+        let key = super::feed::FeedKey {
+            account: account_id,
+            conversation: conversation_id,
+            subagent: None,
+        };
+        Ok(super::feed::follow_impl(
+            state,
+            &feeds,
+            key,
+            path,
+            max,
+            Arc::new(channel),
+        ))
+    })
+    .await
+}
+
+/// 0.3.5: stops following (the page closed or was hidden).
+///
+/// # Errors
+///
+/// None today.
+#[tauri::command]
+pub async fn conversations_unfollow(
+    state: tauri::State<'_, Arc<AppState>>,
+    feeds: tauri::State<'_, Arc<super::feed::Feeds>>,
+    subscription: u64,
+) -> AppResult<()> {
+    let feeds = Arc::clone(feeds.inner());
+    crate::ipc::blocking(state.inner(), "the conversation", move |_| {
+        super::feed::unfollow_impl(&feeds, subscription);
+        Ok(())
+    })
+    .await
+}
+
+/// 0.3.5: the page still follows `subscriptions` (every half minute):
+/// their leases go on. Answers those that ended, to follow again.
+///
+/// # Errors
+///
+/// None today.
+#[tauri::command]
+pub async fn conversations_keep(
+    state: tauri::State<'_, Arc<AppState>>,
+    feeds: tauri::State<'_, Arc<super::feed::Feeds>>,
+    subscriptions: Vec<u64>,
+) -> AppResult<Vec<u64>> {
+    let feeds = Arc::clone(feeds.inner());
+    crate::ipc::blocking(state.inner(), "the conversation", move |_| {
+        let asked: Vec<u64> = subscriptions.into_iter().take(64).collect();
+        Ok(feeds.keep(&asked, std::time::Instant::now()))
+    })
+    .await
+}
+
+/// 0.3.5: a page of the turns before `before` (a shown turn's offset)
+/// in a followed conversation (up to `max`, at most 60). An answer with
+/// no turns and an `earlier` passed a long stretch with none: read on.
+///
+/// # Errors
+///
+/// None today; the page says what it couldn't read.
+#[tauri::command]
+pub async fn conversations_earlier(
+    state: tauri::State<'_, Arc<AppState>>,
+    feeds: tauri::State<'_, Arc<super::feed::Feeds>>,
+    subscription: u64,
+    before: u64,
+    max: Option<u32>,
+) -> AppResult<super::feed::dto::EarlierPageInfo> {
+    let feeds = Arc::clone(feeds.inner());
+    let max = max
+        .and_then(|max| usize::try_from(max).ok())
+        .unwrap_or(super::feed::PAGE_DEFAULT);
+    crate::ipc::blocking(state.inner(), "earlier messages", move |_| {
+        Ok(feeds.earlier(subscription, before, max))
     })
     .await
 }

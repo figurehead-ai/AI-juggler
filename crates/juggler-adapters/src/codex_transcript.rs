@@ -30,7 +30,7 @@ const INJECTED_PREFIXES: &[&str] = &[
 
 /// Whether a user-role message is one Codex itself injects (left out of
 /// the conversation).
-fn is_codex_context(body: &str) -> bool {
+pub(crate) fn is_codex_context(body: &str) -> bool {
     let body = body.trim_start();
     INJECTED_PREFIXES
         .iter()
@@ -318,7 +318,7 @@ fn tool_call(
 
 /// A tool call item's name and input: `function_call` carries JSON in a
 /// string, a custom call (`apply_patch`) its raw input.
-fn call_of(payload: &serde_json::Value) -> Option<(String, serde_json::Value)> {
+pub(crate) fn call_of(payload: &serde_json::Value) -> Option<(String, serde_json::Value)> {
     let name = text(payload, "name")?;
     let input = match text(payload, "arguments") {
         Some(arguments) => serde_json::from_str(&arguments).unwrap_or_default(),
@@ -606,7 +606,7 @@ fn text(value: &serde_json::Value, key: &str) -> Option<String> {
 
 /// Text parts of a message's `content` (`input_text` / `output_text` /
 /// `text`); images and anything else contribute nothing.
-fn message_text(content: Option<&serde_json::Value>) -> String {
+pub(crate) fn message_text(content: Option<&serde_json::Value>) -> String {
     match content {
         Some(serde_json::Value::String(s)) => s.clone(),
         Some(serde_json::Value::Array(parts)) => parts

@@ -22,13 +22,13 @@ import { IconSessions, IconSubtasks } from "../../components/icons";
 import { useActionHost } from "../../components/ItemMenu";
 import { useConversations } from "../../lib/conversations";
 import { conversationsStarted, type StartedSessionInfo } from "../../lib/ipc/conversations";
-import { subagentsConversation, subagentsList, type SubagentInfo } from "../../lib/ipc/subagents";
+import { subagentsFollow, subagentsList, type SubagentInfo } from "../../lib/ipc/subagents";
 import { agoWords } from "../../lib/time-words";
 import { showTab } from "../PageShell";
 import { kindWords, titleOf } from "../subagents/words";
 import { LastMessages } from "./LastMessages";
 import { fromConversation, type SessionModel } from "./model";
-import type { ChatReader } from "./useLastMessages";
+import type { FeedSource } from "./useConversation";
 import { useHeardSubagentCounts } from "./useSubagents";
 
 /** How many ended subagents the folded list shows. */
@@ -313,13 +313,13 @@ function BackButton({ onBack, label }: { onBack: () => void; label: string }): J
 function SubagentPane({ model, agent, onBack }: { model: SessionModel; agent: SubagentInfo; onBack: () => void }): JSX.Element {
   const conversationId = model.conversationId ?? "";
   const running = agent.status === "running";
-  const reader = useMemo<ChatReader>(
-    () => ({ key: `subagent:${agent.id}`, read: (ask) => subagentsConversation(model.profileId, conversationId, agent.id, ask) }),
+  const reader = useMemo<FeedSource>(
+    () => ({ key: `${model.profileId}\u0000${conversationId}\u0000${agent.id}`, follow: (max, onDelta) => subagentsFollow(model.profileId, conversationId, agent.id, max, onDelta) }),
     [model.profileId, conversationId, agent.id],
   );
   // Its own state: followed while it runs; it asks no one.
   const sub = useMemo<SessionModel>(() => ({ ...model, live: model.live && running, state: { ...model.state, asks: false, working: running } }), [model, running]);
-  return <LastMessages key={agent.id} model={sub} visible reader={reader} title={titleOf(agent)} asker="The session asked" head={<BackButton onBack={onBack} label="Back to this session's conversation" />} />;
+  return <LastMessages key={agent.id} model={sub} visible source={reader} title={titleOf(agent)} asker="The session asked" head={<BackButton onBack={onBack} label="Back to this session's conversation" />} />;
 }
 
 /** A session it started: its conversation here, and its own page a click away. */
