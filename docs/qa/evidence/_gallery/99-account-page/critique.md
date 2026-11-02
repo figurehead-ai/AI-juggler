@@ -1,4 +1,4 @@
-<!-- captures: 5face5e3d5e7 -->
+<!-- captures: f4a9ba9eaaef -->
 # 99-account-page: an Account's own page, and the Accounts screen that leads to it (0.4, D-62, AJ-E3205)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures; a second section for AJ-E3202 req. 4 (plan, renewal and fee kept on the Account).
@@ -78,3 +78,18 @@ The weak point above: the Account page's header and the Accounts card's App rows
 ### Weak
 
 - The renewal date field itself is still the browser's control and shows 12/03/2026 beside "Renews 3 Dec" in the header: the same day, written two ways on one screen, until the field is the app's own.
+
+## 0.4, AJ-E3206 req. 2: one mark and one colour per App
+
+Re-shot after each App and each Account got one stored colour. All eighteen captures changed.
+
+**account-overview, account-overview-1024, account-apps (both themes).** Before, the round mark by "Claude Max 20x", the dot by Claude Code · Work Max and the dot by Claude app · Work Max were one blue, because all three were coloured by the name "Work Max". Now the Account's round mark is rose, Claude Code · Work Max's dot is magenta and Claude app · Work Max's is orange: two Apps, two colours, and an Account in a third colour and a different shape. The Limits line is the Account's rose. The rail's dots and row edges match the Apps' rows here.
+
+**account-settings, account-choice, account-chosen (both themes).** The header's round mark is rose. The rail on the left shows each App's own colour on its header, rows and edges.
+
+**accounts-screen, accounts-choose (both themes).** Each Account card's dot is its own: Claude Max 20x rose, the personal account teal (before: blue and violet, its first folder's colours). The card's limits line is the same colour. The App rows below it carry their App's dot: Claude Code · Work Max magenta on its icon's corner, Claude Code · Work 2 orange, Claude app · Work Max orange or rose depending on how many folders the capture has.
+
+### Weak
+
+- In accounts-choose, with three folders, Claude app · Work Max takes the slot whose hue is the Account's rose. With eight hues, the fifth App always shares a hue with the first Account, so App and Account are told apart by shape: a dot on the icon's corner against the round mark by the Account's name.
+- The personal account's teal is 27° from the live colour. It sits by the Account's name, never by a session's state.

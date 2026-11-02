@@ -1,4 +1,4 @@
-<!-- captures: 77e1461a41c6 -->
+<!-- captures: 5eacbef9aae8 -->
 # 99-app-page: an App's own page (0.4, D-62, AJ-E3204)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -31,3 +31,19 @@ The audit's G1/G2: clicking "Claude app · b-work" in the rail opened a folder's
 - Limits on a desktop App show its folder's, and say "Not measured yet" where the folder has no reading; whose room it is should be said in the card's title once the Account page exists.
 - Processes lists its open sessions' processes, not the desktop app's own helper processes.
 - Rename is in Settings only; the header's ⋯ menu (rename, hide from the rail, show the folder) is still to come.
+
+## 0.4, AJ-E3206 req. 2: one mark and one colour per App
+
+Re-shot after each App and each Account got one stored colour. All twelve captures changed. They also catch up with changes made since the last shoot: the Claude app's profile reads "Work Max" (its Code folder's name), the Accounts tab is lit, and a CLI App's header has its ⋯ menu.
+
+**app-overview, app-overview-1024, app-sessions, app-settings (both themes).** Claude app · Work Max's dot beside its name is orange. Before, it was the blue that every "Work Max" thing wore, the CLI App and the Account included. The same orange is on its rail header ("Claude app · W…"), the left edge of its rows, its Needs you rows' corner dots and, in the 1024 captures, the folded rail's icons. Claude Code · Work Max, a different App on the same folder, is magenta in the Needs you row ("Answer the release ques…"). The Limits card's line is the Account's rose now, not the App's colour: the room is the Account's. So the page shows two colours on purpose, the App's dot in the header and its Account's on its limits, and neither is a status colour.
+
+**app-cli (both themes).** Claude Code · Work Max's header dot is magenta, the same as its rail rows and Needs you dot. Its Limits line is the Account's rose. Before, the header was orange and so was the line.
+
+**app-closed (both themes).** Claude app · Lab's dot is green (its stored slot) and matches its tile on Home and its Inactive apps row.
+
+### Weak
+
+- A green App dot right after the app's icon in a header can read as "running" next to "Not running". It's the palette's green, 23° from the success colour, and the page says "Not running" in words.
+- The App's dot and its Account's line are two hues on one page, and nothing on it says which is which. The Account's colour is explained only on the Accounts cards ("This account's colour in the charts").
+- Magenta (Claude Code · Work Max) and rose (its Account) are 30° apart. They're told apart by shape (a small dot against a line and a round avatar), less by hue.
