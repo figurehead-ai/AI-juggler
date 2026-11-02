@@ -11,17 +11,17 @@ limits. See [Accounts and apps](accounts.md).
 
 Tokens and cost per session, per app, per account and per project,
 counted from the tools' own records on your Mac: Claude Code's transcripts
-and Codex's session logs. It doesn't ask any provider for anything.
+and Codex's session logs. It doesn't ask any AI provider for anything.
 
 - A conversation that was resumed counts its earlier messages once, under
   the session where they first happened.
-- Costs use the providers' published prices. A model without a published
+- Costs use the AI providers' published prices. A model without a published
   price says "No list price" instead of $0.
 
 ### Prices and details
 
 **Usage** › **Prices and details** shows what your use would cost at the
-providers' API list prices.
+AI providers' API list prices.
 
 - At the top: the total at list prices, what you pay (when you've set
   your plan's fee), and the models with no list price. Those models are
@@ -50,7 +50,7 @@ in any app**.
 - **Nothing is ever stopped.** A cap only tells you; your sessions keep
   running.
 - The month is your calendar month, and the amounts are the estimates
-  above, at the providers' published prices. Usage without a price isn't
+  above, at the AI providers' published prices. Usage without a price isn't
   counted, and the cap says so.
 - On a subscription, the estimate is what your use would cost by the
   token, not what you pay, so a cap there measures how much of the plan's

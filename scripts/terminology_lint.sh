@@ -197,5 +197,14 @@ while IFS= read -r ts; do
   string_codes "$ts"
 done < <(find ui/src -name "*.ts" ! -name "*.test.ts" ! -name "*.d.ts" | grep -v types/generated)
 
+# AJ-E3201 (D-62): one word per thing (Account, App, Tool, Project,
+# Session) in the UI's copy and the user guide: "account" for a folder or
+# profile, "profile" for an Account, "instance", "place" for an App,
+# "provider" for a Tool, "harness". Words, not code: it reads through the
+# plain-words tokenizer. Its exceptions sit beside its rules.
+python3 scripts/terminology_words.py --selftest >/dev/null || { python3 scripts/terminology_words.py --selftest; exit 2; }
+words_out="$(python3 scripts/terminology_words.py)" || fail=1
+printf '%s\n' "$words_out" | grep -v '^terminology-words: OK$' || true
+
 [ "$fail" -eq 0 ] && echo "terminology-lint: OK"
 exit $fail

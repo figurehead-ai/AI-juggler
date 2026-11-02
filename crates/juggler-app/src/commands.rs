@@ -1726,8 +1726,8 @@ pub fn expert_setup_info_impl(
                 .iter()
                 .map(|key| (*key).to_owned())
                 .collect(),
-            note: "Each new account gets its own isolated folder in here — the shell line \
-                   appears once the account exists."
+            note: "Each new app gets its own isolated folder in here — the shell line \
+                   appears once the app exists."
                 .to_owned(),
         });
     };

@@ -78,9 +78,9 @@ The same list is in the app: More › **Privacy**, and Settings › Privacy link
 
 ## What it sends
 
-- It makes no requests to Anthropic, OpenAI or any other AI provider. Your tools talk to their providers themselves.
+- It makes no requests to Anthropic, OpenAI or any other AI provider. Your tools talk to their AI providers themselves.
   <sub>Checked by [`only_the_listed_crates_can_reach_the_network`](../../crates/juggler-app/tests/trust.rs), [`the_app_reaches_only_its_own_addresses`](../../crates/juggler-app/tests/trust.rs), [`the_window_can_reach_nothing_but_the_app`](../../crates/juggler-app/tests/trust.rs), [`no_http_client_anywhere_in_the_adapters_crate`](../../crates/juggler-adapters/tests/quota_ingest.rs).</sub>
-- It never sits between your tools and their providers: it sets no proxy for them. It sets a provider address only for an account you add through another service, and only the address that service publishes.
+- It never sits between your tools and their AI providers: it sets no proxy for them. It sets an AI provider's address only for an account you add through another service, and only the address that service publishes.
   <sub>Checked by [`ai_juggler_never_points_a_tool_at_another_address`](../../crates/juggler-app/tests/trust.rs), [`a_provider_address_is_only_ever_one_a_service_publishes`](../../crates/juggler-app/tests/trust.rs).</sub>
 - It checks GitHub for updates when it starts, if that's on, or when you choose Check now.
   <sub>Checked by [`check_off_means_zero_connections_and_on_reaches_the_feed`](../../crates/juggler-app/tests/updates_plugin.rs), [`the_app_reaches_only_its_own_addresses`](../../crates/juggler-app/tests/trust.rs).</sub>

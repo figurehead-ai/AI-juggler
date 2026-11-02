@@ -126,8 +126,7 @@ export function SessionPanel({
           <TerminalView id={terminalId} title={title} status={status ?? undefined} rule={session?.attention?.rule ?? null} ended={!status && !live} />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted">
-            Desktop harnesses open their own window — focus controls arrive
-            with the desktop adapter.
+            This session runs in its app's own window.
           </div>
         )}
       </Card>

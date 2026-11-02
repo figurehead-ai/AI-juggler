@@ -47,7 +47,7 @@
 
 **When things go wrong**
 
-- [When a provider is down](when-a-provider-is-down.md): moving your work
+- [When an AI provider is down](when-a-provider-is-down.md): moving your work
   to another app, one session at a time.
 - [Uninstall](uninstall.md): removing AI Juggler and its data.
 

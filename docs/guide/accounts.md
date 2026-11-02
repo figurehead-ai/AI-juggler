@@ -116,7 +116,8 @@ key from the Keychain.
 
 Switching a conversation to or from an app through another service is
 never a proven switch: the model behind it changes, and whether the
-service takes a conversation another provider started hasn't been tried.
+service takes a conversation started with another AI provider hasn't been
+tried.
 It always asks before it moves anything.
 
 ## Your default app

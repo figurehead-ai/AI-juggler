@@ -14,7 +14,8 @@ as you name it there (**Claude app · team-max**). Until one of its
 sessions has run, it's named by its own folder (**Claude app · b-team**).
 
 The Claude app keeps each of your profiles in a folder of its own, side by
-side. The first time you open one profile's page, AI Juggler asks **Find
+side. The first time you open the page of an app in one of them, AI
+Juggler asks **Find
 this app's other profiles**: with your yes, it reads the names of the
 folders beside it (never anything inside them), so the profiles you
 haven't opened today are apps too, each with **Start**. Settings ›

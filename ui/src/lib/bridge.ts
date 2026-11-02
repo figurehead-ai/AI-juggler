@@ -2917,7 +2917,7 @@ export async function expertSetupInfo(
       protected_env_keys: ["CLAUDE_CONFIG_DIR", "AI_JUGGLER_CLAUDE_BIN"],
       note:
         accountId === null
-          ? "Each new account gets its own isolated folder in here — the shell line appears once the account exists."
+          ? "Each new app gets its own isolated folder in here — the shell line appears once the app exists."
           : "This account keeps all of its state here — isolated from your other accounts and from your own install.",
       ...seam,
     };
@@ -4212,7 +4212,7 @@ export async function instanceDeletePreview(sessionId: string): Promise<DeletePr
         account_label: "Work Max",
         refused: null,
         removes: ["Its record in AI Juggler", "Its history: 4 events", "Its search index: 120 lines"],
-        keeps: ["The Provider's own transcript file", "The process and cleanup audit", "Its usage in your usage totals"],
+        keeps: ["The tool's own transcript file", "The process and cleanup audit", "Its usage in your usage totals"],
         token: "mock-token",
       }
     );

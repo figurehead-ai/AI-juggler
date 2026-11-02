@@ -28,7 +28,7 @@
 
 ## Step 1 — the words and the tables
 
-### AJ-E3201 One word per thing: Account, App, Tool, Project, Session, on screen, in the spec and in the guide | Status: IN-PROGRESS (the rail by App, the words on screen, SPEC §3/§9, the guide and the Privacy page's claims; the terminology lint's new words remain) | Priority P0 | Effort M | Depends: —
+### AJ-E3201 One word per thing: Account, App, Tool, Project, Session, on screen, in the spec and in the guide | Status: DONE (2026-11-02: the rail by App, the words on screen, SPEC §3/§9, the guide and the Privacy page's claims; req. 4: the terminology lint flags the old uses in the UI's copy and the guide (`scripts/terminology_words.py`, run by `terminology_lint.sh`, with its self-test): "account" for a folder or profile, "profile" for an Account, a choice of one or a page, "instance", "place" for an App, "provider" for a Tool (an AI company is an "AI provider") and "harness"; its exceptions sit beside its rules (English idioms like "in place", cc-switch's own "provider" in its section of the guide). Its first run's hits fixed: the order menu, two shortcuts, the canvas toast, the desktop session's panel, the preview's new-app note, the delete sheet's "tool's own transcript file" (and the backend's), and the guide's "provider" for the AI company) | Priority P0 | Effort M | Depends: —
 **Goal**: Every screen, menu, filter and doc uses the maintainer's words, and a lint keeps them.
 **User story**: As someone reading the rail, "Claude app · b-work" is an App and "Work (Max)" is an Account, everywhere I see them.
 **Requirements**:

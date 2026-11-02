@@ -24,7 +24,7 @@ export function resetWithUndo(): void {
   showToast({
     id: "rail-order-reset",
     message: "Your order is reset.",
-    detail: "Rows are in the order they opened; places in their usual order.",
+    detail: "Rows are in the order they opened; apps in their usual order.",
     undo: { onUndo: () => restoreOrder(before) },
     testId: "rail-order-undo",
   });

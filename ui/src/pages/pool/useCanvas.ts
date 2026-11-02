@@ -141,7 +141,7 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
       try {
         await poolCanvasPlace(poolId, nodes);
       } catch (cause) {
-        showToast({ message: "Couldn't keep that place", detail: errorText(cause), tone: "error" });
+        showToast({ message: "Couldn't keep it there", detail: errorText(cause), tone: "error" });
         setMine(new Map());
         void read();
       }

@@ -1,8 +1,8 @@
-# When a provider is down
+# When an AI provider is down
 
 AI Juggler doesn't detect outages. One failed request isn't an outage, and
 moving work on a false alarm does more harm than moving it by hand. When you
-decide a provider is down, move each session you need yourself:
+decide an AI provider is down, move each session you need yourself:
 
 1. Open the session.
 2. Choose **Continue in another app…** (or press ⌘⇧H). The apps you can
@@ -13,7 +13,7 @@ decide a provider is down, move each session you need yourself:
    the original session is left as it was.
 4. Repeat for each session you want to keep working on.
 
-When the provider is back, the session's panel offers **Resume the original
+When the AI provider is back, the session's panel offers **Resume the original
 conversation ▸**, which carries the work back to where it started, with
 everything done in the meantime.
 
