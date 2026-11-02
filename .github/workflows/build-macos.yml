@@ -249,7 +249,7 @@ jobs:
           (cd "$bundle" && tar -cf "$out/app.tar" ./*.app)
           tar -tf "$out/app.tar" | sed -n 1,3p
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-${{ matrix.edition }}
           path: ${{ runner.temp }}/unsigned/
@@ -322,7 +322,7 @@ jobs:
         run: ./scripts/sign_macos.sh "$RUNNER_TEMP/unsigned/app.tar" "$RUNNER_TEMP/assets"
 
       # The caller publishes these (nightly.yml).
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-${{ matrix.edition }}
           path: ${{ runner.temp }}/assets/
@@ -378,7 +378,7 @@ jobs:
           REHEARSAL: "1"
         run: ./scripts/sign_macos.sh "$RUNNER_TEMP/unsigned/app.tar" "$RUNNER_TEMP/assets"
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rehearsal-${{ matrix.edition }}
           path: ${{ runner.temp }}/assets/
