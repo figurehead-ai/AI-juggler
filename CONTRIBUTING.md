@@ -80,25 +80,31 @@ export RUSTFLAGS=$(./scripts/ensure_swift_runtime.sh | tail -1 | sed 's/^RUSTFLA
 Every PR must pass the same gates CI runs:
 
 ```bash
-just verify                              # fmt → clippy -D warnings → tests → docs → evidence → terminology
+just verify                              # lints, fmt, clippy -D warnings, docs, cargo-deny, then every test (nextest)
 pnpm --dir ui test                       # vitest component tests
 pnpm --dir ui build                      # typecheck + production bundle
 pnpm --dir ui exec playwright test       # visual states + a11y (for UI changes)
 ```
 
-Before a push to `main` or a `release/*` branch, run them all at once on
-the commit you're pushing:
+CI runs every one of them on each pull request, split across GitHub's
+runners ([ADR-0024](docs/adr/0024-heavy-gates-on-github-runners.md)).
+Before a push to `main` or a `release/*` branch, run the fast local check
+on the commit you're pushing:
 
 ```bash
 just hooks       # once: pushes to main and release/* need a passed preflight
-just preflight   # the whole of CI here: verify, the UI job, Linux clippy, visual and a11y when ui/ changed
+just preflight   # release notes, the static checks, the affected packages' tests, vitest, the UI build
 ```
 
-`just preflight` needs a clean tree (it checks the commit, not your
-edits), runs every step even after a failure, and names each failure at
-the end. When it passes it stamps the commit, and the pre-push hook lets
-that commit through. `scripts/ci_parity.py` keeps `just verify` in step
-with CI's verify job.
+`just preflight` checks a snapshot of the commit (`HEAD`, not your
+uncommitted edits, which you can keep making while it runs), at low
+priority and one at a time. The static checks run first and stop it at a
+failure; after them every step runs and the summary names each failure
+(`target/preflight/<commit>/summary.txt`). When it passes it stamps the
+commit, and the pre-push hook lets that commit through. The visual and
+accessibility gates and Linux clippy run in CI; `just preflight-full` runs
+them here too. `scripts/ci_parity.py` keeps `just verify` in step with
+CI's verify jobs.
 
 - **Tests are deterministic.** A test never waits on a timer for
   something it can be told (the fake harness's `--exit-when`), and never
@@ -157,7 +163,8 @@ a PR.
 - **PRs:** small and focused, described by the user-facing change. Link
   the issue or task. Fill in the PR template's Definition of Done.
 - **Merging:** squash-merge after review and green CI. `main` must always
-  build.
+  build. Release PRs (`release/*` into `main`) will be merged as merge
+  commits once main's ruleset allows them (docs/RELEASING.md).
 - **AI-assisted contributions** are welcome. You are responsible for
   every line you submit: review it, test it, and make sure it follows
   these rules (especially the no-personal-data rule).
