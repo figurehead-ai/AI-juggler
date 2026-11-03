@@ -6,9 +6,9 @@
  * says Unavailable (D-06/D-07); no composite health score. Built from
  * the status journal, so it is the same after a restart.
  */
-import { providerDisplayName } from "../lib/providers";
 import { useEffect, useState, type JSX } from "react";
 import { overnightSummary, overnightSummarySeen, type OvernightSummaryInfo, type SummaryRowInfo } from "../lib/bridge";
+import { cliAppName } from "../lib/app-name";
 
 const GROUPS: Array<{ id: string; title: string; icon: string }> = [
   { id: "crashed", title: "Crashed", icon: "✕" },
@@ -33,8 +33,8 @@ function Row({ row, onOpen }: { row: SummaryRowInfo; onOpen: (id: string) => voi
         data-testid="summary-row"
         data-group={row.group}
       >
-        <span className="font-medium text-ink">{row.account_label}</span>
-        <span className="text-muted">{providerDisplayName(row.provider)}</span>
+        {/* Its App by its full name (the 0.4 review). */}
+        <span className="font-medium text-ink">{cliAppName(row.provider, row.account_label)}</span>
         {row.project && <span className="text-muted">· {row.project}</span>}
         <span className="text-ink">· {row.words}</span>
         <span className="flex-1" />

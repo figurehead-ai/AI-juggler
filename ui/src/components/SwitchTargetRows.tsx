@@ -17,6 +17,7 @@ import { noteSwitchPick, statsEvent, type SwitchTargetData } from "../lib/bridge
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
 import type { TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
+import { cliAppName } from "../lib/app-name";
 
 /** "Suggested": the one with the most room (the one order by room). */
 export function SuggestedMark({ className = "" }: { className?: string }): JSX.Element {
@@ -171,7 +172,7 @@ export function SwitchTargetRows({
               >
                 <span className="flex flex-wrap items-center gap-2">
                   <span className={`font-medium ${filtered ? "text-muted" : ""}`}>
-                    {target.account_label}
+                    {target.provider ? cliAppName(target.provider, target.account_label) : target.account_label}
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
                   {target.suggested && !filtered && <SuggestedMark />}

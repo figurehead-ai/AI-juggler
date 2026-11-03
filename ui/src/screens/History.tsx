@@ -215,7 +215,8 @@ export function History({
 
   // AJ-E1503: archiving answers in a toast, with Undo (the other way).
   const act = async (session: InstanceInfo, run: () => Promise<unknown>, done: string, undo: () => Promise<unknown>) => {
-    const label = session.project_id ? `${projectName(session.project_id)} · ${session.account_label}` : session.account_label;
+    const app = cliAppName(session.provider, session.account_label);
+    const label = session.project_id ? `${projectName(session.project_id)} · ${app}` : app;
     try {
       await run();
       showToast({

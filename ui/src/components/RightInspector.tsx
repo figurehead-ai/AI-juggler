@@ -562,7 +562,7 @@ function InstanceOverview(props: PanelProps) {
               </span>
               <ToolChip tool={session.provider} />
               <span className="text-meta text-muted">
-                {session.account_label}
+                {cliAppName(session.provider, session.account_label)}
                 {project ? ` · ${project.name}` : ""}
               </span>
               <Button
