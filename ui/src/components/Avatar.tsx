@@ -2,15 +2,18 @@
  * AJ-E1532 with AJ-E3206 — an Account's avatar: round, in the Account's
  * one colour (lib/marks: stored once per Account, the same on its cards,
  * its page, Usage and every session on it), with the initials that tell
- * it from the user's others, and its name as a tooltip. Decorative:
+ * it from the user's others, and its name as a tooltip: the Account's own
+ * (looked up when hovered, from the Accounts already read), else the
+ * label it was given. Decorative:
  * whatever it sits in names it in words ("on Work Max"). A session's row
  * shows the Account behind it by its folder (the Account it was last read
  * as). An App is never drawn so: its mark is the dot beside its icon
  * (`ProfileBadge`). A ring says the account serves a live session there,
  * the same live colour sessions use.
  */
-import type { JSX } from "react";
+import type { JSX, PointerEvent } from "react";
 import { accountInitials } from "../lib/palette";
+import { accountName, accountOfProfile, cachedSubscriptions, loadSubscriptions } from "../lib/subscriptions";
 import { accountColor, useMarks, type AccountMark } from "../lib/marks";
 
 /** Below this size an avatar is its colour alone: its letters would be
@@ -33,10 +36,19 @@ export function AccountAvatar({
   useMarks();
   const color = accountColor(account);
   const folder = typeof account === "object" && "folder" in account ? account.folder : null;
+  // A folder's avatar names the Account it is signed in to, not the folder.
+  const nameOnHover = (event: PointerEvent<HTMLSpanElement>) => {
+    if (folder === null) return;
+    const rows = cachedSubscriptions();
+    if (rows === null) return void loadSubscriptions();
+    const owner = accountOfProfile(rows, folder);
+    event.currentTarget.title = owner ? accountName(owner, rows) : label;
+  };
   return (
     <span
       aria-hidden="true"
       title={label}
+      onPointerEnter={nameOnHover}
       data-testid="account-avatar"
       data-live={live ? "true" : undefined}
       data-color={color}
