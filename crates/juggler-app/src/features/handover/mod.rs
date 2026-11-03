@@ -270,3 +270,25 @@ pub fn pointer(header: &str, file: &Path) -> String {
 
 #[cfg(test)]
 mod tests;
+
+/// D-62: each switch-back card's copy, naming the original folder's
+/// Account (the reset is its; its folders share its limits), the Accounts
+/// read only when there is a card; a folder no Account lists keeps its own
+/// name. Storage must not be held (reading the Accounts reads it).
+pub(crate) fn word_switch_back_cards(
+    state: &std::sync::Arc<crate::state::AppState>,
+    cards: &mut [crate::commands::SwitchBackSuggestionInfo],
+) {
+    if cards.is_empty() {
+        return;
+    }
+    let names = crate::features::subscriptions::folder_accounts(state);
+    for card in cards {
+        let reset = crate::features::subscriptions::folder_name(
+            &names,
+            &card.original_account_id,
+            &card.original_account,
+        );
+        card.copy = juggler_handover::switch_back::suggestion_copy(&reset, &card.away_account);
+    }
+}

@@ -530,6 +530,13 @@ pub fn folder_accounts(state: &Arc<AppState>) -> BTreeMap<String, FolderAccount>
     list_impl(state).map_or_else(|_| BTreeMap::new(), |accounts| by_folder(&accounts))
 }
 
+/// A folder's Account's name, the Accounts read now ([`folder_accounts`]);
+/// a folder no Account lists keeps `own`.
+#[must_use]
+pub fn account_name_of(state: &Arc<AppState>, folder: &str, own: &str) -> String {
+    folder_name(&folder_accounts(state), folder, own)
+}
+
 /// What a limit, reset or renewal calls folder `folder` (D-62: they are
 /// its Account's): the Account's name, from `accounts` ([`by_folder`]);
 /// a folder no Account lists keeps `own`, its own name.

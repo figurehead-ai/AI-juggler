@@ -144,6 +144,105 @@ pub fn session_place(storage: &Storage, session: &str) -> Option<String> {
         .filter(|name| !name.is_empty())
 }
 
+/// AJ-E611: an alert stepped while storage is held, put in words once
+/// the Accounts' names are read (D-62: a window, a reset, are the
+/// Account's, so the words name it; reading the names reads storage
+/// itself).
+pub(crate) enum SteppedAlert {
+    /// A quota alert, worded from its numbers.
+    Quota {
+        kind: &'static str,
+        /// The folder it was stepped for.
+        folder: String,
+        /// Its numbers (`account_label`: the folder's own name, until
+        /// named).
+        quota: crate::features::quota::alert_words::AlertQuotaInfo,
+        credits: Option<crate::features::quota::CreditsDisplay>,
+    },
+    /// A queued resume came due.
+    ResetReached {
+        /// The folder it waited on.
+        folder: String,
+        /// The folder's own name (`None`: no longer listed).
+        own: Option<String>,
+        /// Where its session works, in words.
+        place: Option<String>,
+    },
+    /// Worded already (a digest line names no Account).
+    Worded(crate::commands::AlertEventInfo),
+}
+
+impl SteppedAlert {
+    pub(crate) fn needs_names(&self) -> bool {
+        !matches!(self, Self::Worded(_))
+    }
+
+    /// The alert in words, naming the folder's Account (`names`); a folder
+    /// no Account lists keeps its own name.
+    pub(crate) fn worded(
+        self,
+        names: &std::collections::BTreeMap<String, crate::features::subscriptions::FolderAccount>,
+        now: i64,
+    ) -> crate::commands::AlertEventInfo {
+        use crate::features::subscriptions::folder_name;
+        match self {
+            Self::Quota {
+                kind,
+                folder,
+                mut quota,
+                credits,
+            } => {
+                quota.account_label = folder_name(names, &folder, &quota.account_label);
+                crate::commands::AlertEventInfo {
+                    kind: kind.to_owned(),
+                    text: alert_text(kind, &quota, credits.as_ref(), now),
+                    account: folder,
+                    at_ms: now,
+                    quota: Some(quota),
+                }
+            }
+            Self::ResetReached { folder, own, place } => {
+                let name = folder_name(names, &folder, own.as_deref().unwrap_or("Its account"));
+                crate::commands::AlertEventInfo {
+                    kind: "reset-reached".to_owned(),
+                    text: reset_reached_words(&name, place.as_deref()),
+                    account: folder,
+                    at_ms: now,
+                    quota: None,
+                }
+            }
+            Self::Worded(event) => event,
+        }
+    }
+}
+
+/// The alerts stepped, in words: each naming its folder's Account (the
+/// Accounts are read only when one needs a name).
+pub(crate) fn word_all(
+    state: &std::sync::Arc<crate::state::AppState>,
+    stepped: Vec<SteppedAlert>,
+    now: i64,
+) -> Vec<crate::commands::AlertEventInfo> {
+    let names = if stepped.iter().any(SteppedAlert::needs_names) {
+        crate::features::subscriptions::folder_accounts(state)
+    } else {
+        std::collections::BTreeMap::new()
+    };
+    stepped
+        .into_iter()
+        .map(|alert| alert.worded(&names, now))
+        .collect()
+}
+
+/// A folder's own name (`None`: no longer listed).
+pub(crate) fn folder_label(storage: &Storage, folder: &str) -> Option<String> {
+    storage
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(folder))
+        .ok()
+        .map(|row| row.label)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

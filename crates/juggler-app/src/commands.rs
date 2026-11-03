@@ -408,7 +408,7 @@ pub struct AlertEventInfo {
     /// A quota alert's numbers, so this Mac's banner can say the reset
     /// in local time and offer its actions (wireframe 27).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub quota: Option<crate::features::quota::alert_words::AlertQuotaInfo>,
+    pub quota: Option<alert_words::AlertQuotaInfo>,
 }
 
 /// The per-(account, window) persisted FSM states (`alert_fsms` KV).
@@ -427,79 +427,7 @@ const ALERT_DIGEST_KEY: &str = "alert_digest";
 /// path is earned, not assumed.
 const SWITCH_DOOR_COUNTERS_KEY: &str = "switch_door_counters";
 pub(crate) const ALERT_MUTES_KEY: &str = "alert_mutes";
-
-/// AJ-E611: an alert stepped while storage is held, put in words once
-/// the Accounts' names are read (D-62: a window, a reset, are the
-/// Account's, so the words name it; reading the names reads storage
-/// itself).
-enum SteppedAlert {
-    /// A quota alert, worded from its numbers.
-    Quota {
-        kind: &'static str,
-        /// The folder it was stepped for.
-        folder: String,
-        /// Its numbers (`account_label`: the folder's own name, until
-        /// named).
-        quota: crate::features::quota::alert_words::AlertQuotaInfo,
-        credits: Option<crate::features::quota::CreditsDisplay>,
-    },
-    /// A queued resume came due.
-    ResetReached {
-        /// The folder it waited on.
-        folder: String,
-        /// The folder's own name (`None`: no longer listed).
-        own: Option<String>,
-        /// Where its session works, in words.
-        place: Option<String>,
-    },
-    /// Worded already (a digest line names no Account).
-    Worded(AlertEventInfo),
-}
-
-impl SteppedAlert {
-    fn needs_names(&self) -> bool {
-        !matches!(self, Self::Worded(_))
-    }
-
-    /// The alert in words, naming the folder's Account (`names`); a folder
-    /// no Account lists keeps its own name.
-    fn worded(
-        self,
-        names: &std::collections::BTreeMap<String, crate::features::subscriptions::FolderAccount>,
-        now: i64,
-    ) -> AlertEventInfo {
-        use crate::features::quota::alert_words;
-        use crate::features::subscriptions::folder_name;
-        match self {
-            Self::Quota {
-                kind,
-                folder,
-                mut quota,
-                credits,
-            } => {
-                quota.account_label = folder_name(names, &folder, &quota.account_label);
-                AlertEventInfo {
-                    kind: kind.to_owned(),
-                    text: alert_words::alert_text(kind, &quota, credits.as_ref(), now),
-                    account: folder,
-                    at_ms: now,
-                    quota: Some(quota),
-                }
-            }
-            Self::ResetReached { folder, own, place } => {
-                let name = folder_name(names, &folder, own.as_deref().unwrap_or("Its account"));
-                AlertEventInfo {
-                    kind: "reset-reached".to_owned(),
-                    text: alert_words::reset_reached_words(&name, place.as_deref()),
-                    account: folder,
-                    at_ms: now,
-                    quota: None,
-                }
-            }
-            Self::Worded(event) => event,
-        }
-    }
-}
+use crate::features::quota::alert_words::SteppedAlert;
 
 /// AJ-E611: one account's two window FSMs + its renewal-approaching
 /// digest line (Req.5 — the subscription clock NEVER steps a window
@@ -569,7 +497,7 @@ fn step_account_alerts(
             out.push(SteppedAlert::Quota {
                 kind,
                 folder: id.clone(),
-                quota: crate::features::quota::alert_words::AlertQuotaInfo {
+                quota: alert_words::AlertQuotaInfo {
                     account_label: account.label.clone(),
                     window: slot.to_owned(),
                     left_pct: window.percentage.map(|used| (100.0 - used).max(0.0)),
@@ -602,16 +530,7 @@ pub fn alerts_tick_inner(
     local_hour: Option<u32>,
 ) -> Vec<AlertEventInfo> {
     let now = juggler_core::model::Timestamp::now().millis();
-    let stepped = step_alerts(state, now, local_hour);
-    let names = if stepped.iter().any(SteppedAlert::needs_names) {
-        crate::features::subscriptions::folder_accounts(state)
-    } else {
-        std::collections::BTreeMap::new()
-    };
-    stepped
-        .into_iter()
-        .map(|alert| alert.worded(&names, now))
-        .collect()
+    alert_words::word_all(state, step_alerts(state, now, local_hour), now)
 }
 
 /// [`alerts_tick_inner`]'s steps, under the storage lock.
@@ -686,12 +605,8 @@ fn queue_and_digest_events(
             continue;
         }
         out.push(SteppedAlert::ResetReached {
-            own: storage
-                .accounts()
-                .get(&juggler_core::model::AccountId::new(account.as_str()))
-                .ok()
-                .map(|folder| folder.label),
-            place: crate::features::quota::alert_words::session_place(storage, &session),
+            own: alert_words::folder_label(storage, &account),
+            place: alert_words::session_place(storage, &session),
             folder: account,
         });
         let _ = usage.set_reset_state(&id, "notified");
@@ -12625,8 +12540,8 @@ pub fn switch_back_plan_to_impl(
     // share its limits), so the suggestion names it; a folder no Account
     // lists keeps its own name. The rest names the folder: the App the
     // work goes back to.
-    let reset = crate::features::subscriptions::folder_name(
-        &crate::features::subscriptions::folder_accounts(state),
+    let reset = crate::features::subscriptions::account_name_of(
+        state,
         original_account.id.as_str(),
         &original_account.label,
     );
@@ -13207,22 +13122,7 @@ pub fn switch_back_suggestions_impl(
         }
     }
     drop(storage);
-    // D-62: the reset is the original folder's Account's, so the copy
-    // names it (read only when there is a card); a folder no Account
-    // lists keeps its own name.
-    let names = if out.is_empty() {
-        std::collections::BTreeMap::new()
-    } else {
-        crate::features::subscriptions::folder_accounts(state)
-    };
-    for card in &mut out {
-        let reset = crate::features::subscriptions::folder_name(
-            &names,
-            &card.original_account_id,
-            &card.original_account,
-        );
-        card.copy = juggler_handover::switch_back::suggestion_copy(&reset, &card.away_account);
-    }
+    crate::features::handover::word_switch_back_cards(state, &mut out);
     Ok(out)
 }
 
