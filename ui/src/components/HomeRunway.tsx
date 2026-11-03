@@ -136,7 +136,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
           );
         })}
         {advice.words && advice.count > 1 && (
-          <p className="border-t border-hairline/60 py-3 text-xs text-ink-2" data-testid="new-work-advice">
+          <p className="text-pretty border-t border-hairline/60 py-3 text-xs text-ink-2" data-testid="new-work-advice">
             {advice.words}
           </p>
         )}

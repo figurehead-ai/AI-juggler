@@ -96,11 +96,11 @@ export function Banner({
     <div role={role} data-testid={testId} data-tone={tone} className={"flex flex-wrap items-center gap-3 rounded-xl border px-3.5 py-2 " + look.box}>
       <Mark tone={tone} />
       <div className="min-w-[14rem] flex-1">
-        <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-ink">
+        <p className="flex flex-wrap items-center gap-2 text-pretty text-body font-semibold text-ink">
           {title}
           {aside}
         </p>
-        {detail && <p className="text-meta text-ink-2">{detail}</p>}
+        {detail && <p className="text-pretty text-meta text-ink-2">{detail}</p>}
         {meter && (
           <span
             role="meter"

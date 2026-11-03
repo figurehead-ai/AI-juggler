@@ -141,7 +141,16 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
       </div>
       <div className="flex items-center gap-3 border-t border-hairline px-3.5 py-2.5 text-label text-muted">
         <span className="min-w-0 flex-1" data-testid="notices-digest">
-          {digest ?? "History is kept for 30 days."}
+          {/* Each part whole: a name never splits across lines ("Claude
+              Max / 20x resets…", the 0.4 review). */}
+          {digest
+            ? digest.split(" · ").map((part, index) => (
+                <span key={index}>
+                  {index > 0 && " · "}
+                  <span className="whitespace-nowrap">{part}</span>
+                </span>
+              ))
+            : "History is kept for 30 days."}
         </span>
         <button
           type="button"
