@@ -1,5 +1,5 @@
 /**
- * What every usage figure counts as "tokens" (0.3.6, the usage audit):
+ * What every usage figure counts as "tokens" (0.3.7, the usage audit):
  * new tokens — input, cache writes, output and reasoning, everything a
  * call sent or made for the first time. Cache reads, the same context
  * read again, are shown apart. The backend's `usage_history::fold::io`

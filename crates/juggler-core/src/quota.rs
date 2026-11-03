@@ -127,12 +127,12 @@ pub struct UsageEvent {
     /// distinct, which is the honest behaviour for resumed files.
     pub msg_uuid: Option<String>,
     /// What one API call says beyond its token classes: what its price
-    /// depends on, and which conversation it belongs to (0.3.6).
+    /// depends on, and which conversation it belongs to (0.3.7).
     #[serde(default)]
     pub detail: UsageDetail,
 }
 
-/// One API call's facts beyond its token classes (0.3.6, the usage audit):
+/// One API call's facts beyond its token classes (0.3.7, the usage audit):
 /// what its list price depends on (the prompt's size, the 1-hour cache
 /// writes, fast mode, US-only inference) and which conversation it belongs
 /// to. Stored beside the call (`usage_detail`), keyed like it.
@@ -425,7 +425,7 @@ pub struct WindowReading {
     pub state: QuotaState,
     /// Percent used, ONLY in `Tracking`/`Stale`/`Exhausted` — `None`
     /// in `Unknown`/`Learning` (never 0%). On a Measured basis it is the
-    /// vendor's own reading as of [`Self::measured_at`], verbatim (0.3.6,
+    /// vendor's own reading as of [`Self::measured_at`], verbatim (0.3.7,
     /// the usage audit: it used to add a local projection and still say
     /// Measured); the projection is [`Self::projected`].
     pub percentage: Option<f64>,

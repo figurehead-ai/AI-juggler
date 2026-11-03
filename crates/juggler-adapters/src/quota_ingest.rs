@@ -1215,7 +1215,7 @@ pub fn gemini_events() -> Vec<UsageEvent> {
 // Generic file tail (transcripts/rollouts): offset-tracked, truncation-aware
 // ---------------------------------------------------------------------------
 
-/// What a call says beyond its classes, and what a Codex thread is (0.3.6;
+/// What a call says beyond its classes, and what a Codex thread is (0.3.7;
 /// split from this file: the size budget).
 mod call_detail;
 pub use call_detail::ThreadKind;

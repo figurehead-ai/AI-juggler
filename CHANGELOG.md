@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed (0.3.6)
+### Fixed (0.3.7)
 
-- **Usage numbers, after the usage audit** (docs/releases/0.3.6.md,
+- **Usage numbers, after the usage audit** (docs/releases/0.3.7.md,
   docs/research/model-pricing.md):
   - each call's detail beyond its classes is read and kept in the derived
     `usage_detail` table (outside the numbered schema; `REREAD_VERSION`

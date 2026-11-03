@@ -6,7 +6,7 @@
 //! hour and the settled-history stamp moves: only the marked hours are
 //! summed again.
 //!
-//! The maintainer's Mac (0.3.6, 281K Codex calls over six weeks): summing
+//! The maintainer's Mac (0.3.7, 281K Codex calls over six weeks): summing
 //! them all took 0.4 s warm and 1.8 s cold; reading the kept hours back
 //! takes a few milliseconds.
 
@@ -275,7 +275,7 @@ mod tests {
         )
     }
 
-    /// 0.3.6: the settled hours are kept in the store, so a start reads
+    /// 0.3.7: the settled hours are kept in the store, so a start reads
     /// them back instead of summing every message; a change made while the
     /// app was closed (by any build) is caught by its hour.
     #[test]

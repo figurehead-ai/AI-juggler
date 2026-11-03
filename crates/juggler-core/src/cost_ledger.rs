@@ -12,7 +12,7 @@
 //!   `$0.00`.
 //! - `ZCode` credits display ALONGSIDE USD and are never converted at
 //!   an invented rate — separate column, always.
-//! - USD is priced per API call (0.3.6, the usage audit): a vendor's
+//! - USD is priced per API call (0.3.7, the usage audit): a vendor's
 //!   price depends on each call's prompt size (long-context tiers), its
 //!   1-hour cache writes and its speed, none of which a sum keeps. The
 //!   store prices a call when it is read and keeps the cost beside it
@@ -343,7 +343,7 @@ impl PricingCatalog {
     }
 
     /// Prices ONE API call at its event-time list rates and its own tier
-    /// (0.3.6, the usage audit): the long-context rates when its prompt is
+    /// (0.3.7, the usage audit): the long-context rates when its prompt is
     /// over the model's threshold, fast mode's when it ran fast, 1-hour
     /// cache writes at their own rate, and US-only inference's multiplier.
     /// Reasoning tokens are output the vendor bills at the output rate

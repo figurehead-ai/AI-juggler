@@ -751,7 +751,7 @@ fn from_sql(count: i64) -> u64 {
 ///   again when it is set ([`UsageRepo::derived_dirty`]). The triggers are
 ///   dropped and made again at each open, so a change to them always
 ///   lands.
-/// - `usage_detail` (0.3.6, the usage audit): each keyed call's facts
+/// - `usage_detail` (0.3.7, the usage audit): each keyed call's facts
 ///   beyond its token classes ([`UsageDetail`]) and its list-price cost,
 ///   priced per call with the prices of `price_version`. Rows a build
 ///   without it wrote (or calls with no key) have none: they are priced

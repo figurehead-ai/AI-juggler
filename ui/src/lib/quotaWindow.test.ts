@@ -37,7 +37,7 @@ it("a measured window says when it was read", () => {
 });
 
 it("the vendor's reading stands as read; the projection since is apart, called an estimate", () => {
-  // 0.3.6, the usage audit: the gauge added a local projection to the
+  // 0.3.7, the usage audit: the gauge added a local projection to the
   // reading and still said Measured.
   const view = windowView(windowDisplay("tracking", { percentage: 64, projected_pct: 71.4, badge: "measured", measured_at_ms: NOW - 40 * MIN }));
   expect(view.left).toBe(36);

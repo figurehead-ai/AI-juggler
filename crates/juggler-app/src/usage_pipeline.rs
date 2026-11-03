@@ -56,7 +56,7 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// - a Codex compaction that names its own model call opens no row of its
 ///   own (P21: one counted another thread's call again; main's 5).
 ///
-/// 7 = 0.3.6 (the usage audit): each call's detail beyond its classes
+/// 7 = 0.3.7 (the usage audit): each call's detail beyond its classes
 /// (Claude's 1-hour cache writes, the prompt's size, speed and inference
 /// place; a Codex thread's kind and conversation) and its list price,
 /// made per call with its own tier.

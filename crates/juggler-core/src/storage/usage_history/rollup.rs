@@ -1,4 +1,4 @@
-//! The settled hours, kept in the store (0.3.6): each profile's hourly
+//! The settled hours, kept in the store (0.3.7): each profile's hourly
 //! sums older than [`super::SETTLED_MS`], so a summary after a start reads a few
 //! thousand rows instead of summing every message again, and the hours an
 //! older message changed, so only those are summed again.

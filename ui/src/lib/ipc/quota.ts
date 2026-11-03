@@ -17,7 +17,7 @@ export interface WindowDisplay {
    * Measured. */
   percentage: number | null;
   /** An estimate of the percent used now, from the calls made since the
-   * reading (0.3.6): shown apart, as an estimate; absent when it would
+   * reading (0.3.7): shown apart, as an estimate; absent when it would
    * read the same. */
   projected_pct?: number | null;
   badge: string | null;
@@ -31,7 +31,7 @@ export interface WindowDisplay {
   measured_at_ms: number | null;
   burned_tokens: number;
   /** The window's new tokens, as Usage counts them (the 0.2 walk, F15;
-   * 0.3.6: input, cache writes, output and reasoning); absent from a
+   * 0.3.7: input, cache writes, output and reasoning); absent from a
    * reading that predates it. */
   burned_io_tokens?: number;
   burned_credits: number | null;

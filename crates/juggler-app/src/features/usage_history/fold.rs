@@ -91,7 +91,7 @@ pub fn bucket_of(edges: &[i64], at_ms: i64) -> Option<usize> {
     Some(edges.partition_point(|edge| *edge <= at_ms) - 1)
 }
 
-/// New tokens: what the charts count (0.3.6, the usage audit). Input,
+/// New tokens: what the charts count (0.3.7, the usage audit). Input,
 /// cache writes, output and reasoning: everything a call sent or made
 /// for the first time. Claude sends nearly all new input as cache writes
 /// (its plain input averages 2 tokens a call), and Codex's reasoning is

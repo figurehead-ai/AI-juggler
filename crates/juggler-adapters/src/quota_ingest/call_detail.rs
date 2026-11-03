@@ -1,4 +1,4 @@
-//! What one API call says beyond its token classes (0.3.6, the usage
+//! What one API call says beyond its token classes (0.3.7, the usage
 //! audit): Claude's 1-hour cache writes, prompt size, speed and inference
 //! place, and which kind of thread a Codex record belongs to and the
 //! conversation that started it.
@@ -8,7 +8,7 @@ use juggler_core::quota::{CallKind, UsageDetail};
 
 use super::RolloutCarry;
 
-/// One Claude response's facts beyond its classes (0.3.6, the usage
+/// One Claude response's facts beyond its classes (0.3.7, the usage
 /// audit): the cache writes that went to the 1-hour cache
 /// (`cache_creation.ephemeral_1h_input_tokens`, priced at 2× base input
 /// against 1.25× for the 5-minute ones), the whole prompt (input, cache
@@ -53,7 +53,7 @@ pub(super) fn claude_detail(
     }
 }
 
-/// What a Codex thread is, as its `session_meta` says (0.3.6, the usage
+/// What a Codex thread is, as its `session_meta` says (0.3.7, the usage
 /// audit: 2,285 of 2,779 "sessions" on one Mac were automatic reviews).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub enum ThreadKind {

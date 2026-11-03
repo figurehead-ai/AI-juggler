@@ -1,6 +1,6 @@
 //! QA on a real setup, read only: Usage's numbers as this build would show
 //! them, recomputed from the tools' files, for comparing with an
-//! independent recount (0.3.6, the usage audit).
+//! independent recount (0.3.7, the usage audit).
 //!
 //! Ignored, and a no-op unless `AIJ_QA_USAGE_DB` and `AIJ_QA_USAGE_OUT` are
 //! set, so it never runs in CI or on a plain `cargo test`:
@@ -302,7 +302,7 @@ fn usage_numbers_recomputed_from_the_real_files() {
 
 /// The Usage summary's first read after a start, on the store the test
 /// above left (`AIJ_QA_USAGE_OUT/recount.sqlite`), per profile: every
-/// settled hour summed as 0.3.5 did (no costs), as 0.3.6 sums them (with
+/// settled hour summed as 0.3.5 did (no costs), as 0.3.7 sums them (with
 /// each call's cost), and read back as a start now does (the kept hours,
 /// and the hours changed since). Debug build: SQLite unoptimised, so the
 /// figures are upper bounds; the ratios hold.

@@ -1,4 +1,4 @@
-//! 0.3.6, the usage audit: what each API call says beyond its token
+//! 0.3.7, the usage audit: what each API call says beyond its token
 //! classes, read from the tools' own records and priced per call. Claude's
 //! 1-hour cache writes, a long-context Codex call, and Codex's automatic
 //! reviews and subagents counted under the conversation that started
@@ -85,7 +85,7 @@ fn claude_one_hour_cache_writes_are_read_and_priced_at_twice_base_input() {
     let expected =
         (2.0 * 4.0 + 1_000.0 * 5.0 + 2_000.0 * 8.0 + 50_000.0 * 0.2 + 1_000.0 * 20.0) / 1e6;
     assert!(close(usd, expected), "{usd} vs {expected}");
-    // At the 5-minute rate (before 0.3.6) it was $0.006 less.
+    // At the 5-minute rate (before 0.3.7) it was $0.006 less.
     let flat = catalog
         .price_tokens("claude-opus-5-5", event.ts, event.tokens)
         .unwrap();

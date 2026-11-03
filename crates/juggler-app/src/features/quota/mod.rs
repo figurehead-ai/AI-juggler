@@ -31,7 +31,7 @@ pub struct WindowDisplay {
     /// reading as of `measured_at_ms` when the badge is Measured.
     pub percentage: Option<f64>,
     /// An estimate of the percent used now, from the calls made since the
-    /// reading (0.3.6): shown apart, labelled estimate; absent when it
+    /// reading (0.3.7): shown apart, labelled estimate; absent when it
     /// would read the same as the reading.
     pub projected_pct: Option<f64>,
     /// The badge (`Measured|Computed|Estimate`), adjacent on screen.

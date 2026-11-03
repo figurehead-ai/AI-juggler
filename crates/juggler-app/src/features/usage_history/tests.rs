@@ -209,7 +209,7 @@ fn only_ranges_the_screen_can_ask_for_pass() {
     );
 }
 
-/// 0.3.6, the usage audit: "tokens" are new tokens (input, cache writes,
+/// 0.3.7, the usage audit: "tokens" are new tokens (input, cache writes,
 /// output and reasoning; cache reads apart), a subagent's or an automatic
 /// review's thread counts under its conversation, and a stored per-call
 /// cost is used as it is.

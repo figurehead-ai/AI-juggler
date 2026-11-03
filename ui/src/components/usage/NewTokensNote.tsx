@@ -1,5 +1,5 @@
 /**
- * The line under a "New tokens" figure (0.3.6, the usage audit): what the
+ * The line under a "New tokens" figure (0.3.7, the usage audit): what the
  * figure counts, then the tokens re-read from the cache, counted apart.
  * Two short lines, so the tile keeps its siblings' height where it's
  * narrow (the account page).

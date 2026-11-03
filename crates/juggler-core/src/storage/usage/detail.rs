@@ -1,4 +1,4 @@
-//! Each stored call's detail and cost (0.3.6, the usage audit; split from
+//! Each stored call's detail and cost (0.3.7, the usage audit; split from
 //! the usage store: the size budget): the derived `usage_detail` table is
 //! written with every call stored, and priced again when the prices change.
 

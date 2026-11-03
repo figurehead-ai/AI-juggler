@@ -107,7 +107,7 @@ export function tokenWords(tokens: number): string {
 
 /** A window's tokens as every screen counts them: new tokens, like
  * Usage's "New tokens" (the 0.2 walk, F15: 7.7B on a session page
- * against 4.4M on Usage for one account; 0.3.6: input, cache writes,
+ * against 4.4M on Usage for one account; 0.3.7: input, cache writes,
  * output and reasoning). A reading without that split
  * counts cache too, and says so. `null` when it used none. */
 export function usedTokensWords(windows: ReadonlyArray<WindowDisplay | null | undefined>): string | null {
@@ -122,7 +122,7 @@ export function usedTokensWords(windows: ReadonlyArray<WindowDisplay | null | un
 }
 
 /** The estimate of "left now" from the calls made since the vendor's
- * reading (0.3.6, the usage audit: it was added to the reading and still
+ * reading (0.3.7, the usage audit: it was added to the reading and still
  * said Measured): apart, and called an estimate. `null` without one. */
 export function projectedWords(window: WindowDisplay): string | null {
   if (window.projected_pct == null) return null;

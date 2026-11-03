@@ -4,7 +4,7 @@
 //! one profile at a time through the `(account, ts)` index, so a range's
 //! cost grows with its active hours, not its messages. No numbered table is
 //! added (the schema is the one main shares with release/0.2). Costs come
-//! from `usage_detail`, the store's derived per-call table (0.3.6), joined
+//! from `usage_detail`, the store's derived per-call table (0.3.7), joined
 //! on the call's key; the settled hours are kept in derived tables too
 //! (`rollup`), the only writes here.
 
@@ -21,7 +21,7 @@ pub use rollup::{Replace, Rollup};
 /// An hour, in milliseconds.
 pub const HOUR_MS: i64 = 3_600_000;
 
-/// What a group of calls costs at list prices (0.3.6): the costs stored
+/// What a group of calls costs at list prices (0.3.7): the costs stored
 /// with its calls, each priced at its own tier when it was read, and the
 /// tokens of its calls with no stored cost (an unpriced model, or a call
 /// stored before costs were), which only a price for their sum can cover.
@@ -264,7 +264,7 @@ impl UsageHistoryRepo<'_> {
 
     /// One session's messages on one profile, oldest first: the newest
     /// `limit` of them. A conversation's include its subagents' and its
-    /// automatic reviews' (0.3.6). Says whether older ones were left out.
+    /// automatic reviews' (0.3.7). Says whether older ones were left out.
     ///
     /// # Errors
     ///
