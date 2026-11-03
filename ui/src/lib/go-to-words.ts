@@ -2,7 +2,7 @@
  * What a Go to it says when it's done (the 0.4 review): the outcome in the
  * desktop app's own words, with a tick only when the window came forward.
  * A window not found, an app not running or one macOS kept behind is a
- * warning, never a success.
+ * warning, never a success, in a toast and on a paired Mac's actions.
  */
 import { showToast } from "../components/Toast";
 

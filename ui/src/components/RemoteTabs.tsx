@@ -354,12 +354,9 @@ function InstanceActions({
         Session exists before it acts — and records the request.
       </p>
       <div aria-live="polite" data-testid="remote-outcome">
-        {/* A tick only for what fully worked: a focus that opened the app
-            without its window is a warning (the 0.4 review). */}
         {outcome && (
           <p className={"text-xs " + (outcome.accepted && !partialGoTo(outcome.message) ? "text-success" : "text-warning")}>
-            {outcome.accepted && !partialGoTo(outcome.message) ? "✓ " : "⚠ "}
-            {outcome.accepted ? `${machine.label}: ${outcome.message}` : `${machine.label} refused: ${outcome.message}`}
+            {(outcome.accepted && !partialGoTo(outcome.message) ? "✓ " : "⚠ ") + (outcome.accepted ? `${machine.label}: ${outcome.message}` : `${machine.label} refused: ${outcome.message}`)}
           </p>
         )}
         {error && <p className="text-xs text-danger">{error}</p>}
