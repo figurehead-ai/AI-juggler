@@ -104,7 +104,7 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(within(cards[2]!).queryByTestId("account-runway")).toBeNull();
     expect(within(cards[2]!).getByTestId("profile-signed-out").textContent).toBe("Not signed in");
     expect(within(cards[1]!).getAllByTestId("profile-folder").map((n) => n.textContent)).toEqual(["~/p/p1", "~/p/p2"]);
-    expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can have several apps.");
+    expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can serve several apps.");
   });
 
   it("one profile: one account; nothing measured says so and still shows its usage", async () => {

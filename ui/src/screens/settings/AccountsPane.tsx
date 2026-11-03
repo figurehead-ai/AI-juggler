@@ -72,7 +72,7 @@ export function AccountsPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection
         id="accounts-page"
         title="Accounts and apps"
-        footer="An account is a subscription. An app is one app in one profile, like Claude Code · Work; several can share one account."
+        footer="An account is a subscription you pay for. An app is where you work with it, one tool with its own sign-in, like Claude Code · Work Max; several apps can share one account."
       >
         <SettingRow
           title="Your accounts"

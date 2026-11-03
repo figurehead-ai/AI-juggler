@@ -124,7 +124,7 @@ export function FreshAccountStep({
           className="rounded-lg border border-hairline bg-surface px-3 py-2.5 text-section font-normal text-ink outline-none placeholder:text-muted focus:border-accent/60"
           data-testid="first-run-fresh-name"
         />
-        <span className="text-xs font-normal text-muted">What it's for — you can rename it later; its plan is its account's.</span>
+        <span className="text-xs font-normal text-muted">What it's for. You can rename it later; its plan comes from the account it signs in to.</span>
       </label>
       <StartWithSettings sources={sources} onChange={setSettings} />
       {error && (

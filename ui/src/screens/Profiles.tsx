@@ -131,8 +131,8 @@ export function ProfilesScreen({
           <h2 className="text-title text-ink">Accounts</h2>
           <p className="max-w-[70ch] text-meta text-ink-2" data-testid="accounts-definition">
             An <strong className="font-semibold text-ink">account</strong> is a subscription you pay for. An{" "}
-            <strong className="font-semibold text-ink">app</strong> is one app in one profile, like Claude app · b-work or Claude Code · Work;
-            one account can have several apps.
+            <strong className="font-semibold text-ink">app</strong> is where you work with it, one tool with its own sign-in, like Claude Code ·
+            Work Max or the Claude app · Personal; one account can serve several apps.
           </p>
           {summary && (
             <p className="text-meta text-ink" data-testid="accounts-summary">
