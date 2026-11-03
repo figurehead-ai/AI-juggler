@@ -1,0 +1,328 @@
+<title>The Floor · Angled office</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root {
+    --bg: #0b0e14; --bg-hi: #10141b; --surface: #151a23; --surface-2: #1b212c; --line: #2f3645;
+    --ink: #f3f5f9; --muted: #b0b8c5; --faint: #8e97a6;
+    --accent: #8787f6; --accent-soft: #7c7cf41f; --live: #22d3ee; --ok: #34d399; --warn: #fbbf24; --bad: #f87171;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eceef3; --bg-hi: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --line: #d7dbe3;
+      --ink: #161a22; --muted: #4b5466; --faint: #667085;
+      --accent: #4747d1; --accent-soft: #4747d114; --live: #0e7490; --ok: #047857; --warn: #a16207; --bad: #b91c1c;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eceef3; --bg-hi: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --line: #d7dbe3;
+    --ink: #161a22; --muted: #4b5466; --faint: #667085;
+    --accent: #4747d1; --accent-soft: #4747d114; --live: #0e7490; --ok: #047857; --warn: #a16207; --bad: #b91c1c;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+  .eyebrow { font: 600 11px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .08em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.12; margin: 10px 0 12px; letter-spacing: -0.02em; text-wrap: balance; }
+  h2 { font-size: 1.35rem; line-height: 1.25; margin: 0 0 10px; letter-spacing: -0.01em; text-wrap: balance; }
+  h3 { font-size: 1rem; margin: 16px 0 6px; }
+  p { margin: 0 0 12px; max-width: 72ch; }
+  .lede { font-size: 1.06rem; color: var(--muted); max-width: 70ch; }
+  a { color: var(--accent); }
+  section { margin-top: 44px; }
+  ul { padding-left: 18px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+  .card h3 { margin-top: 0; }
+  .verdict { border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line)); background: linear-gradient(180deg, var(--accent-soft), transparent); }
+  .mock { background: var(--bg-hi); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin: 0; }
+  .mock .view { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0b0e14; }
+  .mock canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mock canvas.px { image-rendering: pixelated; object-fit: contain; }
+  .mock figcaption { padding: 12px 14px; font-size: .86rem; color: var(--muted); border-top: 1px solid var(--line); }
+  .mock figcaption b { color: var(--ink); }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); font-size: .82rem; color: var(--muted); }
+  .controls input[type=range] { width: 140px; }
+  .stat { font: 12px ui-monospace, "SF Mono", Menlo, monospace; color: var(--faint); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: transparent; padding: 5px 10px; font: inherit; font-size: .82rem; color: var(--muted); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 600; background: var(--surface-2); }
+  tbody th { font-weight: 600; min-width: 150px; }
+  tr:last-child td, tr:last-child th { border-bottom: 0; }
+  .refs { font-size: .86rem; }
+  .refs li { margin-bottom: 4px; }
+  .muted { color: var(--muted); }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .76rem; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .tag.yes { border-color: color-mix(in srgb, var(--ok) 60%, var(--line)); color: var(--ok); }
+  code { font: .85em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">AI Juggler · 0.5 · the Floor · research</div>
+  <h1>An office you look into from above, at an angle</h1>
+  <p class="lede">The maintainer asked for a Floor that looks like a real office, seen from above at an angle with perspective, not a bird's-eye plan. Windows and doors sit on the back walls, and everything is generated. This page covers how games with that camera do it, what it means for AI Juggler, and three look directions drawn by our own code from the same sample office.</p>
+
+  <div class="card verdict" style="margin-top:18px" id="verdict">
+    <h3>Recommendation</h3>
+    <p><b>Go with B: real 3D in the webview, built with three.js, from a fixed angled camera with perspective.</b></p>
+    <ul style="margin:0 0 10px">
+      <li><b>Back walls:</b> windows and doors stay up; the walls facing you are cut down.</li>
+      <li><b>Camera:</b> turns in four 90° steps, as Two Point Campus does, and zooms in three levels (Building, Floor, Desk).</li>
+      <li><b>Building level:</b> uses C's stacked-floor cutaway to show every floor and who needs you on each.</li>
+      <li><b>Rendering:</b> lazy-loaded, drawn only when something changes, and at a lower internal resolution while people animate.</li>
+      <li><b>Fallback:</b> the top-down 2D renderer (already prototyped) on machines without hardware WebGL, which matters most for Linux.</li>
+    </ul>
+    <p style="margin:0">Why not A: isometric is a parallel projection, so it has no perspective, which is what was asked for. It is the cheaper fallback look if B's measured cost misses the budget. Nothing is built yet; the next step is your pick, then a measured B prototype.</p>
+  </div>
+
+  <section>
+    <div class="eyebrow">01 · three looks, same office</div>
+    <h2>Look directions</h2>
+    <p>All three mocks draw the same sample office:
+      <b>Claude Code · Work</b> (8 desks, one person waving because they need you);
+      <b>Codex · Main</b> (an error, someone asleep at a limit, someone stuck, a desk on fire because the App is overloaded);
+      and <b>Claude app · Home</b>, unused for 9 days and gathering dust and trash.
+      Each mock is a still frame drawn when the page opens; nothing animates on this page.</p>
+
+    <figure class="mock" style="margin-top:14px">
+      <div class="view"><canvas id="mockB" aria-label="Mock B: a low-poly 3D office seen from above at an angle, with windows and a kitchen on the back wall, an elevator and stairs door on the left wall, a glass meeting room and server room, and three App zones of desks with people"></canvas></div>
+      <div class="controls">
+        <label>Turn <input type="range" id="b-az" min="0.05" max="1.2" step="0.01" value="0.55"></label>
+        <label>Tilt <input type="range" id="b-el" min="0.45" max="1.1" step="0.01" value="0.76"></label>
+        <label>Zoom <input type="range" id="b-dist" min="10" max="34" step="0.5" value="25"></label>
+        <span class="stat" id="b-stat"></span>
+      </div>
+      <figcaption><b>B · Real 3D, angled perspective (three.js).</b> Built from boxes, spheres and cones by code:
+        <ul style="margin:6px 0 0">
+          <li>back walls with windows onto a generated skyline;</li>
+          <li>doors to the elevator and stairs;</li>
+          <li>glass meeting and server rooms;</li>
+          <li>a kitchen;</li>
+          <li>a whiteboard, a corkboard and a clock wall;</li>
+          <li>soft shadows.</li>
+        </ul>
+        The near walls are cut down so you can see in.<br>
+        The sliders re-render a single frame on each change, the way the real thing would: draw on demand, never in a loop.</figcaption>
+    </figure>
+
+    <div style="display:grid; gap:16px; margin-top:16px">
+      <figure class="mock">
+        <div class="view"><canvas id="mockA" class="px" aria-label="Mock A: an isometric pixel-art office with two back walls, windows, an elevator and stairs door, a kitchen corner, and three App zones"></canvas></div>
+        <figcaption><b>A · Isometric pixel office (2.5D).</b> Diamond tiles, two back walls with windows and doors, and the front walls cut away. Drawn at 400×250 and scaled up crisp. The people are the same parts-built atlases as the top-down prototype.</figcaption>
+      </figure>
+      <figure class="mock">
+        <div class="view"><canvas id="mockC" aria-label="Mock C: a cutaway building with three floors stacked, each a room in perspective with windows and a door on the back wall, desks at two depths and an elevator shaft on the right"></canvas></div>
+        <figcaption><b>C · Cutaway building.</b> Floors are stacked like a doll's house. Each room is drawn in one-point perspective, with windows and a door on its back wall, and the needs-you count beside each floor. This works best as the zoomed-out "building" level above A or B.</figcaption>
+      </figure>
+    </div>
+    <div class="controls" style="border:0;padding:10px 0 0">
+      <span>Light</span>
+      <div class="seg" role="group" aria-label="Light"><button data-light="day" aria-pressed="true">Day</button><button data-light="night" aria-pressed="false">Evening</button></div>
+    </div>
+  </section>
+
+  <section id="games">
+    <div class="eyebrow">02 · how games do it</div>
+    <h2>Games with an angled office camera</h2>
+    <div id="games-body">
+    <p>What each game does with the camera, the walls and the floors. Several details could not be confirmed from official pages; those are marked <span class="tag">unconfirmed</span>. Screenshots are on each store page linked in Sources; none are copied here.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Game</th><th>Camera</th><th>Seeing inside</th><th>Floors</th><th>People and state</th><th>Why it feels like a building</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Two Point Hospital / Campus</th><td>Full 3D: rotate, pitch, zoom. Campus rotates in steps.</td><td>Walls near the camera drop away <span class="tag">unconfirmed</span></td><td><span class="tag">unconfirmed</span></td><td>"Data views" tint the whole map by one property (hygiene, happiness).</td><td>A deliberately claymation-like style, so it stays readable at any zoom.</td></tr>
+        <tr><th scope="row">The Sims</th><td>3D, rotatable (Sims 1: 3D people over pre-rendered rooms)</td><td>Three wall modes: walls up, cutaway (outer walls stay, inner drop) and walls down.</td><td>Floor up and down; floors above are hidden.</td><td>A portrait with need bars and an action queue.</td><td>Real house parts: windows, doors, wallpaper, lighting.</td></tr>
+        <tr><th scope="row">Software Inc.</th><td>3D <span class="tag">camera unconfirmed</span></td><td><span class="tag">unconfirmed</span></td><td>Up to 10 storeys plus a basement, built free-form.</td><td>Employees have needs, stress and satisfaction.</td><td>Offices you design yourself; inspired by The Sims, Theme Hospital, Prison Architect and Game Dev Tycoon.</td></tr>
+        <tr><th scope="row">Mad Games Tycoon 2</th><td>3D cartoony, free roam</td><td><span class="tag">unconfirmed</span></td><td><span class="tag">unconfirmed</span></td><td>Staff need lounges and bathrooms.</td><td>A game studio as an office, furnished room by room.</td></tr>
+        <tr><th scope="row">Theme Hospital</th><td>2D isometric sprites, fixed</td><td>Walls are sprite pieces on tile edges.</td><td>One level</td><td>Big, readable cartoon sprites, about 2,000 animations.</td><td>Rooms with doors and windows; busy, readable people.</td></tr>
+        <tr><th scope="row">Game Dev Tycoon / Startup Company</th><td>2D isometric, fixed</td><td>Front walls not drawn</td><td>Moves to bigger offices</td><td><span class="tag">unconfirmed</span></td><td>You grow from a garage into a real office.</td></tr>
+        <tr><th scope="row">Habbo Hotel</th><td>Pixel-art isometric, fixed</td><td>Two back walls only <span class="tag">unconfirmed</span></td><td>Separate rooms</td><td>Speech bubbles <span class="tag">unconfirmed</span></td><td>Furniture, wallpaper and floor patterns per room.</td></tr>
+        <tr><th scope="row">Kairosoft Game Dev Story</th><td>Fixed pixel office</td><td>Open front</td><td>An upgrade adds 2 seats</td><td>A power meter per person</td><td>Small, cosy and readable on a phone.</td></tr>
+        <tr><th scope="row">Project Highrise · Tiny Tower · Fallout Shelter</th><td>2D side-on cutaway ("ant farm")</td><td>The whole front is open.</td><td>Stacked; you see every floor at once.</td><td>Tiny Tower: a speech bubble shows the floor a newcomer wants.</td><td>Each floor is decorated like a real one of its kind.</td></tr>
+        <tr><th scope="row">Prison Architect (contrast)</th><td>Top-down 2D; PA2 is full 3D</td><td>Seen from above</td><td>One level</td><td>Need balloons</td><td>The look the maintainer moved away from.</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Procedural building references</h3>
+    <ul>
+      <li><b>Townscaper</b> picks modules with Wave Function Collapse on an irregular grid, stencils windows in after placement, and decorates last. Restraint keeps it readable when zoomed out.</li>
+      <li><b>Tiny Glade</b> gives each building element its own generator, and walls re-arrange live (Rust, on a modified Bevy).</li>
+      <li><b>Wave Function Collapse</b> (mxgmn) and Marian Kleineberg's WFC city use modules with socket faces, which suits walls, windows and doors.</li>
+      <li>A small office-plan generator (ThreeMojo; weak source) uses a corridor with bands of rooms and a core, with desks preferring windows and room left for doors to swing.</li>
+    </ul>
+    <h3>Techniques worth borrowing</h3>
+    <ol>
+      <li><b>Cutaway by default:</b> outer walls stay up and the walls between you and the room drop (The Sims).</li>
+      <li><b>One floor at a time</b>, with a floor stepper that hides the floors above (The Sims).</li>
+      <li><b>A stacked side-cutaway</b> to see every floor at once (Project Highrise, Tiny Tower, Fallout Shelter): our Building level.</li>
+      <li><b>Overlay views</b> that tint everything by one question, such as "who needs me?" or "who's near a limit?" (Two Point data views).</li>
+      <li><b>Bubbles that name the thing wanted</b>, not a bare icon (Tiny Tower).</li>
+      <li><b>Simple, stylised shapes</b> that stay readable small (Two Point's claymation, Townscaper's restraint).</li>
+      <li><b>Structure first, decoration second</b>, with windows cut after placement, so clutter never breaks the layout (Townscaper).</li>
+      <li><b>A fixed angle with stepped rotation</b> gives most of the 3D payoff while keeping walls and occlusion simple.</li>
+    </ol></div>
+  </section>
+
+  <section id="means">
+    <div class="eyebrow">03 · what it means for AI Juggler</div>
+    <h2>Camera, generation, floors, cost and accessibility</h2>
+    <div id="means-body">
+    <h3>Three looks compared</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th></th><th>A · Isometric pixel</th><th>B · Real 3D, angled</th><th>C · Cutaway building</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Perspective, as asked</th><td>No: isometric is a parallel projection</td><td><span class="tag yes">Yes</span>, a true perspective camera</td><td>Yes, one-point within each room</td></tr>
+        <tr><th scope="row">Looks like a real office</th><td>Cosy game, like Habbo or Kairosoft</td><td><span class="tag yes">Most</span>: depth, light, shadows, windows, glass rooms</td><td>A storybook building</td></tr>
+        <tr><th scope="row">Windows and doors at the back</th><td>Yes, on two back walls</td><td>Yes, on any wall facing away from the camera</td><td>Yes, on each room's back wall</td></tr>
+        <tr><th scope="row">Many floors</th><td>One at a time</td><td>One at a time, with a Building level</td><td><span class="tag yes">All at once</span></td></tr>
+        <tr><th scope="row">Readable at a distance</th><td>Good (pixel icons)</td><td>Good with screen-space bubbles and labels</td><td>Good per floor; desks get small</td></tr>
+        <tr><th scope="row">Tech</th><td>Canvas 2D, as prototyped</td><td>three.js (WebGL) in the webview, lazy-loaded</td><td>Canvas 2D, or the same 3D scene</td></tr>
+        <tr><th scope="row">Cost while animating</th><td>Lowest: small bitmap, upscaled</td><td>Highest: GPU draws the scene; needs the measures below</td><td>Low</td></tr>
+        <tr><th scope="row">Windows / Linux</th><td>Everywhere</td><td>WebView2 fine. WebKitGTK may fall back to software WebGL, so it needs a 2D fallback.</td><td>Everywhere</td></tr>
+        <tr><th scope="row">Build effort</th><td>Medium</td><td>Highest: 3D scene, people from parts, camera</td><td>Low as an overview</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>Camera options</h3>
+        <ul style="margin:0">
+          <li><b>2.5D isometric sprites</b> (Canvas 2D or PixiJS):
+            <ul>
+              <li>Cheapest, and closest to what we already have.</li>
+              <li>Sprites must be drawn per facing direction.</li>
+              <li>No real perspective.</li>
+            </ul></li>
+          <li><b>3D in the webview</b> (three.js on WebGL):
+            <ul>
+              <li>Real perspective, lighting and shadows.</li>
+              <li>Procedural geometry is trivial: rooms are boxes.</li>
+              <li>About 170 KB gzipped, loaded only with the page.</li>
+              <li>Works in WKWebView and WebView2.</li>
+              <li>WebKitGTK can silently run WebGL in software, and Tauri's own docs advise a non-WebGL fallback.</li>
+            </ul></li>
+          <li><b>Native</b> (wgpu or Bevy): ruled out in the first round. Embedding a native view in the Tauri window is fragile, doesn't work on Wayland, and adds 30–50 MB.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Generating the building</h3>
+        <ul style="margin:0">
+          <li><b>Floor plan:</b> the stable bay grid from the first prototype carries over unchanged. A session keeps its desk, an App grows by annex bays, and a full floor opens the next.</li>
+          <li><b>Shell:</b>
+            <ul>
+              <li>A rectangle with a core (elevator, stairs) on one wall.</li>
+              <li>Reserved rooms against the back and side walls: meeting rooms for pools, the server room for This Mac, a kitchen, an archive and your office.</li>
+            </ul></li>
+          <li><b>Walls:</b>
+            <ul>
+              <li>Windows are placed on a rhythm, skipping wherever a room, board or door sits.</li>
+              <li>Doors go where rooms meet the open floor and on the core.</li>
+              <li>Whiteboards, corkboards and clocks fill the gaps between windows.</li>
+            </ul></li>
+          <li><b>Outside:</b> a seeded skyline outside the windows, which follows day and evening with the theme.</li>
+          <li><b>People:</b> built from parts once and cached, as before, now as a few low-poly boxes and spheres posed rigidly (typing, waving, asleep). No skeletal animation is needed.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Zoom levels in B</h3>
+        <ul style="margin:0">
+          <li><b>Building:</b> C's cutaway with every floor stacked, each showing a needs-you count and its Apps. Click a floor to go in.</li>
+          <li><b>Floor:</b> the angled view of one floor, with zone labels, badges over desks and fixed-size bubbles. Turn in four steps; the walls facing you drop automatically.</li>
+          <li><b>Desk:</b> the camera dollies to a desk. The monitor's tasks and subagents show as a crisp HTML card beside it.</li>
+          <li><b>Who needs you:</b> a toggle in the style of Two Point's data views. It tints every desk by state and dims the rest.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Cost: what B must do to stay in budget</h3>
+        <ul style="margin:0">
+          <li><b>At rest:</b> 0 frames. Render only on change (three.js's render-on-demand pattern), and never while hidden, scrolled away, or with Motion off.</li>
+          <li><b>Animating:</b> people move at about 8 fps, rendered at a lower internal resolution (pixel ratio 1) and sharpened to full resolution once things settle. The first prototype showed the cost is pixels per frame, not scene size.</li>
+          <li><b>Shadows</b> are drawn once and refreshed only when furniture changes (<code>shadowMap.autoUpdate = false</code>).</li>
+          <li><b>InstancedMesh</b> for desks, chairs, monitors and plants: about 570 draw calls drop to roughly 30.</li>
+          <li><b>Measured here:</b> a full frame of mock B takes about 2 ms on the CPU with 570 meshes and no instancing (browser pane, Apple silicon). GPU time and CPU while animating are not measured yet; that is the first thing the B prototype measures.</li>
+          <li><b>Budget, unchanged:</b> zero at rest, under 3 percentage points of a core while animating, proved in the real app (the Floor's budget task).</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Accessibility</h3>
+        <ul style="margin:0">
+          <li>The list view, keyboard paths, Needs-you list and polite announcements from the first round all carry over unchanged.</li>
+          <li>Reduced motion means no camera flights (cuts instead), no idle animation and still poses.</li>
+          <li>Rotation comes in steps, never free spinning, which is kinder to vestibular sensitivity.</li>
+          <li>Never colour alone: every state is a pose, a glyph and a word.</li>
+          <li>Red alert stays a steady tint with no flashing (WCAG 2.3.1).</li>
+          <li>The canvas is a picture, with the same facts in HTML beside it.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>What carries over from the first round</h3>
+        <ul style="margin:0">
+          <li>The data map: which state, prop or room means what.</li>
+          <li>The stable layout and multi-floor rules.</li>
+          <li>People from parts, cached.</li>
+          <li>Re-create in Settings.</li>
+          <li>The list view.</li>
+          <li>The cost lessons: draw on demand, and pay for pixels, not objects.</li>
+          <li>The measuring script, and the 2D renderer as the Linux fallback.</li>
+        </ul>
+        <p style="margin:8px 0 0">Only the camera and the drawing change.</p>
+      </div>
+    </div></div>
+  </section>
+
+  <section id="sources">
+    <div class="eyebrow">04 · sources</div>
+    <h2>Links</h2>
+    <div id="sources-body">
+    <ul class="refs">
+      <li><b>Store pages (screenshots there):</b> <a href="https://store.steampowered.com/app/535930/Two_Point_Hospital/">Two Point Hospital</a>, <a href="https://store.steampowered.com/app/1649080/Two_Point_Campus/">Two Point Campus</a>, <a href="https://store.steampowered.com/app/362620/Software_Inc/">Software Inc.</a>, <a href="https://store.steampowered.com/app/1342330/Mad_Games_Tycoon_2/">Mad Games Tycoon 2</a>, <a href="https://store.steampowered.com/app/239820/Game_Dev_Tycoon/">Game Dev Tycoon</a>, <a href="https://store.steampowered.com/app/606800/Startup_Company/">Startup Company</a>, <a href="https://store.steampowered.com/app/423580/Project_Highrise/">Project Highrise</a>, <a href="https://store.steampowered.com/app/588430/Fallout_Shelter/">Fallout Shelter</a>, <a href="https://store.steampowered.com/app/233450/Prison_Architect/">Prison Architect</a>, <a href="https://apps.apple.com/app/id1557657042">Game Dev Story+</a>.</li>
+      <li><b>Background:</b> <a href="https://en.wikipedia.org/wiki/Two_Point_Hospital">Two Point Hospital</a>, <a href="https://en.wikipedia.org/wiki/Theme_Hospital">Theme Hospital</a> and <a href="https://github.com/CorsixTH/CorsixTH">CorsixTH</a>, <a href="https://en.wikipedia.org/wiki/The_Sims_(video_game)">The Sims</a> with its <a href="https://forums.ea.com/discussions/the-sims-4-gameplay-en/how-do-i-switch-between-wall-views/8663011">wall views (EA forum)</a>, <a href="https://softwareinc.coredumping.com/about/">Software Inc. about</a>, <a href="https://en.wikipedia.org/wiki/Game_Dev_Tycoon">Game Dev Tycoon</a>, <a href="https://en.wikipedia.org/wiki/Project_Highrise">Project Highrise</a>, <a href="https://kairosoft.wiki.gg/wiki/Game_Dev_Story">Game Dev Story</a>, <a href="https://en.wikipedia.org/wiki/Habbo">Habbo</a>, <a href="https://en.wikipedia.org/wiki/Fallout_Shelter">Fallout Shelter</a>, <a href="https://en.wikipedia.org/wiki/Tiny_Tower">Tiny Tower</a>, <a href="https://en.wikipedia.org/wiki/Prison_Architect">Prison Architect</a>.</li>
+      <li><b>Procedural:</b> <a href="https://www.gamedeveloper.com/game-platforms/how-townscaper-works-a-story-four-games-in-the-making">How Townscaper works</a>, <a href="https://80.lv/articles/exclusive-tiny-glade-developers-discuss-bevy-proceduralism-publishers-cozy-games/">Tiny Glade's proceduralism</a>, <a href="https://github.com/mxgmn/WaveFunctionCollapse">Wave Function Collapse</a>, <a href="https://marian42.de/article/wfc/">infinite WFC city</a>, <a href="https://github.com/SethKitchen/ThreeMojo/wiki/Floor-plans-and-interiors">office floor-plan sketch (weak source)</a>.</li>
+      <li><b>Rendering:</b> <a href="https://threejs.org/docs/pages/OrthographicCamera.html">three.js OrthographicCamera</a>, <a href="https://threejs.org/docs/pages/InstancedMesh.html">InstancedMesh</a>, <a href="https://threejs.org/manual/en/rendering-on-demand.html">rendering on demand</a>, <a href="https://v2.tauri.app/develop/debug/linux-graphics/">Tauri: Linux graphics and WebGL fallback</a>, <a href="https://webkit.org/blog/16993/news-from-wwdc25-web-technology-coming-this-fall-in-safari-26-beta/">WebKit: WebGPU in Safari 26</a>.</li>
+      <li><b>First round:</b> <a href="https://claude.ai/artifact/RNRxWc6bbPs6nrkCsKM6U5">the four concepts</a> and the <a href="https://claude.ai/artifact/A4Xbf2nmUnxAtScSFE97zU">top-down prototype</a>, now stopped. Its engine draws people for mock A and is the 2D fallback.</li>
+      <li>The mocks on this page are drawn by our own code; no game art is used or copied.</li>
+    </ul></div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="office-engine.js"></script>
+<script src="angled-mocks.js"></script>
+<script>
+(function () {
+  'use strict';
+  const M = window.AngledMocks;
+  let night = false, b = null;
+  function drawAll() {
+    M.mockA(document.getElementById('mockA'), { night });
+    M.mockC(document.getElementById('mockC'), { night });
+    const cb = document.getElementById('mockB');
+    if (!window.THREE) { document.getElementById('b-stat').textContent = 'three.js did not load, so mock B is not shown.'; return; }
+    const keep = b ? { az: b.view.az, el: b.view.el, dist: b.view.dist } : {};
+    if (b) b.renderer.dispose();
+    b = M.mockB(cb, Object.assign({ night }, keep));
+    renderB();
+  }
+  function renderB() {
+    if (!b) return;
+    const s = b.frame();
+    document.getElementById('b-stat').textContent = `frame ${s.ms.toFixed(1)} ms (CPU side) · ${s.calls} draw calls · ${Math.round(s.triangles / 1000)}k triangles · ${s.meshes} meshes`;
+  }
+  ['az', 'el', 'dist'].forEach(k => document.getElementById('b-' + k).addEventListener('input', e => { if (!b) return; b.view[k] = +e.target.value; requestAnimationFrame(renderB); }));
+  document.querySelectorAll('[data-light]').forEach(btn => btn.onclick = () => {
+    night = btn.dataset.light === 'night';
+    document.querySelectorAll('[data-light]').forEach(x => x.setAttribute('aria-pressed', x === btn));
+    drawAll();
+  });
+  let rt = 0;
+  new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { M.mockC(document.getElementById('mockC'), { night }); renderB(); }, 120); }).observe(document.querySelector('.wrap'));
+  drawAll();
+})();
+</script>
