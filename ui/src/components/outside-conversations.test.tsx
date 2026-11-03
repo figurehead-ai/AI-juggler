@@ -150,7 +150,7 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     cleanup();
     render(withFixture([], <ConversationRow conversation={conversation("w", { live: true, state: "working" })} selected={false} density="comfortable" now={NOW} onOpen={() => {}} />, host));
     expect(screen.getByTestId("row-go-to").className).toMatch(/opacity-0 .*group-hover:opacity-100/);
-    expect(screen.getByTestId("row-go-to").className).toContain("group-focus-within:opacity-100");
+    expect(screen.getByTestId("row-go-to").className).toContain("group-has-[:focus-visible]:opacity-100");
   });
 
   it("states read in E21's words, the rail's own (AJ-E2104 Req.3)", () => {
