@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use super::*;
 use crate::last_turns::{Back, scan_back};
-use crate::transcript_tail::{TailLog as _, TranscriptTail, cut_lines};
+use crate::transcript_tail::{LineHold, TailLog as _, TranscriptTail, cut_lines};
 
 const AT: &str = "2026-10-24T10:00:00Z";
 
@@ -336,29 +336,16 @@ fn a_line_longer_than_the_bound_is_passed_over_counted_and_what_follows_reads() 
 
 #[test]
 fn the_held_part_of_a_line_never_passes_the_bound() {
-    let mut partial = Vec::new();
-    let mut skipping = None;
+    let mut hold = LineHold::default();
     let mut log = TurnLog::new(Lines::Session);
     let chunk = vec![b'x'; 1024 * 1024];
     for n in 0..20u64 {
-        cut_lines(
-            &mut partial,
-            &mut skipping,
-            &mut log,
-            &chunk,
-            n * 1024 * 1024,
-        );
-        assert!(partial.len() <= LINE_HOLD_MAX);
+        cut_lines(&mut hold, &mut log, &chunk, n * 1024 * 1024);
+        assert!(hold.held() <= LINE_HOLD_MAX);
     }
-    assert_eq!(skipping, Some(0));
+    assert_eq!(hold.skipping(), Some(0));
     let line = format!("\n{}\n", text("user", "next"));
-    cut_lines(
-        &mut partial,
-        &mut skipping,
-        &mut log,
-        line.as_bytes(),
-        20 * 1024 * 1024,
-    );
+    cut_lines(&mut hold, &mut log, line.as_bytes(), 20 * 1024 * 1024);
     assert_eq!(log.skipped(), 1);
     assert_eq!(log.turns().len(), 1);
     assert_eq!(
@@ -418,8 +405,7 @@ fn mixed_codex() -> Vec<String> {
 /// Feeds `bytes` in chunks of the sizes `sizes` cycles through.
 fn chunked(bytes: &[u8], seed: u64) -> TurnLog {
     let mut log = TurnLog::new(Lines::Session);
-    let mut partial = Vec::new();
-    let mut skipping = None;
+    let mut hold = LineHold::default();
     let mut state = seed;
     let mut at = 0;
     while at < bytes.len() {
@@ -434,13 +420,7 @@ fn chunked(bytes: &[u8], seed: u64) -> TurnLog {
             size
         };
         let end = (at + size).min(bytes.len());
-        cut_lines(
-            &mut partial,
-            &mut skipping,
-            &mut log,
-            &bytes[at..end],
-            at as u64,
-        );
+        cut_lines(&mut hold, &mut log, &bytes[at..end], at as u64);
         at = end;
     }
     log
@@ -619,4 +599,438 @@ fn a_scrubbing_log_keeps_only_redacted_words_and_counts_them() {
     assert_eq!(step.input.command.as_deref(), Some("curl -H •••"));
     assert_eq!(step.input.description.as_deref(), Some("Call it with •••"));
     assert_eq!(log.turns()[1].redacted, 3);
+}
+
+// A pasted image's base64 (inline data) is left out of a line as it is
+// held: the message shows, its offsets the file's own.
+
+const BIG: usize = 12 * 1024 * 1024;
+
+/// `size` bytes of base64, `/` and `+` among them.
+fn base64_of(size: usize) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    (0..size)
+        .map(|n| char::from(ALPHABET[(n * 7 + n / 64) % 64]))
+        .collect()
+}
+
+fn image_part(size: usize) -> serde_json::Value {
+    serde_json::json!({"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": base64_of(size)}})
+}
+
+/// A message of yours: `words` and a pasted image of `size` base64 bytes;
+/// with `escaped`, every `/` written `\/` (as some writers do).
+fn with_image(words: &str, size: usize, escaped: bool) -> String {
+    let line = serde_json::json!({
+        "type": "user", "timestamp": AT,
+        "message": {"role": "user", "content": [{"type": "text", "text": words}, image_part(size)]},
+    })
+    .to_string();
+    if escaped {
+        line.replace('/', "\\/")
+    } else {
+        line
+    }
+}
+
+/// The result of call `n`: a screenshot of `size` base64 bytes.
+fn result_with_image(n: usize, size: usize) -> String {
+    serde_json::json!({
+        "type": "user", "timestamp": AT,
+        "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": format!("t{n}"), "content": [{"type": "text", "text": "shot"}, image_part(size)]}]},
+    })
+    .to_string()
+}
+
+fn codex_with_image(words: &str, size: usize) -> String {
+    serde_json::json!({
+        "timestamp": AT, "type": "response_item",
+        "payload": {"type": "message", "role": "user", "content": [
+            {"type": "input_text", "text": words},
+            {"type": "input_image", "image_url": format!("data:image/png;base64,{}", base64_of(size))},
+        ]},
+    })
+    .to_string()
+}
+
+/// Where each of `lines` starts, and where the last ends.
+fn offsets(lines: &[String]) -> Vec<u64> {
+    let mut at = vec![0];
+    for line in lines {
+        at.push(at.last().unwrap() + line.len() as u64 + 1);
+    }
+    at
+}
+
+/// Every line as a log that leaves out inline data is handed it: where
+/// it starts and ends, and its bytes.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct Kept {
+    lines: Vec<(u64, u64, String)>,
+    skipped: Vec<u64>,
+}
+
+impl crate::transcript_tail::TailLog for Kept {
+    const LINE_MAX: usize = LINE_HOLD_MAX;
+    const DROP_INLINE_DATA: bool = true;
+
+    fn feed(&mut self, _bytes: &[u8]) {
+        unreachable!("a tail says where lines start");
+    }
+
+    fn feed_at(&mut self, bytes: &[u8], base: u64) {
+        let mut at = base;
+        for line in bytes
+            .strip_suffix(b"\n")
+            .unwrap_or(bytes)
+            .split(|b| *b == b'\n')
+        {
+            let end = at + line.len() as u64 + 1;
+            self.lines
+                .push((at, end, String::from_utf8(line.to_vec()).unwrap()));
+            at = end;
+        }
+    }
+
+    fn feed_line(&mut self, at: u64, end: u64, bytes: &[u8]) {
+        let line = bytes.strip_suffix(b"\n").unwrap();
+        self.lines
+            .push((at, end, String::from_utf8(line.to_vec()).unwrap()));
+    }
+
+    fn skipped_line(&mut self, at: u64) {
+        self.skipped.push(at);
+    }
+}
+
+fn cut_whole<L: crate::transcript_tail::TailLog>(bytes: &[u8]) -> L {
+    let mut log = L::default();
+    cut_lines(&mut LineHold::default(), &mut log, bytes, 0);
+    log
+}
+
+/// The image parts of a Claude line's message (and of its results).
+fn image_sources(line: &str) -> Vec<serde_json::Value> {
+    let value: serde_json::Value = serde_json::from_str(line).unwrap();
+    let mut found = Vec::new();
+    let mut parts: Vec<&serde_json::Value> = value["message"]["content"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .collect();
+    while let Some(part) = parts.pop() {
+        if part["type"] == "image" {
+            found.push(part["source"].clone());
+        }
+        if let Some(inner) = part["content"].as_array() {
+            parts.extend(inner);
+        }
+    }
+    found
+}
+
+#[test]
+fn a_message_long_only_for_its_image_shows_with_its_words_and_calls() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("s.jsonl");
+    let lines = vec![
+        text("assistant", "hello"),
+        with_image("look at this", BIG, false),
+        tool_use(1),
+        result_with_image(1, BIG),
+        text("assistant", "after"),
+    ];
+    std::fs::write(&path, lines.join("\n") + "\n").unwrap();
+    let at = offsets(&lines);
+    // Read 16 MiB at a time: the first image whole in a read, the second
+    // across two.
+    let mut tail = TranscriptTail::<TurnLog>::default();
+    tail.read_all(&path).unwrap();
+    let log = tail.log();
+    assert_eq!(log.skipped(), 0);
+    assert_eq!(log.turns().len(), 3);
+    let yours = &log.turns()[1];
+    assert_eq!(yours.speaker, Speaker::You);
+    assert_eq!(yours.text(), "look at this");
+    assert_eq!((yours.offset, yours.end), (at[1], at[2]));
+    let reply = &log.turns()[2];
+    assert_eq!((reply.offset, reply.end), (at[2], at[5]));
+    assert_eq!(reply.text(), "after");
+    let Block::Steps(run) = &reply.blocks[0] else {
+        unreachable!("a run")
+    };
+    assert_eq!(run.steps[0].call_id.as_deref(), Some("t1"));
+    assert_eq!(
+        run.steps[0].result,
+        Some(StepResult {
+            failed: false,
+            kind: None
+        }),
+        "the result with a screenshot was read"
+    );
+    assert_eq!(tail.offset(), at[5]);
+    assert_eq!(tail.rewound().offset(), at[5]);
+
+    // What the log is handed: each image part still there, still
+    // counted, its bytes left out; the offsets the file's.
+    let kept: Kept = cut_whole(&std::fs::read(&path).unwrap());
+    assert!(kept.skipped.is_empty());
+    let spans: Vec<(u64, u64)> = kept.lines.iter().map(|(a, e, _)| (*a, *e)).collect();
+    assert_eq!(
+        spans,
+        at.windows(2).map(|w| (w[0], w[1])).collect::<Vec<_>>()
+    );
+    for n in [1, 3] {
+        let line = &kept.lines[n].2;
+        assert!(line.len() < 1024, "line {n} kept {} bytes", line.len());
+        assert_eq!(
+            image_sources(line),
+            vec![serde_json::json!({"type": "base64", "media_type": "image/png", "data": ""})]
+        );
+    }
+    // A small image is kept as it is.
+    let small = with_image("small", 1_000, false);
+    let kept: Kept = cut_whole(format!("{small}\n").as_bytes());
+    assert_eq!(kept.lines[0].2, small);
+}
+
+#[test]
+fn the_backward_reader_shows_the_image_message_the_same() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("s.jsonl");
+    let lines = vec![
+        text("user", "q"),
+        text("assistant", "hello"),
+        with_image("look at this", BIG, true),
+        text("assistant", "after"),
+    ];
+    std::fs::write(&path, lines.join("\n") + "\n").unwrap();
+    let at = offsets(&lines);
+    let mut forward = TranscriptTail::<TurnLog>::default();
+    forward.read_all(&path).unwrap();
+    let mut forward = forward.log().clone();
+    forward.settle();
+    let Back::Page(page) = scan_back(&path, None, 30, &TurnLog::new(Lines::Session)).unwrap()
+    else {
+        unreachable!("plain")
+    };
+    assert_eq!(page.log.skipped(), 0);
+    assert_eq!(page.log.turns(), forward.turns());
+    assert_eq!(page.end, at[4]);
+    assert_eq!(page.log.turns()[2].text(), "look at this");
+    assert_eq!(page.log.turns()[2].offset, at[2]);
+    // "Show earlier" from the reply after it.
+    let Back::Page(earlier) =
+        scan_back(&path, Some(at[3]), 1, &TurnLog::new(Lines::Session)).unwrap()
+    else {
+        unreachable!("plain")
+    };
+    assert_eq!(earlier.log.turns().len(), 1);
+    assert_eq!(earlier.log.turns()[0].text(), "look at this");
+    assert_eq!(
+        (earlier.log.turns()[0].offset, earlier.log.turns()[0].end),
+        (at[2], at[3])
+    );
+}
+
+#[test]
+fn an_image_line_reads_the_same_at_any_chunk_boundary() {
+    let lines = vec![
+        text("user", "q"),
+        with_image("look at this", BIG, true),
+        tool_use(1),
+        result_with_image(1, 200_000),
+        text("assistant", "after"),
+    ];
+    let bytes = (lines.join("\n") + "\n").into_bytes();
+    let at = offsets(&lines);
+    let whole: TurnLog = cut_whole(&bytes);
+    assert_eq!(whole.skipped(), 0);
+    assert_eq!(whole.turns()[0].text(), "q\n\nlook at this");
+    assert_eq!(whole.turns()[1].offset, at[2]);
+    for seed in 1..=3 {
+        let parts = chunked(&bytes, seed);
+        assert_eq!(parts.skipped(), 0);
+        assert_eq!(parts.turns(), whole.turns(), "seed {seed}");
+    }
+    // Read a MiB at a time, what is held of the image line stays small:
+    // its bytes are never held.
+    let mut hold = LineHold::default();
+    let mut log = TurnLog::new(Lines::Session);
+    for (n, chunk) in bytes.chunks(1024 * 1024).enumerate() {
+        cut_lines(&mut hold, &mut log, chunk, (n * 1024 * 1024) as u64);
+        assert!(hold.held() <= crate::inline_data::KEEP_MAX + 1024);
+    }
+    assert_eq!(log.turns(), whole.turns());
+}
+
+#[test]
+fn an_image_split_inside_a_key_an_escape_or_at_the_bound_reads_the_same() {
+    let line = with_image("look", 100_000, true);
+    let bytes = format!("{line}\n").into_bytes();
+    let whole: Kept = cut_whole(&bytes);
+    assert_eq!(whole.lines.len(), 1);
+    assert_eq!(
+        (whole.lines[0].0, whole.lines[0].1),
+        (0, bytes.len() as u64)
+    );
+    assert_eq!(image_sources(&whole.lines[0].2)[0]["data"], "");
+    let key = line.find("\"data\":\"").unwrap();
+    let content = key + 8;
+    let bound = content + crate::inline_data::KEEP_MAX;
+    let escape = bound + line[bound..].find("\\/").unwrap();
+    let end = content + line[content..].find('"').unwrap();
+    let mut splits: Vec<usize> = Vec::new();
+    for (from, to) in [
+        (key - 4, content + 8),
+        (bound - 12, bound + 12),
+        (escape - 3, escape + 4),
+        (end - 4, end + 4),
+    ] {
+        splits.extend(from..to);
+    }
+    for split in splits {
+        let mut hold = LineHold::default();
+        let mut log = Kept::default();
+        cut_lines(&mut hold, &mut log, &bytes[..split], 0);
+        cut_lines(&mut hold, &mut log, &bytes[split..], split as u64);
+        assert_eq!(log, whole, "split at {split}");
+    }
+    // A byte at a time through the escapes around the bound.
+    let mut hold = LineHold::default();
+    let mut log = Kept::default();
+    cut_lines(&mut hold, &mut log, &bytes[..bound - 100], 0);
+    for at in bound - 100..bound + 100 {
+        cut_lines(&mut hold, &mut log, &bytes[at..=at], at as u64);
+    }
+    cut_lines(
+        &mut hold,
+        &mut log,
+        &bytes[bound + 100..],
+        (bound + 100) as u64,
+    );
+    assert_eq!(log, whole);
+}
+
+#[test]
+fn a_codex_image_keeps_its_data_url_header() {
+    let lines = vec![
+        serde_json::json!({"timestamp": AT, "type": "turn_context", "payload": {"model": "gpt-5"}})
+            .to_string(),
+        codex_with_image("look at this", BIG),
+        serde_json::json!({"timestamp": AT, "type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "a cat"}]}})
+            .to_string(),
+    ];
+    let bytes = (lines.join("\n") + "\n").into_bytes();
+    let at = offsets(&lines);
+    let kept: Kept = cut_whole(&bytes);
+    let value: serde_json::Value = serde_json::from_str(&kept.lines[1].2).unwrap();
+    assert_eq!(
+        value["payload"]["content"][1],
+        serde_json::json!({"type": "input_image", "image_url": "data:image/png;base64,"})
+    );
+    let log = chunked(&bytes, 7);
+    assert_eq!(log.skipped(), 0);
+    let shown: Vec<(u64, String)> = log
+        .turns()
+        .iter()
+        .map(|turn| (turn.offset, turn.text()))
+        .collect();
+    assert_eq!(
+        shown,
+        vec![
+            (at[1], "look at this".to_owned()),
+            (at[2], "a cat".to_owned())
+        ]
+    );
+}
+
+#[test]
+fn a_line_long_for_other_reasons_is_still_passed_over() {
+    let size = LINE_HOLD_MAX + 1024;
+    let lines = vec![
+        text("user", "q"),
+        // Long words.
+        text("assistant", &"w".repeat(size)),
+        // Base64 that is someone's words, not an image's data.
+        text("user", &base64_of(size)),
+        // A `data` value that isn't base64.
+        serde_json::json!({"type": "user", "data": "some words ".repeat(size / 11 + 1)})
+            .to_string(),
+        text("assistant", "after"),
+    ];
+    let bytes = (lines.join("\n") + "\n").into_bytes();
+    let at = offsets(&lines);
+    let kept: Kept = cut_whole(&bytes);
+    assert_eq!(kept.skipped, vec![at[1], at[2], at[3]]);
+    for log in [cut_whole::<TurnLog>(&bytes), chunked(&bytes, 5)] {
+        assert_eq!(log.skipped(), 3);
+        let shown: Vec<(u64, String)> = log
+            .turns()
+            .iter()
+            .map(|turn| (turn.offset, turn.text()))
+            .collect();
+        assert_eq!(
+            shown,
+            vec![(at[0], "q".to_owned()), (at[4], "after".to_owned())]
+        );
+    }
+}
+
+#[test]
+fn a_save_mid_image_holds_no_part_of_it_and_a_restore_reads_it_whole() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("s.jsonl");
+    let lines = vec![
+        text("user", "q"),
+        with_image("look at this", BIG, true),
+        text("assistant", "after"),
+    ];
+    let bytes = (lines.join("\n") + "\n").into_bytes();
+    std::fs::write(&path, &bytes).unwrap();
+    let at = offsets(&lines);
+    let mut straight = TranscriptTail::<Kept>::default();
+    straight.read_all(&path).unwrap();
+    // Stopped right after a `\` deep in the image's data.
+    let line = &lines[1];
+    let content = line.find("\"data\":\"").unwrap() + 8;
+    let escape = content + 5_000_000 + line[content + 5_000_000..].find("\\/").unwrap();
+    let stop = at[1] + escape as u64 + 1;
+    let mut tail = TranscriptTail::<Kept>::default();
+    tail.read_up_to(&path, stop).unwrap();
+    assert_eq!(tail.offset(), stop);
+    // A save: back to the image line's start, nothing of it held, in
+    // the names a save always had.
+    let saved = serde_json::to_value(tail.rewound()).unwrap();
+    assert_eq!(saved["offset"], at[1]);
+    assert_eq!(saved["partial"], serde_json::json!([]));
+    assert_eq!(saved["skipping"], serde_json::Value::Null);
+    let mut restored: TranscriptTail<Kept> = serde_json::from_value(saved).unwrap();
+    restored.read_all(&path).unwrap();
+    assert_eq!(restored.log(), straight.log());
+    // Even a tail kept mid-line (not a save) goes on where it was.
+    let copy = serde_json::to_vec(&tail).unwrap();
+    assert!(copy.len() < 2 * crate::inline_data::KEEP_MAX);
+    let mut copy: TranscriptTail<Kept> = serde_json::from_slice(&copy).unwrap();
+    copy.read_all(&path).unwrap();
+    assert_eq!(copy.log(), straight.log());
+    // The feed's own tail, rewound mid-line, reads the message once.
+    let mut feed = TranscriptTail::<TurnLog>::default();
+    feed.read_up_to(&path, stop).unwrap();
+    let mut again = feed.rewound();
+    assert_eq!(again.offset(), at[1]);
+    again.read_all(&path).unwrap();
+    let shown: Vec<(u64, String)> = again
+        .log()
+        .turns()
+        .iter()
+        .map(|turn| (turn.offset, turn.text()))
+        .collect();
+    assert_eq!(
+        shown,
+        vec![
+            (at[0], "q\n\nlook at this".to_owned()),
+            (at[2], "after".to_owned())
+        ]
+    );
 }

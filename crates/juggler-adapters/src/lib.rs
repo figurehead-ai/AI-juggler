@@ -61,6 +61,7 @@ pub mod grok_inventory;
 pub mod grok_sessions;
 pub mod grok_subagents;
 pub mod inference;
+mod inline_data;
 pub mod inventory_files;
 pub mod kimi_code;
 pub mod kimi_environment;

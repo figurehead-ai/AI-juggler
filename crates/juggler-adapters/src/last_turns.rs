@@ -28,7 +28,7 @@ use std::path::Path;
 
 use crate::conversation_feed::TurnLog;
 use crate::transcript::is_compressed;
-use crate::transcript_tail::{cut_lines, file_identity};
+use crate::transcript_tail::{LineHold, cut_lines, file_identity};
 
 /// The windows tried in turn, back from where a page ends.
 pub const WINDOWS: [u64; 4] = [256 * 1024, 1024 * 1024, 4 * 1024 * 1024, MAX_WINDOW];
@@ -202,18 +202,17 @@ fn feed_range(
     file.seek(SeekFrom::Start(from))?;
     let mut reader = (&*file).take(to.saturating_sub(from));
     let mut buffer = vec![0u8; CHUNK];
-    let mut partial = Vec::new();
-    let mut skipping = None;
+    let mut hold = LineHold::default();
     let mut at = from;
     loop {
         let got = reader.read(&mut buffer)?;
         if got == 0 {
             break;
         }
-        cut_lines(&mut partial, &mut skipping, log, &buffer[..got], at);
+        cut_lines(&mut hold, log, &buffer[..got], at);
         at += got as u64;
     }
-    Ok(skipping.unwrap_or(at - partial.len() as u64))
+    Ok(hold.start(at).unwrap_or(at))
 }
 
 /// The file's length and change time, in one string: equal stamps, an

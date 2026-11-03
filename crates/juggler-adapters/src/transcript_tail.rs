@@ -12,10 +12,16 @@
 //! A line still being written is held at most [`TailLog::LINE_MAX`]
 //! bytes: past that the rest of it is passed over up to its end and the
 //! log hears it was skipped ([`TailLog::skipped_line`]), so one huge line
-//! (a tool's output, an image) never holds more memory than that.
+//! (a tool's output) never holds more memory than that. A log that asks
+//! ([`TailLog::DROP_INLINE_DATA`], the conversation feed) has inline
+//! binary data (a pasted image's base64, [`crate::inline_data`]) left
+//! out of a line as it is held: a message long only because of its
+//! image is read, its offsets the file's own ([`TailLog::feed_line`]).
 
 use std::io::{Read as _, Seek as _, SeekFrom};
 use std::path::Path;
+
+use crate::inline_data::{self, Held, InlineData};
 
 /// The most bytes one [`TranscriptTail::read`] takes in.
 pub const READ_PER_CALL: u64 = 16 * 1024 * 1024;
@@ -41,6 +47,23 @@ pub trait TailLog: Default {
     fn skipped_line(&mut self, at: u64) {
         let _ = at;
     }
+
+    /// Whether inline binary data (a pasted image's base64) is left out
+    /// of the lines this log reads ([`crate::inline_data`]): a line long
+    /// only because of it is read, not passed over. Such a line comes
+    /// through [`Self::feed_line`], since it has fewer bytes than it
+    /// spans in the file.
+    const DROP_INLINE_DATA: bool = false;
+
+    /// One whole line `bytes` (ending in its `\n`) that starts at `at`
+    /// and ends at `end` in the file: a line held across reads, or one
+    /// with its inline data left out ([`Self::DROP_INLINE_DATA`]), whose
+    /// bytes may be fewer than it spans. A log that keeps only where
+    /// lines start reads it as [`Self::feed_at`] does.
+    fn feed_line(&mut self, at: u64, end: u64, bytes: &[u8]) {
+        let _ = end;
+        self.feed_at(bytes, at);
+    }
 }
 
 /// A transcript read so far, into `L`. Saved and restored (AJ-E1520,
@@ -50,13 +73,12 @@ pub trait TailLog: Default {
 pub struct TranscriptTail<L> {
     log: L,
     offset: u64,
-    partial: Vec<u8>,
+    /// The line still being written (saved under the names it always
+    /// had: `partial`, `skipping`).
+    #[serde(flatten)]
+    hold: LineHold,
     /// The file read so far (inode), to tell a replaced file.
     file: Option<u64>,
-    /// Where a line too long to hold started: the rest of it, up to its
-    /// end, is passed over.
-    #[serde(default)]
-    skipping: Option<u64>,
 }
 
 impl<L: TailLog> TranscriptTail<L> {
@@ -100,13 +122,7 @@ impl<L: TailLog> TranscriptTail<L> {
     /// The bytes `chunk`, which start at `start` in the file: whole lines
     /// to the log, the line still being written held (bounded).
     fn take_in(&mut self, chunk: &[u8], start: u64) {
-        cut_lines(
-            &mut self.partial,
-            &mut self.skipping,
-            &mut self.log,
-            chunk,
-            start,
-        );
+        cut_lines(&mut self.hold, &mut self.log, chunk, start);
     }
 
     /// A tail of `log` that has read `path` up to `offset` (the end of a
@@ -118,9 +134,8 @@ impl<L: TailLog> TranscriptTail<L> {
         Self {
             log,
             offset,
-            partial: Vec::new(),
+            hold: LineHold::default(),
             file,
-            skipping: None,
         }
     }
 
@@ -166,12 +181,9 @@ impl<L: TailLog> TranscriptTail<L> {
     {
         Self {
             log: self.log.clone(),
-            offset: self
-                .skipping
-                .unwrap_or_else(|| self.offset.saturating_sub(self.partial.len() as u64)),
-            partial: Vec::new(),
+            offset: self.hold.start(self.offset).unwrap_or(self.offset),
+            hold: LineHold::default(),
             file: self.file,
-            skipping: None,
         }
     }
 
@@ -216,51 +228,163 @@ impl<L: TailLog> TranscriptTail<L> {
     }
 }
 
+/// What a reader holds of a line still being written: its bytes so far
+/// (inline data left out when the log asks), where it starts, or where a
+/// line too long to hold started.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub(crate) struct LineHold {
+    /// The held line's bytes so far.
+    #[serde(default)]
+    partial: Vec<u8>,
+    /// Where the held line starts in the file: its bytes may be fewer
+    /// than it spans ([`TailLog::DROP_INLINE_DATA`]).
+    #[serde(default)]
+    partial_at: Option<u64>,
+    /// Where a line too long to hold started: the rest of it, up to its
+    /// end, is passed over.
+    #[serde(default)]
+    skipping: Option<u64>,
+    /// Where reading the held line is ([`InlineData`]).
+    #[serde(default)]
+    data: InlineData,
+}
+
+impl LineHold {
+    /// Where the line still being written starts, when there is one;
+    /// `read_to` is where the bytes read so far end (a hold an earlier
+    /// version saved kept no start: its bytes were the line's, all of
+    /// them).
+    pub(crate) fn start(&self, read_to: u64) -> Option<u64> {
+        self.skipping.or(self.partial_at).or_else(|| {
+            (!self.partial.is_empty()).then(|| read_to.saturating_sub(self.partial.len() as u64))
+        })
+    }
+
+    /// How many bytes of a line it holds.
+    #[cfg(test)]
+    pub(crate) fn held(&self) -> usize {
+        self.partial.len()
+    }
+
+    /// Where the line it passes over started, while it does.
+    #[cfg(test)]
+    pub(crate) fn skipping(&self) -> Option<u64> {
+        self.skipping
+    }
+
+    /// Takes in `bytes`, the next of the held line's (inline data left
+    /// out when `L` asks); false when that would pass [`TailLog::LINE_MAX`]
+    /// (nothing past it is held).
+    fn take<L: TailLog>(&mut self, bytes: &[u8]) -> bool {
+        if L::DROP_INLINE_DATA {
+            return self.data.pass(bytes, &mut self.partial, L::LINE_MAX) == Held::Within;
+        }
+        if self.partial.len() + bytes.len() > L::LINE_MAX {
+            return false;
+        }
+        self.partial.extend_from_slice(bytes);
+        true
+    }
+
+    /// Ends the held line, which started at `at`, with `last` (its last
+    /// bytes, before the `\n` at `end - 1`): to `log` whole, or as
+    /// skipped when it is too long to hold.
+    fn finish<L: TailLog>(&mut self, log: &mut L, at: u64, end: u64, last: &[u8]) {
+        if self.take::<L>(last) {
+            self.partial.push(b'\n');
+            log.feed_line(at, end, &self.partial);
+        } else {
+            log.skipped_line(at);
+        }
+        *self = Self::default();
+    }
+}
+
 /// Hands `log` the whole lines in `chunk` (which starts at `start` in
-/// the file) after what `partial` holds of a line begun earlier, and
-/// keeps the line still being written in `partial`: at most
-/// [`TailLog::LINE_MAX`] bytes, past which the rest of that line is
-/// passed over (`skipping` holds where it started) and the log hears it
-/// was skipped once its end comes.
-pub(crate) fn cut_lines<L: TailLog>(
-    partial: &mut Vec<u8>,
-    skipping: &mut Option<u64>,
-    log: &mut L,
-    chunk: &[u8],
-    start: u64,
-) {
+/// the file) after what `hold` holds of a line begun earlier, and holds
+/// the line still being written: at most [`TailLog::LINE_MAX`] bytes,
+/// past which the rest of that line is passed over and the log hears it
+/// was skipped once its end comes. Offsets are the file's own, however
+/// many bytes of a line were left out.
+pub(crate) fn cut_lines<L: TailLog>(hold: &mut LineHold, log: &mut L, chunk: &[u8], start: u64) {
     let mut chunk = chunk;
     let mut start = start;
-    if let Some(at) = *skipping {
+    // The line begun earlier: passed over, or held.
+    if let Some(at) = hold.start(start) {
         let Some(end) = chunk.iter().position(|b| *b == b'\n') else {
+            if hold.skipping.is_none() {
+                hold.partial_at = Some(at);
+                if !hold.take::<L>(chunk) {
+                    *hold = LineHold {
+                        skipping: Some(at),
+                        ..LineHold::default()
+                    };
+                }
+            }
             return;
         };
-        *skipping = None;
-        log.skipped_line(at);
-        chunk = &chunk[end + 1..];
-        start += end as u64 + 1;
-    }
-    // Where the held part of a line starts.
-    let base = start - partial.len() as u64;
-    // Only the new bytes are searched for a line's end.
-    let (rest, rest_at) = if let Some(end) = chunk.iter().rposition(|b| *b == b'\n') {
-        let (whole, rest) = chunk.split_at(end + 1);
-        if partial.is_empty() {
-            log.feed_at(whole, base);
+        let line_end = start + end as u64 + 1;
+        if hold.skipping.is_some() {
+            *hold = LineHold::default();
+            log.skipped_line(at);
         } else {
-            partial.extend_from_slice(whole);
-            let lines = std::mem::take(partial);
-            log.feed_at(&lines, base);
+            hold.finish(log, at, line_end, &chunk[..end]);
         }
-        (rest, start + whole.len() as u64)
-    } else {
-        (chunk, base)
-    };
-    if partial.len() + rest.len() > L::LINE_MAX {
-        *partial = Vec::new();
-        *skipping = Some(rest_at);
-    } else {
-        partial.extend_from_slice(rest);
+        chunk = &chunk[end + 1..];
+        start = line_end;
+    }
+    let whole = chunk
+        .iter()
+        .rposition(|b| *b == b'\n')
+        .map_or(0, |end| end + 1);
+    let (lines, rest) = chunk.split_at(whole);
+    feed_whole(hold, log, lines, start);
+    // The line still being written.
+    if !rest.is_empty() {
+        let at = start + whole as u64;
+        hold.partial_at = Some(at);
+        if !hold.take::<L>(rest) {
+            *hold = LineHold {
+                skipping: Some(at),
+                ..LineHold::default()
+            };
+        }
+    }
+}
+
+/// Hands `log` `lines`, whole lines that start at `start` (with nothing
+/// held): as they are, but for a log that leaves out inline data, each
+/// line long enough to carry some ([`inline_data::KEEP_MAX`]) goes
+/// through `hold` first.
+fn feed_whole<L: TailLog>(hold: &mut LineHold, log: &mut L, lines: &[u8], start: u64) {
+    if lines.is_empty() {
+        return;
+    }
+    if !L::DROP_INLINE_DATA {
+        log.feed_at(lines, start);
+        return;
+    }
+    // A run of shorter lines, from here, goes on as it is.
+    let mut run = 0;
+    let mut at = 0;
+    while let Some(len) = lines[at..].iter().position(|b| *b == b'\n') {
+        let next = at + len + 1;
+        if len > inline_data::KEEP_MAX {
+            if run < at {
+                log.feed_at(&lines[run..at], start + run as u64);
+            }
+            hold.finish(
+                log,
+                start + at as u64,
+                start + next as u64,
+                &lines[at..at + len],
+            );
+            run = next;
+        }
+        at = next;
+    }
+    if run < lines.len() {
+        log.feed_at(&lines[run..], start + run as u64);
     }
 }
 

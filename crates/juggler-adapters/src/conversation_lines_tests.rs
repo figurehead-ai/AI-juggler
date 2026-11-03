@@ -202,3 +202,32 @@ fn a_rollouts_lines_by_its_own_rules() {
     assert_eq!(reply.model.as_deref(), Some("gpt-5"));
     assert_eq!(reply.message_id.as_deref(), Some("m9"));
 }
+
+#[test]
+fn a_message_whose_image_data_was_left_out_keeps_its_words() {
+    // As the feed holds them (`inline_data`): the part stays, its bytes
+    // gone.
+    let line = serde_json::json!({
+        "type": "user", "timestamp": "2026-10-24T10:00:00Z",
+        "message": {"role": "user", "content": [
+            {"type": "text", "text": "look at this"},
+            {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": ""}},
+        ]},
+    });
+    let Said::Message(message) = claude(&line) else {
+        unreachable!("a message")
+    };
+    assert_eq!(message.speaker, Speaker::You);
+    assert_eq!(message.text(), "look at this");
+    let line = serde_json::json!({
+        "timestamp": "2026-10-24T10:00:00Z", "type": "response_item",
+        "payload": {"type": "message", "role": "user", "content": [
+            {"type": "input_text", "text": "look at this"},
+            {"type": "input_image", "image_url": "data:image/png;base64,"},
+        ]},
+    });
+    let Said::Message(message) = codex(&line, None) else {
+        unreachable!("a message")
+    };
+    assert_eq!(message.text(), "look at this");
+}
