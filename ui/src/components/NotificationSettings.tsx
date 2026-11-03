@@ -107,7 +107,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
             <legend className="mb-1 w-full font-medium text-ink">Quiet hours</legend>
             <div className="flex items-center gap-1.5">
               <span className="text-muted">From</span>
-              <Picker
+              <Picker choice
                 size="sm"
                 ariaLabel="Quiet hours from"
                 value={String(prefs.quiet_start)}
@@ -121,7 +121,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-muted">to</span>
-              <Picker
+              <Picker choice
                 size="sm"
                 ariaLabel="Quiet hours to"
                 value={String(prefs.quiet_end)}

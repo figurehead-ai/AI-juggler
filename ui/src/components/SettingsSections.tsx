@@ -92,7 +92,7 @@ export function CleanupSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="font-medium text-ink">Default for new apps</span>
-        <Picker
+        <Picker choice
           size="sm"
           ariaLabel="Default for new apps"
           value={defaultOn === null ? "" : defaultOn ? "tidy" : "notify"}
@@ -246,7 +246,7 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="font-medium text-ink">Remind me</span>
-        <Picker
+        <Picker choice
           size="sm"
           ariaLabel="Remind me"
           value={warnDays === null ? "" : String(warnDays)}

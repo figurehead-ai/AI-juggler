@@ -99,6 +99,9 @@ function Pick({ label, value, choices, onChange, testId }: { label: string; valu
       <span aria-hidden="true">{label}</span>
       <Picker
         ariaLabel={label}
+        // AJ-E3105: every value here has processes now: the list is
+        // already what's open, so no group goes first.
+        groups={[]}
         size="sm"
         value={value ?? ""}
         onChange={(next) => onChange(next || null)}

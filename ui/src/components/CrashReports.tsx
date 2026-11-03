@@ -29,7 +29,7 @@ export function CrashReportsSetting(): JSX.Element | null {
     <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-crash-reports">
       <div className="flex flex-wrap items-center gap-2 text-label text-ink">
         <span className="font-medium">Crash reports</span>
-        <Picker
+        <Picker choice
           size="sm"
           value={locked ? "never" : info.setting}
           disabled={locked}

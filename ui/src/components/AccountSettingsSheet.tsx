@@ -14,6 +14,7 @@ import { accountsList, errorText, type AccountInfo } from "../lib/bridge";
 import { accountSettingsApply, accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { AppliedInfo, SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { Picker } from "./controls";
+import { useSuggested } from "../lib/suggested";
 
 export function AccountSettingsSheet({
   account,
@@ -30,6 +31,7 @@ export function AccountSettingsSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const source = chosen ?? sources?.[0]?.id ?? null;
+  const suggested = useSuggested("folder", sources?.map((row) => row.id) ?? []);
 
   useEffect(() => {
     accountsList().then(
@@ -95,6 +97,7 @@ export function AccountSettingsSheet({
                   value={source ?? ""}
                   onChange={(value) => setChosen(value)}
                   ariaLabel="App to copy the settings from"
+                  groups={suggested}
                   options={sources.map((row) => ({ value: row.id, label: row.label }))}
                 />
               ) : (

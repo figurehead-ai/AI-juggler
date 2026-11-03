@@ -14,6 +14,7 @@ import {
 import { funnelEvent } from "../lib/funnel";
 import { launchSettingsName } from "../lib/account-words";
 import { IconChevronDown, IconChevronRight } from "./icons-controls";
+import { useSuggested } from "../lib/suggested";
 
 /**
  * AJ-E309 Req.5: the [Expert setup…] hatch every flow exposes —
@@ -57,6 +58,9 @@ export function ExpertSetup({
   const [exported, setExported] = useState<string | null>(null);
   const [envRevision, setEnvRevision] = useState(0);
 
+  // AJ-E3105: what's open now and most used first.
+  const suggestedApps = useSuggested("folder", accounts.map((account) => account.id));
+  const suggestedSettings = useSuggested("launch_settings", recipes.map((entry) => entry.id));
   // Keep the selected Account valid as the list changes.
   const accountKey = accounts.map((account) => account.id).join("|");
   useEffect(() => {
@@ -161,6 +165,7 @@ export function ExpertSetup({
                 size="sm"
                 value={accountId ?? ""}
                 onChange={(next) => setAccountId(next)}
+                groups={suggestedApps}
                 options={accounts.map((account) => ({ value: account.id, label: account.label }))}
                 testId="expert-account"
               />
@@ -243,6 +248,7 @@ export function ExpertSetup({
                           size="sm"
                           value={recipe.id}
                           onChange={(next) => setRecipeId(next)}
+                          groups={suggestedSettings}
                           options={recipes.map((entry) => ({ value: entry.id, label: launchSettingsName(entry.name) }))}
                         />
                       </div>

@@ -116,7 +116,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
               return (
                 <div key={provider} className="flex flex-wrap items-center gap-2 text-xs" data-testid="provider-redaction">
                   <span className="min-w-28 font-medium">{name}</span>
-                  <Picker
+                  <Picker choice
                     size="sm"
                     value={row?.override ?? ""}
                     onChange={(value) =>

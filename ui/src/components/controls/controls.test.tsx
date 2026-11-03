@@ -74,7 +74,7 @@ describe("ChoiceOption", () => {
 function PickerHarness({ onPick }: { onPick?: (value: string) => void }) {
   const [value, setValue] = useState("latest");
   return (
-    <Picker
+    <Picker choice
       ariaLabel="Sort by"
       testId="sort"
       value={value}
@@ -157,7 +157,7 @@ describe("Picker", () => {
   });
 
   it("is greyed with a reason", () => {
-    render(<Picker ariaLabel="Account" value="a" options={[{ value: "a", label: "Work" }]} onChange={() => {}} disabled reason="Only one account" />);
+    render(<Picker choice ariaLabel="Account" value="a" options={[{ value: "a", label: "Work" }]} onChange={() => {}} disabled reason="Only one account" />);
     const button = screen.getByRole("button", { name: "Account: Work" });
     expect((button as HTMLInputElement).disabled).toBe(true);
     expect(describedBy(button)).toBe("Only one account");

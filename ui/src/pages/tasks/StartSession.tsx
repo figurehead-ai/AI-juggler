@@ -11,6 +11,7 @@ import { errorText, launchRecipesList, type LaunchRecipeInfo } from "../../lib/b
 import { tasksStart, type TaskStartedInfo } from "../../lib/ipc/tasks";
 import { Picker } from "../../components/controls";
 import { cliAppName } from "../../lib/app-name";
+import { useSuggested } from "../../lib/suggested";
 
 export function StartSession({
   taskId,
@@ -33,6 +34,7 @@ export function StartSession({
   const id = useId();
   const [profiles, setProfiles] = useState<LaunchRecipeInfo[] | null>(null);
   const [chosen, setChosen] = useState("");
+  const suggested = useSuggested("launch_settings", (profiles ?? []).map((profile) => profile.id));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -83,6 +85,7 @@ export function StartSession({
         id={`${id}-profile`}
         ariaLabel="On"
         heading="Launch settings"
+        groups={suggested}
         size="sm"
         value={chosen || null}
         placeholder={profiles === null ? "Loading…" : "Pick launch settings"}

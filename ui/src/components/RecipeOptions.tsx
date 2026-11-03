@@ -22,7 +22,7 @@ function RestartChoice({ recipe }: { recipe: LaunchRecipeInfo }): JSX.Element {
       <span aria-hidden="true" className="font-medium text-ink">
         If a session crashes
       </span>
-      <Picker
+      <Picker choice
         ariaLabel="If a session crashes"
         size="sm"
         value={choice}

@@ -129,7 +129,7 @@ export function ServiceAccountSheet({
         </div>
         {service.plans.length > 0 && (
           <Field label="Plan">
-            <Picker ariaLabel="Plan" value={plan} onChange={setPlan} testId="service-plan" className="self-start" options={service.plans.map((name) => ({ value: name, label: name }))} />
+            <Picker choice ariaLabel="Plan" value={plan} onChange={setPlan} testId="service-plan" className="self-start" options={service.plans.map((name) => ({ value: name, label: name }))} />
           </Field>
         )}
         <Field label={service.service.key_name} hint="Paste it once. It's kept in the macOS Keychain, handed only to this account's sessions when they start, and never shown again.">
@@ -161,7 +161,7 @@ export function ServiceAccountSheet({
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Model">
                       {tool.models.length > 0 ? (
-                        <Picker
+                        <Picker choice
                           ariaLabel="Model"
                           value={modelOf(tool)}
                           onChange={(model) => set(tool.tool, { model })}

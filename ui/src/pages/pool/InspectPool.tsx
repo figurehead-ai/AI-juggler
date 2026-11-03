@@ -75,7 +75,7 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
   return (
     <div className="flex flex-col" data-testid="inspect-pool">
       <Section title="What agents may do" testId="inspect-pool-level">
-        <Picker
+        <Picker choice
           ariaLabel="What agents may do"
           heading="Agents in this pool may"
           value={pool.access.level}
@@ -143,7 +143,7 @@ export function InspectPool({ pool, project, now, onDeleted }: { pool: PoolInfo;
             <span className="text-body text-ink">Pause and ask after</span>
             <span className="text-label text-muted">agent messages in a row without you</span>
           </span>
-          <Picker
+          <Picker choice
             ariaLabel="Agent messages in a row before a chain pauses"
             heading="Pause and ask after"
             size="sm"

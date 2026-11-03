@@ -33,6 +33,12 @@ export function FilterChip({
   all?: string;
 }): JSX.Element | null {
   if (options.length < 2 && value === null) return null;
+  // AJ-E3105: the values with the most rows first, then All.
+  const most = options
+    .filter((option) => (option.count ?? 0) > 0)
+    .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+    .slice(0, 5)
+    .map((option) => option.id);
   return (
     <span
       className={
@@ -50,7 +56,8 @@ export function FilterChip({
         heading={label}
         value={value ?? ""}
         onChange={(next) => onChange(next || null)}
-        options={[{ value: "", label: all }, ...options.map((option) => ({ value: option.id, label: option.count === undefined ? option.label : `${option.label} · ${option.count}`, empty: option.count === 0 }))]}
+        groups={most.length > 0 ? [{ label: "Most here", values: most }] : []}
+        options={[{ value: "", label: all, pinned: true }, ...options.map((option) => ({ value: option.id, label: option.count === undefined ? option.label : `${option.label} · ${option.count}`, empty: option.count === 0 }))]}
         testId={testId}
         className="max-w-60 rounded-full text-meta"
       />

@@ -109,7 +109,7 @@ export function LocalCacheSection(): JSX.Element {
               description={limitWords(info)}
               testId="cache-limit-row"
               control={
-                <Picker
+                <Picker choice
                   size="sm"
                   value={info.automatic ? "auto" : String(info.limit_mb)}
                   options={LIMITS}

@@ -70,7 +70,7 @@ export function StorageRetentionCard(): JSX.Element {
             </span>
             <div className="flex items-center gap-1.5 text-muted">
               Keep
-              <Picker
+              <Picker choice
                 size="sm"
                 value={row.retention_days === null ? "forever" : String(row.retention_days)}
                 onChange={(value) => {

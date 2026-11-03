@@ -166,7 +166,7 @@ export function BudgetSheet({
             One app
           </label>
           {kind === "account" && (
-            <Picker
+            <Picker choice
               ariaLabel="App"
               value={account}
               onChange={setAccount}

@@ -15,6 +15,7 @@ import { MachinePicker, type Where } from "../../components/RemoteLaunch";
 import type { RuntimeChoice } from "../../components/RuntimePick";
 import type { AccountInfo, LaunchRecipeInfo } from "../../lib/bridge";
 import type { MachineAdviceInfo } from "../../lib/machine";
+import { useSuggested } from "../../lib/suggested";
 
 /** How it runs, as the fold's label says it. */
 export function runtimeWords(runtime: RuntimeChoice): string {
@@ -56,6 +57,7 @@ export function MoreOptions({
   onManageLaunchSettings?: () => void;
 }): JSX.Element {
   const machine = where.machines.length > 0 ? "on this computer" : null;
+  const suggested = useSuggested("launch_settings", settings.map((row) => row.id));
   return (
     <Disclosure
       testId="new-session-more"
@@ -75,6 +77,7 @@ export function MoreOptions({
             <span aria-hidden="true">Launch settings</span>
             <Picker
               ariaLabel="Launch settings"
+              groups={suggested}
               size="sm"
               value={recipe.id}
               onChange={onSettings}

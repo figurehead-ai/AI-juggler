@@ -75,7 +75,7 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
         <div className="mt-2 flex flex-col gap-2 text-xs">
           <div className="flex items-center gap-2 text-ink">
             Pause and ask after
-            <Picker
+            <Picker choice
               size="sm"
               ariaLabel="Replies in a row before it pauses and asks"
               value={String(pool.access.hop_limit)}

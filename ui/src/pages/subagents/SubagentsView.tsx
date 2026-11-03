@@ -200,8 +200,8 @@ export function SubagentsView({
           data-testid="subagents-search"
         />
         <div className="ml-auto flex items-center gap-2">
-          <Picker<string> value={kind} options={types} onChange={setKind} ariaLabel="Type" prefix="Type:" heading="Type" testId="subagents-type" disabled={types.length < 3 && !kind} reason="They are all one type." />
-          <Picker<SortId> value={sort} options={SORTS} onChange={setSort} ariaLabel="Sort" prefix="Sort:" heading="Sort by" testId="subagents-sort" />
+          <Picker<string> choice value={kind} options={types} onChange={setKind} ariaLabel="Type" prefix="Type:" heading="Type" testId="subagents-type" disabled={types.length < 3 && !kind} reason="They are all one type." />
+          <Picker<SortId> choice value={sort} options={SORTS} onChange={setSort} ariaLabel="Sort" prefix="Sort:" heading="Sort by" testId="subagents-sort" />
         </div>
       </div>
       )}

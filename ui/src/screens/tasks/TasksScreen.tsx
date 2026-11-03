@@ -142,7 +142,7 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
           onChange={(next) => setPoolId(orAll(next))}
           testId="tasks-filter-pool"
         />
-        {view === "board" && <Picker size="sm" prefix="Holder:" ariaLabel="Holder" heading="Holder" value={holder ?? ALL} options={HOLDERS} onChange={(next) => setHolder(orAll(next))} testId="tasks-filter-holder" />}
+        {view === "board" && <Picker choice size="sm" prefix="Holder:" ariaLabel="Holder" heading="Holder" value={holder ?? ALL} options={HOLDERS} onChange={(next) => setHolder(orAll(next))} testId="tasks-filter-holder" />}
         <input
           type="search"
           value={words}

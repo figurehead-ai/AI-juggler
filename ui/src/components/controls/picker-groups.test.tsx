@@ -59,7 +59,7 @@ describe("0.3.2 the Picker: suggested, then All", () => {
   });
 
   it("a short list has no search field", () => {
-    render(<Picker ariaLabel="Pool" value={null} options={options.slice(0, 4)} onChange={() => {}} testId="pick" />);
+    render(<Picker ariaLabel="Pool" value={null} options={options.slice(0, 4)} groups={[]} onChange={() => {}} testId="pick" />);
     fireEvent.click(screen.getByTestId("pick"));
     expect(screen.queryByTestId("pick-search")).toBeNull();
   });

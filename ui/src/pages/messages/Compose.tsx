@@ -15,6 +15,8 @@ import { Checkbox, Picker } from "../../components/controls";
 export interface Member {
   session_id: string;
   name: string;
+  /** Open now (AJ-E3105: offered first). */
+  live?: boolean;
 }
 
 export function Compose({
@@ -78,10 +80,11 @@ export function Compose({
               <span aria-hidden="true">To</span>
               <Picker
                 ariaLabel="To"
+                groups={members.some((member) => member.live) ? [{ label: "Open now", values: members.filter((member) => member.live).map((member) => member.session_id) }] : []}
                 size="sm"
                 value={to}
                 onChange={(next) => setTo(next)}
-                options={[{ value: "pool", label: "Everyone in the pool" }, ...members.map((member) => ({ value: member.session_id, label: member.name }))]}
+                options={[{ value: "pool", label: "Everyone in the pool", pinned: true }, ...members.map((member) => ({ value: member.session_id, label: member.name }))]}
                 testId="compose-to"
               />
             </div>
@@ -94,7 +97,7 @@ export function Compose({
             onChange={(event) => setSubject(event.target.value)}
             className="h-8 min-w-0 flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-meta text-ink outline-none focus:border-accent/60"
           />
-          <Picker
+          <Picker choice
             ariaLabel="Kind"
             size="sm"
             value={kind}

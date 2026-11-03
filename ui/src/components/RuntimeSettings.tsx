@@ -41,7 +41,7 @@ export function RuntimeSettings(): JSX.Element | null {
       {standing.map((profile) => (
         <div key={profile.profile_id} className="flex flex-wrap items-center gap-2 text-xs" data-testid={`runtime-${profile.profile_id}`}>
           <span className="min-w-0 flex-1 text-ink">{launchTitle({ account_label: profile.account_label, name: profile.name })}</span>
-          <Picker
+          <Picker choice
             size="sm"
             ariaLabel={`How ${launchTitle({ account_label: profile.account_label, name: profile.name })} runs`}
             value={profile.chosen ?? ""}

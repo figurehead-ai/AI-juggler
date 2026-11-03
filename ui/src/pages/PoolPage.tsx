@@ -32,6 +32,7 @@ import { usePoolMode } from "./pool/mode";
 import { addToPool, cannotJoin, nameOf } from "./pool/actions";
 import { useCanvas } from "./pool/useCanvas";
 import type { Point } from "./pool/layout";
+import { isActiveStatus } from "../components/indicator";
 
 /** What a pool page counts, said precisely: its members (the sessions AI
  * Juggler runs or carried in) and, beside them, its project's sessions
@@ -144,7 +145,7 @@ function PoolCanvasPage({ poolId, sessions, projects, now }: { poolId: string; s
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
   const facts = [poolCountWords(pool.members, elsewhere), project ? `for ${project.name}` : null, needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
-  const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name }));
+  const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) }));
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page">

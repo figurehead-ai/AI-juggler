@@ -102,7 +102,7 @@
 **Research basis**: `docs/research/relations-map.md`; the review's page wireframes.
 **Handover note**: —
 
-### AJ-E3105 Every picker: suggested for where you are, then All, with search | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3102
+### AJ-E3105 Every picker: suggested for where you are, then All, with search | Status: DONE-PENDING-EVIDENCE (agent, 2026-11-03: the Picker's props are now one of `groups` (a picker of things names what goes first) or `choice` (fixed words: a setting, a sort), so the compiler lists any picker of things without a top group (the lint, by type). Pickers of things: Apps and launch settings (copy settings from, Expert setup, a task's Start, New session's launch settings) open on Open now, then Most used (`lib/suggested.ts`, from the relation counts in one ask); a project's default App on Used in this project (the relation cache's folders); Compose's To on Open now; every related list's filter on Most here (by rows), All pinned on top; the Processes filters list only what has processes now (`groups={[]}`, said why). Type-to-filter, arrows and Return were already the Picker's (0.3.2). Tests: `lib/suggested.test.ts`; vitest all. Left: K4 by hand; each picker open in the gallery, both themes) | Priority P0 | Effort M | Depends: AJ-E3102
 **Goal**: Each picker's top group is what you'd most likely choose here.
 **User story**: Choosing a project from a session page, the session's project and the open ones come first, then All, and I can type to filter.
 **Requirements**:

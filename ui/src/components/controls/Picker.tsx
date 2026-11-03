@@ -62,6 +62,16 @@ const LOOKS = {
   link: "text-accent-hi hover:bg-accent/10",
 } as const;
 
+/** AJ-E3105: what a picker picks. Things (projects, Apps, sessions,
+ * pools, launch settings) open on the likeliest here: the call site names
+ * its groups (Open now, Recent, In this project, Most used), even when
+ * none apply yet (`[]`). A choice among fixed words (a setting, a sort)
+ * says so (`choice`). One or the other, so a picker of things can't be
+ * written without its top group: the compiler lists any that is. */
+export type PickerKind<T extends string> =
+  | { /** Shown before All: the most used and most related here. */ groups: readonly PickerGroup<T>[]; choice?: never }
+  | { /** Fixed words to choose among: no groups. */ choice: true; groups?: never };
+
 export function Picker<T extends string>({
   value,
   options,
@@ -82,11 +92,9 @@ export function Picker<T extends string>({
   searchLabel = "Search",
   allHeading = "All",
   label,
-}: {
+}: PickerKind<T> & {
   value: T | null | undefined;
   options: readonly PickerOption<T>[];
-  /** Shown before All: the most used and most related here. */
-  groups?: readonly PickerGroup<T>[];
   /** The search field's name ("Search pools"). */
   searchLabel?: string;
   /** The full list's heading under the groups ("All pools"). */
