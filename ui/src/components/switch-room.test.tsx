@@ -233,6 +233,22 @@ describe("F1 the switch dialog says the target's room", () => {
     expect(screen.getByTestId("switch-confirm").textContent).toBe("Switch to CLI anyway");
   });
 
+  it("D-62: the room is the Account's, so the warning names the Account; the target stays the App", async () => {
+    vi.mocked(subscriptions.useSubscriptions).mockReturnValue([
+      {
+        key: "k-f", account_id: "acct:anthropic:f", name: null, display_name: "Claude Max 20x", tool: "claude-code", state: "signed_in",
+        email: null, organisation: null, reason: null, plan: "max-20x", renewal_date: null, fee_usd: null, differs: [], choices: [],
+        profiles: [{ id: "f", label: "Account F", folder: "~/.claude-f", plan: null, renewal_date: null, fee_usd: null }],
+      },
+    ]);
+    open(ONECLICK);
+    const room = await screen.findByTestId("switch-room");
+    expect(room.textContent).toMatch(/Claude Max 20x: Out of room until/);
+    expect(room.textContent).toContain("stops at Claude Max 20x's limit straight away");
+    expect(screen.getByTestId("switch-summary-room").textContent).toBe("Claude Max 20x is out of room: see below before you switch.");
+    expect(screen.getByTestId("switch-step-confirm").textContent).toContain("Ready to switch to Account F");
+  });
+
   it("an account with room: its room in words on the Target step, and Switch to CLI", async () => {
     open({ ...ONECLICK, door: "wizard", wizard_steps: ["Target", "Confirm"], target_account: "b" } as PreflightInfoData);
     const room = await screen.findByTestId("switch-room");

@@ -586,7 +586,10 @@ fn switch_backs(
     out
 }
 
-/// A plan renewing soon (the digest's line), as a notice.
+/// A plan renewing soon (the digest's line), as a notice: `account_id`
+/// is the folder it was read for (its Open goes there), `label` what it
+/// is called (D-62: the renewal is the Account's, so its name; a folder
+/// no Account lists, its own).
 #[must_use]
 pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
     NewNotice {
@@ -615,12 +618,14 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
 /// D-62: the alerts are per folder, the notices per Account (its folders
 /// share its limits): one notice for all its folders, named by it, from
 /// its newest reading ([`newest_reading`]), acting on the folder with its
-/// open sessions ([`acting_folder`]). The Accounts are read only when
-/// there is something to tell.
+/// open sessions ([`acting_folder`]). A renewal is the Account's too,
+/// so its line names it. The Accounts are read only when there is
+/// something to tell.
 pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventInfo]) {
     let now = crate::commands::now_millis();
     let mut told = Vec::new();
-    let accounts = if quota_work(state, emitted) {
+    let renewals = emitted.iter().any(|event| event.kind == "digest");
+    let accounts = if renewals || quota_work(state, emitted) {
         crate::features::subscriptions::folder_accounts(state)
     } else {
         std::collections::BTreeMap::new()
@@ -644,13 +649,14 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
         // The hourly digest's lines (a plan renewing soon): told once each,
         // under Earlier.
         for event in emitted.iter().filter(|event| event.kind == "digest") {
-            let label = folders
+            let own = folders
                 .iter()
                 .find(|account| account.id.as_str() == event.account)
                 .map_or("An account", |account| account.label.as_str());
+            let label = crate::features::subscriptions::folder_name(&accounts, &event.account, own);
             let _ = centre::record(
                 &storage,
-                &renewal_notice(&event.account, label, &event.text),
+                &renewal_notice(&event.account, &label, &event.text),
                 now,
             );
         }

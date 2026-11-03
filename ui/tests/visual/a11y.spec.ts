@@ -800,7 +800,7 @@ const BACK_CARDS_A11Y = ["sess-1", "sess-2", "sess-4", "sess-6", "sess-8"].map(
     session_id,
     original_account: "Work Max",
     away_account: "Personal",
-    copy: "Work Max has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
+    copy: "Claude Max 20x has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
   }),
 );
 
@@ -1935,7 +1935,7 @@ for (const theme of ["dark", "light"] as const) {
           ),
         };
         w.__AIJ_PARKED_OFFERS__ = [
-          { session_id: "x", account_label: "Personal", text: "Personal has reset. Resume the work you parked.", last: false },
+          { session_id: "x", account_label: "p…@example.com", text: "p…@example.com has reset. Resume the work you parked.", last: false },
         ];
         localStorage.setItem("aij.theme", t);
         localStorage.setItem("aij.onboarding.dismissed", "1");

@@ -275,9 +275,11 @@ pub fn parked_offers_impl(state: &Arc<AppState>) -> AppResult<Vec<ParkedOfferInf
             changed = true;
             notify_log(state, id, row);
         }
-        let name = accounts
-            .get(&row.account_id)
-            .map_or_else(|| row.account_label.clone(), |account| account.name.clone());
+        let name = crate::features::subscriptions::folder_name(
+            &accounts,
+            &row.account_id,
+            &row.account_label,
+        );
         out.push(ParkedOfferInfo {
             session_id: id.clone(),
             text: format!(

@@ -83,9 +83,10 @@ export function needsHeading(count: number | { sessions: number; others: number 
     return `${them} and ${others} more ${others === 1 ? "thing" : "things"} need you`;
   }
   if (others > 0) return others === 1 ? "1 thing needs you" : `${others} things need you`;
-  // QA batch 9: never "All clear" while an account has run out.
+  // QA batch 9: never "All clear" while an account has run out (D-62:
+  // `runOut` names Accounts, a folder in none by its own name).
   if (calm.runOut.length === 1) return `${calm.runOut[0]} has run out`;
-  if (calm.runOut.length > 1) return `${calm.runOut.length} apps have run out`;
+  if (calm.runOut.length > 1) return `${calm.runOut.length} accounts have run out`;
   return calm.running ? "All clear — nothing needs you" : calm.anything ? "All clear" : "Ready when you are";
 }
 

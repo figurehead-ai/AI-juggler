@@ -67,6 +67,7 @@ import {
   type AccountInfo, type InstanceInfo, type ProjectInfo,
 } from "../lib/bridge";
 import { useQuotaDisplays } from "../lib/kept-reads";
+import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { CapNeedItems } from "../components/BudgetNeeds";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
@@ -94,15 +95,17 @@ export function needOf(session: InstanceInfo): Need | null {
 }
 
 
-/** What's wrong, in a sentence, and the one action. */
-export function needWords(need: Need, session: InstanceInfo): { what: string; action: string } {
+/** What's wrong, in a sentence, and the one action. A limit is the
+ * Account's (D-62), so it's named by the Account (`accounts`, as read);
+ * a folder in none keeps its own name. */
+export function needWords(need: Need, session: InstanceInfo, accounts?: readonly SubscriptionInfo[] | null): { what: string; action: string } {
   switch (need) {
     case "waiting_user":
       return { what: "Waiting for your reply", action: "Open" };
     case "stuck":
       return { what: "Looks stuck — no progress for a while", action: "Take a look" };
     case "quota_blocked":
-      return { what: `${session.account_label} hit its limit`, action: "Continue elsewhere" };
+      return { what: `${accountNameOf(accounts, session.account_id, session.account_label)} hit its limit`, action: "Continue elsewhere" };
     case "failed":
       return { what: "Stopped with an error", action: "See what happened" };
   }
@@ -162,6 +165,8 @@ export function HomeScreen({
   // The runways kept from the last read (any screen's) show at once; read
   // again on opening, each half minute, and when an account comes or goes.
   const { displays: quota, known: quotaKnown } = useQuotaDisplays({ version: accounts.length });
+  // D-62: limits are the Accounts' (one read, shared and cached).
+  const subscriptions = useSubscriptions();
   // AJ-E2502, D-49: Needs you is the backend's (the bell shows the same
   // count); caps, messages and tasks keep their own rows and controls.
   const needsNow = useBackendNeeds();
@@ -349,8 +354,10 @@ export function HomeScreen({
   const sessionNeeds = allNeeds.filter(isSessionNeed).length;
   const otherNeeds = allNeeds.length - sessionNeeds + capNeeds.caps.length + messageNeeds.length + taskNeeds.length;
   const headline = needsHeading({ sessions: sessionNeeds, others: otherNeeds }, {
-    // 0.3.2: one carrying on with its credits hasn't run out.
-    runOut: runway.filter((r) => r.left === 0 && !r.credits).map((r) => r.account.label),
+    // 0.3.2: one carrying on with its credits hasn't run out. D-62: the
+    // room is the Account's, so it's named once by it, however many of
+    // its folders show it.
+    runOut: [...new Set(runway.filter((r) => r.left === 0 && !r.credits).map((r) => accountNameOf(subscriptions, r.account.id, r.account.label)))],
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0,
   });

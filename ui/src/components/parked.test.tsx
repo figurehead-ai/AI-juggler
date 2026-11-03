@@ -66,7 +66,7 @@ describe("AJ-E1003 park card", () => {
 describe("AJ-E1003 the reset offer", () => {
   it("one offer with Resume and a distinct snooze; the last one says stop", async () => {
     w().__AIJ_PARKED_OFFERS__ = [
-      { session_id: "s1", account_label: "Work Max", text: "Work Max has reset. Resume the work you parked.", last: false },
+      { session_id: "s1", account_label: "Claude Max 20x", text: "Claude Max 20x has reset. Resume the work you parked.", last: false },
     ];
     const { container, unmount } = render(<NotificationRegion />);
     await waitFor(() => expect(container.querySelector("[data-testid='parked-offer']")).not.toBeNull());
@@ -78,7 +78,7 @@ describe("AJ-E1003 the reset offer", () => {
     expect(calls()).toEqual(["dismiss:s1"]);
     unmount();
     w().__AIJ_PARKED_OFFERS__ = [
-      { session_id: "s1", account_label: "Work Max", text: "Work Max has reset.", last: true },
+      { session_id: "s1", account_label: "Claude Max 20x", text: "Claude Max 20x has reset.", last: true },
     ];
     const second = render(<NotificationRegion />);
     await waitFor(() => expect(second.container.querySelector("[data-testid='parked-offer-stop']")).not.toBeNull());

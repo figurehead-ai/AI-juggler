@@ -32,7 +32,7 @@ const notice = (over: Record<string, unknown>) => ({ id: 1, kind: "finished", ne
 const POPULATED = {
   app: [notice({ id: 41, kind: "quota", needs: true, unread: true, title: "Claude Max 20x is almost out of room", detail: "7% of its 5-hour window left", meter: 7, created_ms: T0 - 3 * 60_000, action: "hand-over", target: { ...target, account_id: "claude-work" }, facts: { ...facts, window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 2, account: "Claude Max 20x" } })],
   earlier: [
-    notice({ id: 40, kind: "reset", title: "Personal has room again — its week reset", detail: "Sessions on it can carry on", created_ms: T0 - 2 * 3_600_000, action: "open", target: { ...target, account_id: "claude-personal" } }),
+    notice({ id: 40, kind: "reset", title: "p…@example.com has room again — its week reset", detail: "Sessions on it can carry on", created_ms: T0 - 2 * 3_600_000, action: "open", target: { ...target, account_id: "claude-personal" } }),
     notice({ id: 39, kind: "restarted", title: "“Nightly fix” crashed and was restarted (try 1 of 3)", detail: "nightly-fix · Work Max", created_ms: T0 - 4 * 3_600_000, action: "see-why", target: { ...target, session_id: "sess-1" } }),
     notice({ id: 38, kind: "update", unread: true, title: "AI Juggler 0.2.1 is ready", detail: "Restart when you're ready — nothing restarts by itself", created_ms: T0 - 5 * 3_600_000, action: "whats-new", target: { ...target, page: "updates" }, facts: { ...facts, version: "0.2.1", channel: "beta" } }),
   ],

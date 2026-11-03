@@ -2139,7 +2139,7 @@ const notificationEvents = {
     { id: 41, kind: "quota", needs: true, title: "Claude Max 20x is almost out of room", detail: "8% of its 5-hour window left", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-work" }, facts: { ...noticeFacts, window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, account: "Claude Max 20x" }, action: "hand-over", meter: 8, created_ms: T0 - 60_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
   ],
   earlier: [
-    { id: 40, kind: "renewal", needs: false, title: "Personal: Renews in 6 days — check your plan", detail: "", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-personal" }, facts: noticeFacts, action: "open", meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
+    { id: 40, kind: "renewal", needs: false, title: "p…@example.com: Renews in 6 days — check your plan", detail: "", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-personal" }, facts: noticeFacts, action: "open", meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
   ],
 };
 
@@ -2173,7 +2173,7 @@ for (const theme of THEMES) {
       // under Earlier in the notification centre, never a window alert.
       await expect(page.getByTestId("home-need-quota")).toContainText("Claude Max 20x is almost out of room");
       await page.getByTestId("notification-bell").click();
-      await expect(page.getByTestId("notices-earlier")).toContainText("Personal: Renews in 6 days — check your plan");
+      await expect(page.getByTestId("notices-earlier")).toContainText("p…@example.com: Renews in 6 days — check your plan");
       await page.screenshot({
         path: resolve(GALLERY, `27-ranking/notification-${vp.name}-${theme}.png`),
       });
@@ -2534,7 +2534,7 @@ const BACK_CARD = {
   session_id: "sess-1",
   original_account: "Work Max",
   away_account: "Personal",
-  copy: "Work Max has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
+  copy: "Claude Max 20x has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
 };
 /** One card per Work Max session — whichever row the table sorts
  * first, its card shows (the filter is by session id). */
@@ -2582,7 +2582,7 @@ for (const theme of THEMES) {
       await openInspector(page, {});
       await expect(page.getByTestId("switch-back-card")).toBeVisible();
       await expect(page.getByTestId("switch-back-card-copy")).toContainText(
-        "Work Max has reset. Resume the original conversation there?",
+        "Claude Max 20x has reset. Resume the original conversation there?",
       );
       await page.screenshot({
         path: resolve(GALLERY, `30-switchback/card-${vp.name}-${theme}.png`),
@@ -4403,7 +4403,7 @@ for (const theme of THEMES) {
     test(`46 fleet board — all machines, one machine, alert — ${vp.name} — ${theme}`, gate("46-fleet-board"), async ({ page }) => {
       await openRemote(page, theme, vp, {
         ...remoteMachine(),
-        alerts: [{ kind: "exhausted", account: "Work Max", text: "Work Max hit its 5-hour limit — resets at 14:00.", at_ms: T0 - 30_000 }],
+        alerts: [{ kind: "exhausted", account: "Work Max", text: "Claude Max 20x has used up its 5-hour window; it resets in 1 h 30 min", at_ms: T0 - 30_000 }],
       });
       // Back to the home view (the board + the alert region).
       await page.reload();
@@ -4951,8 +4951,8 @@ for (const theme of THEMES) {
         w.__AIJ_FIXTURE__ = fixture;
         w.__AIJ_PARKED_OFFERS__ = [
           {
-            session_id: "sess-other", account_label: "Personal",
-            text: "Personal has reset. Resume the work you parked — the same conversation, on the same Account.", last: false,
+            session_id: "sess-other", account_label: "p…@example.com",
+            text: "p…@example.com has reset. Resume the work you parked — the same conversation, on the same Account.", last: false,
           },
         ];
         localStorage.setItem("aij.theme", t);

@@ -530,6 +530,16 @@ pub fn folder_accounts(state: &Arc<AppState>) -> BTreeMap<String, FolderAccount>
     list_impl(state).map_or_else(|_| BTreeMap::new(), |accounts| by_folder(&accounts))
 }
 
+/// What a limit, reset or renewal calls folder `folder` (D-62: they are
+/// its Account's): the Account's name, from `accounts` ([`by_folder`]);
+/// a folder no Account lists keeps `own`, its own name.
+#[must_use]
+pub fn folder_name(accounts: &BTreeMap<String, FolderAccount>, folder: &str, own: &str) -> String {
+    accounts
+        .get(folder)
+        .map_or_else(|| own.to_owned(), |account| account.name.clone())
+}
+
 /// D-62 (AJ-E3202 req. 4): a stored Account's plan, renewal and fee are
 /// its own, moved from its folders where they agree; where they don't,
 /// the choice it waits for (each folder reads its own until then).
@@ -986,6 +996,12 @@ mod tests {
         assert_eq!(work.folders, ["work", "work-2"]);
         assert_eq!(map["work-2"], *work);
         assert!(!map.contains_key("out"));
+        assert_eq!(folder_name(&map, "work-2", "Work Max"), "Claude Max 20x");
+        assert_eq!(
+            folder_name(&map, "out", "Spare"),
+            "Spare",
+            "a folder no Account lists keeps its own name"
+        );
     }
 
     #[test]

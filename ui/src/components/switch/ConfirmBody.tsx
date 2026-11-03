@@ -95,8 +95,8 @@ export function ConfirmBody({
         {room && (tight || room.kind === "credits") && (
           <p data-testid="switch-summary-room" className={"text-body " + (tight ? "font-semibold text-warning" : "text-ink-2")}>
             {tight
-              ? `${target} ${room.kind === "out" ? "is out of room" : "has little room left"}: see below before you switch.`
-              : `Room on ${target}: ${room.words}. ${creditsConsequence(room.resetsAtMs, Date.now(), "It goes on")}`}
+              ? `${room.account ?? target} ${room.kind === "out" ? "is out of room" : "has little room left"}: see below before you switch.`
+              : `Room on ${room.account ?? target}: ${room.words}. ${creditsConsequence(room.resetsAtMs, Date.now(), "It goes on")}`}
           </p>
         )}
         {needs > 0 && (

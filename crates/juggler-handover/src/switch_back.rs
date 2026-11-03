@@ -212,7 +212,10 @@ pub fn delta_turn_text(input: &DeltaInput) -> String {
 
 /// The quota-reset suggestion, VERBATIM (Req.3) — suggested, never
 /// executed (automation invariant SPEC:26,263): the UI renders this
-/// card and the user clicks.
+/// card and the user clicks. `original_account` is the name of the
+/// Account that reset (D-62: limits are the Account's, so never its
+/// folder's unless no Account lists it); `away_account`, where the work
+/// went on.
 #[must_use]
 pub fn suggestion_copy(original_account: &str, away_account: &str) -> String {
     format!(
@@ -512,10 +515,11 @@ mod tests {
 
     #[test]
     fn suggestion_copy_is_verbatim() {
+        // D-62: the Account that reset, by its name.
         assert_eq!(
-            suggestion_copy("Work Max", "Personal"),
-            "Work Max has reset. Resume the original conversation there? Work from Personal \
-             arrives as one 'while you were away' update."
+            suggestion_copy("Claude Max 20x", "Personal"),
+            "Claude Max 20x has reset. Resume the original conversation there? Work from \
+             Personal arrives as one 'while you were away' update."
         );
     }
 

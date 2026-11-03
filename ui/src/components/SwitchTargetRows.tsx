@@ -177,7 +177,7 @@ export function SwitchTargetRows({
                   {target.suggested && !filtered && <SuggestedMark />}
                   {!filtered && <span className="ml-auto text-label text-muted">{forecastWords(target.tte_min, target.confidence)}</span>}
                 </span>
-                {target.room && !filtered && <RoomLine name={target.account_label} room={target.room} />}
+                {target.room && !filtered && <RoomLine name={target.room.account ?? target.account_label} room={target.room} />}
                 {target.cross_provider && target.drops.length > 0 && (
                   <span className="text-label text-warning" data-testid="target-drop-list">
                     Doesn't carry: {target.drops.join(", ")}

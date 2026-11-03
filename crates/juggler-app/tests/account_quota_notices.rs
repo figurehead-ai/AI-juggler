@@ -221,3 +221,101 @@ fn a_folder_no_account_lists_keeps_its_own_name() {
     assert_eq!(open[0].subject, format!("quota:{out}"));
     assert_eq!(open[0].target.account_id.as_deref(), Some(out.as_str()));
 }
+
+/// D-62: the alert pass's own words (what a paired Mac shows as it is,
+/// "Mac mini · …", and a queued resume coming due) name the Account the
+/// folder is signed in to; a folder no Account lists keeps its own name.
+#[test]
+fn the_alert_pass_names_the_account_and_a_lone_folder_itself() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let (work, _personal, _id) = one_account_two_folders(&state);
+    let spare = folder(&state, "Spare", None);
+    let now = Timestamp::now().millis();
+    reading(&state, &work, now - 1_000, 95.0);
+    reading(&state, &spare, now - 1_000, 95.0);
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .usage()
+            .queue_reset("rq-work", "conv:c-work", &work, now - 1)
+            .unwrap();
+        storage
+            .usage()
+            .queue_reset("rq-spare", "conv:c-spare", &spare, now - 1)
+            .unwrap();
+    }
+    let events = commands::alerts_tick_inner(&state, Some(12));
+    let find = |kind: &str, folder: &str| {
+        events
+            .iter()
+            .find(|event| event.kind == kind && event.account == folder)
+            .unwrap_or_else(|| panic!("no {kind} for {folder}: {events:?}"))
+    };
+    let alert = find("actionable", &work);
+    assert!(
+        alert
+            .text
+            .starts_with("Claude Max 20x has 5% left in its 5-hour window"),
+        "{}",
+        alert.text
+    );
+    assert!(!alert.text.contains("Work Max"), "{}", alert.text);
+    assert_eq!(
+        alert.quota.as_ref().unwrap().account_label,
+        "Claude Max 20x"
+    );
+    let lone = find("actionable", &spare);
+    assert!(lone.text.starts_with("Spare has 5% left"), "{}", lone.text);
+    assert_eq!(lone.quota.as_ref().unwrap().account_label, "Spare");
+    assert_eq!(
+        find("reset-reached", &work).text,
+        "Claude Max 20x has reset: its session can pick up again"
+    );
+    assert_eq!(
+        find("reset-reached", &spare).text,
+        "Spare has reset: its session can pick up again"
+    );
+}
+
+/// D-62: a renewal is the Account's, so the digest's line names it; a
+/// folder no Account lists keeps its own name.
+#[test]
+fn a_renewal_line_names_the_account_and_a_lone_folder_itself() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let (work, _personal, _id) = one_account_two_folders(&state);
+    let spare = folder(&state, "Spare", None);
+    let digest = |folder: &str| AlertEventInfo {
+        kind: "digest".into(),
+        account: folder.into(),
+        text: "Renews in 6 days — check your plan".into(),
+        at_ms: Timestamp::now().millis(),
+        quota: None,
+    };
+    sources::quota_pass(&state, &[digest(&work), digest(&spare)]);
+    let earlier = centre::page(
+        &state.storage.lock().unwrap(),
+        "earlier",
+        &juggler_app::paging::PageRequest::first(50),
+        Timestamp::now().millis(),
+    )
+    .unwrap()
+    .items;
+    let mut renewals: Vec<(&str, Option<&str>)> = earlier
+        .iter()
+        .filter(|notice| notice.kind == "renewal")
+        .map(|notice| (notice.title.as_str(), notice.facts.account.as_deref()))
+        .collect();
+    renewals.sort_unstable();
+    assert_eq!(
+        renewals,
+        [
+            (
+                "Claude Max 20x: Renews in 6 days — check your plan",
+                Some("Claude Max 20x")
+            ),
+            ("Spare: Renews in 6 days — check your plan", Some("Spare")),
+        ]
+    );
+}

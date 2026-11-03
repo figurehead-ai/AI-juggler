@@ -227,7 +227,8 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
         &trip.cwd,
     );
 
-    // The suggestion exists (suggest-only) with the verbatim copy.
+    // The suggestion exists (suggest-only) with the verbatim copy (D-62:
+    // folders no Account lists, by their own names).
     let suggestions = commands::switch_back_suggestions_impl(&trip.state).unwrap();
     assert_eq!(suggestions.len(), 1, "one open excursion");
     assert_eq!(
@@ -391,6 +392,50 @@ fn a_to_b_to_a_resumes_original_with_one_delta_and_no_copy_back() {
 
 /// 0.3 (wf27): when the account the work left has room again, its notice
 /// offers the switch back for that work, not just its account page.
+/// D-62: the reset is the Account's, so the card says the Account the
+/// original folder is signed in to; the folder stays the App the work
+/// goes back to. (Above, folders no Account lists keep their own names.)
+#[test]
+fn the_switch_back_card_names_the_account_that_reset() {
+    let work = tempfile::tempdir().unwrap();
+    let trip = switch_a_to_b(work.path());
+    let work_max = trip
+        .state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|account| account.label == "Work Max")
+        .unwrap()
+        .id
+        .to_string();
+    let config = config_dir_of(&trip.state, &work_max).join(".claude.json");
+    let mut json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
+    json["oauthAccount"] = serde_json::json!({
+        "accountUuid": "subject-a",
+        "organizationUuid": "org-a",
+        "emailAddress": "you@example.invalid"
+    });
+    std::fs::write(&config, json.to_string()).unwrap();
+    let name = juggler_app::features::subscriptions::folder_accounts(&trip.state)[&work_max]
+        .name
+        .clone();
+    assert_ne!(name, "Work Max", "an Account is never named by its folder");
+    let expected = juggler_handover::switch_back::suggestion_copy(&name, "Personal");
+
+    let suggestions = commands::switch_back_suggestions_impl(&trip.state).unwrap();
+    assert_eq!(suggestions.len(), 1);
+    assert_eq!(suggestions[0].copy, expected);
+    assert_eq!(suggestions[0].original_account, "Work Max", "the App");
+    let plan = commands::switch_back_plan_impl(&trip.state, &trip.away_session).unwrap();
+    assert_eq!(plan.suggestion, expected);
+    assert_eq!(plan.original_account, "Work Max", "the App");
+}
+
 #[test]
 fn the_room_again_notice_offers_the_switch_back() {
     use juggler_app::features::notifications::{centre, sources};

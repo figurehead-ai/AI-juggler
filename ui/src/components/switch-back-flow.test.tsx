@@ -13,7 +13,7 @@ import type { SwitchBackPlanData } from "../lib/bridge";
 
 const PLAN: SwitchBackPlanData = {
   suggestion:
-    "Work Max has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
+    "Claude Max 20x has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
   original_account: "Work Max",
   away_account: "Personal",
   original_native_id: "native-5",

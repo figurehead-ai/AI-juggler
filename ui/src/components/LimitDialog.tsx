@@ -24,7 +24,7 @@ import {
 } from "../lib/bridge";
 import { stagingReady, type StagedSwitchInfo } from "../lib/ipc/staging";
 import { rankTargets, type RoomTarget } from "../lib/room-targets";
-import { accountName, accountOfProfile, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { SuggestedMark } from "./SwitchTargetRows";
 import { IconClose } from "./icons-controls";
 import { resetsWords, whenWords } from "../lib/time-words";
@@ -109,8 +109,7 @@ export function LimitDialog({
   // D-62: the limit is the Account's (its folders share it), so it's named
   // by the Account; until the accounts are read, or for a folder in none,
   // the folder's own name stands in.
-  const limited = accounts && session.account_id ? accountOfProfile(accounts, session.account_id) : undefined;
-  const who = limited?.account_id ? accountName(limited) : session.account_label;
+  const who = accountNameOf(accounts, session.account_id, session.account_label);
   const target = targets ? pickTarget(targets, session.account_id, accounts, displays) : null;
   const ready = target && staged?.target_account_id === target.account_id ? staged : null;
   const targetLines = target

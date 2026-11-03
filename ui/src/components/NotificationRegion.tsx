@@ -53,7 +53,7 @@ import { quotaDetail, secondOf } from "../lib/notice-words";
 import { REMINDER_CONVERSATION } from "../lib/notice-actions";
 import { useActionHost } from "./ItemMenu";
 import { useConversations } from "../lib/conversations";
-import { accountName as subscriptionName, accountOfProfile, useSubscriptions, withLiveLabels } from "../lib/subscriptions";
+import { accountNameOf, useSubscriptions } from "../lib/subscriptions";
 
 /** AJ-E1103: an alert kind as the schema names it. */
 function alertKind(kind: string): string {
@@ -210,9 +210,7 @@ export function NotificationRegion({
   const subscriptions = useSubscriptions(0, queue.some((row) => row.state === "ready"));
   const accountName = (id: string) => {
     const folder = accounts.find((account) => account.id === id || account.label === id);
-    const subscription = folder && subscriptions ? accountOfProfile(subscriptions, folder.id) : undefined;
-    if (subscription && subscription.state !== "signed_out") return subscriptionName(withLiveLabels(subscription, accounts));
-    return folder?.label ?? "Its account";
+    return accountNameOf(subscriptions, folder?.id, folder?.label ?? "Its account");
   };
   const { update, ready } = updates;
   /** Hides it now; the write follows, and a refusal puts it back. */

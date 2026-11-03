@@ -82,7 +82,7 @@ export async function switchBackPlan(
       (window as unknown as { __AIJ_SWITCH_BACK_PLAN__?: SwitchBackPlanData })
         .__AIJ_SWITCH_BACK_PLAN__ ?? {
         suggestion:
-          "Work Max has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
+          "Claude Max 20x has reset. Resume the original conversation there? Work from Personal arrives as one 'while you were away' update.",
         original_account: "Work Max",
         away_account: "Personal",
         original_native_id: "native-5",

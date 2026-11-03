@@ -66,7 +66,7 @@ export function useSubscriptions(version = 0, wanted = true): SubscriptionInfo[]
 }
 
 /** The account a profile is signed in to. */
-export function accountOfProfile(rows: SubscriptionInfo[], profileId: string): SubscriptionInfo | undefined {
+export function accountOfProfile(rows: readonly SubscriptionInfo[], profileId: string): SubscriptionInfo | undefined {
   return rows.find((row) => row.profiles.some((profile) => profile.id === profileId));
 }
 
@@ -82,6 +82,16 @@ export function shareAccount(rows: SubscriptionInfo[], a: string, b: string): bo
  * apart from a twin. Never a folder's or an app's name: those are Apps. */
 export function accountName(row: SubscriptionInfo): string {
   return row.display_name;
+}
+
+/** What a limit, a reset or a renewal calls folder `folderId` (D-62: they
+ * are its Account's, shared by its folders): its Account's name, as the
+ * backend's `subscriptions::folder_name` says it. A folder no stored
+ * Account lists (not signed in, a sign-in that can't be read), or any
+ * before the accounts are read, keeps `own`, its own name. */
+export function accountNameOf(rows: readonly SubscriptionInfo[] | null | undefined, folderId: string | null | undefined, own: string): string {
+  const account = rows && folderId ? accountOfProfile(rows, folderId) : undefined;
+  return account?.account_id ? accountName(account) : own;
 }
 
 /** A plan as it's said: "max-20x" → "Max 20x", "pro" → "Pro". */

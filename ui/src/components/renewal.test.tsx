@@ -1,10 +1,12 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AccountSettingsSection } from "../pages/account/Settings";
 import { RenewalAnnouncer } from "./indicator";
 import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { sortSessions } from "../lib/railview";
 import type { AccountInfo, InstanceInfo } from "../lib/bridge";
+import * as subs from "../lib/ipc/subscriptions";
+import { loadSubscriptions, staleSubscriptions } from "../lib/subscriptions";
 
 /**
  * AJ-E411 evidence (D-12): the renewal-date states at every threshold
@@ -170,6 +172,27 @@ describe("AJ-E411 once-per-day polite announcement", () => {
       <RenewalAnnouncer accounts={[account({ renewal_date: daysOut(30) })]} now={NOW} />,
     );
     expect(quiet.querySelector('[data-testid="renewal-announcer"]')!.textContent).toBe("");
+  });
+
+  it("D-62: a renewal is the Account's, announced once by its name, after the accounts are read", async () => {
+    localStorage.clear();
+    const spy = vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      {
+        key: "k-work", account_id: "acct:anthropic:work", name: null, display_name: "Claude Max 20x", tool: "claude-code", state: "signed_in",
+        email: null, organisation: null, reason: null, plan: "max-20x", renewal_date: null, fee_usd: null, differs: [], choices: [],
+        profiles: ["a1", "a2"].map((id) => ({ id, label: id, folder: `~/.claude-${id}`, plan: null, renewal_date: null, fee_usd: null })),
+      },
+    ]);
+    await loadSubscriptions(true);
+    const onAccount = { renewal_date: daysOut(3), subscription_id: "acct:anthropic:work" };
+    const { container } = render(
+      <RenewalAnnouncer accounts={[account(onAccount), account({ ...onAccount, id: "a2", label: "Personal" })]} now={NOW} />,
+    );
+    const announcer = container.querySelector('[data-testid="renewal-announcer"]')!;
+    await waitFor(() => expect(announcer.textContent).toBe("Claude Max 20x renewal: Renews in 3 days"));
+    expect(announcer.textContent).not.toContain("Work Max");
+    spy.mockRestore();
+    staleSubscriptions();
   });
 });
 

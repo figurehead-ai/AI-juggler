@@ -202,7 +202,7 @@ test("machine filter persists, a Fleet alert opens its machine, access is change
       model: null, model_source: "unknown", project_name: "web-shop", started_at_ms: now - 60_000,
       last_activity_ms: null, cpu_percent: null, rss_bytes: null, process_count: null, measured_at_ms: now,
     }],
-    alerts: [{ kind: "exhausted", account: "Work Max", text: "Work Max hit its 5-hour limit.", at_ms: now }],
+    alerts: [{ kind: "exhausted", account: "Work Max", text: "Claude Max 20x has used up its 5-hour window", at_ms: now }],
   };
   await openFleet(page, { __AIJ_LINK__: { enabled: true, port: 47821, error: null }, __AIJ_FLEET_PEERS__: [peer], __AIJ_FLEET_REMOTE__: [machine] });
 

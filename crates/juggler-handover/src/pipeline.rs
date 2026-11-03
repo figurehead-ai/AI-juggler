@@ -58,9 +58,7 @@ pub fn user_copy(situation: CopySituation) -> String {
         CopySituation::SwitchBackReady {
             account_a,
             account_b,
-        } => format!(
-            "{account_a} has reset. Resume the original conversation there? Work from {account_b} arrives as one 'while you were away' update."
-        ),
+        } => crate::switch_back::suggestion_copy(&account_a, &account_b),
         CopySituation::SameBranchParallel {
             instance_a,
             instance_b,
@@ -118,7 +116,7 @@ pub enum CopySituation {
     },
     /// Switch-back offer on quota reset (E207).
     SwitchBackReady {
-        /// The reset account.
+        /// The Account that reset, by its name (D-62: not its folder's).
         account_a: String,
         /// The away account.
         account_b: String,

@@ -4,13 +4,15 @@
 //! session's id. The numbers ride along so this Mac's banner can say the
 //! reset in local time and offer Hand over and Queue for the reset.
 
-use juggler_core::model::{AccountId, SessionId};
+use juggler_core::model::SessionId;
 use juggler_core::storage::Storage;
 
 /// The numbers behind a quota alert.
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
 pub struct AlertQuotaInfo {
-    /// The account's name.
+    /// Its Account's name (D-62: the window is the Account's, whichever
+    /// of its folders it was read for); a folder no Account lists, its
+    /// own.
     pub account_label: String,
     /// The window (`five_hour|weekly`): data for the UI, never shown.
     pub window: String,
@@ -114,14 +116,22 @@ pub fn on_credits_words(used_up: &str, cover: super::CreditsCover) -> String {
 }
 
 /// A queued resume came due, in plain words (never the session's id):
-/// its account and the folder it works in.
+/// `name`, its Account's (D-62: the reset is the Account's; a folder no
+/// Account lists, its own), and `place`, the folder its session works in
+/// ([`session_place`]).
 #[must_use]
-pub fn reset_reached_words(storage: &Storage, account: &str, session: &str) -> String {
-    let label = storage
-        .accounts()
-        .get(&AccountId::new(account))
-        .map_or_else(|_| "Its account".to_owned(), |account| account.label);
-    let folder = storage
+pub fn reset_reached_words(name: &str, place: Option<&str>) -> String {
+    match place {
+        Some(place) => format!("{name} has reset: the session in {place} can pick up again"),
+        None => format!("{name} has reset: its session can pick up again"),
+    }
+}
+
+/// The folder session `session` works in, by its last part ("web-shop");
+/// `None` when it isn't known.
+#[must_use]
+pub fn session_place(storage: &Storage, session: &str) -> Option<String> {
+    storage
         .sessions()
         .get(&SessionId::new(session))
         .ok()
@@ -131,11 +141,7 @@ pub fn reset_reached_words(storage: &Storage, account: &str, session: &str) -> S
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
         })
-        .filter(|name| !name.is_empty());
-    match folder {
-        Some(folder) => format!("{label} has reset: the session in {folder} can pick up again"),
-        None => format!("{label} has reset: its session can pick up again"),
-    }
+        .filter(|name| !name.is_empty())
 }
 
 #[cfg(test)]
@@ -215,6 +221,20 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// D-62: the words lead with whatever name they are given; the
+    /// alert pass gives the Account's.
+    #[test]
+    fn a_reset_reached_names_who_reset_and_where_its_session_works() {
+        assert_eq!(
+            reset_reached_words("Claude Max 20x", Some("web-shop")),
+            "Claude Max 20x has reset: the session in web-shop can pick up again"
+        );
+        assert_eq!(
+            reset_reached_words("Spare", None),
+            "Spare has reset: its session can pick up again"
+        );
     }
 
     #[test]
