@@ -167,7 +167,7 @@ export function RightInspector({
 }) {
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
-  const projectCounts = useProjectTabCounts(data.project, sessions);
+  const projectCounts = useProjectTabCounts(data.project, sessions, accounts, projects);
   const toolCounts = useToolTabCounts(data.provider && !data.project ? { tool: data.provider, sessions, projects, accounts, now, onOpenSession, onOpenProject } : null);
   const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 

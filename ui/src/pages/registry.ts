@@ -131,11 +131,12 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
         ? [TAB.window, TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.pools, TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
         : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.pools, TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
     // 0.3 (the redesign, §3): everything about a project, its Overview
-    // first (the work at a glance), then its sessions, its pool's tasks,
+    // first (the work at a glance), then its sessions, the Apps they ran
+    // in (AJ-E3104), its pool's tasks,
     // its pools (AJ-E3104: its own and yours), its sessions' subagents,
     // its usage and its past sessions.
     case "project":
-      return [TAB.overview, TAB.sessions, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pools, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
+      return [TAB.overview, TAB.sessions, { ...TAB.apps, source: "the apps its sessions ran in" }, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pools, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
     // D-62 (AJ-E3204): what's open there and its room, then all its
     // sessions, the projects it worked in, its usage (where its folder
     // is known), its open sessions' processes, and its settings.

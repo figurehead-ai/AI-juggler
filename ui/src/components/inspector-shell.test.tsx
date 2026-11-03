@@ -135,7 +135,7 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     // Nothing measured yet: no Usage tab (no empty tabs).
     // 0.3: a project's seven doors (Usage once something is measured);
     // its crumb's last step is its name ("Projects › alpha").
-    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Tasks", "Pools", "Subagents", "History"] },
+    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Apps", "Tasks", "Pools", "Subagents", "History"] },
   ];
 
   for (const entry of kinds) {

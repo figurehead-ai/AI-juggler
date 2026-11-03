@@ -315,10 +315,11 @@ describe("Pools and a project's page", () => {
     expect(actions.calls[0]).toMatch(/^pool:/);
   });
 
-  it("a project's page has its seven tabs, Overview first", () => {
-    expect(pageTabs("project", { hasUsage: true, counts: { sessions: 3, tasks: 12, pools: 2 } }).map((tab) => [tab.label, tab.count])).toEqual([
+  it("a project's page has its eight tabs, Overview first", () => {
+    expect(pageTabs("project", { hasUsage: true, counts: { sessions: 3, apps: 2, tasks: 12, pools: 2 } }).map((tab) => [tab.label, tab.count])).toEqual([
       ["Overview", undefined],
       ["Sessions", 3],
+      ["Apps", 2],
       ["Tasks", 12],
       ["Pools", 2],
       ["Subagents", undefined],

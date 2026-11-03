@@ -50,6 +50,21 @@ export function toolApps(apps: readonly AppModel[], tool: string, items: readonl
   );
 }
 
+/** AJ-E3104: the Apps `ids` names (a project's, from the relation
+ * counts), else those with a session in `items`, as an Account's are
+ * listed. */
+export function appsAmong(apps: readonly AppModel[], ids: readonly string[] | undefined, items: readonly RailItem[], byConversation: ReadonlyMap<string, string>): AccountApp[] {
+  if (ids) {
+    const named = new Set(ids);
+    return appRows(
+      apps.filter((app) => named.has(app.id)),
+      items,
+      byConversation,
+    );
+  }
+  return appRows(apps, items, byConversation).filter((row) => row.sessions > 0);
+}
+
 /** Each App with its sessions in `items`: busy ones first. */
 function appRows(apps: readonly AppModel[], items: readonly RailItem[], byConversation: ReadonlyMap<string, string>): AccountApp[] {
   return apps
