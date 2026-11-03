@@ -636,14 +636,15 @@ async function openWorkAppSettings(page: import("@playwright/test").Page) {
   await expect(page.getByTestId("app-settings")).toBeVisible();
 }
 
-// The renewal words each tier puts on the Account's header (lib/renewal.ts;
-// `null`: no date, so no renewal words at all — never a guess, D-12).
-for (const [name, days, words] of [
-  ["date-only", 20, /Renews (?!in |tomorrow)\S/],
-  ["countdown", 10, "Renews in 10 days"],
-  ["warning", 6, "Renews in 6 days"],
-  ["danger", 0, "Renewal date passed"],
-  ["unknown", null, null],
+// The renewal each tier puts on the Account's header (lib/renewal.ts): a
+// date further off in its words, 7 days or fewer as its ⚠/⛔ chip
+// (AJ-E411); `null`: no date, so no renewal at all — never a guess, D-12.
+for (const [name, days, words, chip] of [
+  ["date-only", 20, /Renews (?!in |tomorrow)\S/, null],
+  ["countdown", 10, "Renews in 10 days", null],
+  ["warning", 6, "⚠ Renews in 6 days", "warning"],
+  ["danger", 0, "⛔ Renewal date passed", "danger"],
+  ["unknown", null, null, null],
 ] as const) {
   test(`renewal — Account Overview ${name} state`, async ({ page }) => {
     await seedRenewalPage(page, { width: 1440, height: 900 }, days);
@@ -651,8 +652,16 @@ for (const [name, days, words] of [
     // D-62 (AJ-E3205 req. 1): the Account's header says its renewal, on
     // every tab; its Overview leads with its limits.
     const facts = page.getByTestId("page-facts");
-    if (words === null) await expect(facts).not.toContainText(/Renew/);
-    else await expect(facts).toContainText(words);
+    const tier = page.getByTestId("page-header").getByTestId("renewal-chip");
+    if (words === null) await expect(page.getByTestId("page-header")).not.toContainText(/Renew/);
+    else if (chip === null) {
+      await expect(facts).toContainText(words);
+      await expect(tier).toHaveCount(0);
+    } else {
+      await expect(tier).toHaveAttribute("data-tier", chip);
+      await expect(tier).toContainText(words);
+      await expect(facts).not.toContainText(/Renew/);
+    }
     await expect(page.getByTestId("page-header")).toBeInViewport();
     await page.screenshot({ path: resolve(GALLERY, `11-renewal/account-${name}-1440x900.png`) });
   });
@@ -664,7 +673,7 @@ async function openRenewalEditor(page: import("@playwright/test").Page) {
   await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
   await expect(page.getByTestId("account-renewal-row")).toBeVisible();
   await expect(page.getByTestId("account-renewal-input")).toHaveValue(renewalDate(6));
-  await expect(page.getByTestId("page-facts")).toContainText("Renews in 6 days");
+  await expect(page.getByTestId("page-header").getByTestId("renewal-chip")).toContainText("Renews in 6 days");
 }
 
 test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renewal"), async ({ page }) => {
