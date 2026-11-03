@@ -14,7 +14,7 @@
 //! log hears it was skipped ([`TailLog::skipped_line`]), so one huge line
 //! (a tool's output) never holds more memory than that. A log that asks
 //! ([`TailLog::DROP_INLINE_DATA`], the conversation feed) has inline
-//! binary data (a pasted image's base64, [`crate::inline_data`]) left
+//! binary data (a pasted image's base64, `inline_data`) left
 //! out of a line as it is held: a message long only because of its
 //! image is read, its offsets the file's own ([`TailLog::feed_line`]).
 
@@ -49,7 +49,7 @@ pub trait TailLog: Default {
     }
 
     /// Whether inline binary data (a pasted image's base64) is left out
-    /// of the lines this log reads ([`crate::inline_data`]): a line long
+    /// of the lines this log reads (`inline_data`): a line long
     /// only because of it is read, not passed over. Such a line comes
     /// through [`Self::feed_line`], since it has fewer bytes than it
     /// spans in the file.
