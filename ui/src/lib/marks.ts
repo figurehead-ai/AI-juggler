@@ -26,7 +26,7 @@
  * re-render when they learn something (`useMarks`).
  */
 import { useSyncExternalStore } from "react";
-import { swatchOf } from "./palette";
+import { swatchOf, withPalette } from "./palette";
 import type { AccountInfo } from "./bridge";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import { cliAppId, cliAppKey, desktopAppKey } from "./app-name";
@@ -86,6 +86,13 @@ export function learnFolders(folders: readonly AccountInfo[]): void {
     }
   }
   if (moved) changed();
+}
+
+/** The folders as loaded, each with its stored colours learnt and its
+ * initials given (AJ-E3206, AJ-E1532). */
+export function withFolderMarks(folders: AccountInfo[]): AccountInfo[] {
+  learnFolders(folders);
+  return withPalette(folders);
 }
 
 /** The desktop Apps remembered (the places), as loaded. */

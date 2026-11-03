@@ -9,8 +9,8 @@ import { useAppKeys } from "./lib/app-keys";
 import { ConversationsProvider } from "./lib/conversations";
 import { onConversationsChanged, sessionTarget } from "./lib/ipc/conversations";
 import { servicesList } from "./lib/ipc/services";
-import { withMarks, withPalette } from "./lib/palette";
-import { learnFolders } from "./lib/marks";
+import { withMarks } from "./lib/palette";
+import { withFolderMarks } from "./lib/marks";
 import { useFirstRun } from "./lib/first-run";
 import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
 import { useCleanupCount } from "./lib/cleanup-count";
@@ -336,8 +336,7 @@ export default function App() {
         ]);
       setProjects(withMarks(projectRows)); // AJ-E1532: each project its mark
       setSessions(sessionRows);
-      learnFolders(accountRows); // AJ-E3206: each App's and Account's stored colour
-      setAccounts(withPalette(accountRows)); // AJ-E1532: each folder its initials
+      setAccounts(withFolderMarks(accountRows)); // AJ-E3206: each App's and Account's colour, each folder its initials
       setProfiles(profileRows);
       setSwitchBackCards(backSuggestions);
       if (!boardInteractiveCounted) {
@@ -683,10 +682,7 @@ export default function App() {
                 onAddAccounts={() => startAddAccount()}
                 onAccountsChanged={accountsChanged}
                 openTerminal={openLoginTerminal}
-                onInspectAccount={(id) => {
-                  setGlobal(null);
-                  setSelection({ kind: "app", id: cliAppId(id) });
-                }}
+                onInspectAccount={(id) => { setGlobal(null); setSelection({ kind: "app", id: cliAppId(id) }); }}
               />
             </ScrollingScreen>
           ) : global === "history" ? (
