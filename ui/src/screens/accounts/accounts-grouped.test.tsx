@@ -11,6 +11,7 @@ import { ProfilesScreen } from "../Profiles";
 import * as bridge from "../../lib/bridge";
 import * as subs from "../../lib/ipc/subscriptions";
 import { accountDisplay, accountLine, accountName, shareAccount, type SubscriptionInfo } from "../../lib/subscriptions";
+import { previewNamed, type UnnamedSubscription } from "../../lib/ipc/preview-names";
 import { byAccount, setupWords } from "../../pages/session/ContinueOn";
 import type { AccountInfo, QuotaDisplayData } from "../../lib/bridge";
 
@@ -34,21 +35,26 @@ const profile = (id: string, label: string, extra: Partial<AccountInfo> = {}): A
 
 const member = (id: string, extra: Partial<SubscriptionInfo["profiles"][number]> = {}) => ({ id, label: `Profile ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null, ...extra });
 
-const account = (key: string, ids: string[], extra: Partial<SubscriptionInfo> = {}): SubscriptionInfo => ({
-  key,
-  tool: "claude-code",
-  state: "signed_in",
-  email: "o…@work.com",
-  organisation: null,
-  reason: null,
-  profiles: ids.map((id) => member(id)),
-  plan: "Max",
-  renewal_date: null,
-  fee_usd: null,
-  differs: [],
-  choices: [],
-  ...extra,
-});
+/** An account as the backend hands it: named by its rule (the preview's
+ * stand-in for it). */
+const account = (key: string, ids: string[], extra: Partial<UnnamedSubscription> = {}): SubscriptionInfo =>
+  previewNamed([
+    {
+      key,
+      tool: "claude-code",
+      state: "signed_in",
+      email: "o…@work.com",
+      organisation: null,
+      reason: null,
+      profiles: ids.map((id) => member(id)),
+      plan: "Max",
+      renewal_date: null,
+      fee_usd: null,
+      differs: [],
+      choices: [],
+      ...extra,
+    },
+  ])[0]!;
 
 const measured = (id: string, used: number, at: number): QuotaDisplayData =>
   ({
@@ -130,25 +136,32 @@ describe("AJ-E2109 the Accounts screen", () => {
 describe("AJ-E2109 accounts in words", () => {
   const rows = [account("work", ["w1", "w2"]), account("me", ["p1"], { email: "o…@me.com", plan: null })];
 
-  it("names an account its own way: your name, else its team, else its plan, else its email (D-62)", () => {
+  it("names an account by the name the backend gives it (D-62), never a folder's", () => {
+    // The rule is the backend's (`subscriptions::name_all`, its cases in
+    // Rust); every screen reads `display_name`.
+    expect(accountName({ ...rows[0]!, display_name: "Day job" })).toBe("Day job");
+    // Its line leaves out what its name already says.
+    const seats = previewNamed(["a", "b", "c"].map((id) => ({ ...account(id, [id]), organisation: "Acme", email: `${id}…@acme.com` })));
+    expect(accountLine(seats[0]!)).toBe("Max");
+    expect(accountLine(account("a", ["a"], { organisation: "Acme", email: "a…@acme.com" }))).toBe("a…@acme.com · Max");
+  });
+
+  it("the preview names its accounts as the backend would (the galleries' stand-in)", () => {
     // Five seats in one team (the 0.2 walk, F3): each is told apart by its
     // email beside the team's name, never five "Acme"s.
-    const seats = ["a", "b", "c"].map((id) => account(id, [id], { organisation: "Acme", email: `${id}…@acme.com` }));
-    expect(seats.map((seat) => accountName(seat, seats))).toEqual(["Acme · a…@acme.com", "Acme · b…@acme.com", "Acme · c…@acme.com"]);
-    expect(accountLine(seats[0]!, seats)).toBe("Max");
-    // One team account alone: the team; its line, the rest.
+    const seats = previewNamed(["a", "b", "c"].map((id) => ({ ...account(id, [id]), organisation: "Acme", email: `${id}…@acme.com` })));
+    expect(seats.map(accountName)).toEqual(["Acme · a…@acme.com", "Acme · b…@acme.com", "Acme · c…@acme.com"]);
+    expect(accountName(account("a", ["a"], { organisation: "Acme" }))).toBe("Acme");
     // No plan, so named by its masked email, and two read the same: the
     // tool where theirs differ, else a number among them by id.
     const masked = ["x1", "x2"].map((id) => ({ ...account(id, [id], { email: "c…@example.com", plan: null }), account_id: `acct:${id}` }));
-    expect(masked.map((row) => accountName(row, masked))).toEqual(["c…@example.com (1)", "c…@example.com (2)"]);
-    const tools = [masked[0]!, { ...masked[1]!, tool: "codex" }];
-    expect(tools.map((row) => accountName(row, tools))).toEqual(["Claude · c…@example.com", "Codex · c…@example.com"]);
-    expect(accountName(seats[0]!)).toBe("Acme");
-    expect(accountLine(seats[0]!)).toBe("a…@acme.com · Max");
+    expect(previewNamed(masked).map(accountName)).toEqual(["c…@example.com (1)", "c…@example.com (2)"]);
+    expect(previewNamed([masked[0]!, { ...masked[1]!, tool: "codex" }]).map(accountName)).toEqual(["Claude · c…@example.com", "Codex · c…@example.com"]);
     // Named by you: your name, whatever its folders are called.
-    expect(accountName({ ...rows[0]!, name: "Day job" })).toBe("Day job");
+    expect(accountName(account("w", ["w1"], { name: "Day job" }))).toBe("Day job");
     // No team: its tool and plan; no plan: its email; nothing: the tool's.
     expect(accountName(account("t", []))).toBe("Claude Max");
+    expect(accountName(account("t", [], { plan: "max-20x" }))).toBe("Claude Max 20x");
     expect(accountName(rows[1]!)).toBe("o…@me.com");
     expect(accountName(account("t", [], { plan: null, email: null }))).toBe("Claude account");
     // A sign-in that can't be read, and folders not signed in.

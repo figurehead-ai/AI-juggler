@@ -129,6 +129,31 @@ fn offer_log(state: &Arc<AppState>) -> Vec<String> {
         .collect()
 }
 
+/// D-62: the reset is the Account's (its folders share its limits), so the
+/// offer names the Account, never its folder ("Work Max").
+#[test]
+fn the_offer_names_the_account_the_folder_is_signed_in_to() {
+    let work = tempfile::tempdir().unwrap();
+    let (state, session, _account, config) = blocked(work.path(), true);
+    parked::instance_park_impl(&state, &session).unwrap();
+    std::fs::write(
+        config.join(".claude.json"),
+        r#"{"oauthAccount":{"accountUuid":"subject-a","organizationUuid":"org-a","emailAddress":"you@example.invalid"}}"#,
+    )
+    .unwrap();
+    parked::parked_set_reset_for_test(&state, &session, Timestamp::now().millis() - 1);
+    let offers = parked::parked_offers_impl(&state).unwrap();
+    assert_eq!(offers.len(), 1);
+    // The folder's plan ("max") is its Account's: "Claude Max".
+    assert_eq!(offers[0].account_label, "Claude Max");
+    assert!(
+        offers[0].text.starts_with("Claude Max has reset."),
+        "{}",
+        offers[0].text
+    );
+    assert!(!offers[0].text.contains("Work Max"), "{}", offers[0].text);
+}
+
 #[test]
 fn a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original() {
     let work = tempfile::tempdir().unwrap();

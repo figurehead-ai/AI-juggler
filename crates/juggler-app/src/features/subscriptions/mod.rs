@@ -61,6 +61,14 @@ pub struct SubscriptionInfo {
     /// D-62 (AJ-E3205): the name you gave the Account; `null`: its default.
     #[ts(optional = nullable)]
     pub name: Option<String>,
+    /// D-62 (AJ-E3202 req. 3): what every screen and notice calls it,
+    /// worked out once, where the list is built: the name you gave it; else
+    /// its service's; else its team, its tool and plan ("Claude Max
+    /// 20x"), or its masked email, told apart from another that reads the
+    /// same. Folders not signed in are "Not signed in"; a sign-in that
+    /// can't be read is "Account unknown". Never a folder's or an app's
+    /// name: those are Apps.
+    pub display_name: String,
     /// AJ-E3206: the stored Account's colour, given once (an index into
     /// the UI's `MARK_COLOURS`); `null` for one not stored.
     #[ts(optional = nullable)]
@@ -188,6 +196,7 @@ pub fn group(rows: Vec<ProfileRead>) -> Vec<SubscriptionInfo> {
                 key: opaque(&key),
                 account_id: None,
                 name: None,
+                display_name: String::new(),
                 colour_slot: None,
                 tool: row.tool,
                 state: state.to_owned(),
@@ -337,7 +346,188 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<SubscriptionInfo>> {
         account.colour_slot = slots.get(&id).copied();
         on_account(&storage, &id, account)?;
     }
+    drop(storage);
+    name_all(&mut accounts, |tool| tool_words(state, tool));
     Ok(accounts)
+}
+
+/// A tool as an Account's name says it: its short name ("Claude"), else
+/// its full one; a tool not registered here, its id.
+fn tool_words(state: &AppState, tool: &str) -> String {
+    state
+        .registry
+        .get(&juggler_core::model::HarnessId::new(tool.to_owned()))
+        .map_or_else(
+            || tool.to_owned(),
+            |adapter| {
+                let spec = adapter.spec();
+                if spec.short_name.is_empty() {
+                    spec.display_name
+                } else {
+                    spec.short_name
+                }
+            },
+        )
+}
+
+/// A plan as it's said: "max-20x" → "Max 20x", "pro" → "Pro".
+#[must_use]
+pub fn plan_words(plan: &str) -> String {
+    plan.split(|c: char| c == '-' || c == '_' || c.is_whitespace())
+        .filter(|word| !word.is_empty())
+        .map(|word| {
+            let mut chars = word.chars();
+            chars.next().map_or_else(String::new, |first| {
+                first.to_uppercase().chain(chars).collect::<String>()
+            })
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Some, and not blank.
+fn given(value: Option<&String>) -> Option<&str> {
+    value
+        .map(String::as_str)
+        .filter(|value| !value.trim().is_empty())
+}
+
+/// An Account's default name, before it's told apart from its twins:
+/// its team; else its tool and plan; else its masked email; else the
+/// tool's ("Claude account").
+fn default_name(row: &SubscriptionInfo, tool: &str) -> String {
+    if let Some(organisation) = given(row.organisation.as_ref()) {
+        return organisation.to_owned();
+    }
+    if let Some(plan) = given(row.plan.as_ref()) {
+        return format!("{tool} {}", plan_words(plan));
+    }
+    given(row.email.as_ref()).map_or_else(|| format!("{tool} account"), str::to_owned)
+}
+
+/// Gives every Account its [`SubscriptionInfo::display_name`] (D-62,
+/// AJ-E3202 req. 3; AJ-E3205): the one rule every screen and notice
+/// reads. `tool_words` says a tool ("Claude"). Two signed-in Accounts
+/// with no name of their own that would read the same are told apart:
+/// by their masked email; where that is the name itself, by their tool
+/// where theirs differ, else by their place among them (by id).
+/// Renaming one settles it.
+pub fn name_all(accounts: &mut [SubscriptionInfo], tool_words: impl Fn(&str) -> String) {
+    let defaults: Vec<Option<String>> = accounts
+        .iter()
+        .map(|row| {
+            let plain = row.state == "signed_in"
+                && given(row.name.as_ref()).is_none()
+                && row.service.is_none();
+            plain.then(|| default_name(row, &tool_words(&row.tool)))
+        })
+        .collect();
+    let names: Vec<String> = accounts
+        .iter()
+        .map(|row| name_of(row, accounts, &defaults, &tool_words))
+        .collect();
+    for (row, name) in accounts.iter_mut().zip(names) {
+        row.display_name = name;
+    }
+}
+
+fn name_of(
+    row: &SubscriptionInfo,
+    all: &[SubscriptionInfo],
+    defaults: &[Option<String>],
+    tool_words: &impl Fn(&str) -> String,
+) -> String {
+    if row.state == "signed_out" {
+        return "Not signed in".to_owned();
+    }
+    if let Some(name) = given(row.name.as_ref()) {
+        return name.trim().to_owned();
+    }
+    // AJ-E1601: an account through another service is named for it.
+    if let Some(service) = &row.service {
+        return service.name.clone();
+    }
+    if row.state == "unverified" {
+        return "Account unknown".to_owned();
+    }
+    let tool = tool_words(&row.tool);
+    let base = default_name(row, &tool);
+    let twins: Vec<&SubscriptionInfo> = all
+        .iter()
+        .zip(defaults)
+        .filter(|(_, default)| default.as_deref() == Some(base.as_str()))
+        .map(|(other, _)| other)
+        .collect();
+    if !twins.iter().any(|other| other.key != row.key) {
+        return base;
+    }
+    if let Some(email) = given(row.email.as_ref())
+        && email != base
+    {
+        return format!("{base} · {email}");
+    }
+    // Its masked email is its name and another's reads the same (masking
+    // keeps one letter): its tool says which where theirs differ.
+    let tools: std::collections::BTreeSet<&str> =
+        twins.iter().map(|other| other.tool.as_str()).collect();
+    if tools.len() == twins.len() {
+        return format!("{tool} · {base}");
+    }
+    let id = |other: &SubscriptionInfo| {
+        other
+            .account_id
+            .clone()
+            .unwrap_or_else(|| other.key.clone())
+    };
+    let mut order: Vec<String> = twins.iter().map(|other| id(other)).collect();
+    order.sort();
+    let place = order
+        .iter()
+        .position(|other| *other == id(row))
+        .unwrap_or(0)
+        + 1;
+    format!("{base} ({place})")
+}
+
+/// D-62: the Account a folder is signed in to, as a notice names it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FolderAccount {
+    /// The stored Account (`acct:<vendor>:<hash>`).
+    pub id: String,
+    /// Its [`SubscriptionInfo::display_name`].
+    pub name: String,
+    /// Every folder signed in to it, in the order AI Juggler lists them.
+    pub folders: Vec<String>,
+}
+
+/// Each folder signed in to a stored Account, with that Account. A
+/// folder in none (not signed in, a sign-in that can't be read) isn't
+/// listed: it stands for itself.
+#[must_use]
+pub fn by_folder(accounts: &[SubscriptionInfo]) -> BTreeMap<String, FolderAccount> {
+    let mut out = BTreeMap::new();
+    for account in accounts {
+        let Some(id) = &account.account_id else {
+            continue;
+        };
+        let found = FolderAccount {
+            id: id.clone(),
+            name: account.display_name.clone(),
+            folders: account.profiles.iter().map(|p| p.id.clone()).collect(),
+        };
+        for folder in &found.folders {
+            out.insert(folder.clone(), found.clone());
+        }
+    }
+    out
+}
+
+/// [`by_folder`], read now ([`list_impl`]: each folder's sign-in is read
+/// again); empty when it can't be read (each folder then stands for
+/// itself).
+#[must_use]
+pub fn folder_accounts(state: &Arc<AppState>) -> BTreeMap<String, FolderAccount> {
+    list_impl(state).map_or_else(|_| BTreeMap::new(), |accounts| by_folder(&accounts))
 }
 
 /// D-62 (AJ-E3202 req. 4): a stored Account's plan, renewal and fee are
@@ -628,6 +818,174 @@ mod tests {
         assert_eq!(accounts[1].email.as_deref(), Some("o…@work.com"));
         assert_eq!(accounts[1].organisation.as_deref(), Some("Acme"));
         assert_eq!(accounts[1].profiles[0].label, "Account team");
+    }
+
+    /// A signed-in Account as the list hands it, before it's named.
+    fn named_row(key: &str, extra: impl FnOnce(&mut SubscriptionInfo)) -> SubscriptionInfo {
+        let mut account = group(vec![row(
+            key,
+            "claude-code",
+            signed(key, None, "o…@work.com"),
+        )])
+        .remove(0);
+        account.key = key.to_owned();
+        account.plan = Some("Max".to_owned());
+        extra(&mut account);
+        account
+    }
+
+    fn tool_words(tool: &str) -> String {
+        match tool {
+            "claude-code" => "Claude".to_owned(),
+            "codex" => "Codex".to_owned(),
+            other => other.to_owned(),
+        }
+    }
+
+    fn names(mut rows: Vec<SubscriptionInfo>) -> Vec<String> {
+        name_all(&mut rows, tool_words);
+        rows.into_iter().map(|row| row.display_name).collect()
+    }
+
+    /// D-62 (AJ-E3202 req. 3; AJ-E3205), moved here from the UI: your
+    /// name, else its team, else its tool and plan, else its email.
+    #[test]
+    fn an_account_is_named_its_own_way_never_by_a_folder() {
+        assert_eq!(
+            names(vec![named_row("t", |_| {})]),
+            ["Claude Max"],
+            "its tool and plan"
+        );
+        assert_eq!(
+            names(vec![named_row("t", |row| row.plan = Some("max-20x".into()))]),
+            ["Claude Max 20x"]
+        );
+        assert_eq!(
+            names(vec![named_row("me", |row| {
+                row.plan = None;
+                row.email = Some("o…@me.com".into());
+            })]),
+            ["o…@me.com"],
+            "no plan: its email"
+        );
+        assert_eq!(
+            names(vec![named_row("t", |row| {
+                row.plan = None;
+                row.email = None;
+            })]),
+            ["Claude account"],
+            "nothing: the tool's"
+        );
+        assert_eq!(
+            names(vec![named_row("w", |row| row.name = Some("Day job".into()))]),
+            ["Day job"],
+            "named by you, whatever its folders are called"
+        );
+        assert_eq!(
+            names(vec![named_row("w", |row| row.name = Some("  ".into()))]),
+            ["Claude Max"],
+            "a blank name is its default"
+        );
+        assert_eq!(
+            names(vec![named_row("u", |row| row.state = "unverified".into())]),
+            ["Account unknown"]
+        );
+        assert_eq!(
+            names(vec![named_row("o", |row| row.state = "signed_out".into())]),
+            ["Not signed in"]
+        );
+        let folder_named = named_row("f", |_| {});
+        assert_eq!(folder_named.profiles[0].label, "Account f");
+        assert_eq!(names(vec![folder_named]), ["Claude Max"]);
+    }
+
+    #[test]
+    fn an_account_through_a_service_is_named_for_it() {
+        let accounts = group(vec![through("go", "claude-code", "svc-1", true)]);
+        let service = accounts[0].service.as_ref().unwrap().name.clone();
+        assert_eq!(names(accounts), [service]);
+    }
+
+    /// The 0.2 walk (F3): five seats in one team are told apart by their
+    /// email, never five "Acme"s; twins on one masked email by their tool,
+    /// else by their place among them.
+    #[test]
+    fn two_accounts_that_would_read_the_same_are_told_apart() {
+        let seats: Vec<SubscriptionInfo> = ["a", "b", "c"]
+            .into_iter()
+            .map(|id| {
+                named_row(id, |row| {
+                    row.organisation = Some("Acme".into());
+                    row.email = Some(format!("{id}…@acme.com"));
+                })
+            })
+            .collect();
+        assert_eq!(
+            names(seats.clone()),
+            [
+                "Acme · a…@acme.com",
+                "Acme · b…@acme.com",
+                "Acme · c…@acme.com"
+            ]
+        );
+        assert_eq!(
+            names(vec![seats[0].clone()]),
+            ["Acme"],
+            "one alone: the team"
+        );
+        let masked: Vec<SubscriptionInfo> = ["x1", "x2"]
+            .into_iter()
+            .map(|id| {
+                named_row(id, |row| {
+                    row.email = Some("c…@example.com".into());
+                    row.plan = None;
+                    row.account_id = Some(format!("acct:{id}"));
+                })
+            })
+            .collect();
+        assert_eq!(
+            names(vec![masked[1].clone(), masked[0].clone()]),
+            ["c…@example.com (2)", "c…@example.com (1)"],
+            "by their place among them, by id"
+        );
+        let mut codex = masked[1].clone();
+        codex.tool = "codex".into();
+        assert_eq!(
+            names(vec![masked[0].clone(), codex]),
+            ["Claude · c…@example.com", "Codex · c…@example.com"]
+        );
+        // One you named isn't a twin: the other reads its plain name.
+        let mut named = seats[1].clone();
+        named.name = Some("Side".into());
+        assert_eq!(names(vec![seats[0].clone(), named]), ["Acme", "Side"]);
+    }
+
+    #[test]
+    fn a_plan_is_said_in_words() {
+        assert_eq!(plan_words("max-20x"), "Max 20x");
+        assert_eq!(plan_words("pro"), "Pro");
+        assert_eq!(plan_words("team_premium  seat"), "Team Premium Seat");
+        assert_eq!(plan_words(""), "");
+    }
+
+    #[test]
+    fn each_folder_on_a_stored_account_maps_to_it_and_others_stand_alone() {
+        let mut accounts = group(vec![
+            row("work", "claude-code", signed("a", None, "o…@work.com")),
+            row("work-2", "claude-code", signed("a", None, "o…@work.com")),
+            row("out", "claude-code", IdentityProbe::SignedOut),
+        ]);
+        accounts[0].account_id = Some("acct:anthropic:1".into());
+        accounts[0].plan = Some("max-20x".into());
+        name_all(&mut accounts, tool_words);
+        let map = by_folder(&accounts);
+        assert_eq!(map.len(), 2, "the folder not signed in stands alone");
+        let work = &map["work"];
+        assert_eq!(work.id, "acct:anthropic:1");
+        assert_eq!(work.name, "Claude Max 20x");
+        assert_eq!(work.folders, ["work", "work-2"]);
+        assert_eq!(map["work-2"], *work);
+        assert!(!map.contains_key("out"));
     }
 
     #[test]

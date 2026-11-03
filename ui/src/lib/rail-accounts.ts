@@ -11,7 +11,7 @@ export function useRailAccountOf(wanted: boolean): AccountOf {
   const subscriptions = useSubscriptions(0, wanted);
   return useMemo(() => {
     const all = subscriptions ?? [];
-    const byProfile = new Map(all.flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row, all) }] as const)));
+    const byProfile = new Map(all.flatMap((row) => row.profiles.map((profile) => [profile.id, { key: row.key, label: accountName(row) }] as const)));
     return (profileId: string | null) => (profileId === null ? null : (byProfile.get(profileId) ?? null));
   }, [subscriptions]);
 }

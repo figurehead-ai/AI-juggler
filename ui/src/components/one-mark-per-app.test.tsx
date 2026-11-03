@@ -83,6 +83,7 @@ const LAB_APP: KnownPlaceInfo = { ...WORK_APP, id: "app:claude-app:/Users/you/Pr
 const ACCOUNT: SubscriptionInfo = {
   key: "k-work",
   account_id: "acct:anthropic:work",
+  display_name: "Claude Max",
   colour_slot: 2,
   tool: "claude-code",
   state: "signed_in",

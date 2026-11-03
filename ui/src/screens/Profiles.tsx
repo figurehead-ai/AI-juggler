@@ -119,7 +119,7 @@ export function ProfilesScreen({
   const missed = accounts.filter((a) => !subscriptions.some((sub) => sub.profiles.some((p) => p.id === a.id)));
   for (const a of missed) {
     grouped.push({
-      sub: { key: `new-${a.id}`, tool: a.provider, state: "unverified", email: null, organisation: null, reason: "just added: its sign-in is read next time", profiles: [{ id: a.id, label: a.label, folder: "", plan: a.plan, renewal_date: a.renewal_date, fee_usd: null }], plan: a.plan, renewal_date: a.renewal_date, fee_usd: null, differs: [], choices: [] },
+      sub: { key: `new-${a.id}`, display_name: "Account unknown", tool: a.provider, state: "unverified", email: null, organisation: null, reason: "just added: its sign-in is read next time", profiles: [{ id: a.id, label: a.label, folder: "", plan: a.plan, renewal_date: a.renewal_date, fee_usd: null }], plan: a.plan, renewal_date: a.renewal_date, fee_usd: null, differs: [], choices: [] },
       rows: [a],
     });
   }
@@ -162,7 +162,6 @@ export function ProfilesScreen({
               <AccountCard
                 key={sub.key}
                 subscription={sub}
-                all={grouped.map((group) => group.sub)}
                 apps={apps ?? undefined}
                 toolWords={new Set(grouped.map((group) => group.sub.tool)).size > 1}
                 profiles={rows}

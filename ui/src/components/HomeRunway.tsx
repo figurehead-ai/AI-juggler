@@ -36,7 +36,7 @@ export function accountGroups(accounts: AccountInfo[], subscriptions: Subscripti
     const profiles = accounts.filter((account) => subscription.profiles.some((profile) => profile.id === account.id));
     if (profiles.length === 0) continue;
     for (const profile of profiles) placed.add(profile.id);
-    out.push({ key: subscription.key, name: accountName(subscription, subscriptions ?? undefined), detail: accountLine(subscription, subscriptions ?? undefined), profiles, subscription });
+    out.push({ key: subscription.key, name: accountName(subscription), detail: accountLine(subscription), profiles, subscription });
   }
   for (const account of accounts.filter((account) => !placed.has(account.id))) {
     out.push({ key: account.id, name: account.label, detail: account.plan, profiles: [account], subscription: null });

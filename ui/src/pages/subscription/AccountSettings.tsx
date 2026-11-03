@@ -17,9 +17,9 @@ import { TermChoice } from "./TermChoice";
 
 const FIELD = "rounded-lg border border-hairline bg-surface px-2 py-1 text-meta text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60";
 
-export function AccountSettings({ sub, all, now, onChanged }: { sub: SubscriptionInfo; all: readonly SubscriptionInfo[]; now: number; onChanged: () => void }): JSX.Element {
+export function AccountSettings({ sub, now, onChanged }: { sub: SubscriptionInfo; now: number; onChanged: () => void }): JSX.Element {
   const [renaming, setRenaming] = useState(false);
-  const name = accountName(sub, all);
+  const name = accountName(sub);
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="account-settings-tab">
       <PaneSection id="account-name" title="Name">

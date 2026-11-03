@@ -276,7 +276,7 @@ export function RenewalSettingsCard({ accounts }: { accounts: AccountInfo[] }): 
           subs !== null && (
             <>
               {onAccount.map((sub) => (
-                <AccountRenewalRow key={sub.key} sub={sub} all={subs} onChanged={() => setVersion((was) => was + 1)} />
+                <AccountRenewalRow key={sub.key} sub={sub} onChanged={() => setVersion((was) => was + 1)} />
               ))}
               {loose.map((account) => (
                 <RenewalRow key={account.id} account={account} />

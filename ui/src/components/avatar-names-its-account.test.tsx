@@ -8,27 +8,32 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AccountAvatar } from "./Avatar";
 import * as subs from "../lib/ipc/subscriptions";
 import { loadSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { previewNamed } from "../lib/ipc/preview-names";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-const account = (key: string, name: string | null, ids: string[]): SubscriptionInfo => ({
-  key,
-  name,
-  tool: "claude-code",
-  state: "signed_in",
-  email: "o…@work.com",
-  organisation: null,
-  reason: null,
-  profiles: ids.map((id) => ({ id, label: `Folder ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null })),
-  plan: "max",
-  renewal_date: null,
-  fee_usd: null,
-  differs: [],
-  choices: [],
-});
+const account = (key: string, name: string | null, ids: string[]): SubscriptionInfo =>
+  // Named as the backend names it (the preview's stand-in for its rule).
+  previewNamed([
+    {
+      key,
+      name,
+      tool: "claude-code",
+      state: "signed_in",
+      email: "o…@work.com",
+      organisation: null,
+      reason: null,
+      profiles: ids.map((id) => ({ id, label: `Folder ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null })),
+      plan: "max",
+      renewal_date: null,
+      fee_usd: null,
+      differs: [],
+      choices: [],
+    },
+  ])[0]!;
 
 describe("an Account's avatar names the Account", () => {
   it("a folder's avatar says the Account it is signed in to, once hovered", async () => {

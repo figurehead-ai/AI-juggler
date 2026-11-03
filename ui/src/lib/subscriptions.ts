@@ -7,7 +7,6 @@
 import { useEffect, useState } from "react";
 import { subscriptionsList, type SubscriptionInfo } from "./ipc/subscriptions";
 import { runwayOf } from "../components/AccountRunway";
-import { toolSpec } from "./tools";
 import type { QuotaDisplayData } from "./bridge";
 import { whenForgotten } from "./shared-read";
 
@@ -77,39 +76,12 @@ export function shareAccount(rows: SubscriptionInfo[], a: string, b: string): bo
   return account !== undefined && account.state === "signed_in" && account.profiles.some((profile) => profile.id === b);
 }
 
-/** An account's name (D-62, AJ-E3202 req. 3): the name you gave it; else
- * its team; else its tool and plan ("Claude Max 20x"); else its masked
- * email. Never a folder's or an app's name: those are Apps. A group of
- * profiles not signed in is "Not signed in"; a sign-in that can't be read
- * is "Account unknown" (A10). Given every account (`all`), two that would
- * read the same say their masked email too. */
-export function accountName(row: SubscriptionInfo, all?: readonly SubscriptionInfo[]): string {
-  if (row.state === "signed_out") return "Not signed in";
-  if (row.name) return row.name;
-  // AJ-E1601: an account through another service is named for it.
-  if (row.service) return row.service.name;
-  if (row.state === "unverified") return "Account unknown";
-  const base = defaultAccountName(row);
-  const twins = (all ?? []).filter((other) => other.state === "signed_in" && !other.name && !other.service && defaultAccountName(other) === base);
-  if (!twins.some((other) => other.key !== row.key)) return base;
-  if (row.email && base !== row.email) return `${base} · ${row.email}`;
-  // Its masked email is its name and another's reads the same (masking
-  // keeps one letter): its tool says which where theirs differ, else its
-  // place among them by id. Renaming it (its Settings) settles it.
-  if (new Set(twins.map((other) => other.tool)).size === twins.length) return `${toolWords(row.tool)} · ${base}`;
-  const order = twins.map((other) => other.account_id ?? other.key).sort();
-  return `${base} (${order.indexOf(row.account_id ?? row.key) + 1})`;
-}
-
-function toolWords(tool: string | null | undefined): string {
-  return tool ? toolSpec(tool).short_name || toolSpec(tool).display_name : "Your";
-}
-
-function defaultAccountName(row: SubscriptionInfo): string {
-  if (row.organisation) return row.organisation;
-  const tool = toolWords(row.tool);
-  if (row.plan) return `${tool} ${planWords(row.plan)}`;
-  return row.email ?? `${tool} account`;
+/** An account's name (D-62, AJ-E3202 req. 3): the one the backend gives
+ * it (`display_name`, `subscriptions::name_all`): your name; else its
+ * service's, team, tool and plan ("Claude Max 20x") or masked email, told
+ * apart from a twin. Never a folder's or an app's name: those are Apps. */
+export function accountName(row: SubscriptionInfo): string {
+  return row.display_name;
 }
 
 /** A plan as it's said: "max-20x" → "Max 20x", "pro" → "Pro". */
@@ -129,9 +101,9 @@ export function withLiveLabels(row: SubscriptionInfo, accounts: readonly { id: s
 
 /** Its team, sign-in and plan, in one line ("Acme · o…@work.com · Max"),
  * leaving out what its name already says. */
-export function accountLine(row: SubscriptionInfo, all?: readonly SubscriptionInfo[]): string | null {
+export function accountLine(row: SubscriptionInfo): string | null {
   if (row.service) return [row.service.name, serviceLine(row)].filter(Boolean).join(" · ");
-  const name = accountName(row, all);
+  const name = accountName(row);
   const parts = [row.organisation, row.email, row.plan ? planWords(row.plan) : null].filter((part): part is string => !!part && !name.includes(part));
   if (row.state === "unverified") parts.push(row.reason ?? "its sign-in can't be read");
   return parts.length > 0 ? parts.join(" · ") : null;

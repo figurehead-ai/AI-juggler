@@ -221,6 +221,15 @@ fn a_snoozed_need_or_a_muted_kind_doesnt_interrupt() {
     assert_eq!(list.lock().unwrap().len(), 1, "the rest are told as before");
 }
 
+/// A folder no Account lists: its notice is its own.
+fn lone(id: &str, name: &str) -> sources::QuotaSubject {
+    sources::QuotaSubject {
+        id: id.to_owned(),
+        name: name.to_owned(),
+        folder: id.to_owned(),
+    }
+}
+
 #[test]
 fn an_account_almost_out_of_room_is_told_once_in_the_models_words() {
     let dir = tempfile::tempdir().unwrap();
@@ -235,9 +244,14 @@ fn an_account_almost_out_of_room_is_told_once_in_the_models_words() {
         },
     );
     let now = Timestamp::now().millis();
+    // D-62: the limits are the Account's, so its notice names the Account
+    // (never its folder, "Work Max") and acts on its folder.
     let notice = sources::low_notice(
-        "acct-work",
-        "Work Max",
+        &sources::QuotaSubject {
+            id: "acct:anthropic:work".to_owned(),
+            name: "Claude Max 20x".to_owned(),
+            folder: "acct-work".to_owned(),
+        },
         "5-hour",
         Some(93.0),
         Some(now + 3_600_000),
@@ -261,11 +275,18 @@ fn an_account_almost_out_of_room_is_told_once_in_the_models_words() {
     );
     let told = list.lock().unwrap().clone();
     assert_eq!(told.len(), 1, "once while it holds");
-    assert_eq!(told[0].title, "Work Max is almost out of room");
+    assert_eq!(told[0].title, "Claude Max 20x is almost out of room");
     assert_eq!(told[0].body, "7% of its 5-hour window left");
     // Muted, the next account's isn't told.
     centre::mute(&state.storage.lock().unwrap(), "kind", "quota", "", now).unwrap();
-    let other = sources::low_notice("acct-b", "Personal", "weekly", Some(97.0), None, 0, false);
+    let other = sources::low_notice(
+        &lone("acct-b", "Personal"),
+        "weekly",
+        Some(97.0),
+        None,
+        0,
+        false,
+    );
     let info = centre::open_need(&state.storage.lock().unwrap(), &other, now)
         .unwrap()
         .unwrap();
@@ -292,8 +313,7 @@ fn the_count_is_the_same_on_the_bell_the_badge_and_the_menu_bar_item() {
         let storage = state.storage.lock().unwrap();
         centre::sync_needs(&storage, &[asks("a"), asks("b")], now).unwrap();
         let quota = sources::low_notice(
-            "acct-work",
-            "Work Max",
+            &lone("acct-work", "Work Max"),
             "5-hour",
             Some(93.0),
             None,

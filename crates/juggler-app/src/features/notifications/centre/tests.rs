@@ -28,8 +28,11 @@ fn need(key: &str, kind: &str, title: &str) -> NeedInput {
 
 fn quota(account: &str, left: i64, resets: i64) -> NewNotice {
     super::super::sources::low_notice(
-        account,
-        account,
+        &super::super::sources::QuotaSubject {
+            id: account.to_owned(),
+            name: account.to_owned(),
+            folder: account.to_owned(),
+        },
         "5-hour",
         Some((100 - left) as f64),
         Some(resets),

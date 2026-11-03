@@ -10,6 +10,7 @@ import { cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
 import type { AccountInfo } from "./bridge";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
+import { previewNamed } from "./ipc/preview-names";
 
 afterEach(() => forgetMarksForTests());
 
@@ -92,23 +93,27 @@ describe("AJ-E3206 an App's colour", () => {
 });
 
 describe("AJ-E3206 an Account's colour", () => {
-  const sub = (over: Partial<SubscriptionInfo> = {}): SubscriptionInfo => ({
-    key: "k",
-    account_id: "acct:a",
-    colour_slot: 6,
-    tool: "claude-code",
-    state: "signed_in",
-    email: null,
-    organisation: null,
-    reason: null,
-    profiles: [],
-    plan: null,
-    renewal_date: null,
-    fee_usd: null,
-    differs: [],
-    choices: [],
-    ...over,
-  });
+  const sub = (over: Partial<SubscriptionInfo> = {}): SubscriptionInfo =>
+    // Named as the backend names it (the preview's stand-in for its rule).
+    previewNamed([
+      {
+        key: "k",
+        account_id: "acct:a",
+        colour_slot: 6,
+        tool: "claude-code",
+        state: "signed_in",
+        email: null,
+        organisation: null,
+        reason: null,
+        profiles: [],
+        plan: null,
+        renewal_date: null,
+        fee_usd: null,
+        differs: [],
+        choices: [],
+        ...over,
+      },
+    ])[0]!;
 
   it("is its row's slot, and the same by each folder on it", () => {
     learnFolders([folder("f-1", "Work", { subscription_id: "acct:a", account_colour_slot: 6 }), folder("f-2", "Work 2", { subscription_id: "acct:a", account_colour_slot: 6 })]);

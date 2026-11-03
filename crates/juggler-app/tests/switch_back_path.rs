@@ -428,7 +428,13 @@ fn the_room_again_notice_offers_the_switch_back() {
     {
         let storage = trip.state.storage.lock().unwrap();
         for (id, label) in [(&work_max, "Work Max"), (&personal, "Personal")] {
-            let low = sources::low_notice(id, label, "5-hour", Some(96.0), None, 1, false);
+            // Folders no Account lists: each notice is its own.
+            let subject = sources::QuotaSubject {
+                id: id.clone(),
+                name: label.to_owned(),
+                folder: id.clone(),
+            };
+            let low = sources::low_notice(&subject, "5-hour", Some(96.0), None, 1, false);
             centre::open_need(&storage, &low, now).unwrap();
             storage
                 .usage()

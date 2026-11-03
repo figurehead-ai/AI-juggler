@@ -111,7 +111,7 @@ export function useNewSessionData({
       accountKeyOf: (folderId: string) => accountOf(folderId)?.key ?? folderId,
       accountNameOf: (folderId: string) => {
         const account = accountOf(folderId);
-        return account && account.state === "signed_in" ? accountName(account, subscriptions ?? undefined) : null;
+        return account && account.state === "signed_in" ? accountName(account) : null;
       },
       appNameOf: (recipe: LaunchRecipeInfo) => apps?.find((app) => app.id === cliAppId(recipe.account_id))?.name ?? cliAppName(recipe.provider, recipe.account_label),
       verdictOf: (folderId: string) => ranked.find((row) => row.account === folderId)?.admission ?? undefined,

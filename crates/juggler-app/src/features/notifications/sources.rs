@@ -69,17 +69,35 @@ fn live_sessions_on(storage: &Storage, account_id: &str) -> u32 {
     u32::try_from(live).unwrap_or(u32::MAX)
 }
 
+/// Who a quota notice is about (D-62): limits belong to the Account, so
+/// the folders signed in to one share one notice, named by the Account
+/// ([`crate::features::subscriptions::SubscriptionInfo::display_name`]).
+/// A folder no Account lists (not signed in, a sign-in that can't be
+/// read) stands for itself, under its own name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuotaSubject {
+    /// What the notice is keyed by: the stored Account's id, or the lone
+    /// folder's.
+    pub id: String,
+    /// Its name: the Account's, or the folder's own.
+    pub name: String,
+    /// The folder its actions use (a hand-over needs a folder to continue
+    /// from; a switch back, one to return to): see [`acting_folder`]. The
+    /// notice's `target.account_id`.
+    pub folder: String,
+}
+
 /// The notice for an account running out of room, from its quota now.
 #[must_use]
 pub fn low_notice(
-    account_id: &str,
-    label: &str,
+    subject: &QuotaSubject,
     window: &str,
     used: Option<f64>,
     resets_at_ms: Option<i64>,
     sessions: u32,
     run_out: bool,
 ) -> NewNotice {
+    let label = &subject.name;
     // Clamped to 0–100 first: the cast can't truncate.
     #[allow(clippy::cast_possible_truncation)]
     let left = used.map(|used| (100.0 - used).clamp(0.0, 100.0).round() as i64);
@@ -93,20 +111,20 @@ pub fn low_notice(
         None => format!("Its {window} window is running low"),
     };
     NewNotice {
-        key: format!("quota:{account_id}"),
+        key: format!("quota:{}", subject.id),
         kind: "quota".to_owned(),
         title,
         detail,
         data: centre::data_of(
             &NoticeTarget {
-                account_id: Some(account_id.to_owned()),
+                account_id: Some(subject.folder.clone()),
                 ..NoticeTarget::default()
             },
             &NoticeFacts {
                 window: Some(window.to_owned()),
                 resets_at_ms,
                 sessions: Some(sessions),
-                account: Some(label.to_owned()),
+                account: Some(label.clone()),
                 ..NoticeFacts::default()
             },
         ),
@@ -139,13 +157,13 @@ pub fn credits_carry_on(
 /// another account…" stays its action.
 #[must_use]
 pub fn credits_notice(
-    account_id: &str,
-    label: &str,
+    subject: &QuotaSubject,
     window: &str,
     resets_at_ms: Option<i64>,
     sessions: u32,
     cover: crate::features::quota::CreditsCover,
 ) -> NewNotice {
+    let label = &subject.name;
     let left = cover.left_words();
     let title = if left.is_some() {
         format!("{label} is using its credits")
@@ -158,7 +176,8 @@ pub fn credits_notice(
     };
     NewNotice {
         key: format!(
-            "credits:{account_id}:{}",
+            "credits:{}:{}",
+            subject.id,
             resets_at_ms.map_or(0, |at| at / 60_000)
         ),
         kind: "quota".to_owned(),
@@ -166,14 +185,14 @@ pub fn credits_notice(
         detail,
         data: centre::data_of(
             &NoticeTarget {
-                account_id: Some(account_id.to_owned()),
+                account_id: Some(subject.folder.clone()),
                 ..NoticeTarget::default()
             },
             &NoticeFacts {
                 window: Some(window.to_owned()),
                 resets_at_ms,
                 sessions: Some(sessions),
-                account: Some(label.to_owned()),
+                account: Some(label.clone()),
                 credits: Some(left.unwrap_or_default()),
                 ..NoticeFacts::default()
             },
@@ -182,6 +201,94 @@ pub fn credits_notice(
         meter: None,
         ..NewNotice::default()
     }
+}
+
+/// One subject's folders (D-62): an Account's, in the order AI Juggler
+/// lists them, or a lone folder.
+struct Group<'a> {
+    id: String,
+    name: String,
+    folders: Vec<&'a juggler_core::model::Account>,
+}
+
+/// The folders, grouped by the Account each is signed in to (`accounts`,
+/// by folder); a folder in none is a group of its own.
+fn groups<'a>(
+    folders: &'a [juggler_core::model::Account],
+    accounts: &std::collections::BTreeMap<String, crate::features::subscriptions::FolderAccount>,
+) -> Vec<Group<'a>> {
+    let mut out: Vec<Group<'a>> = Vec::new();
+    for folder in folders {
+        let Some(account) = accounts.get(folder.id.as_str()) else {
+            out.push(Group {
+                id: folder.id.to_string(),
+                name: folder.label.clone(),
+                folders: vec![folder],
+            });
+            continue;
+        };
+        match out.iter_mut().find(|group| group.id == account.id) {
+            Some(group) => group.folders.push(folder),
+            None => out.push(Group {
+                id: account.id.clone(),
+                name: account.name.clone(),
+                folders: vec![folder],
+            }),
+        }
+    }
+    out
+}
+
+/// True when `display` carries a real reading (a window with its
+/// percentage), as the UI's runway reads one.
+fn has_reading(display: &crate::features::quota::QuotaDisplayInfo) -> bool {
+    display.unavailable_reason.is_none()
+        && [&display.five_hour, &display.weekly]
+            .into_iter()
+            .flatten()
+            .any(|window| {
+                window.percentage.is_some_and(f64::is_finite)
+                    && !matches!(
+                        window.state.as_str(),
+                        "unknown" | "learning" | "unmeasured" | "reset"
+                    )
+            })
+}
+
+/// Which of an Account's folders' readings is its own now (one runway for
+/// all of them, as the UI's `accountDisplay` picks): the newest real
+/// reading; with none, the first folder's.
+#[must_use]
+pub fn newest_reading(displays: &[crate::features::quota::QuotaDisplayInfo]) -> usize {
+    let when = |display: &crate::features::quota::QuotaDisplayInfo| {
+        [&display.five_hour, &display.weekly]
+            .into_iter()
+            .flatten()
+            .filter_map(|window| window.measured_at_ms)
+            .max()
+            .unwrap_or(0)
+    };
+    displays
+        .iter()
+        .enumerate()
+        .filter(|(_, display)| has_reading(display))
+        .max_by_key(|(at, display)| (when(display), std::cmp::Reverse(*at)))
+        .map_or(0, |(at, _)| at)
+}
+
+/// The folder an Account's notice acts on (`live`: sessions open on each
+/// folder; `reading`: the folder its reading came from): the one with the
+/// most sessions open, since a hand-over continues one of them; the
+/// reading's on a tie or with none open.
+#[must_use]
+pub fn acting_folder(live: &[u32], reading: usize) -> usize {
+    let most = live.iter().copied().max().unwrap_or(0);
+    if most == 0 || live.get(reading) == Some(&most) {
+        return reading;
+    }
+    live.iter()
+        .position(|open| *open == most)
+        .unwrap_or(reading)
 }
 
 /// One account's turn in the quota pass (0.3.2: split out when the
@@ -195,29 +302,85 @@ struct AccountPass<'a> {
 
 type Told = Vec<(Target, Kind, centre::NoticeInfo)>;
 
+/// A subject with room again, and its window, told once the work that can
+/// switch back to it is known.
+struct RoomAgain {
+    subject: QuotaSubject,
+    folders: Vec<String>,
+    window: &'static str,
+}
+
+/// The keys subject `id`'s room need may be open under: its own; and,
+/// before 0.4 (D-62) each folder had a need of its own, each of its
+/// folders' (an Account's folders' needs are its own now).
+fn need_keys(id: &str, folders: &[&str]) -> Vec<String> {
+    std::iter::once(id)
+        .chain(folders.iter().copied().filter(|folder| *folder != id))
+        .map(|key| format!("quota:{key}"))
+        .collect()
+}
+
+/// Whether subject `id` carries on with its credits: kept under its id
+/// (before 0.4, under a folder's: moved to the Account's now).
+fn carrying_on(
+    on_credits: &mut std::collections::BTreeSet<String>,
+    id: &str,
+    folders: &[&str],
+) -> bool {
+    let mut carrying = on_credits.contains(id);
+    for folder in folders.iter().filter(|folder| **folder != id) {
+        carrying |= on_credits.remove(*folder);
+    }
+    if carrying {
+        on_credits.insert(id.to_owned());
+    }
+    carrying
+}
+
 impl AccountPass<'_> {
     fn run(
         &self,
-        account: &juggler_core::model::Account,
+        group: &Group<'_>,
         on_credits: &mut std::collections::BTreeSet<String>,
         told: &mut Told,
-        room_again: &mut Vec<(String, String, &'static str)>,
+        room_again: &mut Vec<RoomAgain>,
     ) {
-        let id = account.id.as_str();
-        let low_now = self
-            .emitted
-            .iter()
-            .rfind(|event| event.account == id && LOW_KINDS.contains(&event.kind.as_str()));
-        let is_open = self.open.iter().any(|key| *key == format!("quota:{id}"));
-        let carrying = on_credits.contains(id);
+        let id = group.id.as_str();
+        let folders: Vec<&str> = group.folders.iter().map(|f| f.id.as_str()).collect();
+        let own_key = format!("quota:{id}");
+        let keys = need_keys(id, &folders);
+        let low_now = self.emitted.iter().rfind(|event| {
+            folders.contains(&event.account.as_str()) && LOW_KINDS.contains(&event.kind.as_str())
+        });
+        let is_open = keys.iter().any(|key| self.open.contains(key));
+        let carrying = carrying_on(on_credits, id, &folders);
         if low_now.is_none() && !is_open && !carrying {
             return;
         }
-        let display = crate::features::quota::quota_display_inner(self.storage, account, self.now);
+        let mut displays: Vec<_> = group
+            .folders
+            .iter()
+            .map(|folder| {
+                crate::features::quota::quota_display_inner(self.storage, folder, self.now)
+            })
+            .collect();
+        let reading = newest_reading(&displays);
+        let display = displays.swap_remove(reading);
         let Some((window, used, resets_at)) = fullest(&display) else {
             return;
         };
-        let sessions = live_sessions_on(self.storage, id);
+        let live: Vec<u32> = folders
+            .iter()
+            .map(|folder| live_sessions_on(self.storage, folder))
+            .collect();
+        let sessions = live
+            .iter()
+            .fold(0_u32, |sum, open| sum.saturating_add(*open));
+        let subject = QuotaSubject {
+            id: id.to_owned(),
+            name: group.name.clone(),
+            folder: folders[acting_folder(&live, reading)].to_owned(),
+        };
         if carrying && !used.is_some_and(crate::features::quota::used_up) {
             // Its window reset: no longer on its credits.
             on_credits.remove(id);
@@ -226,8 +389,16 @@ impl AccountPass<'_> {
             }
         }
         if is_open && low_now.is_none() && used.is_some_and(|used| used < ROOM_AGAIN_USED_PCT) {
-            if centre::end_need(self.storage, &format!("quota:{id}"), self.now).unwrap_or(false) {
-                room_again.push((id.to_owned(), account.label.clone(), window));
+            let mut ended = false;
+            for key in &keys {
+                ended |= centre::end_need(self.storage, key, self.now).unwrap_or(false);
+            }
+            if ended {
+                room_again.push(RoomAgain {
+                    subject,
+                    folders: folders.iter().map(|folder| (*folder).to_owned()).collect(),
+                    window,
+                });
             }
             return;
         }
@@ -241,11 +412,13 @@ impl AccountPass<'_> {
         if let Some(cover) = credits_carry_on(used, run_out, display.credits.as_ref()) {
             on_credits.insert(id.to_owned());
             if is_open {
-                let _ = centre::end_need(self.storage, &format!("quota:{id}"), self.now);
+                for key in &keys {
+                    let _ = centre::end_need(self.storage, key, self.now);
+                }
             }
-            let notice = credits_notice(id, &account.label, window, resets_at, sessions, cover);
+            let notice = credits_notice(&subject, window, resets_at, sessions, cover);
             if let Ok(Some(info)) = centre::record(self.storage, &notice, self.now) {
-                told.push((Target::Account(id.to_owned()), Kind::Quota, info));
+                told.push((Target::Account(subject.folder.clone()), Kind::Quota, info));
             }
             return;
         }
@@ -257,17 +430,15 @@ impl AccountPass<'_> {
         {
             return;
         }
-        let notice = low_notice(
-            id,
-            &account.label,
-            window,
-            used,
-            resets_at,
-            sessions,
-            run_out,
-        );
+        // One need per Account: a folder's own (from before 0.4) gives way.
+        for key in keys.iter().filter(|key| **key != own_key) {
+            if self.open.contains(key) {
+                let _ = centre::end_need(self.storage, key, self.now);
+            }
+        }
+        let notice = low_notice(&subject, window, used, resets_at, sessions, run_out);
         if let Ok(Some(info)) = centre::open_need(self.storage, &notice, self.now) {
-            told.push((Target::Account(id.to_owned()), Kind::Quota, info));
+            told.push((Target::Account(subject.folder.clone()), Kind::Quota, info));
         }
     }
 }
@@ -315,12 +486,12 @@ pub struct SwitchBack {
 /// account.
 #[must_use]
 pub fn reset_notice(
-    account_id: &str,
-    label: &str,
+    subject: &QuotaSubject,
     window: &str,
     at_ms: i64,
     back: Option<&SwitchBack>,
 ) -> NewNotice {
+    let label = &subject.name;
     let detail = match back {
         Some(back) if back.count > 1 => format!(
             "“{}” and {} more can switch back to it",
@@ -331,19 +502,19 @@ pub fn reset_notice(
         None => "Sessions on it can carry on".to_owned(),
     };
     NewNotice {
-        key: format!("reset:{account_id}:{}", at_ms / 60_000),
+        key: format!("reset:{}:{}", subject.id, at_ms / 60_000),
         kind: "reset".to_owned(),
         title: format!("{label} has room again — {} reset", reset_words(window)),
         detail,
         data: centre::data_of(
             &NoticeTarget {
-                account_id: Some(account_id.to_owned()),
+                account_id: Some(subject.folder.clone()),
                 session_id: back.map(|back| back.session_id.clone()),
                 ..NoticeTarget::default()
             },
             &NoticeFacts {
                 window: Some(window.to_owned()),
-                account: Some(label.to_owned()),
+                account: Some(label.clone()),
                 sessions: back.map(|back| back.count),
                 ..NoticeFacts::default()
             },
@@ -360,10 +531,13 @@ pub fn reset_notice(
     }
 }
 
-/// The work that can switch back to each account in `accounts`, from the
-/// switch-back suggestions (whose account has room again): the newest
-/// session first, by its last activity.
-fn switch_backs(state: &Arc<AppState>, accounts: &[String]) -> Vec<(String, SwitchBack)> {
+/// The work that can switch back to each subject in `subjects` (its id and
+/// folders), from the switch-back suggestions (whose folder has room
+/// again): the newest session first, by its last activity.
+fn switch_backs(
+    state: &Arc<AppState>,
+    subjects: &[(String, Vec<String>)],
+) -> Vec<(String, SwitchBack)> {
     let Ok(suggestions) = crate::commands::switch_back_suggestions_impl(state) else {
         return Vec::new();
     };
@@ -383,10 +557,10 @@ fn switch_backs(state: &Arc<AppState>, accounts: &[String]) -> Vec<(String, Swit
             })
     };
     let mut out = Vec::new();
-    for account in accounts {
+    for (subject, folders) in subjects {
         let mut returns: Vec<(i64, &str)> = suggestions
             .iter()
-            .filter(|suggestion| suggestion.original_account_id == *account)
+            .filter(|suggestion| folders.contains(&suggestion.original_account_id))
             .map(|suggestion| {
                 (
                     last_activity(&suggestion.session_id),
@@ -401,7 +575,7 @@ fn switch_backs(state: &Arc<AppState>, accounts: &[String]) -> Vec<(String, Swit
             continue;
         };
         out.push((
-            account.clone(),
+            subject.clone(),
             SwitchBack {
                 session_id: (*newest).to_owned(),
                 name: super::describe(state, newest).name,
@@ -437,17 +611,28 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
 /// AJ-E611's alert pass, as notices: an account the pass found running
 /// low opens (or refreshes) its need; one that has room again ends it and
 /// says so. Called after each pass with what it emitted.
+///
+/// D-62: the alerts are per folder, the notices per Account (its folders
+/// share its limits): one notice for all its folders, named by it, from
+/// its newest reading ([`newest_reading`]), acting on the folder with its
+/// open sessions ([`acting_folder`]). The Accounts are read only when
+/// there is something to tell.
 pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventInfo]) {
     let now = crate::commands::now_millis();
     let mut told = Vec::new();
-    // Accounts with room again: (id, label, window), told once the work
-    // that can switch back to each is known (it reads storage itself).
-    let mut room_again: Vec<(String, String, &'static str)> = Vec::new();
+    let accounts = if quota_work(state, emitted) {
+        crate::features::subscriptions::folder_accounts(state)
+    } else {
+        std::collections::BTreeMap::new()
+    };
+    // Subjects with room again, told once the work that can switch back to
+    // each is known (it reads storage itself).
+    let mut room_again: Vec<RoomAgain> = Vec::new();
     {
         let Ok(storage) = state.storage.lock() else {
             return;
         };
-        let accounts = storage.accounts().list().unwrap_or_default();
+        let folders = storage.accounts().list().unwrap_or_default();
         let open: Vec<String> = storage
             .notices()
             .open_needs()
@@ -459,7 +644,7 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
         // The hourly digest's lines (a plan renewing soon): told once each,
         // under Earlier.
         for event in emitted.iter().filter(|event| event.kind == "digest") {
-            let label = accounts
+            let label = folders
                 .iter()
                 .find(|account| account.id.as_str() == event.account)
                 .map_or("An account", |account| account.label.as_str());
@@ -474,14 +659,14 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
         // run out mid-window would otherwise go unsaid.
         let mut on_credits = on_credits_of(&storage);
         let before = on_credits.clone();
-        for account in &accounts {
-            let pass = AccountPass {
-                storage: &storage,
-                emitted,
-                open: &open,
-                now,
-            };
-            pass.run(account, &mut on_credits, &mut told, &mut room_again);
+        let pass = AccountPass {
+            storage: &storage,
+            emitted,
+            open: &open,
+            now,
+        };
+        for group in groups(&folders, &accounts) {
+            pass.run(&group, &mut on_credits, &mut told, &mut room_again);
         }
         if on_credits != before {
             save_on_credits(&storage, &on_credits);
@@ -490,18 +675,25 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
     // 0.3: the work that moved away from an account that has room again
     // can switch back (D-05), from the notice itself.
     if !room_again.is_empty() {
-        let ids: Vec<String> = room_again.iter().map(|(id, _, _)| id.clone()).collect();
-        let backs = switch_backs(state, &ids);
-        for (id, label, window) in &room_again {
+        let subjects: Vec<(String, Vec<String>)> = room_again
+            .iter()
+            .map(|room| (room.subject.id.clone(), room.folders.clone()))
+            .collect();
+        let backs = switch_backs(state, &subjects);
+        for room in &room_again {
             let back = backs
                 .iter()
-                .find(|(account, _)| account == id)
+                .find(|(subject, _)| *subject == room.subject.id)
                 .map(|(_, back)| back);
-            let notice = reset_notice(id, label, window, now, back);
+            let notice = reset_notice(&room.subject, room.window, now, back);
             if let Ok(storage) = state.storage.lock()
                 && let Ok(Some(info)) = centre::record(&storage, &notice, now)
             {
-                told.push((Target::Account(id.clone()), Kind::Reset, info));
+                told.push((
+                    Target::Account(room.subject.folder.clone()),
+                    Kind::Reset,
+                    info,
+                ));
             }
         }
     }
@@ -509,6 +701,27 @@ pub fn quota_pass(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventI
         super::model_event(state, target, kind, &info);
     }
     super::changed(state);
+}
+
+/// Whether the quota pass has anything to look at: an alert that an
+/// account runs low, a room need open, or an account on its credits.
+fn quota_work(state: &Arc<AppState>, emitted: &[crate::commands::AlertEventInfo]) -> bool {
+    if emitted
+        .iter()
+        .any(|event| LOW_KINDS.contains(&event.kind.as_str()))
+    {
+        return true;
+    }
+    let Ok(storage) = state.storage.lock() else {
+        return false;
+    };
+    !on_credits_of(&storage).is_empty()
+        || storage
+            .notices()
+            .open_needs()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.kind == "quota")
 }
 
 /// A session finished on its own: told once, under Earlier.
@@ -734,11 +947,64 @@ pub fn update(state: &Arc<AppState>, status: &crate::updates::UpdateStatusInfo) 
 mod tests {
     use super::*;
 
+    /// A folder no Account lists: it stands for itself.
+    fn lone(id: &str, name: &str) -> QuotaSubject {
+        QuotaSubject {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            folder: id.to_owned(),
+        }
+    }
+
+    /// D-62: an Account's notice is keyed and named by the Account, and
+    /// acts on one of its folders.
+    #[test]
+    fn an_accounts_notice_is_named_and_keyed_by_it_and_acts_on_a_folder() {
+        let subject = QuotaSubject {
+            id: "acct:anthropic:1".to_owned(),
+            name: "Claude Max 20x".to_owned(),
+            folder: "claude-work".to_owned(),
+        };
+        let low = low_notice(&subject, "5-hour", Some(93.0), Some(5), 3, false);
+        assert_eq!(low.title, "Claude Max 20x is almost out of room");
+        assert_eq!(low.key, "quota:acct:anthropic:1");
+        let data: serde_json::Value = serde_json::from_str(&low.data).unwrap();
+        assert_eq!(data["target"]["account_id"], "claude-work");
+        assert_eq!(data["facts"]["account"], "Claude Max 20x");
+        assert_eq!(data["facts"]["sessions"], 3);
+        let reset = reset_notice(&subject, "weekly", 0, None);
+        assert_eq!(
+            reset.title,
+            "Claude Max 20x has room again — its week reset"
+        );
+        assert!(reset.key.starts_with("reset:acct:anthropic:1:"));
+        let credits = credits_notice(
+            &subject,
+            "weekly",
+            None,
+            1,
+            crate::features::quota::CreditsCover::Probably,
+        );
+        assert_eq!(
+            credits.title,
+            "Claude Max 20x is probably using its credits"
+        );
+        assert!(credits.key.starts_with("credits:acct:anthropic:1:"));
+    }
+
+    #[test]
+    fn the_acting_folder_is_the_one_with_open_sessions_else_the_readings() {
+        assert_eq!(acting_folder(&[0, 0], 1), 1, "none open: the reading's");
+        assert_eq!(acting_folder(&[0, 2], 0), 1, "the one with sessions open");
+        assert_eq!(acting_folder(&[2, 2, 1], 1), 1, "a tie: the reading's");
+        assert_eq!(acting_folder(&[1, 3, 3], 0), 1, "the first with the most");
+        assert_eq!(acting_folder(&[], 0), 0);
+    }
+
     #[test]
     fn an_account_running_low_is_said_in_plain_words() {
         let notice = low_notice(
-            "acct-1",
-            "Work Max",
+            &lone("acct-1", "Work Max"),
             "5-hour",
             Some(93.0),
             Some(5),
@@ -750,10 +1016,17 @@ mod tests {
         assert_eq!(notice.meter, Some(7));
         assert_eq!(notice.key, "quota:acct-1");
         assert_eq!(notice.action.as_deref(), Some("hand-over"));
-        let out = low_notice("acct-1", "Work Max", "weekly", Some(100.0), None, 0, true);
+        let out = low_notice(
+            &lone("acct-1", "Work Max"),
+            "weekly",
+            Some(100.0),
+            None,
+            0,
+            true,
+        );
         assert_eq!(out.title, "Work Max has run out of room");
         assert_eq!(out.detail, "0% of its weekly window left");
-        let unknown = low_notice("acct-1", "Work Max", "5-hour", None, None, 0, false);
+        let unknown = low_notice(&lone("acct-1", "Work Max"), "5-hour", None, None, 0, false);
         assert_eq!(unknown.detail, "Its 5-hour window is running low");
         assert_eq!(unknown.meter, None);
         for words in [&notice.title, &notice.detail, &out.detail, &unknown.detail] {
@@ -790,8 +1063,7 @@ mod tests {
         let real = credits(true, false, Some("14150.1635025000"));
         let cover = credits_carry_on(Some(100.0), true, Some(&real)).unwrap();
         let notice = credits_notice(
-            "acct-c",
-            "Codex",
+            &lone("acct-c", "Codex"),
             "weekly",
             Some(1_793_500_000_000),
             1,
@@ -820,7 +1092,7 @@ mod tests {
         // Credits with no balance reported: probably.
         let probably = credits_carry_on(None, true, Some(&credits(true, false, None))).unwrap();
         assert_eq!(probably, CreditsCover::Probably);
-        let notice = credits_notice("acct-c", "Codex", "5-hour", None, 0, probably);
+        let notice = credits_notice(&lone("acct-c", "Codex"), "5-hour", None, 0, probably);
         assert_eq!(notice.title, "Codex is probably using its credits");
         assert_eq!(notice.detail, "Its 5-hour window is used up");
         let data: serde_json::Value = serde_json::from_str(&notice.data).unwrap();
@@ -830,7 +1102,7 @@ mod tests {
         let unlimited =
             credits_carry_on(Some(100.0), true, Some(&credits(false, true, None))).unwrap();
         assert_eq!(
-            credits_notice("a", "Codex", "weekly", None, 0, unlimited).detail,
+            credits_notice(&lone("a", "Codex"), "weekly", None, 0, unlimited).detail,
             "Its weekly window is used up · unlimited credits"
         );
     }
@@ -859,7 +1131,14 @@ mod tests {
             None,
             "room left: the almost-out notice"
         );
-        let out = low_notice("acct-1", "Codex", "weekly", Some(100.0), None, 0, true);
+        let out = low_notice(
+            &lone("acct-1", "Codex"),
+            "weekly",
+            Some(100.0),
+            None,
+            0,
+            true,
+        );
         assert_eq!(out.title, "Codex has run out of room");
         assert_eq!(out.detail, "0% of its weekly window left");
         assert_eq!(out.meter, Some(0));
@@ -868,10 +1147,10 @@ mod tests {
     #[test]
     fn a_reset_names_the_window_it_was() {
         assert_eq!(
-            reset_notice("a", "Personal Max", "weekly", 0, None).title,
+            reset_notice(&lone("a", "Personal Max"), "weekly", 0, None).title,
             "Personal Max has room again — its week reset"
         );
-        let plain = reset_notice("a", "Work Max", "5-hour", 0, None);
+        let plain = reset_notice(&lone("a", "Work Max"), "5-hour", 0, None);
         assert_eq!(
             plain.title,
             "Work Max has room again — its 5-hour window reset"
@@ -888,7 +1167,7 @@ mod tests {
             name: "fix-auth-tests".to_owned(),
             count: 1,
         };
-        let notice = reset_notice("acct-w", "Work Max", "5-hour", 0, Some(&one));
+        let notice = reset_notice(&lone("acct-w", "Work Max"), "5-hour", 0, Some(&one));
         assert_eq!(notice.action.as_deref(), Some("switch-back"));
         assert_eq!(notice.detail, "“fix-auth-tests” can switch back to it");
         let data: serde_json::Value = serde_json::from_str(&notice.data).unwrap();
@@ -897,7 +1176,7 @@ mod tests {
         assert_eq!(data["facts"]["sessions"], 1);
         let three = SwitchBack { count: 3, ..one };
         assert_eq!(
-            reset_notice("acct-w", "Work Max", "5-hour", 0, Some(&three)).detail,
+            reset_notice(&lone("acct-w", "Work Max"), "5-hour", 0, Some(&three)).detail,
             "“fix-auth-tests” and 2 more can switch back to it"
         );
         for words in [&notice.title, &notice.detail] {

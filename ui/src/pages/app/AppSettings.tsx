@@ -48,7 +48,7 @@ export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; no
           <PlaceRow place={app.place} name={app.name} />
         </PaneSection>
       )}
-      {sub && subs && <AppTerms sub={sub} all={subs} now={now} />}
+      {sub && <AppTerms sub={sub} now={now} />}
       {app.kind === "cli" && app.folder && <AccountSettingsSection account={app.folder} now={now} resetsAtMs={resetsAtMs} termsOnAccount={sub !== null} />}
       {/* AJ-E1530 Req.1: opt-in, shown only where it applies, last. */}
       {app.kind === "cli" && app.folder && <AccountCapture accountId={app.folder.id} />}

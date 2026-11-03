@@ -6,25 +6,30 @@
 import { describe, expect, it } from "vitest";
 import { chooseWords, choiceQuestion, termConsequence, termValueWords } from "./account-terms";
 import type { SubscriptionInfo } from "./ipc/subscriptions";
+import { previewNamed } from "./ipc/preview-names";
 
 const NOW = new Date(2026, 10, 2, 12).getTime();
 const member = (id: string, label: string) => ({ id, label, folder: `~/${id}`, plan: null, renewal_date: null, fee_usd: null });
-const sub = (choices: SubscriptionInfo["choices"]): SubscriptionInfo => ({
-  key: "k",
-  account_id: "acct:anthropic:k",
-  name: null,
-  tool: "claude-code",
-  state: "signed_in",
-  email: null,
-  organisation: null,
-  reason: null,
-  profiles: [member("work", "Work"), member("work-2", "Work 2"), member("team", "Team")],
-  plan: null,
-  renewal_date: null,
-  fee_usd: null,
-  differs: choices.map((choice) => choice.term),
-  choices,
-});
+const sub = (choices: SubscriptionInfo["choices"]): SubscriptionInfo =>
+  // Named as the backend names it (the preview's stand-in for its rule).
+  previewNamed([
+    {
+      key: "k",
+      account_id: "acct:anthropic:k",
+      name: null,
+      tool: "claude-code",
+      state: "signed_in",
+      email: null,
+      organisation: null,
+      reason: null,
+      profiles: [member("work", "Work"), member("work-2", "Work 2"), member("team", "Team")],
+      plan: null,
+      renewal_date: null,
+      fee_usd: null,
+      differs: choices.map((choice) => choice.term),
+      choices,
+    },
+  ])[0]!;
 
 describe("D-62 an Account's terms, in words", () => {
   it("asks the maintainer's question: who says what, and which", () => {

@@ -21,6 +21,16 @@ account_id?: string | null,
  */
 name?: string | null, 
 /**
+ * D-62 (AJ-E3202 req. 3): what every screen and notice calls it,
+ * worked out once, where the list is built: the name you gave it; else
+ * its service's; else its team, its tool and plan ("Claude Max
+ * 20x"), or its masked email, told apart from another that reads the
+ * same. Folders not signed in are "Not signed in"; a sign-in that
+ * can't be read is "Account unknown". Never a folder's or an app's
+ * name: those are Apps.
+ */
+display_name: string, 
+/**
  * AJ-E3206: the stored Account's colour, given once (an index into
  * the UI's `MARK_COLOURS`); `null` for one not stored.
  */

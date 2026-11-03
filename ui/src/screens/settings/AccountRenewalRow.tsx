@@ -11,10 +11,10 @@ import { openAccount } from "../../lib/accounts-page";
 import { subscriptionsSetTerm } from "../../lib/ipc/subscriptions";
 import { accountName, staleSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 
-export function AccountRenewalRow({ sub, all, onChanged }: { sub: SubscriptionInfo; all: readonly SubscriptionInfo[]; onChanged: () => void }): JSX.Element {
+export function AccountRenewalRow({ sub, onChanged }: { sub: SubscriptionInfo; onChanged: () => void }): JSX.Element {
   const [date, setDate] = useState(sub.renewal_date ?? "");
   const [error, setError] = useState<string | null>(null);
-  const name = accountName(sub, all);
+  const name = accountName(sub);
   const id = `settings-renewal-${sub.key}`;
   const commit = (next: string | null) => {
     setError(null);

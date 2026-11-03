@@ -74,10 +74,10 @@ export function SubscriptionPage(props: PageProps): JSX.Element {
     staleSubscriptions();
     setVersion((was) => was + 1);
   };
-  return <AccountBody {...props} sub={sub} all={all} onChanged={changed} />;
+  return <AccountBody {...props} sub={sub} onChanged={changed} />;
 }
 
-function AccountBody({ sub, all, onChanged, sessions, projects, accounts, now, onOpenSession, onOpenProject }: PageProps & { sub: SubscriptionInfo; all: SubscriptionInfo[]; onChanged: () => void }): JSX.Element {
+function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpenSession, onOpenProject }: PageProps & { sub: SubscriptionInfo; onChanged: () => void }): JSX.Element {
   const host = useActionHost();
   const apps = useApps(accounts);
   const { conversations } = useShownConversations();
@@ -91,12 +91,12 @@ function AccountBody({ sub, all, onChanged, sessions, projects, accounts, now, o
   // Each session's App, by the rail's rule (a session that ended in the
   // Claude app says so, not its tool).
   const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation)) : null);
-  const name = accountName(sub, all);
+  const name = accountName(sub);
   const open = items.filter(openHere).length;
   const tabs = useMemo(() => pageTabs("subscription", { counts: { apps: onIt.length, sessions: items.length, projects: worked.length } }), [onIt.length, items.length, worked.length]);
   const renewal = renewalLabel(sub.renewal_date, now);
   const facts = [
-    accountLine(sub, all),
+    accountLine(sub),
     // AJ-E411: a renewal 7 days off or fewer is its chip, not words here.
     renewal && !renewalRowVisible(renewal) ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
@@ -167,7 +167,7 @@ function AccountBody({ sub, all, onChanged, sessions, projects, accounts, now, o
             case "usage":
               return visible ? <AccountUsageTab name={name} folders={[...folderIds]} accounts={accounts} /> : null;
             case "settings":
-              return <AccountSettings sub={sub} all={all} now={now} onChanged={onChanged} />;
+              return <AccountSettings sub={sub} now={now} onChanged={onChanged} />;
             default:
               return null;
           }

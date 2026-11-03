@@ -24,7 +24,7 @@ import {
 } from "../lib/bridge";
 import { stagingReady, type StagedSwitchInfo } from "../lib/ipc/staging";
 import { rankTargets, type RoomTarget } from "../lib/room-targets";
-import { useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { accountName, accountOfProfile, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { SuggestedMark } from "./SwitchTargetRows";
 import { IconClose } from "./icons-controls";
 import { resetsWords, whenWords } from "../lib/time-words";
@@ -106,6 +106,11 @@ export function LimitDialog({
   // 0.3: an interactive tool stays open at its limit (rule `limit_hit`).
   const stillOpen = session.attention?.rule === "limit_hit";
   const accounts = useSubscriptions();
+  // D-62: the limit is the Account's (its folders share it), so it's named
+  // by the Account; until the accounts are read, or for a folder in none,
+  // the folder's own name stands in.
+  const limited = accounts && session.account_id ? accountOfProfile(accounts, session.account_id) : undefined;
+  const who = limited?.account_id ? accountName(limited) : session.account_label;
   const target = targets ? pickTarget(targets, session.account_id, accounts, displays) : null;
   const ready = target && staged?.target_account_id === target.account_id ? staged : null;
   const targetLines = target
@@ -162,7 +167,7 @@ export function LimitDialog({
         <header className="flex flex-col gap-1">
           <div className="flex items-start gap-3">
             <h2 id="limit-title" className="min-w-0 flex-1 text-base font-semibold">
-              {session.account_label} hit its limit
+              {who} hit its limit
             </h2>
             {/* 0.3: a close like every other dialog's (Not now does the same). */}
             <button
@@ -260,7 +265,7 @@ export function LimitDialog({
               </p>
               {/* 0.3: said with the wait it belongs to, not under the footer. */}
               <p className="text-xs leading-relaxed text-ink-2" data-testid="limit-switch-back">
-                You can switch back to {session.account_label} after the reset.
+                You can switch back to {who} after the reset.
               </p>
               <Button
                 size="sm"

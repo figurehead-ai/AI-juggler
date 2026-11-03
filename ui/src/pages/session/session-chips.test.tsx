@@ -28,7 +28,7 @@ const model = {
   profileLabel: "Work",
 } as unknown as SessionModel;
 
-const signedIn = { state: "signed_in", account_id: "acct:anthropic:work", tool: "claude-code", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
+const signedIn = { state: "signed_in", account_id: "acct:anthropic:work", tool: "claude-code", display_name: "Claude Max 20x", title: "Work Max", label: "Work Max", email: "you@example.com", organisation: null, plan: "max-20x", service: null, profiles: [{ id: "claude-work", label: "Work Max" }] } as never;
 
 it("shows two chips: the state, and the App menu named by its App", () => {
   const view = render(<SessionChips model={model} account={signedIn} now={Date.now()} />);

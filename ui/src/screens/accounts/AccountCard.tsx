@@ -79,9 +79,6 @@ export type AccountCardProps = {
   onLogin: (account: AccountInfo) => void;
   onInspect?: (id: string) => void;
   onRechecked: () => Promise<void>;
-  /** Every account on the screen: two that would read the same say
-   * their email too (D-62). */
-  all?: readonly SubscriptionInfo[];
   /** The accounts span more than one tool: the line names this one's. */
   toolWords?: boolean;
   /** Every App (D-62): its desktop ones on this account get rows too. */
@@ -101,10 +98,10 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const [newKey, setNewKey] = useState(false);
   // D-62: the Account's own name is the title; the line says the rest
   // once (its tool in words only where the accounts span several).
-  const name = accountName(sub, props.all);
+  const name = accountName(sub);
   const line = [
     props.toolWords && !service ? providerDisplayName(sub.tool) : null,
-    accountLine(sub, props.all),
+    accountLine(sub),
     renewal && renewal.tier === "date" ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
   ].filter(Boolean);

@@ -19,8 +19,8 @@ export function accountForApp(subs: readonly SubscriptionInfo[], folderId: strin
   return subs.find((sub) => sub.account_id && ((accountId !== null && sub.account_id === accountId) || (folderId !== null && sub.profiles.some((profile) => profile.id === folderId)))) ?? null;
 }
 
-export function AppTerms({ sub, all, now }: { sub: SubscriptionInfo; all: readonly SubscriptionInfo[]; now: number }): JSX.Element {
-  const name = accountName(sub, all);
+export function AppTerms({ sub, now }: { sub: SubscriptionInfo; now: number }): JSX.Element {
+  const name = accountName(sub);
   const value = (term: Term, raw: string | null): string => {
     if (sub.differs.includes(term)) return "To choose on its account";
     if (raw === null) return "Not set";

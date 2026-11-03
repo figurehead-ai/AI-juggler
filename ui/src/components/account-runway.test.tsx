@@ -116,8 +116,8 @@ describe("D-62 the advice names Accounts, as the Runway card does", () => {
     ] as AccountInfo[];
     const member = (id: string) => ({ id, label: id, folder: `~/${id}`, plan: null, renewal_date: null, fee_usd: null });
     const subscriptions = [
-      { key: "k-max", name: null, tool: "claude-code", state: "signed_in", email: "w…@example.com", organisation: null, reason: null, profiles: [member("work"), member("work-2")], plan: "max-20x", renewal_date: null, fee_usd: null, differs: [], choices: [] },
-      { key: "k-pro", name: null, tool: "claude-code", state: "signed_in", email: "f…@example.com", organisation: null, reason: null, profiles: [member("desk")], plan: "pro", renewal_date: null, fee_usd: null, differs: [], choices: [] },
+      { key: "k-max", name: null, display_name: "Claude Max 20x", tool: "claude-code", state: "signed_in", email: "w…@example.com", organisation: null, reason: null, profiles: [member("work"), member("work-2")], plan: "max-20x", renewal_date: null, fee_usd: null, differs: [], choices: [] },
+      { key: "k-pro", name: null, display_name: "Claude Pro", tool: "claude-code", state: "signed_in", email: "f…@example.com", organisation: null, reason: null, profiles: [member("desk")], plan: "pro", renewal_date: null, fee_usd: null, differs: [], choices: [] },
     ] as unknown as SubscriptionInfo[];
     const advice = accountAdvice(accounts, subscriptions, [{ ...display(42, 10), account: "work-2" }], []);
     expect(advice.count).toBe(2);

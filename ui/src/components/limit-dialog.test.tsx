@@ -9,6 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LimitDialog, pickTarget } from "./LimitDialog";
 import type { InstanceInfo, SwitchTargetData } from "../lib/bridge";
 import { resetsWords, whenWords } from "../lib/time-words";
+import * as subs from "../lib/ipc/subscriptions";
+import { loadSubscriptions, staleSubscriptions } from "../lib/subscriptions";
 
 const NOW = 1_728_800_000_000;
 const w = () => window as unknown as Record<string, unknown>;
@@ -165,5 +167,34 @@ describe("D-25 limit decision — the dialog", () => {
     fireEvent.click(getByTestId("limit-close"));
     expect(onClose).toHaveBeenCalledOnce();
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
+  });
+
+  it("D-62: names the Account the folder is signed in to, never the folder", async () => {
+    const spy = vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      {
+        key: "k-work",
+        account_id: "acct:anthropic:work",
+        name: null,
+        display_name: "Claude Max 20x",
+        tool: "claude-code",
+        state: "signed_in",
+        email: null,
+        organisation: null,
+        reason: null,
+        profiles: [{ id: "acct-work", label: "Work A", folder: "~/.claude-work", plan: null, renewal_date: null, fee_usd: null }],
+        plan: "max-20x",
+        renewal_date: null,
+        fee_usd: null,
+        differs: [],
+        choices: [],
+      },
+    ]);
+    await loadSubscriptions(true);
+    const { getByTestId } = renderIt();
+    await waitFor(() => expect(getByTestId("limit-dialog").textContent).toContain("Claude Max 20x hit its limit"));
+    expect(getByTestId("limit-switch-back").textContent).toBe("You can switch back to Claude Max 20x after the reset.");
+    expect(getByTestId("limit-dialog").textContent).not.toContain("Work A");
+    spy.mockRestore();
+    staleSubscriptions();
   });
 });

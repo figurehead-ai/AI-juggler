@@ -13,26 +13,31 @@ import { switchSourceOf, type ConversationInfo } from "../../lib/ipc/conversatio
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { ContinueOn } from "./ContinueOn";
 import { fromConversation, fromInstance, type SessionModel } from "./model";
+import { previewNamed } from "../../lib/ipc/preview-names";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-const account = (key: string, tool: string, ids: string[], plan: string): SubscriptionInfo => ({
-  key,
-  tool,
-  state: "signed_in",
-  email: null,
-  organisation: null,
-  reason: null,
-  profiles: ids.map((id) => ({ id, label: `Profile ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null })),
-  plan,
-  renewal_date: null,
-  fee_usd: null,
-  differs: [],
-  choices: [],
-});
+const account = (key: string, tool: string, ids: string[], plan: string): SubscriptionInfo =>
+  // Named as the backend names it (the preview's stand-in for its rule).
+  previewNamed([
+    {
+      key,
+      tool,
+      state: "signed_in",
+      email: null,
+      organisation: null,
+      reason: null,
+      profiles: ids.map((id) => ({ id, label: `Profile ${id}`, folder: `~/p/${id}`, plan: null, renewal_date: null, fee_usd: null })),
+      plan,
+      renewal_date: null,
+      fee_usd: null,
+      differs: [],
+      choices: [],
+    },
+  ])[0]!;
 
 // Two Claude accounts (Work has two profiles) and a Codex one.
 const ACCOUNTS = [

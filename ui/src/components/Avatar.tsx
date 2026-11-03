@@ -42,7 +42,7 @@ export function AccountAvatar({
     const rows = cachedSubscriptions();
     if (rows === null) return void loadSubscriptions();
     const owner = accountOfProfile(rows, folder);
-    event.currentTarget.title = owner ? accountName(owner, rows) : label;
+    event.currentTarget.title = owner ? accountName(owner) : label;
   };
   return (
     <span

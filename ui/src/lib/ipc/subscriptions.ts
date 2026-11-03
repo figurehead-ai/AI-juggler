@@ -10,6 +10,7 @@ import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
 import type { SubscriptionProfileInfo } from "../../types/generated/SubscriptionProfileInfo";
 import type { TermChoiceInfo } from "../../types/generated/TermChoiceInfo";
 import { previewAccountId, previewAccountSlots } from "./preview-slots";
+import { previewNamed, type UnnamedSubscription } from "./preview-names";
 
 export type { SubscriptionInfo, SubscriptionProfileInfo, TermChoiceInfo };
 
@@ -18,16 +19,16 @@ export type Term = "plan" | "renewal" | "fee";
 
 /** The preview's accounts: the fixture's, else one per signed-in profile
  * and the rest under "Not signed in", per tool. */
-async function previewSubscriptions(): Promise<SubscriptionInfo[]> {
-  const fixture = (window as unknown as { __AIJ_FIXTURE__?: { subscriptions?: SubscriptionInfo[] } }).__AIJ_FIXTURE__;
+async function previewSubscriptions(): Promise<UnnamedSubscription[]> {
+  const fixture = (window as unknown as { __AIJ_FIXTURE__?: { subscriptions?: UnnamedSubscription[] } }).__AIJ_FIXTURE__;
   if (fixture?.subscriptions) return fixture.subscriptions;
   const profiles = await accountsList();
   const member = (id: string, label: string): SubscriptionProfileInfo => ({ id, label, folder: `~/.claude-${id}`, plan: null, renewal_date: null, fee_usd: null });
   const base = { organisation: null, reason: null, plan: null, renewal_date: null, fee_usd: null, differs: [], choices: [] };
-  const signedInRows: SubscriptionInfo[] = profiles
+  const signedInRows: UnnamedSubscription[] = profiles
     .filter((p) => signedIn(p.login_state))
     .map((p) => ({ ...base, key: `k-${p.id}`, tool: p.provider, state: "signed_in", email: `${p.label.toLowerCase().replace(/\s+/g, "")[0] ?? "y"}…@example.com`, profiles: [{ ...member(p.id, p.label), plan: p.plan, renewal_date: p.renewal_date }], plan: p.plan, renewal_date: p.renewal_date }));
-  const out = new Map<string, SubscriptionInfo>();
+  const out = new Map<string, UnnamedSubscription>();
   for (const p of profiles.filter((row) => !signedIn(row.login_state))) {
     const row = out.get(p.provider) ?? { ...base, key: `out-${p.provider}`, tool: p.provider, state: "signed_out", email: null, profiles: [] };
     row.profiles.push(member(p.id, p.label));
@@ -44,10 +45,10 @@ const previewTerms = new Map<string, Partial<Record<Term, string | null>>>();
 const TERM_FIELD = { plan: "plan", renewal: "renewal_date", fee: "fee_usd" } as const;
 
 /** An account with the terms set on it in the preview. */
-function withPreviewTerms(row: SubscriptionInfo): SubscriptionInfo {
+function withPreviewTerms(row: UnnamedSubscription): UnnamedSubscription {
   const set = row.account_id ? previewTerms.get(row.account_id) : undefined;
   if (!set) return row;
-  const next: SubscriptionInfo = { ...row };
+  const next: UnnamedSubscription = { ...row };
   for (const [term, value] of Object.entries(set) as [Term, string | null][]) {
     if (term === "fee") next.fee_usd = value === null ? null : Number(value);
     else next[TERM_FIELD[term]] = value;
@@ -58,14 +59,15 @@ function withPreviewTerms(row: SubscriptionInfo): SubscriptionInfo {
 }
 
 /** Every profile, grouped into the account it's signed in to. In the
- * preview, each signed-in account is stored under its key (D-62). */
+ * preview, each signed-in account is stored under its key (D-62), and
+ * named as the backend would name it (its names and terms as set here). */
 export async function subscriptionsList(): Promise<SubscriptionInfo[]> {
   if (!hasLiveBackend()) {
     const rows = (await previewSubscriptions()).map((row) => {
       const id = previewAccountId(row);
       return withPreviewTerms({ ...row, choices: row.choices ?? [], account_id: id, name: (id && previewNames.get(id)) ?? row.name ?? null });
     });
-    return previewAccountSlots(rows, previewFolders());
+    return previewAccountSlots(previewNamed(rows), previewFolders());
   }
   return invoke<SubscriptionInfo[]>("subscriptions_list");
 }
