@@ -14,7 +14,7 @@
  * header names the profile anyway.
  */
 import type { JSX } from "react";
-import { appColor, useMarks, type AppMark } from "../lib/marks";
+import { appColor, appSlotKnown, useMarks, type AppMark } from "../lib/marks";
 
 export type ProfileBadgeVariant = "dot" | "pill";
 
@@ -37,12 +37,15 @@ export function ProfileBadge({
 }): JSX.Element {
   useMarks();
   const color = appColor(app);
+  // Which App it was asked for, and whether its colour is its own.
+  const mark = { "data-app": String(app), "data-colour-known": appSlotKnown(app) ? "true" : "false" };
   if (variant === "pill") {
     return (
       <span
         data-testid="profile-badge"
         data-variant="pill"
         data-color={color}
+        {...mark}
         className="inline-flex min-w-0 shrink items-center rounded-full px-1.5 py-px text-label font-semibold leading-[16px] text-white"
         style={{ background: color }}
       >
@@ -57,6 +60,7 @@ export function ProfileBadge({
       data-testid="profile-badge"
       data-variant="dot"
       data-color={color}
+      {...mark}
       className="inline-block shrink-0 rounded-full"
       style={{ width: size, height: size, background: color, boxShadow: ring ? `0 0 0 1.5px ${ring}` : undefined }}
     />

@@ -17,7 +17,7 @@ import type { InstanceInfo, ProjectInfo } from "./bridge";
 import type { ConversationInfo } from "./ipc/conversations";
 import { conversationTitle } from "./conversations";
 import { appOfTool } from "./app-of";
-import { cliAppKey, desktopAppKey, desktopAppWord, desktopProfile, hostWords } from "./app-name";
+import { cliAppKey, desktopAppKey, desktopAppWord, desktopProfile, hostWords, ownDesktopAppKey } from "./app-name";
 import { toolSpec } from "./tools";
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
@@ -173,7 +173,7 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     project: projectName(row.project_id),
     place:
       row.kind === "desktop"
-        ? { key: desktopAppKey(toolSpec(row.provider).host_app ?? null, row.provider, row.account_label), app: desktopAppWord(toolSpec(row.provider).desktop_app ?? "", row.provider) || toolSpec(row.provider).display_name, appId: toolSpec(row.provider).host_app ?? null, kind: "own", profile: row.account_label, appPid: null, host: null }
+        ? { key: ownDesktopAppKey(toolSpec(row.provider).host_app ?? null, row.provider, row.account_id, row.account_label), app: desktopAppWord(toolSpec(row.provider).desktop_app ?? "", row.provider) || toolSpec(row.provider).display_name, appId: toolSpec(row.provider).host_app ?? null, kind: "own", profile: row.account_label, appPid: null, host: null }
         : cliPlace(row.provider, row.account_id, row.account_label, { name: OWN_APP, kind: "own", pid: null }),
     alsoIn: [],
     accountId: row.account_id,

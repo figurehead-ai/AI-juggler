@@ -58,6 +58,14 @@ export function desktopAppKey(appId: string | null, app: string, instance: strin
   return `app|${appId ?? app}|${instance ?? ""}`;
 }
 
+/** A desktop session AI Juggler started: keyed by its app and the folder
+ * it runs on, the key a remembered profile on that folder is learnt by
+ * too (lib/marks, lib/rail-apps), so it wears that App's colour and sits
+ * in its group. Without a folder, by the folder's name. */
+export function ownDesktopAppKey(appId: string | null, app: string, folderId: string | null, folderLabel: string): string {
+  return folderId ? `app|${appId ?? app}|folder:${folderId}` : desktopAppKey(appId, app, folderLabel);
+}
+
 /** "in Terminal": where a CLI session's window is, as a row's detail. */
 export function hostWords(host: string | null | undefined): string | null {
   return host ? `in ${host}` : null;

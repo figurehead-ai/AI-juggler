@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { PROFILE_HUES, accountColor, accountSlot, appColor, appSlot, fallbackSlot, forgetMarksForTests, learnFolders, learnPlaces } from "./marks";
 import { fillSlots, previewAccountSlots, previewFolderSlots, previewPlaceSlots } from "./ipc/preview-slots";
-import { cliAppKey, desktopAppKey } from "./app-name";
+import { cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
 import type { AccountInfo } from "./bridge";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
@@ -75,6 +75,19 @@ describe("AJ-E3206 an App's colour", () => {
     expect(fallbackSlot("x")).toBeLessThan(PROFILE_HUES.length);
     learnPlaces([place("app:claude-app:/p/none", "none", null)]);
     expect(appSlot("app:claude-app:/p/none")).toBe(fallbackSlot("app:claude-app:/p/none"));
+  });
+
+  it("not stored yet: never the colour of an App that is, while a colour is free", () => {
+    learnFolders(PROFILE_HUES.slice(0, 5).map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
+    for (const key of ["app|claude-app|Work", "app|claude-app|Home", "cli|codex|x", "app:claude-app:/p/new"]) expect(appSlot(key)).toBeGreaterThanOrEqual(5);
+    // Every colour taken: any of them.
+    learnFolders(PROFILE_HUES.map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
+    expect(appSlot("app|claude-app|Work")).toBe(fallbackSlot("app|claude-app|Work"));
+  });
+
+  it("a desktop session AI Juggler started wears the profile last seen on its folder", () => {
+    learnPlaces([{ ...place("app:claude-app:/p/old", "old", 2), account_id: "f-1", seen_ms: 1 }, { ...place("app:claude-app:/p/new", "new", 6), account_id: "f-1", seen_ms: 2 }]);
+    expect(appSlot(ownDesktopAppKey("claude-app", "Claude", "f-1", "Work"))).toBe(6);
   });
 });
 

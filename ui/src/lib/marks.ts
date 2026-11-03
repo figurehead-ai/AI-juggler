@@ -29,7 +29,7 @@ import { useSyncExternalStore } from "react";
 import { swatchOf, withPalette } from "./palette";
 import type { AccountInfo } from "./bridge";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
-import { cliAppId, cliAppKey, desktopAppKey } from "./app-name";
+import { cliAppId, cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
 import { PROFILE_HUES } from "./mark-hues";
 
 export { PROFILE_HUES, STATUS_MIN_DELTA_E } from "./mark-hues";
@@ -41,11 +41,14 @@ function slotColor(slot: number): string {
   return `oklch(${l.toFixed(3)} ${c.toFixed(3)} ${h})`;
 }
 
-/** The fallback for something not stored yet: a slot made from its id. */
-export function fallbackSlot(id: string): number {
+/** The fallback for something not stored yet: a slot made from its id,
+ * among the slots `taken` leaves free while any is (so it never wears the
+ * colour of one that is stored), else among all of them. */
+export function fallbackSlot(id: string, taken: ReadonlySet<number> = new Set()): number {
   let hash = 0;
   for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) % 100_000;
-  return hash % PROFILE_HUES.length;
+  const free = PROFILE_HUES.map((_, slot) => slot).filter((slot) => !taken.has(slot));
+  return free.length > 0 ? free[hash % free.length]! : hash % PROFILE_HUES.length;
 }
 
 // --- what the lists said ----------------------------------------------------
@@ -98,10 +101,18 @@ export function withFolderMarks(folders: AccountInfo[]): AccountInfo[] {
 /** The desktop Apps remembered (the places), as loaded. */
 export function learnPlaces(places: readonly KnownPlaceInfo[]): void {
   let moved = false;
-  for (const place of places) {
+  const folders = new Set<string>();
+  // Newest first: a session AI Juggler started in a desktop app wears the
+  // profile last seen on its folder (as lib/rail-apps groups it).
+  for (const place of [...places].sort((a, b) => b.seen_ms - a.seen_ms)) {
     if (place.colour_slot == null) continue;
     moved = put(place.id, place.colour_slot) || moved;
     moved = put(desktopAppKey(place.app_id, place.app, place.instance), place.colour_slot) || moved;
+    const own = place.account_id ? ownDesktopAppKey(place.app_id, place.app, place.account_id, "") : null;
+    if (own && !folders.has(own)) {
+      folders.add(own);
+      moved = put(own, place.colour_slot) || moved;
+    }
   }
   if (moved) changed();
 }
@@ -132,7 +143,13 @@ export type AppMark = number | string;
  * else the fallback from its id. */
 export function appSlot(app: AppMark): number {
   if (typeof app === "number") return app;
-  return appSlots.get(app) ?? fallbackSlot(app);
+  return appSlots.get(app) ?? fallbackSlot(app, new Set(appSlots.values()));
+}
+
+/** Whether an App's colour is its own: given or stored, or only the
+ * fallback from its id (a key no loaded list named). */
+export function appSlotKnown(app: AppMark): boolean {
+  return typeof app === "number" || appSlots.has(app);
 }
 
 /** An App's one colour, as CSS. */
