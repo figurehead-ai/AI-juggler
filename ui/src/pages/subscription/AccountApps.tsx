@@ -10,8 +10,8 @@ import { openApp } from "../../lib/apps";
 import type { AccountApp } from "../../lib/account-items";
 import { agoWords } from "../../lib/time-words";
 
-export function AccountAppRows({ apps, now, compact = false }: { apps: AccountApp[]; now: number; compact?: boolean }): JSX.Element {
-  if (apps.length === 0) return <p className="text-meta text-ink-2">No app uses this account yet.</p>;
+export function AccountAppRows({ apps, now, compact = false, empty = "No app uses this account yet." }: { apps: AccountApp[]; now: number; compact?: boolean; empty?: string }): JSX.Element {
+  if (apps.length === 0) return <p className="text-meta text-ink-2">{empty}</p>;
   const busy = apps.filter((one) => one.sessions > 0);
   const quiet = apps.filter((one) => one.sessions === 0);
   return (

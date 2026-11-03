@@ -8,6 +8,8 @@
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { Card } from "../../components/primitives";
+import { ProfileBadge } from "../../components/ProfileBadge";
+import { cliAppKey, cliAppName } from "../../lib/app-name";
 import { AccountRunway, runwayOf } from "../../components/AccountRunway";
 import { ToolUpdateLine } from "../../components/ToolUpdateLine";
 import { RelatedList } from "../../components/RelatedList";
@@ -83,7 +85,7 @@ export function ToolTab(props: ToolProps & { tab: PageTabId }): JSX.Element | nu
     case "apps":
       return (
         <div className="w-full max-w-content rounded-xl border border-hairline bg-surface px-2 py-2" data-testid="tool-apps-tab">
-          <AccountAppRows apps={rows} now={now} />
+          <AccountAppRows apps={rows} now={now} empty={`No app runs ${name} yet. Add one with Add app…`} />
         </div>
       );
     case "sessions":
@@ -145,12 +147,13 @@ function ToolOverview({ tool, accounts, sessions }: ToolProps): JSX.Element {
   return (
     <div className="flex flex-col gap-3" data-testid="provider-overview">
       <Card className="flex flex-col gap-2 p-4">
-        <div className="flex flex-wrap items-center gap-2 text-meta">
+        {/* The header's word for it: working (one word for one count). */}
+        <p className="text-meta">
           <span className="text-ink">
             {toolAccounts.length} app{toolAccounts.length === 1 ? "" : "s"}
           </span>
-          <span className="text-muted">· {running} running</span>
-        </div>
+          <span className="text-muted"> · {running} working</span>
+        </p>
         {/* Shown once known; nothing in its place until then (D-25). */}
         {install !== null && (
           <p className="text-label text-muted" data-testid="provider-install">
@@ -167,8 +170,10 @@ function ToolOverview({ tool, accounts, sessions }: ToolProps): JSX.Element {
         ) : (
           perAccount.map(({ account, display, sessions: mine }) => (
             <div key={account.id} className="flex flex-col gap-1.5 py-1">
-              <span className="text-meta">
-                <span className="text-ink">{account.label}</span>
+              <span className="flex items-center gap-1.5 text-meta">
+                {/* Each App by its full name and its mark (the 0.4 review). */}
+                <ProfileBadge app={cliAppKey(account.provider, account.id, account.label)} name={account.label} size={8} />
+                <span className="text-ink">{cliAppName(account.provider, account.label)}</span>
                 {!signedIn(account.login_state) ? <span className="text-muted"> · signed out</span> : null}
               </span>
               {/* D-25: a signed-out account with no reading says "signed

@@ -143,7 +143,7 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     const { container } = shell("provider", "claude-code");
     expect(container.querySelector('[data-testid="provider-overview"]')).not.toBeNull();
     expect(container.textContent).toContain("2 apps");
-    expect(container.textContent).toContain("1 running");
+    expect(container.textContent).toContain("1 working");
     // D-25: the installed version and tested range, read from this Mac —
     // not "version: No data".
     await waitFor(() => expect(container.querySelector('[data-testid="provider-install"]')).not.toBeNull());
@@ -154,8 +154,9 @@ describe("AJ-E408 Provider (§5.3, Req.1-2)", () => {
     const aggregate = container.querySelector('[data-testid="provider-aggregate"]')!;
     await waitFor(() => expect(aggregate.textContent).toContain("5% left"));
     const order = [...aggregate.querySelectorAll("span")].map((n) => n.textContent ?? "");
-    const personalIdx = order.findIndex((text) => text === "Personal");
-    const workIdx = order.findIndex((text) => text === "Work Max");
+    // Each by its App's full name (the 0.4 review).
+    const personalIdx = order.findIndex((text) => text === "Claude Code · Personal");
+    const workIdx = order.findIndex((text) => text === "Claude Code · Work Max");
     expect(personalIdx).toBeGreaterThan(-1);
     expect(personalIdx).toBeLessThan(workIdx);
   });
