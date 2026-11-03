@@ -118,7 +118,9 @@ for (const viewport of VIEWPORTS) {
     test(`an account's page, from its name on Accounts — ${at}`, async ({ page }) => {
       await seed(page, theme, viewport);
       await goTo(page, "Accounts");
-      await page.getByTestId("account-label").filter({ hasText: new RegExp(`^${ACCOUNT.label}$`) }).first().click();
+      // D-62: an Account's name on its card opens its page (a folder's name,
+      // its CLI App, opens the App's).
+      await page.getByTestId("account-card").filter({ has: page.locator(`[data-profile="${ACCOUNT.id}"]`) }).getByTestId("account-page").click();
       await expect(page.getByTestId("page-type")).toHaveText("Account");
       await shoot(page, "account", theme, viewport);
     });
