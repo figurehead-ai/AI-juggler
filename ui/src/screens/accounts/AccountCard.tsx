@@ -8,16 +8,17 @@ import { AccountAppRows } from "../../pages/subscription/AccountApps";
 import type { AccountApp } from "../../lib/account-items";
 import type { AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
-import { Card, Chip } from "../../components/primitives";
+import { Card } from "../../components/primitives";
 import { runwayOf } from "../../components/AccountRunway";
 import { RunwayPanel } from "../../components/usage/Runway";
 import { useWeekByProfile } from "../../components/usage/RunwayCards";
 import { accountColor } from "../../lib/marks";
 import { providerDisplayName, noLimitsWords } from "../../lib/providers";
-import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
+import { renewalLabel } from "../../lib/renewal";
 import { accountDisplay, accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
 import { openAccount } from "../../lib/accounts-page";
 import { ChooseChip } from "../../pages/subscription/TermChoice";
+import { RenewalChip } from "../../components/RenewalChip";
 import { ReplaceKeyModal, ServiceUsage } from "./ServiceParts";
 import { toolSpec } from "../../lib/tools";
 import type { AccountInfo, InstanceInfo, LaunchRecipeInfo, QuotaDisplayData } from "../../lib/bridge";
@@ -134,11 +135,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
                 : line.join(" · ") || providerDisplayName(sub.tool)}
           </p>
         </div>
-        {renewal && renewalRowVisible(renewal) && renewal.tier !== "date" && (
-          <Chip tone={renewal.tier === "danger" ? "danger" : "warning"}>
-            {renewal.tier === "danger" ? "⛔" : "⚠"} {renewal.text}
-          </Chip>
-        )}
+        <RenewalChip renewal={renewal} />
         {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
         <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
         {profiles.length > 1 && !signedOut && (

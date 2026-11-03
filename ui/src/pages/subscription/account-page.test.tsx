@@ -70,6 +70,38 @@ describe("D-62 the Account page", () => {
     await waitFor(() => expect(screen.getByTestId("page-name").textContent).toBe("Claude Max 20x"));
   });
 
+  it("a renewal 7 days off or fewer is its coloured chip (AJ-E411); one further off is said in words", async () => {
+    const daysOut = (days: number) => {
+      const target = new Date(NOW + days * 86_400_000);
+      const pad = (value: number) => String(value).padStart(2, "0");
+      return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`;
+    };
+    const show = (renewal: string) => {
+      staleSubscriptions();
+      seams().__AIJ_FIXTURE__ = { conversations: placesConversations(NOW), subscriptions: [{ ...subscriptions[0]!, renewal_date: renewal }, subscriptions[1]] };
+      seams().__AIJ_PLACES__ = knownPlacesPreview(NOW);
+      return render(
+        <ConversationsProvider>
+          <ActionHostProvider host={{}}>
+            <SubscriptionPage id={ID} sessions={[]} projects={[]} accounts={folders} now={NOW} onOpenSession={() => {}} onOpenProject={() => {}} />
+          </ActionHostProvider>
+        </ConversationsProvider>,
+      );
+    };
+    show(daysOut(3));
+    const chip = await screen.findByTestId("renewal-chip");
+    expect(chip.dataset.tier).toBe("warning");
+    expect(chip.textContent).toContain("⚠ Renews in 3 days");
+    expect(screen.getByTestId("page-facts").textContent).not.toContain("Renews");
+    cleanup();
+    show(daysOut(-2));
+    expect((await screen.findByTestId("renewal-chip")).textContent).toContain("⛔ Renewal date passed");
+    cleanup();
+    show(daysOut(40));
+    await waitFor(() => expect(screen.getByTestId("page-facts").textContent).toContain("Renews"));
+    expect(screen.queryByTestId("renewal-chip")).toBeNull();
+  });
+
   it("where its Apps say different renewal dates, it asks once, says what it changes, and the choice is the account's (A9)", async () => {
     const year = new Date(NOW).getFullYear();
     const split = {

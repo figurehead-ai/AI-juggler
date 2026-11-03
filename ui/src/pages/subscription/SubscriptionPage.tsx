@@ -32,7 +32,8 @@ import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
 import { sessionsQuery } from "../../lib/ipc/sessions";
 import { appByConversation, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
-import { renewalLabel } from "../../lib/renewal";
+import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
+import { RenewalChip } from "../../components/RenewalChip";
 import { RANGES } from "../../lib/usage/range";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
@@ -96,7 +97,8 @@ function AccountBody({ sub, all, onChanged, sessions, projects, accounts, now, o
   const renewal = renewalLabel(sub.renewal_date, now);
   const facts = [
     accountLine(sub, all),
-    renewal?.text ?? null,
+    // AJ-E411: a renewal 7 days off or fewer is its chip, not words here.
+    renewal && !renewalRowVisible(renewal) ? renewal.text : null,
     sub.fee_usd != null ? `$${sub.fee_usd}/month` : null,
     onIt.length === 1 ? "1 app" : `${onIt.length} apps`,
     open > 0 ? `${open} open` : null,
@@ -117,7 +119,12 @@ function AccountBody({ sub, all, onChanged, sessions, projects, accounts, now, o
               </span>
             }
             name={name}
-            chips={<ChooseChip sub={sub} onOpen={() => showTab("settings")} />}
+            chips={
+              <>
+                <RenewalChip renewal={renewal} />
+                <ChooseChip sub={sub} onOpen={() => showTab("settings")} />
+              </>
+            }
             facts={facts.map((part, index) => (
               <span key={part} className="flex items-center gap-2">
                 {index > 0 && <span aria-hidden="true">·</span>}
