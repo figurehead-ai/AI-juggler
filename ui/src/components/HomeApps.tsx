@@ -158,7 +158,9 @@ function Tile({ group, runway, kept, appId }: { group: RailGroup; runway: Runway
       </div>
       {runway && (
         <div className="flex flex-col gap-1">
-          <span className={"truncate text-meta " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
+          {/* Two lines before it's cut: its Account's name and what's left
+              both whole at four cards a row (the 0.4 review). */}
+          <span className={"line-clamp-2 text-pretty text-meta " + (low ? "text-warning" : "text-muted")}>{runway.words}</span>
           {runway.left !== null && (
             <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={runway.left} aria-label={`${name}: ${runway.words}`}>
               <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${runway.left}%` }} />
