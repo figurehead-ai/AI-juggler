@@ -252,7 +252,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
   "sess-8": {
     tokens_bars: [300, 410, 380, 500, 440],
     avg_tokens_per_min: 406,
-    error_label: "1 errors / 12 turns",
+    error_label: "1 error / 12 turns",
     errors_not_measurable: false,
     context_used: null,
     context_window: null,

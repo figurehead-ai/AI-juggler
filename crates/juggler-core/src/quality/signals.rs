@@ -122,10 +122,23 @@ pub struct ErrorRate {
 }
 
 impl ErrorRate {
-    /// The exact rendered string (`2 errors / 41 turns`).
+    /// The exact rendered string (`2 errors / 41 turns`, `1 error / 12
+    /// turns`).
     #[must_use]
     pub fn label(&self) -> String {
-        format!("{} errors / {} turns", self.errors, self.turns)
+        Self::words(self.errors, self.turns)
+    }
+
+    /// `errors` of `turns` in words, each counted in its own number.
+    #[must_use]
+    pub fn words(errors: u64, turns: u64) -> String {
+        let plural =
+            |n: u64, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
+        format!(
+            "{} / {}",
+            plural(errors, "error", "errors"),
+            plural(turns, "turn", "turns")
+        )
     }
 }
 

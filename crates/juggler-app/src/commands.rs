@@ -4180,7 +4180,7 @@ pub fn instance_quality_impl(
     let error_label = if scan.turns == 0 {
         "Not measurable (interactive)".to_string()
     } else {
-        format!("{} errors / {} turns", scan.errors, scan.turns)
+        juggler_core::quality::ErrorRate::words(scan.errors, scan.turns)
     };
     let table = juggler_core::quality::load_pricing_table();
     // AJ-E412 Req.4: price per turn where the transcript records the

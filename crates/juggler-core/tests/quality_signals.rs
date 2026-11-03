@@ -88,6 +88,9 @@ fn error_rate_renders_numerator_denominator() {
         not_measurable: false,
     };
     assert_eq!(rate.label(), "3 errors / 10 turns");
+    // Each count in its own number (the 0.4 review: "1 errors").
+    assert_eq!(signals::ErrorRate::words(1, 12), "1 error / 12 turns");
+    assert_eq!(signals::ErrorRate::words(0, 1), "0 errors / 1 turn");
 }
 
 #[test]
