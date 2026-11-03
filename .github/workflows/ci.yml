@@ -1,5 +1,12 @@
 name: CI
 
+# ADR-0025: every gate runs here, split across GitHub's standard runners
+# (free for a public repository; larger runners are billed, so none is
+# used). The required checks keep their names: `verify` and `visual` (and
+# `a11y`) are jobs that need their parts and fail unless every part passed,
+# so the ruleset's required checks (verify, ui, visual, build-macos,
+# build-linux, build-windows) apply unchanged. No job retries a test.
+
 on:
   push:
     branches: [main]
@@ -7,6 +14,10 @@ on:
   # (one PR per release), so the Linux and Windows jobs see release/*
   # code before it merges.
   pull_request:
+  # Once a week every job runs on main whatever the push skipped (below),
+  # and main's build caches are saved afresh.
+  schedule:
+    - cron: "41 5 * * 1"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -16,7 +27,6 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: short
 
-
 # The token reads only (CodeQL actions/missing-workflow-permissions): the
 # visual job reads the PR's body; a job needing more says so itself.
 permissions:
@@ -24,100 +34,102 @@ permissions:
   pull-requests: read
 
 jobs:
-  # The full quality gate (docs/plan/QUALITY.md). Mirrors `just verify` plus
-  # cargo-deny and coverage; its name is a required status check on main.
-  verify:
-    name: verify
+  # What this run has to do. A push to main whose tree is exactly the
+  # tree its pull request's head passed every required check with runs
+  # nothing again (`tested`): the merge commit (or squash) of an up-to-date
+  # PR carries the same content, so the same gates would give the same
+  # answers. Anything else, and the weekly run, runs every job.
+  plan:
+    name: plan
     runs-on: ubuntu-latest
-    env:
-      # Line tables only: a failing test still names its file and line, but
-      # the test build is a fraction of its size. With full debug info it
-      # took about 100 GB (main had 3.3 GB left before coverage on
-      # 2026-10-29) and 0.3's dev-bridge build ran out of disk (#198).
-      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    outputs:
+      tested: ${{ steps.same.outputs.tested }}
+      visual: ${{ steps.scope.outputs.visual }}
+      a11y: ${{ steps.scope.outputs.a11y }}
     steps:
-      # The full gate (coverage, three clippy variants, every test binary)
-      # outgrew the runner's free disk (#148, 2026-10-23: "No space left on
-      # device"). This job never uses these preinstalled SDKs.
-      - name: Free runner disk
-        run: |
-          df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
-          df -h /
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: Install Tauri system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libxdo-dev libssl-dev
-      # Restored here, saved before coverage (below): the cache holds the
-      # test build only. Saved with coverage's instrumented build in it, it
-      # grew to 12 GB and filled the disk (#175, 2026-10-24).
-      - name: Cargo cache
-        id: cargo-cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            target
-          # "-lt": builds with line tables only (above). An older cache, built
-          # with full debug info, would be rebuilt beside itself.
-          key: ${{ runner.os }}-${{ github.job }}-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-lt-
-      - name: Install cargo-llvm-cov and cargo-deny (release binaries)
+          persist-credentials: false
+      # The visual gate on changes to the UI or to this workflow (its own
+      # shards); the accessibility gate (AJ-E804) on changes to the UI, its
+      # scripts or this workflow. Without a base (the weekly run, a new
+      # branch) both run.
+      - name: Did this change touch the UI?
+        id: scope
         env:
-          LLVM_COV_VERSION: v0.9.1
-          DENY_VERSION: 0.20.2
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.local/bin"
-          curl --proto '=https' --tlsv1.2 -fsSL \
-            "https://github.com/taiki-e/cargo-llvm-cov/releases/download/${LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz -C "$HOME/.local/bin"
-          deny="cargo-deny-${DENY_VERSION}-x86_64-unknown-linux-musl"
-          curl --proto '=https' --tlsv1.2 -fsSLO \
-            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/${deny}.tar.gz"
-          curl --proto '=https' --tlsv1.2 -fsSLO \
-            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/${deny}.tar.gz.sha256"
-          echo "$(cut -d' ' -f1 "${deny}.tar.gz.sha256")  ${deny}.tar.gz" | sha256sum -c -
-          tar -xzf "${deny}.tar.gz"
-          mv "${deny}/cargo-deny" "$HOME/.local/bin/"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Add llvm-tools
-        run: rustup component add llvm-tools-preview
-      - name: Format
-        run: cargo fmt --all --check
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Clippy (no default features)
-        run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-      # --no-fail-fast: every failing test in one run, not the first
-      # binary's only (#198 took four runs to show four problems).
-      - name: Tests
-        run: |
-          cargo test --workspace --no-fail-fast
-          ./scripts/leaked_fixtures.sh
-      - name: Room left on the runner
-        shell: bash
-        run: |
-          free=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
-          echo "Free after the test build: ${free} GB"
-          if [ "$free" -lt 15 ]; then
-            echo "::warning::Only ${free} GB free after the test build; the dev-bridge build and coverage need room (#198 ran out)."
+          visual=true a11y=true
+          if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ] \
+            && git fetch -q --no-tags --depth=1 origin "$BASE"; then
+            changed="$(git diff --name-only "$BASE" HEAD)"
+            grep -qE '^ui/|^\.github/workflows/ci\.yml$|^scripts/visual_summary\.py$' <<<"$changed" || visual=false
+            grep -qE '^ui/|^scripts/(a11y_gate\.sh|axe_summary\.py)$|^\.github/workflows/ci\.yml$' <<<"$changed" || a11y=false
           fi
-      - name: Read-only test bridge (Dev builds only; docs/qa/DEV-BRIDGE.md)
-        run: |
-          df -h /
-          cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
-          cargo test -p juggler-app --features dev-bridge --lib dev_bridge
-          ./scripts/dev_bridge_check.sh
-      - name: Docs
+          echo "visual=$visual" >> "$GITHUB_OUTPUT"
+          echo "a11y=$a11y" >> "$GITHUB_OUTPUT"
+          echo "UI gates: visual $visual, accessibility $a11y" >> "$GITHUB_STEP_SUMMARY"
+      - name: Already tested? (a push to main with its pull request's tree)
+        id: same
+        if: github.event_name == 'push'
         env:
-          RUSTDOCFLAGS: -D warnings
-        run: cargo doc --workspace --no-deps
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/$REPO/commits/$SHA/pulls" \
+            --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$SHA\")][0] // empty | \"\(.number) \(.head.sha)\"")"
+          if [ -z "$pr" ]; then
+            echo "No pull request merged as $SHA: every job runs." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          number="${pr% *}" head="${pr#* }"
+          git fetch -q --no-tags --depth=1 origin "refs/pull/$number/head"
+          if [ "$(git rev-parse FETCH_HEAD)" != "$head" ] \
+            || [ "$(git rev-parse 'HEAD^{tree}')" != "$(git rev-parse 'FETCH_HEAD^{tree}')" ]; then
+            echo "#$number's head ($head) has another tree than $SHA: every job runs." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh api --paginate "repos/$REPO/commits/$head/check-runs?per_page=100" \
+            --jq '.check_runs[] | {name, status, conclusion, completed_at, app: .app.slug}' > "$RUNNER_TEMP/runs.jsonl"
+          if python3 scripts/gate_passed.py checks "$RUNNER_TEMP/runs.jsonl" \
+            verify ui visual a11y build-macos build-linux build-windows; then
+            echo "tested=$head" >> "$GITHUB_OUTPUT"
+            echo "Same tree as #$number's head ($head), which passed every required check: nothing runs again." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "#$number's head has the same tree but not every required check passed there: every job runs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # The checks that run no test, cheapest first, stopping at the first
+  # failure: the release notes, the project's lints, fmt, clippy (three
+  # variants), rustdoc, cargo-deny. `just verify-static` locally.
+  static:
+    name: static
+    needs: plan
+    if: needs.plan.outputs.tested == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # The release-notes check compares the schema with older tags.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Release notes this change touched (as the nightly checks them)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ]; then
+            ./scripts/release_notes_changed.sh "$BASE"
+          fi
       - name: Evidence store (AJ-E801 gate)
         run: ./scripts/evidence_check.sh
       - name: A design critique beside every gallery family's captures (AJ-E2814, D-57)
@@ -155,25 +167,78 @@ jobs:
           python3 scripts/check_task_counts.py
       - name: Usage-statistics doc is generated from the schema (AJ-E1106)
         run: python3 scripts/gen_usage_stats_doc.py --check
-      - name: Usage-statistics types are generated from the schema; the stats feature leaves them out (AJ-E1102)
+      - name: Every sub-second timer says why (AJ-E805)
+        run: python3 scripts/polling_audit.py > /dev/null
+      - name: Release and CI scripts (D-20, D-24, ADR-0025 self-tests)
         run: |
-          python3 scripts/gen_stats_events.py --check
-          ./scripts/stats_feature_check.sh
-      - name: Release scripts (D-20, D-24 self-tests)
-        run: |
+          python3 scripts/gate_passed.py --selftest
+          python3 scripts/affected_crates.py --selftest
           python3 scripts/release_version.py --selftest
           python3 scripts/release_ships.py --selftest
           python3 scripts/nightly_notes.py --selftest
           python3 scripts/downgrade_note.py --selftest
           python3 scripts/promotion_rules.py --selftest
           python3 scripts/apple_retry.py --selftest
-      - name: Dependency policy (cargo-deny)
-        run: cargo deny check
-      - name: The local gate runs what this job runs (`just verify`)
+          python3 scripts/updater_sig_check.py --selftest
+      - name: Tool capabilities manifest
+        run: python3 scripts/capabilities.py check
+      - name: The live labs' snapshot runs in the C locale
+        run: LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
+      - name: The local gate runs what CI's verify runs (`just verify`)
         run: |
           python3 scripts/ci_parity.py --selftest
           python3 scripts/ci_parity.py
-      - name: Save the Cargo cache (the test build, before coverage)
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Install Tauri system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+      - name: Cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-static-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-static-cargo-lt-
+      - name: Install cargo-deny (release binary)
+        env:
+          DENY_VERSION: 0.20.2
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          deny="cargo-deny-${DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl --proto '=https' --tlsv1.2 -fsSLO \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/${deny}.tar.gz"
+          curl --proto '=https' --tlsv1.2 -fsSLO \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/${deny}.tar.gz.sha256"
+          echo "$(cut -d' ' -f1 "${deny}.tar.gz.sha256")  ${deny}.tar.gz" | sha256sum -c -
+          tar -xzf "${deny}.tar.gz"
+          mv "${deny}/cargo-deny" "$HOME/.local/bin/"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Clippy (no default features)
+        run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+      - name: Clippy (the read-only test bridge; docs/qa/DEV-BRIDGE.md)
+        run: cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
+      - name: Docs
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --no-deps
+      - name: Usage-statistics types are generated from the schema; the stats feature leaves them out (AJ-E1102)
+        run: |
+          python3 scripts/gen_stats_events.py --check
+          ./scripts/stats_feature_check.sh
+      - name: Dependency policy (cargo-deny)
+        run: cargo deny check
+      - name: Save the Cargo cache
         if: steps.cargo-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -183,16 +248,266 @@ jobs:
             ~/.cargo/git/db
             target
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
-      # Coverage builds the workspace again, instrumented, beside the test
-      # build: with both, the runner's disk ran out (#175, 2026-10-23). The
-      # tests have run and the cache is saved, so their build goes first.
-      - name: Make room for coverage
+
+  # The test binaries, built once (cargo-nextest's archive) for the
+  # partitions below, which wait for this whole job: nothing else runs here.
+  rust-build:
+    name: tests (build)
+    needs: plan
+    if: needs.plan.outputs.tested == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # No debug info: a failing test still names its file and line (the
+      # panic carries them), and the archive every partition downloads is
+      # a fraction of the size (5.4 GB with line tables, 2026-11-02). Full
+      # debug info once took about 100 GB (#198). The runner has room
+      # (88 GB free on 2026-11-02), so no SDK is removed first.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install Tauri system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+      # The dependencies of the test build ("-d0": no debug info, above).
+      # Only theirs: the workspace's own crates rebuild on every checkout
+      # anyway (new files), so they are left out before saving.
+      - name: Cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-tests-cargo-d0-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-tests-cargo-d0-
+      - name: Install cargo-nextest (release binary, checked)
+        env:
+          NEXTEST: cargo-nextest-0.9.146-x86_64-unknown-linux-gnu.tar.gz
+          NEXTEST_SHA256: 682c21b777c333e96fd532e114d3a5a894e0729ab88d94c0a9f20f8419695428
+          NEXTEST_URL: https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.146
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl --proto '=https' --tlsv1.2 -fsSLo "$RUNNER_TEMP/$NEXTEST" "$NEXTEST_URL/$NEXTEST"
+          echo "$NEXTEST_SHA256  $RUNNER_TEMP/$NEXTEST" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$NEXTEST" -C "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build every test binary once
+        run: cargo nextest archive --workspace --archive-file "$RUNNER_TEMP/nextest.tar.zst"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nextest-archive
+          path: ${{ runner.temp }}/nextest.tar.zst
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+      # Swatinem/rust-cache's rule, by hand (GitHub-owned actions only): the
+      # workspace's own artifacts and the test binaries out, the
+      # dependencies in (a 6 GB cache took 4 minutes to restore).
+      - name: Keep the dependencies only
+        if: steps.cargo-cache.outputs.cache-hit != 'true'
+        run: |
+          rm -rf target/debug/incremental target/nextest
+          find target/debug -maxdepth 1 -type f -delete
+          find target/debug/deps -maxdepth 1 -type f -perm -u+x ! -name '*.so' -delete
+          find target/debug/deps target/debug/.fingerprint target/debug/build -maxdepth 1 -name '*juggler*' -exec rm -rf {} +
+          du -sh target
+      - name: Save the Cargo cache (the dependencies)
+        if: steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+      - name: Room left on the runner
+        shell: bash
+        run: |
+          free=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
+          echo "Free after the test build: ${free} GB"
+          if [ "$free" -lt 10 ]; then
+            echo "::warning::Only ${free} GB free after the test build (#198 ran out)."
+          fi
+
+  # Every test, in six slices of the one build (nextest's `slice`: the
+  # tests dealt out in turn, so a serial group spreads over all six; `hash`
+  # left one partition with twice the others' work). A process per test;
+  # .config/nextest.toml keeps the ones that share a resource or time the
+  # clock apart, and never retries.
+  rust-test:
+    name: tests (${{ matrix.partition }}/6)
+    needs: [plan, rust-build]
+    if: needs.plan.outputs.tested == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [1, 2, 3, 4, 5, 6]
+    steps:
+      # The same path as the build's checkout: the tests reach their
+      # fixtures through the paths they were compiled with.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install Tauri system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+      - name: Install cargo-nextest (release binary, checked)
+        env:
+          NEXTEST: cargo-nextest-0.9.146-x86_64-unknown-linux-gnu.tar.gz
+          NEXTEST_SHA256: 682c21b777c333e96fd532e114d3a5a894e0729ab88d94c0a9f20f8419695428
+          NEXTEST_URL: https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.146
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl --proto '=https' --tlsv1.2 -fsSLo "$RUNNER_TEMP/$NEXTEST" "$NEXTEST_URL/$NEXTEST"
+          echo "$NEXTEST_SHA256  $RUNNER_TEMP/$NEXTEST" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$NEXTEST" -C "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # Some tests read the dependency graph (`cargo metadata --offline`,
+      # trust.rs): the crates, as locked, without building them.
+      - name: Crates, exactly as locked
+        run: cargo fetch --locked
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: nextest-archive
+          path: ${{ runner.temp }}
+      # The archive unpacks into target/ here, where the build had it.
+      # --no-fail-fast: every failing test in one run (#198 took four runs
+      # to show four problems).
+      - name: Tests, partition ${{ matrix.partition }} of 6 (no retries)
+        env:
+          PARTITION: ${{ matrix.partition }}
+        run: |
+          mkdir -p target/tmp
+          cargo-nextest nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . --extract-to . --extract-overwrite --partition "slice:$PARTITION/6" --profile ci --no-fail-fast
+          ./scripts/leaked_fixtures.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: junit-tests-${{ matrix.partition }}
+          path: target/nextest/ci/junit.xml
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # The doctests (nextest doesn't run them), the read-only test bridge's
+  # tests, and the proof it never ships (docs/qa/DEV-BRIDGE.md): beside
+  # the test build, so the partitions don't wait for them.
+  dev-bridge:
+    name: doctests, dev-bridge
+    needs: plan
+    if: needs.plan.outputs.tested == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # As the test build, whose cache this job reads.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install Tauri system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+      # The test build's cache (its dependencies are this build's), read only.
+      - name: Cargo cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-tests-cargo-d0-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-tests-cargo-d0-
+      - name: Doctests
+        run: cargo test --workspace --doc
+      - name: Read-only test bridge's tests (Dev builds only)
+        run: cargo test -p juggler-app --features dev-bridge --lib dev_bridge
+      - name: The bridge never ships
+        run: ./scripts/dev_bridge_check.sh
+
+  # The required check `verify`: every part of the Rust gate passed.
+  verify:
+    name: verify
+    needs: [plan, static, rust-build, rust-test, dev-bridge]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every part passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          TESTED: ${{ needs.plan.outputs.tested }}
+        run: |
+          set -euo pipefail
+          [ "$(jq -r .plan.result <<<"$NEEDS")" = success ] || { echo "::error::plan didn't pass"; exit 1; }
+          if [ -n "$TESTED" ]; then
+            echo "verify: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          failed="$(jq -r 'to_entries | map(select(.value.result != "success")) | map("\(.key): \(.value.result)") | join(", ")' <<<"$NEEDS")"
+          if [ -n "$failed" ]; then
+            echo "::error::verify: not every part passed ($failed)"
+            exit 1
+          fi
+          echo "verify: static, the test build, all six test partitions, the doctests and dev-bridge passed." >> "$GITHUB_STEP_SUMMARY"
+
+  # The coverage artifact, off the critical path and never gating
+  # (strictness is enforced at gates via the local llvm-cov numbers). It
+  # builds the workspace again, instrumented, so it has a runner of its own.
+  coverage:
+    name: coverage
+    needs: plan
+    if: needs.plan.outputs.tested == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+    steps:
+      - name: Free runner disk
         run: |
           df -h /
-          rm -rf target/debug target/llvm-cov-target
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
           df -h /
-      # Coverage artifact. Best-effort in edge cases (zero-test workspaces);
-      # strictness is enforced at gates via the local llvm-cov numbers.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install Tauri system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+      - name: Install cargo-llvm-cov (release binary)
+        env:
+          LLVM_COV_VERSION: v0.9.1
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            "https://github.com/taiki-e/cargo-llvm-cov/releases/download/${LLVM_COV_VERSION}/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz -C "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Add llvm-tools
+        run: rustup component add llvm-tools-preview
+      # Best-effort in edge cases (zero-test workspaces).
       - name: Coverage (baseline artifact)
         continue-on-error: true
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info
@@ -201,13 +516,18 @@ jobs:
         with:
           name: coverage-lcov
           path: lcov.info
+          if-no-files-found: ignore
 
   # Frontend quality gate: typecheck + production build of the webview UI.
   ui:
     name: ui
+    needs: plan
+    if: needs.plan.outputs.tested == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       # pnpm via corepack (GitHub-owned actions only, SHA-pinned — org
       # policy); corepack must activate pnpm before setup-node's cache.
       - name: Enable pnpm
@@ -227,31 +547,69 @@ jobs:
         working-directory: ui
         run: pnpm build
 
-  # AJ-E803: the visual regression gate — on PRs that change the UI, the
+  # AJ-E803: the visual regression gate. On changes to the UI, the
   # deterministic matrix is compared with the approved baselines in the
-  # pinned Playwright container (the same image `just visual-gate` uses).
-  visual:
-    name: visual
+  # pinned Playwright container (the same image `just visual-gate` uses,
+  # by digest, on x64 as the baselines were rendered), split by test into
+  # four shards; `visual` merges their reports into one.
+  visual-shard:
+    name: visual (${{ matrix.shard }}/4)
+    needs: plan
+    if: needs.plan.outputs.visual == 'true' && needs.plan.outputs.tested == ''
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --ipc=host
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
+      - name: Install
+        working-directory: ui
+        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+      - name: Compare with the baselines, shard ${{ matrix.shard }}/4
+        working-directory: ui
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: pnpm exec playwright test -c playwright.regression.config.ts --shard="$SHARD/4" --reporter=list,blob
+      - name: Report (merged by `visual`)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-blob-${{ matrix.shard }}
+          path: ui/blob-report/
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Triptychs (baseline, current, diff)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-triptychs-${{ matrix.shard }}
+          path: ui/test-results/
+          retention-days: 14
+
+  # The required check `visual`: baseline changes are explained, and every
+  # shard passed (or nothing in the UI changed).
+  visual:
+    name: visual
+    needs: [plan, visual-shard]
+    if: always()
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      options: --ipc=host
+    env:
+      RAN: ${{ needs.plan.outputs.visual == 'true' && needs.plan.outputs.tested == '' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
           fetch-depth: 0
-      - name: Did this change touch the UI?
-        id: scope
-        shell: bash
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          base="${{ github.event.pull_request.base.sha || github.event.before }}"
-          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || git diff --name-only "$base" HEAD | grep -q '^ui/'; then
-            echo "ui=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ui=false" >> "$GITHUB_OUTPUT"
-            echo "Visual gate: no UI change — nothing to compare." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          persist-credentials: false
       - name: Baseline changes are explained
         if: github.event_name == 'pull_request'
         env:
@@ -263,82 +621,87 @@ jobs:
         # base branch now (main's later changes aren't the PR's). The body
         # is read fresh so a re-run sees notes added after the push.
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           base="$(git merge-base "origin/$BASE_REF" HEAD)"
           body="$(gh pr view "$PR_NUMBER" --json body --jq .body 2>/dev/null || printf '%s' "$EVENT_BODY")"
           PR_BODY="$body" python3 scripts/check_baseline_notes.py "$base"
-      - name: Install
-        if: steps.scope.outputs.ui == 'true'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: always() && env.RAN == 'true'
+        with:
+          pattern: visual-blob-*
+          path: ui/blob-reports/
+          merge-multiple: true
+      - name: One report from every shard
+        if: always() && env.RAN == 'true' && hashFiles('ui/blob-reports/*') != ''
         working-directory: ui
-        run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
-      - name: Compare with the baselines
-        if: steps.scope.outputs.ui == 'true'
-        working-directory: ui
-        run: pnpm exec playwright test -c playwright.regression.config.ts
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/visual-gate.json
+          PLAYWRIGHT_HTML_OPEN: never
+        run: |
+          corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
+          pnpm exec playwright merge-reports --reporter=json,html ./blob-reports
       - name: Summary
-        if: always() && steps.scope.outputs.ui == 'true'
+        if: always() && env.RAN == 'true'
         run: python3 scripts/visual_summary.py ui/test-results/visual-gate.json >> "$GITHUB_STEP_SUMMARY"
-      - name: Triptychs (baseline, current, diff)
-        if: failure() && steps.scope.outputs.ui == 'true'
+      - name: The whole report
+        if: always() && env.RAN == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: visual-triptychs
-          path: ui/test-results/
+          name: visual-report
+          path: ui/playwright-report/
           retention-days: 14
+          if-no-files-found: ignore
+      - name: Every shard passed
+        env:
+          PLAN: ${{ needs.plan.result }}
+          SHARDS: ${{ needs.visual-shard.result }}
+          VISUAL: ${{ needs.plan.outputs.visual }}
+          TESTED: ${{ needs.plan.outputs.tested }}
+        run: |
+          [ "$PLAN" = success ] || { echo "::error::plan didn't pass"; exit 1; }
+          if [ -n "$TESTED" ]; then
+            echo "Visual gate: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$VISUAL" != true ]; then
+            echo "Visual gate: no UI change — nothing to compare." >> "$GITHUB_STEP_SUMMARY"
+          else
+            [ "$SHARDS" = success ] \
+              || { echo "::error::a visual shard failed ($SHARDS) — see its log and the visual-triptychs-* artifacts"; exit 1; }
+          fi
 
   # AJ-E804 on every pull request that changes the interface: the same
   # accessibility gate Promote runs (axe on every gallery state, keyboard
-  # flows, 200 % zoom and reduced motion, contrast), in the same four
-  # shards, so a regression is caught before it merges rather than at
+  # flows, 200 % zoom and reduced motion, contrast), split by test into
+  # six shards, so a regression is caught before it merges rather than at
   # release time. Changes without UI work skip it; `a11y` always reports.
-  a11y-scope:
-    name: a11y scope
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    outputs:
-      ui: ${{ steps.scope.outputs.ui }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-      - name: Did this change touch the UI or the gate itself?
-        id: scope
-        shell: bash
-        run: |
-          base="${{ github.event.pull_request.base.sha || github.event.before }}"
-          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
-            || git diff --name-only "$base" HEAD | grep -qE '^ui/|^scripts/(a11y_gate\.sh|axe_summary\.py)$|^\.github/workflows/ci\.yml$'; then
-            echo "ui=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ui=false" >> "$GITHUB_OUTPUT"
-          fi
-
   a11y-shard:
-    name: a11y (${{ matrix.shard }}/4)
+    name: a11y (${{ matrix.shard }}/6)
     permissions:
       contents: read
-    needs: a11y-scope
-    if: needs.a11y-scope.outputs.ui == 'true'
+    needs: plan
+    if: needs.plan.outputs.a11y == 'true' && needs.plan.outputs.tested == ''
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --ipc=host
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Install
         working-directory: ui
         run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile
-      - name: Accessibility gate, shard ${{ matrix.shard }}/4
+      - name: Accessibility gate, shard ${{ matrix.shard }}/6
         env:
           A11Y_SKIP_SUMMARY: "1"
+          SHARD: ${{ matrix.shard }}
         # Split by test, not by file: the gate is mostly one large spec, so
         # file-level shards left shards 2–4 empty and shard 1 near its timeout.
-        run: ./scripts/a11y_gate.sh --fully-parallel --shard=${{ matrix.shard }}/4
+        run: ./scripts/a11y_gate.sh --fully-parallel --shard="$SHARD/6"
       - name: Scans
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -351,28 +714,42 @@ jobs:
     name: a11y
     permissions:
       contents: read
-    needs: [a11y-scope, a11y-shard]
+    needs: [plan, a11y-shard]
     if: always()
     runs-on: ubuntu-latest
+    env:
+      RAN: ${{ needs.plan.outputs.a11y == 'true' && needs.plan.outputs.tested == '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: No UI change
-        if: needs.a11y-scope.outputs.ui != 'true'
+        with:
+          persist-credentials: false
+      - name: Nothing to scan
+        if: env.RAN != 'true'
+        env:
+          PLAN: ${{ needs.plan.result }}
+          TESTED: ${{ needs.plan.outputs.tested }}
         run: |
-          echo "Accessibility gate: no UI change — nothing to scan." >> "$GITHUB_STEP_SUMMARY"
+          [ "$PLAN" = success ] || { echo "::error::plan didn't pass"; exit 1; }
+          if [ -n "$TESTED" ]; then
+            echo "Accessibility gate: passed on $TESTED, the same tree (see plan)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Accessibility gate: no UI change — nothing to scan." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Every shard passed
-        if: needs.a11y-scope.outputs.ui == 'true'
+        if: env.RAN == 'true'
+        env:
+          SHARDS: ${{ needs.a11y-shard.result }}
         run: |
-          [ "${{ needs.a11y-shard.result }}" = "success" ] \
-            || { echo "::error::an accessibility shard failed (${{ needs.a11y-shard.result }}) — see its log and the a11y-shard-* artifacts"; exit 1; }
+          [ "$SHARDS" = "success" ] \
+            || { echo "::error::an accessibility shard failed ($SHARDS) — see its log and the a11y-shard-* artifacts"; exit 1; }
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        if: needs.a11y-scope.outputs.ui == 'true'
+        if: env.RAN == 'true'
         with:
           pattern: a11y-shard-*
           path: docs/qa/evidence/AJ-E804/
           merge-multiple: true
       - name: Every gallery state, summarised (0 critical, 0 serious)
-        if: needs.a11y-scope.outputs.ui == 'true'
+        if: env.RAN == 'true'
         run: |
           python3 scripts/axe_summary.py
           cat docs/qa/evidence/AJ-E804/axe-summary.md >> "$GITHUB_STEP_SUMMARY"
@@ -380,9 +757,13 @@ jobs:
   # Cross-platform build matrix (spec §1: cross-platform core from day one).
   build-macos:
     name: build-macos
+    needs: plan
+    if: needs.plan.outputs.tested == ''
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Cargo cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -432,9 +813,13 @@ jobs:
 
   build-linux:
     name: build-linux
+    needs: plan
+    if: needs.plan.outputs.tested == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Install Tauri system dependencies (Linux)
         run: |
           sudo apt-get update
@@ -460,9 +845,13 @@ jobs:
 
   build-windows:
     name: build-windows
+    needs: plan
+    if: needs.plan.outputs.tested == ''
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Cargo cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:

@@ -5,12 +5,15 @@
 # rebuilt for a channel.
 #
 # AJ-E2001: no build or dependency code ever runs where the signing keys
-# are. Three jobs here, and the caller publishes:
+# are. Four jobs here, and the caller publishes:
 # - preflight (`release` environment): every signing secret is there, or
 #   nothing is built (fails closed). It runs no code from the repository.
-# - build (no secrets, read-only token): compiles each edition unsigned
-#   and uploads the `.app`. Every crate's build script and `pnpm build`
-#   run here, and only here.
+# - compile (no secrets, read-only token): each edition for each
+#   architecture, unsigned, on its own runner at the same time. Every
+#   crate's build script and `pnpm build` run here, and only here.
+# - build (no secrets, read-only token): joins each edition's two
+#   architectures into the universal app (lipo), bundles it with the
+#   compile's configuration and uploads the `.app`. It compiles nothing.
 # - sign (`release` environment, no repository token): signs, notarizes
 #   and staples each app and its disk image, makes and signs the updater
 #   archive, and checks all of it — with Apple's tools, the pinned
@@ -104,8 +107,12 @@ jobs:
             exit 1
           fi
 
-  build:
-    name: build ${{ matrix.edition }}
+  # Each architecture compiles on its own runner, at the same time (the
+  # tauri-action, Zed and GitButler pattern); `build` joins them into the
+  # universal app. One runner compiled both, one after the other, in
+  # 24–26 minutes (ADR-0025).
+  compile:
+    name: compile ${{ matrix.edition }} ${{ matrix.arch }}
     needs: preflight
     # Runs after a passed preflight, or without one in a dry run.
     if: ${{ !cancelled() && (needs.preflight.result == 'success' || (inputs.dry_run && needs.preflight.result == 'skipped')) }}
@@ -116,6 +123,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        edition: [main, nightly]
+        arch: [aarch64-apple-darwin, x86_64-apple-darwin]
         include:
           - edition: main
             overlay: ""
@@ -126,6 +135,7 @@ jobs:
     env:
       VERSION: ${{ inputs.version }}
       OVERLAY: ${{ matrix.overlay }}
+      ARCH: ${{ matrix.arch }}
       # The release's pnpm: exact version and its npm sha512 (hex). To
       # update: `npm view pnpm@X.Y.Z dist.integrity`, base64 → hex.
       PNPM: pnpm@10.34.7+sha512.ba98abc585539933375b5971f4bc6d6c73a1b4b7edc4a879e7d102fe5423d1e02309d67c60a11f04955093a96e521ad9c3b138cdd654ca5be563f378b3ae48bd
@@ -164,7 +174,7 @@ jobs:
 
       - name: Toolchain (pinned)
         run: |
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          rustup target add "$ARCH"
           # tauri-cli: Tauri's prebuilt release, checked against its digest.
           ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
           # pnpm: this exact version, which corepack checks against its
@@ -175,11 +185,11 @@ jobs:
           pnpm --version
           pnpm --dir ui install --frozen-lockfile
 
-
       - name: Icon
         # Generated from the brand PNG at build time; no generated binaries
         # live in the repository. AI Juggler Nightly's carries a "Nightly"
-        # band (D-23).
+        # band (D-23). The compile embeds it (the window's icon) and the
+        # bundle uses it, so `build` makes it the same way.
         env:
           LABEL: ${{ matrix.label }}
         run: |
@@ -190,31 +200,29 @@ jobs:
           fi
           cargo tauri icon "$source" --output "$RUNNER_TEMP/icons"
 
-      - name: The agent bridge, unsigned (universal)
+      - name: The agent bridge, unsigned (this architecture)
         # AJ-E1704: `juggler-agent` ships beside the app's executable in
         # Contents/MacOS (Tauri's externalBin), so the sign job signs and
         # notarizes it with the app. Tauri looks for it by its target's name:
-        # a universal build compiles each architecture on its own, and each
-        # half's build script wants its own copy (juggler-agent-<arch>), the
-        # bundler the universal one.
+        # this architecture's build script wants juggler-agent-<arch>, and
+        # `build` joins both into the universal one for the bundler.
         run: |
           set -euo pipefail
+          arch="$ARCH"
           mkdir -p crates/juggler-app/binaries
-          for arch in aarch64-apple-darwin x86_64-apple-darwin; do
-            cargo build --release --offline -p juggler-agentbridge --bin juggler-agent --target "$arch"
-            cp "target/$arch/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$arch"
-          done
-          lipo -create -output crates/juggler-app/binaries/juggler-agent-universal-apple-darwin \
-            target/aarch64-apple-darwin/release/juggler-agent target/x86_64-apple-darwin/release/juggler-agent
-          lipo -info crates/juggler-app/binaries/juggler-agent-universal-apple-darwin
+          cargo build --release --offline -p juggler-agentbridge --bin juggler-agent --target "$arch"
+          cp "target/$arch/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$arch"
 
-      - name: Build the app, unsigned (universal)
+      - name: Compile the app, unsigned (this architecture)
         env:
           # Public: baked into the app as the key its updater verifies.
           AIJ_UPDATER_PUBKEY: ${{ vars.AIJ_UPDATER_PUBKEY }}
         run: |
           set -euo pipefail
-          config=$(python3 - <<'PY'
+          # `build` bundles with this very file (compiled-*/config-*.json),
+          # so what is compiled in and the bundle agree.
+          out="$RUNNER_TEMP/compiled" && mkdir -p "$out"
+          python3 - > "$out/config-$ARCH.json" <<'PY'
           import json, os
           overlay = os.environ["OVERLAY"]
           config = json.load(open(overlay)) if overlay else {}
@@ -226,8 +234,7 @@ jobs:
             # The updater archive is made from the signed, stapled app in
             # the sign job; nothing here can sign it.
             "createUpdaterArtifacts": False,
-            # AJ-E1704: the agent bridge, built in the step above
-            # (binaries/juggler-agent-universal-apple-darwin).
+            # AJ-E1704: the agent bridge (binaries/juggler-agent-<target>).
             "externalBin": ["binaries/juggler-agent"],
             "icon": [icons + "/icon.icns", icons + "/icon.png"],
             # Apple Events for "jump to a session's window" (hardened
@@ -237,15 +244,104 @@ jobs:
           config["plugins"] = {"updater": {"pubkey": os.environ.get("AIJ_UPDATER_PUBKEY", ""), "requireSignedVersion": True}}
           print(json.dumps(config))
           PY
-          )
           # From the repository root, as `just app` does: that's where the
           # Tauri CLI finds the UI project (ui/) and runs `pnpm build` in it.
-          cargo tauri build --target universal-apple-darwin --config "$config" -- --offline
-          bundle=target/universal-apple-darwin/release/bundle/macos
+          cargo tauri build --target "$ARCH" --no-bundle --config "$out/config-$ARCH.json" -- --offline
+          # A tar keeps the modes (an artifact wouldn't).
+          tar -C "target/$ARCH/release" -cf "$out/$ARCH.tar" juggler-app juggler-agent
+          tar -tvf "$out/$ARCH.tar"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compiled-${{ matrix.edition }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/compiled/
+          retention-days: 1
+          if-no-files-found: error
+
+  # Joins the two architectures into the universal app and bundles it,
+  # with the compile's own configuration. Nothing is compiled here.
+  build:
+    name: build ${{ matrix.edition }}
+    needs: compile
+    if: ${{ !cancelled() && needs.compile.result == 'success' }}
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: main
+            label: ""
+          - edition: nightly
+            label: Nightly
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+
+      - name: Crates, exactly as locked
+        # The bundler reads the workspace (cargo metadata); nothing compiles.
+        run: cargo fetch --locked
+
+      - name: Version
+        # The bundle's Info.plist takes the version from the stamped config.
+        run: python3 scripts/release_version.py stamp "$VERSION"
+
+      - name: Toolchain (pinned)
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          # tauri-cli: Tauri's prebuilt release, checked against its digest.
+          ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
+
+      - name: Icon
+        # The compile's configuration names this folder ($RUNNER_TEMP/icons).
+        env:
+          LABEL: ${{ matrix.label }}
+        run: |
+          source=crates/juggler-app/icons/icon.png
+          if [ -n "$LABEL" ]; then
+            swift scripts/edition_icon.swift "$source" "$RUNNER_TEMP/edition.png" "$LABEL" 6D28D9
+            source="$RUNNER_TEMP/edition.png"
+          fi
+          cargo tauri icon "$source" --output "$RUNNER_TEMP/icons"
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: compiled-${{ matrix.edition }}-*
+          path: ${{ runner.temp }}/compiled/
+          merge-multiple: true
+
+      - name: Bundle the universal app, unsigned
+        run: |
+          set -euo pipefail
+          # Both architectures' executables, joined as `tauri build
+          # --target universal-apple-darwin` joins them.
+          universal=target/universal-apple-darwin/release
+          mkdir -p "$universal" crates/juggler-app/binaries
+          for arch in aarch64-apple-darwin x86_64-apple-darwin; do
+            mkdir -p "$RUNNER_TEMP/$arch"
+            tar -C "$RUNNER_TEMP/$arch" -xf "$RUNNER_TEMP/compiled/$arch.tar"
+          done
+          lipo -create -output "$universal/juggler-app" \
+            "$RUNNER_TEMP/aarch64-apple-darwin/juggler-app" "$RUNNER_TEMP/x86_64-apple-darwin/juggler-app"
+          lipo -create -output crates/juggler-app/binaries/juggler-agent-universal-apple-darwin \
+            "$RUNNER_TEMP/aarch64-apple-darwin/juggler-agent" "$RUNNER_TEMP/x86_64-apple-darwin/juggler-agent"
+          lipo -info "$universal/juggler-app" crates/juggler-app/binaries/juggler-agent-universal-apple-darwin
+          # The compile's configuration: both architectures had the same.
+          config="$RUNNER_TEMP/compiled/config-aarch64-apple-darwin.json"
+          cmp "$config" "$RUNNER_TEMP/compiled/config-x86_64-apple-darwin.json"
+          cargo tauri bundle --target universal-apple-darwin --bundles app --config "$config"
+          bundle="$universal/bundle/macos"
           out="$RUNNER_TEMP/unsigned" && mkdir -p "$out"
           # A tar keeps the bundle's modes and links (an artifact wouldn't).
           # The bridge is inside, beside the app's executable.
           test -x "$bundle"/*.app/Contents/MacOS/juggler-agent
+          lipo -info "$bundle"/*.app/Contents/MacOS/*
           (cd "$bundle" && tar -cf "$out/app.tar" ./*.app)
           tar -tf "$out/app.tar" | sed -n 1,3p
 

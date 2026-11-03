@@ -41,12 +41,13 @@ workflows do the mechanical work:
 ### Where the keys are (AJ-E2001)
 
 No build or dependency code ever runs where the signing keys are.
-`build-macos.yml` has three jobs, and `nightly.yml` publishes:
+`build-macos.yml` has four jobs, and `nightly.yml` publishes:
 
 | Job | Holds | Runs |
 |---|---|---|
 | **preflight** | the `release` environment's secrets | a check that every one is set (nothing is built otherwise); no repository code |
-| **build**, per edition | no secret; a read-only token | the compile: every crate's build script and `pnpm build`. Uploads the unsigned `.app` |
+| **compile**, per edition and architecture | no secret; a read-only token | the compile, aarch64 and x86_64 on their own runners at the same time: every crate's build script and `pnpm build` |
+| **build**, per edition | no secret; a read-only token | joins the two architectures (lipo) and bundles the app with the compile's configuration; compiles nothing. Uploads the unsigned `.app` |
 | **sign**, per edition | the `release` environment's secrets; a read-only token | `scripts/sign_macos.sh` only: Apple's `codesign`, `notarytool`, `stapler`, `hdiutil`, and the pinned prebuilt tauri-cli's `signer sign`. Signs, notarizes and staples the app and its disk image, makes and signs the updater archive, and checks all of it |
 | **publish** (`nightly.yml`) | the only token that may write (with the nightly feed job) | the feeds and checksums, then the pre-release; no build code |
 
@@ -215,6 +216,76 @@ The app icon is generated at build time from
 `crates/juggler-app/icons/icon.png`. Replace it with a 1024×1024 brand
 icon before the first public release.
 
+## From a change to a release (ADR-0025)
+
+GitHub runs every gate; this Mac, shared with other projects, runs a fast,
+low-load check before a push. A release goes like this:
+
+1. **Work on `release/X.Y`**, one branch per release, committed to directly.
+2. **Before each push: `just preflight`** (once: `just hooks`). It checks a
+   snapshot of `HEAD`, so you can keep editing while it runs, at low
+   priority (`nice`, 4 build jobs, 4 test threads), one at a time. In order:
+   - the release notes the branch changed, as the nightly checks them;
+   - the static checks (`just verify-static`: lints, fmt, clippy ×3,
+     rustdoc, cargo-deny). A failure stops it here, within minutes;
+   - the tests of the packages the change can affect
+     (`scripts/affected_crates.py`; all of them when `Cargo.toml`,
+     `Cargo.lock`, the toolchain or the nextest settings changed);
+   - vitest and the UI build.
+
+   It writes each step's log and `summary.txt` under
+   `target/preflight/<commit>/` and stamps the commit; the pre-push hook lets
+   a stamped commit through to `main` and `release/*`. The visual, a11y and
+   Linux-clippy containers don't run here. `just preflight-full` is the old
+   whole-of-CI run, for when GitHub can't be used.
+3. **Push, and open or update the release PR to `main`.** CI runs every gate
+   on GitHub's standard runners (free for this public repository; larger
+   runners are billed and never used):
+
+   | Check | What runs |
+   |---|---|
+   | `plan` | which UI gates apply; on a push to main, whether its tree was already tested |
+   | `static` | release notes, the project lints, fmt, clippy ×3, rustdoc, cargo-deny |
+   | `tests (build)`, `tests (1/6)`…`(6/6)` | the test binaries built once (nextest archive); every test in six partitions, no retries |
+   | `doctests, dev-bridge`, `coverage` | the doctests, the read-only test bridge's tests and its never-ships check; the coverage artifact (never gating) |
+   | **`verify`** | passes only when all of the above passed |
+   | **`ui`** | vitest and the UI build |
+   | `visual (1/4)`…`(4/4)`, **`visual`** | the visual gate in the pinned x64 container, split by test; `visual` checks the baseline notes and merges the reports |
+   | `a11y (1/6)`…`(6/6)`, `a11y` | the accessibility gate, split by test |
+   | **`build-macos`**, **`build-linux`**, **`build-windows`** | the cross-platform builds |
+
+   The checks in bold are the ones main's ruleset requires; they kept their
+   names, so the ruleset didn't change. A merge needs every one green on the
+   PR's exact head commit.
+4. **Merge.** Once main's ruleset allows merge commits, a release PR is
+   merged as a merge commit, pinned to the commit CI passed:
+
+   ```sh
+   gh pr merge <PR> --merge --match-head-commit <the head SHA CI passed>
+   ```
+
+   `main` then contains the release branch's own history, so there is no
+   back-merge of `main` into `release/X.Y` after each release (and no
+   preflight of a back-merge commit, no double-counted baseline notes).
+   Until the ruleset allows it, release PRs are squash-merged as before and
+   `main` is merged back into `release/X.Y` before its next change.
+5. **The push to `main`** runs nothing again when its tree is exactly the
+   tree the PR's head passed every required check with (a merge commit of an
+   up-to-date PR, or its squash): `plan` says so and the required checks
+   pass by reference. Any other tree runs everything, and so does a weekly
+   run on `main`.
+6. **Nightly, then Promote**, as below. The nightly compiles each
+   architecture on its own runner at the same time; a beta promotion reuses
+   CI's accessibility scan of the same tree.
+
+Measured (2026-11-02):
+
+| Step | Before | After |
+|---|---|---|
+| Local preflight | about 55 min, every gate, serial | 3–5 min when a static check fails or no package's tests can change; 15–21 min when every package's tests run (a change to the build as a whole), at low priority beside other projects |
+| A PR's CI round | 32–38 min (`verify` alone) | about 15 min end to end (the test build about 7.5, then the longest partition); the visual and a11y gates are done in 5 |
+| Merge → beta | about 45 min (nightly 32, promote 12) | nightly and promote measured on their next runs |
+
 ## Each release
 
 **Nightly** needs nothing from you: every day (03:00 UTC) that something
@@ -312,15 +383,18 @@ fails on one of them, re-run its failed jobs from the run page.
 6. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
    It checks the build, the notes and the D-24 requirements
    (`scripts/promotion_rules.py`: 3+ days since the build was published, no
-   open `blocker`), runs the accessibility gate on the exact commit
-   (`just a11y-gate`, AJ-E804; pull requests that change the interface
-   already ran it in CI), then waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
+   open `blocker`), and the accessibility gate (`just a11y-gate`, AJ-E804)
+   on the exact commit: a full scan CI already passed on that tree (the
+   commit, or the head of the pull request merged as it, with an identical
+   tree; every shard passed) counts, otherwise it runs there (ADR-0025).
+   Then it waits for your approval in the run. Approving points the beta feed at the build, puts the notes on
    the release and in its feed, and tags it `beta/vX.Y.Z`.
 7. **Check it.** Install the `.dmg` on a clean Mac and open it: Gatekeeper
    must not complain. Settings › About & updates shows the version.
 
 **Promoting a version to stable** works the same way, with channel
-`stable`, and also needs:
+`stable`, and always runs the accessibility gate again, whatever CI ran. It
+also needs:
 
 - the version has been on beta for 14+ days (counted from the annotated
   `beta/vX.Y.Z` tag's date) and no `blocker` issue is open;
