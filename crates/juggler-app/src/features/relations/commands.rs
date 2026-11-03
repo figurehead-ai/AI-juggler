@@ -1,8 +1,8 @@
-//! The relation counts' command.
+//! The relation counts' commands.
 
 use std::sync::Arc;
 
-use super::dto::{EntityRef, RelationCountsInfo};
+use super::dto::{EntityKind, EntityRef, RelatedIdsInfo, RelationCountsInfo};
 use crate::error::AppResult;
 use crate::state::AppState;
 
@@ -20,6 +20,24 @@ pub async fn relations_counts(
 ) -> AppResult<Vec<RelationCountsInfo>> {
     crate::ipc::blocking(state.inner(), "the counts", move |state| {
         super::counts_many(state, &entities)
+    })
+    .await
+}
+
+/// AJ-E3104: which `of` `entity`'s sessions are on (a page's Pools or
+/// Apps tab lists them), from the same cache as its count.
+///
+/// # Errors
+///
+/// As [`super::related`].
+#[tauri::command]
+pub async fn relations_related(
+    state: tauri::State<'_, Arc<AppState>>,
+    entity: EntityRef,
+    of: EntityKind,
+) -> AppResult<RelatedIdsInfo> {
+    crate::ipc::blocking(state.inner(), "the related", move |state| {
+        super::related(state, &entity, of)
     })
     .await
 }

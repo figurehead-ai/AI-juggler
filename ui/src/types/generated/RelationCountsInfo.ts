@@ -48,4 +48,8 @@ machines: number,
 /**
  * The launch settings its sessions started with (AI Juggler's only).
  */
-launch_settings: number, };
+launch_settings: number, 
+/**
+ * The pools its sessions are in (AI Juggler's only, AJ-E3104).
+ */
+pools: number, };

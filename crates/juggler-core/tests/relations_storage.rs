@@ -1,7 +1,8 @@
 //! AJ-E3102 storage (schema v43): the sessions' indexes by project, launch
 //! settings, App and Mac are there and used; an upgrade from v42 adds
 //! them with every row intact; the relation stamps move when, and only
-//! when, a value a relation is decided by changes.
+//! when, a value a relation is decided by changes (v44: who is in which
+//! pool too).
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
 
@@ -11,7 +12,7 @@ use juggler_core::model::{
     Account, AccountId, HarnessId, InstanceKind, InstanceRecord, LaunchRecipe, MachineId,
     ProfileId, ProjectId, SessionId, SessionStatus, SettingsOverlay, Timestamp,
 };
-use juggler_core::storage::{InstanceColumn, Storage, StoredStamps};
+use juggler_core::storage::{InstanceColumn, MemberRef, PoolRole, Storage, StoredStamps};
 use rusqlite::Connection;
 
 fn folder(id: &str) -> Account {
@@ -154,7 +155,8 @@ fn an_upgrade_from_v42_adds_the_indexes_and_stamps_with_every_row_kept() {
             .unwrap()
             .map(Result::unwrap)
             .collect();
-        assert_eq!(names.len(), 17 + 4, "{names:?}");
+        // v43's 17 triggers and 4 indexes, v44's 9 pool triggers.
+        assert_eq!(names.len(), 17 + 4 + 9, "{names:?}");
         for (kind, name) in names {
             conn.execute_batch(&format!("DROP {} {name};", kind.to_uppercase()))
                 .unwrap();
@@ -252,4 +254,35 @@ fn a_stamp_moves_only_when_what_decides_a_relation_changes() {
         .touch(std::path::Path::new("/nowhere/app"), None)
         .unwrap();
     assert_eq!(stamps().projects, before.projects + 1);
+}
+
+#[test]
+fn the_pools_stamp_moves_when_a_session_changes_pool() {
+    let dir = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&dir.path().join("juggler.sqlite")).unwrap();
+    seeded(&storage);
+    let stamps = || storage.relations().stamps().unwrap();
+    let start = stamps();
+
+    // A pool made, a session put in it, then the pool deleted.
+    let pool = storage.pools().create("Review", None).unwrap();
+    let made = stamps();
+    assert_eq!(made.pools, start.pools + 1);
+    let member = MemberRef::of_session(&SessionId::new("s-0"), None);
+    storage
+        .pools()
+        .place(&member, &[], &pool.id, PoolRole::Member)
+        .unwrap();
+    let placed = stamps();
+    assert!(placed.pools > made.pools, "{placed:?}");
+    assert_eq!(
+        (placed.sessions, placed.folders, placed.projects),
+        (start.sessions, start.folders, start.projects),
+        "a pool move moves no other stamp"
+    );
+    // Renamed: nobody moved.
+    storage.pools().rename(&pool.id, "Reviews").unwrap();
+    assert_eq!(stamps(), placed);
+    storage.pools().delete(&pool.id).unwrap();
+    assert!(stamps().pools > placed.pools);
 }

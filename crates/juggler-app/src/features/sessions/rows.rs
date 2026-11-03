@@ -52,6 +52,11 @@ pub struct SessionsQuery {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub machine_id: Option<String>,
+    /// E31 (AJ-E3104): one tool's sessions, by its adapter id (a Tool's
+    /// page).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub tool_id: Option<String>,
     /// E31: only rows active at or after this time, epoch ms (a list's
     /// "Recent": the last 7 days).
     #[serde(default)]
@@ -129,6 +134,7 @@ pub(super) struct Belongs {
     pub(super) folder: Option<String>,
     pub(super) app: String,
     pub(super) machine: String,
+    pub(super) tool: String,
 }
 
 /// E31 (D-62 decision 21): the order every list of sessions opens on.
@@ -196,6 +202,10 @@ impl Candidate {
             .machine_id
             .as_ref()
             .is_none_or(|machine| *machine == self.of.machine)
+            && query
+                .tool_id
+                .as_ref()
+                .is_none_or(|tool| *tool == self.of.tool)
             && query.since_ms.is_none_or(|since| self.last_ms >= since)
     }
 
@@ -524,6 +534,7 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
             of: Belongs {
                 app: narrow.app(join.0.as_deref(), None),
                 project,
+                tool: join.2.clone(),
                 folder: join.0,
                 machine: record.machine.to_string(),
             },
@@ -581,6 +592,7 @@ fn conversation_candidate(
             project: conversation.project_id.clone(),
             folder: Some(conversation.account_id.clone()),
             machine: here.to_owned(),
+            tool: conversation.tool.clone(),
         },
         source: Source::Conversation(Box::new(conversation)),
         snippet,
@@ -679,6 +691,7 @@ fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::Entit
         (EntityKind::Folder, &query.account_id),
         (EntityKind::App, &query.app_id),
         (EntityKind::Subscription, &query.subscription_id),
+        (EntityKind::Tool, &query.tool_id),
     ]
     .into_iter()
     .filter_map(|(kind, id)| Some((kind, id.clone()?)));

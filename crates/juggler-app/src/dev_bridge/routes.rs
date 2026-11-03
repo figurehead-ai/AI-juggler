@@ -260,6 +260,7 @@ read_routes! {
     "sessions_counts" => async_result features::sessions::commands::sessions_counts(state; query: features::sessions::rows::SessionsQuery);
     "sessions_facets" => async_result features::sessions::commands::sessions_facets(state; query: features::sessions::rows::SessionsQuery);
     "relations_counts" => async_result features::relations::commands::relations_counts(state; entities: Vec<features::relations::EntityRef>);
+    "relations_related" => async_result features::relations::commands::relations_related(state; entity: features::relations::EntityRef, of: features::relations::EntityKind);
     "sessions_get" => async_result features::sessions::commands::sessions_get(state; ids: Vec<String>);
     "projects_git_status" => async_result features::projects::git::projects_git_status(state; project_id: String);
     "projects_icon_read" => async_result features::projects::icon::projects_icon_read(state; project_id: String);

@@ -297,6 +297,7 @@ pub fn pool_create_impl(
         None => None,
     };
     storage.pools().create(&name, project.as_ref())?;
+    super::relations::changed(state, super::relations::Change::PoolsChanged);
     pools_info(&storage)
 }
 
@@ -337,6 +338,7 @@ pub fn pool_delete_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<Pools
         )));
     }
     storage.pools().delete(pool_id)?;
+    super::relations::changed(state, super::relations::Change::PoolsChanged);
     pools_info(&storage)
 }
 
@@ -397,6 +399,7 @@ pub fn pool_move_impl(
     storage
         .pools()
         .place(&member, &replaces, &pool.id, PoolRole::Member)?;
+    super::relations::changed(state, super::relations::Change::PoolsChanged);
     pools_info(&storage)
 }
 

@@ -24,10 +24,12 @@ pub enum Source {
     Conversations,
     /// Where each desktop App was last seen showing a session.
     Places,
+    /// The pools and who is in them (v44).
+    Pools,
 }
 
 /// How many sources there are.
-pub const SOURCES: usize = 5;
+pub const SOURCES: usize = 6;
 
 impl Source {
     /// Every source.
@@ -37,6 +39,7 @@ impl Source {
         Self::Projects,
         Self::Conversations,
         Self::Places,
+        Self::Pools,
     ];
 
     /// Its place in a [`Snapshot`].
@@ -48,12 +51,13 @@ impl Source {
             Self::Projects => 2,
             Self::Conversations => 3,
             Self::Places => 4,
+            Self::Pools => 5,
         }
     }
 }
 
 /// A change the app tells of. The first ones are its events (their names
-/// beside them, [`Change::event`]); the last two are told inside the
+/// beside them, [`Change::event`]); the last three are told inside the
 /// backend, where the change is made.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Change {
@@ -88,11 +92,13 @@ pub enum Change {
     AccountsChanged,
     /// A project added, removed or moved.
     ProjectsChanged,
+    /// A pool made or deleted, or a session moved to another (AJ-E3104).
+    PoolsChanged,
 }
 
 impl Change {
     /// Every change.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::SessionsUpdated,
         Self::SessionsResources,
         Self::SessionsQuota,
@@ -107,6 +113,7 @@ impl Change {
         Self::ThisMac,
         Self::AccountsChanged,
         Self::ProjectsChanged,
+        Self::PoolsChanged,
     ];
 
     /// The event the UI hears for it, when it is one.
@@ -126,7 +133,7 @@ impl Change {
             Self::NoticesChanged => crate::features::notifications::views::EVENT_CHANGED,
             Self::RuntimeChanged => crate::features::runtime::EVENT_CHANGED,
             Self::ThisMac => crate::EVENT_THIS_MAC,
-            Self::AccountsChanged | Self::ProjectsChanged => return None,
+            Self::AccountsChanged | Self::ProjectsChanged | Self::PoolsChanged => return None,
         })
     }
 
@@ -142,6 +149,7 @@ impl Change {
             Self::PlacesChanged => &[Source::Places],
             Self::AccountsChanged => &[Source::Folders],
             Self::ProjectsChanged => &[Source::Projects],
+            Self::PoolsChanged => &[Source::Pools],
             Self::SessionsResources
             | Self::SessionsQuota
             | Self::TasksChanged

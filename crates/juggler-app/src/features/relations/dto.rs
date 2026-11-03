@@ -27,10 +27,13 @@ pub enum EntityKind {
     Machine,
     /// Launch settings.
     LaunchSettings,
+    /// A pool (AJ-E3104): AI Juggler's sessions only (the conversations
+    /// other apps started are in none).
+    Pool,
 }
 
 /// How many kinds there are.
-pub const KINDS: usize = 8;
+pub const KINDS: usize = 9;
 
 impl EntityKind {
     /// Every kind.
@@ -43,6 +46,7 @@ impl EntityKind {
         Self::Tool,
         Self::Machine,
         Self::LaunchSettings,
+        Self::Pool,
     ];
 
     /// Its place in a row's relations.
@@ -57,6 +61,7 @@ impl EntityKind {
             Self::Tool => 5,
             Self::Machine => 6,
             Self::LaunchSettings => 7,
+            Self::Pool => 8,
         }
     }
 }
@@ -105,4 +110,25 @@ pub struct RelationCountsInfo {
     /// The launch settings its sessions started with (AI Juggler's only).
     #[ts(type = "number")]
     pub launch_settings: u64,
+    /// The pools its sessions are in (AI Juggler's only, AJ-E3104).
+    #[ts(type = "number")]
+    pub pools: u64,
+}
+
+/// Which things of one kind an entity's sessions are on (AJ-E3104: a
+/// page's Pools and Apps tabs list them): their ids, sorted, at most
+/// [`super::MAX_ASKED`].
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct RelatedIdsInfo {
+    /// What was asked for.
+    pub kind: EntityKind,
+    /// Its id.
+    pub id: String,
+    /// The kind listed.
+    pub of: EntityKind,
+    /// Their ids.
+    pub ids: Vec<String>,
+    /// More than were listed.
+    pub more: bool,
 }

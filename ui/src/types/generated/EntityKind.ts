@@ -3,4 +3,4 @@
 /**
  * What a count is of: the kinds of page that head lists of sessions.
  */
-export type EntityKind = "all" | "project" | "folder" | "app" | "subscription" | "tool" | "machine" | "launch_settings";
+export type EntityKind = "all" | "project" | "folder" | "app" | "subscription" | "tool" | "machine" | "launch_settings" | "pool";

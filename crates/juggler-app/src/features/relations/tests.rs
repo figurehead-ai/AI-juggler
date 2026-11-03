@@ -72,7 +72,7 @@ fn an_entity_counts_its_sessions_by_state_and_what_they_are_on() {
 /// What each change must make stale, written from the task (AJ-E3102),
 /// not from [`Change::invalidates`].
 fn expected(change: Change) -> BTreeSet<Source> {
-    use Source::{Conversations, Folders, Places, Projects, Sessions};
+    use Source::{Conversations, Folders, Places, Pools, Projects, Sessions};
     match change {
         Change::SessionsUpdated => [Sessions, Projects].into(),
         Change::ConversationsIndex => [Conversations, Projects].into(),
@@ -80,6 +80,7 @@ fn expected(change: Change) -> BTreeSet<Source> {
         Change::PlacesChanged => [Places].into(),
         Change::AccountsChanged => [Folders].into(),
         Change::ProjectsChanged => [Projects].into(),
+        Change::PoolsChanged => [Pools].into(),
         Change::SessionsResources
         | Change::SessionsQuota
         | Change::TasksChanged
@@ -180,6 +181,7 @@ fn a_part_is_fresh_until_one_of_its_own_sources_moves() {
         sessions: 4,
         folders: 2,
         projects: 7,
+        pools: 3,
     };
     let own = Part::of([], built, stored);
     let outside = Part::of([], built, stored);
@@ -198,6 +200,11 @@ fn a_part_is_fresh_until_one_of_its_own_sources_moves() {
     };
     assert!(!own.fresh(PartKind::Own, &built, &written));
     assert!(!outside.fresh(PartKind::Outside, &built, &written));
+    // A session moved to another pool (AJ-E3104): only AI Juggler's
+    // sessions are in pools.
+    let moved = StoredStamps { pools: 4, ..stored };
+    assert!(!own.fresh(PartKind::Own, &built, &moved));
+    assert!(outside.fresh(PartKind::Outside, &built, &moved));
     // An event alone.
     stamps.bump(Change::ConversationsLive);
     let now = stamps.snapshot();

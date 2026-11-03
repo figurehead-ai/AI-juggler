@@ -3,7 +3,8 @@
 //! a session AI Juggler ran is on its launch settings' folder and that
 //! folder's CLI App and Account; one another app started is on the
 //! folder whose files hold it, the desktop App it was last seen in (else
-//! its folder's CLI App), and the project its folder is in.
+//! its folder's CLI App), and the project its folder is in. Only AI
+//! Juggler's sessions are in a pool (AJ-E3104).
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -59,7 +60,7 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
     // The stamps first: whatever changes while this reads makes the part
     // stale at once, never silently included or missed.
     let events = state.relations.snapshot();
-    let (stored, facets, accounts, recipes, lifecycle, signed_in) = {
+    let (stored, facets, accounts, recipes, lifecycle, signed_in, pools) = {
         let storage = lock_storage_arc(state)?;
         let relations = storage.relations();
         let (accounts, recipes) = crate::commands::session_join_indexes(&storage)?;
@@ -70,6 +71,7 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
             recipes,
             storage.sessions().lifecycle_latest().unwrap_or_default(),
             accounts_of_folders(&storage)?,
+            crate::features::pools::members::memberships(&storage)?,
         )
     };
     let no_desktop = BTreeMap::new();
@@ -81,6 +83,16 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
         let archived = lifecycle
             .get(&facet.id)
             .is_some_and(|(event, _)| event == "archived");
+        // Its pool as the pools' lists place it: a member row, else its
+        // project's own pool.
+        let (pool, _) = pools.place(
+            &juggler_core::model::SessionId::new(facet.id.clone()),
+            facet
+                .project
+                .clone()
+                .map(juggler_core::model::ProjectId::new)
+                .as_ref(),
+        );
         row(
             [
                 (EntityKind::Project, facet.project),
@@ -100,6 +112,7 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
                 (EntityKind::Tool, Some(tool)),
                 (EntityKind::Machine, Some(facet.machine)),
                 (EntityKind::LaunchSettings, Some(facet.launch_settings)),
+                (EntityKind::Pool, Some(pool)),
             ],
             live,
             archived,
@@ -143,6 +156,7 @@ fn outside(state: &Arc<AppState>) -> AppResult<Part> {
                 (EntityKind::Tool, Some(facet.tool.clone())),
                 (EntityKind::Machine, Some(machine.clone())),
                 (EntityKind::LaunchSettings, None),
+                (EntityKind::Pool, None),
             ],
             facet.live,
             false,

@@ -30,6 +30,11 @@ subscription_id?: string | null,
  */
 machine_id?: string | null, 
 /**
+ * E31 (AJ-E3104): one tool's sessions, by its adapter id (a Tool's
+ * page).
+ */
+tool_id?: string | null, 
+/**
  * E31: only rows active at or after this time, epoch ms (a list's
  * "Recent": the last 7 days).
  */

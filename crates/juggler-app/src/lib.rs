@@ -565,6 +565,7 @@ macro_rules! app_commands {
             Read  features::sessions::commands::sessions_counts,
             Read  features::sessions::commands::sessions_facets,
             Read  features::relations::commands::relations_counts,
+            Read  features::relations::commands::relations_related,
             Read  features::sessions::commands::sessions_get,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,

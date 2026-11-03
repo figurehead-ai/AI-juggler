@@ -253,6 +253,7 @@ fn query_of(entity: &EntityRef) -> SessionsQuery {
         EntityKind::Folder => query.account_id = id,
         EntityKind::App => query.app_id = id,
         EntityKind::Subscription => query.subscription_id = id,
+        EntityKind::Tool => query.tool_id = id,
         other => panic!("{other:?} heads no sessions list yet"),
     }
     query
@@ -289,6 +290,9 @@ fn pages(fx: &Fixture) -> Vec<EntityRef> {
             .iter()
             .map(|id| entity(EntityKind::Subscription, id)),
     );
+    // AJ-E3104: a Tool's page, and one with no sessions.
+    pages.push(entity(EntityKind::Tool, CLAUDE_CODE_ID));
+    pages.push(entity(EntityKind::Tool, "codex"));
     pages
 }
 
@@ -511,7 +515,8 @@ fn ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms() {
             let started = Instant::now();
             let counts = relations::counts(state, page).unwrap();
             slowest = slowest.max(started.elapsed());
-            assert!(counts.sessions.all > 0, "{page:?}");
+            // Codex's page: a tool with none here.
+            assert!(counts.sessions.all > 0 || page.id == "codex", "{page:?}");
         }
     }
     eprintln!(
@@ -807,4 +812,69 @@ fn a_count_is_checked_even_while_the_database_is_busy() {
     assert_eq!(after.sessions.all, before.sessions.all + 1);
     assert_eq!(after.sessions.open, before.sessions.open + 1);
     assert_agrees(state, &project, &after);
+}
+
+/// AJ-E3104: a pool counts the sessions its member list holds (archived
+/// ones apart), each project counts the pools its sessions are in, and a
+/// session moved to another pool shows in the next count, told to no one
+/// but the database.
+#[test]
+fn every_pool_counts_its_members_and_a_move_shows_in_the_next_count() {
+    use juggler_app::features::pools;
+    let fx = fixture(120, 8);
+    let state = &fx.state;
+    for pool in pools::pools_list_impl(state).unwrap().pools {
+        let counts = relations::counts(state, &entity(EntityKind::Pool, &pool.id)).unwrap();
+        assert_eq!(
+            counts.sessions.all - counts.sessions.archived,
+            u64::from(pool.members),
+            "{}: its count is its member list",
+            pool.id
+        );
+    }
+    let home = &fx.projects[2];
+    let project = entity(EntityKind::Project, home);
+    let before = relations::counts(state, &project).unwrap();
+    assert_eq!(before.pools, 1, "its sessions are in its own pool");
+    let listed = relations::related(state, &project, EntityKind::Pool).unwrap();
+    assert_eq!(listed.ids, [format!("pool-default:{home}")]);
+    assert!(!listed.more);
+
+    // A pool of its own, and one of its sessions moved there.
+    let made = pools::pool_create_impl(state, "Review", Some(home)).unwrap();
+    let review = made
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Review")
+        .unwrap()
+        .id
+        .clone();
+    let moved = {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .list(None)
+            .unwrap()
+            .into_iter()
+            .find(|record| record.project.as_ref().map(|p| p.as_str()) == Some(home.as_str()))
+            .unwrap()
+            .id
+    };
+    pools::pool_move_impl(state, moved.as_str(), &review).unwrap();
+    let after = relations::counts(state, &project).unwrap();
+    assert_eq!(after.pools, 2);
+    assert_eq!(
+        after.sessions, before.sessions,
+        "a pool move moves no session between projects"
+    );
+    let pool = relations::counts(state, &entity(EntityKind::Pool, &review)).unwrap();
+    assert_eq!(pool.sessions.all, 1);
+    assert_eq!(pool.projects, 1);
+    let mut ids = relations::related(state, &project, EntityKind::Pool)
+        .unwrap()
+        .ids;
+    ids.sort();
+    let mut want = vec![format!("pool-default:{home}"), review];
+    want.sort();
+    assert_eq!(ids, want);
 }

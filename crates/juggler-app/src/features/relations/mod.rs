@@ -41,14 +41,14 @@ pub mod stamps;
 #[cfg(test)]
 mod tests;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 use juggler_core::storage::{StampReader, StoredStamps};
 
-pub use dto::{EntityKind, EntityRef, KINDS, RelationCountsInfo};
+pub use dto::{EntityKind, EntityRef, KINDS, RelatedIdsInfo, RelationCountsInfo};
 pub use stamps::{Change, Snapshot, Source};
 
 use crate::error::{AppError, AppResult};
@@ -98,7 +98,7 @@ impl PartKind {
     #[must_use]
     pub const fn deps(self) -> &'static [Source] {
         match self {
-            Self::Own => &[Source::Sessions, Source::Folders],
+            Self::Own => &[Source::Sessions, Source::Folders, Source::Pools],
             // Which conversations are AI Juggler's (the sessions' links),
             // their projects, Accounts and desktop Apps.
             Self::Outside => &[
@@ -187,6 +187,7 @@ impl Part {
             && (!deps.contains(&Source::Sessions) || stored.sessions == self.stored.sessions)
             && (!deps.contains(&Source::Folders) || stored.folders == self.stored.folders)
             && (!deps.contains(&Source::Projects) || stored.projects == self.stored.projects)
+            && (!deps.contains(&Source::Pools) || stored.pools == self.stored.pools)
     }
 
     /// About how many bytes it keeps in memory (Settings shows it).
@@ -400,7 +401,49 @@ fn answer(parts: &[Arc<Part>; 2], entity: &EntityRef) -> RelationCountsInfo {
         tools: n(EntityKind::Tool),
         machines: n(EntityKind::Machine),
         launch_settings: n(EntityKind::LaunchSettings),
+        pools: n(EntityKind::Pool),
     }
+}
+
+/// Which `of` `entity`'s sessions are on, in `parts`.
+fn related_in(parts: &[Arc<Part>; 2], entity: &EntityRef, of: EntityKind) -> RelatedIdsInfo {
+    let id = if entity.kind == EntityKind::All {
+        ""
+    } else {
+        entity.id.as_str()
+    };
+    let mut ids: BTreeSet<&str> = BTreeSet::new();
+    for part in parts {
+        if let Some(tally) = part.tally(entity.kind, id) {
+            ids.extend(
+                tally.related[of.index()]
+                    .iter()
+                    .filter_map(|id| part.names.get(*id as usize).map(String::as_str)),
+            );
+        }
+    }
+    let more = ids.len() > MAX_ASKED;
+    RelatedIdsInfo {
+        kind: entity.kind,
+        id: entity.id.clone(),
+        of,
+        ids: ids.into_iter().take(MAX_ASKED).map(str::to_owned).collect(),
+        more,
+    }
+}
+
+/// Which `of` `entity`'s sessions are on (a page's Pools or Apps tab),
+/// from the cache.
+///
+/// # Errors
+///
+/// Storage errors; a poisoned lock.
+pub fn related(
+    state: &Arc<AppState>,
+    entity: &EntityRef,
+    of: EntityKind,
+) -> AppResult<RelatedIdsInfo> {
+    Ok(related_in(&current(state)?, entity, of))
 }
 
 /// `entity`'s counts, from the cache (built first when stale or cleared).

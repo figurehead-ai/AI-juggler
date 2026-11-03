@@ -1,4 +1,4 @@
-//! AJ-E3102 (schema v43): what makes every page's counts cheap.
+//! AJ-E3102 (schema v43, v44): what makes every page's counts cheap.
 //!
 //! - **Indexes on the sessions AI Juggler ran** (`instances`) by project,
 //!   launch settings, App and Mac: a page's list or count narrows by an
@@ -17,6 +17,8 @@
 //!     or pointed at another Account, tool or place.
 //!   - `projects`: a project added, removed or moved; a worktree's home
 //!     learned (it folds the worktree into its repository's project).
+//!   - `pools` (v44, AJ-E3104): a pool added or deleted; a member row
+//!     added, removed or moved; a session's Work item learned.
 //!
 //! Additive: nothing existing changes meaning. Each statement is made
 //! only when missing, so a database an older build left half way (or a
@@ -82,6 +84,37 @@ WHEN OLD.repo IS NOT NEW.repo
 BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'projects'; END;
 ";
 
+/// v44 (AJ-E3104): the `pools` stamp, moved whenever a session's pool
+/// could change: a member row added, removed or moved (whoever writes it:
+/// the user, an agent, a deleted pool's members going home), a session's
+/// Work item learned (a member row follows the Work item), or a pool
+/// added or deleted. Additive, and safe to run again.
+pub(super) const POOLS_MIGRATION: &str = "
+INSERT OR IGNORE INTO relation_stamps (source) VALUES ('pools');
+CREATE TRIGGER IF NOT EXISTS relation_stamp_member_added AFTER INSERT ON pool_members
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+CREATE TRIGGER IF NOT EXISTS relation_stamp_member_removed AFTER DELETE ON pool_members
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+CREATE TRIGGER IF NOT EXISTS relation_stamp_member_changed
+AFTER UPDATE OF pool_id, member_ref, left_at ON pool_members
+WHEN OLD.pool_id IS NOT NEW.pool_id OR OLD.member_ref IS NOT NEW.member_ref OR OLD.left_at IS NOT NEW.left_at
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+CREATE TRIGGER IF NOT EXISTS relation_stamp_epoch_added AFTER INSERT ON epochs
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+CREATE TRIGGER IF NOT EXISTS relation_stamp_epoch_removed AFTER DELETE ON epochs
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+CREATE TRIGGER IF NOT EXISTS relation_stamp_epoch_changed AFTER UPDATE OF work_id, session_ref ON epochs
+WHEN OLD.work_id IS NOT NEW.work_id OR OLD.session_ref IS NOT NEW.session_ref
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+CREATE TRIGGER IF NOT EXISTS relation_stamp_pool_added AFTER INSERT ON pools
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+CREATE TRIGGER IF NOT EXISTS relation_stamp_pool_deleted AFTER UPDATE OF deleted_at ON pools
+WHEN OLD.deleted_at IS NOT NEW.deleted_at
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+CREATE TRIGGER IF NOT EXISTS relation_stamp_pool_removed AFTER DELETE ON pools
+BEGIN UPDATE relation_stamps SET n = n + 1 WHERE source = 'pools'; END;
+";
+
 /// Where each source's rows stand ([`RelationsRepo::stamps`]): any
 /// difference from what a count was made from means it's read again.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -92,6 +125,8 @@ pub struct StoredStamps {
     pub folders: i64,
     /// The projects and the worktrees' homes.
     pub projects: i64,
+    /// The pools and who is in them (v44).
+    pub pools: i64,
 }
 
 /// A connection of its own on the database, for the stamps alone. In WAL
@@ -226,6 +261,7 @@ impl RelationsRepo<'_> {
                 "sessions" => stamps.sessions = n,
                 "folders" => stamps.folders = n,
                 "projects" => stamps.projects = n,
+                "pools" => stamps.pools = n,
                 _ => {}
             }
         }
