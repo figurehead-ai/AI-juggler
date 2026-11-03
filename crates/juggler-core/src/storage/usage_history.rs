@@ -2,16 +2,21 @@
 //! and session pages draw from. Each one answers with a few rows per chart,
 //! never the raw events: usage is summed per hour (or per day) in SQLite,
 //! one profile at a time through the `(account, ts)` index, so a range's
-//! cost grows with its active hours, not its messages. Nothing here writes,
-//! and no index or table is added (the schema is the one main shares with
-//! release/0.2). Costs come from `usage_detail`, the store's derived
-//! per-call table (0.3.6), joined on the call's key.
+//! cost grows with its active hours, not its messages. No numbered table is
+//! added (the schema is the one main shares with release/0.2). Costs come
+//! from `usage_detail`, the store's derived per-call table (0.3.6), joined
+//! on the call's key; the settled hours are kept in derived tables too
+//! (`rollup`), the only writes here.
 
 use rusqlite::{Connection, params};
 
 use crate::error::CoreError;
 use crate::model::TokenCounts;
 use crate::quota::{CallKind, QuotaSample, WindowKind};
+
+mod rollup;
+pub(crate) use rollup::ROLLUP_DERIVED;
+pub use rollup::{Replace, Rollup};
 
 /// An hour, in milliseconds.
 pub const HOUR_MS: i64 = 3_600_000;

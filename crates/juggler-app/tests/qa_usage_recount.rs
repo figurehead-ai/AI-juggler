@@ -300,3 +300,89 @@ fn usage_numbers_recomputed_from_the_real_files() {
     )
     .unwrap();
 }
+
+/// The Usage summary's first read after a start, on the store the test
+/// above left (`AIJ_QA_USAGE_OUT/recount.sqlite`), per profile: every
+/// settled hour summed as 0.3.5 did (no costs), as 0.3.6 sums them (with
+/// each call's cost), and read back as a start now does (the kept hours,
+/// and the hours changed since). Debug build: SQLite unoptimised, so the
+/// figures are upper bounds; the ratios hold.
+#[test]
+#[ignore = "QA on a real setup; needs AIJ_QA_USAGE_OUT from the test above"]
+fn usage_first_read_after_a_start() {
+    let Some(out) = std::env::var_os("AIJ_QA_USAGE_OUT").map(PathBuf::from) else {
+        eprintln!("AIJ_QA_USAGE_OUT not set: nothing to do");
+        return;
+    };
+    let store = out.join("recount.sqlite");
+    let now = juggler_core::model::Timestamp::now().millis();
+    let target = {
+        let at = now - juggler_core::storage::SETTLED_MS;
+        at - at.rem_euclid(juggler_core::storage::HOUR_MS)
+    };
+    let accounts: Vec<String> = {
+        let conn = rusqlite::Connection::open(&store).unwrap();
+        conn.prepare("SELECT account FROM usage_events GROUP BY account ORDER BY COUNT(*) DESC")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    };
+    let ms = |started: std::time::Instant| started.elapsed().as_secs_f64() * 1000.0;
+    let mut report = serde_json::Map::new();
+    for account in &accounts {
+        let raw = rusqlite::Connection::open(&store).unwrap();
+        let started = std::time::Instant::now();
+        let old: usize = raw
+            .prepare(
+                "SELECT ts / 3600000 AS h, session, model, SUM(input), SUM(output), SUM(cache_r),
+                        SUM(cache_w), SUM(reasoning), COUNT(*)
+                 FROM usage_events WHERE account = ?1 AND ts < ?2 GROUP BY h, session, model",
+            )
+            .unwrap()
+            .query_map(rusqlite::params![account, target], |_| Ok(()))
+            .unwrap()
+            .count();
+        let old_ms = ms(started);
+        drop(raw);
+        let storage = Storage::open(&store).unwrap();
+        let history = storage.usage_history();
+        let started = std::time::Instant::now();
+        let (rows, cut) = history
+            .hourly(account, i64::MIN, target, 10_000_000)
+            .unwrap();
+        let summed_ms = ms(started);
+        history
+            .save_rollup(
+                account,
+                target,
+                cut,
+                juggler_core::storage::Replace::Everything,
+                &rows,
+            )
+            .unwrap();
+        drop(storage);
+        // A start: a new connection, the kept hours read back.
+        let storage = Storage::open(&store).unwrap();
+        let history = storage.usage_history();
+        let started = std::time::Instant::now();
+        let kept = history.rollup(account).unwrap().unwrap();
+        let changed = history.take_changed_hours(account).unwrap();
+        let start_ms = ms(started);
+        assert_eq!(kept.rows.len(), rows.len());
+        report.insert(
+            account.clone(),
+            serde_json::json!({
+                "hourly_rows": rows.len(), "old_rows": old,
+                "sum_0_3_5_ms": old_ms, "sum_0_3_6_ms": summed_ms,
+                "start_reads_kept_ms": start_ms, "changed_hours": changed.len(),
+            }),
+        );
+    }
+    std::fs::write(
+        out.join("first-read.json"),
+        serde_json::to_string_pretty(&report).unwrap(),
+    )
+    .unwrap();
+}

@@ -104,7 +104,6 @@ impl UsageRepo<'_> {
         };
         let done = rows.len() < limit;
         let last = rows.last().map(|row| row.0.clone());
-        let mut moved = false;
         {
             let mut update = tx.prepare_cached(
                 "UPDATE usage_detail SET usd = ?3, price_version = ?4
@@ -112,7 +111,7 @@ impl UsageRepo<'_> {
             )?;
             let mut orphan =
                 tx.prepare_cached("DELETE FROM usage_detail WHERE account = ?1 AND msg_uuid = ?2")?;
-            for ((account, key), detail, priced_with, usd, model, ts, tokens, has_event) in rows {
+            for ((account, key), detail, priced_with, _, model, ts, tokens, has_event) in rows {
                 if !has_event {
                     orphan.execute(params![account, key])?;
                     continue;
@@ -123,12 +122,8 @@ impl UsageRepo<'_> {
                 let now = model.as_deref().and_then(|model| {
                     catalog.price_event(model, ts.unwrap_or_default(), tokens, &detail)
                 });
-                moved |= now != usd;
                 update.execute(params![account, key, now, version])?;
             }
-        }
-        if moved {
-            bump_settled(&tx)?;
         }
         let next = if done {
             tx.execute(
@@ -159,10 +154,6 @@ pub(super) struct Details<'c> {
     version: String,
     find: rusqlite::CachedStatement<'c>,
     write: rusqlite::CachedStatement<'c>,
-    /// A settled hour's cost changed without its tokens: the summaries
-    /// kept in memory must be made again.
-    settled_changed: bool,
-    conn: &'c Connection,
 }
 
 impl<'c> Details<'c> {
@@ -181,8 +172,6 @@ impl<'c> Details<'c> {
                       root_session, usd, price_version)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             )?,
-            settled_changed: false,
-            conn,
         })
     }
 
@@ -251,30 +240,10 @@ impl<'c> Details<'c> {
             usd,
             self.version,
         ])?;
-        if was.is_some()
-            && event.ts < crate::model::Timestamp::now().millis() - crate::storage::SETTLED_MS
-        {
-            self.settled_changed = true;
-        }
+        // A settled call's new cost marks its hour for the summaries (the
+        // store's `usage_rollup_detail_*` triggers).
         Ok(())
     }
-
-    pub(super) fn finish(self) -> Result<(), CoreError> {
-        if self.settled_changed {
-            bump_settled(self.conn)?;
-        }
-        Ok(())
-    }
-}
-
-/// Counts a change to settled usage the triggers can't see (a cost moved,
-/// its tokens didn't): the summaries kept in memory are made again.
-pub(super) fn bump_settled(conn: &Connection) -> Result<(), CoreError> {
-    conn.execute(
-        "UPDATE usage_history_epoch SET changed = changed + 1 WHERE id = 1",
-        [],
-    )?;
-    Ok(())
 }
 
 /// What an event read selects: its row and its detail (the stored

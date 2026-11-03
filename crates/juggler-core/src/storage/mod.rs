@@ -92,8 +92,8 @@ pub use transcript_index::{
 };
 pub use usage::{CostDay, RepriceCursor, Stored, UsageRepo, anchor_settings_key, cap_settings_key};
 pub use usage_history::{
-    GroupCost, HOUR_MS, HourRow, ModelRow, SETTLED_MS, SwitchRow, TurnRow, UsageHistoryRepo,
-    add as add_tokens, thin,
+    GroupCost, HOUR_MS, HourRow, ModelRow, Replace, Rollup, SETTLED_MS, SwitchRow, TurnRow,
+    UsageHistoryRepo, add as add_tokens, thin,
 };
 
 use crate::error::CoreError;
@@ -874,6 +874,7 @@ impl Storage {
         storage.migrated = storage.migrate(current)?;
         storage.conn.execute_batch(usage::DERIVED)?;
         storage.conn.execute_batch(usage_history::HISTORY_DERIVED)?;
+        storage.conn.execute_batch(usage_history::ROLLUP_DERIVED)?;
         Ok(storage)
     }
 

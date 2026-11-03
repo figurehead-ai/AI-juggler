@@ -1237,7 +1237,6 @@ fn store_in(
         });
     }
     owners.finish()?;
-    details.finish()?;
     Ok(stored)
 }
 
