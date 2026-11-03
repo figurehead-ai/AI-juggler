@@ -68,8 +68,8 @@ export function ProfileBadge({
   );
 }
 
-/** Up to `max` Apps' dots, the folders that worked somewhere (a folder is
- * its CLI App), just overlapping, then "+N" for the rest: a project's
+/** Up to `max` Apps' dots, the Apps that worked somewhere, barely
+ * overlapping (each a whole dot: the 0.4 review saw slivers), then "+N" for the rest: a project's
  * header in the rail. One serving a live session there is ringed in the
  * live colour, as sessions are. */
 export function AppStack({ apps, max = 3, size = 8 }: { apps: { id: string | null; label: string; live?: boolean; app?: string }[]; max?: number; size?: number }): JSX.Element | null {
@@ -79,7 +79,7 @@ export function AppStack({ apps, max = 3, size = 8 }: { apps: { id: string | nul
   return (
     <span aria-hidden="true" className="flex shrink-0 items-center" data-testid="app-stack">
       {shown.map((app, index) => (
-        <span key={app.app ?? app.id ?? app.label} className="flex" data-live={app.live ? "true" : undefined} style={{ marginLeft: index === 0 ? 0 : -Math.round(size / 3), zIndex: shown.length - index }}>
+        <span key={app.app ?? app.id ?? app.label} className="flex" data-live={app.live ? "true" : undefined} style={{ marginLeft: index === 0 ? 0 : -Math.max(1, Math.round(size / 6)), zIndex: shown.length - index }}>
           <ProfileBadge app={app.app ?? (app.id ? cliAppId(app.id) : `folder:${app.label}`)} name={app.label} size={size} ring={app.live ? "var(--color-live)" : "var(--color-surface)"} />
         </span>
       ))}
