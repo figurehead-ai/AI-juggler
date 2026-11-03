@@ -142,7 +142,7 @@ export function useItemMenu<K extends ItemKind>(kind: K, item: ItemOf[K], headin
           className={
             "z-10 flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none transition-colors hover:bg-surface-3 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " +
             // Shown on hover or focus, it sits over the row's end: a solid chip.
-            (shown ? "" : "border border-hairline bg-surface opacity-0 transition-opacity focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 ") +
+            (shown ? "" : "border border-hairline bg-surface opacity-0 transition-opacity focus-visible:opacity-100 group-has-[:focus-visible]:opacity-100 group-hover:opacity-100 ") +
             className
           }
         >

@@ -178,7 +178,10 @@ function RowShell({
   const goTo = where === null ? null : menu.goTo({ where, shown, className: tools ? "" : "absolute right-1 top-1/2 -translate-y-1/2" });
   // AJ-E1502: the pin, on hover and focus, runs the menu's own Pin.
   const pin = tools ? menu.actions.find((action) => action.id === "pin" && !action.reason) : undefined;
-  const hover = "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none";
+  // Shown under the pointer, or when the keyboard is in the row: never
+  // left up by the focus a click leaves on the row (the maintainer's
+  // report, 2026-11-03: the selected row kept its tools).
+  const hover = "opacity-0 transition-opacity group-has-[:focus-visible]:opacity-100 group-hover:opacity-100 motion-reduce:transition-none";
   return (
     <div
       className={"group relative " + (indent ? "ml-3" : "") + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
