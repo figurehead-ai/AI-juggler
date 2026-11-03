@@ -51,6 +51,7 @@
 | [E26-windows-release.md](E26-windows-release.md) | AI Juggler for Windows: a dedicated first release, then every release (D-52) | AJ-E2601-E2616 |
 | [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: a dedicated first release, then every release (D-52) | AJ-E2701-E2715 |
 | [E28-finding-your-way.md](E28-finding-your-way.md) | Finding your way: projects, pools, tasks and subagents (D-54..D-57) | AJ-E2801-E2814 |
+| [E34-the-floor.md](E34-the-floor.md) | The Floor: your agents as a procedural pixel office (0.5, D-65) | AJ-E3401-E3407 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

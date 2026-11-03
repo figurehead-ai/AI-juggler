@@ -336,5 +336,12 @@
 | AJ-E2812 | Cross-links: the session's Usage and Processes, and the project's subagents | E28-finding-your-way.md | P1 | S | AJ-E2809, AJ-E2811 |
 | AJ-E2813 | The sweep's smaller fixes | E28-finding-your-way.md | P1 | S | AJ-E2801 |
 | AJ-E2814 | The design-quality review: a critique beside every new or changed screen, and every popover captured | E28-finding-your-way.md | P0 | S | — |
-Total: 334 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3401 | The scene model and the stable floor layout | E34-the-floor.md | P0 | L | — |
+| AJ-E3402 | The generator: people, props and Re-create | E34-the-floor.md | P0 | M | AJ-E3401 |
+| AJ-E3403 | The Office renderer: zoom levels, hit-testing and doors | E34-the-floor.md | P0 | L | AJ-E3401 |
+| AJ-E3404 | States, decay, fire and red alert from real data | E34-the-floor.md | P0 | M | AJ-E3402, AJ-E3403 |
+| AJ-E3405 | Ambient life and event scenes | E34-the-floor.md | P1 | M | AJ-E3404 |
+| AJ-E3406 | The list view, keyboard and announcements | E34-the-floor.md | P0 | S | AJ-E3403 |
+| AJ-E3407 | The budget proved in the real app, then walked by hand | E34-the-floor.md | P0 | S | AJ-E3404, AJ-E3405, AJ-E3406 |
+Total: 341 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
