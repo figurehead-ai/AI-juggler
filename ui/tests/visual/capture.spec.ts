@@ -387,15 +387,16 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
 
-  // AJ-E1533: an account's page has no Usage tab; its tabs are Overview
-  // and, once it has any, its Sessions.
+  // D-62 (AJ-E3205): an Account's page, opened from its name on its card
+  // (the folder's page was retired, AJ-E3206). Its tabs: Overview, its
+  // Apps, its Sessions (on any of its folders), Projects, Usage, Settings.
   test(`inspector — Account / Sessions — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
-    await goTo(page, "Accounts");
-    await page.getByTestId("profile-open").first().click();
+    await openWorkAccount(page);
     const tabs = page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText(["Overview", "Sessions"]);
-    await tabs.filter({ hasText: "Sessions" }).click();
+    await expect(tabs).toHaveText([/^Overview/, /^Apps/, /^Sessions/, /^Projects/, /^Usage/, /^Settings/]);
+    await tabs.filter({ hasText: /^Sessions/ }).click();
+    await expect(tabs.filter({ hasText: /^Sessions/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/account-sessions-${vp.name}.png`) });
   });
@@ -521,8 +522,13 @@ test("inspector — Account logged-out collapse", async ({ page }) => {
   await page.goto("/");
   await goTo(page, "Accounts");
   // AJ-E2109: a profile not signed in sits last, under Not signed in.
+  // D-62 (AJ-E3204): its Open is its App's page (a folder is its CLI App),
+  // which collapses to the sign-in card: no limits to read while it's out.
   await page.locator("[data-profile=\"claude-personal\"]").getByTestId("profile-open").click();
-  await expect(page.getByTestId("account-signin-card")).toBeVisible();
+  await expect(page.getByTestId("app-page")).toHaveAttribute("data-app-id", "cli:claude-personal");
+  await expect(page.getByTestId("app-signed-out")).toBeVisible();
+  await expect(page.getByTestId("app-signed-out")).toContainText("Personal is signed out");
+  await expect(page.getByTestId("account-limits")).toHaveCount(0);
   await page.screenshot({ path: resolve(GALLERY, "08-inspector-aggregate/account-logged-out-1280x800.png") });
 });
 
@@ -609,46 +615,73 @@ async function seedRenewalPage(
   await page.goto("/");
 }
 
-async function openAccountOverview(page: import("@playwright/test").Page) {
+/** D-62 (AJ-E3205): Work Max's Account (the subscription its folder is
+ * signed in to), opened from its name on its card on the Accounts screen.
+ * Its plan, renewal and fee live here now, set once for all its Apps
+ * (AJ-E3202); the folder's own page, where they were, is retired. */
+async function openWorkAccount(page: import("@playwright/test").Page) {
   await goTo(page, "Accounts");
-  await page.getByTestId("profile-open").first().click();
+  await page.getByTestId("account-card").filter({ has: page.locator('[data-profile="claude-work"]') }).getByTestId("account-page").click();
+  await expect(page.getByTestId("account-page")).toHaveAttribute("data-account-id", /.+/);
   await expect(page.getByTestId("account-overview")).toBeVisible();
 }
 
-for (const [name, days] of [
-  ["date-only", 20],
-  ["countdown", 10],
-  ["warning", 6],
-  ["danger", 0],
-  ["unknown", null],
+/** D-62 (AJ-E3204): Work Max's folder as its CLI App, on its Settings tab,
+ * where the folder's own settings (tidy-up, the window preview) went. */
+async function openWorkAppSettings(page: import("@playwright/test").Page) {
+  await goTo(page, "Accounts");
+  await page.locator('[data-profile="claude-work"]').getByTestId("profile-open").click();
+  await expect(page.getByTestId("app-page")).toHaveAttribute("data-app-id", "cli:claude-work");
+  await page.getByRole("tablist", { name: "App tabs" }).getByRole("tab", { name: /^Settings/ }).click();
+  await expect(page.getByTestId("app-settings")).toBeVisible();
+}
+
+// The renewal words each tier puts on the Account's header (lib/renewal.ts;
+// `null`: no date, so no renewal words at all — never a guess, D-12).
+for (const [name, days, words] of [
+  ["date-only", 20, /Renews (?!in |tomorrow)\S/],
+  ["countdown", 10, "Renews in 10 days"],
+  ["warning", 6, "Renews in 6 days"],
+  ["danger", 0, "Renewal date passed"],
+  ["unknown", null, null],
 ] as const) {
   test(`renewal — Account Overview ${name} state`, async ({ page }) => {
     await seedRenewalPage(page, { width: 1440, height: 900 }, days);
-    await openAccountOverview(page);
-    await expect(page.getByTestId("account-renewal")).toBeVisible();
-    // 0.1.5: renewal lives in the profile's Settings, below its limits.
-    await frameOn(page.getByTestId("account-settings"));
-    await expect(page.getByTestId("account-renewal")).toBeInViewport();
+    await openWorkAccount(page);
+    // D-62 (AJ-E3205 req. 1): the Account's header says its renewal, on
+    // every tab; its Overview leads with its limits.
+    const facts = page.getByTestId("page-facts");
+    if (words === null) await expect(facts).not.toContainText(/Renew/);
+    else await expect(facts).toContainText(words);
+    await expect(page.getByTestId("page-header")).toBeInViewport();
     await page.screenshot({ path: resolve(GALLERY, `11-renewal/account-${name}-1440x900.png`) });
   });
 }
 
+/** The Account's Settings tab: its renewal date, entered by you. */
+async function openRenewalEditor(page: import("@playwright/test").Page) {
+  await openWorkAccount(page);
+  await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
+  await expect(page.getByTestId("account-renewal-row")).toBeVisible();
+  await expect(page.getByTestId("account-renewal-input")).toHaveValue(renewalDate(6));
+  await expect(page.getByTestId("page-facts")).toContainText("Renews in 6 days");
+}
+
 test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renewal"), async ({ page }) => {
   await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
-  await openAccountOverview(page);
-  await expect(page.getByTestId("renewal-editor")).toBeVisible();
-  await expect(page.getByText("Entered by you - AI Juggler does not read billing")).toBeVisible();
-  await frameOn(page.getByTestId("account-settings"));
-  await expect(page.getByTestId("renewal-editor")).toBeInViewport();
+  await openRenewalEditor(page);
+  // Said once, for the whole account (AJ-E3202 req. 4).
+  await expect(page.getByText("Entered by you, once for the whole account and every app on it: AI Juggler doesn't read your billing.")).toBeVisible();
+  await frameOn(page.getByTestId("account-settings-tab"));
+  await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
   await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1440x900.png") });
 });
 
 test("renewal — editor at 1280x800", async ({ page }) => {
   await seedRenewalPage(page, { width: 1280, height: 800 }, 6);
-  await openAccountOverview(page);
-  await expect(page.getByTestId("renewal-editor")).toBeVisible();
-  await frameOn(page.getByTestId("account-settings"));
-  await expect(page.getByTestId("renewal-editor")).toBeInViewport();
+  await openRenewalEditor(page);
+  await frameOn(page.getByTestId("account-settings-tab"));
+  await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
   await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1280x800.png") });
 });
 
@@ -1436,7 +1469,7 @@ for (const theme of THEMES) {
       await seedTiersPage(page, vp, theme, {
         __AIJ_CLEANUP_TIERS__: { tier1_opt_in: false, tier2_opt_in: false },
       });
-      await openAccountOverview(page);
+      await openWorkAppSettings(page);
       await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
       await expect(page.getByTestId("account-cleanup-toggle")).toContainText(
         "Automatically tidy left-behind dev servers",
@@ -1444,7 +1477,8 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("account-tier2-toggle")).toContainText(
         "Also tidy after a crash (with notification)",
       );
-      // The toggles live in the profile's Settings, below its limits.
+      // D-62 (AJ-E3204): the toggles live in its App's Settings, in the
+      // folder's settings section.
       await frameOn(page.getByTestId("account-settings"));
       await expect(page.getByTestId("account-tier-toggles")).toBeInViewport();
       await page.screenshot({
@@ -1456,7 +1490,7 @@ for (const theme of THEMES) {
       await seedTiersPage(page, vp, theme, {
         __AIJ_CLEANUP_TIERS__: { tier1_opt_in: true, tier2_opt_in: true },
       });
-      await openAccountOverview(page);
+      await openWorkAppSettings(page);
       await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
       await expect(
         page.getByTestId("account-cleanup-toggle").locator("input"),
@@ -2157,7 +2191,9 @@ for (const theme of THEMES) {
       // it is a click — nothing restarts by itself.
       const due = page.getByTestId("reminder-ready");
       await expect(due).toHaveCount(1);
-      await expect(due).toContainText("Work Max has room again: feat/read-model can carry on");
+      // D-62: room comes back to the Account, so the banner names it (Work
+      // Max's folder is on the Claude Max 20x account), not the folder.
+      await expect(due).toContainText("Claude Max 20x has room again: feat/read-model can carry on");
       await expect(due).toContainText("Nothing restarted by itself.");
       // The Open action is keyboard-focusable (the click is the only
       // way it opens) — capture it focused.
@@ -3340,7 +3376,8 @@ for (const theme of THEMES) {
       await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
       await page.getByRole("button", { name: /Work in ai-juggler/ }).click();
       await expect(page.getByTestId("no-account-detour")).toBeVisible();
-      await page.getByRole("button", { name: "Add an account" }).click();
+      // AJ-E3201: what's set up is an app (a folder is its CLI App).
+      await page.getByTestId("no-account-detour").getByRole("button", { name: "Add an app" }).click();
       // AJ-E1022: Add account opens over the sheet, at what's on this Mac.
       await expect(page.getByTestId("first-run")).toHaveAttribute("data-mode", "add");
       await expect(page.getByTestId("first-run-found")).toBeVisible();

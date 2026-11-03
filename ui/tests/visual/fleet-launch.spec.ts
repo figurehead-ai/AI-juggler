@@ -64,7 +64,12 @@ for (const theme of ["dark", "light"] as const) {
   test(`a session starts on a paired Mac from New session — ${theme}`, gate("88-fleet-launch"), async ({ page }) => {
     await open(page, theme);
     await page.getByRole("button", { name: "New session", exact: true }).first().click();
-    await page.getByTestId("machine-picker").getByRole("radio", { name: "Mac mini" }).click();
+    // AJ-E3207: which Mac is one of the rare options, behind More options,
+    // its label saying where it runs now.
+    const more = page.getByTestId("new-session-more");
+    await expect(page.getByTestId("new-session-more-values")).toContainText("on this computer");
+    await more.locator("summary").click();
+    await more.getByTestId("machine-picker").getByRole("radio", { name: "Mac mini" }).click();
     const sheet = page.getByTestId("remote-session-sheet");
     await expect(sheet.getByRole("heading")).toHaveText("New session on Mac mini");
     await expect(sheet.getByTestId("remote-recipes")).toContainText("Mini Max");

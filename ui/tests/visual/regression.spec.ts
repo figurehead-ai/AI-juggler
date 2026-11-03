@@ -195,8 +195,14 @@ for (const theme of THEMES) {
       test(`inspector — account view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await goTo(page, "Accounts");
-        await page.getByTestId("profile-open").first().click();
+        // D-62 (AJ-E3205): an Account's name on its card opens its page
+        // (the folder's page was retired, AJ-E3206).
+        await page.getByTestId("account-card").filter({ has: page.locator('[data-profile="claude-work"]') }).getByTestId("account-page").click();
+        await expect(page.getByTestId("account-page")).toHaveAttribute("data-account-id", /.+/);
         await expect(page.getByTestId("account-overview")).toBeVisible();
+        // Its limits lead, read (not "Reading its limits…").
+        await expect(page.getByTestId("account-rings")).toBeVisible();
+        await expect(page.getByTestId("account-rings-loading")).toHaveCount(0);
         await page.waitForLoadState("networkidle");
         await page.mouse.move(0, 0);
         await settle(page);
