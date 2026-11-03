@@ -143,6 +143,9 @@ pub struct AppState {
     /// ADR-0023: the local caches' registry, budget and switch, as
     /// Settings left them.
     pub cache: crate::features::cache::Manager,
+    /// AJ-E3102: every page's counts, kept in memory as one of the local
+    /// caches and invalidated by stamp.
+    pub relations: crate::features::relations::Relations,
     /// 0.3.3: the apps and profiles remembered (Open starts one; Keep
     /// alive starts it again).
     pub places: crate::features::places::Places,
@@ -366,6 +369,7 @@ impl AppState {
             project_icons: std::sync::Mutex::default(),
             app_icons: crate::features::app_icons::IconCache::of(&cache),
             cache,
+            relations: crate::features::relations::Relations::default(),
             places: crate::features::places::Places::default(),
             restarts: std::sync::Mutex::default(),
             awake: std::sync::Mutex::default(),

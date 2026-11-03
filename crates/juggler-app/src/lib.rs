@@ -563,6 +563,7 @@ macro_rules! app_commands {
             Write features::sessions::commands::sessions_restart_choice_set,
             Read  features::sessions::commands::sessions_page,
             Read  features::sessions::commands::sessions_counts,
+            Read  features::relations::commands::relations_counts,
             Read  features::sessions::commands::sessions_get,
             Read  features::app::login_item::app_login_item_get,
             Write features::app::login_item::app_login_item_set,
@@ -1285,6 +1286,8 @@ fn spawn_read_model_ticks(
     // ADR-0023: the local caches, sized by this Mac and trimmed in the
     // background (one cheap pass a minute; folders walked rarely).
     features::cache::start(&index_state);
+    // AJ-E3102: every page's counts, built once the app is up.
+    features::relations::start(&index_state);
     // AJ-E1611: new tool versions, once a day, well after start.
     features::tool_updates::spawn(index_state.clone());
     // AJ-E1007: the transcript search index, kept up to date in the

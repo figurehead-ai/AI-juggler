@@ -20,6 +20,20 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     // The first ask after a start reads the files itself, unless the
     // background pass already is.
     super::read_if_cold(state)?;
+    let rows = list_indexed(state)?;
+    Ok(crate::features::subagents::count::counted_conversations(
+        state, rows,
+    ))
+}
+
+/// [`list_impl`]'s rows as the index has them now, without reading any
+/// file or counting subagents (AJ-E3102: the relation counts are made
+/// from these, so they and the lists agree).
+///
+/// # Errors
+///
+/// Storage errors; a poisoned lock.
+pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     let (labels, folders, projects, sessions, homes) = {
         let storage = lock_storage_arc(state)?;
         let homes = storage.projects().worktree_homes()?;
@@ -54,16 +68,20 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             .collect();
         (labels, folders, projects, sessions, homes)
     };
+    // One project lookup per folder: many conversations share one.
+    let mut roots: HashMap<std::path::PathBuf, std::path::PathBuf> = HashMap::new();
     let rows = state
         .conversations
         .all()?
         .into_iter()
         .map(|conversation| {
             let summary = &conversation.summary;
-            let root = conversation
-                .folder
-                .as_deref()
-                .map(|folder| juggler_core::storage::project_root_with(folder, &homes));
+            let root = conversation.folder.as_deref().map(|folder| {
+                roots
+                    .entry(folder.to_path_buf())
+                    .or_insert_with(|| juggler_core::storage::project_root_with(folder, &homes))
+                    .clone()
+            });
             let mut info = ConversationInfo {
                 live: false,
                 places: Vec::new(),
@@ -111,9 +129,7 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
             info
         })
         .collect();
-    Ok(crate::features::subagents::count::counted_conversations(
-        state, rows,
-    ))
+    Ok(rows)
 }
 
 /// AJ-E2101: what the live view says of an open conversation: where it's

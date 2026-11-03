@@ -60,6 +60,8 @@ impl std::fmt::Debug for Places {
 }
 
 fn changed(state: &Arc<AppState>) {
+    // AJ-E3102: which App a session is in may have moved.
+    crate::features::relations::changed(state, crate::features::relations::Change::PlacesChanged);
     if let Some(tell) = state.places.on_change.get() {
         tell();
     }
@@ -178,6 +180,20 @@ pub fn desktop_app_by_session(state: &Arc<AppState>) -> std::collections::BTreeM
         out
     })
     .unwrap_or_default()
+}
+
+/// D-62 (AJ-E3204): the App a session is in, as the rail groups it: the
+/// desktop App it was last seen open in (`key`: `<tool>/<id>` of one
+/// another app runs; `desktop` from [`desktop_app_by_session`]), else its
+/// folder's CLI App. One rule for every list and count (AJ-E3102).
+#[must_use]
+pub fn app_of(
+    desktop: &std::collections::BTreeMap<String, String>,
+    folder: Option<&str>,
+    key: Option<&str>,
+) -> String {
+    key.and_then(|key| desktop.get(key).cloned())
+        .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
 }
 
 /// The name of the account `place`'s sessions ran on.

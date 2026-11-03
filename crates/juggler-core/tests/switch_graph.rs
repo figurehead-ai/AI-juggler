@@ -294,7 +294,8 @@ fn migration_up_from_earlier_schema_preserves_rows() {
         storage
             .raw_conn()
             .execute_batch(
-                "ALTER TABLE accounts DROP COLUMN terms_moved;
+                "DROP TRIGGER relation_stamp_instance_changed; DROP TRIGGER relation_stamp_folder_changed; DROP INDEX idx_instances_app;
+                 ALTER TABLE accounts DROP COLUMN terms_moved;
                  ALTER TABLE instances DROP COLUMN app_id;
                  ALTER TABLE accounts DROP COLUMN subscription_id;
                  DROP TABLE apps; DROP TABLE subscriptions;

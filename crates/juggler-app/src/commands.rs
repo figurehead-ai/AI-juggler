@@ -4239,7 +4239,7 @@ pub fn instance_quality_impl(
 /// Never fails; the result type matches its callers'.
 pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
-    let _ = state;
+    crate::features::relations::changed(state, crate::features::relations::Change::SessionsUpdated);
     let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, ());
     Ok(())
 }

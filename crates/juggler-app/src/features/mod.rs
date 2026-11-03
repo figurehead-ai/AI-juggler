@@ -22,6 +22,7 @@ pub mod processes;
 pub mod project_sync;
 pub mod projects;
 pub mod quota;
+pub mod relations;
 pub mod runtime;
 pub mod service_accounts;
 pub mod sessions;

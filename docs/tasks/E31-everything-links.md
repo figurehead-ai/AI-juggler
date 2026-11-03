@@ -54,7 +54,7 @@
 
 ## Step 2 — build
 
-### AJ-E3102 Relations made cheap: instance and conversation indexes, and a relation-count cache | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3202
+### AJ-E3102 Relations made cheap: instance and conversation indexes, and a relation-count cache | Status: DONE-PENDING-EVIDENCE (agent, 2026-11-03: schema v43 indexes `instances` by project, launch settings, App and Mac and adds `relation_stamps`, moved by triggers when a value a relation is decided by changes; the conversations other apps started are indexed by project, App, tool and folder (`features/conversations/by_relation.rs`); `features/relations` is D-58's "Counts on pages" cache, in memory: two parts (AI Juggler's sessions, the outside conversations), each kept with the stamps of its sources and rebuilt when one moves (the app's events, enumerated in `relations::Change`, and the database's stamps); `relations_counts` answers a batch of entities; `sessions_counts` without a search reads it; the project, App and Account pages' Sessions counts come from it. Measured (debug build): 10 000 sessions rebuilt cold in ~125 ms, a cached count ≤ 0.1 ms. `tests/relations.rs` holds K2's counts = list = recount on every page, X1's cache cleared mid-walk, and the budgets; the K1/K2/X1 walks by hand remain) | Priority P0 | Effort M | Depends: AJ-E3202
 **Goal**: Every count and related list on every page comes from an index or the cache, never from a scan or a transcript.
 **User story**: As someone with thousands of sessions, a project's tabs show their counts at once.
 **Requirements**:

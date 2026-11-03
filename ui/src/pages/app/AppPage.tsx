@@ -26,7 +26,8 @@ import { AppOverview, AppProjects, rowOf } from "./AppOverview";
 import { AppSettings } from "./AppSettings";
 import { ProcessesView } from "../../screens/processes/ProcessesView";
 import { FolderMenu } from "../../components/InspectorHeaderMenu";
-import { errorText, signedIn, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { errorText, hasLiveBackend, signedIn, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { useRelationCounts } from "../../lib/relation-counts";
 import { useApps, type AppModel } from "../../lib/apps";
 import { appItems, appProjects, openHere } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
@@ -109,9 +110,13 @@ function AppBody({
   const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);
   const open = openIds.length;
   const sharedWith = app.accountId ? apps.filter((other) => other.id !== app.id && other.accountId === app.accountId) : [];
+  // AJ-E3102: Sessions counts what its list pages through (the backend's
+  // relation counts); Projects, the projects its list shows.
+  const related = useRelationCounts("app", app.id);
+  const sessionsCount = hasLiveBackend() ? related?.sessions.all : items.length;
   const tabs = useMemo(
-    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, counts: { sessions: items.length, projects: worked.length } }),
-    [app.folder, items.length, worked.length, open],
+    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, counts: { sessions: sessionsCount, projects: worked.length } }),
+    [app.folder, sessionsCount, worked.length, open],
   );
   return (
     <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col" data-testid="app-page" data-app-id={app.id}>

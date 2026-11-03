@@ -11,7 +11,8 @@ import { defaultPoolIdOf } from "../../lib/pools";
 import { useProjectTasks } from "./useProjectTasks";
 import { isActiveStatus } from "../../components/indicator";
 import { openTasks } from "../../lib/project-summary";
-import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import { hasLiveBackend, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { useRelationCounts } from "../../lib/relation-counts";
 import type { PageTabId } from "../registry";
 import { WhenShown } from "../PageShell";
 import { ProjectOverview, ProjectSessions, type ProjectPanelProps } from "../ProjectPage";
@@ -26,12 +27,16 @@ const History = lazyNamed(() => import("../../screens/History"), "History");
 /** Mounted the first time it's shown, and kept (pages/PageShell). */
 const Once = WhenShown;
 
-/** The numbers beside a project's tabs: its open sessions, open tasks. */
+/** The numbers beside a project's tabs: its sessions, as its Sessions
+ * list holds them (AJ-E3102: the backend's relation counts, a moment
+ * after the page shows), and its open tasks. The design preview, with no
+ * backend, counts its open sessions. */
 export function useProjectTabCounts(project: ProjectInfo | null | undefined, sessions: InstanceInfo[]): Partial<Record<PageTabId, number>> | undefined {
   const tasks = useProjectTasks(project?.id ?? null);
+  const related = useRelationCounts(project ? "project" : null, project?.id);
   const open = useMemo(() => (project ? sessions.filter((s) => s.project_id === project.id && isActiveStatus(s.status)).length : 0), [project, sessions]);
   if (!project) return undefined;
-  return { sessions: open, tasks: openTasks(tasks)?.open ?? 0 };
+  return { sessions: hasLiveBackend() ? related?.sessions.all : open, tasks: openTasks(tasks)?.open ?? 0 };
 }
 
 export function ProjectTab(props: ProjectPanelProps & { projects: ProjectInfo[]; tab: PageTabId; visible: boolean }): JSX.Element | null {

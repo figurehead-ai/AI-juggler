@@ -25,7 +25,8 @@ import { AppProjects, MoreLink, ProjectRows, RowList, rowOf, type Shown } from "
 import { AccountAppRows } from "./AccountApps";
 import { AccountSettings } from "./AccountSettings";
 import { ChooseChip } from "./TermChoice";
-import { quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../../lib/bridge";
+import { hasLiveBackend, quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../../lib/bridge";
+import { useRelationCounts } from "../../lib/relation-counts";
 import { accountApps, accountItems } from "../../lib/account-items";
 import { appProjects, openHere } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
@@ -93,7 +94,11 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation)) : null);
   const name = accountName(sub);
   const open = items.filter(openHere).length;
-  const tabs = useMemo(() => pageTabs("subscription", { counts: { apps: onIt.length, sessions: items.length, projects: worked.length } }), [onIt.length, items.length, worked.length]);
+  // AJ-E3102: Sessions counts what its list pages through (the backend's
+  // relation counts); Apps and Projects, what their lists show.
+  const related = useRelationCounts("subscription", sub.account_id);
+  const sessionsCount = hasLiveBackend() ? related?.sessions.all : items.length;
+  const tabs = useMemo(() => pageTabs("subscription", { counts: { apps: onIt.length, sessions: sessionsCount, projects: worked.length } }), [onIt.length, sessionsCount, worked.length]);
   const renewal = renewalLabel(sub.renewal_date, now);
   const facts = [
     accountLine(sub),

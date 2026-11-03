@@ -8,6 +8,7 @@
 //! (there is no migration; a restart rebuilds it from the files).
 
 pub mod asks;
+pub mod by_relation;
 pub mod commands;
 pub mod dto;
 pub mod feed;
@@ -183,6 +184,11 @@ fn store(
             complete,
             counted_at,
         },
+    );
+    drop(files);
+    crate::features::relations::changed(
+        state,
+        crate::features::relations::Change::ConversationsIndex,
     );
     Ok(())
 }
@@ -586,6 +592,13 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
             .lock()
             .map_err(|_| AppError::StatePoisoned)?;
         let changed = *live != now;
+        // AJ-E3102: which are open moves counts; their states don't.
+        if live.len() != now.len() || now.keys().any(|key| !live.contains_key(key)) {
+            crate::features::relations::changed(
+                state,
+                crate::features::relations::Change::ConversationsLive,
+            );
+        }
         *live = now;
         changed
     };
@@ -910,7 +923,15 @@ fn forget_unseen(state: &Arc<AppState>, seen: Vec<PathBuf>) -> AppResult<bool> {
     let before = files.len();
     let seen: std::collections::HashSet<PathBuf> = seen.into_iter().collect();
     files.retain(|path, _| seen.contains(path));
-    Ok(files.len() != before)
+    let forgot = files.len() != before;
+    drop(files);
+    if forgot {
+        crate::features::relations::changed(
+            state,
+            crate::features::relations::Change::ConversationsIndex,
+        );
+    }
+    Ok(forgot)
 }
 
 /// The conversation `id` on `account_id`, from the index.

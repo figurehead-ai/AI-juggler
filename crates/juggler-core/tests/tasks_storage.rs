@@ -97,8 +97,9 @@ fn upgrading_from_messages_keeps_a_copy_and_everything_as_it_was() {
     // v37 (AJ-E2501, notices), v38 (the pool canvas), v39 (launch
     // settings' removed_at, D-60), v40 (D-62's Accounts and Apps) and
     // v41 (their terms moved to the Account) and v42 (each one's colour
-    // slot) came after E19's tables.
-    assert_eq!(Storage::schema_version(), 42);
+    // slot) and v43 (the sessions' indexes and the relation stamps,
+    // AJ-E3102) came after E19's tables.
+    assert_eq!(Storage::schema_version(), 43);
     let copies = pre_migration_copies(&db);
     assert_eq!(copies[0].0, 34);
     assert_eq!(tables(&copies[0].1), before);

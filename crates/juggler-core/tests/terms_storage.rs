@@ -82,7 +82,7 @@ fn v41_adds_one_column_and_changes_nothing_else() {
         .unwrap();
     let storage = Storage::open(&db).unwrap();
     assert!(storage.migrated_on_open());
-    assert_eq!(storage.user_version().unwrap(), 42);
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
     // Nothing moved by the migration: the folder reads as it did.
     assert_eq!(
         storage.terms().effective("work").unwrap(),

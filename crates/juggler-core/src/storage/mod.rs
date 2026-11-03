@@ -30,6 +30,7 @@ mod pool_canvas;
 mod pools;
 mod process_ledger;
 mod projects;
+mod relations;
 mod settings;
 mod sightings;
 mod switch_graph;
@@ -82,6 +83,7 @@ pub use process_ledger::{
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
+pub use relations::{InstanceColumn, RelationsRepo, SessionFacet, StoredStamps};
 pub use sessions::{SessionBrief, SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use sightings::{
@@ -650,10 +652,15 @@ const V41: &str = terms::MIGRATION;
 /// and stored ([`entities::COLOUR_SLOTS_MIGRATION`]).
 const V42: &str = entities::COLOUR_SLOTS_MIGRATION;
 
+/// v43 (AJ-E3102): the sessions' indexes by project, launch settings, App
+/// and Mac, and the stamps the relation counts are checked against
+/// ([`relations::MIGRATION`]).
+const V43: &str = relations::MIGRATION;
+
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42,
+    V41, V42, V43,
 ];
 
 /// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
@@ -955,6 +962,12 @@ impl Storage {
     #[must_use]
     pub fn projects(&self) -> ProjectsRepo<'_> {
         ProjectsRepo::new(&self.conn)
+    }
+
+    /// The relation counts' reads and stamps (schema v43, AJ-E3102).
+    #[must_use]
+    pub fn relations(&self) -> RelationsRepo<'_> {
+        RelationsRepo::new(&self.conn)
     }
 
     /// Repository for app-level settings (schema v10 kv).

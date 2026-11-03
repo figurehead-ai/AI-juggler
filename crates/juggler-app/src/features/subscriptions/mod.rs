@@ -637,9 +637,17 @@ fn store_accounts(state: &Arc<AppState>, rows: &[ProfileRead]) -> BTreeMap<Strin
         let account = sign_in.and_then(|(vendor, identity)| {
             storage.subscriptions().upsert(&vendor, &identity, now).ok()
         });
-        let _ = storage
+        if storage
             .subscriptions()
-            .set_folder(&folder, account.as_deref());
+            .set_folder(&folder, account.as_deref())
+            .unwrap_or(false)
+        {
+            // AJ-E3102: the folder's sessions count on another Account now.
+            crate::features::relations::changed(
+                state,
+                crate::features::relations::Change::AccountsChanged,
+            );
+        }
         if let Some(account) = account {
             stored.insert(folder, account);
         }

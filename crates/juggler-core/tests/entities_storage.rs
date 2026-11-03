@@ -52,7 +52,8 @@ fn v40_makes_one_cli_app_per_folder_in_use_and_nothing_else() {
     {
         let conn = Connection::open(&db).unwrap();
         conn.execute_batch(
-            "ALTER TABLE accounts DROP COLUMN terms_moved;
+            "DROP TRIGGER relation_stamp_instance_changed; DROP TRIGGER relation_stamp_folder_changed; DROP INDEX idx_instances_app;
+             ALTER TABLE accounts DROP COLUMN terms_moved;
              ALTER TABLE instances DROP COLUMN app_id;
              ALTER TABLE accounts DROP COLUMN subscription_id;
              DROP TABLE apps;
@@ -437,7 +438,7 @@ fn v42_gives_the_rows_already_there_their_slots_in_list_order() {
         .unwrap();
     let storage = Storage::open(&db).unwrap();
     assert!(storage.migrated_on_open());
-    assert_eq!(storage.user_version().unwrap(), 42);
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
     // The list's order (CLI first, then by when first seen), round robin.
     let listed: Vec<(String, u8)> = storage
         .apps()

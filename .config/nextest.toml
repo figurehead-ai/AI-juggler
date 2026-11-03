@@ -58,12 +58,13 @@ test-group = 'reconciler'
 # `cargo test` ran one binary at a time, so a budget only ever shared the
 # machine with its own binary's tests; nextest runs binaries side by side,
 # and a 5 ms budget then measured its neighbours (CI, 2026-11-02). Every
-# test that asserts on elapsed time is listed (load_budgets and
-# paged_lists whole); a new one goes here too.
+# test that asserts on elapsed time is listed (load_budgets, paged_lists
+# and relations whole); a new one goes here too.
 [[profile.default.overrides]]
 filter = '''
     binary_id(juggler-app::load_budgets) |
     binary_id(juggler-app::paged_lists) |
+    binary_id(juggler-app::relations) |
     (binary_id(juggler-agentbridge::bridge) & (test(=calls_answer_in_under_50_ms) | test(=a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch))) |
     (binary_id(juggler-account) & (test(/(^|::)a_25_mb_container_seals_and_opens_inside_a_second$/))) |
     (binary_id(juggler-account::live_server) & (test(/(^|::)link_approve_account_rename_unlink$/))) |

@@ -343,13 +343,10 @@ impl Narrow {
 
     /// A session on folder `folder` (`key`: `<tool>/<id>` for one another
     /// app runs, which may be a desktop App's) passes.
-    fn passes(&self, folder: Option<&str>, key: Option<String>) -> bool {
+    fn passes(&self, folder: Option<&str>, key: Option<&str>) -> bool {
         let on_account = !self.account || folder.is_some_and(|id| self.folders.contains(id));
         let in_app = self.app.as_ref().is_none_or(|want| {
-            let app = key
-                .and_then(|key| self.desktop.get(&key).cloned())
-                .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()));
-            *want == app
+            *want == crate::features::places::app_of(&self.desktop, folder, key)
         });
         on_account && in_app
     }
@@ -419,7 +416,7 @@ fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
                 .is_some_and(|account| *account != conversation.account_id)
             || !narrow.passes(
                 Some(&conversation.account_id),
-                Some(crate::features::places::book::conversation_key(
+                Some(&crate::features::places::book::conversation_key(
                     &conversation.tool,
                     &conversation.id,
                 )),
@@ -503,12 +500,59 @@ pub fn sessions_page_impl(
     }))
 }
 
-/// How many rows `query`'s list holds, open, ended and archived.
+/// How many rows `query`'s list holds, open, ended and archived: from
+/// the relation counts (AJ-E3102) when it's a whole list (no search, at
+/// most one of project, folder, App or Account), else counted from the
+/// rows.
 ///
 /// # Errors
 ///
 /// Storage errors.
 pub fn sessions_counts_impl(
+    state: &Arc<AppState>,
+    query: &SessionsQuery,
+) -> AppResult<SessionsCountsInfo> {
+    match whole_list(query) {
+        Some(entity) => Ok(crate::features::relations::counts(state, &entity)?.sessions),
+        None => sessions_counts_scanned(state, query),
+    }
+}
+
+/// The entity whose sessions `query`'s list is, when it is a whole one.
+fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::EntityRef> {
+    use crate::features::relations::{EntityKind, EntityRef};
+    if query
+        .text
+        .as_deref()
+        .is_some_and(|text| !text.trim().is_empty())
+    {
+        return None;
+    }
+    let mut scopes = [
+        (EntityKind::Project, &query.project_id),
+        (EntityKind::Folder, &query.account_id),
+        (EntityKind::App, &query.app_id),
+        (EntityKind::Subscription, &query.subscription_id),
+    ]
+    .into_iter()
+    .filter_map(|(kind, id)| Some((kind, id.clone()?)));
+    match (scopes.next(), scopes.next()) {
+        (None, _) => Some(EntityRef {
+            kind: EntityKind::All,
+            id: String::new(),
+        }),
+        (Some((kind, id)), None) => Some(EntityRef { kind, id }),
+        _ => None,
+    }
+}
+
+/// [`sessions_counts_impl`] counted from the rows themselves, whatever the
+/// query (the relation counts' reference).
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn sessions_counts_scanned(
     state: &Arc<AppState>,
     query: &SessionsQuery,
 ) -> AppResult<SessionsCountsInfo> {
@@ -548,16 +592,16 @@ mod tests {
             folders: std::collections::BTreeSet::new(),
         };
         let work = app("app:claude-app:/p/Work");
-        assert!(work.passes(Some("work"), Some("claude-code/c-1".into())));
-        assert!(!work.passes(Some("work"), Some("claude-code/c-2".into())));
+        assert!(work.passes(Some("work"), Some("claude-code/c-1")));
+        assert!(!work.passes(Some("work"), Some("claude-code/c-2")));
         assert!(
             !work.passes(Some("work"), None),
             "AI Juggler's own: its CLI App"
         );
         let cli = app("cli:work");
-        assert!(cli.passes(Some("work"), Some("claude-code/c-2".into())));
+        assert!(cli.passes(Some("work"), Some("claude-code/c-2")));
         assert!(cli.passes(Some("work"), None));
-        assert!(!cli.passes(Some("work"), Some("claude-code/c-1".into())));
+        assert!(!cli.passes(Some("work"), Some("claude-code/c-1")));
         let account = Narrow {
             app: None,
             desktop: std::collections::BTreeMap::new(),
@@ -567,6 +611,47 @@ mod tests {
         assert!(account.passes(Some("side"), None));
         assert!(!account.passes(Some("home"), None));
         assert!(!account.passes(None, None));
+    }
+
+    /// AJ-E3102: a whole list's heading comes from the relation counts; a
+    /// search or two scopes at once are counted from the rows.
+    #[test]
+    fn only_a_whole_list_is_counted_from_the_cache() {
+        use crate::features::relations::EntityKind;
+        let query = |over: fn(&mut SessionsQuery)| {
+            let mut query = SessionsQuery::default();
+            over(&mut query);
+            whole_list(&query).map(|entity| (entity.kind, entity.id))
+        };
+        assert_eq!(query(|_| {}), Some((EntityKind::All, String::new())));
+        assert_eq!(
+            query(|q| q.project_id = Some("p".into())),
+            Some((EntityKind::Project, "p".into()))
+        );
+        assert_eq!(
+            query(|q| q.account_id = Some("work".into())),
+            Some((EntityKind::Folder, "work".into()))
+        );
+        assert_eq!(
+            query(|q| q.app_id = Some("cli:work".into())),
+            Some((EntityKind::App, "cli:work".into()))
+        );
+        assert_eq!(
+            query(|q| q.subscription_id = Some("acct:a:1".into())),
+            Some((EntityKind::Subscription, "acct:a:1".into()))
+        );
+        assert_eq!(
+            query(|q| q.text = Some("  ".into())),
+            Some((EntityKind::All, String::new()))
+        );
+        assert_eq!(query(|q| q.text = Some("fix".into())), None);
+        assert_eq!(
+            query(|q| {
+                q.project_id = Some("p".into());
+                q.account_id = Some("work".into());
+            }),
+            None
+        );
     }
 
     #[test]
