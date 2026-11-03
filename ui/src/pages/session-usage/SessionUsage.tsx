@@ -14,7 +14,6 @@ import { API_PRICE, exact, short } from "../../components/charts/scale";
 import { IconChart, IconDonut, IconGauge, IconLayers, IconList, IconMoney, IconTokens } from "../../components/usage/controls";
 import { useCached } from "../../lib/usage/cached";
 import { usageSession, type UsageSessionDetailInfo } from "../../lib/ipc/usageHistory";
-import { accountColor } from "../../lib/marks";
 
 /** At most this many bars: more turns are summed into even slices of time. */
 const BARS = 120;
@@ -71,8 +70,9 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
   const words = (start: number, end: number) => (bars?.perTurn ? `Turn at ${time(start)}` : `${time(start)} to ${time(end)}`);
   const empty = detail !== null && detail.totals.messages === 0;
   const busy = result.loading && detail !== null;
-  // Its Account's colour: the windows are the Account's room (AJ-E3206).
-  const color = accountColor({ folder: profile });
+  // The app's accent: the session's page shows its App's colour, and colour
+  // is the Apps' (the windows are its Account's room, said in words).
+  const color = "var(--color-accent)";
   return (
     <div className="@container flex flex-col gap-grid" data-testid="session-usage-visual">
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4">

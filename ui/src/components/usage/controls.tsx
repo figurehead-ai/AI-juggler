@@ -87,6 +87,8 @@ export const IconRoute = icon("M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0
 export const IconTokens = icon("M4 7h16M4 12h10M4 17h7");
 export const IconMoney = icon("M12 3v18M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6");
 export const IconPlay = icon("M8 5l11 7-11 7z");
+/** An Account: what you pay for (a card), never a person or an App. */
+export const IconAccount = icon("M3 7a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3 10h18M7 15h3");
 export const IconUser = icon("M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z");
 export const IconRules = icon("M9 12h6M9 16h6M7 3h7l5 5v13H7z");
 export const IconGit = icon("M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a9 9 0 0 1-9 9");

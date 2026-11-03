@@ -152,7 +152,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
         </span>
       </span>
       <span className="flex min-w-0 items-center gap-2 text-meta text-ink">
-        <AccountAvatar account={{ folder: row.profile }} label={profile} size={20} />
+        <AccountAvatar tone="colour" account={{ folder: row.profile }} label={profile} size={20} />
         <span className="truncate">
           <span className="sr-only">in </span>
           {profile}

@@ -289,6 +289,12 @@ describe("profile badges (AJ-E2104 Req.2, AJ-E3206)", () => {
     expect(deltaE(first!, second!)).toBeGreaterThanOrEqual(0.2);
     expect(Math.min(deltaE(first!, third!), deltaE(second!, third!))).toBeGreaterThanOrEqual(0.08);
     expect(deltaE(first!, MARK_COLOURS[MARK_COLOURS.length / 2]!)).toBeGreaterThanOrEqual(0.08);
+    // The first three Apps, and the first three Accounts, are three colour
+    // families: a lighter and a darker of one hue read as one colour.
+    for (const start of [0, MARK_COLOURS.length / 2]) {
+      const three = MARK_COLOURS.slice(start, start + 3);
+      for (const [i, a] of three.entries()) for (const b of three.slice(i + 1)) expect(apart(a.h, b.h), `slots from ${start}: ${a.h} vs ${b.h}`).toBeGreaterThanOrEqual(40);
+    }
   });
 });
 

@@ -210,7 +210,7 @@ function AccountOverview({
   const recent = items.filter((item) => !openHere(item)).slice(0, 5);
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="account-overview">
-      {limits && <AccountLimits account={limits} now={now} />}
+      {limits && <AccountLimits account={limits} now={now} tone="colour" />}
       <Section
         title="Its apps"
         icon={<IconProfiles width={16} height={16} />}

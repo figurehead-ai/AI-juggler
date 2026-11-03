@@ -18,7 +18,7 @@ import { quotaDisplay, type AccountInfo, type QuotaDisplayData } from "../lib/br
 
 /** 0.1.5: the profile's limits first: a gauge per window with its reset
  * and the reading's age, the last week's windows, and its tokens. */
-export function AccountLimits({ account, now }: { account: AccountInfo; now: number }) {
+export function AccountLimits({ account, now, tone = "neutral" }: { account: AccountInfo; now: number; tone?: "neutral" | "colour" }) {
   const [display, setDisplay] = useState<QuotaDisplayData | null>(null);
   useEffect(() => {
     let alive = true;
@@ -30,8 +30,9 @@ export function AccountLimits({ account, now }: { account: AccountInfo; now: num
     };
   }, [account.id]);
   const week = useWeekByProfile();
-  // Limits are the Account's: its one colour (AJ-E3206).
-  const color = accountColor({ folder: account.id });
+  // Limits are the Account's: its own colour on its own page; beside an
+  // App's mark (the App's page) the app's accent, as colour is the Apps'.
+  const color = tone === "colour" ? accountColor({ folder: account.id }) : "var(--color-accent)";
   const measuredHere = display !== null && runwayOf(display).left !== null;
   return (
     <Section title="Limits" icon={<IconGauge />} sub={display?.unavailable_reason ? undefined : "what's left in each window, and the last 7 days"} className="@container" testId="account-limits">

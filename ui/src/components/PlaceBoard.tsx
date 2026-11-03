@@ -17,7 +17,7 @@ import { RailIdleApp } from "./RailIdleApp";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
 import { useActionHost } from "./ItemMenu";
-import { AccountAvatar } from "./Avatar";
+import { IconAccount } from "./usage/controls";
 import { useMarks } from "../lib/marks";
 import { showToast } from "./Toast";
 import { useShownConversations } from "../lib/shown-apps";
@@ -301,7 +301,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
             keepAlive={known ? { on: known.keep_alive, toggle: () => void placesKeepAlive(known.id, !known.keep_alive).catch(() => showToast({ id: "keep-alive", message: `Couldn't change keep alive for ${known.label}` })) } : null}
           >
-            {lens === "account" ? <AccountAvatar account={{ folder: group.accountId }} label={group.label} size={16} /> : undefined}
+            {/* Grouped by Account: its icon, not a colour (colour is the Apps' in the rows below). */}
+            {lens === "account" ? <IconAccount width={14} height={14} aria-hidden="true" className="shrink-0 text-muted" data-testid="rail-account-icon" /> : undefined}
           </PlaceHeader>
         );
       }

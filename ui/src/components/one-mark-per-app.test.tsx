@@ -232,22 +232,40 @@ describe("AJ-E3206 a desktop App wears one colour on every surface", () => {
 describe("AJ-E3206 an Account wears one colour, round, wherever it shows", () => {
   const account = accountColor(2);
 
-  it("its avatar by its row, by either folder on it, in a stack, and on Usage", () => {
+  it("its own colour where Accounts stand alone (the Runway, Usage), by either folder on it", () => {
     render(
       <>
-        <AccountAvatar account={ACCOUNT} label="Work" />
-        <AccountAvatar account={{ folder: WORK.id }} label={WORK.label} />
-        <AccountAvatar account={{ folder: HOME.id }} label={HOME.label} />
-        <AccountStack accounts={[{ id: WORK.id, label: WORK.label, live: false }]} />
+        <AccountAvatar account={ACCOUNT} label="Work" tone="colour" />
+        <AccountAvatar account={{ folder: WORK.id }} label={WORK.label} tone="colour" />
+        <AccountAvatar account={{ folder: HOME.id }} label={HOME.label} tone="colour" />
       </>,
     );
     const avatars = screen.getAllByTestId("account-avatar");
-    expect(avatars).toHaveLength(4);
+    expect(avatars).toHaveLength(3);
     for (const avatar of avatars) {
       expect(colorOf(avatar)).toBe(account);
       expect(avatar.className).toContain("rounded-full");
     }
     expect(accountGroups([ACCOUNT], new Map()).get(WORK.id)?.color).toBe(account);
+  });
+
+  it("neutral beside an App (a row, a stack, the rail): a row wears one colour, its App's", () => {
+    render(
+      <>
+        <AccountAvatar account={{ folder: WORK.id }} label={WORK.label} />
+        <AccountAvatar account={{ folder: WORK.id }} label={WORK.label} size={28} />
+        <AccountStack accounts={[{ id: WORK.id, label: WORK.label, live: false }]} />
+      </>,
+    );
+    const [ring, large, stacked] = screen.getAllByTestId("account-avatar");
+    for (const avatar of [ring!, large!, stacked!]) {
+      expect(avatar.dataset.tone).toBe("neutral");
+      expect(avatar.style.background).toBe("");
+      expect(avatar.dataset.color).toBeUndefined();
+    }
+    // Small: a ring; large: grey with its initials.
+    expect(ring!.className).toContain("border-muted");
+    expect(large!.textContent).not.toBe("");
   });
 
   it("is told apart from its Apps' marks: another shape, and its own slot", () => {
