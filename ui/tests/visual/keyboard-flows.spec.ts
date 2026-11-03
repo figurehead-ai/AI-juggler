@@ -152,7 +152,7 @@ test("page tab walk — arrow keys move across the session page's tabs", async (
   await tabTo(page, stops, /^tab: Overview/, { back: true });
   const tablist = page.getByRole("tablist", { name: "Session tabs" });
   const names = await tablist.getByRole("tab").allInnerTexts();
-  expect(names).toEqual(["Overview", "Usage", "Processes"]);
+  expect(names).toEqual(["Overview", "Pools", "Usage", "Processes"]);
   for (const name of [...names.slice(1), names[0]!]) {
     await page.keyboard.press("ArrowRight");
     const stop = await focused(page);
