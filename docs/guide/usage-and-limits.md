@@ -77,7 +77,7 @@ Your plan's 5-hour and weekly limits, as the tool itself reports them.
   percentage is that reading, exactly as the tool reported it.
 - **"Estimated 30% left now"** appears when you've worked since the
   reading: AI Juggler's estimate from your use since then, shown apart
-  from the reading and never in its place.
+  from the reading and never instead of it.
 - **"Not measured since the reset"** means the limit has reset and nothing
   newer has been measured.
 - A reset time is shown only when the tool reported one.
