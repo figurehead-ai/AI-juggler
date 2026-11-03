@@ -8,7 +8,6 @@
  * few per project, the rest on the project's page.
  */
 import { providerDisplayName } from "../lib/providers";
-import { AccountAvatar } from "./Avatar";
 import { ProjectMark } from "./ProjectMark";
 import { AppIcon } from "./AppIcon";
 import { appOfConversation } from "../lib/app-of";
@@ -20,7 +19,8 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../lib/bridge";
 import type { ChipFilters, RowGroup } from "../lib/railview";
 import { ago, agoWords } from "../lib/time-words";
-import { STATE_TONE, conversationItem, goToWhere, stateWord as railStateWord } from "../lib/rail-items";
+import { STATE_TONE, conversationAppKey, conversationItem, goToWhere, stateWord as railStateWord } from "../lib/rail-items";
+import { ProfileBadge } from "./ProfileBadge";
 
 /** Ended outside conversations shown per project under the Ended filter. */
 export const RECENT_SHOWN = 3;
@@ -163,7 +163,7 @@ export function ConversationRow({
           </span>
         </span>
         <AppIcon {...appOfConversation(conversation)} size={16} />
-        <AccountAvatar account={{ folder: conversation.account_id }} label={conversation.account_label} size={16} />
+        <ProfileBadge app={conversationAppKey(conversation)} name={conversation.account_label} />
       </button>
       {goTo}
       {menu.button({ label: `Conversation actions for ${title}`, className: "absolute bottom-0 left-0" })}
@@ -242,7 +242,7 @@ export function HomeOutsideRows({ rows, now }: { rows: ConversationInfo[]; now: 
             </span>
             <span className="flex items-center gap-1.5 text-xs text-muted">
               <AppIcon {...appOfConversation(conversation)} size={16} />
-              <AccountAvatar account={{ folder: conversation.account_id }} label={conversation.account_label} size={16} />
+              <ProfileBadge app={conversationAppKey(conversation)} name={conversation.account_label} />
               <span><span className="sr-only">{providerDisplayName(conversation.tool)} on </span>{conversation.account_label}</span>
             </span>
             {/* Its last activity: a resumed one can be months old. */}

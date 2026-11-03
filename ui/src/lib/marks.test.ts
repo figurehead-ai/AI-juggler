@@ -4,9 +4,10 @@
  * a name on screen), with a fallback made from the id for one not stored.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { MARK_COLOURS, accountColor, accountSlot, appColor, appSlot, fallbackSlot, forgetMarksForTests, learnFolders, learnPlaces } from "./marks";
+import { MARK_COLOURS, slotOklch, accountColor, accountSlot, appColor, appSlot, fallbackSlot, forgetMarksForTests, learnFolders, learnPlaces } from "./marks";
 import { fillSlots, previewAccountSlots, previewFolderSlots, previewPlaceSlots } from "./ipc/preview-slots";
 import { cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
+import { deltaE } from "./oklch";
 import type { AccountInfo } from "./bridge";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
@@ -84,6 +85,16 @@ describe("AJ-E3206 an App's colour", () => {
     // Every colour taken: any of them.
     learnFolders(MARK_COLOURS.map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
     expect(appSlot("app|claude-app|Work")).toBe(fallbackSlot("app|claude-app|Work"));
+  });
+
+  it("not stored yet: the free colour most unlike every one in use, not a near-twin", () => {
+    // Blue and green taken: never the olive beside the green, whatever the id.
+    for (const id of ["app|fake-desktop|folder:f", "app|x|y", "cli|codex|z", "app:claude-app:/p/n"]) {
+      const slot = fallbackSlot(id, new Set([0, 1]));
+      expect([0, 1, 5]).not.toContain(slot);
+      const nearest = Math.min(deltaE(slotOklch(slot), slotOklch(0)), deltaE(slotOklch(slot), slotOklch(1)));
+      for (const other of [2, 3, 4, 6, 7]) expect(nearest).toBeGreaterThanOrEqual(Math.min(deltaE(slotOklch(other), slotOklch(0)), deltaE(slotOklch(other), slotOklch(1))) - 1e-9);
+    }
   });
 
   it("a desktop session AI Juggler started wears the profile last seen on its folder", () => {

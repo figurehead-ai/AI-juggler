@@ -372,7 +372,9 @@ export function HomeScreen({
   ].filter((part) => !part.words.startsWith("0 "));
   const runwayFor = (accountId: string | null) => {
     const row = runway.find((r) => r.account.id === accountId);
-    return row ? { left: row.left, words: row.credits ? `${row.account.label} · ${row.words}` : row.left !== null ? `${row.account.label} · ${row.left}% left` : `${row.account.label} · not measured yet` } : null;
+    // D-62: room is the Account's, so a tile says whose (its App is the tile's own name).
+    const whose = row ? accountNameOf(subscriptions, row.account.id, row.account.label) : "";
+    return row ? { left: row.left, words: row.credits ? `${whose} · ${row.words}` : row.left !== null ? `${whose} · ${row.left}% left` : `${whose} · not measured yet` } : null;
   };
 
   return (
@@ -467,7 +469,7 @@ export function HomeScreen({
                           {session.git_branch && <span className="text-muted"> · {session.git_branch}</span>}
                         </span>
                         <span className="truncate text-meta text-muted" title={words.long}>
-                          {session.account_label} · {words.short.replace(/^Parked · /, "")}
+                          {accountNameOf(subscriptions, session.account_id, session.account_label)} · {words.short.replace(/^Parked · /, "")}
                         </span>
                       </span>
                       <Button

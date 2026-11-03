@@ -44,8 +44,9 @@ export function handoverTeaser(targets: Array<SwitchTargetData & { room?: Target
   if (open.length === 0) return targets.length === 0 ? "Add another app to juggle between them." : "No other app can take it now.";
   const count = open.length === 1 ? "1 app can take it over" : `${open.length} apps can take it over`;
   const best = open.find((target) => target.suggested);
-  if (!best) return `${count}, but none has much room left now.`;
-  const why = best.room?.left != null ? `${best.room.left}% left` : best.top_factors[0];
+  if (!best) return `${count}, but none of their accounts has much room left now.`;
+  // D-62: the room is the App's Account's, named with it.
+  const why = best.room?.left != null ? `${best.room.account ? `${best.room.account}, ` : ""}${best.room.left}% left` : best.top_factors[0];
   return `${count}. Suggested: ${best.account_label}${why ? `, ${why}` : ""}.`;
 }
 

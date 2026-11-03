@@ -5,7 +5,6 @@
  * time. Each row opens its page.
  */
 import { useState, type JSX } from "react";
-import { AccountAvatar } from "../Avatar";
 import { AppIcon } from "../AppIcon";
 import { Modal } from "../form";
 import { appOfConversation, appOfTool } from "../../lib/app-of";
@@ -22,6 +21,7 @@ import { ShareBar } from "../charts/StatTile";
 import { exact, short, usdWords } from "../charts/scale";
 import { IconFolder, IconList } from "./controls";
 import type { Scope } from "./useUsage";
+import { ProfileBadge } from "../ProfileBadge";
 
 const TOP = 10;
 
@@ -152,7 +152,8 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
         </span>
       </span>
       <span className="flex min-w-0 items-center gap-2 text-meta text-ink">
-        <AccountAvatar tone="colour" account={{ folder: row.profile }} label={profile} size={20} />
+        {/* Where it ran: the folder's CLI App, by the App's mark (colour is the Apps'). */}
+        <ProfileBadge app={cliAppId(row.profile)} name={profile} size={8} />
         <span className="truncate">
           <span className="sr-only">in </span>
           {profile}

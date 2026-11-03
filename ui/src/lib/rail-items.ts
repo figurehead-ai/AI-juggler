@@ -68,6 +68,22 @@ export function cliPlace(tool: string, accountId: string | null, folder: string,
   return { key: cliAppKey(tool, accountId, folder), app: toolSpec(tool).display_name, appId: appOfTool(tool).appId, kind: host.kind, profile: folder || null, appPid: host.pid, host: host.name };
 }
 
+/** A session's App, by the key its rail row and every mark of it use (a
+ * desktop session AI Juggler started: its app on its folder; else its
+ * tool's CLI App on its folder). */
+export function sessionAppKey(row: Pick<InstanceInfo, "kind" | "provider" | "account_id" | "account_label">): string {
+  return row.kind === "desktop"
+    ? ownDesktopAppKey(toolSpec(row.provider).host_app ?? null, row.provider, row.account_id, row.account_label)
+    : cliAppKey(row.provider, row.account_id, row.account_label);
+}
+
+/** A conversation's App, by the same key: the desktop app it's open in
+ * first, else its tool's CLI App on its folder. */
+export function conversationAppKey(c: Pick<ConversationInfo, "places" | "tool" | "account_id" | "account_label">): string {
+  const first = (c.places ?? [])[0];
+  return first?.kind === "desktop" ? desktopAppKey(first.app_id ?? null, first.app, first.instance) : cliAppKey(c.tool, c.account_id, c.account_label);
+}
+
 export interface RailItem {
   /** `s:<session>` or `c:<account>/<conversation>`. */
   key: string;
@@ -173,7 +189,7 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     project: projectName(row.project_id),
     place:
       row.kind === "desktop"
-        ? { key: ownDesktopAppKey(toolSpec(row.provider).host_app ?? null, row.provider, row.account_id, row.account_label), app: desktopAppWord(toolSpec(row.provider).desktop_app ?? "", row.provider) || toolSpec(row.provider).display_name, appId: toolSpec(row.provider).host_app ?? null, kind: "own", profile: row.account_label, appPid: null, host: null }
+        ? { key: sessionAppKey(row), app: desktopAppWord(toolSpec(row.provider).desktop_app ?? "", row.provider) || toolSpec(row.provider).display_name, appId: toolSpec(row.provider).host_app ?? null, kind: "own", profile: row.account_label, appPid: null, host: null }
         : cliPlace(row.provider, row.account_id, row.account_label, { name: OWN_APP, kind: "own", pid: null }),
     alsoIn: [],
     accountId: row.account_id,
@@ -240,7 +256,7 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     project: projectName(c.project_id) ?? (folderOf(c.cwd) || null),
     place:
       first?.kind === "desktop"
-        ? { key: desktopAppKey(first.app_id ?? null, first.app, first.instance), app: desktopAppWord(first.app, c.tool, first.shown), appId: first.app_id ?? null, kind: "desktop", profile: desktopProfile(first.instance, first.profile), appPid: first.app_pid ?? null, host: null }
+        ? { key: conversationAppKey(c), app: desktopAppWord(first.app, c.tool, first.shown), appId: first.app_id ?? null, kind: "desktop", profile: desktopProfile(first.instance, first.profile), appPid: first.app_pid ?? null, host: null }
         : cliPlace(c.tool, c.account_id, c.account_label, { name: first?.app || null, kind: first?.kind ?? null, pid: first?.app_pid ?? null }),
     alsoIn: places.slice(1).map((place) => place.label || place.app),
     accountId: c.account_id,

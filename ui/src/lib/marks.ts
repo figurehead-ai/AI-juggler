@@ -31,7 +31,7 @@ import type { AccountInfo } from "./bridge";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import { cliAppId, cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
 import { MARK_COLOURS } from "./mark-hues";
-import { contrast, luminance, type Oklch } from "./oklch";
+import { contrast, deltaE, luminance, type Oklch } from "./oklch";
 
 export { MARK_COLOURS, STATUS_HUE_GAPS, STATUS_MIN_DELTA_E } from "./mark-hues";
 
@@ -53,14 +53,20 @@ export function markInk(slot: number): string {
   return contrast(luminance(slotOklch(slot)), 1) >= 4.5 ? "#ffffff" : MARK_INK_DARK;
 }
 
-/** The fallback for something not stored yet: a slot made from its id,
- * among the slots `taken` leaves free while any is (so it never wears the
- * colour of one that is stored), else among all of them. */
+/** The fallback for something not stored yet, made from its id: among the
+ * slots `taken` leaves free while any is, the one most unlike every taken
+ * colour (so it never wears, or nearly wears, the colour of one that is
+ * stored), its id breaking ties; with none free, any slot by its id. */
 export function fallbackSlot(id: string, taken: ReadonlySet<number> = new Set()): number {
   let hash = 0;
   for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) % 100_000;
   const free = MARK_COLOURS.map((_, slot) => slot).filter((slot) => !taken.has(slot));
-  return free.length > 0 ? free[hash % free.length]! : hash % MARK_COLOURS.length;
+  if (free.length === 0) return hash % MARK_COLOURS.length;
+  if (taken.size === 0) return free[hash % free.length]!;
+  const apart = (slot: number) => Math.min(...[...taken].map((other) => deltaE(slotOklch(slot), slotOklch(other))));
+  const best = Math.max(...free.map(apart));
+  const most = free.filter((slot) => apart(slot) >= best - 1e-9);
+  return most[hash % most.length]!;
 }
 
 // --- what the lists said ----------------------------------------------------

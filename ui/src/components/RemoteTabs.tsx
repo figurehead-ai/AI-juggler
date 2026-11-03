@@ -170,7 +170,8 @@ function InstanceOverview({
       <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
         <Field label="Machine" value={machine.label} source={`paired · ${machine.connection}`} />
         <Field label="Tool" value={providerDisplayName(instance.provider)} source={source} />
-        <Field label="Account" value={instance.account_label} source={source} />
+        {/* The folder on that Mac is its CLI App (D-62); its Account isn't known here. */}
+        <Field label="App" value={instance.account_label} source={source} />
         <Field label="Model" value={model} source={source} testId="remote-model" />
         <Field label="Status" value={instance.status.replace(/_/g, " ")} source={source} />
         <Field label="Project" value={instance.project_name} source={source} />

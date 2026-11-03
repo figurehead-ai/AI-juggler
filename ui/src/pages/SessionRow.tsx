@@ -7,7 +7,6 @@
  * started, never a column of "Untitled session".
  */
 import type { JSX, ReactNode } from "react";
-import { AccountAvatar } from "../components/Avatar";
 import { AppIcon } from "../components/AppIcon";
 import { ProjectMark } from "../components/ProjectMark";
 import { useItemMenu } from "../components/ItemMenu";
@@ -16,6 +15,8 @@ import { STATE_TONE } from "../lib/rail-items";
 import { askedKey, untitledName, useAskedWords } from "../lib/session-titles";
 import { appOfConversation, appOfSession, type AppRef } from "../lib/app-of";
 import type { Row } from "./SessionsList";
+import { ProfileBadge } from "../components/ProfileBadge";
+import { cliAppId } from "../lib/app-name";
 
 /** D-38: the app a row shows: the App the caller says it belongs to,
  * else where it is open, else its tool's app. */
@@ -116,7 +117,8 @@ export function SessionRowBody({
         )}
         {!inApp && !inAccount && (
           <span className="hidden w-36 min-w-0 shrink-0 items-center gap-1.5 text-meta text-muted @[34rem]:flex">
-            <AccountAvatar account={{ folder: row.accountId }} label={row.accountLabel} size={16} />
+            {/* The folder is its CLI App: the App's mark beside its name (colour is the Apps'). */}
+            <ProfileBadge app={row.accountId ? cliAppId(row.accountId) : `session:${row.accountLabel}`} name={row.accountLabel} size={8} />
             <span aria-hidden="true" className="truncate">{row.accountLabel}</span>
           </span>
         )}

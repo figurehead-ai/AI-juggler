@@ -4,7 +4,6 @@
  * within its size. The rail's own rows are RailRow and the place rows.
  */
 import { useId } from "react";
-import { AccountAvatar } from "./Avatar";
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
 import { providerDisplayName } from "../lib/providers";
@@ -29,6 +28,8 @@ import {
 import { QuotaBar, Sparkline } from "./primitives";
 import { RowDetails } from "./row-details";
 import { memorySize } from "../lib/compact";
+import { ProfileBadge } from "./ProfileBadge";
+import { sessionAppKey } from "../lib/rail-items";
 
 /** Tone classes for the compact state/attention chip (token-driven). */
 export const chipToneClasses: Record<StateChipTone, string> = {
@@ -137,7 +138,7 @@ export function SessionRow({
             <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
             <span className="truncate">{mark.abbrev}</span>
           </span>
-          <AccountAvatar account={{ folder: session.account_id }} label={session.account_label} />
+          <ProfileBadge app={sessionAppKey(session)} name={session.account_label} />
           <span className="sr-only">{session.account_label}</span>
           <span className="ml-auto inline-flex shrink-0 items-center gap-1">
             {badge ? (
@@ -232,7 +233,7 @@ export function SessionRow({
           <mark.Icon width={11} height={11} className="shrink-0 text-accent-hi" />
           <span className="truncate">{mark.abbrev}</span>
         </span>
-        <AccountAvatar account={{ folder: session.account_id }} label={session.account_label} />
+        <ProfileBadge app={sessionAppKey(session)} name={session.account_label} />
           <span className="sr-only">{session.account_label}</span>
         {identityWords(session) && (
           <span

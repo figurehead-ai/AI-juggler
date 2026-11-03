@@ -22,7 +22,8 @@ import { sessionAppName, type SessionModel } from "./model";
 import { IconGauge } from "../../components/usage/controls";
 import { appIdOfRailKey, openApp } from "../../lib/apps";
 import { openAccount } from "../../lib/accounts-page";
-import { cliAppId, desktopAppKey } from "../../lib/app-name";
+import { cliAppId, desktopAppKey, ownDesktopAppKey } from "../../lib/app-name";
+import { toolSpec } from "../../lib/tools";
 import { useKnownPlaces } from "../../lib/places";
 import type { KnownPlaceInfo } from "../../lib/ipc/places";
 
@@ -45,6 +46,10 @@ export function accountWordsOf(account: SubscriptionInfo | undefined): string | 
  * desktop app and profile it's open in (the rail's key for it), else its
  * folder's CLI App; with neither, the session itself (a fallback by id). */
 export function sessionAppMark(model: SessionModel): string {
+  // A desktop session AI Juggler started: the rail's key for it (its app
+  // and folder), so its page and the rail wear one colour whether or not
+  // a remembered profile names it yet.
+  if (model.desktop) return ownDesktopAppKey(toolSpec(model.tool).host_app ?? null, model.tool, model.profileId, model.profileLabel);
   const place = model.places.find((one) => one.kind === "desktop");
   if (place) return desktopAppKey(place.app_id ?? null, place.app, place.instance);
   return model.profileId ? cliAppId(model.profileId) : `session:${model.sessionId ?? model.conversationId ?? ""}`;

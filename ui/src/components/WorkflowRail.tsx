@@ -1,4 +1,3 @@
-import { AccountAvatar } from "./Avatar";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { ProjectMark } from "./ProjectMark";
 import { AppIcon } from "./AppIcon";
@@ -52,7 +51,7 @@ import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
 import { parseQuery, useRailView } from "../lib/rail-view";
-import { goToWhere, sessionItem, sessionState } from "../lib/rail-items";
+import { goToWhere, sessionAppKey, sessionItem, sessionState } from "../lib/rail-items";
 // AJ-E2104: the indicator row and card moved to their own files.
 export { SessionRow, modelDrift } from "./SessionCards";
 export { SessionCard } from "./SessionCard";
@@ -70,6 +69,7 @@ import {
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
 import type { Freshness } from "../lib/live-deltas";
+import { ProfileBadge } from "./ProfileBadge";
 
 const WIDTH_MIN = 208;
 const WIDTH_MAX = 360;
@@ -894,7 +894,7 @@ export function RailRow({
       {/* AJ-E1532 with D-38: the tool (its own app's icon), and the account serving it now (its avatar
           follows the session when it switches accounts). */}
       <AppIcon {...appOfSession(session)} size={16} />
-      <AccountAvatar account={{ folder: session.account_id }} label={session.account_label} size={16} />
+      <ProfileBadge app={sessionAppKey(session)} name={session.account_label} />
     </button>
   );
 }

@@ -209,11 +209,11 @@ describe("the accounts that worked in a project", () => {
 });
 
 describe("rows say which account serves them, in words", () => {
-  it("a session row: the tool on the account, and its avatar beside the tool's mark", () => {
+  it("a session row: the tool on the account, and its App's dot beside the tool's mark", () => {
     render(<RailRow session={session("s1")} selected={false} onSelect={() => {}} density="comfortable" now={NOW} />);
     const row = screen.getByRole("button");
     expect(row.textContent).toContain("Claude Code on Work Max");
-    expect(within(row).getByTestId("account-avatar").title).toBe("Work Max");
+    expect(within(row).getByTestId("profile-badge").title).toBe("Work Max");
   });
 
   it("a session row shows its project's mark only where the list isn't grouped by project", () => {
@@ -245,7 +245,8 @@ describe("rows say which account serves them, in words", () => {
     );
     const heading = screen.getByTestId("rail-project");
     expect(within(heading).getByTestId("mark-project").getAttribute("data-kind")).toBe("letters");
-    expect(within(heading).getByTestId("account-avatar").getAttribute("data-live")).toBe("true");
+    // The Apps that worked there, by their dots; one serving a live session ringed.
+    expect(within(heading).getByTestId("app-stack").querySelector("[data-live='true'] [data-testid='profile-badge']")).toBeTruthy();
     // The accounts describe the heading; its name stays the project's.
     expect(heading.textContent).not.toContain("Work Max");
     expect(heading.getAttribute("aria-describedby")).toBeTruthy();

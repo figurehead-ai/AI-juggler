@@ -100,9 +100,8 @@ describe("AJ-E1529 the rail's share of outside conversations", () => {
     // Its tool, in words: the mark beside it is hidden from screen readers
     // (QA, walk 21).
     expect(row.textContent).toContain("Claude Code on Work Max");
-    // AJ-E1532: the account at a glance — its avatar, initials and colour —
-    // beside the tool's mark.
-    expect(row.querySelector("[data-testid='account-avatar']")?.getAttribute("title")).toBe("Work Max");
+    // The App at a glance (colour is the Apps'): its dot beside the tool's mark.
+    expect(row.querySelector("[data-testid='profile-badge']")?.getAttribute("title")).toBe("Work Max");
     expect(row.querySelector("[data-tool-mark], svg")).toBeTruthy();
     fireEvent.click(row);
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ id: "c" }));

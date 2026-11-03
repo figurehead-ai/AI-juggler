@@ -8,7 +8,7 @@
  */
 import { useId, type JSX, type ReactNode } from "react";
 import { useItemMenu } from "./ItemMenu";
-import { AccountStack } from "./Avatar";
+import { AppStack } from "./ProfileBadge";
 import { ProjectMark } from "./ProjectMark";
 import { IconPin } from "./icons";
 import { homeRelative, projectStats } from "../lib/project-words";
@@ -84,7 +84,7 @@ export function ProjectRow({
           )}
           <span className="sr-only">{project.pinned ? ", pinned" : ""}</span>
         </span>
-        <AccountStack accounts={accounts} size={14} />
+        <AppStack apps={accounts} />
       </button>
       {/* The accounts are its description, outside it: its name stays
           the project's (AJ-E1532). */}
@@ -147,7 +147,7 @@ export function RailProjectHeader({
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
           {children}
-          <AccountStack accounts={accounts} size={14} />
+          <AppStack apps={accounts} />
           <span className="text-label font-normal text-muted">{count}</span>
         </span>
       </button>
