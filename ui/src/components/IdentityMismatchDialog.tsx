@@ -109,7 +109,7 @@ export function IdentityMismatchDialog(): JSX.Element | null {
                 Use {cliAppName(check.provider, alternative.account_label)} ({launchSettingsName(alternative.recipe_name)})
               </span>
               {/* The address whole, never broken across lines. */}
-              <span className="opacity-90">
+              <span>
                 Signed in as <span className="whitespace-nowrap">{check.detected}</span>
               </span>
             </button>
