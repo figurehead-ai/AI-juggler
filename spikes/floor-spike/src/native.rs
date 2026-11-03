@@ -222,8 +222,10 @@ impl Gpu {
     }
 }
 
-pub fn open(app: &AppHandle, scene: &'static Scene, anim: u32, on_top: bool, opened: Instant) -> tauri::Result<Native> {
-    let window = tauri::window::WindowBuilder::new(app, "floor-native").title("Floor — native wgpu").inner_size(1278.0, 798.0).always_on_top(on_top).focused(true).build()?;
+/// `art_surface`: draw into a surface the size of the art (852x532) and let the window system scale it up
+/// with hard edges, as the web canvas does, instead of a surface the size of the window.
+pub fn open(app: &AppHandle, scene: &'static Scene, anim: u32, on_top: bool, art_surface: bool, size: (f64, f64), opened: Instant) -> tauri::Result<Native> {
+    let window = tauri::window::WindowBuilder::new(app, "floor-native").title("Floor — native wgpu").inner_size(size.0, size.1).always_on_top(on_top).focused(true).build()?;
     let size = window.inner_size()?;
     // wgpu 30 takes the display handle when the instance is made (Metal, Vulkan on X11/Wayland, DX12).
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_with_display_handle(Box::new(window.clone())));
@@ -233,7 +235,9 @@ pub fn open(app: &AppHandle, scene: &'static Scene, anim: u32, on_top: bool, ope
         let (w, inst) = (window.clone(), instance.clone());
         app.run_on_main_thread(move || {
             let target = unsafe { wgpu::SurfaceTargetUnsafe::from_window(&w) }.expect("window handle");
-            let _ = stx.send(unsafe { inst.create_surface_unsafe(target) }.expect("surface"));
+            let surface = unsafe { inst.create_surface_unsafe(target) }.expect("surface");
+            if art_surface { nearest_layer(&w); }
+            let _ = stx.send(surface);
         })?;
     }
     let surface = srx.recv().expect("surface from the main thread");
@@ -241,13 +245,14 @@ pub fn open(app: &AppHandle, scene: &'static Scene, anim: u32, on_top: bool, ope
     let stats = Arc::new(Mutex::new(Stats::default()));
     let (st, w2, app2, tx2) = (stats.clone(), window.clone(), app.clone(), tx.clone());
     std::thread::Builder::new().name("floor-render".into()).spawn(move || {
-        render_loop(instance, surface, scene, anim, (size.width, size.height), rx, tx2, st, w2, app2, opened);
+        let size = if art_surface { (scene.meta.art_w as u32, scene.meta.art_h as u32) } else { (size.width, size.height) };
+        render_loop(instance, surface, scene, anim, size, art_surface, rx, tx2, st, w2, app2, opened);
     })?;
     Ok(Native { tx, stats })
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_loop(instance: wgpu::Instance, surface: wgpu::Surface<'static>, scene: &'static Scene, anim: u32, size: (u32, u32), rx: Receiver<Msg>, tx: Sender<Msg>, stats: Arc<Mutex<Stats>>, window: tauri::Window, app: AppHandle, opened: Instant) {
+fn render_loop(instance: wgpu::Instance, surface: wgpu::Surface<'static>, scene: &'static Scene, anim: u32, size: (u32, u32), art_surface: bool, rx: Receiver<Msg>, tx: Sender<Msg>, stats: Arc<Mutex<Stats>>, window: tauri::Window, app: AppHandle, opened: Instant) {
     // A real GPU when there is one; the software adapter (WARP, lavapipe) on machines without, such as CI.
     let ask = |fallback: bool| pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions { power_preference: wgpu::PowerPreference::LowPower, compatible_surface: Some(&surface), force_fallback_adapter: fallback, ..Default::default() }));
     let adapter = ask(false).or_else(|_| ask(true)).expect("adapter");
@@ -294,8 +299,10 @@ fn render_loop(instance: wgpu::Instance, surface: wgpu::Surface<'static>, scene:
         };
         match msg {
             Some(Msg::Resize(w, h)) if w > 0 && h > 0 => {
-                config.width = w;
-                config.height = h;
+                if !art_surface {
+                    config.width = w;
+                    config.height = h;
+                }
                 surface.configure(&gpu.device, &config);
                 present(&mut gpu, start.elapsed().as_secs_f32());
             }
@@ -319,6 +326,23 @@ fn render_loop(instance: wgpu::Instance, surface: wgpu::Surface<'static>, scene:
         }
     }
 }
+
+/// Makes the window's Metal layer scale its (smaller) drawable up with hard edges.
+#[cfg(target_os = "macos")]
+fn nearest_layer(w: &tauri::Window) {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    let Ok(view) = w.ns_view() else { return };
+    unsafe {
+        let view = &*(view as *mut AnyObject);
+        let layer: *mut AnyObject = msg_send![view, layer];
+        if layer.is_null() { return; }
+        let nearest = objc2_foundation::NSString::from_str("nearest");
+        let _: () = msg_send![&*layer, setMagnificationFilter: &*nearest];
+    }
+}
+#[cfg(not(target_os = "macos"))]
+fn nearest_layer(_: &tauri::Window) {}
 
 /// Whether the window can be seen. AppKit wants this asked on the main thread.
 fn ask_visibility(app: &AppHandle, window: &tauri::Window, tx: &Sender<Msg>) {

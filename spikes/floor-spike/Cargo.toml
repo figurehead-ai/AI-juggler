@@ -22,6 +22,7 @@ bytemuck = { version = "1", features = ["derive"], optional = true }
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSResponder", "NSGraphics"] }
+objc2-foundation = { version = "0.3", features = ["NSString"] }
 
 [features]
 default = ["web", "native"]

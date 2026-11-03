@@ -30,6 +30,10 @@ struct Args {
     capture: Option<String>,
     /// Keep the Floor window above other apps' windows, so a measured "visible" run is really visible.
     on_top: bool,
+    /// Native only: a surface the size of the art, scaled up by the window system.
+    art_surface: bool,
+    /// The Floor window's size in points.
+    size: (f64, f64),
 }
 
 fn args() -> Args {
@@ -43,6 +47,8 @@ fn args() -> Args {
         exit_after: get("--exit-after").and_then(|s| s.parse().ok()),
         capture: get("--capture"),
         on_top: v.iter().any(|a| a == "--on-top"),
+        art_surface: v.iter().any(|a| a == "--art-surface"),
+        size: get("--size").and_then(|s| { let (w, h) = s.split_once('x')?; Some((w.parse().ok()?, h.parse().ok()?)) }).unwrap_or((1278.0, 798.0)),
     }
 }
 
@@ -132,7 +138,7 @@ fn open_floor_window(app: &AppHandle, kind: &str) -> tauri::Result<()> {
         "web" => {
             WebviewWindowBuilder::new(app, "floor-web", WebviewUrl::App(format!("floor.html?anim={}", a.anim).into()))
                 .title("Floor — Canvas 2D")
-                .inner_size(1278.0, 798.0)
+                .inner_size(a.size.0, a.size.1)
                 .always_on_top(a.on_top)
                 .focused(true)
                 .build()?;
@@ -140,7 +146,7 @@ fn open_floor_window(app: &AppHandle, kind: &str) -> tauri::Result<()> {
         #[cfg(feature = "native")]
         "native" => {
             let opened = OPENED.lock().unwrap().unwrap();
-            let n = native::open(app, scene(), a.anim, a.on_top, opened)?;
+            let n = native::open(app, scene(), a.anim, a.on_top, a.art_surface, a.size, opened)?;
             app.manage(n);
         }
         _ => {}
@@ -195,11 +201,13 @@ fn main() {
                 after(s, &h, |app| {
                     let app2 = app.clone();
                     let _ = app.run_on_main_thread(move || {
-                        if let Some((pos, size, sf)) = floor_window_geometry(&app2) {
-                            let _ = tauri::window::WindowBuilder::new(&app2, "cover")
+                        if let Some((_pos, _size, _sf)) = floor_window_geometry(&app2) {
+                            let (pos, size, sf) = match app2.primary_monitor() { Ok(Some(m)) => (*m.position(), *m.size(), m.scale_factor()), _ => return };
+                            // An opaque window with a solid page over the whole Floor window.
+                            let _ = WebviewWindowBuilder::new(&app2, "cover", WebviewUrl::App("cover.html".into()))
                                 .title("cover")
-                                .position(pos.x as f64 / sf - 20.0, pos.y as f64 / sf - 20.0)
-                                .inner_size(size.width as f64 / sf + 40.0, size.height as f64 / sf + 40.0)
+                                .position(pos.x as f64 / sf, pos.y as f64 / sf)
+                                .inner_size(size.width as f64 / sf, size.height as f64 / sf)
                                 .always_on_top(true)
                                 .build();
                             log(serde_json::json!({ "event": "covered" }));

@@ -28,6 +28,17 @@ def new_processes(before):
     return out
 
 
+def all_cpu():
+    out = {}
+    for p in psutil.process_iter(['name']):
+        try:
+            t = p.cpu_times()
+            out[p.pid] = (p.info['name'], t.user + t.system)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    return out
+
+
 def busy():
     t = psutil.cpu_times()
     idle = t.idle + getattr(t, 'iowait', 0.0)
@@ -63,10 +74,14 @@ def run(kind, anim):
     procs = new_processes(before)
     names = sorted({p.name() for p in procs if p.is_running()})
     c0, m0 = cpu_and_mem(procs)
+    a0 = all_cpu()
     b0, t0 = busy(), time.time()
     time.sleep(WINDOW)
     c1, m1 = cpu_and_mem(procs)
     b1, secs = busy(), time.time() - t0
+    a1 = all_cpu()
+    top = sorted(((a1[p][1] - a0[p][1], a1[p][0]) for p in a1 if p in a0), reverse=True)[:6]
+    top_users = [f'{n}: {round(d / secs * 100, 1)}%' for d, n in top if d > 0]
     try:
         proc.wait(timeout=60)
     except subprocess.TimeoutExpired:
@@ -74,7 +89,7 @@ def run(kind, anim):
     th.join(timeout=5)
     stats = next((e for e in events if e.get('event') == 'frame_stats'), {})
     return {
-        'kind': kind, 'anim': anim, 'processes': names, 'cpu_pct': round((c1 - c0) / secs * 100, 1), 'machine_cpu_pct': round((b1 - b0) / secs * 100, 1), 'rss_mb': round(m1, 1),
+        'kind': kind, 'anim': anim, 'processes': names, 'cpu_pct': round((c1 - c0) / secs * 100, 1), 'machine_cpu_pct': round((b1 - b0) / secs * 100, 1), 'rss_mb': round(m1, 1), 'top_cpu_users': top_users,
         'first_frame_ms': next((round(e['ms']) for e in events if e.get('event') == 'first_frame'), None),
         'frames': stats.get('frames'), 'draw_ms_per_frame': round(stats['draw_ms'] / stats['frames'], 2) if stats.get('frames') else None,
         'adapter': next((e['info'] for e in events if e.get('event') == 'adapter'), None), 'exit_code': proc.returncode, 'log_tail': other[-6:],

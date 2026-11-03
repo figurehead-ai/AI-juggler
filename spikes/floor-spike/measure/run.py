@@ -122,7 +122,8 @@ def run(kind, anim, extra=(), window=WINDOW, settle=SETTLE, label=None, long_sam
     t_end = {r['pid']: secs(r['time']) for r in rows2 if r['pid'] in pids}
     mem_end = footprint_mb(pids)
     stop.set()
-    cpu = sum(t_end.get(p, t_start.get(p, 0)) - t_start.get(p, 0) for p in pids) / elapsed * 100
+    by_proc = {f'{names.get(p, "?")}#{p}': round((t_end.get(p, t_start.get(p, 0)) - t_start.get(p, 0)) / elapsed * 100, 2) for p in pids}
+    cpu = sum(by_proc.values())
     proc.wait(timeout=total + 30)
     th.join(timeout=2)
     first = next((e['ms'] for e in events if e.get('event') == 'first_frame'), None)
@@ -131,7 +132,7 @@ def run(kind, anim, extra=(), window=WINDOW, settle=SETTLE, label=None, long_sam
         'label': label or f'{kind} anim={anim} {" ".join(extra)}'.strip(),
         'kind': kind, 'anim': anim, 'extra': list(extra), 'seconds': round(elapsed, 1),
         'processes': {str(p): names.get(p, '?') for p in sorted(pids)},
-        'cpu_pct': round(cpu, 2), 'top_cpu_pct': top_cpu, 'top_power': top_pow,
+        'cpu_pct': round(cpu, 2), 'cpu_by_process': by_proc, 'top_cpu_pct': top_cpu, 'top_power': top_pow,
         'mem_mb_start': mem_start, 'mem_mb_end': mem_end, 'mem_total_start': round(sum(mem_start.values()), 1), 'mem_total_end': round(sum(mem_end.values()), 1),
         'rss_mb_start': round(sum(rss_start.values()) / 1024, 1), 'mem_marks': mem_mid,
         'gpu_util_avg': round(statistics.mean(gpu), 1) if gpu else None, 'first_frame_ms': first, 'frame_stats': stats,
@@ -148,14 +149,20 @@ def main():
     gpu_idle = [gpu_util() for _ in range(5) if not time.sleep(1)]
     results['gpu_idle_baseline'] = round(statistics.mean([g for g in gpu_idle if g is not None]), 1)
     plan = [('none', 0, ())]
-    for kind in ('web', 'native'):
-        plan += [(kind, 0, ()), (kind, 10, ()), (kind, 30, ()), (kind, 10, ('--cover-after', '4')), (kind, 10, ('--minimize-after', '4'))]
+    if '--followup' in sys.argv:
+        # an opaque cover, per-process CPU, and the native window drawing at the art's own size
+        plan = [('web', 10, ('--cover-after', '4')), ('native', 10, ('--cover-after', '4')), ('native', 10, ('--minimize-after', '4')),
+                ('native', 0, ('--art-surface',)), ('native', 10, ('--art-surface',)), ('native', 30, ('--art-surface',)),
+                ('native', 10, ('--art-surface', '--cover-after', '4')), ('native', 10, ('--art-surface', '--minimize-after', '4'))]
+    else:
+        for kind in ('web', 'native'):
+            plan += [(kind, 0, ()), (kind, 10, ()), (kind, 30, ()), (kind, 10, ('--cover-after', '4')), (kind, 10, ('--minimize-after', '4'))]
     for kind, anim, extra in plan:
         r = run(kind, anim, extra)
         results['runs'].append(r)
         print(json.dumps({k: r[k] for k in ('label', 'cpu_pct', 'top_power', 'mem_total_start', 'gpu_util_avg', 'first_frame_ms')}), file=sys.stderr, flush=True)
         time.sleep(2)
-    if not QUICK:
+    if not QUICK and '--followup' not in sys.argv:
         for kind in ('web', 'native'):
             r = run(kind, 10, (), window=600, label=f'{kind} anim=10, 10 minutes', long_samples=[60, 300, 590])
             results['runs'].append(r)
