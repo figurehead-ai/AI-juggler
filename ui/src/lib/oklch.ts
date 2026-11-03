@@ -58,6 +58,22 @@ export function contrast(a: number, b: number): number {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
+/** An sRGB hex colour (`#rrggbb`) in OKLCH. */
+export function hexOklch(hex: string): Oklch {
+  const channel = (offset: number) => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const [r, g, b] = [channel(1), channel(3), channel(5)];
+  const l1 = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m1 = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s1 = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const l = 0.2104542553 * l1 + 0.793617785 * m1 - 0.0040720468 * s1;
+  const a = 1.9779984951 * l1 - 2.428592205 * m1 + 0.4505937099 * s1;
+  const bb = 0.0259040371 * l1 + 0.7827717662 * m1 - 0.808675766 * s1;
+  return { l, c: Math.hypot(a, bb), h: ((Math.atan2(bb, a) * 180) / Math.PI + 360) % 360 };
+}
+
 /** ΔE in OKLab (straight-line distance; 0.02 is about a just-noticeable step). */
 export function deltaE(x: Oklch, y: Oklch): number {
   const ab = ({ l, c, h }: Oklch) => [l, c * Math.cos((h * Math.PI) / 180), c * Math.sin((h * Math.PI) / 180)];

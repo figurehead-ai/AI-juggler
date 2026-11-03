@@ -10,9 +10,10 @@ import { buildLines, foldSections } from "./rail-lines";
 import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords } from "./rail-places";
 import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parseView } from "./rail-view";
 import { parseSeen } from "./seen";
-import { contrast, luminance } from "./oklch";
+import { contrast, deltaE, hexOklch, luminance } from "./oklch";
+import styles from "../styles.css?raw";
 import { swatchOf } from "./palette";
-import { PROFILE_HUES, STATUS_HUES } from "./marks";
+import { PROFILE_HUES, STATUS_MIN_DELTA_E } from "./marks";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { InstanceInfo } from "./bridge";
 
@@ -261,13 +262,21 @@ describe("the seen mark is read guarded (AJ-E2107)", () => {
   });
 });
 
-describe("profile badges (AJ-E2104 Req.2)", () => {
-  const apart = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
-  it("white letters 4.5:1 or better, on hues 20° or more from every status colour", () => {
+describe("profile badges (AJ-E2104 Req.2, AJ-E3206)", () => {
+  // Every theme's status colours, as styles.css defines them.
+  const status = [...styles.matchAll(/--color-(live|success|warning|danger):\s*(#[0-9a-fA-F]{6})/g)].map(([, name, hex]) => ({ name: name!, colour: hexOklch(hex!) }));
+  it("white letters 4.5:1 or better, each mark measurably apart from every status colour in both themes", () => {
+    expect(status.length).toBe(8);
     for (const hue of PROFILE_HUES) {
       expect(contrast(luminance(swatchOf(hue)), 1), `hue ${hue}`).toBeGreaterThanOrEqual(4.5);
-      for (const status of STATUS_HUES) expect(apart(hue, status), `${hue} vs ${status}`).toBeGreaterThanOrEqual(20);
+      for (const { name, colour } of status) expect(deltaE(swatchOf(hue), colour), `${hue} vs ${name}`).toBeGreaterThanOrEqual(STATUS_MIN_DELTA_E);
     }
+  });
+  it("the first Apps, and the first App and first Account, the most distinct", () => {
+    const [first, second, third] = PROFILE_HUES.map(swatchOf);
+    expect(deltaE(first!, second!)).toBeGreaterThanOrEqual(0.15);
+    expect(Math.min(deltaE(first!, third!), deltaE(second!, third!))).toBeGreaterThanOrEqual(0.08);
+    expect(deltaE(first!, swatchOf(PROFILE_HUES[PROFILE_HUES.length / 2]!))).toBeGreaterThanOrEqual(0.2);
   });
 });
 

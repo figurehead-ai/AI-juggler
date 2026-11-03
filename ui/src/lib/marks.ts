@@ -32,7 +32,7 @@ import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import { cliAppId, cliAppKey, desktopAppKey } from "./app-name";
 import { PROFILE_HUES } from "./mark-hues";
 
-export { PROFILE_HUES, STATUS_HUES } from "./mark-hues";
+export { PROFILE_HUES, STATUS_MIN_DELTA_E } from "./mark-hues";
 
 /** A slot's colour, as CSS (the same in both themes). */
 function slotColor(slot: number): string {
