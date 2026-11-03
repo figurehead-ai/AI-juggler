@@ -380,5 +380,19 @@
 | AJ-E3403 | One composer for the sessions AI Juggler can answer | E34-reply-and-read.md | P0 | M | AJ-E3401 |
 | AJ-E3404 | Where the input would be: how this session can be answered | E34-reply-and-read.md | P0 | S | AJ-E3403 |
 | AJ-E3405 | Quick reply from Needs you and a notification | E34-reply-and-read.md | P0 | S | AJ-E3403, AJ-E3404 |
-Total: 378 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3501 | The Floor window: crates, a native surface, input and the draw-on-change loop | E35-the-floor.md | P0 | L | — |
+| AJ-E3502 | Memory settled: the drawables held while animating | E35-the-floor.md | P0 | S | AJ-E3501 |
+| AJ-E3503 | The office model: cells, order, sizes, floors and saved choices | E35-the-floor.md | P0 | L | — |
+| AJ-E3504 | Style families as tool data, and each area's kit | E35-the-floor.md | P0 | M | AJ-E3503 |
+| AJ-E3505 | The feed: one snapshot from the backend, for the Floor and its list | E35-the-floor.md | P0 | L | AJ-E3503 |
+| AJ-E3506 | Models, textures and the scene | E35-the-floor.md | P0 | L | AJ-E3503, AJ-E3504 |
+| AJ-E3507 | The renderer: the pixel look, picking and the orbit camera | E35-the-floor.md | P0 | L | AJ-E3501, AJ-E3506 |
+| AJ-E3508 | The floor logo: the tool's mark and the Account's initials | E35-the-floor.md | P0 | M | AJ-E3505, AJ-E3507 |
+| AJ-E3509 | Signals from real data: every row of the table | E35-the-floor.md | P0 | L | AJ-E3505, AJ-E3507 |
+| AJ-E3510 | Doors and play: hover, clicks, keys and the fun touches | E35-the-floor.md | P0 | M | AJ-E3509 |
+| AJ-E3511 | Settings › The Floor, and Re-create | E35-the-floor.md | P0 | S | AJ-E3503 |
+| AJ-E3512 | The Floor list in the main window: the same facts, accessible | E35-the-floor.md | P0 | M | AJ-E3505, AJ-E3510, AJ-E3511 |
+| AJ-E3513 | The Floor's gates: a gallery of golden frames, budgets and the other systems | E35-the-floor.md | P0 | M | AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512 |
+| AJ-E3514 | Walked by hand: persona walks on the release build | E35-the-floor.md | P0 | S | AJ-E3513 |
+Total: 392 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

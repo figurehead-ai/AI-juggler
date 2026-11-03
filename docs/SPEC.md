@@ -666,6 +666,159 @@ glossed on first use in product copy.)
 - [x] Cleanup Centre + tiers + audit specified
 - [x] D-09 strings recorded; deep/11 supersessions noted (wireframes 01-09 own layout)
 
+### 9.7 The Floor (D-67, ADR-0026)
+
+The Floor shows the whole company at a glance: every App as an area
+of an office, every session as a person at a desk, every subagent as a
+helper beside them, and the Accounts and This Mac in the lobby. It is a
+second, native window beside the main one, low-poly 3D drawn as pixel
+art. **Everything on it is a signal or a way to find one**: where work
+is busy, waiting on you, stuck, crashing or overloaded, and which
+Account is running out. Decoration only makes areas recognisable.
+Research, measurements and prototypes: `docs/research/floor/`.
+
+**Opening it.** The Floor button in the header (beside the user
+menu), Window › The Floor in the menu bar, the tray menu, and ⌘⇧M
+(which also brings the main window back from the Floor). The window
+opens on the floor holding the App most in need of you, else floor 1.
+Closing it ends its drawing and frees its GPU memory.
+
+**Floors and areas.**
+
+- A floor is a lobby (the lift with the floor number, the directory,
+  the usage board, This Mac's rack, the notice board) and a grid of
+  cells: two rows, back and front, either side of an aisle, and as
+  many columns as half the floor's App limit.
+- **At most 10 Apps a floor** (Settings › The Floor, 4–16). A column
+  holds at most two areas.
+- An App's size follows its sessions:
+
+  | Size | Sessions | Cells | Desks |
+  |---|---|---|---|
+  | S | up to 6 | 1 | 6 |
+  | M | up to 12 | 2 side by side | 12 |
+  | L | up to 24 | a 2 × 2 block, the aisle running through | 24 |
+
+  Beyond 24 an annex of the same App opens next in order, signed
+  "App · annex".
+- **Order is fixed**: the order the Floor first saw each App. Apps are
+  placed first-fit, columns left to right, back row before front, on
+  the first floor with room; a new floor opens when none has room.
+- **Stability**: an area moves only when an App before it in the
+  order changes size, and then it moves forward in the same reading
+  order. Areas before the change never move.
+- **Grow at once, shrink after a day** below the smaller size. A closed
+  App's cells stay empty (a lounge) until the next reflow or
+  Re-create.
+- **Free cells** are the floor's kitchen (the first) and lounges.
+- Each pool has a meeting room on the floor where most of its members
+  sit.
+
+**Desks.** A session keeps its desk for life: desk *i* belongs to
+session *i* while the area keeps its size, and two spare desks stand
+ready. Desks are placed in groups by the area's layout type (pods,
+benches, pinwheels at 120°, scattered, long tables, diagonal rows,
+radial) from the aisle inwards, turned a little in calm families and
+loosely in Scatter. A crowded area gives up its nook, then uses pods,
+before any session goes without a desk.
+
+**Each area's look is chosen once and kept.** The App's tool names a
+style family (its adapter's data): Claude Code a workshop, the Claude
+app a studio, Codex industrial, OpenCode a maker garage, Gemini CLI a
+campus, Cursor a lab, other tools a neutral office. The first time the
+Floor sees an App it chooses the layout type and a seed for the rest
+(floor, wall, desk model, chairs, plants, divider, nook, sign) and
+saves them. Restarts, reflows and new versions keep them.
+**Re-create the office…** picks again for every App, after a
+confirmation; positions are re-placed in the same order, and nothing
+outside the Floor changes.
+
+**Finding an area.**
+
+- **The tool's logo and the initials of the App's Account are printed
+  into the area's floor**, at 35% opacity, ringed in the App's colour,
+  readable from the default angle. The mark is drawn as the main window
+  draws it (`ToolMark`; a desktop app's own icon, read at run time);
+  the initials come from the Account's name. With no known Account the
+  App's own initials show; with no mark, the tool's name in letters.
+  Nothing is bundled.
+- Two Apps of one tool on one Account carry the same logo: the App's
+  colour on the ring and its full name on the area's sign tell them
+  apart.
+- **The sign**: one plate hung over the way in, readable from both
+  sides, with the tool's mark, the App's full name, an edge in its
+  colour and its Account's battery. A flag in the App's colour stands
+  at the corner of the way in.
+- From far away a chip floats over each area: its name and counts.
+
+**Signals.** Colour is never the only cue: each state has a pose, an
+icon and a word, in the tooltip, the chip and the list view.
+
+| Signal (source) | Up close | From far | Limits | A click opens |
+|---|---|---|---|---|
+| Working (running, no need) | Typing, code scrolling, desk lamp on | — | Animates only in view | The session |
+| Idle (open, not working) | Leaning back with a mug | — | — | The session |
+| Waiting on you (a question or a permission) | Stands and waves, `!` balloon, a spotlight on the desk | `!N` on the chip | One balloon a desk | The session, at the question |
+| Stuck (the stuck heuristic) | Scratches head, `?`, frozen screen, amber lamp pulsing | `?N` | — | The session |
+| Crashed (failed) | Hands on head, `X`, error screen, smoke | `XN` | Smoke stops after 10 minutes | The session, at the error |
+| Done (review it) | Stretches, green tick | — | 15 minutes, then idle | The session |
+| Limit (quota-blocked, or its Account out) | Asleep at the desk, `Z`, screen off | `OUT` | — | The Account in Usage |
+| Subagents (running) | Helpers in the App's colour round the desk | — | 6 drawn, then `+N` | The session's subagents |
+| App overloaded (its CPU share over the threshold for 2 minutes) | A small fire on its busiest desk, smoke, orange flicker; people never burn | `HOT` | One fire an App | The App's processes |
+| App unused (last active) | Under a day: dim, chairs pushed out. Over a week: dust, boxes, wilted plants. Over a month: lights off | `UNUSED` | Desks kept a day after a session ends | The App |
+| Account low (usage left) | A 4-segment battery on its Apps' signs: yellow under 40%, blinking amber under 20%; the lobby's usage board | `12%` | — | The Account in Usage |
+| This Mac's load | The rack's lights rise, green to red | — | — | This Mac |
+| This Mac overloaded (over its threshold for 5 minutes) | Red alert: a red wash breathing at 0.5 Hz, beacons at lifts and signs, a banner with the number; never a flash (WCAG 2.3.1) | The banner | Ends with the alert's own hysteresis | This Mac |
+| Tasks (the App's open tasks) | A count on the area's whiteboard | — | — | Tasks, for the App |
+| Notifications | Notes on the lobby's notice board | — | — | Notifications |
+
+**Hover and play.** The thing under the pointer gets a light outline
+and a tooltip (its name and state); a person looks up. Plants rustle,
+ping-pong plays a rally, the coffee machine steams, beanbags squash,
+the arcade lights up, the office cat sits; none of these navigates. A
+click opens its target in the main window and brings it forward.
+
+**The camera.** Drag or two-finger scroll pans; right-drag, ⌥-drag, a
+two-finger twist, Q/E or the arrows turn and tilt (tilt 18°–79°);
+pinch, ⌘-scroll or +/− zoom towards the pointer, out to the building
+and back to the floor under it; H resets; 0 and the floor numbers pick
+the building or a floor. Walls between the camera and the room vanish
+with what hangs on them.
+
+**Settings › The Floor** (keys `floor.*`): open the Floor when AI
+Juggler starts (off); keep it on top (off); Apps per floor (10);
+Motion: Follow the system, Full (8 fps), Calm (4 fps, no walkers) or
+Off; show unused Apps' decay (on); Reset the view; Re-create the
+office…; under More, Apps hidden from the Floor. Re-create explains
+what it changes and what it doesn't before it acts.
+
+**Stored.** Per App, in `floor_areas`: order, layout type, seed, size
+and since when it fitted a smaller size. The office seed and the
+settings in `app_settings`. The drawn logos in the registered local
+cache "Floor logos" (§12.0).
+
+**Accessible.** The main window's Floor list shows the same facts
+grouped by floor and App (state as glyph and word, session, subagents,
+tasks, project, Show on the Floor) and goes through the a11y gates.
+In the Floor window, Tab moves between areas (the camera follows),
+Enter opens, N jumps to the next one waiting on you.
+
+**Budgets** (on the release build, the maintainer's kind of Mac):
+
+| Case | Budget |
+|---|---|
+| Open, nothing moving | 0 frames after the first; < 0.1% of one core |
+| Animating, Full | ≤ 2% of one core; ≤ 1.5 ms of CPU a frame |
+| Covered, minimised or closed | 0 frames within 1 s |
+| Opening | First frame ≤ 400 ms; a data change on screen ≤ 100 ms |
+| Memory added | ≤ 150 MB open and still; ≤ 250 MB animating; 0 once closed |
+| Building the scene | ≤ 50 ms for 20 Apps and 150 sessions; a reflow ≤ 20 ms |
+
+**Platforms.** macOS in 0.5.0. The window, input and visibility live
+behind `juggler-window-events`; Windows (0.6) and Linux (0.7)
+implement it in their first releases (D-52), and until then the Floor
+entry says it isn't available on that system yet, and why.
+
 ## 10. Self-update & Provider updates
 
 - **App:** `tauri-plugin-updater` + GitHub Releases feed (`latest.json` via tauri-action), staged: download → verify signature → apply on quit or relaunch prompt; channel switch in settings; "check for updates" manual trigger; disable-able entirely.

@@ -1,0 +1,509 @@
+<title>The Floor · Office prototype</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap">
+<style>
+  :root {
+    --canvas: #0b0e14; --canvas-hi: #10141b; --surface: #151a23; --surface-2: #1b212c; --hairline: #2f3645;
+    --ink: #f3f5f9; --muted: #b0b8c5; --faint: #8e97a6;
+    --accent: #8787f6; --accent-hi: #a9a9ff; --accent-soft: #7c7cf41f;
+    --live: #22d3ee; --success: #34d399; --warning: #fbbf24; --danger: #f87171;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --canvas: #eceef3; --canvas-hi: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --hairline: #d7dbe3;
+      --ink: #161a22; --muted: #4b5466; --faint: #667085;
+      --accent: #4747d1; --accent-hi: #3434b8; --accent-soft: #4747d114;
+      --live: #0e7490; --success: #047857; --warning: #a16207; --danger: #b91c1c;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --canvas: #eceef3; --canvas-hi: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --hairline: #d7dbe3;
+    --ink: #161a22; --muted: #4b5466; --faint: #667085;
+    --accent: #4747d1; --accent-hi: #3434b8; --accent-soft: #4747d114;
+    --live: #0e7490; --success: #047857; --warning: #a16207; --danger: #b91c1c;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--canvas); color: var(--ink); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  button, select { font: inherit; color: inherit; }
+  .app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 16px; gap: 10px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+  h1 { font-size: 1.375rem; line-height: 1.25; margin: 0; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+  h1 .mark { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--live)); display: inline-block; }
+  .sub { color: var(--muted); font-size: .8125rem; }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: transparent; padding: 5px 10px; font-size: .8125rem; color: var(--muted); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .seg button + button { border-left: 1px solid var(--hairline); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+  .count { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--warning); color: #1d1726; font-size: .75rem; font-weight: 700; line-height: 18px; text-align: center; }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; min-height: 0; }
+  .stage { position: relative; border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; height: max(480px, calc(100vh - 96px)); background: var(--canvas-hi); }
+  canvas#floor { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; outline: none; }
+  canvas#floor:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+  .zoombar { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .zoombar .seg { box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+  .hint { position: absolute; right: 12px; bottom: 12px; font-size: .75rem; color: var(--faint); background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 4px 8px; border-radius: 6px; }
+  aside { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px; padding: 12px; min-width: 0; }
+  .card h2 { font-size: .9375rem; line-height: 1.35; margin: 0 0 8px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h2 small { color: var(--faint); font-weight: 500; font-size: .75rem; margin-left: auto; }
+  .tray { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 230px; overflow: auto; }
+  .tray button { width: 100%; text-align: left; display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; border: 1px solid transparent; background: var(--surface-2); cursor: pointer; }
+  .tray button:hover, .tray button:focus-visible { border-color: var(--accent); outline: none; }
+  .tray .t { font-size: .8125rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tray .m { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tray .f { font-size: .75rem; color: var(--faint); }
+  .ic { width: 18px; height: 18px; display: inline-grid; place-items: center; border-radius: 50%; border: 1.5px solid currentColor; font-size: 11px; font-weight: 800; line-height: 1; }
+  .empty { color: var(--faint); font-size: .8125rem; }
+  .insp .title { font-weight: 650; font-size: .9375rem; margin-bottom: 2px; }
+  .insp .meta { color: var(--muted); font-size: .8125rem; }
+  .insp ul { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: .8125rem; }
+  .insp li { display: flex; gap: 6px; align-items: baseline; }
+  .doors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .door { border: 1px solid var(--hairline); background: var(--surface-2); padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: .8125rem; }
+  .door.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .door:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+  .toast { margin-top: 8px; font-size: .75rem; color: var(--muted); min-height: 1em; }
+  .hud { font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; }
+  .hud b { font-weight: 600; color: var(--ink); text-align: right; }
+  .hud span { color: var(--muted); }
+  .ctl { display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .row label { font-size: .8125rem; color: var(--muted); min-width: 70px; }
+  .btn { border: 1px solid var(--hairline); background: var(--surface-2); padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: .8125rem; }
+  .btn:hover { border-color: var(--accent); }
+  .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+  .confirm { border: 1px solid var(--hairline); border-radius: 8px; padding: 8px 10px; font-size: .8125rem; color: var(--muted); background: var(--surface-2); }
+  .listview { display: none; }
+  .listwrap { overflow-x: auto; }
+  body.list .listview { display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: .8125rem; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+  th { color: var(--faint); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+  tbody th { text-transform: none; letter-spacing: 0; color: var(--ink); font-size: .8125rem; background: var(--surface-2); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (max-width: 900px) {
+    .main { grid-template-columns: minmax(0, 1fr); }
+    .stage { height: 70vh; min-height: 380px; }
+    .hint { display: none; }
+  }
+</style>
+
+<div class="app">
+  <header>
+    <h1><span class="mark" aria-hidden="true"></span>The Floor</h1>
+    <span class="sub" id="summary">Loading the office…</span>
+    <span class="sub">Drag to move · scroll to zoom · double-click a desk</span>
+    <span class="spacer"></span>
+    <div class="seg" role="group" aria-label="Floors" id="floors"></div>
+    <div class="seg" role="group" aria-label="View">
+      <button id="v-office" aria-pressed="true">Office</button>
+      <button id="v-list" aria-pressed="false">List</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div>
+      <div class="stage" id="stage">
+        <canvas id="floor" tabindex="0" role="img" aria-label="The office floor">
+          The office drawn as a picture. The same information is in the List view and the Needs you list.
+        </canvas>
+        <div class="zoombar">
+          <div class="seg" role="group" aria-label="Zoom">
+            <button data-zoom="far">Floor plan</button>
+            <button data-zoom="mid">Desks</button>
+            <button data-zoom="near">Up close</button>
+          </div>
+          <div class="seg"><button id="next-need">Next who needs you <kbd>N</kbd></button></div>
+        </div>
+      </div>
+      <section class="listview card" aria-label="List view" style="margin-top:12px">
+        <h2>Everything on the Floor, as a list <small id="list-count"></small></h2>
+        <div class="listwrap"><table id="list"></table></div>
+      </section>
+    </div>
+
+    <aside>
+      <section class="card" aria-labelledby="h-needs">
+        <h2 id="h-needs">Needs you <span class="count" id="needs-count">0</span><small>most urgent first</small></h2>
+        <ul class="tray" id="tray"></ul>
+      </section>
+      <section class="card insp" aria-labelledby="h-insp">
+        <h2 id="h-insp">Selected</h2>
+        <div id="insp"><p class="empty">Click a desk, a room or anything on the walls.</p></div>
+        <div class="toast" id="toast" aria-live="polite"></div>
+      </section>
+      <section class="card ctl" aria-labelledby="h-sim">
+        <h2 id="h-sim">Try it <small>synthetic data</small></h2>
+        <div class="row"><label>Company</label>
+          <div class="seg" id="preset" role="group" aria-label="Company size">
+            <button data-preset="small">Small</button><button data-preset="target">10 · 50 · 300</button><button data-preset="big">Big</button>
+          </div></div>
+        <div class="row"><label>Events</label>
+          <button class="btn" id="sc-overload" aria-pressed="false">App overload</button>
+          <button class="btn" id="sc-mac" aria-pressed="false">Mac overload</button>
+        </div>
+        <div class="row"><label></label>
+          <button class="btn" id="sc-close">Close an App</button>
+          <button class="btn" id="sc-week">+1 week idle</button>
+          <button class="btn" id="sc-pause" aria-pressed="false">Pause data</button>
+        </div>
+      </section>
+      <section class="card ctl" aria-labelledby="h-set">
+        <h2 id="h-set">Office settings <small>as in Settings</small></h2>
+        <div class="row"><label>Motion</label>
+          <div class="seg" id="motion" role="group" aria-label="Motion">
+            <button data-motion="full">Full</button><button data-motion="calm">Calm</button><button data-motion="off">Off</button>
+          </div></div>
+        <div class="row"><label>Light</label>
+          <div class="seg" id="light" role="group" aria-label="Lighting">
+            <button data-light="auto">With theme</button><button data-light="day">Day</button><button data-light="night">Evening</button>
+          </div></div>
+        <div class="row"><label>Office</label><button class="btn" id="recreate">Re-create the office…</button></div>
+        <div class="confirm" id="recreate-confirm" hidden>
+          New people, desks and rooms are drawn from a new seed. Your sessions, Apps and settings stay as they are.
+          <div class="row" style="margin-top:8px"><button class="btn" id="recreate-yes">Re-create</button><button class="btn" id="recreate-no">Cancel</button></div>
+        </div>
+      </section>
+      <section class="card" aria-labelledby="h-hud">
+        <h2 id="h-hud">Cost, measured live <small id="hud-state"></small></h2>
+        <div class="hud" id="hud"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+<div class="sr" aria-live="polite" id="announce"></div>
+
+<script src="office-engine.js"></script>
+<script>
+(function () {
+  'use strict';
+  const E = window.FloorEngine, DAY = E.DAY;
+  const qs = new URLSearchParams(location.search);
+  const MEASURE = qs.has('measure');
+  const HUES = [325, 115, 245, 50, 355, 185, 140, 305];
+
+  // ---------- synthetic company (generic names only) ----------
+  const ACCOUNTS = [
+    ['a1', 'Max · Team A'], ['a2', 'Max · Personal'], ['a3', 'Pro · ChatGPT'], ['a4', 'API key · Lab'],
+    ['a5', 'Plus · Side'], ['a6', 'Team · Studio'],
+  ];
+  const APPS = [
+    // id, name, short, account, running, lastActiveAgo
+    ['p1', 'Claude Code · Work', 'CCW', 'a1', true], ['p2', 'Claude app · Work', 'CAW', 'a1', true],
+    ['p3', 'Codex · Main', 'CXM', 'a3', true], ['p4', 'Claude Code · Lab', 'CCL', 'a4', true],
+    ['p5', 'OpenCode · Lab', 'OCL', 'a4', true], ['p6', 'Codex · Review', 'CXR', 'a3', true],
+    ['p7', 'Claude Code · Docs', 'CCD', 'a2', true], ['p8', 'Claude app · Home', 'CAH', 'a2', false, 5 * 3600e3],
+    ['p9', 'Gemini CLI · Side', 'GCS', 'a5', false, 9 * DAY], ['p10', 'Cursor · Studio', 'CUS', 'a6', false, 45 * DAY],
+    ['p11', 'Claude Code · Infra', 'CCI', 'a1', true], ['p12', 'Codex · Mobile', 'CXP', 'a3', true],
+    ['p13', 'Claude app · Lab', 'CAL', 'a4', true], ['p14', 'Claude Code · Data', 'CCA', 'a2', true],
+    ['p15', 'OpenCode · Side', 'OCS', 'a5', true], ['p16', 'Codex · Docs', 'CXD', 'a3', true],
+    ['p17', 'Claude Code · Web', 'CCB', 'a1', true], ['p18', 'Claude app · Studio', 'CAS', 'a6', true],
+    ['p19', 'Claude Code · QA', 'CCQ', 'a1', true], ['p20', 'Codex · Ops', 'CXO', 'a3', true],
+  ];
+  const TITLES = ['Fix login redirect', 'Add CSV export', 'Refactor cache layer', 'Write release notes', 'Migrate settings schema', 'Speed up search', 'Review pull request', 'Tidy test fixtures', 'Port charts to canvas', 'Draft the API guide', 'Find the memory leak', 'Upgrade the router', 'Add dark mode', 'Split the billing module', 'Fix flaky upload test', 'Index the audit log', 'Add retry to sync', 'Clean up feature flags', 'Localise error pages', 'Bench the query planner', 'Explain the build failure', 'Rename the user model', 'Cache thumbnails', 'Wire up webhooks'];
+  const PROJECTS = ['web-shop', 'api-gateway', 'docs-site', 'mobile-app', 'infra', 'data-pipeline', 'design-kit'];
+  const SUBTASKS = ['Explore tests', 'Run lint', 'Search usages', 'Draft docs', 'Check types', 'Review diff', 'Write tests', 'Bench query', 'Read the logs', 'Map the module'];
+  const STEPS = ['Fix X in module Y', 'Update the tests', 'Run the suite', 'Write the summary', 'Check the edge cases', 'Update the changelog'];
+
+  const PRESETS = { small: { apps: 5, live: 16, subs: 40 }, target: { apps: 10, live: 50, subs: 300 }, big: { apps: 20, live: 150, subs: 700 } };
+  let rnd = E.mulberry(7);
+  const R = () => rnd();
+  const pickR = a => a[(R() * a.length) | 0];
+  function weighted(pairs) { let t = R() * pairs.reduce((a, p) => a + p[1], 0); for (const [v, w] of pairs) { if ((t -= w) <= 0) return v; } return pairs[0][0]; }
+  let sid = 0, aid = 0;
+  function newSubagent() { return { id: 'g' + (++aid), task: pickR(SUBTASKS), state: weighted([['working', 6], ['waiting', 1]]) }; }
+  function newSession(appId, state) {
+    const n = 2 + ((R() * 4) | 0), doneN = (R() * n) | 0;
+    return {
+      id: 's' + (++sid), appId, state, title: pickR(TITLES), project: pickR(PROJECTS),
+      tasks: Array.from({ length: n }, (_, i) => ({ text: pickR(STEPS), done: i < doneN, doing: i === doneN })),
+      subagents: [], endedAt: state === 'ended' ? Date.now() - R() * 3600e3 : 0, cpuHot: false,
+    };
+  }
+  function makeModel(preset) {
+    rnd = E.mulberry(E.hash32(preset)); sid = 0; aid = 0;
+    const p = PRESETS[preset];
+    let apps = APPS.slice(0, p.apps);
+    if (preset === 'small') apps = [APPS[0], APPS[1], APPS[2], APPS[7], APPS[8]];
+    const model = {
+      accounts: ACCOUNTS.map(([id, name], i) => ({ id, name, lastUsedAgo: id === 'a6' && preset !== 'big' ? 45 * DAY : id === 'a5' ? 9 * DAY : 0, resetIn: (0.4 + i * 0.9) * 3600e3, usedPct: 20 + i * 13, limit: false })),
+      apps: apps.map(([id, name, short, accountId, running, ago], i) => ({ id, name, short, accountId, running, lastActiveAgo: ago || 0, hue: HUES[i % 8] + (i >= 8 ? 18 : 0), overloaded: false })),
+      sessions: [], pools: [], notices: [], mac: { cpu: 38, mem: 61, hotFor: 0, alertAfter: 300 }, stats: { doneToday: 14, endedToday: 23 },
+    };
+    const running = model.apps.filter(a => a.running);
+    for (let i = 0; i < p.live; i++) {
+      const app = running[i < running.length ? i : (R() * running.length * 1.6 | 0) % running.length];
+      const st = weighted([['working', 46], ['idle', 16], ['done', 10], ['asks', 6], ['stuck', 3], ['limit', 2], ['error', 2]]);
+      model.sessions.push(newSession(app.id, st));
+    }
+    for (const app of model.apps) for (let k = 0; k < (app.running ? 1 : 3 + (R() * 2 | 0)); k++) model.sessions.push(newSession(app.id, 'ended'));
+    // subagents spread over working sessions
+    const busy = model.sessions.filter(s => s.state === 'working' || s.state === 'asks' || s.state === 'stuck');
+    for (let i = 0; i < p.subs && busy.length; i++) pickR(busy).subagents.push(newSubagent());
+    const live = model.sessions.filter(s => s.state !== 'ended');
+    const crews = ['Release crew', 'Docs pair', 'Bug squad', 'Review loop'];
+    for (let k = 0; k < (preset === 'small' ? 1 : preset === 'big' ? 4 : 2); k++) {
+      const members = []; while (members.length < 3 + (k % 2) && live.length) { const s = pickR(live); if (!members.includes(s.id)) members.push(s.id); }
+      model.pools.push({ id: 'pool' + k, name: crews[k], members, step: k });
+    }
+    model.notices = [
+      { sev: 'warn', text: 'Max · Team A is at 82% of its 5-hour limit' },
+      { sev: 'info', text: 'A new version of Codex is installed' },
+      { sev: 'error', text: 'Claude Code · Lab stopped with an error' },
+    ];
+    return model;
+  }
+
+  // ---------- simulation ----------
+  const sim = { preset: 'target', overload: false, mac: false, paused: MEASURE };
+  let model = makeModel(sim.preset);
+  const NEXT = {
+    working: [['working', 70], ['done', 9], ['asks', 6], ['idle', 7], ['stuck', 2], ['error', 1.5], ['limit', 1]],
+    asks: [['asks', 70], ['working', 30]], error: [['error', 80], ['working', 20]], stuck: [['stuck', 70], ['working', 30]],
+    limit: [['limit', 85], ['working', 15]], done: [['done', 70], ['idle', 15], ['working', 10], ['ended', 5]],
+    idle: [['idle', 80], ['working', 16], ['ended', 4]],
+  };
+  function tick() {
+    const live = model.sessions.filter(s => s.state !== 'ended' && model.apps.find(a => a.id === s.appId).running);
+    for (let i = 0; i < 4 && live.length; i++) {
+      const s = pickR(live), before = s.state;
+      s.state = weighted(NEXT[s.state] || [['working', 1]]);
+      if (s.state === 'ended') s.endedAt = Date.now();
+      if (s.state !== before && E.NEEDS_YOU.has(s.state)) {
+        const app = model.apps.find(a => a.id === s.appId);
+        model.notices.unshift({ sev: s.state === 'error' ? 'error' : 'warn', text: `${app.name}: “${s.title}” ${E.STATES[s.state].word.toLowerCase()}` });
+        model.notices.length = Math.min(model.notices.length, 12);
+        view.noticeArrived();
+        announce(`${app.name}: ${s.title} — ${E.STATES[s.state].word}`);
+      }
+      if (s.state === 'done' && before !== 'done') model.stats.doneToday++;
+      if (s.state === 'ended' && before !== 'ended') model.stats.endedToday++;
+    }
+    // subagents come and go; tasks move along
+    for (const s of live) {
+      if (s.state === 'working' && R() < 0.12) s.subagents.push(newSubagent());
+      if (s.subagents.length && R() < 0.12) s.subagents.splice((R() * s.subagents.length) | 0, 1);
+      if (s.state === 'working' && R() < 0.1) { const t = s.tasks.find(x => !x.done); if (t) { t.done = true; t.doing = false; const nx = s.tasks.find(x => !x.done); if (nx) nx.doing = true; } }
+    }
+    if (R() < 0.08) { const app = pickR(model.apps.filter(a => a.running)); model.sessions.push(newSession(app.id, 'working')); }
+    // pools pass work along: a runner carries the folder
+    if (R() < 0.35 && model.pools.length) {
+      const p = pickR(model.pools); p.step++;
+      if (p.members.length > 1) view.poolHandOff(p.members[p.step % p.members.length], p.members[(p.step + 1) % p.members.length]);
+    }
+    // This Mac
+    const m = model.mac;
+    m.cpu = sim.mac ? 94 + R() * 5 : Math.max(12, Math.min(78, m.cpu + (R() - 0.5) * 14));
+    m.hotFor = m.cpu >= 90 ? m.hotFor + 60 : 0; // one tick stands for a minute of sustained load
+    // App overload: the busiest App catches fire at its two busiest desks
+    for (const a of model.apps) a.overloaded = false;
+    for (const s of model.sessions) s.cpuHot = false;
+    if (sim.overload) {
+      const app = model.apps[0]; app.overloaded = true;
+      model.sessions.filter(s => s.appId === app.id && s.state === 'working').sort((a, b) => b.subagents.length - a.subagents.length).slice(0, 2).forEach(s => s.cpuHot = true);
+    }
+    for (const acc of model.accounts) acc.resetIn = Math.max(0, acc.resetIn - 60e3);
+    view.setData(model);
+    refresh();
+  }
+  let simTimer = 0;
+  function runSim() { clearInterval(simTimer); if (!sim.paused) simTimer = setInterval(tick, 2400); }
+
+  // ---------- the view ----------
+  const canvas = document.getElementById('floor');
+  const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let selection = null, hudDirty = true, seedN = 1, lightMode = 'auto';
+  let motion = qs.get('motion') || (prefersReduced.matches ? 'off' : 'full');
+  const view = new E.FloorView(canvas, {
+    seed: 'office-1', motion, night: isNight(),
+    onSelect: h => { selection = h; renderInspector(); },
+    onFrame: () => { hudDirty = true; },
+    onNext: nextNeed, onFloors: () => renderFloors(),
+  });
+
+  function isNight() {
+    if (lightMode === 'day') return false; if (lightMode === 'night') return true;
+    const t = document.documentElement.dataset.theme;
+    if (t) return t === 'dark';
+    return !matchMedia('(prefers-color-scheme: light)').matches;
+  }
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => view.setNight(isNight()));
+  new MutationObserver(() => view.setNight(isNight())).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  prefersReduced.addEventListener('change', () => setMotion(prefersReduced.matches ? 'off' : 'full'));
+
+  // ---------- UI ----------
+  const $ = id => document.getElementById(id);
+  const ICON = { working: '◔', asks: '!', error: '✕', limit: '⌛', stuck: '?', done: '✓', idle: '‖', ended: '■' };
+  const COLOR = s => `var(--${{ working: 'live', asks: 'warning', error: 'danger', limit: 'warning', stuck: 'warning', done: 'success' }[s] || 'faint'})`;
+  const appOf = s => model.apps.find(a => a.id === s.appId);
+  const acctOf = a => model.accounts.find(x => x.id === a.accountId);
+  function ic(state) { return `<span class="ic" style="color:${COLOR(state)}" aria-hidden="true">${ICON[state]}</span>`; }
+  function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  function needsList() {
+    return model.sessions.filter(s => E.NEEDS_YOU.has(s.state) && appOf(s).running)
+      .sort((a, b) => E.STATES[a.state].rank - E.STATES[b.state].rank);
+  }
+  function refresh() {
+    const live = model.sessions.filter(s => s.state !== 'ended');
+    const working = live.filter(s => s.state === 'working').length;
+    const subs = live.reduce((n, s) => n + s.subagents.length, 0);
+    const needs = needsList();
+    $('summary').textContent = `${model.apps.length} Apps · ${live.length} sessions · ${subs} subagents · ${working} working`;
+    $('needs-count').textContent = needs.length;
+    const floorOf = s => { const d = view.layout.deskOf.get(s.id); return d ? d.floor + 1 : '–'; };
+    $('tray').innerHTML = needs.length ? needs.map(s => `<li><button data-sid="${s.id}">${ic(s.state)}<span style="min-width:0"><div class="t">${esc(s.title)}</div><div class="m">${E.STATES[s.state].word} · ${esc(appOf(s).name)}</div></span><span class="f">F${floorOf(s)}</span></button></li>`).join('') : '<li class="empty">Nobody needs you right now.</li>';
+    canvas.setAttribute('aria-label', `Office floor ${view.floorIx + 1}: ${working} working, ${needs.length} need you. The List view has every desk.`);
+    renderFloors();
+    if (document.body.classList.contains('list')) renderList();
+    if (selection) renderInspector(true);
+  }
+  $('tray').addEventListener('click', e => { const b = e.target.closest('button[data-sid]'); if (b) { view.focusSession(b.dataset.sid, 'mid'); canvas.focus(); } });
+  function nextNeed() {
+    const n = needsList(); if (!n.length) return;
+    const cur = n.findIndex(s => s.id === view.selected);
+    view.focusSession(n[(cur + 1) % n.length].id, 'mid');
+  }
+  $('next-need').onclick = nextNeed;
+
+  function renderFloors() {
+    const sums = view.floorSummaries();
+    $('floors').innerHTML = sums.map(f => `<button data-floor="${f.index}" aria-pressed="${f.index === view.floorIx}">Floor ${f.index + 1}${f.needs ? `<span class="count">${f.needs}</span>` : ''}</button>`).join('');
+  }
+  $('floors').addEventListener('click', e => { const b = e.target.closest('button[data-floor]'); if (b) { view.setFloor(+b.dataset.floor); renderFloors(); } });
+
+  function doorRow(doors) { return `<div class="doors">${doors.map((d, i) => `<button class="door${i ? '' : ' primary'}" data-door="${esc(d)}">${esc(d)}</button>`).join('')}</div>`; }
+  function renderInspector() {
+    const el = $('insp'), h = selection;
+    if (!h) { el.innerHTML = '<p class="empty">Click a desk, a room or anything on the walls.</p>'; return; }
+    if (h.kind === 'session') {
+      const s = model.sessions.find(x => x.id === h.id); if (!s) { el.innerHTML = '<p class="empty">That session has gone.</p>'; return; }
+      const a = appOf(s), acct = acctOf(a);
+      const primary = { asks: 'Answer it', error: 'See the error', limit: 'See resets', stuck: 'Look at it', done: 'Review it', working: 'Open session', idle: 'Open session', ended: 'Open in History' }[s.state];
+      el.innerHTML = `<div class="title">${esc(s.title)}</div>
+        <div class="meta">${ic(s.state)} ${E.STATES[s.state].word} · ${esc(a.name)} · ${esc(acct.name)} · ${esc(s.project)}</div>
+        <ul>${s.tasks.map(t => `<li>${t.done ? '☑' : t.doing ? '▸' : '☐'} <span style="color:${t.done ? 'var(--faint)' : 'inherit'}">${esc(t.text)}</span></li>`).join('')}</ul>
+        ${s.subagents.length ? `<ul><li style="color:var(--faint)">${s.subagents.length} subagents</li>${s.subagents.slice(0, 6).map(g => `<li>⬚ ${esc(g.task)} · ${g.state}</li>`).join('')}${s.subagents.length > 6 ? `<li style="color:var(--faint)">and ${s.subagents.length - 6} more</li>` : ''}</ul>` : ''}
+        ${s.cpuHot ? '<p class="meta" style="color:var(--danger)">This desk is on fire: its App is overloaded.</p>' : ''}
+        ${doorRow([primary, 'Go to it', 'Open App'])}`;
+      return;
+    }
+    const m = model;
+    const info = {
+      zone: () => { const a = m.apps.find(x => x.id === h.appId); const d = E.decayOf(a, acctOf(a)); const n = m.sessions.filter(s => s.appId === a.id && s.state !== 'ended').length;
+        return [a.name, d === 0 ? `${n} live sessions · ${acctOf(a).name}${a.overloaded ? ' · overloaded' : ''}` : d === 1 ? `Closed ${E.agoWords(a.lastActiveAgo)} ago; desks left as they were` : `Unused for ${E.agoWords(Math.max(a.lastActiveAgo, acctOf(a).lastUsedAgo))}; dust${d >= 3 ? ', trash and lights off' : ''}`,
+          d === 0 ? ['Open App page', 'Start a session'] : d === 1 ? ['Open App', 'Open App page'] : ['Open App page', 'Clean up the desks', 'Hide from the Floor']]; },
+      whiteboard: () => { const a = m.apps.find(x => x.id === h.appId); const t = m.sessions.filter(s => s.appId === a.id && s.state !== 'ended').flatMap(s => s.tasks);
+        return [`Whiteboard · ${a.name}`, `${t.filter(x => !x.done && !x.doing).length} to do · ${t.filter(x => x.doing).length} doing · ${t.filter(x => x.done).length} done (tasks are written by the agents)`, ['Open Tasks']]; },
+      corkboard: () => ['Corkboard · notices', m.notices.slice(0, 6).map(n => `• ${n.text}`).join('<br>') || 'No notices', ['Open Notifications', 'Mark all read']],
+      clocks: () => ['Clock wall · resets', m.accounts.slice(0, 4).map(a => `• ${a.name}: resets in ${Math.round(a.resetIn / 60000)} min`).join('<br>'), ['Open Usage']],
+      elevator: () => ['Elevator', view.floorSummaries().map(f => `• Floor ${f.index + 1}: ${f.apps} Apps, ${f.live} sessions${f.needs ? `, ${f.needs} need you` : ''}`).join('<br>'), view.floorSummaries().map(f => `Floor ${f.index + 1}`)],
+      stairs: () => ['Stairs', 'Another way between floors.', ['Floor up', 'Floor down']],
+      room: () => {
+        const rm = h.room;
+        if (rm.kind === 'server') return ['Server room · This Mac', `CPU ${Math.round(m.mac.cpu)}% · memory ${m.mac.mem}%. Rack lights fill with load and turn red above 85%. Sustained overload sounds a red alert.`, ['Open This Mac']];
+        if (rm.kind === 'meeting') { const p = m.pools.find(x => x.id === rm.ref); return p ? [`Meeting room · ${p.name}`, `${p.members.length} members; chairs wear their App's colour. A runner carries each hand-off between desks.`, ['Open pool', 'Show members']] : ['Meeting room', 'Free. A new pool meets here.', ['New pool']]; }
+        if (rm.kind === 'archive') return ['Archive', `${m.stats.endedToday} sessions ended today. Boxes stack up as they end.`, ['Open History']];
+        if (rm.kind === 'boss') return ['Your office', `${m.stats.doneToday} sessions finished today; the trophy shelf fills as they do.`, ['Open Home']];
+        if (rm.kind === 'kitchen') return ['Kitchen', 'Idle people wander in for coffee.', []];
+        return [rm.kind, '', []];
+      },
+      coffee: () => ['Coffee machine', 'Idle people fetch coffee here. It steams while the office is awake.', []],
+      cooler: () => ['Water cooler', 'Where idle people stop for a chat.', []],
+      vending: () => ['Vending machine', 'Out of order since the last re-create.', []],
+      printer: () => ['Printer', 'Finished sessions print their review here (the paper on the desk).', []],
+      trophies: () => ['Trophy shelf', `${m.stats.doneToday} sessions finished today.`, ['Open Home']],
+      cat: () => ['The office cat', 'Naps when This Mac is quiet. Has no opinions about your code.', []],
+    }[h.kind];
+    if (!info) { el.innerHTML = `<div class="title">${esc(h.label || h.kind)}</div>`; return; }
+    const [title, body, doors] = info();
+    el.innerHTML = `<div class="title">${esc(title)}</div><div class="meta">${body}</div>${doors.length ? doorRow(doors) : ''}`;
+  }
+  $('insp').addEventListener('click', e => {
+    const b = e.target.closest('[data-door]'); if (!b) return;
+    const d = b.dataset.door;
+    const f = /^Floor (\d+)$/.exec(d);
+    if (f) { view.setFloor(+f[1] - 1); renderFloors(); return; }
+    $('toast').textContent = `In AI Juggler, “${d}” opens its page in this window.`;
+  });
+
+  function renderList() {
+    const rows = [];
+    view.layout.floors.forEach(fl => {
+      for (const [appId, bays] of view.layout.appBays) {
+        if (!fl.bays.includes(bays[0])) continue;
+        const a = model.apps.find(x => x.id === appId), acct = acctOf(a), dec = E.decayOf(a, acct);
+        const ss = bays.flatMap(b => b.desks).map(d => d.sessionId && model.sessions.find(s => s.id === d.sessionId)).filter(Boolean);
+        rows.push(`<tr><th colspan="6" scope="rowgroup">Floor ${fl.index + 1} · ${esc(a.name)} · ${esc(acct.name)}${dec ? ` · ${dec === 1 ? 'closed' : 'unused'} ${E.agoWords(Math.max(a.lastActiveAgo, acct.lastUsedAgo))}` : ''}${a.overloaded ? ' · overloaded' : ''}</th></tr>`);
+        for (const s of ss) rows.push(`<tr><td>${ic(s.state)} ${E.STATES[s.state].word}</td><td>${esc(s.title)}</td><td>${s.subagents.length}</td><td>${s.tasks.filter(t => t.done).length}/${s.tasks.length}</td><td>${esc(s.project)}</td><td><button class="door" data-sid="${s.id}">Show on the Floor</button></td></tr>`);
+      }
+    });
+    $('list').innerHTML = `<thead><tr><th scope="col">State</th><th scope="col">Session</th><th scope="col">Subagents</th><th scope="col">Tasks</th><th scope="col">Project</th><th scope="col"></th></tr></thead><tbody>${rows.join('')}</tbody>`;
+    $('list-count').textContent = `${model.sessions.length} sessions`;
+  }
+  $('list').addEventListener('click', e => { const b = e.target.closest('[data-sid]'); if (b) { setView('office'); view.focusSession(b.dataset.sid, 'mid'); } });
+  function setView(v) { document.body.classList.toggle('list', v === 'list'); $('v-office').setAttribute('aria-pressed', v === 'office'); $('v-list').setAttribute('aria-pressed', v === 'list'); if (v === 'list') renderList(); }
+  $('v-office').onclick = () => setView('office'); $('v-list').onclick = () => setView('list');
+
+  document.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => view.zoomLevel(b.dataset.zoom));
+  function press(groupId, attr, val) { document.querySelectorAll(`#${groupId} [data-${attr}]`).forEach(b => b.setAttribute('aria-pressed', b.dataset[attr] === val)); }
+  function setMotion(m) { motion = m; view.setMotion(m); press('motion', 'motion', m); if (m === 'full') view.planWalks(); }
+  document.querySelectorAll('[data-motion]').forEach(b => b.onclick = () => setMotion(b.dataset.motion));
+  document.querySelectorAll('[data-light]').forEach(b => b.onclick = () => { lightMode = b.dataset.light; press('light', 'light', lightMode); view.setNight(isNight()); });
+  function setPreset(p) { sim.preset = p; model = makeModel(p); view.regenerate('office-' + seedN, model); view.setFloor(0); press('preset', 'preset', p); selection = null; renderInspector(); refresh(); }
+  document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => setPreset(b.dataset.preset));
+  const toggle = (id, key, fn) => $(id).onclick = () => { sim[key] = !sim[key]; $(id).setAttribute('aria-pressed', sim[key]); fn && fn(); tick(); };
+  toggle('sc-overload', 'overload'); toggle('sc-mac', 'mac');
+  $('sc-pause').onclick = () => { sim.paused = !sim.paused; $('sc-pause').setAttribute('aria-pressed', sim.paused); runSim(); };
+  $('sc-close').onclick = () => {
+    const app = model.apps.filter(a => a.running).slice(-1)[0]; if (!app) return;
+    app.running = false; app.lastActiveAgo = 2 * 60e3;
+    for (const s of model.sessions) if (s.appId === app.id && s.state !== 'ended') { s.state = 'ended'; s.endedAt = Date.now(); }
+    $('toast').textContent = `${app.name} closed: its desks are left as they were.`; view.setData(model); refresh();
+  };
+  $('sc-week').onclick = () => { for (const a of model.apps) if (!a.running) a.lastActiveAgo += 7 * DAY; for (const a of model.accounts) if (a.lastUsedAgo) a.lastUsedAgo += 7 * DAY; view.setData(model); refresh(); };
+  $('recreate').onclick = () => { $('recreate-confirm').hidden = false; };
+  $('recreate-no').onclick = () => { $('recreate-confirm').hidden = true; };
+  $('recreate-yes').onclick = () => { $('recreate-confirm').hidden = true; seedN++; view.regenerate('office-' + seedN); refresh(); $('toast').textContent = 'The office was re-created: new people, desks and rooms.'; };
+
+  // live cost readout (only while the panel is on screen; it costs nothing at rest when hidden)
+  function hud() {
+    const st = view.stats, w = st.window, n = w.length, ms = w.reduce((a, x) => a + x[1], 0);
+    const kb = Math.round(view.chars.size * E.FW * 18 * E.FH * 4 / 1024);
+    $('hud-state').textContent = st.animating ? `ticking ${view.fps()} fps` : 'asleep';
+    $('hud').innerHTML = [
+      ['Frames, last second', n], ['Draw time per frame', n ? (ms / n).toFixed(2) + ' ms' : '–'], ['Main thread drawing', (ms / 10).toFixed(1) + ' %'],
+      ['Frames since load', st.frames], ['Zoom level', view.level()], ['People built once', `${view.chars.size} (${kb} KB)`],
+      ['Floor bake', st.bakeMs ? st.bakeMs.toFixed(1) + ' ms' : '–'], ['Walking now', view.walkers.length], ['Floors', view.layout.floors.length],
+    ].map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('');
+  }
+  let hudTimer = 0;
+  if (!MEASURE) {
+    const io = new IntersectionObserver(es => { clearInterval(hudTimer); if (es[0].isIntersecting) hudTimer = setInterval(() => { if (hudDirty || view.stats.window.length) { hudDirty = false; hud(); } }, 1000); });
+    io.observe($('hud'));
+  }
+
+  let lastSpoken = '';
+  function announce(t) { if (t === lastSpoken) return; lastSpoken = t; $('announce').textContent = t; }
+
+  // ---------- start ----------
+  press('motion', 'motion', motion); press('light', 'light', 'auto'); press('preset', 'preset', sim.preset);
+  view.setData(model); refresh(); runSim();
+  if (document.fonts) document.fonts.ready.then(() => view.invalidate());
+
+  // measurement hooks for the CPU script (measure/measure.mjs)
+  window.floorTest = {
+    view, get model() { return model; },
+    preset: p => setPreset(p), motion: m => setMotion(m), zoom: lv => view.zoomLevel(lv),
+    sim: on => { sim.paused = !on; runSim(); }, mac: on => { sim.mac = on; for (let i = 0; i < 6; i++) tick(); },
+    overload: on => { sim.overload = on; tick(); }, tick,
+    stats: () => ({ frames: view.stats.frames, drawMs: view.stats.drawMs, ticks: view.stats.ticks, animating: view.stats.animating, level: view.level(), chars: view.chars.size, bakeMs: view.stats.bakeMs, floors: view.layout.floors.length, walkers: view.walkers.length }),
+  };
+})();
+</script>

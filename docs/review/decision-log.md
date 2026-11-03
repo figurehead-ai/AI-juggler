@@ -2325,3 +2325,57 @@ switch already turns any session into one AI Juggler can answer.
 
 **Amends.** D-37 (local caching of conversation content), D-43 point 6
 (the plugin's reply mod is not wanted).
+
+### D-67 The Floor is built for 0.5.0: native wgpu, low-poly pixel art, every visual a signal, the tool's logo in each area's floor — SETTLED (2026-11-03)
+
+**Ruling.** The maintainer, 2026-11-03, after the measured spike (Canvas 2D
+in the webview against native wgpu): "Ok, let's go with native Wgpu". On
+the first native prototype, four rules: each App's area looks distinct
+and always favours its tool's look, each area has a sign or flag naming
+its App, much of it is procedural, and the office feels good. On the
+second: more model detail ("plant should look like a plan, desk like a
+desk"), "We shouldn't allocate a whole column to just one app … I think
+10 is good, but maybe we let this be a setting … max 2 rows of apps in a
+single column", "Position consistancy is important, but things can move
+around if space needed, but it should always move in same order … once
+the design and type of a specific layout for a specific app area is
+chosen it should stick", fun hover and click touches, and "the main
+purpose of everything is to be an indicator of where its buys, where its
+is stuck, where it is crashing, where it is overloaded. Which account is
+about run out of usage". On the third: "it would be great if on the
+floor of the area, as part of the carpet or floor you overlay 30 or 40%
+transparency logo of the app so it is easily recognizable . But
+otherwise looks great, let's go with it. Make it actually work within
+0.5.0 , plan and spec it out fully", and then "I mean logo like : Codex,
+Claude Code along with initials of the account".
+
+**What changed.**
+
+- **The Floor is a native window drawn with wgpu inside the Tauri app**
+  ([ADR-0026](../adr/0026-the-floor-native-renderer.md)), not a page in
+  the webview. It is low-poly 3D drawn as pixel art, and the view turns,
+  tilts and zooms within limits.
+- **Every visual is a signal**: working, waiting on you, stuck, crashed,
+  done, subagents, App overload, unused Apps, an Account low or out, This
+  Mac's load and red alert ([SPEC §9.7](../SPEC.md)).
+- **Areas pack into cells**: at most 10 Apps a floor (a setting), at most
+  two areas a column, placed first-fit in a fixed order. Each App's layout
+  type and look are chosen once and kept; Re-create picks again.
+- **Each area's floor carries the tool's logo and the initials of the
+  App's Account** at 35% opacity. The mark is AI Juggler's own drawing of
+  the tool (or its icon read at run time); nothing is bundled.
+- **It ships in 0.5.0** as [E35](../tasks/E35-the-floor.md), on macOS.
+  Windows (0.6) and Linux (0.7) get the window, input and visibility
+  seams with their first releases (D-52).
+
+**Why.** The spike measured native wgpu at about 1% of one core while
+animating, against several times that for Canvas 2D in the webview. It
+also draws nothing while covered or minimised. Round 2 measured 1.8% at
+8 fps with shadows and 3D models.
+
+- Risk: Tauri's window without a webview is behind its `unstable`
+  feature, and Tauri passes such a window no input; ADR-0026 records the
+  seam and the fallback.
+
+**Amends.** D-65 (the Floor's "research and concepts first" is done; its
+build is 0.5.0's).
