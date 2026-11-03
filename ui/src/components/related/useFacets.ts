@@ -13,6 +13,7 @@ import { sessionsFacets, type SessionsQuery } from "../../lib/ipc/sessions";
 import { useApps } from "../../lib/apps";
 import { accountName, useSubscriptions } from "../../lib/subscriptions";
 import { facetsOf, type Belongs, type Facet, type FacetKind } from "./order";
+import { THIS_MACHINE } from "../../lib/machine-words";
 
 export type FacetsByKind = Record<FacetKind, Facet[]>;
 
@@ -63,7 +64,7 @@ function useMacNames(wanted: boolean): Map<string, string> {
     if (!wanted) return;
     let alive = true;
     void Promise.all([fleetSelf(), fleetPeers()]).then(
-      ([self, peers]) => alive && setNames(new Map([[self.machine_id, "This Mac"], ...peers.map((peer) => [peer.machine_id, peer.label] as [string, string])])),
+      ([self, peers]) => alive && setNames(new Map([[self.machine_id, THIS_MACHINE], ...peers.map((peer) => [peer.machine_id, peer.label] as [string, string])])),
       () => null,
     );
     return () => {
@@ -91,7 +92,7 @@ export function useFacetNames(folders: readonly AccountInfo[], projects: readonl
         case "account":
           return accountNames.get(id) ?? "An Account";
         default:
-          return macs.get(id) ?? (id === "this-mac" ? "This Mac" : id);
+          return macs.get(id) ?? (id === "this-mac" ? THIS_MACHINE : id);
       }
     };
   }, [projects, apps, accounts, macs]);
