@@ -251,6 +251,7 @@ read_routes! {
     "apps_list" => async_result features::apps::commands::apps_list(state; page: Option<crate::paging::PageRequest>);
     "places_list" => async_result features::places::commands::places_list(state; page: Option<crate::paging::PageRequest>);
     "places_find" => async_result features::places::commands::places_find(state; tool: String, conversation_id: String);
+    "places_profiles" => async_result features::places::commands::places_profiles(state);
     "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);
     "conversations_started" => async_result features::conversations::commands::conversations_started(state; tool: String, conversation_id: String);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
