@@ -121,7 +121,7 @@ fn two_folders_on_one_account_raise_one_notice_named_by_the_account() {
     sources::quota_pass(&state, &[low(&work), low(&personal)]);
 
     let open = needs(&state);
-    assert_eq!(open.len(), 1, "one notice for one Account: {open:?}");
+    assert_eq!(open.len(), 1, "one notice for one Account");
     let notice = &open[0];
     assert_eq!(notice.title, "Claude Max 20x is almost out of room");
     assert_eq!(notice.detail, "5% of its 5-hour window left");
@@ -156,7 +156,7 @@ fn two_folders_on_one_account_raise_one_notice_named_by_the_account() {
     reading_in(&state, &work, now, 10.0, next);
     reading_in(&state, &personal, now + 1, 10.0, next);
     sources::quota_pass(&state, &[]);
-    assert!(needs(&state).is_empty(), "{:?}", needs(&state));
+    assert!(needs(&state).is_empty(), "no need left open");
     let earlier = centre::page(
         &state.storage.lock().unwrap(),
         "earlier",
@@ -201,7 +201,7 @@ fn a_folders_own_need_from_before_gives_way_to_its_accounts() {
     reading(&state, &work, now, 93.0);
     sources::quota_pass(&state, &[]);
     let open = needs(&state);
-    assert_eq!(open.len(), 1, "{open:?}");
+    assert_eq!(open.len(), 1, "one notice");
     assert_eq!(open[0].subject, format!("quota:{id}"));
     assert_eq!(open[0].title, "Claude Max 20x is almost out of room");
 }
@@ -250,7 +250,7 @@ fn the_alert_pass_names_the_account_and_a_lone_folder_itself() {
         events
             .iter()
             .find(|event| event.kind == kind && event.account == folder)
-            .unwrap_or_else(|| panic!("no {kind} for {folder}: {events:?}"))
+            .unwrap_or_else(|| panic!("no {kind} alert for that folder"))
     };
     let alert = find("actionable", &work);
     assert!(
