@@ -15,7 +15,7 @@ import { ChoiceLine } from "../../components/controls";
 import { IconChevronDown } from "../../components/icons-controls";
 import { IconProfiles } from "../../components/icons";
 import { useActionHost } from "../../components/ItemMenu";
-import { appColor, useMarks } from "../../lib/marks";
+import { useMarks } from "../../lib/marks";
 import { shortPath } from "../../screens/AccountManage";
 import { accountLine, accountName, type SubscriptionInfo } from "../../lib/subscriptions";
 import { sessionAppName, type SessionModel } from "./model";
@@ -97,8 +97,9 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
         aria-label={`App: ${app}`}
         title={words ? `${app}\nAccount: ${words}` : app}
         onClick={() => (at ? setAt(null) : open())}
-        className="inline-flex min-w-0 max-w-full shrink items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-meta font-medium leading-5 text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
-        style={{ borderColor: appColor(mark) }}
+        // A menu button, not a pill: beside the state's pill it must never
+        // read as a second state. The App's colour is its dot's alone.
+        className="inline-flex min-w-0 max-w-full shrink items-center gap-1.5 whitespace-nowrap rounded-md border border-hairline px-2 py-0.5 text-meta font-medium leading-5 text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
         data-testid="session-account-menu"
       >
         <ProfileBadge app={mark} name={badge} size={16} />
