@@ -25,8 +25,8 @@ import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesKeepAlive } from "../lib/ipc/places";
 import { placeFor, useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow } from "../lib/rail-items";
-import { readClosedSections, writeClosedSections } from "./rail-groups";
-import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line, type SectionId } from "../lib/rail-lines";
+import { useClosedSections } from "./rail-groups";
+import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import { recentWords } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp } from "../lib/apps";
 import { openAccount } from "../lib/accounts-page";
@@ -118,16 +118,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   }, [items, orderLens, groupKeys, now, renamed]);
   // Needs you, Open now and Inactive apps fold in place from their heads;
   // Inactive apps starts folded, and each one stays as it was left.
-  const [closed, setClosed] = useState<ReadonlySet<SectionId>>(readClosedSections);
+  const [closed, foldSection] = useClosedSections();
   const lines = foldSections(built.lines, closed);
-  const foldSection = (id: SectionId) =>
-    setClosed((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      writeClosedSections(next);
-      return next;
-    });
   useEffect(() => {
     last.current = shownOrder(built.lines);
   });

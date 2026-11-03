@@ -3,7 +3,7 @@
  * group's "needs you" count, and projects grouped by repository. Moved
  * out of WorkflowRail.tsx (AJ-E1532) so the rail stays within its size.
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { lastWorked } from "../lib/project-words";
 import { attentionBadge } from "./indicator";
@@ -45,6 +45,20 @@ export function writeClosedSections(closed: ReadonlySet<SectionId>): void {
   } catch {
     /* a private window: folding still works for this visit */
   }
+}
+
+/** The rail's folded sections, and a fold toggle that remembers. */
+export function useClosedSections(): [ReadonlySet<SectionId>, (id: SectionId) => void] {
+  const [closed, setClosed] = useState<ReadonlySet<SectionId>>(readClosedSections);
+  const fold = (id: SectionId) =>
+    setClosed((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      writeClosedSections(next);
+      return next;
+    });
+  return [closed, fold];
 }
 
 export function readFolded(): Set<string> {
