@@ -14,6 +14,10 @@ import { IconPool } from "../../components/icons-actions";
 import { poolById, usePoolPlace, usePools } from "../../lib/pools";
 import { useTools } from "../../lib/tools";
 import { ToolMark } from "../../components/ToolMark";
+import { IconAccount } from "../../components/usage/controls";
+import { openAccount } from "../../lib/accounts-page";
+import { accountName, useSubscriptions } from "../../lib/subscriptions";
+import { accountForApp } from "../app/AppTerms";
 
 /** A door on the header's facts line: its icon and its words, in the
  * line's own size, ink on hover (the facts are muted). */
@@ -66,6 +70,25 @@ export function SessionToolChip({ tool }: { tool: string }): JSX.Element | null 
         <span className="truncate">{spec.display_name}</span>
       </button>
       <Dot />
+    </>
+  );
+}
+
+/** AJ-E3104: an App's Account, one click to its page (an Account is a
+ * relation to one: a door, not a tab), found as the App's Plan card finds
+ * it. Neutral, as Accounts are beside Apps (SPEC §9.3). */
+export function AccountDoor({ folderId, accountId, lead }: { folderId: string | null; accountId: string | null; lead?: JSX.Element }): JSX.Element | null {
+  const account = accountForApp(useSubscriptions() ?? [], folderId, accountId);
+  if (!account?.account_id) return null;
+  const id = account.account_id;
+  const name = accountName(account);
+  return (
+    <>
+      {lead}
+      <button type="button" onClick={() => openAccount(id)} title={`Open ${name}'s page`} className={DOOR} data-testid="door-account">
+        <IconAccount width={13} height={13} aria-hidden="true" className="shrink-0 text-muted" />
+        <span className="truncate">{name}</span>
+      </button>
     </>
   );
 }

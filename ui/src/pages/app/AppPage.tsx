@@ -30,6 +30,7 @@ import { FolderMenu } from "../../components/InspectorHeaderMenu";
 import { errorText, hasLiveBackend, signedIn, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { useRelationCounts } from "../../lib/relation-counts";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
+import { AccountDoor, Dot, SessionToolChip } from "../session/HeaderDoors";
 import { useApps, type AppModel } from "../../lib/apps";
 import { appItems, appProjects, openHere } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
@@ -202,21 +203,24 @@ function soonestReset(sessions: InstanceInfo[], folder: string | null): number |
   return read.at(-1)?.quota?.resets_at_ms ?? null;
 }
 
-/** What it is and whether it runs: its app, its state, its sessions. */
+/** What it is and whether it runs: its tool (a door to its page), its
+ * state, its sessions, then its Account (a door, AJ-E3104). */
 function AppFacts({ app, open, total, now }: { app: AppModel; open: number; total: number; now: number }): JSX.Element {
   const parts = [
-    app.kind === "cli" ? `${app.app} in a terminal` : app.app,
+    app.kind === "cli" ? (app.tool ? "runs in a terminal" : `${app.app} in a terminal`) : app.app,
     app.place ? placeWords(app.place, now) : null,
     total === 0 ? "No sessions yet" : `${total === 1 ? "1 session" : `${total} sessions`}${open > 0 ? ` · ${open} open` : ""}`,
   ].filter((part): part is string => part !== null);
   return (
     <>
+      {app.kind === "cli" && app.tool && <SessionToolChip tool={app.tool} />}
       {parts.map((part, index) => (
         <span key={part} className="flex items-center gap-2">
           {index > 0 && <span aria-hidden="true">·</span>}
           <span>{part}</span>
         </span>
       ))}
+      <AccountDoor folderId={app.folder?.id ?? null} accountId={app.accountId} lead={<Dot />} />
     </>
   );
 }
