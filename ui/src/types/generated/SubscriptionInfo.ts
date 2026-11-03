@@ -22,7 +22,7 @@ account_id?: string | null,
 name?: string | null, 
 /**
  * AJ-E3206: the stored Account's colour, given once (an index into
- * the UI's `PROFILE_HUES`); `null` for one not stored.
+ * the UI's `MARK_COLOURS`); `null` for one not stored.
  */
 colour_slot?: number | null, 
 /**

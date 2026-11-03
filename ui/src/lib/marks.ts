@@ -15,9 +15,9 @@
  * The two marks have different shapes so they're never confused: an App
  * is the dot or pill beside its app's icon (`ProfileBadge`), an Account
  * the round avatar (`AccountAvatar`), its hues started half way round
- * (`ACCOUNT_HUE_OFFSET`). Both draw from these hues: one
- * luminance, white text 4.5:1 or better on each, kept 20° or more away
- * from the status colours, so neither is read as a state.
+ * (`ACCOUNT_HUE_OFFSET`). Both draw from `MARK_COLOURS` (lib/mark-hues:
+ * clear of the status colours, letters AA in `markInk`), so neither is
+ * read as a state.
  *
  * Every call site goes through `appColor` and `accountColor`. The rows
  * that only know an id (a session's folder, a rail place's key) are
@@ -26,19 +26,31 @@
  * re-render when they learn something (`useMarks`).
  */
 import { useSyncExternalStore } from "react";
-import { swatchOf, withPalette } from "./palette";
+import { withPalette } from "./palette";
 import type { AccountInfo } from "./bridge";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import { cliAppId, cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
-import { PROFILE_HUES } from "./mark-hues";
+import { MARK_COLOURS } from "./mark-hues";
+import { contrast, luminance, type Oklch } from "./oklch";
 
-export { PROFILE_HUES, STATUS_MIN_DELTA_E } from "./mark-hues";
+export { MARK_COLOURS, STATUS_HUE_GAPS, STATUS_MIN_DELTA_E } from "./mark-hues";
 
-/** A slot's colour, as CSS (the same in both themes). */
+/** A slot's colour (the same in both themes). */
+export function slotOklch(slot: number): Oklch {
+  const n = MARK_COLOURS.length;
+  return MARK_COLOURS[((Math.trunc(slot) % n) + n) % n]!;
+}
+
 function slotColor(slot: number): string {
-  const n = PROFILE_HUES.length;
-  const { l, c, h } = swatchOf(PROFILE_HUES[((Math.trunc(slot) % n) + n) % n]!);
+  const { l, c, h } = slotOklch(slot);
   return `oklch(${l.toFixed(3)} ${c.toFixed(3)} ${h})`;
+}
+
+/** The letters on a mark: white on the darker colours, dark on the lighter
+ * ones, whichever is AA (the same ink in both themes, as the colour is). */
+export const MARK_INK_DARK = "#0e1219";
+export function markInk(slot: number): string {
+  return contrast(luminance(slotOklch(slot)), 1) >= 4.5 ? "#ffffff" : MARK_INK_DARK;
 }
 
 /** The fallback for something not stored yet: a slot made from its id,
@@ -47,8 +59,8 @@ function slotColor(slot: number): string {
 export function fallbackSlot(id: string, taken: ReadonlySet<number> = new Set()): number {
   let hash = 0;
   for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) % 100_000;
-  const free = PROFILE_HUES.map((_, slot) => slot).filter((slot) => !taken.has(slot));
-  return free.length > 0 ? free[hash % free.length]! : hash % PROFILE_HUES.length;
+  const free = MARK_COLOURS.map((_, slot) => slot).filter((slot) => !taken.has(slot));
+  return free.length > 0 ? free[hash % free.length]! : hash % MARK_COLOURS.length;
 }
 
 // --- what the lists said ----------------------------------------------------
@@ -157,6 +169,11 @@ export function appColor(app: AppMark): string {
   return slotColor(appSlot(app));
 }
 
+/** The letters on an App's pill. */
+export function appInk(app: AppMark): string {
+  return markInk(appSlot(app));
+}
+
 /** An Account: its stored slot; a row of the Accounts list (its slot, or
  * its id or key when not stored); or a folder, by the Account it was last
  * read as. */
@@ -180,9 +197,14 @@ export function accountSlot(account: AccountMark): number {
  * both would be slot 0; started apart, an Account never wears the colour
  * of any of the first four Apps, and an App's dot under its Account's
  * avatar never reads as that Account's own. */
-export const ACCOUNT_HUE_OFFSET = PROFILE_HUES.length / 2;
+export const ACCOUNT_HUE_OFFSET = MARK_COLOURS.length / 2;
 
 /** An Account's one colour, as CSS. */
 export function accountColor(account: AccountMark): string {
   return slotColor(accountSlot(account) + ACCOUNT_HUE_OFFSET);
+}
+
+/** The letters on an Account's avatar. */
+export function accountInk(account: AccountMark): string {
+  return markInk(accountSlot(account) + ACCOUNT_HUE_OFFSET);
 }

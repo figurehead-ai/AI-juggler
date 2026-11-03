@@ -932,7 +932,7 @@ pub struct AccountInfo {
     #[ts(optional = nullable)]
     pub subscription_id: Option<String>,
     /// AJ-E3206: the colour of the folder's CLI App (`cli:<id>`), given
-    /// once and stored (an index into the UI's `PROFILE_HUES`).
+    /// once and stored (an index into the UI's `MARK_COLOURS`).
     #[ts(optional = nullable)]
     pub app_colour_slot: Option<u8>,
     /// AJ-E3206: the colour of its Account (`subscription_id`), when it

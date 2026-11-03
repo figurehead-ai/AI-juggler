@@ -14,7 +14,7 @@
 import type { JSX, PointerEvent } from "react";
 import { accountInitials } from "../lib/palette";
 import { accountName, accountOfProfile, cachedSubscriptions, loadSubscriptions } from "../lib/subscriptions";
-import { accountColor, useMarks, type AccountMark } from "../lib/marks";
+import { accountColor, accountInk, useMarks, type AccountMark } from "../lib/marks";
 
 /** Below this size an avatar is its colour alone: its letters would be
  * under 12 px, and its name is always beside it. */
@@ -52,9 +52,9 @@ export function AccountAvatar({
       data-testid="account-avatar"
       data-live={live ? "true" : undefined}
       data-color={color}
-      className={"inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold leading-none text-white " + (live ? "avatar-live" : "")}
+      className={"inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold leading-none " + (live ? "avatar-live" : "")}
       data-letters={size >= AVATAR_LETTERS_FROM ? "true" : undefined}
-      style={{ width: size, height: size, background: color, fontSize: Math.max(12, Math.round(size * 0.46)) }}
+      style={{ width: size, height: size, background: color, color: accountInk(account), fontSize: Math.max(12, Math.round(size * 0.46)) }}
     >
       {size >= AVATAR_LETTERS_FROM ? accountInitials(folder, label) : null}
     </span>

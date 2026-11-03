@@ -51,7 +51,7 @@ pub struct KnownPlaceInfo {
     /// and not seen running since.
     pub found: bool,
     /// AJ-E3206: its colour as an App, given once and stored (an index
-    /// into the UI's `PROFILE_HUES`).
+    /// into the UI's `MARK_COLOURS`).
     #[ts(optional = nullable)]
     pub colour_slot: Option<u8>,
 }

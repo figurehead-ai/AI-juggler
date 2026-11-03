@@ -66,6 +66,6 @@ recent: Array<string>,
 found: boolean, 
 /**
  * AJ-E3206: its colour as an App, given once and stored (an index
- * into the UI's `PROFILE_HUES`).
+ * into the UI's `MARK_COLOURS`).
  */
 colour_slot?: number | null, };

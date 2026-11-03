@@ -4,7 +4,7 @@
  * a name on screen), with a fallback made from the id for one not stored.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { PROFILE_HUES, accountColor, accountSlot, appColor, appSlot, fallbackSlot, forgetMarksForTests, learnFolders, learnPlaces } from "./marks";
+import { MARK_COLOURS, accountColor, accountSlot, appColor, appSlot, fallbackSlot, forgetMarksForTests, learnFolders, learnPlaces } from "./marks";
 import { fillSlots, previewAccountSlots, previewFolderSlots, previewPlaceSlots } from "./ipc/preview-slots";
 import { cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
 import type { AccountInfo } from "./bridge";
@@ -46,13 +46,13 @@ const place = (id: string, instance: string, slot: number | null): KnownPlaceInf
 
 describe("AJ-E3206 the hues", () => {
   it("each slot its own colour (as many as the backend's: tests/bundle/mark-slots.test.ts)", () => {
-    const colours = PROFILE_HUES.map((_, slot) => appColor(slot));
-    expect(new Set(colours).size).toBe(PROFILE_HUES.length);
-    expect(appColor(PROFILE_HUES.length)).toBe(appColor(0));
+    const colours = MARK_COLOURS.map((_, slot) => appColor(slot));
+    expect(new Set(colours).size).toBe(MARK_COLOURS.length);
+    expect(appColor(MARK_COLOURS.length)).toBe(appColor(0));
     // An Account's hues start half way round: the first Account never wears
     // the first four Apps' colours (most people's first folder is both).
-    expect(accountColor(0)).toBe(appColor(PROFILE_HUES.length / 2));
-    for (let app = 0; app < PROFILE_HUES.length / 2; app += 1) expect(accountColor(0)).not.toBe(appColor(app));
+    expect(accountColor(0)).toBe(appColor(MARK_COLOURS.length / 2));
+    for (let app = 0; app < MARK_COLOURS.length / 2; app += 1) expect(accountColor(0)).not.toBe(appColor(app));
   });
 });
 
@@ -72,16 +72,16 @@ describe("AJ-E3206 an App's colour", () => {
   it("not stored yet: a fallback from its id, the same each time and never from a name", () => {
     expect(appSlot("app:claude-app:/p/new")).toBe(fallbackSlot("app:claude-app:/p/new"));
     expect(fallbackSlot("app:claude-app:/p/new")).toBe(fallbackSlot("app:claude-app:/p/new"));
-    expect(fallbackSlot("x")).toBeLessThan(PROFILE_HUES.length);
+    expect(fallbackSlot("x")).toBeLessThan(MARK_COLOURS.length);
     learnPlaces([place("app:claude-app:/p/none", "none", null)]);
     expect(appSlot("app:claude-app:/p/none")).toBe(fallbackSlot("app:claude-app:/p/none"));
   });
 
   it("not stored yet: never the colour of an App that is, while a colour is free", () => {
-    learnFolders(PROFILE_HUES.slice(0, 5).map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
+    learnFolders(MARK_COLOURS.slice(0, 5).map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
     for (const key of ["app|claude-app|Work", "app|claude-app|Home", "cli|codex|x", "app:claude-app:/p/new"]) expect(appSlot(key)).toBeGreaterThanOrEqual(5);
     // Every colour taken: any of them.
-    learnFolders(PROFILE_HUES.map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
+    learnFolders(MARK_COLOURS.map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
     expect(appSlot("app|claude-app|Work")).toBe(fallbackSlot("app|claude-app|Work"));
   });
 

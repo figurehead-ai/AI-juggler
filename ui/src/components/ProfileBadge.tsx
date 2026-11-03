@@ -14,7 +14,7 @@
  * header names the profile anyway.
  */
 import type { JSX } from "react";
-import { appColor, appSlotKnown, useMarks, type AppMark } from "../lib/marks";
+import { appColor, appInk, appSlotKnown, useMarks, type AppMark } from "../lib/marks";
 
 export type ProfileBadgeVariant = "dot" | "pill";
 
@@ -46,8 +46,8 @@ export function ProfileBadge({
         data-variant="pill"
         data-color={color}
         {...mark}
-        className="inline-flex min-w-0 shrink items-center rounded-full px-1.5 py-px text-label font-semibold leading-[16px] text-white"
-        style={{ background: color }}
+        className="inline-flex min-w-0 shrink items-center rounded-full px-1.5 py-px text-label font-semibold leading-[16px]"
+        style={{ background: color, color: appInk(app) }}
       >
         <span className="truncate">{name}</span>
       </span>

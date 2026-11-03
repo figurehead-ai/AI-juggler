@@ -74,7 +74,7 @@ service?: string | null,
 subscription_id?: string | null, 
 /**
  * AJ-E3206: the colour of the folder's CLI App (`cli:<id>`), given
- * once and stored (an index into the UI's `PROFILE_HUES`).
+ * once and stored (an index into the UI's `MARK_COLOURS`).
  */
 app_colour_slot?: number | null, 
 /**

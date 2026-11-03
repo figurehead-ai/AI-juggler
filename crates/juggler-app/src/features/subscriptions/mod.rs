@@ -62,7 +62,7 @@ pub struct SubscriptionInfo {
     #[ts(optional = nullable)]
     pub name: Option<String>,
     /// AJ-E3206: the stored Account's colour, given once (an index into
-    /// the UI's `PROFILE_HUES`); `null` for one not stored.
+    /// the UI's `MARK_COLOURS`); `null` for one not stored.
     #[ts(optional = nullable)]
     pub colour_slot: Option<u8>,
     /// The tool its profiles run.

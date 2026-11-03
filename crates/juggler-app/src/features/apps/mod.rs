@@ -38,7 +38,7 @@ pub struct StoredAppInfo {
     #[ts(type = "number")]
     pub last_seen_ms: i64,
     /// AJ-E3206: its colour, given once and stored (an index into the
-    /// UI's `PROFILE_HUES`); the same on every screen that marks it.
+    /// UI's `MARK_COLOURS`); the same on every screen that marks it.
     #[ts(optional = nullable)]
     pub colour_slot: Option<u8>,
 }

@@ -70,7 +70,7 @@ UPDATE instances SET app_id = 'cli:' || (
 ";
 
 /// How many colours an App or an Account can wear: the UI's
-/// `PROFILE_HUES` (`ui/src/lib/marks.ts`), in its order. Its slot is an
+/// `MARK_COLOURS` (`ui/src/lib/mark-hues.ts`), in its order. Its slot is an
 /// index into them.
 pub const COLOUR_SLOTS: i64 = 8;
 

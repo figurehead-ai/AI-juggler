@@ -7,14 +7,14 @@
  * the preview's rows are shared, as the backend's are kept, so a slot
  * given once stays.
  */
-import { PROFILE_HUES } from "../mark-hues";
+import { MARK_COLOURS } from "../mark-hues";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
 
 /** The least-used slot (the lowest on a tie) given `taken`. */
 function leastUsed(taken: readonly number[]): number {
-  const used = PROFILE_HUES.map((_, slot) => taken.filter((one) => one === slot).length);
+  const used = MARK_COLOURS.map((_, slot) => taken.filter((one) => one === slot).length);
   return used.indexOf(Math.min(...used));
 }
 
