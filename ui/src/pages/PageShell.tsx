@@ -9,7 +9,7 @@ import { useScrollMemory } from "../lib/scroll-memory";
 import { HANDOVER_EVENT } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/bridge";
-import { PAGE_LABELS, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
+import { PAGE_LABELS, PAGE_TAB_OF, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
 
 const SHOW_TAB = "aij:page-tab";
 
@@ -212,7 +212,16 @@ export function PageShell({
       if (tabs.some((entry) => entry.id === next)) choose(next);
     };
     window.addEventListener(SHOW_TAB, to);
-    return () => window.removeEventListener(SHOW_TAB, to);
+    // AJ-E3104: a notice about a page of this kind, open now.
+    const of = (event: Event) => {
+      const { kind: asked, tab: next } = (event as CustomEvent<{ kind: PageKind; tab: PageTabId }>).detail;
+      if (asked === kind && tabs.some((entry) => entry.id === next)) choose(next);
+    };
+    window.addEventListener(PAGE_TAB_OF, of);
+    return () => {
+      window.removeEventListener(SHOW_TAB, to);
+      window.removeEventListener(PAGE_TAB_OF, of);
+    };
   });
 
   // ⌥⌘1…n picks a tab; focus follows.

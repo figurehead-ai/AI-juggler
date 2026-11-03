@@ -92,7 +92,8 @@ pub struct NoticeTarget {
     /// A project, by id.
     #[serde(default)]
     pub project_id: Option<String>,
-    /// A page: `this_mac` | `processes` | `settings` | `updates` | `accounts`.
+    /// A page: `this_mac` | `processes` | `usage` | `updates` |
+    /// `desktop_apps`.
     #[serde(default)]
     pub page: Option<String>,
     /// A task (a pool's), by id.
@@ -101,6 +102,10 @@ pub struct NoticeTarget {
     /// A pool, by id.
     #[serde(default)]
     pub pool_id: Option<String>,
+    /// A pool's message thread, by id (AJ-E3104: a message opens on it).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub thread_id: Option<String>,
 }
 
 /// The facts a line is drawn from, so the window can say them in the

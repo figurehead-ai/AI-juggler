@@ -192,3 +192,13 @@ export function rememberTab(kind: PageKind, tab: PageTabId): void {
     // Storage unavailable: this visit only.
   }
 }
+
+/** The event the open page of a kind switches tabs on. */
+export const PAGE_TAB_OF = "aij:page-tab-of";
+
+/** AJ-E3104: open `kind`'s pages on `tab`, the one open now too (a
+ * notice about the page already shown still lands on its tab). */
+export function openOnTab(kind: PageKind, tab: PageTabId): void {
+  rememberTab(kind, tab);
+  window.dispatchEvent(new CustomEvent<{ kind: PageKind; tab: PageTabId }>(PAGE_TAB_OF, { detail: { kind, tab } }));
+}

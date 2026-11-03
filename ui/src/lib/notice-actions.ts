@@ -12,12 +12,13 @@ import { showToast } from "../components/Toast";
 import { useConversations } from "./conversations";
 import { errorText, instanceMarkReviewed, instanceUnmarkReviewed, resetQueueQueue, type InstanceInfo } from "./bridge";
 import { focusTask } from "./ipc/tasks";
+import { focusThread } from "./ipc/messages";
 import { notificationsMute, notificationsRead, notificationsSnooze, type NoticeInfo } from "./ipc/notices";
 import { acted } from "./notices-store";
 import { focusHandoverSoon, openOnAccount } from "./handover-focus";
 import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { whenWords } from "./time-words";
-import { rememberTab } from "../pages/registry";
+import { openOnTab, type PageTabId } from "../pages/registry";
 
 /** Sessions still open (a reminder is for these). */
 const OPEN = new Set(["running", "waiting_user", "stuck", "starting", "quota_blocked"]);
@@ -25,6 +26,9 @@ const OPEN = new Set(["running", "waiting_user", "stuck", "starting", "quota_blo
 /** A reminder's key for a session another app runs (the backend's
  * `REMINDER_CONVERSATION`). */
 export const REMINDER_CONVERSATION = "conv:";
+
+/** A session's tab, by the notice's kind (else its body). */
+const SESSION_TAB: Partial<Record<string, PageTabId>> = { heavy: "processes", restarted: "history" };
 
 /** The screens a notice can open, by the page its target names. */
 const SCREENS: Record<string, string> = { this_mac: "thismac", processes: "cleanup", usage: "usage", accounts: "accounts", settings: "settings" };
@@ -53,28 +57,44 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
   const { all: conversations } = useConversations();
   const open = (notice: NoticeInfo) => {
     const { target } = notice;
-    if (target.session_id && sessions.some((s) => s.id === target.session_id)) return host.openSessionById?.(target.session_id);
-    const conversation = target.conversation_id ? conversations.find((c) => c.id === target.conversation_id && (!target.account_id || c.account_id === target.account_id)) : undefined;
-    if (conversation) return host.openConversation?.(conversation);
-    if (target.session_id) return host.openSessionById?.(target.session_id);
+    // AJ-E3104: a pool's message or task opens the pool on it (its
+    // session is only who it's from).
     if (target.pool_id) {
-      if (target.task_id) {
-        focusTask(target.task_id);
-        rememberTab("pool", "tasks");
+      if (notice.kind === "message") {
+        focusThread(target.thread_id ?? null);
+        openOnTab("pool", "messages");
+      } else if (notice.kind === "task") {
+        if (target.task_id) focusTask(target.task_id);
+        openOnTab("pool", "tasks");
       }
       return host.openPool?.(target.pool_id);
     }
+    // A session opens on the tab the notice is about: its processes
+    // (working hard), its history (why it restarted), else its body.
+    if (target.session_id) openOnTab("session", SESSION_TAB[notice.kind] ?? "terminal");
+    if (target.session_id && sessions.some((s) => s.id === target.session_id)) return host.openSessionById?.(target.session_id);
+    const conversation = target.conversation_id ? conversations.find((c) => c.id === target.conversation_id && (!target.account_id || c.account_id === target.account_id)) : undefined;
+    if (conversation) {
+      openOnTab("conversation", "overview");
+      return host.openConversation?.(conversation);
+    }
+    if (target.session_id) return host.openSessionById?.(target.session_id);
     if (target.page === "updates") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "updates" } }));
     // 0.3.3: keep alive's notices open its switches.
     if (target.page === "desktop_apps") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } }));
     if (target.page && SCREENS[target.page]) return openScreen(SCREENS[target.page]!);
     // D-62 (AJ-E3205): a notice about an account's limits or renewal
     // opens the Account (its subscription) when its sign-in is known.
+    // AJ-E3104: a renewal on its Settings (renewal and fee), the rest on
+    // its limits.
     if (target.account_id) {
       const account = accountOfProfile(cachedSubscriptions() ?? [], target.account_id)?.account_id;
-      return account ? openAccount(account) : host.openAccountById?.(target.account_id);
+      if (account) return openAccount(account, notice.kind === "renewal" ? "settings" : "overview");
+      openOnTab("app", "overview");
+      return host.openAccountById?.(target.account_id);
     }
     if (target.project_id) return host.openProjectById?.(target.project_id);
+    showToast({ id: `nothing:${notice.id}`, message: "Nothing to open for this one", detail: "What it was about isn't here any more." });
   };
   const primary = (notice: NoticeInfo) => {
     if (notice.unread) void acted(() => notificationsRead(notice.id));
@@ -98,7 +118,10 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
         if (notice.target.session_id) return void window.dispatchEvent(new CustomEvent("aij:switch-back", { detail: { sessionId: notice.target.session_id } }));
         return open(notice);
       case "sign-in":
-        return notice.target.account_id ? host.openAccountById?.(notice.target.account_id) : open(notice);
+        // Its sign-in card is on the App's Overview.
+        if (!notice.target.account_id) return open(notice);
+        openOnTab("app", "overview");
+        return host.openAccountById?.(notice.target.account_id);
       case "this-computer":
         return openScreen("thismac");
       case "clean-up":
