@@ -1,0 +1,71 @@
+# The Floor spike (research): does each drawing option run on Windows and Linux, and what does it cost
+# relative to the other? Lives on the proto/floor-office branch only; it never runs on main or a release.
+# GitHub's runners have no GPU, so both options render in software here.
+name: Floor spike
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [proto/floor-office]
+    paths:
+      - 'spikes/floor-spike/**'
+      - '.github/workflows/floor-spike.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: floor-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: spikes/floor-spike
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Linux packages (WebKitGTK, a virtual display, software Vulkan)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev xvfb mesa-vulkan-drivers libvulkan1
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            spikes/floor-spike/target
+          key: floor-spike-${{ matrix.os }}-${{ hashFiles('spikes/floor-spike/Cargo.lock') }}
+      - name: Build (timed)
+        run: |
+          start=$(date +%s)
+          cargo build --release
+          echo "Build took $(( $(date +%s) - start )) s" | tee -a "$GITHUB_STEP_SUMMARY"
+          ls -l target/release/ | grep -E 'floor-spike(\.exe)?$' | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Measure
+        env:
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+        run: |
+          python -m pip install --quiet psutil
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            Xvfb :99 -screen 0 1920x1080x24 &
+            export DISPLAY=:99
+            sleep 2
+          fi
+          python measure/ci.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: floor-spike-${{ matrix.os }}
+          path: spikes/floor-spike/measure/ci-*.json

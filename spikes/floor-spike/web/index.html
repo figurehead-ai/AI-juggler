@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI Juggler (spike)</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0b0e14; color: #f3f5f9; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  header { display: flex; gap: 6px; padding: 12px 16px; border-bottom: 1px solid #2f3645; }
+  header button, .open button { background: #151a23; color: #b0b8c5; border: 1px solid #2f3645; border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  header button[aria-current="page"] { background: #7c7cf41f; color: #f3f5f9; border-color: #8787f6; }
+  main { padding: 20px 16px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  .from { color: #fbbf24; min-height: 1.5em; }
+  .open { display: flex; gap: 8px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<header id="nav"></header>
+<main>
+  <h1 id="screen">Home</h1>
+  <p class="from" id="from"></p>
+  <p>The main window of the spike. The Floor opens beside it, and anything on the Floor that means "go there" brings this window forward on that screen.</p>
+  <div class="open"><button id="web">Open the Floor · Canvas 2D</button><button id="native">Open the Floor · native wgpu</button><button id="back">Back to the Floor</button></div>
+</main>
+<script>
+  const { invoke } = window.__TAURI__.core;
+  const { listen } = window.__TAURI__.event;
+  const screens = ['Home', 'Sessions', 'Pools', 'Usage', 'Settings'];
+  let current = 'Home';
+  function render() {
+    document.getElementById('nav').innerHTML = screens.map(s => `<button ${s === current ? 'aria-current="page"' : ''} data-s="${s}">${s}</button>`).join('');
+    document.getElementById('screen').textContent = current;
+  }
+  document.getElementById('nav').onclick = e => { const b = e.target.closest('[data-s]'); if (b) { current = b.dataset.s; document.getElementById('from').textContent = ''; render(); } };
+  document.getElementById('web').onclick = () => invoke('open_floor', { kind: 'web' });
+  document.getElementById('native').onclick = () => invoke('open_floor', { kind: 'native' });
+  document.getElementById('back').onclick = () => invoke('focus_floor');
+  listen('navigate', e => { current = e.payload; document.getElementById('from').textContent = 'Opened from the Floor'; render(); });
+  render();
+</script>
+</body>
+</html>

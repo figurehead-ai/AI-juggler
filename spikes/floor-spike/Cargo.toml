@@ -1,0 +1,32 @@
+[package]
+name = "floor-spike"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "The Floor: measured spike of a Canvas 2D webview window against a native wgpu window"
+
+# Its own workspace, so it never joins the app's build.
+[workspace]
+
+[build-dependencies]
+tauri-build = { version = "2.7.2", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.3", features = ["unstable"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+wgpu = { version = "30", optional = true }
+pollster = { version = "1", optional = true }
+bytemuck = { version = "1", features = ["derive"], optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSResponder", "NSGraphics"] }
+
+[features]
+default = ["web", "native"]
+web = []
+native = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
+
+[profile.release]
+strip = true

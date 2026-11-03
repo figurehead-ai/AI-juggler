@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "The spike's own windows may use core events and its commands.",
+  "windows": ["main", "floor-web"],
+  "permissions": ["core:default"]
+}

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Floor — Canvas 2D</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0e14; overflow: hidden; }
+  /* The canvas holds the art at its own resolution; the compositor scales it up with hard edges. */
+  canvas { width: 100vw; height: 100vh; object-fit: contain; image-rendering: pixelated; display: block; }
+  .go { position: fixed; top: 10px; right: 10px; background: rgba(16,19,30,.9); color: #f3f5f9; border: 1px solid #2f3645; border-radius: 8px; padding: 5px 10px; font: 12px ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+  .menu { position: fixed; display: none; background: #151a23; border: 1px solid #2f3645; border-radius: 8px; padding: 4px; font: 13px ui-sans-serif, system-ui, sans-serif; color: #f3f5f9; }
+  .menu button { display: block; width: 100%; text-align: left; background: none; border: 0; color: inherit; padding: 6px 10px; border-radius: 6px; font: inherit; cursor: pointer; }
+  .menu button:hover { background: #7c7cf41f; }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="The office floor"></canvas>
+<button class="go" id="go">Sessions ↗</button>
+<div class="menu" id="menu"><button data-s="Sessions">Open Sessions in the main window</button><button data-s="Pools">Open Pools in the main window</button></div>
+<script>
+'use strict';
+const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
+const anim = +new URLSearchParams(location.search).get('anim') || 0;
+const canvas = document.getElementById('c');
+let ctx, meta, bgC, atlasC, timer = 0, frames = 0, drawMs = 0, hiddenEvents = 0;
+const start = performance.now();
+
+// The same draw list as scene.rs `instances`: static items, frame-cycling actors, walkers on loops; back to front.
+function along(path, s) {
+  const segs = path.map((a, i) => { const b = path[(i + 1) % path.length]; return Math.hypot(b[0] - a[0], b[1] - a[1]); });
+  const total = segs.reduce((x, y) => x + y, 0);
+  let d = ((s % total) + total) % total;
+  for (let i = 0; i < path.length; i++) {
+    if (d <= segs[i]) { const a = path[i], b = path[(i + 1) % path.length], k = segs[i] > 0 ? d / segs[i] : 0; return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, b[0] - a[0], b[1] - a[1]]; }
+    d -= segs[i];
+  }
+  return [path[0][0], path[0][1], 1, 0];
+}
+const list = [];
+function instances(t) {
+  list.length = 0;
+  for (const it of meta.items) list.push([it.s, it.x, it.y, it.depth]);
+  for (const a of meta.actors) list.push([a.frames[Math.floor(t * a.rate + a.phase) % a.frames.length], a.x, a.y, a.depth]);
+  for (const w of meta.walkers) {
+    const [x, y, dx, dy] = along(w.path, t * w.speed + w.offset);
+    const pair = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? w.right : w.left) : (dy > 0 ? w.down : w.up);
+    list.push([pair[Math.floor(t * 6) % 2], Math.round(x - w.ax), Math.round(y - w.ay), y]);
+  }
+  list.sort((a, b) => a[3] - b[3]);
+  return list;
+}
+function draw(t) {
+  const t0 = performance.now();
+  ctx.drawImage(bgC, 0, 0);
+  for (const [s, x, y] of instances(t)) { const r = meta.sprites[s]; ctx.drawImage(atlasC, r.x, r.y, r.w, r.h, x, y, r.w, r.h); }
+  frames++; drawMs += performance.now() - t0;
+}
+const now = () => (performance.now() - start) / 1000;
+// Ticks only while people animate and the window can be seen; nothing at all otherwise.
+function schedule() {
+  clearTimeout(timer); timer = 0;
+  if (!anim || document.visibilityState !== 'visible') return;
+  timer = setTimeout(() => { draw(now()); schedule(); }, 1000 / anim);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') hiddenEvents++; else draw(now()); schedule(); });
+function toCanvas(bytes, w, h) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(bytes), w, h), 0, 0);
+  return c;
+}
+async function load() {
+  const marks = { script: performance.now() };
+  meta = (await invoke('scene_meta')).meta;
+  marks.meta = performance.now();
+  const buf = new Uint8Array(await invoke('scene_pixels'));
+  marks.pixels = performance.now();
+  const n = meta.art_w * meta.art_h * 4;
+  bgC = toCanvas(buf.slice(0, n), meta.art_w, meta.art_h);
+  atlasC = toCanvas(buf.slice(n), meta.atlas_w, meta.atlas_h);
+  canvas.width = meta.art_w; canvas.height = meta.art_h;
+  ctx = canvas.getContext('2d', { alpha: false });
+  ctx.imageSmoothingEnabled = false;
+  draw(0);
+  marks.drawn = performance.now();
+  requestAnimationFrame(() => requestAnimationFrame(() => { marks.painted = performance.now(); invoke('first_frame', { kind: 'web', marks }); }));
+  schedule();
+}
+listen('report', () => invoke('frame_stats', { kind: 'web', frames, drawMs, hiddenEvents, visibility: document.visibilityState }));
+listen('capture', async e => {
+  draw(now());
+  const px = ctx.getImageData(0, 0, meta.art_w, meta.art_h).data;
+  const out = new Uint8Array(8 + px.length);
+  new DataView(out.buffer).setUint32(0, meta.art_w, true); new DataView(out.buffer).setUint32(4, meta.art_h, true);
+  out.set(px, 8);
+  await invoke('save_capture', out, { headers: { 'x-name': e.payload } });
+});
+// The way back to the main app: a button and a right-click menu.
+document.getElementById('go').onclick = () => invoke('open_main', { screen: 'Sessions' });
+const menu = document.getElementById('menu');
+canvas.addEventListener('contextmenu', e => { e.preventDefault(); menu.style.left = e.clientX + 'px'; menu.style.top = e.clientY + 'px'; menu.style.display = 'block'; });
+document.addEventListener('click', e => { const b = e.target.closest('[data-s]'); menu.style.display = 'none'; if (b) invoke('open_main', { screen: b.dataset.s }); });
+load();
+</script>
+</body>
+</html>
