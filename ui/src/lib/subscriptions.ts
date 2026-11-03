@@ -90,13 +90,24 @@ export function accountName(row: SubscriptionInfo, all?: readonly SubscriptionIn
   if (row.service) return row.service.name;
   if (row.state === "unverified") return "Account unknown";
   const base = defaultAccountName(row);
-  const twin = all?.some((other) => other.key !== row.key && other.state === "signed_in" && !other.name && !other.service && defaultAccountName(other) === base);
-  return twin && row.email && base !== row.email ? `${base} · ${row.email}` : base;
+  const twins = (all ?? []).filter((other) => other.state === "signed_in" && !other.name && !other.service && defaultAccountName(other) === base);
+  if (!twins.some((other) => other.key !== row.key)) return base;
+  if (row.email && base !== row.email) return `${base} · ${row.email}`;
+  // Its masked email is its name and another's reads the same (masking
+  // keeps one letter): its tool says which where theirs differ, else its
+  // place among them by id. Renaming it (its Settings) settles it.
+  if (new Set(twins.map((other) => other.tool)).size === twins.length) return `${toolWords(row.tool)} · ${base}`;
+  const order = twins.map((other) => other.account_id ?? other.key).sort();
+  return `${base} (${order.indexOf(row.account_id ?? row.key) + 1})`;
+}
+
+function toolWords(tool: string | null | undefined): string {
+  return tool ? toolSpec(tool).short_name || toolSpec(tool).display_name : "Your";
 }
 
 function defaultAccountName(row: SubscriptionInfo): string {
   if (row.organisation) return row.organisation;
-  const tool = row.tool ? toolSpec(row.tool).short_name || toolSpec(row.tool).display_name : "Your";
+  const tool = toolWords(row.tool);
   if (row.plan) return `${tool} ${planWords(row.plan)}`;
   return row.email ?? `${tool} account`;
 }

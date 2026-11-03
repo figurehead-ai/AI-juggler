@@ -137,6 +137,12 @@ describe("AJ-E2109 accounts in words", () => {
     expect(seats.map((seat) => accountName(seat, seats))).toEqual(["Acme · a…@acme.com", "Acme · b…@acme.com", "Acme · c…@acme.com"]);
     expect(accountLine(seats[0]!, seats)).toBe("Max");
     // One team account alone: the team; its line, the rest.
+    // No plan, so named by its masked email, and two read the same: the
+    // tool where theirs differ, else a number among them by id.
+    const masked = ["x1", "x2"].map((id) => ({ ...account(id, [id], { email: "c…@example.com", plan: null }), account_id: `acct:${id}` }));
+    expect(masked.map((row) => accountName(row, masked))).toEqual(["c…@example.com (1)", "c…@example.com (2)"]);
+    const tools = [masked[0]!, { ...masked[1]!, tool: "codex" }];
+    expect(tools.map((row) => accountName(row, tools))).toEqual(["Claude · c…@example.com", "Codex · c…@example.com"]);
     expect(accountName(seats[0]!)).toBe("Acme");
     expect(accountLine(seats[0]!)).toBe("a…@acme.com · Max");
     // Named by you: your name, whatever its folders are called.
