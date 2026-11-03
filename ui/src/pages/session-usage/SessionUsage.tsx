@@ -15,6 +15,7 @@ import { IconChart, IconDonut, IconGauge, IconLayers, IconList, IconMoney, IconT
 import { useCached } from "../../lib/usage/cached";
 import { usageSession, type UsageSessionDetailInfo } from "../../lib/ipc/usageHistory";
 import { accountColor } from "../../lib/palette";
+import { NEW_TOKENS_WORDS, newTokens } from "../../lib/usage/tokens";
 
 /** At most this many bars: more turns are summed into even slices of time. */
 const BARS = 120;
@@ -59,7 +60,7 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
   const detail = result.data;
   const [table, setTable] = useState(false);
   const bars = useMemo(() => (detail ? turnBars(detail) : null), [detail]);
-  const io = detail ? detail.totals.tokens.input + detail.totals.tokens.output : null;
+  const io = detail ? newTokens(detail.totals.tokens) : null;
   const series = bars
     ? [
         { key: "input", label: "Input", values: bars.input, color: KINDS[0].color },
@@ -75,7 +76,7 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
   return (
     <div className="@container flex flex-col gap-grid" data-testid="session-usage-visual">
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4">
-        <StatTile label="Tokens in and out" icon={<IconTokens width={15} height={15} />} value={io} unit="tokens" testId="session-tile-tokens" />
+        <StatTile label="New tokens" icon={<IconTokens width={15} height={15} />} value={io} unit="tokens" note={detail ? `${NEW_TOKENS_WORDS}. ${short(detail.totals.tokens.cache_read, "tokens")} more re-read from cache` : undefined} testId="session-tile-tokens" />
         <StatTile label="Estimated cost" icon={<IconMoney width={15} height={15} />} value={detail?.totals.usd ?? null} words={detail && detail.totals.usd == null ? "No list price" : undefined} unit="usd" estimate atLeast={!!detail?.totals.unpriced && detail.totals.usd != null} note={detail?.totals.unpriced ? `${API_PRICE}. Some of it has no list price, so it isn't counted` : API_PRICE} testId="session-tile-cost" />
         <StatTile label="Turns" icon={<IconList width={15} height={15} />} value={detail?.totals.messages ?? null} unit="count" note={detail?.truncated ? `the last ${detail.turns.length} drawn below` : undefined} testId="session-tile-turns" />
         <StatTile label="Cache read" icon={<IconLayers width={15} height={15} />} value={detail?.totals.tokens.cache_read ?? null} unit="tokens" note="served from the prompt cache" testId="session-tile-cache" />
@@ -109,7 +110,7 @@ export function SessionUsage({ profile, conversation, profileLabel }: { profile:
         </Section>
         <Section title="Models" icon={<IconDonut />} busy={busy} testId="session-usage-models">
           <ChartBody empty={detail === null || models.length === 0} emptyWords={detail === null ? "Reading…" : "No model recorded"} height={168} table={{ columns: [], rows: [] }} showTable={false} caption="">
-            <Donut items={models} unit="tokens" label="Tokens by model" centre={{ value: String(models.length), words: models.length === 1 ? "model" : "models" }} />
+            <Donut items={models} unit="tokens" label="New tokens by model" centre={{ value: String(models.length), words: models.length === 1 ? "model" : "models" }} />
           </ChartBody>
         </Section>
         <Section title="Its share of the limits" icon={<IconGauge />} sub={`of ${profileLabel ?? "its profile"}'s use`} className="@min-[900px]:col-span-2" busy={busy} testId="session-usage-share">

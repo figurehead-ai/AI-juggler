@@ -13,7 +13,13 @@ export interface WindowDisplay {
   /** `reset`: the window the last reading described has reset since;
    * nothing is known about the new one. */
   state: "unknown" | "learning" | "unmeasured" | "tracking" | "stale" | "exhausted" | "reset";
+  /** The vendor's own reading, as of `measured_at_ms`, when the badge is
+   * Measured. */
   percentage: number | null;
+  /** An estimate of the percent used now, from the calls made since the
+   * reading (0.3.6): shown apart, as an estimate; absent when it would
+   * read the same. */
+  projected_pct?: number | null;
   badge: string | null;
   stale_note_ms: number | null;
   resets_at_ms: number | null;
@@ -24,8 +30,9 @@ export interface WindowDisplay {
    * percentage. */
   measured_at_ms: number | null;
   burned_tokens: number;
-  /** The window's tokens in and out, as Usage counts them (the 0.2 walk,
-   * F15); absent from a reading that predates it. */
+  /** The window's new tokens, as Usage counts them (the 0.2 walk, F15;
+   * 0.3.6: input, cache writes, output and reasoning); absent from a
+   * reading that predates it. */
   burned_io_tokens?: number;
   burned_credits: number | null;
   headroom_tokens: number | null;

@@ -534,6 +534,7 @@ pub fn usage_since(account: &str, home: &Path, since_ms: i64) -> Vec<UsageEvent>
                     source: UsageSource::Transcript,
                     // Kimi Code's own counts, as the provider reported them.
                     confidence: Confidence::Measured,
+                    detail: Default::default(),
                     msg_uuid: Some(usage_key(usage)),
                 }),
         );

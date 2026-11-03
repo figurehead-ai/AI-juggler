@@ -12,13 +12,18 @@
 //!   `$0.00`.
 //! - `ZCode` credits display ALONGSIDE USD and are never converted at
 //!   an invented rate — separate column, always.
-//! - USD is joined at QUERY time (repricing is retroactive; the
-//!   stored events never change), with event-time rate selection
-//!   (`effective_from ≤ ts`, day-bucketed — the reading deep/10 line
-//!   75 and deep/09 §Q7 share, recorded in the task's PR).
+//! - USD is priced per API call (0.3.6, the usage audit): a vendor's
+//!   price depends on each call's prompt size (long-context tiers), its
+//!   1-hour cache writes and its speed, none of which a sum keeps. The
+//!   store prices a call when it is read and keeps the cost beside it
+//!   with the prices' version ([`PricingCatalog::version`]); a new table
+//!   or a user override prices every stored call again, so repricing
+//!   stays retroactive and the token rows never change. Rates are
+//!   event-time selected (`effective_from ≤ ts` — the reading deep/10
+//!   line 75 and deep/09 §Q7 share).
 
 use crate::model::{Confidence, TokenCounts};
-use crate::quota::UsageEvent;
+use crate::quota::{UsageDetail, UsageEvent};
 
 /// The bundled, versioned seed (`cost_ledger_seed.json`; v2 added
 /// cache rates, `effective_from`, and per-row `source_url` over the
@@ -47,9 +52,18 @@ pub struct SeedFile {
 #[allow(clippy::missing_panics_doc, clippy::panic)]
 #[must_use]
 pub fn load_seed_rows() -> Vec<LedgerPriceRow> {
-    let seed: SeedFile = serde_json::from_str(PRICING_SEED)
-        .unwrap_or_else(|error| panic!("embedded pricing seed is malformed: {error}"));
-    seed.rows
+    seed().rows.clone()
+}
+
+/// The embedded seed, parsed once (the store prices every call it reads
+/// with it).
+#[allow(clippy::panic)]
+fn seed() -> &'static SeedFile {
+    static SEED: std::sync::OnceLock<SeedFile> = std::sync::OnceLock::new();
+    SEED.get_or_init(|| {
+        serde_json::from_str(PRICING_SEED)
+            .unwrap_or_else(|error| panic!("embedded pricing seed is malformed: {error}"))
+    })
 }
 
 /// When the bundled table's numbers were captured: the seed's `captured`
@@ -78,13 +92,91 @@ pub struct LedgerPriceRow {
     /// USD per 1k cache-read tokens.
     #[serde(default)]
     pub cache_read_per_1k: f64,
-    /// USD per 1k cache-write tokens.
+    /// USD per 1k cache-write tokens (the 5-minute cache, where a vendor
+    /// has two).
     #[serde(default)]
     pub cache_write_per_1k: f64,
+    /// USD per 1k tokens written to the 1-hour cache (Anthropic: 2× base
+    /// input, against 1.25× for the 5-minute one). `None`: priced as
+    /// [`Self::cache_write_per_1k`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write_1h_per_1k: Option<f64>,
+    /// The higher rates a call pays when its prompt is longer than a
+    /// threshold (OpenAI over 272K input tokens; Claude Haiku 5.5 over
+    /// 100,000). Each call is priced on its own prompt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub long_context: Option<LongContext>,
+    /// The rates of the vendor's fast mode, for the whole prompt
+    /// (Anthropic's fast mode on some Opus models).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fast: Option<TierRates>,
+    /// What US-only inference multiplies every rate by (Anthropic: 1.1
+    /// on Claude 4.6 and later). `None`: no such option.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub us_multiplier: Option<f64>,
     /// Where the numbers came from (auditable pricing law).
     pub source_url: String,
     /// When the numbers were captured (YYYY-MM-DD).
     pub captured: String,
+}
+
+/// One set of rates, USD per 1k tokens per class: a price tier.
+#[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct TierRates {
+    /// Input.
+    pub input_per_1k: f64,
+    /// Output (reasoning included).
+    pub output_per_1k: f64,
+    /// Cache reads.
+    #[serde(default)]
+    pub cache_read_per_1k: f64,
+    /// Cache writes (5-minute).
+    #[serde(default)]
+    pub cache_write_per_1k: f64,
+    /// Cache writes (1-hour); `None`: as 5-minute ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write_1h_per_1k: Option<f64>,
+}
+
+/// A long-context tier: the rates a call pays when its prompt (input,
+/// cache reads and cache writes together) is over `over_prompt_tokens`.
+#[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct LongContext {
+    /// The threshold: a prompt of more tokens than this pays these rates.
+    pub over_prompt_tokens: u64,
+    /// The rates.
+    #[serde(flatten)]
+    pub rates: TierRates,
+}
+
+impl LedgerPriceRow {
+    /// The row's standard rates, as a tier.
+    #[must_use]
+    pub fn standard(&self) -> TierRates {
+        TierRates {
+            input_per_1k: self.input_per_1k,
+            output_per_1k: self.output_per_1k,
+            cache_read_per_1k: self.cache_read_per_1k,
+            cache_write_per_1k: self.cache_write_per_1k,
+            cache_write_1h_per_1k: self.cache_write_1h_per_1k,
+        }
+    }
+
+    /// The tier one call pays: fast mode's when the call ran fast and the
+    /// model has it (it covers the whole context), else the long-context
+    /// tier's when the prompt is over its threshold, else the standard one.
+    #[must_use]
+    pub fn tier_for(&self, prompt_tokens: u64, detail: &UsageDetail) -> TierRates {
+        if detail.speed.as_deref() == Some("fast")
+            && let Some(fast) = &self.fast
+        {
+            return fast.clone();
+        }
+        match &self.long_context {
+            Some(long) if prompt_tokens > long.over_prompt_tokens => long.rates.clone(),
+            _ => self.standard(),
+        }
+    }
 }
 
 /// The priced USD view of one aggregated bucket.
@@ -134,6 +226,17 @@ pub struct PricingCatalog {
     pub last_synced_ms: Option<i64>,
 }
 
+/// The bundled table's version (`v4`), as the seed names it.
+///
+/// # Panics
+///
+/// Panics when the embedded seed is malformed (as [`load_seed_rows`]).
+#[allow(clippy::missing_panics_doc)]
+#[must_use]
+pub fn seed_version() -> String {
+    seed().version.clone()
+}
+
 /// Stale-pricing threshold: a bundled table older than 30 days warns
 /// inline (deep/10 §6) rather than silently repricing history.
 pub const STALE_PRICING_MS: i64 = 30 * 24 * 60 * 60 * 1000;
@@ -165,6 +268,35 @@ fn undated(model: &str) -> Option<&str> {
 }
 
 impl PricingCatalog {
+    /// The bundled table with the user's `overrides` (no staleness
+    /// metadata).
+    #[must_use]
+    pub fn with_overrides(overrides: Vec<LedgerPriceRow>) -> PricingCatalog {
+        PricingCatalog {
+            bundled: load_seed_rows(),
+            overrides,
+            last_synced_ms: None,
+        }
+    }
+
+    /// Which prices a stored cost was made with: the bundled table's
+    /// version, and a fingerprint of the user's overrides when there are
+    /// any (`v4`, `v4+u1a2b3c4d5e6f7a8b`). A stored cost made with another
+    /// is priced again ([`crate::storage::UsageRepo::reprice`]).
+    #[must_use]
+    pub fn version(&self) -> String {
+        let seed = seed_version();
+        if self.overrides.is_empty() {
+            return seed;
+        }
+        // FNV-1a over the overrides' JSON: stable across builds and runs.
+        let text = serde_json::to_string(&self.overrides).unwrap_or_default();
+        let hash = text.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+        format!("{seed}+u{hash:016x}")
+    }
+
     /// The rate row for `model` at `ts`: the latest row
     /// (`effective_from ≤ ts`) among overrides (preferred) and
     /// bundled rows; `None` when unpriced at that instant. A dated
@@ -199,23 +331,64 @@ impl PricingCatalog {
         now_ms.saturating_sub(synced) > STALE_PRICING_MS
     }
 
-    /// Prices one event's tokens at event-time rates. `None` when the
-    /// model is unpriced AT THAT INSTANT (the honest `—`). Reasoning
-    /// tokens are output the vendor bills at the output rate (stored
-    /// apart from `output`, never inside it). The u64→f64 casts lose
-    /// cents only past 2^53 tokens — beyond any real bucket.
-    #[allow(clippy::cast_precision_loss)]
+    /// Prices tokens at event-time standard rates, as one call with no
+    /// detail would be (a projection's or a summed bucket's price: no
+    /// tier can be told from a sum). `None` when the model is unpriced AT
+    /// THAT INSTANT (the honest `—`). Stored usage is priced per call
+    /// instead ([`Self::price_event`]).
     #[must_use]
     pub fn price_tokens(&self, model: &str, ts_ms: i64, tokens: TokenCounts) -> Option<f64> {
         let row = self.row_for(model, ts_ms)?;
-        Some(
-            (tokens.input as f64 / 1000.0) * row.input_per_1k
-                + (tokens.output.saturating_add(tokens.reasoning) as f64 / 1000.0)
-                    * row.output_per_1k
-                + (tokens.cache_read as f64 / 1000.0) * row.cache_read_per_1k
-                + (tokens.cache_write as f64 / 1000.0) * row.cache_write_per_1k,
-        )
+        Some(cost_at(&row.standard(), tokens, 0, 1.0))
     }
+
+    /// Prices ONE API call at its event-time list rates and its own tier
+    /// (0.3.6, the usage audit): the long-context rates when its prompt is
+    /// over the model's threshold, fast mode's when it ran fast, 1-hour
+    /// cache writes at their own rate, and US-only inference's multiplier.
+    /// Reasoning tokens are output the vendor bills at the output rate
+    /// (stored apart from `output`, never inside it). `None` when the
+    /// model is unpriced at that instant.
+    #[must_use]
+    pub fn price_event(
+        &self,
+        model: &str,
+        ts_ms: i64,
+        tokens: TokenCounts,
+        detail: &UsageDetail,
+    ) -> Option<f64> {
+        let row = self.row_for(model, ts_ms)?;
+        let tier = row.tier_for(detail.prompt_of(&tokens), detail);
+        let geo = match (detail.geo.as_deref(), row.us_multiplier) {
+            (Some("us"), Some(multiplier)) => multiplier,
+            _ => 1.0,
+        };
+        Some(cost_at(&tier, tokens, detail.cache_write_1h, geo))
+    }
+}
+
+/// `tokens` at `rates`, `one_hour` of the cache writes at the 1-hour
+/// rate, all times `multiplier`. The u64→f64 casts lose cents only past
+/// 2^53 tokens — beyond any real bucket.
+#[allow(clippy::cast_precision_loss)]
+fn cost_at(rates: &TierRates, tokens: TokenCounts, one_hour: u64, multiplier: f64) -> f64 {
+    let per_1k = |count: u64, rate: f64| (count as f64 / 1000.0) * rate;
+    let one_hour = one_hour.min(tokens.cache_write);
+    let five_minute = tokens.cache_write - one_hour;
+    (per_1k(tokens.input, rates.input_per_1k)
+        + per_1k(
+            tokens.output.saturating_add(tokens.reasoning),
+            rates.output_per_1k,
+        )
+        + per_1k(tokens.cache_read, rates.cache_read_per_1k)
+        + per_1k(five_minute, rates.cache_write_per_1k)
+        + per_1k(
+            one_hour,
+            rates
+                .cache_write_1h_per_1k
+                .unwrap_or(rates.cache_write_per_1k),
+        ))
+        * multiplier
 }
 
 /// Groups events into rollup buckets. `dimension` picks the key:
@@ -277,12 +450,15 @@ pub fn rollup(
             .tokens
             .reasoning
             .saturating_add(event.tokens.reasoning);
-        // Event-time pricing: unpriced at THIS instant ⇒ the bucket's
-        // USD becomes None (— never a partial $).
-        let priced = event
-            .model
-            .as_deref()
-            .and_then(|model| catalog.price_tokens(model, event.ts, event.tokens));
+        // Event-time pricing, per call: the cost stored when the call was
+        // read (its own tier), else priced here. Unpriced at THIS instant ⇒
+        // the bucket's USD becomes None (— never a partial $).
+        let priced = event.usd_est.or_else(|| {
+            event
+                .model
+                .as_deref()
+                .and_then(|model| catalog.price_event(model, event.ts, event.tokens, &event.detail))
+        });
         if let (Some(usd), Some(total)) = (priced, entry.usd) {
             entry.usd = Some(total + usd);
         } else {

@@ -29,11 +29,12 @@ title: string | null,
  */
 project_id: string | null, 
 /**
- * Input and output tokens in the range.
+ * New tokens in the range, its subagents' and automatic reviews'
+ * included.
  */
 io: number, 
 /**
- * Cache tokens in the range.
+ * Tokens re-read from the cache in the range.
  */
 cache: number, 
 /**

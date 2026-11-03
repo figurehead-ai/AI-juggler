@@ -289,6 +289,7 @@ fn a_falling_pair_of_meter_readings_never_interpolates_downwards() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
+        detail: Default::default(),
         msg_uuid: None,
     };
     // 80% then 5% (a reset between them), then more use.

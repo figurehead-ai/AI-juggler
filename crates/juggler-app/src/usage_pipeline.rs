@@ -55,7 +55,12 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 ///   in as a re-read, not as new use (main's 4);
 /// - a Codex compaction that names its own model call opens no row of its
 ///   own (P21: one counted another thread's call again; main's 5).
-const REREAD_VERSION: u32 = 6;
+///
+/// 7 = 0.3.6 (the usage audit): each call's detail beyond its classes
+/// (Claude's 1-hour cache writes, the prompt's size, speed and inference
+/// place; a Codex thread's kind and conversation) and its list price,
+/// made per call with its own tier.
+const REREAD_VERSION: u32 = 7;
 
 /// The first read of the tools' history (the 0.2 walk, F6: for about ten
 /// minutes after the first start every screen said "0 tokens" while it
@@ -350,10 +355,44 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
         }
     }
+    reprice_stored(state);
     // D-39 (off until ruled): ask the tool itself for profiles whose own
     // records are old.
     if instances.is_some() {
         crate::features::quota::probe::tick(state, &accounts);
+    }
+}
+
+/// Stored calls priced again per batch: a pass holds storage for one
+/// batch at a time.
+const REPRICE_BATCH: usize = 20_000;
+
+/// Prices every stored call again when the prices changed since its cost
+/// was made (a new bundled table, or the user's overrides): in batches,
+/// storage let go between them. A pass cut short goes on at the next.
+fn reprice_stored(state: &Arc<AppState>) {
+    let current = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| storage.usage().prices_current().ok());
+    if current != Some(false) {
+        return;
+    }
+    let mut cursor = None;
+    loop {
+        let Ok(storage) = state.storage.lock() else {
+            return;
+        };
+        let Ok(next) = storage.usage().reprice(cursor, REPRICE_BATCH) else {
+            return;
+        };
+        drop(storage);
+        let Some(next) = next else {
+            return;
+        };
+        cursor = Some(next);
+        std::thread::sleep(CHUNK_PAUSE);
     }
 }
 
@@ -1054,6 +1093,7 @@ mod chunk_tests {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: juggler_core::model::Confidence::Measured,
+            detail: Default::default(),
             msg_uuid: Some(format!("{session}-{n}")),
         }
     }

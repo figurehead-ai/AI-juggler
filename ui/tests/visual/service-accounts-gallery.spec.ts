@@ -162,7 +162,7 @@ for (const theme of ["dark", "light"] as const) {
     const go = page.locator("[data-testid='account-card'][data-service='opencode-go']");
     await expect(go.getByTestId("account-line")).toHaveText("OpenCode Go · Go Plus · estimate");
     await expect(go.getByTestId("profile-row")).toHaveCount(2);
-    await expect(go.getByTestId("account-service-used")).toContainText("about 420k tokens in and out in the last 5 hours");
+    await expect(go.getByTestId("account-service-used")).toContainText("about 420k new tokens in the last 5 hours");
     const kimi = page.locator("[data-testid='account-card'][data-service='kimi']");
     await expect(kimi.getByTestId("account-line")).toHaveText("Kimi · Pro · usage unknown");
     await shoot(page, "accounts-service", theme);

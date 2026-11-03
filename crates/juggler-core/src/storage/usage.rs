@@ -9,9 +9,10 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use rusqlite::{Connection, OptionalExtension, params};
 
+use crate::cost_ledger::PricingCatalog;
 use crate::error::CoreError;
 use crate::model::{Confidence, TokenCounts};
-use crate::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
+use crate::quota::{CallKind, QuotaSample, UsageDetail, UsageEvent, UsageSource, WindowKind};
 
 mod cost_pages;
 pub use cost_pages::CostDay;
@@ -243,12 +244,146 @@ impl UsageRepo<'_> {
             }
             gone += tx.execute("DELETE FROM usage_events WHERE id = ?1", params![id])?;
             tx.execute(
+                "DELETE FROM usage_detail WHERE account = ?1 AND msg_uuid = ?2",
+                params![account, key],
+            )?;
+            tx.execute(
                 "DELETE FROM usage_holders WHERE account = ?1 AND msg_uuid = ?2 AND session = ?3",
                 params![account, key, session],
             )?;
         }
         tx.commit()?;
         Ok(gone)
+    }
+
+    /// Whether every stored per-call cost was made with today's prices
+    /// (the bundled table and the user's overrides).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn prices_current(&self) -> Result<bool, CoreError> {
+        let catalog = PricingCatalog::with_overrides(self.pricing_overrides()?);
+        let stored: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT version FROM usage_pricing WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?
+            .flatten();
+        Ok(stored.as_deref() == Some(catalog.version().as_str()))
+    }
+
+    /// Prices stored calls again, up to `limit` of them in key order after
+    /// `cursor` (`None`: from the start), with today's prices. A pass that
+    /// reaches the end with the prices it started with records them, so
+    /// [`Self::prices_current`] holds. A detail whose call is gone goes.
+    /// Run in batches, so the store isn't held for long.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; the batch rolls
+    /// back then.
+    pub fn reprice(
+        &self,
+        cursor: Option<RepriceCursor>,
+        limit: usize,
+    ) -> Result<Option<RepriceCursor>, CoreError> {
+        let tx = write_transaction(self.conn)?;
+        let catalog = PricingCatalog::with_overrides(UsageRepo { conn: &tx }.pricing_overrides()?);
+        let version = catalog.version();
+        // Prices that changed mid-pass start the pass again.
+        let after = cursor
+            .filter(|cursor| cursor.version == version)
+            .map(|cursor| cursor.after);
+        let (after_account, after_key) = after.unwrap_or_default();
+        let rows = {
+            let mut stmt = tx.prepare_cached(
+                "SELECT d.account, d.msg_uuid, d.cache_w_1h, d.prompt_tokens, d.speed, d.geo,
+                        d.price_version, d.usd, e.model, e.ts, e.input, e.output, e.cache_r,
+                        e.cache_w, e.reasoning, e.id
+                 FROM usage_detail d
+                 LEFT JOIN usage_events e ON e.account = d.account AND e.msg_uuid = d.msg_uuid
+                 WHERE (d.account, d.msg_uuid) > (?1, ?2)
+                 ORDER BY d.account, d.msg_uuid
+                 LIMIT ?3",
+            )?;
+            stmt.query_map(
+                params![
+                    after_account,
+                    after_key,
+                    i64::try_from(limit).unwrap_or(i64::MAX)
+                ],
+                |row| {
+                    let detail = UsageDetail {
+                        cache_write_1h: from_sql(row.get(2)?),
+                        prompt_tokens: from_sql(row.get(3)?),
+                        speed: row.get(4)?,
+                        geo: row.get(5)?,
+                        ..UsageDetail::default()
+                    };
+                    let tokens = TokenCounts {
+                        input: row.get::<_, Option<i64>>(10)?.map_or(0, from_sql),
+                        output: row.get::<_, Option<i64>>(11)?.map_or(0, from_sql),
+                        cache_read: row.get::<_, Option<i64>>(12)?.map_or(0, from_sql),
+                        cache_write: row.get::<_, Option<i64>>(13)?.map_or(0, from_sql),
+                        reasoning: row.get::<_, Option<i64>>(14)?.map_or(0, from_sql),
+                    };
+                    Ok((
+                        (row.get::<_, String>(0)?, row.get::<_, String>(1)?),
+                        detail,
+                        row.get::<_, Option<String>>(6)?,
+                        row.get::<_, Option<f64>>(7)?,
+                        row.get::<_, Option<String>>(8)?,
+                        row.get::<_, Option<i64>>(9)?,
+                        tokens,
+                        row.get::<_, Option<i64>>(15)?.is_some(),
+                    ))
+                },
+            )?
+            .collect::<Result<Vec<_>, _>>()?
+        };
+        let done = rows.len() < limit;
+        let last = rows.last().map(|row| row.0.clone());
+        let mut moved = false;
+        {
+            let mut update = tx.prepare_cached(
+                "UPDATE usage_detail SET usd = ?3, price_version = ?4
+                 WHERE account = ?1 AND msg_uuid = ?2",
+            )?;
+            let mut orphan =
+                tx.prepare_cached("DELETE FROM usage_detail WHERE account = ?1 AND msg_uuid = ?2")?;
+            for ((account, key), detail, priced_with, usd, model, ts, tokens, has_event) in rows {
+                if !has_event {
+                    orphan.execute(params![account, key])?;
+                    continue;
+                }
+                if priced_with.as_deref() == Some(version.as_str()) {
+                    continue;
+                }
+                let now = model.as_deref().and_then(|model| {
+                    catalog.price_event(model, ts.unwrap_or_default(), tokens, &detail)
+                });
+                moved |= now != usd;
+                update.execute(params![account, key, now, version])?;
+            }
+        }
+        if moved {
+            bump_settled(&tx)?;
+        }
+        let next = if done {
+            tx.execute(
+                "INSERT OR REPLACE INTO usage_pricing (id, version) VALUES (1, ?1)",
+                params![version],
+            )?;
+            None
+        } else {
+            last.map(|after| RepriceCursor { version, after })
+        };
+        tx.commit()?;
+        Ok(next)
     }
 
     /// Every event for one account since `since_ms` (the window fold
@@ -262,34 +397,10 @@ impl UsageRepo<'_> {
         account: &str,
         since_ms: i64,
     ) -> Result<Vec<UsageEvent>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT account, session, ts, model, input, output, cache_r, cache_w,
-                    reasoning, credits, usd_est, source, confidence, msg_uuid
-             FROM usage_events
-             WHERE account = ?1 AND ts >= ?2
-             ORDER BY ts",
-        )?;
-        let rows = stmt.query_map(params![account, since_ms], |row| {
-            Ok(UsageEvent {
-                account: row.get(0)?,
-                session: row.get(1)?,
-                ts: row.get(2)?,
-                model: row.get(3)?,
-                tokens: crate::model::TokenCounts {
-                    input: u64::try_from(row.get::<_, i64>(4)?).unwrap_or(0),
-                    output: u64::try_from(row.get::<_, i64>(5)?).unwrap_or(0),
-                    cache_read: u64::try_from(row.get::<_, i64>(6)?).unwrap_or(0),
-                    cache_write: u64::try_from(row.get::<_, i64>(7)?).unwrap_or(0),
-                    reasoning: u64::try_from(row.get::<_, i64>(8)?).unwrap_or(0),
-                },
-                credits: row.get(9)?,
-                usd_est: row.get(10)?,
-                source: UsageSource::parse(&row.get::<_, String>(11)?)
-                    .unwrap_or(UsageSource::Transcript),
-                confidence: parse_confidence(&row.get::<_, String>(12)?),
-                msg_uuid: row.get(13)?,
-            })
-        })?;
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT {EVENT_COLUMNS} WHERE e.account = ?1 AND e.ts >= ?2 ORDER BY e.ts"
+        ))?;
+        let rows = stmt.query_map(params![account, since_ms], event_row)?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(CoreError::Storage)
     }
@@ -523,34 +634,10 @@ impl UsageRepo<'_> {
         lo_ms: i64,
         hi_ms: i64,
     ) -> Result<Vec<UsageEvent>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT account, session, ts, model, input, output, cache_r, cache_w,
-                    reasoning, credits, usd_est, source, confidence, msg_uuid
-             FROM usage_events
-             WHERE account = ?1 AND ts > ?2 AND ts <= ?3
-             ORDER BY ts",
-        )?;
-        let rows = stmt.query_map(params![account, lo_ms, hi_ms], |row| {
-            Ok(UsageEvent {
-                account: row.get(0)?,
-                session: row.get(1)?,
-                ts: row.get(2)?,
-                model: row.get(3)?,
-                tokens: crate::model::TokenCounts {
-                    input: u64::try_from(row.get::<_, i64>(4)?).unwrap_or(0),
-                    output: u64::try_from(row.get::<_, i64>(5)?).unwrap_or(0),
-                    cache_read: u64::try_from(row.get::<_, i64>(6)?).unwrap_or(0),
-                    cache_write: u64::try_from(row.get::<_, i64>(7)?).unwrap_or(0),
-                    reasoning: u64::try_from(row.get::<_, i64>(8)?).unwrap_or(0),
-                },
-                credits: row.get(9)?,
-                usd_est: row.get(10)?,
-                source: UsageSource::parse(&row.get::<_, String>(11)?)
-                    .unwrap_or(UsageSource::Transcript),
-                confidence: parse_confidence(&row.get::<_, String>(12)?),
-                msg_uuid: row.get(13)?,
-            })
-        })?;
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT {EVENT_COLUMNS} WHERE e.account = ?1 AND e.ts > ?2 AND e.ts <= ?3 ORDER BY e.ts"
+        ))?;
+        let rows = stmt.query_map(params![account, lo_ms, hi_ms], event_row)?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(CoreError::Storage)
     }
@@ -639,6 +726,11 @@ impl UsageRepo<'_> {
                 output_per_1k: row.get(3)?,
                 cache_read_per_1k: row.get(4)?,
                 cache_write_per_1k: row.get(5)?,
+                // An override is one set of rates: no tiers.
+                cache_write_1h_per_1k: None,
+                long_context: None,
+                fast: None,
+                us_multiplier: None,
                 source_url: row.get(6)?,
                 captured: row.get(7)?,
             })
@@ -761,6 +853,48 @@ pub struct Stored {
     pub added: TokenCounts,
 }
 
+/// What an event read selects: its row and its detail (the stored
+/// per-call cost, when it has one, as its `usd_est`). Followed by the
+/// `WHERE` over `e`.
+pub(super) const EVENT_COLUMNS: &str = "e.account, e.session, e.ts, e.model, e.input, e.output,
+        e.cache_r, e.cache_w, e.reasoning, e.credits, COALESCE(d.usd, e.usd_est), e.source,
+        e.confidence, e.msg_uuid, d.cache_w_1h, d.prompt_tokens, d.speed, d.geo, d.kind,
+        d.root_session
+    FROM usage_events e
+    LEFT JOIN usage_detail d ON d.account = e.account AND d.msg_uuid = e.msg_uuid";
+
+/// One event as [`EVENT_COLUMNS`] reads it.
+pub(super) fn event_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UsageEvent> {
+    Ok(UsageEvent {
+        account: row.get(0)?,
+        session: row.get(1)?,
+        ts: row.get(2)?,
+        model: row.get(3)?,
+        tokens: TokenCounts {
+            input: from_sql(row.get(4)?),
+            output: from_sql(row.get(5)?),
+            cache_read: from_sql(row.get(6)?),
+            cache_write: from_sql(row.get(7)?),
+            reasoning: from_sql(row.get(8)?),
+        },
+        credits: row.get(9)?,
+        usd_est: row.get(10)?,
+        source: UsageSource::parse(&row.get::<_, String>(11)?).unwrap_or(UsageSource::Transcript),
+        confidence: parse_confidence(&row.get::<_, String>(12)?),
+        msg_uuid: row.get(13)?,
+        detail: UsageDetail {
+            cache_write_1h: row.get::<_, Option<i64>>(14)?.map_or(0, from_sql),
+            prompt_tokens: row.get::<_, Option<i64>>(15)?.map_or(0, from_sql),
+            speed: row.get(16)?,
+            geo: row.get(17)?,
+            kind: row
+                .get::<_, Option<String>>(18)?
+                .map_or(CallKind::Main, |kind| CallKind::parse(&kind)),
+            root_session: row.get(19)?,
+        },
+    })
+}
+
 fn as_sql(count: u64) -> i64 {
     i64::try_from(count).unwrap_or(i64::MAX)
 }
@@ -787,6 +921,14 @@ fn from_sql(count: i64) -> u64 {
 ///   again when it is set ([`UsageRepo::derived_dirty`]). The triggers are
 ///   dropped and made again at each open, so a change to them always
 ///   lands.
+/// - `usage_detail` (0.3.6, the usage audit): each keyed call's facts
+///   beyond its token classes ([`UsageDetail`]) and its list-price cost,
+///   priced per call with the prices of `price_version`. Rows a build
+///   without it wrote (or calls with no key) have none: they are priced
+///   from their tokens at the standard rates, as before.
+/// - `usage_pricing`: the prices every stored cost was last made with
+///   ([`PricingCatalog::version`]); another means [`UsageRepo::reprice`]
+///   prices them again.
 /// - `quota_sample_sources`: where each `quota_samples` row came from (a
 ///   status line, a rollout, the tool's desktop app, its own cached
 ///   reading, a limit hit), keyed like the row. Kept beside the numbered
@@ -821,6 +963,23 @@ CREATE TABLE IF NOT EXISTS usage_unshared (
 CREATE TABLE IF NOT EXISTS usage_derived (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     dirty INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS usage_detail (
+    account TEXT NOT NULL,
+    msg_uuid TEXT NOT NULL,
+    cache_w_1h INTEGER NOT NULL DEFAULT 0,
+    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+    speed TEXT,
+    geo TEXT,
+    kind TEXT NOT NULL DEFAULT 'main',
+    root_session TEXT,
+    usd REAL,
+    price_version TEXT,
+    PRIMARY KEY (account, msg_uuid)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS usage_pricing (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    version TEXT
 );
 INSERT OR IGNORE INTO usage_derived (id, dirty) VALUES (1, 0);
 DROP TRIGGER IF EXISTS usage_events_unheld_insert;
@@ -1170,6 +1329,7 @@ fn store_in(
              model = COALESCE(model, ?8)
          WHERE account = ?1 AND msg_uuid = ?2",
     )?;
+    let mut details = Details::new(conn)?;
     for event in events {
         let known = match &event.msg_uuid {
             Some(key) => find
@@ -1207,6 +1367,7 @@ fn store_in(
                 confidence_name(event.confidence),
                 event.msg_uuid,
             ])?;
+            details.keep(event, event.tokens, event.model.as_deref())?;
             stored.push(Stored {
                 new: true,
                 added: event.tokens,
@@ -1232,6 +1393,7 @@ fn store_in(
                 event.model,
             ])?;
         }
+        details.keep(event, now, event.model.as_deref())?;
         stored.push(Stored {
             new: false,
             added: TokenCounts {
@@ -1244,7 +1406,141 @@ fn store_in(
         });
     }
     owners.finish()?;
+    details.finish()?;
     Ok(stored)
+}
+
+/// Where a [`UsageRepo::reprice`] pass stands: the prices it is making
+/// costs with, and the last call it priced.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RepriceCursor {
+    version: String,
+    after: (String, String),
+}
+
+/// Writes each stored call's [`UsageDetail`] and its cost (see
+/// `usage_detail` in [`DERIVED`]).
+struct Details<'c> {
+    catalog: PricingCatalog,
+    version: String,
+    find: rusqlite::CachedStatement<'c>,
+    write: rusqlite::CachedStatement<'c>,
+    /// A settled hour's cost changed without its tokens: the summaries
+    /// kept in memory must be made again.
+    settled_changed: bool,
+    conn: &'c Connection,
+}
+
+impl<'c> Details<'c> {
+    fn new(conn: &'c Connection) -> Result<Self, CoreError> {
+        let catalog = PricingCatalog::with_overrides(UsageRepo { conn }.pricing_overrides()?);
+        Ok(Details {
+            version: catalog.version(),
+            catalog,
+            find: conn.prepare_cached(
+                "SELECT cache_w_1h, prompt_tokens, speed, geo, kind, root_session, usd, price_version
+                 FROM usage_detail WHERE account = ?1 AND msg_uuid = ?2",
+            )?,
+            write: conn.prepare_cached(
+                "INSERT OR REPLACE INTO usage_detail
+                     (account, msg_uuid, cache_w_1h, prompt_tokens, speed, geo, kind,
+                      root_session, usd, price_version)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            )?,
+            settled_changed: false,
+            conn,
+        })
+    }
+
+    /// Keeps `event`'s detail for its stored row, whose tokens are now
+    /// `tokens`: merged with what is stored (each figure its largest, as
+    /// the tokens are; a one-time kind or conversation is kept), and
+    /// priced at the call's own tier.
+    fn keep(
+        &mut self,
+        event: &UsageEvent,
+        tokens: TokenCounts,
+        model: Option<&str>,
+    ) -> Result<(), CoreError> {
+        let Some(key) = &event.msg_uuid else {
+            return Ok(());
+        };
+        let was = self
+            .find
+            .query_row(params![event.account, key], |row| {
+                Ok((
+                    UsageDetail {
+                        cache_write_1h: from_sql(row.get(0)?),
+                        prompt_tokens: from_sql(row.get(1)?),
+                        speed: row.get(2)?,
+                        geo: row.get(3)?,
+                        kind: CallKind::parse(&row.get::<_, String>(4)?),
+                        root_session: row.get(5)?,
+                    },
+                    row.get::<_, Option<f64>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                ))
+            })
+            .optional()?;
+        let detail = match &was {
+            Some((stored, _, _)) => UsageDetail {
+                cache_write_1h: stored.cache_write_1h.max(event.detail.cache_write_1h),
+                prompt_tokens: stored.prompt_tokens.max(event.detail.prompt_tokens),
+                speed: stored.speed.clone().or_else(|| event.detail.speed.clone()),
+                geo: stored.geo.clone().or_else(|| event.detail.geo.clone()),
+                kind: stored.kind,
+                root_session: stored
+                    .root_session
+                    .clone()
+                    .or_else(|| event.detail.root_session.clone()),
+            },
+            None => event.detail.clone(),
+        };
+        let usd =
+            model.and_then(|model| self.catalog.price_event(model, event.ts, tokens, &detail));
+        if let Some((stored, stored_usd, version)) = &was
+            && *stored == detail
+            && *stored_usd == usd
+            && version.as_deref() == Some(self.version.as_str())
+        {
+            return Ok(());
+        }
+        self.write.execute(params![
+            event.account,
+            key,
+            as_sql(detail.cache_write_1h),
+            as_sql(detail.prompt_tokens),
+            detail.speed,
+            detail.geo,
+            detail.kind.as_str(),
+            detail.root_session,
+            usd,
+            self.version,
+        ])?;
+        if was.is_some()
+            && event.ts < crate::model::Timestamp::now().millis() - crate::storage::SETTLED_MS
+        {
+            self.settled_changed = true;
+        }
+        Ok(())
+    }
+
+    fn finish(self) -> Result<(), CoreError> {
+        if self.settled_changed {
+            bump_settled(self.conn)?;
+        }
+        Ok(())
+    }
+}
+
+/// Counts a change to settled usage the triggers can't see (a cost moved,
+/// its tokens didn't): the summaries kept in memory are made again.
+fn bump_settled(conn: &Connection) -> Result<(), CoreError> {
+    conn.execute(
+        "UPDATE usage_history_epoch SET changed = changed + 1 WHERE id = 1",
+        [],
+    )?;
+    Ok(())
 }
 
 /// What removing sessions leaves to settle: sessions that shared messages
@@ -1279,6 +1575,15 @@ fn delete_in(
              SELECT 1 FROM usage_holders o
              WHERE o.account = usage_events.account AND o.msg_uuid = usage_events.msg_uuid))",
     )?;
+    // The same rows' details, first (they go with their rows).
+    let mut delete_details = conn.prepare(
+        "DELETE FROM usage_detail
+         WHERE account = ?1 AND msg_uuid IN (
+             SELECT e.msg_uuid FROM usage_events e
+             WHERE e.account = ?1 AND e.source = ?2 AND e.session = ?3 AND e.msg_uuid IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM usage_holders o
+                   WHERE o.account = e.account AND o.msg_uuid = e.msg_uuid))",
+    )?;
     let mut deleted = 0;
     let mut recheck = BTreeSet::new();
     let mut keys = BTreeSet::new();
@@ -1294,6 +1599,7 @@ fn delete_in(
         }
         forget.execute(params![account, session])?;
         forget_span.execute(params![account, session])?;
+        delete_details.execute(params![account, source.as_str(), session])?;
         deleted += delete.execute(params![account, source.as_str(), session])?;
     }
     for (account, _, session) in sessions {

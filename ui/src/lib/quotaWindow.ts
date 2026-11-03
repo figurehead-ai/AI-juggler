@@ -105,19 +105,28 @@ export function tokenWords(tokens: number): string {
   return compactCount(tokens, (value, suffix) => (suffix === "k" || (suffix === "M" ? value >= 10 : value >= 100) ? 0 : 1));
 }
 
-/** A window's tokens as every screen counts them: in and out, like
- * Usage's "Tokens in and out" (the 0.2 walk, F15: 7.7B on a session page
- * against 4.4M on Usage for one account). A reading without that split
+/** A window's tokens as every screen counts them: new tokens, like
+ * Usage's "New tokens" (the 0.2 walk, F15: 7.7B on a session page
+ * against 4.4M on Usage for one account; 0.3.6: input, cache writes,
+ * output and reasoning). A reading without that split
  * counts cache too, and says so. `null` when it used none. */
 export function usedTokensWords(windows: ReadonlyArray<WindowDisplay | null | undefined>): string | null {
   const io = windows.filter((w): w is WindowDisplay => w != null);
   if (io.length === 0) return null;
   if (io.every((w) => w.burned_io_tokens != null)) {
     const most = Math.max(...io.map((w) => w.burned_io_tokens!));
-    return most > 0 ? `${tokenWords(most)} tokens in and out` : null;
+    return most > 0 ? `${tokenWords(most)} new tokens` : null;
   }
   const most = Math.max(...io.map((w) => w.burned_tokens));
   return most > 0 ? `${tokenWords(most)} tokens, cache included` : null;
+}
+
+/** The estimate of "left now" from the calls made since the vendor's
+ * reading (0.3.6, the usage audit: it was added to the reading and still
+ * said Measured): apart, and called an estimate. `null` without one. */
+export function projectedWords(window: WindowDisplay): string | null {
+  if (window.projected_pct == null) return null;
+  return `about ${Math.max(0, Math.round(100 - window.projected_pct))}% left now (estimate)`;
 }
 
 /** True when the window carries a real percentage (never a default). */
@@ -177,9 +186,10 @@ export function windowView(window: WindowDisplay | null | undefined, omitted?: s
   }
   // The "as of" says how old a reading is; without one, stale says so.
   const stale = !asOf && window.state === "stale" ? " · last known" : "";
+  const now_ = projectedWords(window);
   return {
     left,
-    words: `${left}% left${resets ? ` · ${resets}` : ""}${asOf}${stale}`,
+    words: `${left}% left${resets ? ` · ${resets}` : ""}${asOf}${stale}${now_ ? ` · ${now_}` : ""}`,
     tone: left <= 25 ? "low" : "ok",
     resets,
   };

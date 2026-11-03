@@ -27,6 +27,7 @@ import { IconMoney, IconTokens } from "./usage/controls";
 import { costCsvExport, costRollups, type CostRollupRow, type CostRollupsData } from "../lib/bridge";
 import { costRowsKey, costRowsPage, costSessionName, type CostRow } from "../lib/ipc/costs";
 import { usePagedList } from "../lib/paged";
+import { newTokens } from "../lib/usage/tokens";
 
 /** An estimate at API prices: "~$12.40" (§10: "~" on every estimate). */
 const usdText = (value: number): string =>
@@ -82,9 +83,12 @@ function Usd({ usd, unpriced, testId }: { usd: number | null; unpriced: string[]
 
 function Tokens({ tokens, confidence }: { tokens: CostRow["tokens"]; confidence: string }): JSX.Element {
   return (
-    <span className={`${WIDE} truncate text-right tabular-nums text-ink`} title={`${exact(tokens.input, "tokens")} in, ${exact(tokens.output, "tokens")} out (${tierWords(confidence)})`}>
-      <span className="sr-only">Tokens in and out </span>
-      {short(tokens.input, "tokens")} / {short(tokens.output, "tokens")}
+    <span
+      className={`${WIDE} truncate text-right tabular-nums text-ink`}
+      title={`${exact(tokens.input, "tokens")} input, ${exact(tokens.cache_write, "tokens")} cache writes, ${exact(tokens.output, "tokens")} output, ${exact(tokens.reasoning, "tokens")} reasoning; ${exact(tokens.cache_read, "tokens")} re-read from cache (${tierWords(confidence)})`}
+    >
+      <span className="sr-only">New tokens </span>
+      {short(newTokens(tokens), "tokens")}
     </span>
   );
 }
@@ -244,7 +248,7 @@ export function CostMatrix(): JSX.Element {
           <span>Session</span>
           <span className={WIDE}>Model</span>
           <span className="text-right">Estimated USD</span>
-          <span className={`${WIDE} text-right`}>Tokens (in / out)</span>
+          <span className={`${WIDE} text-right`}>New tokens</span>
           {credits && <span className={`${WIDE} text-right`}>Credits</span>}
         </div>
         <PagedList

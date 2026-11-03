@@ -115,6 +115,10 @@ fn lab() -> Lab {
             output_per_1k: 1.0,
             cache_read_per_1k: 0.0,
             cache_write_per_1k: 0.0,
+            cache_write_1h_per_1k: None,
+            long_context: None,
+            fast: None,
+            us_multiplier: None,
             source_url: "test".to_owned(),
             captured: "2026-10-23".to_owned(),
         })
@@ -147,6 +151,7 @@ impl Lab {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Measured,
+            detail: Default::default(),
             msg_uuid: Some(format!("{account}-{session}-{usd}-{days_ago}-{now}")),
         };
         self.state
@@ -263,6 +268,7 @@ fn usage_with_no_price_is_flagged_never_counted_as_nothing() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
+        detail: Default::default(),
         msg_uuid: Some("unpriced".to_owned()),
     };
     unknown.tokens.output = 0;

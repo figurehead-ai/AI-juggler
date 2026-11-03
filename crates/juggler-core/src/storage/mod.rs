@@ -90,9 +90,9 @@ pub use tasks::{
 pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
-pub use usage::{CostDay, Stored, UsageRepo, anchor_settings_key, cap_settings_key};
+pub use usage::{CostDay, RepriceCursor, Stored, UsageRepo, anchor_settings_key, cap_settings_key};
 pub use usage_history::{
-    HOUR_MS, HourRow, ModelRow, SETTLED_MS, SwitchRow, TurnRow, UsageHistoryRepo,
+    GroupCost, HOUR_MS, HourRow, ModelRow, SETTLED_MS, SwitchRow, TurnRow, UsageHistoryRepo,
     add as add_tokens, thin,
 };
 

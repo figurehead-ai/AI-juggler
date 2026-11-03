@@ -1203,6 +1203,7 @@ fn each_mac_reports_what_it_used_in_the_last_day() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
+        detail: Default::default(),
         msg_uuid: None,
     };
     // The desktop: two sessions today, and one from two days ago (outside).

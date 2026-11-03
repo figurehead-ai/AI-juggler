@@ -165,6 +165,7 @@ fn fixture() -> Fixture {
                 usd_est: None,
                 source: UsageSource::Transcript,
                 confidence: Confidence::Measured,
+                detail: Default::default(),
                 msg_uuid: Some(format!("m-{n}")),
             })
             .collect();

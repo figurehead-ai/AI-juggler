@@ -310,6 +310,7 @@ fn rows_counted_per_content_block_are_read_again_once() {
         usd_est: None,
         source: juggler_core::quota::UsageSource::Transcript,
         confidence: juggler_core::model::Confidence::Measured,
+        detail: Default::default(),
         msg_uuid: Some(uuid.into()),
     };
     {
@@ -877,6 +878,7 @@ fn a_compaction_counted_twice_by_an_older_build_is_read_again() {
             usd_est: None,
             source: juggler_core::quota::UsageSource::Rollout,
             confidence: juggler_core::model::Confidence::Measured,
+            detail: Default::default(),
             msg_uuid: Some(key.into()),
         };
         storage
@@ -977,6 +979,7 @@ fn a_gone_threads_copy_of_a_stored_call_goes_once() {
         usd_est: None,
         source: juggler_core::quota::UsageSource::Rollout,
         confidence: juggler_core::model::Confidence::Measured,
+        detail: Default::default(),
         msg_uuid: Some(key),
     };
     let store = |rows: &[juggler_core::quota::UsageEvent]| {
@@ -1063,6 +1066,7 @@ fn no_rollouts_listed_means_no_check_until_they_are() {
         usd_est: None,
         source: juggler_core::quota::UsageSource::Rollout,
         confidence: juggler_core::model::Confidence::Measured,
+        detail: Default::default(),
         msg_uuid: Some(key),
     };
     state

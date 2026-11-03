@@ -27,8 +27,13 @@ pub struct WindowDisplay {
     /// about the new one). A state that reads as known always carries its
     /// percentage (the 0.0.12 report).
     pub state: String,
-    /// Percent used, ONLY when the state carries one.
+    /// Percent used, ONLY when the state carries one: the vendor's own
+    /// reading as of `measured_at_ms` when the badge is Measured.
     pub percentage: Option<f64>,
+    /// An estimate of the percent used now, from the calls made since the
+    /// reading (0.3.6): shown apart, labelled estimate; absent when it
+    /// would read the same as the reading.
+    pub projected_pct: Option<f64>,
     /// The badge (`Measured|Computed|Estimate`), adjacent on screen.
     pub badge: Option<String>,
     /// Staleness note ("last measured Nh ago") when Measured went quiet.
@@ -44,9 +49,10 @@ pub struct WindowDisplay {
     /// Absolute burn inside the window (the honest floor), every kind
     /// counted (cache reads and writes too): what headroom is figured on.
     pub burned_tokens: u64,
-    /// The window's tokens in and out, counted as Usage counts them
-    /// (`usage_history::fold::io`): what every screen calls "tokens" (the
-    /// 0.2 walk, F15: 7.7B here against 4.4M on Usage).
+    /// The window's new tokens, counted as Usage counts them
+    /// (`usage_history::fold::io`: input, cache writes, output and
+    /// reasoning): what every screen calls "tokens" (the 0.2 walk, F15:
+    /// 7.7B here against 4.4M on Usage).
     pub burned_io_tokens: u64,
     /// Burn in vendor credits, when the provider bills credits.
     pub burned_credits: Option<f64>,
@@ -505,6 +511,7 @@ pub fn quota_display_inner(
         last_used_pct: reading.last_used_pct,
         state: window_state_name(reading.state, reading.percentage).to_owned(),
         percentage: reading.percentage,
+        projected_pct: reading.projected,
         badge: reading
             .percentage
             .map(|_| confidence_name(reading.confidence).to_owned()),

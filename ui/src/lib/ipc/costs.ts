@@ -8,6 +8,7 @@
 import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { pageOf, type Page, type PageRequest } from "../paged";
+import { newTokens } from "../usage/tokens";
 
 /** Rust `Confidence` on the wire. */
 export type ConfidenceWire = "Measured" | "Computed" | "Estimated";
@@ -139,7 +140,7 @@ export function sessionDays(rows: SeededRow[]): CostRow[] {
     if (row.credits != null) at.credits = (at.credits ?? 0) + row.credits;
     if ((RANK[row.confidence.toLowerCase()] ?? 0) < (RANK[at.confidence.toLowerCase()] ?? 0)) at.confidence = row.confidence;
   }
-  const io = (row: CostRollupRow) => row.tokens.input + row.tokens.output;
+  const io = (row: CostRollupRow) => newTokens(row.tokens);
   return [...byKey.values()]
     .map((row) => ({ ...row, models: row.models.sort((a, b) => io(b) - io(a)) }))
     .sort((a, b) => (a.day === b.day ? a.session.localeCompare(b.session) : a.day < b.day ? 1 : -1));

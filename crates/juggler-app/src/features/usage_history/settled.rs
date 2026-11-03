@@ -130,6 +130,7 @@ mod tests {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Measured,
+            detail: Default::default(),
             msg_uuid: Some(uuid.into()),
         }
     }

@@ -12,6 +12,7 @@ export function windowDisplay(state: WindowDisplay["state"], over: Partial<Windo
   return {
     state,
     percentage: null,
+    projected_pct: null,
     badge: null,
     stale_note_ms: null,
     resets_at_ms: null,

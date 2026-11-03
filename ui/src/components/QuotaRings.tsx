@@ -15,7 +15,7 @@
  */
 import type { JSX } from "react";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/bridge";
-import { asOfWords, measured, windowView } from "../lib/quotaWindow";
+import { asOfWords, measured, projectedWords, windowView } from "../lib/quotaWindow";
 import { resetsWords } from "../lib/time-words";
 
 const badgeText = (badge?: string | null): string =>
@@ -88,7 +88,7 @@ export function WindowRing({
         : "";
   const aria = `${label}: ${exhausted ? "exhausted" : `${ringText} used`}${
     pct != null ? `, ${badgeText(window.badge)}` : ""
-  }${reset ? `, ${reset}` : ""}${stale ? `, ${stale}` : ""}`;
+  }${reset ? `, ${reset}` : ""}${stale ? `, ${stale}` : ""}${projectedWords(window) ? `, ${projectedWords(window)}` : ""}`;
 
   // Ring geometry: a 36px donut; the arc length encodes use (colour is
   // NEVER the only carrier — the % text sits inside).
@@ -135,8 +135,13 @@ export function WindowRing({
           {label} · {badgeText(window.badge)}
         </span>
         <span className="text-label text-muted">
-          {[reset, stale].filter(Boolean).join(" · ") || `${(window.burned_io_tokens ?? window.burned_tokens).toLocaleString()} tokens${window.burned_io_tokens != null ? " in and out" : ", cache included"}`}
+          {[reset, stale].filter(Boolean).join(" · ") || `${(window.burned_io_tokens ?? window.burned_tokens).toLocaleString()} ${window.burned_io_tokens != null ? "new tokens" : "tokens, cache included"}`}
         </span>
+        {projectedWords(window) && (
+          <span className="text-label text-muted" data-testid={`ring-${kind}-estimate`}>
+            {projectedWords(window)}
+          </span>
+        )}
         {exhausted && (
           <span className="text-label text-danger">blocked — resets {reset || "unknown"}</span>
         )}

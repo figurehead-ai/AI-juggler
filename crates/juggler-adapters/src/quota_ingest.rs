@@ -27,7 +27,9 @@ use std::path::{Path, PathBuf};
 
 use juggler_core::model::Confidence;
 use juggler_core::model::TokenCounts;
-use juggler_core::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
+use juggler_core::quota::{
+    CallKind, QuotaSample, UsageDetail, UsageEvent, UsageSource, WindowKind,
+};
 
 /// Spool rotation threshold (Req.6): 10 MB per spool file.
 pub const SPOOL_ROTATE_BYTES: u64 = 10 * 1024 * 1024;
@@ -540,12 +542,15 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         if tokens == TokenCounts::default() {
             continue; // an empty usage block is not an event
         }
+        let detail = claude_detail(&value, usage, &tokens);
         if let Some(&at) = seen.get(&key) {
-            let kept = &mut outcome.events[at].tokens;
-            kept.input = kept.input.max(tokens.input);
-            kept.output = kept.output.max(tokens.output);
-            kept.cache_read = kept.cache_read.max(tokens.cache_read);
-            kept.cache_write = kept.cache_write.max(tokens.cache_write);
+            let kept = &mut outcome.events[at];
+            kept.tokens.input = kept.tokens.input.max(tokens.input);
+            kept.tokens.output = kept.tokens.output.max(tokens.output);
+            kept.tokens.cache_read = kept.tokens.cache_read.max(tokens.cache_read);
+            kept.tokens.cache_write = kept.tokens.cache_write.max(tokens.cache_write);
+            kept.detail.cache_write_1h = kept.detail.cache_write_1h.max(detail.cache_write_1h);
+            kept.detail.prompt_tokens = kept.detail.prompt_tokens.max(detail.prompt_tokens);
             continue;
         }
         seen.insert(key.clone(), outcome.events.len());
@@ -566,10 +571,56 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Measured,
+            detail,
             msg_uuid: Some(key),
         });
     }
     outcome
+}
+
+/// One Claude response's facts beyond its classes (0.3.6, the usage
+/// audit): the cache writes that went to the 1-hour cache
+/// (`cache_creation.ephemeral_1h_input_tokens`, priced at 2× base input
+/// against 1.25× for the 5-minute ones), the whole prompt (input, cache
+/// reads and writes: what Claude Haiku 5.5's price tier counts), the speed
+/// and inference place when they aren't the default, and whether a
+/// subagent made it (`isSidechain`). Its session is its conversation.
+fn claude_detail(
+    value: &serde_json::Value,
+    usage: &serde_json::Value,
+    tokens: &TokenCounts,
+) -> UsageDetail {
+    let word = |key: &str, default: &str| {
+        usage
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .filter(|word| *word != default && !word.is_empty() && word.len() <= 16)
+            .map(str::to_owned)
+    };
+    UsageDetail {
+        cache_write_1h: usage
+            .get("cache_creation")
+            .and_then(|split| split.get("ephemeral_1h_input_tokens"))
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_default()
+            .min(tokens.cache_write),
+        prompt_tokens: tokens
+            .input
+            .saturating_add(tokens.cache_read)
+            .saturating_add(tokens.cache_write),
+        speed: word("speed", "standard"),
+        geo: word("inference_geo", "global"),
+        kind: if value
+            .get("isSidechain")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+        {
+            CallKind::Subagent
+        } else {
+            CallKind::Main
+        },
+        root_session: None,
+    }
 }
 
 /// One Claude API response's key: `message.id/requestId` (either alone
@@ -673,6 +724,7 @@ pub fn rollout_events_after(account: &str, bytes: &[u8], carry: RolloutCarry) ->
             .and_then(serde_json::Value::as_str)
             .and_then(juggler_core::time::timestamp_ms)
             .unwrap_or_default();
+        let (kind, root_session) = carry.thread_of(&thread);
         outcome.events.push(UsageEvent {
             account: account.to_owned(),
             session: Some(thread.clone()),
@@ -683,6 +735,15 @@ pub fn rollout_events_after(account: &str, bytes: &[u8], carry: RolloutCarry) ->
             usd_est: None,
             source: UsageSource::Rollout,
             confidence: Confidence::Measured,
+            detail: UsageDetail {
+                prompt_tokens: usage
+                    .get("input_tokens")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or_default(),
+                kind,
+                root_session,
+                ..UsageDetail::default()
+            },
             msg_uuid: Some(format!("{thread}/{turn}/{response}")),
         });
     }
@@ -714,6 +775,85 @@ pub struct RolloutCarry {
     /// so two at the same millisecond (or with no time) never share one.
     #[serde(default)]
     pub compactions: u64,
+    /// The file's own thread, as its first `session_meta` names it.
+    #[serde(default)]
+    pub thread: Option<String>,
+    /// What the file's thread is: Codex's own conversation, a subagent it
+    /// spawned, or an automatic review (`source.subagent`).
+    #[serde(default)]
+    pub kind: ThreadKind,
+    /// The conversation the file's thread belongs to (`session_id`, else
+    /// its parent), when it isn't its own.
+    #[serde(default)]
+    pub root: Option<String>,
+}
+
+/// What a Codex thread is, as its `session_meta` says (0.3.6, the usage
+/// audit: 2,285 of 2,779 "sessions" on one Mac were automatic reviews).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub enum ThreadKind {
+    /// A conversation (`source` is `cli`, `vscode`, `exec`, …).
+    #[default]
+    Conversation,
+    /// A subagent a conversation spawned (`subagent.thread_spawn`).
+    Subagent,
+    /// An automatic review a conversation ran (`subagent.other: guardian`,
+    /// or `subagent: review`).
+    Review,
+}
+
+impl RolloutCarry {
+    /// Learns the file's thread from its first `session_meta`.
+    fn meta(&mut self, payload: &serde_json::Value) {
+        if self.thread.is_some() {
+            return; // a copied parent's meta later in a fork's file
+        }
+        let Some(id) = payload.get("id").and_then(serde_json::Value::as_str) else {
+            return;
+        };
+        let subagent = payload
+            .get("source")
+            .and_then(|source| source.get("subagent"));
+        self.kind = match subagent {
+            None => ThreadKind::Conversation,
+            Some(serde_json::Value::String(word)) if word == "review" => ThreadKind::Review,
+            Some(serde_json::Value::Object(map))
+                if map.get("other").and_then(serde_json::Value::as_str) == Some("guardian") =>
+            {
+                ThreadKind::Review
+            }
+            Some(_) => ThreadKind::Subagent,
+        };
+        let text = |key: &str| {
+            payload
+                .get(key)
+                .and_then(serde_json::Value::as_str)
+                .filter(|value| !value.is_empty() && *value != id)
+                .map(str::to_owned)
+        };
+        self.root = text("session_id").or_else(|| text("parent_thread_id"));
+        self.thread = Some(id.to_owned());
+    }
+
+    /// A record's kind and conversation, by the thread it names: the
+    /// file's own thread is what its meta says; another one is a record
+    /// copied from the history a forked thread opens with (the
+    /// conversation's own, or another subagent's).
+    fn thread_of(&self, thread: &str) -> (CallKind, Option<String>) {
+        let root = self.root.clone().filter(|root| root != thread);
+        if self.thread.as_deref() == Some(thread) {
+            let kind = match self.kind {
+                ThreadKind::Conversation => CallKind::Main,
+                ThreadKind::Subagent => CallKind::Subagent,
+                ThreadKind::Review => CallKind::Review,
+            };
+            return (kind, root);
+        }
+        match root {
+            None => (CallKind::Main, None),
+            Some(root) => (CallKind::Subagent, Some(root)),
+        }
+    }
 }
 
 /// A compaction seen, its usage not yet (see [`RolloutCarry`]).
@@ -756,6 +896,11 @@ impl RolloutCarry {
             .and_then(|payload| payload.get("type"))
             .and_then(serde_json::Value::as_str);
         match (kind, inner) {
+            (Some("session_meta"), _) => {
+                if let Some(payload) = payload {
+                    self.meta(payload);
+                }
+            }
             (Some("compacted"), _) => {
                 self.compactions += 1;
                 // P21: Codex names the compaction's own model call
@@ -824,6 +969,7 @@ impl RolloutCarry {
                 else {
                     return;
                 };
+                let (_, root_session) = self.thread_of(thread);
                 for PendingUsage { tokens, ts, seq } in self.pending.drain(..) {
                     outcome.events.push(UsageEvent {
                         account: account.to_owned(),
@@ -835,6 +981,11 @@ impl RolloutCarry {
                         usd_est: None,
                         source: UsageSource::Rollout,
                         confidence: Confidence::Measured,
+                        detail: UsageDetail {
+                            kind: CallKind::Compaction,
+                            root_session: root_session.clone(),
+                            ..UsageDetail::default()
+                        },
                         msg_uuid: Some(format!("{thread}/compacted/{ts}/{seq}")),
                     });
                 }
@@ -1152,6 +1303,7 @@ pub fn zcode_events(account: &str, db_path: &Path) -> Result<Vec<UsageEvent>, St
             } else {
                 Confidence::Estimated
             },
+            detail: Default::default(),
             msg_uuid: Some(format!("zcode:{rowid}")),
         });
     }

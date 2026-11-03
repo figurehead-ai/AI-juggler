@@ -37,6 +37,10 @@ fn row(
         output_per_1k: output,
         cache_read_per_1k: cache_r,
         cache_write_per_1k: cache_w,
+        cache_write_1h_per_1k: None,
+        long_context: None,
+        fast: None,
+        us_multiplier: None,
         source_url: "https://example.test/pricing".into(),
         captured: "2026-10-16".into(),
     }
@@ -63,6 +67,7 @@ fn event(
         } else {
             Confidence::Measured
         },
+        detail: Default::default(),
         msg_uuid: Some(format!("{session}-{model}-{ts}")),
     }
 }

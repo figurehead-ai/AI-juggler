@@ -16,6 +16,7 @@ import { StatTile } from "../charts/StatTile";
 import { TimeChart, timeTable } from "../charts/TimeChart";
 import { READING_SHORT, readingLine } from "../../lib/history-reading";
 import { API_PRICE, short, type Unit } from "../charts/scale";
+import { NEW_TOKENS_WORDS, newTokens } from "../../lib/usage/tokens";
 import type { GroupBy } from "../charts/colors";
 import { accountGroups, foldItems, foldSeries } from "./accounts";
 import { ActiveHours, SessionsPerBucket } from "./Activity";
@@ -110,7 +111,7 @@ export function UsageDashboard({
   }, [data, kind, groups]);
   const whoBy: Split = kind === "profile" ? "project" : kind === "all" ? "account" : "profile";
   const models = data ? shareItems(data.by_model, "model") : [];
-  const io = data ? data.totals.tokens.input + data.totals.tokens.output : null;
+  const io = data ? newTokens(data.totals.tokens) : null;
   const openWho = (key: string) => {
     if (whoBy === "project") host.openProjectById?.(key);
     else if (whoBy === "profile") {
@@ -132,7 +133,20 @@ export function UsageDashboard({
         </p>
       )}
       <div className="grid grid-cols-2 gap-grid @min-[860px]:grid-cols-4" data-testid="usage-tiles">
-        <StatTile label="Tokens in and out" icon={<IconTokens width={15} height={15} />} value={pending ? null : io} words={pending ? READING_SHORT : undefined} unit="tokens" before={data ? data.previous.tokens.input + data.previous.tokens.output : null} period={before} trend={tokensTrend} holdSpace={data === null} testId="tile-tokens" />
+        <StatTile
+          label="New tokens"
+          icon={<IconTokens width={15} height={15} />}
+          value={pending ? null : io}
+          words={pending ? READING_SHORT : undefined}
+          unit="tokens"
+          before={data ? newTokens(data.previous.tokens) : null}
+          period={before}
+          trend={tokensTrend}
+          // The definition, under the figure; cache reads apart.
+          note={data && !pending ? `${NEW_TOKENS_WORDS}. ${short(data.totals.tokens.cache_read, "tokens")} more re-read from cache` : undefined}
+          holdSpace={data === null}
+          testId="tile-tokens"
+        />
         <StatTile
           label="Estimated cost"
           icon={<IconMoney width={15} height={15} />}
@@ -171,7 +185,7 @@ export function UsageDashboard({
         <Section
           title="Usage over time"
           icon={<IconChart />}
-          sub={`${metric === "usd" ? "estimated cost" : "tokens in and out"}, ${perWords(view.cut.step)}`}
+          sub={`${metric === "usd" ? "estimated cost" : "new tokens"}, ${perWords(view.cut.step)}`}
           className={SPAN.wide}
           busy={busy}
           testId="usage-over-time"
@@ -199,7 +213,7 @@ export function UsageDashboard({
               series={series}
               unit={unit}
               height={280}
-              label={`${metric === "usd" ? "Estimated cost" : "Tokens"} ${perWords(view.cut.step)}, split by ${split}`}
+              label={`${metric === "usd" ? "Estimated cost" : "New tokens"} ${perWords(view.cut.step)}, split by ${split}`}
               bucketWords={words}
               tickWords={tickWords(view.cut.step)}
               shade={weekend(view.cut.step)}
@@ -209,14 +223,14 @@ export function UsageDashboard({
         </Section>
         <Section title={whoBy === "project" ? "By project" : whoBy === "account" ? "By account" : "Who did the work"} icon={<IconDonut />} busy={busy} testId="usage-by-who">
           <ChartBody empty={data === null || empty} emptyWords={emptyWords} height={176} table={{ columns: [], rows: [] }} showTable={false} caption="">
-            <Donut items={whoItems} unit="tokens" label={`Tokens by ${whoBy}`} centre={{ value: short(io ?? 0, "tokens"), words: "tokens" }} onPick={whoBy === "account" ? undefined : openWho} />
+            <Donut items={whoItems} unit="tokens" label={`New tokens by ${whoBy}`} centre={{ value: short(io ?? 0, "tokens"), words: "new tokens" }} onPick={whoBy === "account" ? undefined : openWho} />
           </ChartBody>
         </Section>
         {runway}
         <ActiveHours data={data} busy={busy} emptyWords={emptyWords} className={SPAN.half} />
         <Section title="By model" icon={<IconDonut />} busy={busy} testId="usage-by-model">
           <ChartBody empty={data === null || empty} emptyWords={emptyWords} height={176} table={{ columns: [], rows: [] }} showTable={false} caption="">
-            <Donut items={models} unit="tokens" label="Tokens by model" centre={{ value: models[0] && io ? `${Math.round((models[0].value / io) * 100)}%` : "—", words: models[0]?.label ?? "" }} />
+            <Donut items={models} unit="tokens" label="New tokens by model" centre={{ value: models[0] && io ? `${Math.round((models[0].value / io) * 100)}%` : "—", words: models[0]?.label ?? "" }} />
           </ChartBody>
         </Section>
         <SessionsPerBucket data={data} cut={view.cut} busy={busy} emptyWords={emptyWords} className={SPAN.narrowLate} />

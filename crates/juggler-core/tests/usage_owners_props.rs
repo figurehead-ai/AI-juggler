@@ -95,6 +95,7 @@ fn event(session: &str, key: u64, ts: i64) -> UsageEvent {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
+        detail: Default::default(),
         msg_uuid: Some(format!("m{key}")),
     }
 }

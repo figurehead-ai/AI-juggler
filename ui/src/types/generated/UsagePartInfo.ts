@@ -9,6 +9,6 @@ export type UsagePartInfo = {
  */
 profile: string, 
 /**
- * Its input and output tokens in the group.
+ * Its new tokens in the group.
  */
 io: number, };

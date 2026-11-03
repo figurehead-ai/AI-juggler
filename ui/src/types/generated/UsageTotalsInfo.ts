@@ -19,7 +19,8 @@ usd: number | null,
  */
 unpriced: boolean, 
 /**
- * Sessions with usage.
+ * Conversations with usage: a subagent's or an automatic review's
+ * thread counts under the conversation that started it.
  */
 sessions: number, 
 /**

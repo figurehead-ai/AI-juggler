@@ -98,6 +98,7 @@ fn blocked(work: &Path, measured: bool) -> (Arc<AppState>, String, String, PathB
                 usd_est: None,
                 source: juggler_core::quota::UsageSource::Transcript,
                 confidence: juggler_core::model::Confidence::Measured,
+                detail: Default::default(),
                 msg_uuid: Some(format!("e-{back}")),
             })
             .collect();
