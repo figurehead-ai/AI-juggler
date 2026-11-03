@@ -54,7 +54,7 @@ export function ProjectRow({
   needs: ProjectNeeds | undefined;
   open: ProjectOpen | undefined;
   tasks: TaskCounts | null;
-  /** This week's tokens in and out; `null` while they're read. */
+  /** This week's new tokens; `null` while they're read. */
   tokens: number | null;
   onOpen: () => void;
 }): JSX.Element {
@@ -107,7 +107,7 @@ export function ProjectRow({
           </span>
         </Fact>
         <Fact name="This week" className="@min-[760px]:justify-end">
-          <span className="tabular-nums text-ink" title={tokens === null ? undefined : exact(tokens, "tokens") + " in and out this week"} data-testid="project-row-tokens">
+          <span className="tabular-nums text-ink" title={tokens === null ? undefined : exact(tokens, "tokens") + " new tokens this week"} data-testid="project-row-tokens">
             {tokens === null ? "…" : tokens > 0 ? short(tokens, "tokens") : <span className="text-muted">None</span>}
           </span>
         </Fact>

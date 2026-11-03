@@ -40,6 +40,7 @@ fn event(ts: i64, tokens: u64, confidence: Confidence) -> UsageEvent {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some(format!("e-{ts}-{tokens}")),
     }
 }

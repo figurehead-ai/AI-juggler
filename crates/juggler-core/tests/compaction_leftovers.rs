@@ -32,6 +32,7 @@ fn row(session: &str, key: &str, input: u64, output: u64) -> UsageEvent {
         usd_est: None,
         source: UsageSource::Rollout,
         confidence: Confidence::Measured,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some(key.into()),
     }
 }

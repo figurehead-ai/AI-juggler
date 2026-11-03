@@ -172,7 +172,7 @@ fn rows_between(
             mine.into_iter()
                 .filter(|row| {
                     project.is_none_or(|only| {
-                        row.session.as_ref().is_some_and(|session| {
+                        row.conversation().is_some_and(|session| {
                             scope
                                 .lookups
                                 .sessions
@@ -188,7 +188,8 @@ fn rows_between(
     Ok((rows, cut))
 }
 
-/// Prices a row at list prices, at its hour's rates.
+/// Prices a row's calls with no stored cost at list prices, at its hour's
+/// standard rates.
 fn pricer(
     catalog: &juggler_core::cost_ledger::PricingCatalog,
 ) -> impl Fn(Option<&str>, i64, TokenCounts) -> Option<f64> + '_ {

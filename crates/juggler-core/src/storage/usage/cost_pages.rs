@@ -8,9 +8,9 @@
 
 use rusqlite::params;
 
-use super::{UsageRepo, parse_confidence};
+use super::{EVENT_COLUMNS, UsageRepo, event_row};
 use crate::error::CoreError;
-use crate::quota::{UsageEvent, UsageSource};
+use crate::quota::UsageEvent;
 
 const DAY_MS: i64 = 86_400_000;
 
@@ -94,40 +94,18 @@ impl UsageRepo<'_> {
         first: i64,
         last: i64,
     ) -> Result<Vec<UsageEvent>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT account, session, ts, model, input, output, cache_r, cache_w,
-                    reasoning, credits, usd_est, source, confidence, msg_uuid
-               FROM usage_events
-              WHERE (?1 IS NULL OR account = ?1) AND ts >= ?2 AND ts < ?3
-              ORDER BY ts",
-        )?;
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT {EVENT_COLUMNS}
+                  WHERE (?1 IS NULL OR e.account = ?1) AND e.ts >= ?2 AND e.ts < ?3
+                  ORDER BY e.ts"
+        ))?;
         let rows = stmt.query_map(
             params![
                 account,
                 first.saturating_mul(DAY_MS),
                 last.saturating_add(1).saturating_mul(DAY_MS)
             ],
-            |row| {
-                Ok(UsageEvent {
-                    account: row.get(0)?,
-                    session: row.get(1)?,
-                    ts: row.get(2)?,
-                    model: row.get(3)?,
-                    tokens: crate::model::TokenCounts {
-                        input: u64::try_from(row.get::<_, i64>(4)?).unwrap_or(0),
-                        output: u64::try_from(row.get::<_, i64>(5)?).unwrap_or(0),
-                        cache_read: u64::try_from(row.get::<_, i64>(6)?).unwrap_or(0),
-                        cache_write: u64::try_from(row.get::<_, i64>(7)?).unwrap_or(0),
-                        reasoning: u64::try_from(row.get::<_, i64>(8)?).unwrap_or(0),
-                    },
-                    credits: row.get(9)?,
-                    usd_est: row.get(10)?,
-                    source: UsageSource::parse(&row.get::<_, String>(11)?)
-                        .unwrap_or(UsageSource::Transcript),
-                    confidence: parse_confidence(&row.get::<_, String>(12)?),
-                    msg_uuid: row.get(13)?,
-                })
-            },
+            event_row,
         )?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(CoreError::Storage)

@@ -27,7 +27,9 @@ use std::path::{Path, PathBuf};
 
 use juggler_core::model::Confidence;
 use juggler_core::model::TokenCounts;
-use juggler_core::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
+use juggler_core::quota::{
+    CallKind, QuotaSample, UsageDetail, UsageEvent, UsageSource, WindowKind,
+};
 
 /// Spool rotation threshold (Req.6): 10 MB per spool file.
 pub const SPOOL_ROTATE_BYTES: u64 = 10 * 1024 * 1024;
@@ -540,12 +542,15 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
         if tokens == TokenCounts::default() {
             continue; // an empty usage block is not an event
         }
+        let detail = claude_detail(&value, usage, &tokens);
         if let Some(&at) = seen.get(&key) {
-            let kept = &mut outcome.events[at].tokens;
-            kept.input = kept.input.max(tokens.input);
-            kept.output = kept.output.max(tokens.output);
-            kept.cache_read = kept.cache_read.max(tokens.cache_read);
-            kept.cache_write = kept.cache_write.max(tokens.cache_write);
+            let kept = &mut outcome.events[at];
+            kept.tokens.input = kept.tokens.input.max(tokens.input);
+            kept.tokens.output = kept.tokens.output.max(tokens.output);
+            kept.tokens.cache_read = kept.tokens.cache_read.max(tokens.cache_read);
+            kept.tokens.cache_write = kept.tokens.cache_write.max(tokens.cache_write);
+            kept.detail.cache_write_1h = kept.detail.cache_write_1h.max(detail.cache_write_1h);
+            kept.detail.prompt_tokens = kept.detail.prompt_tokens.max(detail.prompt_tokens);
             continue;
         }
         seen.insert(key.clone(), outcome.events.len());
@@ -566,6 +571,7 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Measured,
+            detail,
             msg_uuid: Some(key),
         });
     }
@@ -673,6 +679,7 @@ pub fn rollout_events_after(account: &str, bytes: &[u8], carry: RolloutCarry) ->
             .and_then(serde_json::Value::as_str)
             .and_then(juggler_core::time::timestamp_ms)
             .unwrap_or_default();
+        let (kind, root_session) = carry.thread_of(&thread);
         outcome.events.push(UsageEvent {
             account: account.to_owned(),
             session: Some(thread.clone()),
@@ -683,6 +690,15 @@ pub fn rollout_events_after(account: &str, bytes: &[u8], carry: RolloutCarry) ->
             usd_est: None,
             source: UsageSource::Rollout,
             confidence: Confidence::Measured,
+            detail: UsageDetail {
+                prompt_tokens: usage
+                    .get("input_tokens")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or_default(),
+                kind,
+                root_session,
+                ..UsageDetail::default()
+            },
             msg_uuid: Some(format!("{thread}/{turn}/{response}")),
         });
     }
@@ -714,6 +730,17 @@ pub struct RolloutCarry {
     /// so two at the same millisecond (or with no time) never share one.
     #[serde(default)]
     pub compactions: u64,
+    /// The file's own thread, as its first `session_meta` names it.
+    #[serde(default)]
+    pub thread: Option<String>,
+    /// What the file's thread is: Codex's own conversation, a subagent it
+    /// spawned, or an automatic review (`source.subagent`).
+    #[serde(default)]
+    pub kind: ThreadKind,
+    /// The conversation the file's thread belongs to (`session_id`, else
+    /// its parent), when it isn't its own.
+    #[serde(default)]
+    pub root: Option<String>,
 }
 
 /// A compaction seen, its usage not yet (see [`RolloutCarry`]).
@@ -756,6 +783,11 @@ impl RolloutCarry {
             .and_then(|payload| payload.get("type"))
             .and_then(serde_json::Value::as_str);
         match (kind, inner) {
+            (Some("session_meta"), _) => {
+                if let Some(payload) = payload {
+                    self.meta(payload);
+                }
+            }
             (Some("compacted"), _) => {
                 self.compactions += 1;
                 // P21: Codex names the compaction's own model call
@@ -824,6 +856,7 @@ impl RolloutCarry {
                 else {
                     return;
                 };
+                let (_, root_session) = self.thread_of(thread);
                 for PendingUsage { tokens, ts, seq } in self.pending.drain(..) {
                     outcome.events.push(UsageEvent {
                         account: account.to_owned(),
@@ -835,6 +868,11 @@ impl RolloutCarry {
                         usd_est: None,
                         source: UsageSource::Rollout,
                         confidence: Confidence::Measured,
+                        detail: UsageDetail {
+                            kind: CallKind::Compaction,
+                            root_session: root_session.clone(),
+                            ..UsageDetail::default()
+                        },
                         msg_uuid: Some(format!("{thread}/compacted/{ts}/{seq}")),
                     });
                 }
@@ -1152,6 +1190,7 @@ pub fn zcode_events(account: &str, db_path: &Path) -> Result<Vec<UsageEvent>, St
             } else {
                 Confidence::Estimated
             },
+            detail: juggler_core::quota::UsageDetail::default(),
             msg_uuid: Some(format!("zcode:{rowid}")),
         });
     }
@@ -1175,6 +1214,12 @@ pub fn gemini_events() -> Vec<UsageEvent> {
 // ---------------------------------------------------------------------------
 // Generic file tail (transcripts/rollouts): offset-tracked, truncation-aware
 // ---------------------------------------------------------------------------
+
+/// What a call says beyond its classes, and what a Codex thread is (0.3.7;
+/// split from this file: the size budget).
+mod call_detail;
+pub use call_detail::ThreadKind;
+use call_detail::claude_detail;
 
 /// The generic tail, chunked (split from this file: the size budget).
 mod tail;

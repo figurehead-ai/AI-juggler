@@ -190,7 +190,7 @@ function UsageLine({ usage, usageTotal, name, color, reading }: { usage: number[
   return (
     <div className="flex items-end gap-3" data-testid="runway-usage">
       <span className="flex shrink-0 flex-col">
-        <span className="text-label text-muted">Last 7 days, in and out</span>
+        <span className="text-label text-muted">Last 7 days, new tokens</span>
         <span className="text-section tabular-nums text-ink" title={usageTotal == null ? undefined : `${Math.round(usageTotal).toLocaleString("en-US")} tokens`}>
           {pending ? READING_SHORT : usageTotal == null ? "—" : `${tokenWords(Math.round(usageTotal))} tokens`}
         </span>

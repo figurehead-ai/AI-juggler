@@ -89,6 +89,7 @@ fn tracking_state_carries_percentage_and_badge() {
                 usd_est: None,
                 source: juggler_core::quota::UsageSource::Transcript,
                 confidence: juggler_core::model::Confidence::Measured,
+                detail: juggler_core::quota::UsageDetail::default(),
                 msg_uuid: Some(format!("d-{back}")),
             })
             .collect();
@@ -148,6 +149,7 @@ fn use_without_a_sample_is_unmeasured_and_has_no_reset_time() {
                 usd_est: None,
                 source: juggler_core::quota::UsageSource::Transcript,
                 confidence: juggler_core::model::Confidence::Measured,
+                detail: juggler_core::quota::UsageDetail::default(),
                 msg_uuid: Some(format!("u-{back}")),
             })
             .collect();
@@ -340,6 +342,7 @@ fn a_measured_window_carries_its_runway() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: None,
     };
     let mut events: Vec<UsageEvent> = (0..4)

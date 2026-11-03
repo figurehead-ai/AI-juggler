@@ -14,7 +14,8 @@ key: string,
  */
 label: string, 
 /**
- * Input and output tokens per bucket.
+ * New tokens per bucket (input, cache writes, output and reasoning:
+ * `fold::io`).
  */
 io: number[], 
 /**

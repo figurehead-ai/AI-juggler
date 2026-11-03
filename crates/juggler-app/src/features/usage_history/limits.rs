@@ -131,10 +131,11 @@ pub fn session_impl(
         .into_iter()
         .map(|row| UsageTurnInfo {
             at_ms: row.ts,
-            usd: row
-                .model
-                .as_deref()
-                .and_then(|model| catalog.price_tokens(model, row.ts, row.tokens)),
+            usd: row.cost.total(|rest| {
+                row.model
+                    .as_deref()
+                    .and_then(|model| catalog.price_tokens(model, row.ts, rest))
+            }),
             model: row.model,
             tokens: tokens_info(row.tokens),
         })
@@ -150,10 +151,11 @@ pub fn session_impl(
     for row in repo.session_by_model(profile, conversation)? {
         juggler_core::storage::add_tokens(&mut all, row.tokens);
         totals.messages = totals.messages.saturating_add(row.messages);
-        let cost = row
-            .model
-            .as_deref()
-            .and_then(|model| catalog.price_tokens(model, row.first_ms, row.tokens));
+        let cost = row.cost.total(|rest| {
+            row.model
+                .as_deref()
+                .and_then(|model| catalog.price_tokens(model, row.first_ms, rest))
+        });
         match cost {
             Some(value) => {
                 usd += value;
@@ -166,7 +168,7 @@ pub fn session_impl(
             label: super::fold::label_of("model", &key, &super::fold::Lookups::default()),
             key,
             io: io(&row.tokens),
-            cache: row.tokens.cache_read.saturating_add(row.tokens.cache_write),
+            cache: super::fold::cache(&row.tokens),
             usd: cost,
             sessions: 1,
             profiles: Vec::new(),

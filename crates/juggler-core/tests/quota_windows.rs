@@ -72,6 +72,7 @@ proptest! {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Estimated,
+            detail: juggler_core::quota::UsageDetail::default(),
             msg_uuid: Some(ts.to_string()),
         };
         let burn = window_burn(std::iter::once(&ev(event_ts)), "acc", kind, NOW);
@@ -209,6 +210,7 @@ fn event_strategy(center: i64) -> impl Strategy<Value = (u64, UsageEvent)> {
                     usd_est: None,
                     source: UsageSource::Transcript,
                     confidence: Confidence::Estimated,
+                    detail: juggler_core::quota::UsageDetail::default(),
                     msg_uuid: Some(format!("uuid-{id}")),
                 },
             )
@@ -263,6 +265,7 @@ fn state_machine_fixture_timeline() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Estimated,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some(format!("t-{ts}")),
     };
     let sample = |ts, used_pct, resets_at| QuotaSample {
@@ -378,6 +381,7 @@ fn store_dedupes_resumed_file_double_count() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Estimated,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some(id.into()),
     };
     let first = vec![mk("a"), mk("b"), mk("c")];
@@ -410,6 +414,7 @@ fn uuid_less_events_do_not_false_dedupe() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Estimated,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: None,
     };
     assert_eq!(
@@ -443,6 +448,7 @@ fn window_fold_handles_100k_events() {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Estimated,
+            detail: juggler_core::quota::UsageDetail::default(),
             msg_uuid: Some(format!("perf-{i}")),
         })
         .collect();
@@ -509,6 +515,7 @@ fn anchored_weekly_resets_on_phase_boundary() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Estimated,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some("anchor-1".into()),
     }];
     let reading = evaluate_window(

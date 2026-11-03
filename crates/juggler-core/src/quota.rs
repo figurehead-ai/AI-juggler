@@ -126,6 +126,109 @@ pub struct UsageEvent {
     /// never dedupe — `UNIQUE(account, msg_uuid)` treats NULLs as
     /// distinct, which is the honest behaviour for resumed files.
     pub msg_uuid: Option<String>,
+    /// What one API call says beyond its token classes: what its price
+    /// depends on, and which conversation it belongs to (0.3.7).
+    #[serde(default)]
+    pub detail: UsageDetail,
+}
+
+/// One API call's facts beyond its token classes (0.3.7, the usage audit):
+/// what its list price depends on (the prompt's size, the 1-hour cache
+/// writes, fast mode, US-only inference) and which conversation it belongs
+/// to. Stored beside the call (`usage_detail`), keyed like it.
+#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct UsageDetail {
+    /// The part of `tokens.cache_write` written to the 1-hour cache (the
+    /// rest went to the 5-minute one), priced at its own rate.
+    #[serde(default)]
+    pub cache_write_1h: u64,
+    /// The call's whole prompt: input, cache reads and cache writes
+    /// together (what a vendor's long-context tier is decided on). `0`
+    /// when the source didn't say: the classes' sum is used then.
+    #[serde(default)]
+    pub prompt_tokens: u64,
+    /// The vendor's speed for the call (`fast`), when it says.
+    #[serde(default)]
+    pub speed: Option<String>,
+    /// Where the vendor ran the call (`us` for US-only inference), when
+    /// it says.
+    #[serde(default)]
+    pub geo: Option<String>,
+    /// What kind of call it is in its conversation.
+    #[serde(default)]
+    pub kind: CallKind,
+    /// The conversation the call belongs to: a subagent's or an automatic
+    /// review's calls count under the conversation that started them.
+    /// `None`: the event's own session.
+    #[serde(default)]
+    pub root_session: Option<String>,
+}
+
+impl UsageDetail {
+    /// The prompt size the call's price tier is decided on: the vendor's
+    /// figure, else its classes' sum.
+    #[must_use]
+    pub fn prompt_of(&self, tokens: &TokenCounts) -> u64 {
+        if self.prompt_tokens > 0 {
+            return self.prompt_tokens;
+        }
+        tokens
+            .input
+            .saturating_add(tokens.cache_read)
+            .saturating_add(tokens.cache_write)
+    }
+}
+
+/// What kind of call one usage event is, in its conversation.
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Debug,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+pub enum CallKind {
+    /// The conversation's own thread.
+    #[default]
+    Main,
+    /// A subagent the conversation started (Claude's Task agents, Codex's
+    /// spawned threads).
+    Subagent,
+    /// An automatic code review the tool ran for the conversation (Codex's
+    /// reviewer threads).
+    Review,
+    /// A context compaction's own call.
+    Compaction,
+}
+
+impl CallKind {
+    /// Stable storage name.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            CallKind::Main => "main",
+            CallKind::Subagent => "subagent",
+            CallKind::Review => "review",
+            CallKind::Compaction => "compaction",
+        }
+    }
+
+    /// Parses a storage name; anything else is the conversation's own.
+    #[must_use]
+    pub fn parse(value: &str) -> CallKind {
+        match value {
+            "subagent" => CallKind::Subagent,
+            "review" => CallKind::Review,
+            "compaction" => CallKind::Compaction,
+            _ => CallKind::Main,
+        }
+    }
 }
 
 /// A vendor-observed quota sample for one window (§Q8 `quota_samples`).
@@ -321,8 +424,16 @@ pub struct WindowReading {
     /// Machine state.
     pub state: QuotaState,
     /// Percent used, ONLY in `Tracking`/`Stale`/`Exhausted` — `None`
-    /// in `Unknown`/`Learning` (never 0%).
+    /// in `Unknown`/`Learning` (never 0%). On a Measured basis it is the
+    /// vendor's own reading as of [`Self::measured_at`], verbatim (0.3.7,
+    /// the usage audit: it used to add a local projection and still say
+    /// Measured); the projection is [`Self::projected`].
     pub percentage: Option<f64>,
+    /// An estimate of the percent used now: the vendor's reading plus the
+    /// calls made since it, at the last observed %-per-call slope (§Q3
+    /// interpolation). Only on a Measured basis, and only when it differs
+    /// from the reading; always an estimate, never the vendor's number.
+    pub projected: Option<f64>,
     /// What the percentage is based on, when present.
     pub basis: Option<PercentageBasis>,
     /// Trust level of the reading as a whole.
@@ -344,6 +455,16 @@ pub struct WindowReading {
     /// history ("40% used, 13 h ago; that window has reset since"), never
     /// as the window's state now.
     pub last_used_pct: Option<f64>,
+}
+
+impl WindowReading {
+    /// The best figure for "used now", for decisions (ranking, admission):
+    /// the projection when there is one, else the reading. Never shown as
+    /// the vendor's number.
+    #[must_use]
+    pub fn best_estimate(&self) -> Option<f64> {
+        self.projected.or(self.percentage)
+    }
 }
 
 /// Readings of one window whose `resets_at` differ by less than this are
@@ -625,6 +746,7 @@ pub fn known_reset(
 /// ≥100) → after the vendor reset passes with newer data → `Tracking`.
 /// `Unknown`/`Learning` never carry a percentage.
 #[must_use]
+#[allow(clippy::too_many_lines)] // one window, one state machine, its states in order
 pub fn evaluate_window(
     events: &[UsageEvent],
     samples: &[QuotaSample],
@@ -661,6 +783,7 @@ pub fn evaluate_window(
             reset_basis: None,
             measured_at: Some(sample.ts),
             last_used_pct: Some(sample.used_pct.clamp(0.0, 100.0)),
+            projected: None,
         };
     }
 
@@ -679,6 +802,7 @@ pub fn evaluate_window(
             reset_basis: sample.resets_at.map(|_| ResetBasis::Measured),
             measured_at: Some(sample.ts),
             last_used_pct: None,
+            projected: None,
         };
     }
 
@@ -697,12 +821,16 @@ pub fn evaluate_window(
         QuotaState::Tracking
     };
 
+    let mut projected = None;
     let (percentage, basis, confidence, measured_resets_at) =
         if state == QuotaState::Unknown || state == QuotaState::Learning {
             (None, None, Confidence::default(), None)
         } else if let Some(sample) = latest_sample {
+            let reading = sample.used_pct.clamp(0.0, 100.0);
+            let estimate = measured_percentage(samples, &sample, kind, &account_events);
+            projected = ((estimate - reading).abs() >= PROJECTION_SHOWN_PCT).then_some(estimate);
             (
-                Some(measured_percentage(samples, &sample, kind, &account_events)),
+                Some(reading),
                 Some(PercentageBasis::Measured),
                 Confidence::Measured,
                 sample.resets_at,
@@ -739,8 +867,13 @@ pub fn evaluate_window(
             .then(|| latest_sample.map(|sample| sample.ts))
             .flatten(),
         last_used_pct: None,
+        projected,
     }
 }
+
+/// A projection closer than this to the vendor's reading isn't shown (it
+/// would read the same, rounded).
+pub const PROJECTION_SHOWN_PCT: f64 = 0.5;
 
 /// True when `prev` (read before `sample`) can be the same window as far
 /// as is known: both resets agree, or `prev`'s window was still open when
@@ -754,8 +887,8 @@ fn same_window_as_known(prev: &QuotaSample, sample: &QuotaSample, kind: WindowKi
     }
 }
 
-/// The Measured path: the vendor's % verbatim, interpolated toward now
-/// with locally observed request deltas scaled by the slope from the
+/// The Measured path's projection: the vendor's %, interpolated toward
+/// now with locally observed request deltas scaled by the slope from the
 /// previous reading of the same window. Use only rises inside a window,
 /// so a falling pair (a reset between them) gives no slope.
 fn measured_percentage(
