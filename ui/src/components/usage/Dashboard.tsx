@@ -16,7 +16,8 @@ import { StatTile } from "../charts/StatTile";
 import { TimeChart, timeTable } from "../charts/TimeChart";
 import { READING_SHORT, readingLine } from "../../lib/history-reading";
 import { API_PRICE, short, type Unit } from "../charts/scale";
-import { NEW_TOKENS_WORDS, newTokens } from "../../lib/usage/tokens";
+import { newTokens } from "../../lib/usage/tokens";
+import { NewTokensNote } from "./NewTokensNote";
 import type { GroupBy } from "../charts/colors";
 import { accountGroups, foldItems, foldSeries } from "./accounts";
 import { ActiveHours, SessionsPerBucket } from "./Activity";
@@ -143,7 +144,7 @@ export function UsageDashboard({
           period={before}
           trend={tokensTrend}
           // The definition, under the figure; cache reads apart.
-          note={data && !pending ? `${NEW_TOKENS_WORDS}. ${short(data.totals.tokens.cache_read, "tokens")} more re-read from cache` : undefined}
+          note={data && !pending ? <NewTokensNote cacheRead={data.totals.tokens.cache_read} /> : undefined}
           holdSpace={data === null}
           testId="tile-tokens"
         />

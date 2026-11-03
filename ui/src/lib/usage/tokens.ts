@@ -25,5 +25,9 @@ export function newTokens(tokens: TokenClasses): number {
   return tokens.input + tokens.cache_write + tokens.output + (tokens.reasoning ?? 0);
 }
 
-/** The definition, in words, said where the figure leads. */
-export const NEW_TOKENS_WORDS = "Input, cache writes, output and reasoning";
+/** The definition, in words, on hover where the figure leads. */
+export const NEW_TOKENS_WORDS = "Input, output, cache writes and reasoning; what was re-read from the cache is counted apart";
+
+/** The definition, short enough for one line under the figure: input and
+ * output go without saying. */
+export const NEW_TOKENS_SHORT = "With cache writes, reasoning";
