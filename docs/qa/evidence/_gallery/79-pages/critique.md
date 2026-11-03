@@ -1,4 +1,4 @@
-<!-- captures: 09924ad9c39a -->
+<!-- captures: 39af65e3ca5d -->
 # 79-pages: account, project, session and settings pages at 1024 and 1280
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -13,3 +13,17 @@ account, session-usage and session-terminal separate their cards from the canvas
 - tool-1024x680, tool-1280x800: renewal dates are native date inputs, unlike the app's styled controls, and they don't align in a column.
 - project-overview-1024x680, project-overview-1280x800: the "Accounts used" tile cuts its list to "claude, claude-client-acme, claude-client-globex, cl…".
 - project-overview-1024x680, project-sessions-1024x680: rail rows cut their meta at "Idle · outside AI Juggler ·…".
+
+## 0.4, AJ-E3103: the one related list and the one row
+
+Recaptured: project-sessions and project-overview, at 1024 and 1280, in both themes. The other captures were left as they were (their changes since the last shoot aren't this task's).
+
+**project-sessions.** The Sessions tab is the one related list. Its tab reads "Sessions 27", the same as its heading "27 sessions · 4 open". Before, the tab said 3 in the preview and counted only AI Juggler's open sessions. A search field and three chips (State, App, Account) sit above the list, since the list has more than eight rows. The rows come in sections: Needs you, Working, Open, Last 7 days. Each row is the one session row:
+- the app's icon with the state's dot;
+- the title;
+- "● Claude Code · claude · 1 min ago" on line 2: the App's colour dot and name, then when. The project is left out on its own page;
+- the state word at the line's end.
+
+Before, the state led the second line, and the App sat in a column of its own on wide windows.
+
+**project-overview.** The tab count now reads 27 to match the list. The Open sessions card lists its rows in the order Needs you, Working, Open, with section headings when more than one is present.

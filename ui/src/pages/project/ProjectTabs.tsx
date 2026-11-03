@@ -9,7 +9,7 @@ import { useMemo, type JSX } from "react";
 import { lazyNamed } from "../../lib/lazy";
 import { defaultPoolIdOf } from "../../lib/pools";
 import { useProjectTasks } from "./useProjectTasks";
-import { isActiveStatus } from "../../components/indicator";
+import { outside, useConversations } from "../../lib/conversations";
 import { openTasks } from "../../lib/project-summary";
 import { hasLiveBackend, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { useRelationCounts } from "../../lib/relation-counts";
@@ -30,13 +30,19 @@ const Once = WhenShown;
 /** The numbers beside a project's tabs: its sessions, as its Sessions
  * list holds them (AJ-E3102: the backend's relation counts, a moment
  * after the page shows), and its open tasks. The design preview, with no
- * backend, counts its open sessions. */
+ * backend, counts the rows its list shows (AJ-E3103: AI Juggler's and the
+ * ones other apps run, so the tab says what the list does). */
 export function useProjectTabCounts(project: ProjectInfo | null | undefined, sessions: InstanceInfo[]): Partial<Record<PageTabId, number>> | undefined {
   const tasks = useProjectTasks(project?.id ?? null);
   const related = useRelationCounts(project ? "project" : null, project?.id);
-  const open = useMemo(() => (project ? sessions.filter((s) => s.project_id === project.id && isActiveStatus(s.status)).length : 0), [project, sessions]);
+  const { all } = useConversations();
+  const live = hasLiveBackend();
+  const shown = useMemo(
+    () => (project && !live ? sessions.filter((s) => s.project_id === project.id).length + outside(all).filter((c) => c.project_id === project.id).length : 0),
+    [project, sessions, all, live],
+  );
   if (!project) return undefined;
-  return { sessions: hasLiveBackend() ? related?.sessions.all : open, tasks: openTasks(tasks)?.open ?? 0 };
+  return { sessions: live ? related?.sessions.all : shown, tasks: openTasks(tasks)?.open ?? 0 };
 }
 
 export function ProjectTab(props: ProjectPanelProps & { projects: ProjectInfo[]; tab: PageTabId; visible: boolean }): JSX.Element | null {

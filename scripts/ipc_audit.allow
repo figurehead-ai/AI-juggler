@@ -166,6 +166,7 @@ unbounded runtime_choose  # bounded: one row per account, tool, launch setting o
 unbounded runtime_get  # bounded: one session's last 60 conversation items
 unbounded service_accounts_add  # bounded: the profiles one service account adds (one per tool)
 unbounded service_accounts_catalog  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded sessions_facets  # bounded: one value per project, App, Account and paired Mac a list's rows are on
 unbounded sessions_get  # bounded: the ids asked for, at most 200
 unbounded sessions_list_alias  # bounded: legacy alias of instances_list (the working set)
 unbounded source_inspect  # bounded: a fixed set (settings, checks, choices or tools)

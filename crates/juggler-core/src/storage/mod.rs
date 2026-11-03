@@ -83,7 +83,7 @@ pub use process_ledger::{
 pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
-pub use relations::{InstanceColumn, RelationsRepo, SessionFacet, StoredStamps};
+pub use relations::{InstanceColumn, RelationsRepo, SessionFacet, StampReader, StoredStamps};
 pub use sessions::{SessionBrief, SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use sightings::{
@@ -1089,6 +1089,19 @@ impl Storage {
     #[must_use]
     pub fn fleet_sync(&self) -> FleetSyncRepo<'_> {
         FleetSyncRepo::new(&self.conn)
+    }
+
+    /// AJ-E3102: a reader of the relation stamps on its own connection
+    /// (`None` for an in-memory database, which has no second one).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] when SQLite can't open it.
+    pub fn stamp_reader(&self) -> Result<Option<StampReader>, CoreError> {
+        match self.conn.path().filter(|path| !path.is_empty()) {
+            Some(path) => StampReader::open(Path::new(path)).map(Some),
+            None => Ok(None),
+        }
     }
 
     /// Raw connection access for migrations/fixture tooling (tests,

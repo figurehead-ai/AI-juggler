@@ -18,8 +18,10 @@
 //! - **Invalidated by stamp** ([`stamps`]): each part keeps the stamps of
 //!   the sources it was read from; the app's change events move them
 //!   ([`changed`]), and so do the database's own stamps (triggers, schema
-//!   v43), so a write nothing announced still counts. A read with any
-//!   stamp moved builds that part again before it answers.
+//!   v43), read on a connection of their own that never waits on a writer,
+//!   so a write nothing announced still counts, even while the app's
+//!   connection is busy. A read with any stamp moved builds that part
+//!   again before it answers.
 //! - **D-58's cache** ([`cache`]): registered beside the others, cleared
 //!   by the user's Clear cache (a page then shows at once and its counts
 //!   a moment later), kept only while the cache is on, its size watched.
@@ -44,7 +46,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use juggler_core::storage::StoredStamps;
+use juggler_core::storage::{StampReader, StoredStamps};
 
 pub use dto::{EntityKind, EntityRef, KINDS, RelationCountsInfo};
 pub use stamps::{Change, Snapshot, Source};
@@ -124,7 +126,7 @@ pub struct Part {
     ids: HashMap<String, u32>,
     tallies: HashMap<(usize, u32), Tally>,
     events: Snapshot,
-    stored: Option<StoredStamps>,
+    stored: StoredStamps,
     conversations: Option<Arc<ByRelation>>,
 }
 
@@ -132,11 +134,7 @@ impl Part {
     /// The counts of `rows`, read when the events stood at `events` and
     /// the database's stamps at `stored`.
     #[must_use]
-    pub fn of(
-        rows: impl IntoIterator<Item = Row>,
-        events: Snapshot,
-        stored: Option<StoredStamps>,
-    ) -> Self {
+    pub fn of(rows: impl IntoIterator<Item = Row>, events: Snapshot, stored: StoredStamps) -> Self {
         let mut part = Self {
             events,
             stored,
@@ -182,21 +180,13 @@ impl Part {
     }
 
     /// Whether its sources still stand where they did: the events', and
-    /// the database's when they could be read now (`stored`).
-    fn fresh(&self, kind: PartKind, events: &Snapshot, stored: Option<&StoredStamps>) -> bool {
-        if stamps::moved(kind.deps(), &self.events, events) {
-            return false;
-        }
-        match (stored, &self.stored) {
-            (Some(now), Some(then)) => {
-                let deps = kind.deps();
-                (!deps.contains(&Source::Sessions) || now.sessions == then.sessions)
-                    && (!deps.contains(&Source::Folders) || now.folders == then.folders)
-                    && (!deps.contains(&Source::Projects) || now.projects == then.projects)
-            }
-            // The database is busy: the events alone say.
-            _ => true,
-        }
+    /// the database's committed rows' (`stored`, read now).
+    fn fresh(&self, kind: PartKind, events: &Snapshot, stored: &StoredStamps) -> bool {
+        let deps = kind.deps();
+        !stamps::moved(deps, &self.events, events)
+            && (!deps.contains(&Source::Sessions) || stored.sessions == self.stored.sessions)
+            && (!deps.contains(&Source::Folders) || stored.folders == self.stored.folders)
+            && (!deps.contains(&Source::Projects) || stored.projects == self.stored.projects)
     }
 
     /// About how many bytes it keeps in memory (Settings shows it).
@@ -226,6 +216,8 @@ pub struct Relations {
     building: Mutex<()>,
     used: Mutex<Option<SystemTime>>,
     builds: AtomicU64,
+    /// The stamps' own connection on the database, opened on first use.
+    reader: Mutex<Option<StampReader>>,
 }
 
 impl Relations {
@@ -270,7 +262,7 @@ impl Relations {
     }
 
     /// The kept parts, when both are fresh.
-    fn fresh(&self, events: &Snapshot, stored: Option<&StoredStamps>) -> Option<[Arc<Part>; 2]> {
+    fn fresh(&self, events: &Snapshot, stored: &StoredStamps) -> Option<[Arc<Part>; 2]> {
         let parts = self.parts.lock().ok()?;
         let [Some(own), Some(outside)] = &*parts else {
             return None;
@@ -286,11 +278,35 @@ pub fn changed(state: &AppState, change: Change) {
     state.relations.stamps.bump(change);
 }
 
-/// The database's stamps, unless something else is using it (then the
-/// events alone decide: a count is never held up behind a long write).
-fn stored_now(state: &AppState) -> Option<StoredStamps> {
-    let storage = state.storage.try_lock().ok()?;
-    storage.relations().stamps().ok()
+/// The database's stamps as committed now. Read on the stamps' own
+/// connection, which never waits on a writer (WAL): a count is checked
+/// even while another thread holds the app's connection for a long write,
+/// and never served unchecked. Without that connection (an in-memory
+/// database, or it failed), the app's connection, waiting its turn.
+fn stored_now(state: &AppState) -> AppResult<StoredStamps> {
+    {
+        let mut reader = state
+            .relations
+            .reader
+            .lock()
+            .map_err(|_| AppError::StatePoisoned)?;
+        if reader.is_none() {
+            *reader = lock_storage(state)?.stamp_reader().ok().flatten();
+        }
+        match reader.as_ref().map(StampReader::stamps) {
+            Some(Ok(stamps)) => return Ok(stamps),
+            // Opened again on the next read.
+            Some(Err(_)) => *reader = None,
+            None => {}
+        }
+    }
+    Ok(lock_storage(state)?.relations().stamps()?)
+}
+
+fn lock_storage(
+    state: &AppState,
+) -> AppResult<std::sync::MutexGuard<'_, juggler_core::storage::Storage>> {
+    state.storage.lock().map_err(|_| AppError::StatePoisoned)
 }
 
 /// Both parts as they are now: from the cache when fresh, else built
@@ -298,7 +314,7 @@ fn stored_now(state: &AppState) -> Option<StoredStamps> {
 fn current(state: &Arc<AppState>) -> AppResult<[Arc<Part>; 2]> {
     let relations = &state.relations;
     let on = state.cache.gate().is_on();
-    if on && let Some(parts) = relations.fresh(&relations.snapshot(), stored_now(state).as_ref()) {
+    if on && let Some(parts) = relations.fresh(&relations.snapshot(), &stored_now(state)?) {
         mark_used(relations);
         return Ok(parts);
     }
@@ -307,8 +323,8 @@ fn current(state: &Arc<AppState>) -> AppResult<[Arc<Part>; 2]> {
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
     let events = relations.snapshot();
-    let stored = stored_now(state);
-    if on && let Some(parts) = relations.fresh(&events, stored.as_ref()) {
+    let stored = stored_now(state)?;
+    if on && let Some(parts) = relations.fresh(&events, &stored) {
         mark_used(relations);
         return Ok(parts);
     }
@@ -320,7 +336,7 @@ fn current(state: &Arc<AppState>) -> AppResult<[Arc<Part>; 2]> {
     let mut made: [Option<Arc<Part>>; 2] = [None, None];
     for kind in PartKind::ALL {
         let part = match &kept[kind.index()] {
-            Some(part) if on && part.fresh(kind, &events, stored.as_ref()) => Arc::clone(part),
+            Some(part) if on && part.fresh(kind, &events, &stored) => Arc::clone(part),
             _ => {
                 relations.builds.fetch_add(1, Ordering::AcqRel);
                 Arc::new(build::part(state, kind)?)

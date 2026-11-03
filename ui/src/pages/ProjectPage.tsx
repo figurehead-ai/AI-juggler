@@ -22,8 +22,8 @@ import { isActiveStatus } from "../components/indicator";
 import { IconTerminal } from "../components/icons";
 import { Button, Card } from "../components/primitives";
 import { signedIn, type AccountInfo, type InstanceInfo, type LaunchRecipeInfo, type ProjectInfo } from "../lib/bridge";
-import { PagedSessions, useSessionRows } from "./SessionsList";
-import { sessionsQuery } from "../lib/ipc/sessions";
+import { useSessionRows } from "./SessionsList";
+import { RelatedList } from "../components/RelatedList";
 import { launchSettingsName } from "../lib/account-words";
 import { cliAppName } from "../lib/app-name";
 import { openByProject } from "../lib/project-summary";
@@ -112,22 +112,23 @@ export function ProjectSessions(props: ProjectPanelProps) {
   const host = useActionHost();
   const rows = useSessionRows(props.sessions, { projectId: project?.id ?? "" }, props.onOpenSession, props.now);
   const start = () => (host.newSessionIn ? host.newSessionIn(project) : window.dispatchEvent(new Event("aij:new-session")));
-  // A page at a time (0.1.5): the backend's whole list, not the working set.
-  const [total, setTotal] = useState<number | null>(null);
+  // E31 (AJ-E3103): the one related list, a page at a time (0.1.5): the
+  // backend's whole list, not the working set; empty, what was done here.
   return (
     <div className="flex flex-col gap-3">
       <MissingBanner project={project} onStopped={props.onStopped} />
-      {total === 0 && <EmptyProject project={project} now={props.now} onStart={start} />}
-      <div hidden={total === 0}>
-        <PagedSessions
-          listKey={`project-sessions:${project.id}`}
-          query={sessionsQuery({ project_id: project.id })}
-          local={() => rows}
-          empty=""
-          onOpenSession={props.onOpenSession}
-          onTotal={setTotal}
-        />
-      </div>
+      <RelatedList
+        listKey={`project-sessions:${project.id}`}
+        anchor={{ project_id: project.id }}
+        local={() => rows}
+        folders={props.accounts}
+        projects={[project]}
+        showProjects={false}
+        teach={{ title: "No sessions in this project yet" }}
+        emptyView={<EmptyProject project={project} now={props.now} onStart={start} />}
+        onOpenSession={props.onOpenSession}
+        searchLabel={`Search ${project.name}'s sessions`}
+      />
     </div>
   );
 }
@@ -146,7 +147,11 @@ function EmptyProject({ project, now, onStart }: { project: ProjectInfo; now: nu
           </p>
         </div>
       ) : (
-        <p className="text-body font-medium text-ink">No sessions in this project yet</p>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-body font-medium text-ink">No sessions in this project yet</p>
+          {/* E31 (AJ-E3103 Req.3): what would appear here. */}
+          <p className="text-meta text-ink-2">Sessions started in this folder, here or in your other apps, show up here, what needs you first.</p>
+        </div>
       )}
       <Button size="sm" variant="primary" onClick={onStart}>
         <IconTerminal width={13} height={13} />

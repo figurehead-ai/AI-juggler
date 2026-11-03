@@ -2,9 +2,11 @@
 //! a time (0.1.5 review: History and a project's Sessions tab read every
 //! session and drew hundreds of rows at once).
 //!
-//! One list for History, a project's and an account's Sessions: open ones
-//! first, then by last activity, then by key; narrowed to a project or an
-//! account, to what's open, ended or archived, and to rows whose title,
+//! One list for History and every page's Sessions (E31, AJ-E3103): what
+//! needs you first, then what's working, what's open, then by last
+//! activity (D-62 decision 21), then by key; narrowed to a project (or to
+//! none), a folder, an App, an Account or a Mac, to what's open, ended or
+//! archived, to what was active since a time, and to rows whose title,
 //! project, account, tool, model, branch, date (YYYY-MM-DD, local) or
 //! transcript words match a search. Only a page's sessions are built in
 //! full (their git state, live stats and titles); the rest are matched
@@ -27,7 +29,8 @@ use crate::state::AppState;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SessionsQuery {
-    /// One project's sessions.
+    /// One project's sessions; `""` the ones in no project (E31: a
+    /// list's "No project" filter).
     #[serde(default)]
     pub project_id: Option<String>,
     /// One account's sessions.
@@ -44,6 +47,16 @@ pub struct SessionsQuery {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub subscription_id: Option<String>,
+    /// E31 (AJ-E3103): one Mac's sessions (the Mac AI Juggler's ran on;
+    /// the tools' conversations are this Mac's files).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub machine_id: Option<String>,
+    /// E31: only rows active at or after this time, epoch ms (a list's
+    /// "Recent": the last 7 days).
+    #[serde(default)]
+    #[ts(optional = nullable, type = "number | null")]
+    pub since_ms: Option<i64>,
     /// `all` (the default), `open`, `ended` (not archived) or `archived`.
     #[serde(default)]
     pub which: Option<String>,
@@ -96,22 +109,97 @@ enum Source {
     Conversation(Box<ConversationInfo>),
 }
 
-struct Candidate {
-    key: String,
-    live: bool,
-    archived: bool,
+pub(super) struct Candidate {
+    pub(super) key: String,
+    pub(super) live: bool,
+    pub(super) archived: bool,
+    /// Where it stands in the order ([`Rank`]).
+    rank: Rank,
     last_ms: i64,
     source: Source,
     snippet: Option<String>,
+    /// What it belongs to, for a list's filters (AJ-E3103).
+    pub(super) of: Belongs,
+}
+
+/// What a row belongs to: the values a list's filters offer.
+#[derive(Clone, Debug, Default)]
+pub(super) struct Belongs {
+    pub(super) project: Option<String>,
+    pub(super) folder: Option<String>,
+    pub(super) app: String,
+    pub(super) machine: String,
+}
+
+/// E31 (D-62 decision 21): the order every list of sessions opens on.
+/// Ended ones follow by last activity, so the last 7 days come before the
+/// rest by themselves.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Rank {
+    /// It asks you something, is stuck or hit a limit.
+    NeedsYou = 0,
+    /// It's working.
+    Working = 1,
+    /// Open, and waiting for you to say something (or done, to review).
+    Open = 2,
+    /// It has ended.
+    Ended = 3,
+}
+
+impl Rank {
+    /// One of AI Juggler's sessions, by its status, or the exact state its
+    /// tool reported (`runtime`: `asks_you`, `working`, `idle`), as its
+    /// rail row reads it (`ui/src/lib/rail-items.ts`, `sessionItem`).
+    #[must_use]
+    pub fn of_session(status: juggler_core::model::SessionStatus, runtime: Option<&str>) -> Self {
+        use juggler_core::model::SessionStatus as S;
+        if !crate::commands::is_active(status) {
+            return Self::Ended;
+        }
+        // The tool's own word wins over the guess from the status.
+        match runtime {
+            Some("asks_you") => Self::NeedsYou,
+            Some("working") => Self::Working,
+            Some("idle" | "done_review") => Self::Open,
+            Some("ended") => Self::Ended,
+            _ => match status {
+                S::WaitingUser | S::Stuck | S::QuotaBlocked => Self::NeedsYou,
+                S::Running | S::Starting => Self::Working,
+                _ => Self::Open,
+            },
+        }
+    }
+
+    /// A conversation another app runs, by the state its tool's files say
+    /// (`conversationItem`).
+    #[must_use]
+    pub fn of_conversation(live: bool, state: Option<&str>) -> Self {
+        match (live, state) {
+            (false, _) => Self::Ended,
+            (true, Some("asks_you")) => Self::NeedsYou,
+            (true, Some("working")) => Self::Working,
+            (true, _) => Self::Open,
+        }
+    }
 }
 
 impl Candidate {
-    /// Open first, newest first, then by key.
+    /// What needs you, what's working, what's open, then newest first,
+    /// then by key.
     fn sort_key(&self) -> SortKey {
-        SortKey::new([i64::from(!self.live), -self.last_ms], self.key.clone())
+        SortKey::new([self.rank as i64, -self.last_ms], self.key.clone())
     }
 
-    fn shown_by(&self, which: Which) -> bool {
+    /// Does it pass the filters a row is built without (its Mac, since)?
+    fn passes(&self, query: &SessionsQuery) -> bool {
+        query
+            .machine_id
+            .as_ref()
+            .is_none_or(|machine| *machine == self.of.machine)
+            && query.since_ms.is_none_or(|since| self.last_ms >= since)
+    }
+
+    pub(super) fn shown_by(&self, which: Which) -> bool {
         match which {
             Which::All => true,
             Which::Open => self.live,
@@ -122,7 +210,7 @@ impl Candidate {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Which {
+pub(super) enum Which {
     All,
     Open,
     Ended,
@@ -130,7 +218,7 @@ enum Which {
 }
 
 impl Which {
-    fn of(query: &SessionsQuery) -> Self {
+    pub(super) fn of(query: &SessionsQuery) -> Self {
         match query.which.as_deref() {
             Some("open") => Self::Open,
             Some("ended") => Self::Ended,
@@ -141,9 +229,9 @@ impl Which {
 }
 
 /// What the rows are matched and built from: one storage pass.
-struct Read {
+pub(super) struct Read {
     records: Vec<juggler_core::model::SessionRecord>,
-    candidates: Vec<Candidate>,
+    pub(super) candidates: Vec<Candidate>,
 }
 
 /// A day in words, local to the UI (`YYYY-MM-DD`).
@@ -303,8 +391,6 @@ impl Lookup {
     }
 }
 
-/// Every row in `query`'s scope that matches its search (not yet narrowed
-/// to open, ended or archived).
 /// D-62: a query's App and Account (AJ-E3204, AJ-E3205), as the rail
 /// groups sessions: a session is in the desktop App it was last seen open
 /// in, else in its folder's CLI App; on the Account its folder signed in
@@ -317,8 +403,8 @@ struct Narrow {
 }
 
 impl Narrow {
-    fn new(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Self> {
-        let desktop = if query.app_id.is_some() {
+    fn new(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -> AppResult<Self> {
+        let desktop = if query.app_id.is_some() || facets {
             crate::features::places::desktop_app_by_session(state)
         } else {
             std::collections::BTreeMap::new()
@@ -341,18 +427,37 @@ impl Narrow {
         })
     }
 
-    /// A session on folder `folder` (`key`: `<tool>/<id>` for one another
-    /// app runs, which may be a desktop App's) passes.
+    /// The App a session on folder `folder` is in (`key`: `<tool>/<id>`
+    /// for one another app runs, which may be a desktop App's).
+    fn app(&self, folder: Option<&str>, key: Option<&str>) -> String {
+        crate::features::places::app_of(&self.desktop, folder, key)
+    }
+
+    /// A session on folder `folder` (`key` as [`Self::app`]) passes.
     fn passes(&self, folder: Option<&str>, key: Option<&str>) -> bool {
         let on_account = !self.account || folder.is_some_and(|id| self.folders.contains(id));
-        let in_app = self.app.as_ref().is_none_or(|want| {
-            *want == crate::features::places::app_of(&self.desktop, folder, key)
-        });
+        let in_app = self
+            .app
+            .as_ref()
+            .is_none_or(|want| *want == self.app(folder, key));
         on_account && in_app
     }
 }
 
-fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
+/// Is a row in project `project` in `query`'s project (`""`: none)?
+fn in_project(query: &SessionsQuery, project: Option<&str>) -> bool {
+    match query.project_id.as_deref() {
+        None => true,
+        Some("") => project.is_none(),
+        Some(want) => project == Some(want),
+    }
+}
+
+/// Every row in `query`'s scope that matches its search and its filters
+/// (not yet narrowed to open, ended or archived); `facets`: each row's
+/// App worked out whether or not the query names one (a list's filters,
+/// [`super::facets`]).
+pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -> AppResult<Read> {
     let mut lookup = Lookup::new(state, query)?;
     // Outside conversations from the index (in memory), before storage
     // is held.
@@ -378,12 +483,14 @@ fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
             storage.sessions().lifecycle_latest().unwrap_or_default(),
         )
     };
-    let narrow = Narrow::new(state, query)?;
+    let narrow = Narrow::new(state, query, facets)?;
+    // The tools' files are on this Mac.
+    let here = crate::commands::local_machine_id(state).to_string();
     let mut candidates = Vec::new();
     for (index, record) in records.iter().enumerate() {
         let join = crate::commands::resolved_join(&recipes, &accounts, &record.profile.to_string());
         let project = record.project.as_ref().map(ToString::to_string);
-        if (query.project_id.is_some() && project != query.project_id)
+        if !in_project(query, project.as_deref())
             || (query.account_id.is_some() && join.0 != query.account_id)
             || !narrow.passes(join.0.as_deref(), None)
         {
@@ -394,57 +501,91 @@ fn read(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Read> {
         if snippet.is_none() && !lookup.session_matches(record, &join) {
             continue;
         }
-        candidates.push(Candidate {
+        let live = crate::commands::is_active(record.status);
+        // The tool's own word only for an open one (the runtime knows no
+        // other).
+        let runtime = live
+            .then(|| state.runtime.info(record.id.as_str()))
+            .flatten()
+            .and_then(|info| info.state);
+        let candidate = Candidate {
             key,
-            live: crate::commands::is_active(record.status),
+            live,
             archived: lifecycle
                 .get(record.id.as_str())
                 .is_some_and(|(event, _)| event == "archived"),
+            rank: Rank::of_session(record.status, runtime.as_deref()),
             last_ms: record
                 .last_activity
                 .as_ref()
                 .map_or(record.started_at.millis(), |at| at.millis()),
             source: Source::Session(index),
             snippet,
-        });
-    }
-    for conversation in outside {
-        if (query.project_id.is_some() && conversation.project_id != query.project_id)
-            || query
-                .account_id
-                .as_ref()
-                .is_some_and(|account| *account != conversation.account_id)
-            || !narrow.passes(
-                Some(&conversation.account_id),
-                Some(&crate::features::places::book::conversation_key(
-                    &conversation.tool,
-                    &conversation.id,
-                )),
-            )
-        {
-            continue;
+            of: Belongs {
+                app: narrow.app(join.0.as_deref(), None),
+                project,
+                folder: join.0,
+                machine: record.machine.to_string(),
+            },
+        };
+        if candidate.passes(query) {
+            candidates.push(candidate);
         }
-        let key = format!("c/{}/{}", conversation.account_id, conversation.id);
-        let snippet = lookup.snippets.get(&key).cloned();
-        if snippet.is_none() && !lookup.conversation_matches(&conversation) {
-            continue;
-        }
-        candidates.push(Candidate {
-            key,
-            live: conversation.live,
-            archived: false,
-            last_ms: conversation
-                .last_activity_ms
-                .or(conversation.started_ms)
-                .unwrap_or_default(),
-            source: Source::Conversation(Box::new(conversation)),
-            snippet,
-        });
     }
+    candidates.extend(outside.into_iter().filter_map(|conversation| {
+        conversation_candidate(query, &narrow, &lookup, conversation, &here)
+    }));
     Ok(Read {
         records,
         candidates,
     })
+}
+
+/// A conversation another app started, as a row of `query`'s list, when
+/// it's in its scope and matches its search and filters (`here`: this
+/// Mac, whose files hold it).
+fn conversation_candidate(
+    query: &SessionsQuery,
+    narrow: &Narrow,
+    lookup: &Lookup,
+    conversation: ConversationInfo,
+    here: &str,
+) -> Option<Candidate> {
+    let key_in_app =
+        crate::features::places::book::conversation_key(&conversation.tool, &conversation.id);
+    if !in_project(query, conversation.project_id.as_deref())
+        || query
+            .account_id
+            .as_ref()
+            .is_some_and(|account| *account != conversation.account_id)
+        || !narrow.passes(Some(&conversation.account_id), Some(&key_in_app))
+    {
+        return None;
+    }
+    let key = format!("c/{}/{}", conversation.account_id, conversation.id);
+    let snippet = lookup.snippets.get(&key).cloned();
+    if snippet.is_none() && !lookup.conversation_matches(&conversation) {
+        return None;
+    }
+    let candidate = Candidate {
+        key,
+        live: conversation.live,
+        archived: false,
+        rank: Rank::of_conversation(conversation.live, conversation.state.as_deref()),
+        last_ms: conversation
+            .last_activity_ms
+            .or(conversation.started_ms)
+            .unwrap_or_default(),
+        of: Belongs {
+            app: narrow.app(Some(&conversation.account_id), Some(&key_in_app)),
+            project: conversation.project_id.clone(),
+            folder: Some(conversation.account_id.clone()),
+            machine: here.to_owned(),
+        },
+        source: Source::Conversation(Box::new(conversation)),
+        snippet,
+    };
+    candidate.passes(query).then_some(candidate)
 }
 
 /// One page of `query`'s sessions.
@@ -461,7 +602,7 @@ pub fn sessions_page_impl(
     let Read {
         records,
         candidates,
-    } = read(state, query)?;
+    } = read(state, query, false)?;
     let shown: Vec<Candidate> = candidates
         .into_iter()
         .filter(|candidate| candidate.shown_by(which))
@@ -521,10 +662,15 @@ pub fn sessions_counts_impl(
 /// The entity whose sessions `query`'s list is, when it is a whole one.
 fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::EntityRef> {
     use crate::features::relations::{EntityKind, EntityRef};
+    // A search, a Mac, a time or "No project" narrow what no entity's
+    // counts hold.
     if query
         .text
         .as_deref()
         .is_some_and(|text| !text.trim().is_empty())
+        || query.machine_id.is_some()
+        || query.since_ms.is_some()
+        || query.project_id.as_deref() == Some("")
     {
         return None;
     }
@@ -556,7 +702,7 @@ pub fn sessions_counts_scanned(
     state: &Arc<AppState>,
     query: &SessionsQuery,
 ) -> AppResult<SessionsCountsInfo> {
-    let read = read(state, query)?;
+    let read = read(state, query, false)?;
     let mut counts = SessionsCountsInfo::default();
     for candidate in &read.candidates {
         counts.all += 1;
@@ -651,6 +797,42 @@ mod tests {
                 q.account_id = Some("work".into());
             }),
             None
+        );
+    }
+
+    /// E31: the order's ranks, as the rail reads a session's state (the
+    /// tool's own word first).
+    #[test]
+    fn a_rows_rank_reads_its_state_as_the_rail_does() {
+        use juggler_core::model::SessionStatus as S;
+        assert_eq!(Rank::of_session(S::WaitingUser, None), Rank::NeedsYou);
+        assert_eq!(Rank::of_session(S::QuotaBlocked, None), Rank::NeedsYou);
+        assert_eq!(Rank::of_session(S::Running, None), Rank::Working);
+        assert_eq!(Rank::of_session(S::Running, Some("idle")), Rank::Open);
+        assert_eq!(
+            Rank::of_session(S::WaitingUser, Some("working")),
+            Rank::Working
+        );
+        assert_eq!(
+            Rank::of_session(S::Running, Some("asks_you")),
+            Rank::NeedsYou
+        );
+        assert_eq!(
+            Rank::of_session(S::Running, Some("something new")),
+            Rank::Working
+        );
+        assert_eq!(Rank::of_session(S::Failed, Some("asks_you")), Rank::Ended);
+        assert_eq!(
+            Rank::of_conversation(true, Some("asks_you")),
+            Rank::NeedsYou
+        );
+        assert_eq!(Rank::of_conversation(true, Some("done_review")), Rank::Open);
+        assert_eq!(Rank::of_conversation(true, None), Rank::Open);
+        assert_eq!(Rank::of_conversation(false, Some("working")), Rank::Ended);
+        assert!(
+            Rank::NeedsYou < Rank::Working
+                && Rank::Working < Rank::Open
+                && Rank::Open < Rank::Ended
         );
     }
 

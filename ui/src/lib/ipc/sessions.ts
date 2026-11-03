@@ -8,8 +8,9 @@ import type { SessionRowInfo } from "../../types/generated/SessionRowInfo";
 import type { SessionsCountsInfo } from "../../types/generated/SessionsCountsInfo";
 import type { SessionsQuery } from "../../types/generated/SessionsQuery";
 import type { SessionEventInfo } from "../../types/generated/SessionEventInfo";
+import type { SessionsFacetsInfo } from "../../types/generated/SessionsFacetsInfo";
 
-export type { SessionEventInfo, SessionRowInfo, SessionsCountsInfo, SessionsQuery };
+export type { SessionEventInfo, SessionRowInfo, SessionsCountsInfo, SessionsFacetsInfo, SessionsQuery };
 
 /** The copyable line that resumes a session in a terminal: built by its
  * tool's adapter, on its account, from its folder. */
@@ -51,6 +52,12 @@ export async function sessionsHistory(sessionId: string, page: PageRequest): Pro
 /** How many sessions a list holds: open, ended and archived. */
 export async function sessionsCounts(query: SessionsQuery): Promise<SessionsCountsInfo> {
   return invoke<SessionsCountsInfo>("sessions_counts", { query });
+}
+
+/** E31 (AJ-E3103): what a list's filters offer: the projects, Apps,
+ * Accounts and Macs its rows are on, with how many rows each shows. */
+export async function sessionsFacets(query: SessionsQuery): Promise<SessionsFacetsInfo> {
+  return invoke<SessionsFacetsInfo>("sessions_facets", { query });
 }
 
 /** A query with only what's given set (the rest `null`, as serde sends). */

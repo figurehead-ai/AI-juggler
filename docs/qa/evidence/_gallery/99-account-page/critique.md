@@ -1,4 +1,4 @@
-<!-- captures: f4a9ba9eaaef -->
+<!-- captures: 8207a47e2d29 -->
 # 99-account-page: an Account's own page, and the Accounts screen that leads to it (0.4, D-62, AJ-E3205)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures; a second section for AJ-E3202 req. 4 (plan, renewal and fee kept on the Account).
@@ -93,3 +93,13 @@ Re-shot after each App and each Account got one stored colour. All eighteen capt
 
 - In accounts-choose, with three folders, Claude app · Work Max takes the slot whose hue is the Account's rose. With eight hues, the fifth App always shares a hue with the first Account, so App and Account are told apart by shape: a dot on the icon's corner against the round mark by the Account's name.
 - The personal account's teal is 27° from the live colour. It sits by the Account's name, never by a session's state.
+
+## 0.4, AJ-E3103: the one related list and the one row
+
+Recaptured: account-overview and account-overview-1024, in both themes. The rest were left as they were.
+
+**account-overview.** The Open now and Last used cards use the one row. Line 2 reads "◆ ai-juggler · ● Claude Code · Work Max · just now", ending in the state word. The row names its App with the App's colour dot, as the rail does. The Account is the page's own and gets no colour there, following the 2026-11-03 ruling. In a half-width card the App's name truncates before the time does.
+
+### Weak
+
+- In a half-width card the App's name is cut to "Claude Code · …" or "Claude…". The icon says which app it is, but not which profile.

@@ -11,7 +11,8 @@
  * with ⌥⌘↑ and ⌥⌘↓); `lib/rail-order-store.ts` keeps it.
  */
 import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
-import { NeedRow, PlaceHeader, PlaceRow, edgeOf, type Arrangeable } from "./PlaceRows";
+import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
+import { SessionRow } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailLink, SectionHead, scrollerOf } from "./PlaceBoardParts";
 import { RailIdleApp } from "./RailIdleApp";
 import { RailOrderMenu } from "./RailOrderMenu";
@@ -308,26 +309,27 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       }
       case "row":
         return (
-          <PlaceRow
+          <SessionRow
             item={line.item}
+            density={compact ? "compact" : "cozy"}
+            within={{ app: true }}
             edge={edgeOf(line.group.place)}
             selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)}
             onSelect={onSelect}
             now={now}
             subagents={view.show.subagents}
-            compact={compact}
             tools
             arrange={arrangeOf("row", line.group.key, line.item.key)}
           />
         );
       case "plain":
-        return <PlaceRow item={line.item} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} compact={compact} />;
+        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
       case "more":
         return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
       case "recent":
         return <RailLink onClick={() => toggle(`${line.app}#recent`)} testId="rail-recent" expanded={line.open}>{recentWords(line.count)}</RailLink>;
       case "past":
-        return <PlaceRow item={line.item} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} compact={compact} />;
+        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} />;
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;
         return (

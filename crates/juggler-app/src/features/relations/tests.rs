@@ -34,7 +34,7 @@ fn an_entity_counts_its_sessions_by_state_and_what_they_are_on() {
             row(None, "home", "cli:home", false, false),
         ],
         Snapshot::default(),
-        None,
+        StoredStamps::default(),
     );
     let outside = Part::of(
         [
@@ -42,7 +42,7 @@ fn an_entity_counts_its_sessions_by_state_and_what_they_are_on() {
             row(Some("p-3"), "work", "cli:work", false, false),
         ],
         Snapshot::default(),
-        None,
+        StoredStamps::default(),
     );
     let parts = [Arc::new(own), Arc::new(outside)];
     let p1 = answer(&parts, &entity(EntityKind::Project, "p-1"));
@@ -181,26 +181,26 @@ fn a_part_is_fresh_until_one_of_its_own_sources_moves() {
         folders: 2,
         projects: 7,
     };
-    let own = Part::of([], built, Some(stored));
-    let outside = Part::of([], built, Some(stored));
-    assert!(own.fresh(PartKind::Own, &built, Some(&stored)));
+    let own = Part::of([], built, stored);
+    let outside = Part::of([], built, stored);
+    assert!(own.fresh(PartKind::Own, &built, &stored));
     // A project added: only the conversations' part reads projects.
     let more = StoredStamps {
         projects: 8,
         ..stored
     };
-    assert!(own.fresh(PartKind::Own, &built, Some(&more)));
-    assert!(!outside.fresh(PartKind::Outside, &built, Some(&more)));
+    assert!(own.fresh(PartKind::Own, &built, &more));
+    assert!(!outside.fresh(PartKind::Outside, &built, &more));
     // A write nothing announced (the database's stamp moved alone).
     let written = StoredStamps {
         sessions: 5,
         ..stored
     };
-    assert!(!own.fresh(PartKind::Own, &built, Some(&written)));
-    // The database busy: the events alone decide.
-    assert!(own.fresh(PartKind::Own, &built, None));
+    assert!(!own.fresh(PartKind::Own, &built, &written));
+    assert!(!outside.fresh(PartKind::Outside, &built, &written));
+    // An event alone.
     stamps.bump(Change::ConversationsLive);
     let now = stamps.snapshot();
-    assert!(own.fresh(PartKind::Own, &now, None));
-    assert!(!outside.fresh(PartKind::Outside, &now, None));
+    assert!(own.fresh(PartKind::Own, &now, &stored));
+    assert!(!outside.fresh(PartKind::Outside, &now, &stored));
 }

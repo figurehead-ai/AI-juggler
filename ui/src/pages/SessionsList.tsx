@@ -9,19 +9,23 @@
  * `SessionsList` stays for short lists the UI already holds.
  */
 import type { AppRef } from "../lib/app-of";
-import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { isActiveStatus } from "../components/indicator";
-import { STATE_TONE, conversationItem, sessionState, stateWord, type RailState } from "../lib/rail-items";
+import { conversationItem, sessionItem, type RailItem, type RailState } from "../lib/rail-items";
+import { rowState } from "../components/row/SessionRow";
 import { sessionTitle } from "../components/ManageWork";
 import { conversationTitle, outside, useConversations } from "../lib/conversations";
+import { onConversationsChanged } from "../lib/ipc/conversations";
+import { BAND_WORDS, bandOf } from "../components/related/order";
+import { useHeld } from "../components/related/useHeld";
 import { useActionHost } from "../components/ItemMenu";
-import { SessionRowBody } from "./SessionRow";
+import { ListRow } from "./SessionRow";
 import { ago, agoWords, sessionWhen } from "../lib/time-words";
 export { dayWords } from "../lib/time-words";
-import { hasLiveBackend, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
+import { hasLiveBackend, onSessionsUpdated, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { sessionsCounts, sessionsPage, type SessionRowInfo, type SessionsCountsInfo, type SessionsQuery } from "../lib/ipc/sessions";
-import { pageOf, usePagedList, type PageRequest } from "../lib/paged";
+import { pageOf, refreshPaged, usePagedList, type PageRequest } from "../lib/paged";
 import { PagedList } from "../components/PagedList";
 import type { ActionHost } from "../lib/actions";
 
@@ -57,6 +61,9 @@ export type Row = {
   /** D-62: the App it belongs to, when the caller knows it (a session
    * that ended in the Claude app is the Claude app's, not its tool's). */
   app?: AppRef | null;
+  /** E31 (AJ-E3103): what the one session row draws (the rail's item:
+   * the rail's own, when the row came from it). */
+  rail: RailItem;
   open: () => void;
 };
 
@@ -64,7 +71,8 @@ export { appOfRow } from "./SessionRow";
 
 /** One of AI Juggler's sessions as a row. */
 export function sessionRow(session: InstanceInfo, now: number, onOpenSession: (id: string) => void): Row {
-  const said = sessionState(session);
+  const rail = sessionItem(session, () => null, false);
+  const said = { ...rowState(rail), state: rail.state };
   return {
     key: `s/${session.id}`,
     item: { kind: isActiveStatus(session.status) ? "session" : "history", session },
@@ -76,18 +84,20 @@ export function sessionRow(session: InstanceInfo, now: number, onOpenSession: (i
     detail: null,
     state: said.word,
     railState: said.state,
-    tone: said.tone,
+    tone: said.text,
     tool: session.provider,
     accountId: session.account_id,
     accountLabel: session.account_label,
     outside: false,
+    rail,
     open: () => onOpenSession(session.id),
   };
 }
 
 /** A conversation started outside AI Juggler as a row. */
 export function conversationRow(conversation: ConversationInfo, now: number, host: ActionHost): Row {
-  const said = conversationItem(conversation, () => null, null);
+  const rail = conversationItem(conversation, () => null, null);
+  const said = rowState(rail);
   return {
     key: `c/${conversation.account_id}/${conversation.id}`,
     item: { kind: "conversation", conversation },
@@ -98,13 +108,14 @@ export function conversationRow(conversation: ConversationInfo, now: number, hos
     when: conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now),
     title: conversationTitle(conversation),
     detail: conversation.git_branch,
-    state: stateWord(said.state, said.probably),
-    railState: said.state,
-    tone: STATE_TONE[said.state].text,
+    state: said.word,
+    railState: rail.state,
+    tone: said.text,
     tool: conversation.tool,
     accountId: conversation.account_id,
     accountLabel: conversation.account_label,
     outside: true,
+    rail,
     open: () => host.openConversation?.(conversation),
   };
 }
@@ -185,14 +196,9 @@ export function SessionsList({
       <ListCount total={rows.length} open={live} />
       <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
         {shown.map((row) => (
-          <SessionRowBody
-            key={row.key}
-            as="li"
-            row={row}
-            project={names && row.projectId ? { id: row.projectId, name: names.get(row.projectId) ?? null } : null}
-            below={below?.(row)}
-            badge={badge?.(row)}
-          />
+          <li key={row.key} className="border-t border-hairline/60 first:border-t-0">
+            <ListRow row={row} project={names && row.projectId ? { id: row.projectId, name: names.get(row.projectId) ?? null } : null} below={below?.(row)} badge={badge?.(row)} />
+          </li>
         ))}
       </ul>
       {rows.length > shown.length && (
@@ -209,6 +215,11 @@ export function SessionsList({
  * account's Sessions. The backend narrows, searches and orders it
  * (`sessions_page`); in the design preview (no backend), `local` rows
  * are paged the same way.
+ *
+ * E31 (AJ-E3103): an `ordered` list (every related list) heads its
+ * sections (Needs you, Working, Open, Last 7 days, Earlier) once it has
+ * more than one, follows the app's changes, and never jumps while read:
+ * new rows wait behind "N new" (`components/related/useHeld`).
  */
 export function PagedSessions({
   listKey,
@@ -224,11 +235,12 @@ export function PagedSessions({
   groupOf,
   counted = false,
   inApp = false,
-  inAccount = false,
+  ordered = false,
 }: {
-  /** D-62: an App's list: its rows don't repeat the app and account. */
+  /** D-62: an App's list: its rows don't repeat the App. */
   inApp?: boolean;
-  /** D-62: an Account's list: its rows don't repeat the account. */
+  /** Kept for callers; an Account's rows name their App (an Account
+   * isn't an App). */
   inAccount?: boolean;
   /** Names the list and everything that shapes it (its memory's key). */
   listKey: string;
@@ -237,7 +249,7 @@ export function PagedSessions({
   query: SessionsQuery;
   /** The design preview's rows, already narrowed (no backend). */
   local: () => Row[];
-  empty: string;
+  empty: ReactNode;
   projects?: ProjectInfo[];
   below?: (row: Row) => ReactNode;
   badge?: (row: Row) => ReactNode;
@@ -248,6 +260,8 @@ export function PagedSessions({
   onTotal?: (total: number) => void;
   /** Its section's title says how many already: no count line of its own. */
   counted?: boolean;
+  /** E31: the related lists' order, sections and hold. */
+  ordered?: boolean;
 }): JSX.Element {
   const host = useActionHost();
   const live = hasLiveBackend();
@@ -264,10 +278,16 @@ export function PagedSessions({
     seed: live ? undefined : (size) => pageOf(local().map(infoOfRow), { cursor: null, limit: size }),
   });
   const rows = useMemo(() => read.items.flatMap((info) => rowOfInfo(info, Date.now(), onOpenSession, host) ?? []), [read.items, onOpenSession, host]);
-  const list = { ...read, items: rows };
+  useFollow(ordered && live, listKey);
+  // The sections' "now": when the list was opened (a row never changes
+  // section just because time passed while it was read).
+  const [opened] = useState(() => Date.now());
+  const bandOfRow = useCallback((row: Row) => bandOf(row.rail, opened), [opened]);
+  const held = useHeld({ ...read, items: rows }, rowKey, bandOfRow, listKey);
+  const list = ordered ? held.list : { ...read, items: rows };
   // The heading's counts: the backend's for the whole list.
   const [counts, setCounts] = useState<SessionsCountsInfo | null>(null);
-  const scopeKey = `${query.project_id ?? ""}/${query.account_id ?? ""}/${query.text ?? ""}`;
+  const scopeKey = listKey;
   useEffect(() => {
     if (!live) return;
     let alive = true;
@@ -283,29 +303,43 @@ export function PagedSessions({
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, scopeKey, list.items.length === 0]);
+  }, [live, scopeKey, read.items.length === 0, read.total]);
   const names = projects ? new Map(projects.map((project) => [project.id, project.name])) : null;
-  const total = list.total ?? list.items.length;
-  const told = list.loading ? null : total;
+  const total = read.total ?? list.items.length;
+  const told = read.loading ? null : total;
   useEffect(() => {
     if (told !== null) onTotal?.(told);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [told]);
   const open = !live ? list.items.filter((row) => row.live).length : query.which === "ended" || query.which === "archived" ? 0 : (counts?.open ?? 0);
+  // Sections head the rows once there's more than one.
+  const sections = ordered && new Set(list.items.map(held.bandOf)).size > 1 ? (row: Row) => BAND_WORDS[held.bandOf(row)] : undefined;
+  const heading = groupOf ?? sections;
   return (
     <div className="flex flex-col gap-2" data-testid="page-sessions">
-      {!counted && !list.loading && list.items.length > 0 && <ListCount total={total} open={open} />}
+      {!counted && !read.loading && list.items.length > 0 && <ListCount total={total} open={open} />}
+      {ordered && held.waiting && (
+        <button
+          type="button"
+          onClick={held.showAll}
+          className="sticky top-1 z-20 self-center rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-meta font-medium text-accent-hi shadow-card outline-none hover:bg-accent/15 focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="related-waiting"
+        >
+          <span aria-hidden="true">↑ </span>
+          {held.waiting}
+        </button>
+      )}
       <PagedList
         list={list}
-        keyOf={(row) => row.key}
+        keyOf={rowKey}
         label="Sessions"
-        rowHeight={groupOf ? 64 : 58}
-        empty={<EmptyList empty={empty} />}
+        rowHeight={heading ? 66 : 60}
+        empty={typeof empty === "string" ? <EmptyList empty={empty} /> : empty}
         testId="page-sessions-list"
         renderRow={(row, index) => {
-          const group = groupOf?.(row) ?? null;
+          const group = heading?.(row) ?? null;
           const before = index > 0 ? list.items[index - 1] : undefined;
-          const heads = group !== null && (before === undefined || groupOf!(before) !== group);
+          const heads = group !== null && (before === undefined || heading!(before) !== group);
           return (
             <>
               {heads && (
@@ -313,14 +347,12 @@ export function PagedSessions({
                   {group}
                 </h3>
               )}
-              <SessionRowBody
-                as="div"
+              <ListRow
                 row={row}
                 project={names && row.projectId ? { id: row.projectId, name: names.get(row.projectId) ?? null } : null}
                 below={below?.(row)}
                 badge={badge?.(row)}
                 inApp={inApp}
-                inAccount={inAccount}
               />
             </>
           );
@@ -329,3 +361,27 @@ export function PagedSessions({
     </div>
   );
 }
+
+const rowKey = (row: Row) => row.key;
+
+/** A shown related list reads itself again when sessions or the tools'
+ * conversations change (once a burst settles); what it shows holds still
+ * (`useHeld`). */
+function useFollow(on: boolean, listKey: string): void {
+  useEffect(() => {
+    if (!on) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const again = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => refreshPaged(listKey), FOLLOW_SETTLE_MS);
+    };
+    const stops = [onSessionsUpdated(again), onConversationsChanged(again)];
+    return () => {
+      if (timer) clearTimeout(timer);
+      stops.forEach((stop) => stop());
+    };
+  }, [on, listKey]);
+}
+
+/** As the relation counts settle a burst of changes (lib/relation-counts). */
+const FOLLOW_SETTLE_MS = 250;

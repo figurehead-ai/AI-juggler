@@ -288,7 +288,9 @@ export function PageShell({
               }
             >
               {entry.label}
-              {entry.count !== undefined && entry.count > 0 && <span className="ml-1 tabular-nums opacity-70"> {entry.count}</span>}
+              {/* The chosen tab's count at full strength (axe: color-contrast
+                  on its tinted surface); the others' dimmer than their name. */}
+              {entry.count !== undefined && entry.count > 0 && <span className={"ml-1 tabular-nums" + (tab === entry.id ? "" : " opacity-70")}> {entry.count}</span>}
             </button>
           ))}
         </div>

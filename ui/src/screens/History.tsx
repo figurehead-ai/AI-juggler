@@ -26,7 +26,7 @@ import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
 import { outsideSearchStatus } from "../lib/ipc/outsideSearch";
 import { errorText, hasLiveBackend, instanceArchive, instanceUnarchive, transcriptSearch, type TranscriptHitInfo, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
-import { Picker } from "../components/controls";
+import { FilterChip } from "../components/related/FilterChip";
 
 type ListId = "ended" | "archived";
 
@@ -91,33 +91,6 @@ export function hitKey(hit: TranscriptHitInfo): string {
 }
 
 /** One filter, as a chip: its name and a choice of All or one value. */
-function FilterChip({ label, value, options, onChange, testId }: { label: string; value: string | null; options: { id: string; label: string }[]; onChange: (next: string | null) => void; testId: string }): JSX.Element | null {
-  if (options.length < 2 && value === null) return null;
-  return (
-    <span
-      className={
-        "inline-flex h-8 items-center overflow-hidden rounded-full border px-0.5 text-meta transition-colors " +
-        (value !== null ? "border-accent/45 bg-accent-soft text-ink" : "border-hairline bg-surface text-muted hover:text-ink")
-      }
-    >
-      <Picker
-        look="quiet"
-        size="sm"
-        // Its name as it reads on screen ("App: All"), so the button's
-        // name contains what it shows (axe: label-content-name-mismatch).
-        prefix={`${label}:`}
-        ariaLabel={label}
-        heading={label}
-        value={value ?? ""}
-        onChange={(next) => onChange(next || null)}
-        options={[{ value: "", label: "All" }, ...options.map((option) => ({ value: option.id, label: option.label }))]}
-        testId={testId}
-        className="max-w-60 rounded-full text-meta"
-      />
-    </span>
-  );
-}
-
 export function History({
   sessions,
   projects,

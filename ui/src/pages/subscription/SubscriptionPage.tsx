@@ -19,7 +19,7 @@ import { Segmented } from "../../components/usage/controls";
 import { useRange } from "../../components/usage/useUsage";
 import { PageHeader, PageShell, showTab } from "../PageShell";
 import { pageTabs } from "../registry";
-import { PagedSessions } from "../SessionsList";
+import { RelatedList } from "../../components/RelatedList";
 import { AccountLimits } from "../AccountPage";
 import { AppProjects, MoreLink, ProjectRows, RowList, rowOf, type Shown } from "../app/AppOverview";
 import { AccountAppRows } from "./AccountApps";
@@ -30,7 +30,6 @@ import { useRelationCounts } from "../../lib/relation-counts";
 import { accountApps, accountItems } from "../../lib/account-items";
 import { appProjects, openHere } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
-import { sessionsQuery } from "../../lib/ipc/sessions";
 import { appByConversation, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
@@ -157,14 +156,20 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
               );
             case "sessions":
               return (
-                <PagedSessions
+                <RelatedList
                   listKey={`account-sessions:${sub.account_id}`}
-                  query={sessionsQuery({ subscription_id: sub.account_id })}
+                  anchor={{ subscription_id: sub.account_id }}
                   local={() => items.flatMap((item) => rowOf(item, Date.now(), onOpenSession, host, appOf(item)) ?? [])}
-                  empty={`No sessions on ${name} yet.`}
+                  folders={accounts}
                   projects={projects}
+                  showProjects
+                  teach={{
+                    title: `No sessions on ${name} yet`,
+                    body: "Sessions in every App signed in to this Account show up here, what needs you first.",
+                    action: folder ? { label: "New session", onClick: () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: folder } })) } : undefined,
+                  }}
                   onOpenSession={onOpenSession}
-                  inAccount
+                  searchLabel={`Search ${name}'s sessions`}
                 />
               );
             case "projects":

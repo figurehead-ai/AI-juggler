@@ -622,8 +622,14 @@ loading, error, stale/offline.
 > the profile badge is the App's mark, in the App's one colour, given once when the
 > App is first stored (the least-used of eight, by its id) and the same on
 > every screen: a rename or a new App never moves it. An Account's mark is
-> another shape, the round avatar, in the Account's own colour given the
-> same way; a session's row shows its Account by that colour.
+> another shape, the round avatar, given its own colour the same way.
+>
+> **Amended by D-62's colour ruling (2026-11-03): colour is the Apps'.**
+> A row wears one colour, its App's dot; an Account beside an App is
+> neutral (a hollow ring when small, grey with its initials when large)
+> or named in words. An Account wears its own colour only where Accounts
+> stand alone: the Runway, Usage's lists by Account, the Accounts screen
+> and its own page.
 
 Every Instance row carries, with text+icon redundancy (never colour
 alone — WCAG 1.4.1): Provider, Account, running model, state

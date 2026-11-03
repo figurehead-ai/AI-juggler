@@ -22,6 +22,8 @@
 //! only when missing, so a database an older build left half way (or a
 //! test rewinding its version) runs it again safely.
 
+use std::path::Path;
+
 use rusqlite::{Connection, params};
 
 use crate::error::CoreError;
@@ -90,6 +92,43 @@ pub struct StoredStamps {
     pub folders: i64,
     /// The projects and the worktrees' homes.
     pub projects: i64,
+}
+
+/// A connection of its own on the database, for the stamps alone. In WAL
+/// a reader never waits on a writer, so a count is checked against the
+/// committed rows even while the app's connection is busy with a long
+/// write: a stale count is never served for want of a lock.
+#[derive(Debug)]
+pub struct StampReader {
+    conn: Connection,
+}
+
+/// How long the stamp reader waits on a lock (only a checkpoint's brief
+/// one; a writer never holds it up in WAL).
+const READER_WAIT: std::time::Duration = std::time::Duration::from_millis(250);
+
+impl StampReader {
+    /// A reader on the database at `path` (already opened and migrated by
+    /// [`super::Storage::open`]); it only reads.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] when SQLite can't open it.
+    pub fn open(path: &Path) -> Result<Self, CoreError> {
+        let conn = Connection::open(path)?;
+        conn.busy_timeout(READER_WAIT)?;
+        conn.pragma_update(None, "query_only", "ON")?;
+        Ok(Self { conn })
+    }
+
+    /// Where each source's committed rows stand now.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn stamps(&self) -> Result<StoredStamps, CoreError> {
+        RelationsRepo::new(&self.conn).stamps()
+    }
 }
 
 /// What a relation needs of one session AI Juggler ran, without its row

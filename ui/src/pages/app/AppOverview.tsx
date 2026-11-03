@@ -11,7 +11,7 @@ import { Button, Card } from "../../components/primitives";
 import { signedIn } from "../../lib/bridge";
 import { IconFolder, IconPlay } from "../../components/usage/controls";
 import { IconHistory } from "../../components/icons-places";
-import { SessionRowBody } from "../SessionRow";
+import { ListRow } from "../SessionRow";
 import { conversationRow, sessionRow, type Row } from "../SessionsList";
 import { AccountLimits } from "../AccountPage";
 import { FindProfiles } from "./FindProfiles";
@@ -31,7 +31,10 @@ const PROJECTS_SHOWN = 5;
  * when the caller knows it (its icon and "in …" then say that App). */
 export function rowOf(item: RailItem, now: number, onOpenSession: (id: string) => void, host: ActionHost, app?: AppModel | null): Row | null {
   const row = item.session ? sessionRow(item.session, now, onOpenSession) : item.conversation ? conversationRow(item.conversation, now, host) : null;
-  if (row && app) row.app = { appId: app.appId, appPid: app.place?.app_pid ?? null, name: app.name };
+  if (!row) return null;
+  // The rail's own item: its App, its project and the backend's Needs you.
+  row.rail = item;
+  if (app) row.app = { appId: app.appId, appPid: app.place?.app_pid ?? null, name: app.name };
   return row;
 }
 
@@ -181,7 +184,9 @@ export function RowList({ rows, empty, within = "app" }: { rows: Shown[]; empty:
   return (
     <ul className="-mx-2 flex flex-col">
       {rows.map(({ row, project }) => (
-        <SessionRowBody key={row.key} as="li" row={row} project={project} inApp={within === "app"} inAccount={within === "account"} />
+        <li key={row.key} className="border-t border-hairline/60 first:border-t-0">
+          <ListRow row={row} project={project} inApp={within === "app"} />
+        </li>
       ))}
     </ul>
   );

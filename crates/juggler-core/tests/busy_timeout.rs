@@ -316,25 +316,33 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v42, each App's and
-    // Account's colour slot) is undone by hand and runs again on open.
+    // One version behind: the last migration (v43, AJ-E3102's sessions'
+    // indexes and relation stamps) is undone by hand and runs again on
+    // open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 42,
-        "a new migration landed: undo it here instead (this test's undo is v42's)"
+        version, 43,
+        "a new migration landed: undo it here instead (this test's undo is v43's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch(
-            "DROP TRIGGER apps_colour_slot;
-             DROP TRIGGER subscriptions_colour_slot;
-             ALTER TABLE apps DROP COLUMN colour_slot;
-             ALTER TABLE subscriptions DROP COLUMN colour_slot;",
-        )
-        .unwrap();
+        let undo: Vec<String> = conn
+            .prepare(
+                "SELECT 'DROP ' || upper(type) || ' ' || name || ';' FROM sqlite_master \
+                 WHERE (type = 'trigger' AND name LIKE 'relation\\_stamp\\_%' ESCAPE '\\') \
+                 OR (type = 'index' AND name LIKE 'idx\\_instances\\_%' ESCAPE '\\')",
+            )
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(undo.len(), 17 + 4, "v43's triggers and indexes");
+        conn.execute_batch(&format!("{} DROP TABLE relation_stamps;", undo.join(" ")))
+            .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }

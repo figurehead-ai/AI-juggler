@@ -20,7 +20,8 @@ import { showToast } from "../../components/Toast";
 import { useActionHost } from "../../components/ItemMenu";
 import { PageHeader, PageShell } from "../PageShell";
 import { pageTabs } from "../registry";
-import { PagedSessions } from "../SessionsList";
+import { RelatedList } from "../../components/RelatedList";
+import type { Teach } from "../../components/related/RelatedEmpty";
 import { AccountUsage } from "../AccountPage";
 import { AppOverview, AppProjects, rowOf } from "./AppOverview";
 import { AppSettings } from "./AppSettings";
@@ -31,7 +32,6 @@ import { useRelationCounts } from "../../lib/relation-counts";
 import { useApps, type AppModel } from "../../lib/apps";
 import { appItems, appProjects, openHere } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
-import { sessionsQuery } from "../../lib/ipc/sessions";
 import { placeWords } from "../../lib/places";
 import { appByConversation } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
@@ -149,14 +149,17 @@ function AppBody({
               return <AppOverview app={app} items={items} projects={worked} sharedWith={sharedWith} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} />;
             case "sessions":
               return (
-                <PagedSessions
+                <RelatedList
                   listKey={`app-sessions:${app.id}`}
-                  query={sessionsQuery({ app_id: app.id })}
+                  anchor={{ app_id: app.id }}
                   local={() => items.flatMap((item) => rowOf(item, Date.now(), onOpenSession, host) ?? [])}
-                  empty={`No sessions in ${app.name} yet.`}
+                  folders={accounts}
                   projects={projects}
-                  onOpenSession={onOpenSession}
+                  showProjects
                   inApp
+                  teach={appTeach(app)}
+                  onOpenSession={onOpenSession}
+                  searchLabel={`Search ${app.name}'s sessions`}
                 />
               );
             case "projects":
@@ -239,4 +242,19 @@ function AppAction({ app }: { app: AppModel }): JSX.Element | null {
       {running ? "Go to it" : "Start"}
     </Button>
   );
+}
+
+/** E31 (AJ-E3103 Req.3): an App with no session yet says what would show
+ * and how it comes: a CLI App's sessions start here or in a terminal on
+ * its folder; a desktop App's show once AI Juggler sees it open them. */
+function appTeach(app: AppModel): Teach {
+  if (app.kind === "cli" && app.folder) {
+    const folder = app.folder.id;
+    return {
+      title: `No sessions in ${app.name} yet`,
+      body: "Sessions you start on this folder, here or in a terminal, show up here, what needs you first.",
+      action: { label: "New session", onClick: () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: folder } })) },
+    };
+  }
+  return { title: `No sessions in ${app.name} yet`, body: `Sessions you open in ${app.app} show up here once AI Juggler has seen them, what needs you first.` };
 }

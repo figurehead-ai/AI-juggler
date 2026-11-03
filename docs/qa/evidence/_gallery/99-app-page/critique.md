@@ -1,4 +1,4 @@
-<!-- captures: 5eacbef9aae8 -->
+<!-- captures: 35e2e9c44bf7 -->
 # 99-app-page: an App's own page (0.4, D-62, AJ-E3204)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -47,3 +47,11 @@ Re-shot after each App and each Account got one stored colour. All twelve captur
 - A green App dot right after the app's icon in a header can read as "running" next to "Not running". It's the palette's green, 23° from the success colour, and the page says "Not running" in words.
 - The App's dot and its Account's line are two hues on one page, and nothing on it says which is which. The Account's colour is explained only on the Accounts cards ("This account's colour in the charts").
 - Magenta (Claude Code · Work Max) and rose (its Account) are 30° apart. They're told apart by shape (a small dot against a line and a round avatar), less by hue.
+
+## 0.4, AJ-E3103: the one related list and the one row
+
+Recaptured: app-sessions, app-overview, app-overview-1024 and app-cli, in both themes. app-closed and app-settings were left as they were.
+
+**app-sessions.** The list opens in sections (Working, Open, Last 7 days). Each row now shows the project's mark and name and when on line 2, with the state word at that line's end. Before, the state led line 2, the project sat in a column and the time in another. With three rows there is no search and there are no chips (they appear past 8).
+
+**app-overview, app-overview-1024, app-cli.** The Open now and Last used cards use the same row. In a card at 1024, the state word stays at the end of line 2 and the place line truncates first.

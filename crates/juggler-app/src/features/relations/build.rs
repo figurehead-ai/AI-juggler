@@ -105,7 +105,7 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
             archived,
         )
     });
-    Ok(Part::of(rows, events, Some(stored)))
+    Ok(Part::of(rows, events, stored))
 }
 
 /// The conversations other apps started, from the conversation index as
@@ -148,7 +148,7 @@ fn outside(state: &Arc<AppState>) -> AppResult<Part> {
             false,
         )
     });
-    let mut part = Part::of(rows, events, Some(stored));
+    let mut part = Part::of(rows, events, stored);
     part.conversations = Some(Arc::new(index));
     Ok(part)
 }

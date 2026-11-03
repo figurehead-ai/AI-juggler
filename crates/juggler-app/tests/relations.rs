@@ -9,6 +9,10 @@
 //!   database's stamps), and a conversation read from the files too;
 //! - X1: Clear cache mid-walk: the next count is built again and equal;
 //!   Settings names the cache and its size;
+//! - K2 (AJ-E3103): every list opens on what needs you, then what's
+//!   working, then what's open, then by last activity; each filter its
+//!   list offers narrows it to as many rows as the filter says, each one
+//!   of the list's, and its heading agrees;
 //! - the budgets: 10 000 sessions rebuilt cold in ≤ 1 s, any count read
 //!   from the cache in ≤ 5 ms (each read prints a `[perf]` line). This
 //!   binary runs alone (`.config/nextest.toml`, "Wall-clock budgets").
@@ -30,8 +34,10 @@ use juggler_app::commands;
 use juggler_app::features::cache;
 use juggler_app::features::conversations;
 use juggler_app::features::relations::{self, EntityKind, EntityRef, RelationCountsInfo};
+use juggler_app::features::sessions::facets::sessions_facets_impl;
 use juggler_app::features::sessions::rows::{
-    SessionsQuery, sessions_counts_impl, sessions_counts_scanned, sessions_page_impl,
+    Rank, SessionRowInfo, SessionsQuery, sessions_counts_impl, sessions_counts_scanned,
+    sessions_page_impl,
 };
 use juggler_app::paging::PageRequest;
 use juggler_app::state::AppState;
@@ -118,12 +124,20 @@ fn record(n: usize, project: &str, status: SessionStatus) -> InstanceRecord {
 /// 1 and the Claude Code one are signed in to one Account, 2 to another,
 /// 3 to none.
 fn fixture(own: usize, outside: usize) -> Fixture {
-    let dir = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    // The system's temporary folder, never the build's: a build folder
+    // inside a checkout (preflight's `target/`) folds every folder here
+    // into that repository's project, the real one.
+    let dir = tempfile::tempdir().unwrap();
     let root = dir.path().canonicalize().unwrap();
     let repos: Vec<PathBuf> = (0..PROJECTS)
         .map(|n| {
             let repo = root.join(format!("Dev/repo-{n:02}"));
             std::fs::create_dir_all(repo.join(".git")).unwrap();
+            assert_eq!(
+                juggler_core::storage::project_root(&repo),
+                repo,
+                "the fixture's repositories must be their own projects, inside no other"
+            );
             repo
         })
         .collect();
@@ -152,8 +166,9 @@ fn fixture(own: usize, outside: usize) -> Fixture {
     .id
     .to_string();
     // The tools' files read, and their folders made projects.
+    // The tools' files read (each repository is made a project below;
+    // the backfill would read the real home's worktree managers).
     conversations::refresh_impl(&state).unwrap();
-    commands::projects_backfill_impl(&state).unwrap();
     let started = Instant::now();
     let projects: Vec<String> = {
         let storage = state.storage.lock().unwrap();
@@ -283,22 +298,27 @@ fn listed(state: &Arc<AppState>, query: &SessionsQuery, which: Option<&str>) -> 
         which: which.map(str::to_owned),
         ..query.clone()
     };
-    let mut seen = 0;
+    rows_of(state, &query, 200).len() as u64
+}
+
+/// Every row of `query`'s list, in order, `limit` a page.
+fn rows_of(state: &Arc<AppState>, query: &SessionsQuery, limit: u32) -> Vec<SessionRowInfo> {
+    let mut rows = Vec::new();
     let mut cursor = None;
     loop {
         let page = sessions_page_impl(
             state,
-            &query,
+            query,
             &PageRequest {
                 cursor,
-                limit: Some(200),
+                limit: Some(limit),
             },
         )
         .unwrap();
-        seen += page.items.len() as u64;
+        rows.extend(page.items);
         match page.next_cursor {
             Some(next) => cursor = Some(next),
-            None => return seen,
+            None => return rows,
         }
     }
 }
@@ -509,6 +529,28 @@ fn ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms() {
     eprintln!("[perf] {} pages' counts in one ask: {took:?}", pages.len());
     assert_eq!(many.len(), pages.len());
     assert!(took < Duration::from_millis(5), "one ask took {took:?}");
+    // AJ-E3103: a project's list's first page, and its filters' values.
+    let project = query_of(&pages[1]);
+    let started = Instant::now();
+    sessions_page_impl(
+        state,
+        &project,
+        &PageRequest {
+            cursor: None,
+            limit: Some(50),
+        },
+    )
+    .unwrap();
+    eprintln!(
+        "[perf] a project's first page of 50, of 10 000: {:?}",
+        started.elapsed()
+    );
+    let started = Instant::now();
+    sessions_facets_impl(state, &project).unwrap();
+    eprintln!(
+        "[perf] a project's filters' values, of 10 000: {:?}",
+        started.elapsed()
+    );
     // A change: only the stale part is built again.
     let builds = state.relations.builds();
     relations::changed(state, relations::Change::ConversationsLive);
@@ -516,4 +558,253 @@ fn ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms() {
     relations::counts(state, &pages[0]).unwrap();
     eprintln!("[perf] the outside part rebuilt: {:?}", started.elapsed());
     assert_eq!(state.relations.builds(), builds + 1);
+}
+
+/// A row's place in the order, by what it shows (the UI's bands), and
+/// when it was last active.
+fn order_of(row: &SessionRowInfo) -> (Rank, i64) {
+    if let Some(session) = &row.session {
+        let status = SessionStatus::parse(&session.status).unwrap();
+        let runtime = session
+            .runtime
+            .as_ref()
+            .and_then(|info| info.state.as_deref());
+        let last = session.last_activity_ms.unwrap_or(session.started_at_ms);
+        return (Rank::of_session(status, runtime), last);
+    }
+    let conversation = row.conversation.as_ref().unwrap();
+    let last = conversation
+        .last_activity_ms
+        .or(conversation.started_ms)
+        .unwrap_or_default();
+    (
+        Rank::of_conversation(conversation.live, conversation.state.as_deref()),
+        last,
+    )
+}
+
+/// K2 (AJ-E3103): every page's list opens on what needs you, then what's
+/// working, then what's open, then the rest by last activity, across its
+/// pages; every value each of its filters offers narrows it to that many
+/// rows, all of them the list's own, with a heading that agrees; "No
+/// project", one Mac and "since" narrow it too.
+#[test]
+fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
+    let fx = fixture(240, 24);
+    let state = &fx.state;
+    {
+        let storage = state.storage.lock().unwrap();
+        for (n, status) in [
+            (9_100, SessionStatus::WaitingUser),
+            (9_101, SessionStatus::Stuck),
+            (9_102, SessionStatus::Starting),
+        ] {
+            storage
+                .sessions()
+                .insert(&record(n, &fx.projects[0], status))
+                .unwrap();
+        }
+    }
+    let mut pages = pages(&fx);
+    // The whole list, a few projects, the folders, Apps and Accounts.
+    pages.retain(|page| page.kind != EntityKind::Project || fx.projects[..3].contains(&page.id));
+    let mut checked = 0;
+    for page in &pages {
+        let query = query_of(page);
+        // Pages of 7, so the order holds across a page's end.
+        let rows = rows_of(state, &query, 7);
+        let order: Vec<(Rank, i64)> = rows.iter().map(order_of).collect();
+        for pair in order.windows(2) {
+            assert!(
+                pair[0].0 < pair[1].0 || (pair[0].0 == pair[1].0 && pair[0].1 >= pair[1].1),
+                "{page:?}: {:?} before {:?}",
+                pair[0],
+                pair[1]
+            );
+        }
+        let keys: std::collections::HashSet<&str> =
+            rows.iter().map(|row| row.key.as_str()).collect();
+        assert_eq!(keys.len(), rows.len(), "{page:?}: no row twice");
+        let facets = sessions_facets_impl(state, &query).unwrap();
+        let narrowings: [(
+            &str,
+            &Vec<juggler_app::features::sessions::facets::FacetInfo>,
+        ); 4] = [
+            ("project", &facets.projects),
+            ("app", &facets.apps),
+            ("account", &facets.subscriptions),
+            ("machine", &facets.machines),
+        ];
+        for (kind, values) in narrowings {
+            // The page's own kind is no filter of its list.
+            let own = matches!(
+                (kind, page.kind),
+                ("project", EntityKind::Project)
+                    | ("app", EntityKind::App)
+                    | ("account", EntityKind::Subscription)
+            );
+            if own {
+                assert!(values.len() <= 1, "{page:?}: one {kind}, its own");
+                continue;
+            }
+            if kind != "account" {
+                assert_eq!(
+                    values.iter().map(|facet| facet.count).sum::<u64>(),
+                    rows.len() as u64,
+                    "{page:?}: every row has one {kind}"
+                );
+            }
+            for facet in values {
+                let mut narrowed = query.clone();
+                let id = Some(facet.id.clone());
+                match kind {
+                    "project" => narrowed.project_id = id,
+                    "app" => narrowed.app_id = id,
+                    "account" => narrowed.subscription_id = id,
+                    _ => narrowed.machine_id = id,
+                }
+                let shown = rows_of(state, &narrowed, 200);
+                assert_eq!(
+                    shown.len() as u64,
+                    facet.count,
+                    "{page:?}: {kind} {}",
+                    facet.id
+                );
+                assert_eq!(
+                    sessions_counts_impl(state, &narrowed).unwrap().all,
+                    facet.count,
+                    "{page:?}: {kind} {}: the heading",
+                    facet.id
+                );
+                for row in &shown {
+                    assert!(
+                        keys.contains(row.key.as_str()),
+                        "{page:?}: {} is the list's",
+                        row.key
+                    );
+                    let project = row
+                        .session
+                        .as_ref()
+                        .map(|s| s.project_id.clone())
+                        .or_else(|| row.conversation.as_ref().map(|c| c.project_id.clone()))
+                        .flatten();
+                    if kind == "project" {
+                        assert_eq!(
+                            project.unwrap_or_default(),
+                            facet.id,
+                            "{page:?}: {}",
+                            row.key
+                        );
+                    }
+                    if kind == "machine"
+                        && let Some(session) = &row.session
+                    {
+                        assert_eq!(session.machine_id, facet.id);
+                    }
+                }
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked > 40, "{checked} filters checked");
+    // "No project" is one of the whole list's: the one in nine with none.
+    let all = sessions_facets_impl(state, &SessionsQuery::default()).unwrap();
+    let none = all
+        .projects
+        .iter()
+        .find(|facet| facet.id.is_empty())
+        .expect("some have no project");
+    assert_eq!(none.count, (0..240).filter(|n| n % 9 == 0).count() as u64);
+    assert_eq!(
+        all.machines.len(),
+        3,
+        "two Macs AI Juggler ran on, and this one"
+    );
+    // Since: only what was active then or later, and its heading agrees.
+    let since = 1_760_000_000_000 + 200 * 60_000;
+    let recent = SessionsQuery {
+        since_ms: Some(since),
+        which: Some("ended".into()),
+        ..SessionsQuery::default()
+    };
+    let shown = rows_of(state, &recent, 50);
+    assert!(!shown.is_empty());
+    assert!(
+        shown
+            .iter()
+            .all(|row| order_of(row).1 >= since && order_of(row).0 == Rank::Ended)
+    );
+    assert_eq!(
+        sessions_counts_impl(state, &recent).unwrap().ended,
+        shown.len() as u64
+    );
+}
+
+/// Contention: another thread holds the app's database connection (a
+/// long write, the warm-up build). With nothing changed, a count comes
+/// from the cache without waiting for it; a write nothing announced,
+/// committed meanwhile by another connection, is never served stale:
+/// the count waits for the connection and counts it.
+#[test]
+fn a_count_is_checked_even_while_the_database_is_busy() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let fx = fixture(100, 12);
+    let state = &fx.state;
+    let project = entity(EntityKind::Project, &fx.projects[3]);
+    let before = relations::counts(state, &project).unwrap();
+    let released = Arc::new(AtomicBool::new(false));
+    let (held, wait) = std::sync::mpsc::channel();
+    let (release, until) = std::sync::mpsc::channel::<()>();
+    let holder = {
+        let state = Arc::clone(state);
+        let released = Arc::clone(&released);
+        std::thread::spawn(move || {
+            let storage = state.storage.lock().unwrap();
+            held.send(()).unwrap();
+            // Bounded: a count that wrongly waits fails, never hangs.
+            let _ = until.recv_timeout(Duration::from_secs(20));
+            released.store(true, Ordering::SeqCst);
+            drop(storage);
+        })
+    };
+    wait.recv().unwrap();
+    assert_eq!(relations::counts(state, &project).unwrap(), before);
+    assert!(
+        !released.load(Ordering::SeqCst),
+        "with nothing changed, the cached count didn't wait for the connection"
+    );
+    // Another writer commits a session in the project, telling no one.
+    let other = rusqlite::Connection::open(state.data_dir.join("juggler.sqlite")).unwrap();
+    other.busy_timeout(Duration::from_secs(5)).unwrap();
+    other
+        .execute(
+            "INSERT INTO instances (id, launch_recipe_id, machine, kind, project, cwd, status, \
+             started_at, usage_json) SELECT 's-elsewhere', 'rec-3', 'mac-here', 'terminal', ?1, \
+             '/nowhere', 'running', 1, usage_json FROM instances LIMIT 1",
+            [&fx.projects[3]],
+        )
+        .unwrap();
+    let builds = state.relations.builds();
+    let counting = {
+        let state = Arc::clone(state);
+        let project = project.clone();
+        std::thread::spawn(move || relations::counts(&state, &project).unwrap())
+    };
+    // The count found its part stale and is building it, held up by the
+    // busy connection (never answering from the cache meanwhile).
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while state.relations.builds() == builds && !counting.is_finished() {
+        assert!(
+            Instant::now() < deadline,
+            "the count neither built nor answered"
+        );
+        // poll: bounded by the deadline above; until the count starts its build.
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    release.send(()).unwrap();
+    let after = counting.join().unwrap();
+    holder.join().unwrap();
+    assert_eq!(after.sessions.all, before.sessions.all + 1);
+    assert_eq!(after.sessions.open, before.sessions.open + 1);
+    assert_agrees(state, &project, &after);
 }
