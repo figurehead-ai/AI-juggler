@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "The prototype's main window may use core events and its commands.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

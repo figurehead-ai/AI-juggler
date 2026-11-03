@@ -21,6 +21,14 @@
 > recommendation is real 3D with three.js and a fixed angled camera, with
 > the 2D renderer as the fallback.
 >
+> **Update 2026-11-03: native wgpu chosen.** The Floor will be a native
+> wgpu window beside the webview app, not three.js in the webview. Areas use
+> per-App style kits: the tool picks the family, the App id seeds the
+> variant. Every area carries a sign with the tool icon, App name and mark
+> colour. See [`style-kits.md`](../research/floor/style-kits.md) and the
+> prototype in `spikes/floor-office/`. The scene tasks are rewritten in
+> Rust for the render side when the Floor is filed for 0.5.
+>
 > AJ-E3401 (scene and layout), AJ-E3404 (states), AJ-E3406 (list view) and
 > AJ-E3407 (budget) hold whatever look is chosen. AJ-E3402, AJ-E3403 and
 > AJ-E3405 get rewritten for the chosen look before anyone claims them.

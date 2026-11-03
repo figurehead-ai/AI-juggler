@@ -1,5 +1,14 @@
 # The Floor — the Office look (research and prototype)
 
+> **Status 2026-11-03, latest: native wgpu, with per-App style kits.**
+> The measured spike (`floor-spike-results.html`, `spikes/floor-spike/`)
+> led the maintainer to choose a native wgpu window over a webview canvas.
+> They then asked for richer, varied areas: each App distinct and always in
+> its own look, a sign or flag naming its App, much of it procedural. The
+> decision and the style-kit design are in [`style-kits.md`](style-kits.md).
+> The first prototype is `spikes/floor-office/` (a Tauri app with a native
+> Floor window); its README says how to run it.
+
 > **Status 2026-11-03: the top-down prototype is stopped.** The maintainer
 > asked for an office seen from above at an angle, with perspective: back
 > walls with windows and doors, all generated. The research for that is in
