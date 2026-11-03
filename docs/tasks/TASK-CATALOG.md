@@ -375,5 +375,10 @@
 | AJ-E3305 | Every 0.4 screen scored against the 14 principles | E33-validated-by-use.md | P1 | M | AJ-E3301 |
 | AJ-E3306 | The release candidate walked whole: every scenario again, a day in the life, the load | E33-validated-by-use.md | P0 | L | AJ-E3302, AJ-E3303, AJ-E3304, AJ-E3305 |
 | AJ-E3307 | Persona-based validation: personas walk their day from first run, scored as users feel it | E33-validated-by-use.md | P0 | L | AJ-E3301 |
-Total: 373 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3401 | The typed conversation: images, links, diffs, output, plans, thinking, tokens, subagents | E34-reply-and-read.md | P0 | L | — |
+| AJ-E3402 | Find in a conversation | E34-reply-and-read.md | P0 | M | AJ-E3401 |
+| AJ-E3403 | One composer for the sessions AI Juggler can answer | E34-reply-and-read.md | P0 | M | AJ-E3401 |
+| AJ-E3404 | Where the input would be: how this session can be answered | E34-reply-and-read.md | P0 | S | AJ-E3403 |
+| AJ-E3405 | Quick reply from Needs you and a notification | E34-reply-and-read.md | P0 | S | AJ-E3403, AJ-E3404 |
+Total: 378 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

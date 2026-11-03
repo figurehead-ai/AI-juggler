@@ -2271,3 +2271,57 @@ automated gates mostly give.
   preview and never holds the Stable back.
 
 **Amends.** D-59 (the versions to 1.0).
+
+### D-66 Replies: desktop apps are answered in their own window; a richer conversation and an honest reply area are 0.5's — SETTLED (2026-11-03)
+
+**Ruling.** The maintainer, 2026-11-03, on the research into replying to
+sessions from AI Juggler ([`docs/research/reply-and-read.md`](../research/reply-and-read.md)):
+"Plugin route is not worth it. We should have explanation that desktop
+apps have this limitation , and if they wanted to chat from within here
+they need to start sessions as CLI apps. Which we can offer that with our
+switch capabilities. But what we can and should do improve our chat
+content experience like we were proposing, so images, links and other
+content from chat is rendered even better. And right there where chat
+input is supposed to be we should have , a button like go to app and
+respond ...etc". And the same day, on caching: "you can cache
+conversations, images everything locally … it really comes down to
+managing the cache and cleaning it up once it gets big".
+
+**What changed.**
+
+- **No reply into a desktop app's session from outside it.** The Claude
+  app's chats and Cowork and ChatGPT's Codex app offer no way in, and
+  scripting their windows is against their terms (ADR-0003); the plugin
+  mod for the Code tab and the terminal permission relay are dropped.
+- **Where the input would be**, such a session says so and offers **Go to
+  app and respond** (that exact conversation, anything typed copied
+  first) and **Continue here as CLI** (the switch), after which AI Juggler
+  answers it (AJ-E3404).
+- **The conversation is drawn as richly as the tools' own apps**: images,
+  links opened after a confirmation, diffs, output, plans and to-dos,
+  thinking, tokens and cost, subagents; find in it; one composer for the
+  sessions AI Juggler runs or runs in its own terminal
+  ([`docs/tasks/E34-reply-and-read.md`](../tasks/E34-reply-and-read.md), 0.5).
+- **A standing rule: support every real way in, and keep looking.** The
+  maintainer, the same day: "we should have this as a standing rule, that
+  if we do stumble upon desktop app that does support some kind of
+  standard or protocol to reply we should support it and utilized it,
+  and this should be constantly explored". So whenever a desktop app (or
+  a new version of one) offers a sanctioned way to send a reply into its
+  sessions (a documented protocol such as ACP or an app-server, an MCP
+  channel, an official URL scheme or SDK), AI Juggler supports it through
+  that tool's adapter as one of its reply routes (AJ-E3403), and the
+  reply area offers it. The tools' capability research
+  (`docs/research/capabilities/`) checks every tool's reply surfaces
+  again each release, and a new one is filed as a task in the next
+  release.
+- **Conversation content and images may be cached locally**, in a
+  registered, clearable cache whose size is managed (D-58); this amends
+  D-37's "kept nowhere" for the local cache.
+
+**Why.** The sanctioned ways in reach only sessions AI Juggler runs; the
+rest would cost a plugin install and a beta for little gain, while the
+switch already turns any session into one AI Juggler can answer.
+
+**Amends.** D-37 (local caching of conversation content), D-43 point 6
+(the plugin's reply mod is not wanted).

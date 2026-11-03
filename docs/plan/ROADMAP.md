@@ -94,6 +94,7 @@ after the maintainer's use (D-65), not a version of its own.
 | Crash reports behind their own setting | AJ-E1107 |
 | Pair review, model arbitrage and an outage day: falsified first, then built or dropped | AJ-E1006, AJ-E1008 |
 | The Floor: every App, session and pool on one live, zoomable picture, who's working, how they link and who needs you; research and concepts first, built once a design is approved | to be filed |
+| Reply and read: the conversation drawn as richly as the tools' apps (images, links, diffs, output, plans, thinking, tokens), find in it, one composer for sessions AI Juggler runs, and where a desktop app holds a session, Go to app and respond or Continue here as CLI (D-66) | AJ-E3401…AJ-E3405 |
 | The 10-account, 50-session load proof; a cold start budget on the release build | AJ-E805 |
 | Updates and release integrity finished | AJ-E1010 |
 | The gate packet signed | AJ-E807 |
