@@ -56,7 +56,7 @@ export function WhereItRuns({
     ...(place?.instance ? ([["Window", place.label]] as [string, string][]) : []),
     ...(accountWords ? ([["Account", accountWords]] as [string, string][]) : []),
     ...(model.model ? ([["Model", model.model, true]] as [string, string, boolean][]) : []),
-    ...(model.cwd ? ([["Working folder", shortPath(model.cwd), true]] as [string, string, boolean][]) : []),
+    ...(model.cwd ? ([["Folder", shortPath(model.cwd), true]] as [string, string, boolean][]) : []),
   ];
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="where-it-runs">
