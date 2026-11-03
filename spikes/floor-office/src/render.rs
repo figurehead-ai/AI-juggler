@@ -140,7 +140,7 @@ fn shade(v: VO) -> vec4<f32> {
   return vec4<f32>(c, base.a);
 }
 @fragment fn fs(v: VO) -> FO { var o: FO; o.c = shade(v); o.id = v.id; return o; }
-@fragment fn fs_glass(v: VO) -> FO { var o: FO; let c = shade(v); o.c = vec4<f32>(c.rgb, v.col.a); o.id = 0u; return o; }
+@fragment fn fs_glass(v: VO) -> FO { var o: FO; let c = shade(v); if (c.a < 0.01) { discard; } o.c = c; o.id = 0u; return o; }
 "#;
 
 const POST_WGSL: &str = r#"

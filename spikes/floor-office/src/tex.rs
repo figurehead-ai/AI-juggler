@@ -215,6 +215,35 @@ pub fn sign_img(mono: &str, name: &str, accent: Rgba, style: &str) -> Img {
     im
 }
 
+/// The App's floor logo: the tool's mark with the initials of the Account the App is signed in
+/// to, in a ring of the App's colour (which tells two Apps of one tool on one Account apart). The
+/// build draws the tool's own mark (as AI Juggler draws it elsewhere, never a bundled image);
+/// this prototype stands in a two-letter placeholder.
+pub fn logo_img(mark: &str, initials: &str, accent: Rgba) -> Img {
+    let n = 112;
+    let mut im = Img::new(n, n);
+    let c = n as f32 / 2.0;
+    im.disc(c, c, 54.0, accent);
+    im.disc(c, c, 48.0, mix(accent, hex("#ffffff"), 0.82));
+    im.disc(c, c, 44.0, accent);
+    // the tool's mark, large
+    let s = 5;
+    let w = text_width(mark, s);
+    draw_text(&mut im, (n - w) / 2, 22, mark, hex("#ffffff"), s);
+    // the Account's initials on a pill below
+    let k = 3;
+    let iw = text_width(initials, k);
+    let (px, py) = ((n - iw) / 2 - 5, 66);
+    im.rect(px, py, iw + 10, 7 * k + 8, hex("#ffffff"));
+    draw_text(&mut im, px + 5, py + 4, initials, accent, k);
+    im
+}
+
+/// An Account's initials from its name: the first letter of each word, at most three.
+pub fn initials(name: &str) -> String {
+    name.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).take(3).map(|w| w.chars().next().unwrap().to_ascii_uppercase()).collect()
+}
+
 pub fn text_img(lines: &[(&str, Rgba)], bg: Rgba, pad: i32) -> Img {
     let w = lines.iter().map(|(s, _)| text_width(s, 1)).max().unwrap_or(0) + pad * 2;
     let h = lines.len() as i32 * 9 + pad * 2 - 2;

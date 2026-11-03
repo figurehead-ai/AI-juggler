@@ -57,6 +57,9 @@ pub fn sample() -> (Vec<AppDef>, Vec<Account>) {
 pub enum Target { App(usize), Session(usize, usize), Helpers(usize, usize), Account(usize), ThisMac, Floor(usize), Prop(usize), Cat }
 pub struct Pick { pub target: Target, pub label: String, pub detail: String }
 
+/// How strongly an area's logo shows through its floor (the maintainer asked for 30-40%).
+pub const LOGO_OPACITY: f32 = 0.35;
+
 /// At most this many helpers stand round one desk; more show as "+N".
 pub const HELPERS_SHOWN: usize = 6;
 
@@ -363,6 +366,13 @@ impl Scene {
                 // the aisle runs through a big team: keep it common floor
                 b.put(Mesh::QuadUp, T::new().t(rect.cx(), fy + 0.006, ROW_D + AISLE / 2.0).s(rect.w(), 1.0, AISLE), hex("#cfc8bb"));
             }
+            // the tool's logo with the Account's initials, printed into the floor and see-through,
+            // so the area is known from afar
+            let acct = tex::initials(self.accounts[self.apps[ai].account].name);
+            let logo = atlas.add(&format!("logo{ai}"), &tex::logo_img(self.apps[ai].tool.monogram(), &acct, kit.accent));
+            let side = (rect.w().min(rect.d()) * 0.62).min(6.5);
+            let (lx, lz) = if pa.size == Size::L { (rect.cx(), if pa.row == 0 { rect.z0 + ROW_D * 0.5 } else { rect.cz() }) } else { (rect.cx(), rect.cz()) };
+            b.raw(Mesh::QuadUp, T::new().t(lx, fy + 0.012, lz).ry(0.0).s(side, 1.0, side), [255, 255, 255, (255.0 * LOGO_OPACITY) as u8], logo, [1.0, 1.0], 0.0, models::TEXTURED, true);
             if kit.rug != hex("#2a2d33") && !plan.groups.is_empty() {
                 let rug = atlas.add(&format!("rug{ai}"), &tex::rug_img(kit.rug, kit.accent, seed));
                 let g = plan.groups[0];
