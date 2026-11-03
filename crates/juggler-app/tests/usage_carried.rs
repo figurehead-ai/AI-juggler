@@ -251,7 +251,7 @@ fn a_switched_conversations_history_counts_only_where_it_was_spent() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
-        detail: Default::default(),
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some(format!("m-{id}/r-{id}")),
     };
     state

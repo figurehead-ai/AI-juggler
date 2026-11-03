@@ -151,7 +151,7 @@ impl Lab {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: Confidence::Measured,
-            detail: Default::default(),
+            detail: juggler_core::quota::UsageDetail::default(),
             msg_uuid: Some(format!("{account}-{session}-{usd}-{days_ago}-{now}")),
         };
         self.state
@@ -268,7 +268,7 @@ fn usage_with_no_price_is_flagged_never_counted_as_nothing() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
-        detail: Default::default(),
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some("unpriced".to_owned()),
     };
     unknown.tokens.output = 0;

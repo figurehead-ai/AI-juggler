@@ -163,6 +163,8 @@ pub fn spawn(state: Arc<AppState>) {
             tick = tick.wrapping_add(1);
             let pass_started = std::time::Instant::now();
             ingest_pass(&state, tick);
+            // Stored costs made with older prices are priced again.
+            reprice_stored(&state);
             std::thread::sleep(pause_after(pass_started.elapsed()));
         }
     });
@@ -355,7 +357,6 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
         }
     }
-    reprice_stored(state);
     // D-39 (off until ruled): ask the tool itself for profiles whose own
     // records are old.
     if instances.is_some() {
@@ -1093,7 +1094,7 @@ mod chunk_tests {
             usd_est: None,
             source: UsageSource::Transcript,
             confidence: juggler_core::model::Confidence::Measured,
-            detail: Default::default(),
+            detail: juggler_core::quota::UsageDetail::default(),
             msg_uuid: Some(format!("{session}-{n}")),
         }
     }

@@ -746,6 +746,7 @@ pub fn known_reset(
 /// ≥100) → after the vendor reset passes with newer data → `Tracking`.
 /// `Unknown`/`Learning` never carry a percentage.
 #[must_use]
+#[allow(clippy::too_many_lines)] // one window, one state machine, its states in order
 pub fn evaluate_window(
     events: &[UsageEvent],
     samples: &[QuotaSample],

@@ -153,7 +153,7 @@ fn a_usage_write_waits_for_another_connection_that_changes_the_database() {
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
-        detail: Default::default(),
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some(key.into()),
     };
     storage.usage().store_events(&[event("a")]).unwrap();

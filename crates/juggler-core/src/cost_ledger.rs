@@ -102,7 +102,7 @@ pub struct LedgerPriceRow {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_write_1h_per_1k: Option<f64>,
     /// The higher rates a call pays when its prompt is longer than a
-    /// threshold (OpenAI over 272K input tokens; Claude Haiku 5.5 over
+    /// threshold (GPT models over 272K input tokens; Claude Haiku 5.5 over
     /// 100,000). Each call is priced on its own prompt.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub long_context: Option<LongContext>,

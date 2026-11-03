@@ -74,6 +74,16 @@ pub struct WindowDisplay {
     pub last_used_pct: Option<f64>,
 }
 
+impl WindowDisplay {
+    /// The best figure for "used now", for decisions (ranking, the launch
+    /// gate): the estimate since the vendor's reading when there is one,
+    /// else the reading. Never shown as the vendor's number.
+    #[must_use]
+    pub fn best_estimate(&self) -> Option<f64> {
+        self.projected_pct.or(self.percentage)
+    }
+}
+
 /// AJ-E1512: a window's runway on the wire (`juggler_core::quota_runway`).
 #[derive(Clone, PartialEq, Debug, serde::Serialize)]
 pub struct RunwayDisplay {

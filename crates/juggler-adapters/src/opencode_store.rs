@@ -326,7 +326,7 @@ fn event_of(
         source: UsageSource::Sqlite,
         // The counts are the provider's, as OpenCode recorded them.
         confidence: Confidence::Measured,
-        detail: Default::default(),
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some(format!("opencode:{id}")),
     })
 }

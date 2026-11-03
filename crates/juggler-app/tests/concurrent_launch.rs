@@ -128,7 +128,7 @@ fn fixture(home: &Path) -> Arc<AppState> {
                 credits: None,
                 usd_est: None,
                 confidence: juggler_core::model::Confidence::Measured,
-                detail: Default::default(),
+                detail: juggler_core::quota::UsageDetail::default(),
                 msg_uuid: None,
                 source: juggler_core::quota::UsageSource::Transcript,
             }])
