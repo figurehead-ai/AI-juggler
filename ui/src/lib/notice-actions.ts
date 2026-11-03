@@ -74,9 +74,11 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     if (target.session_id) openOnTab("session", SESSION_TAB[notice.kind] ?? "terminal");
     if (target.session_id && sessions.some((s) => s.id === target.session_id)) return host.openSessionById?.(target.session_id);
     const conversation = target.conversation_id ? conversations.find((c) => c.id === target.conversation_id && (!target.account_id || c.account_id === target.account_id)) : undefined;
-    if (conversation) {
+    if (conversation || (target.conversation_id && target.account_id && host.openConversationById)) {
       openOnTab("conversation", "overview");
-      return host.openConversation?.(conversation);
+      if (conversation) return host.openConversation?.(conversation);
+      // Not loaded (past the list): its page reads it by its ids.
+      return host.openConversationById!(target.account_id!, target.conversation_id!, target.project_id ?? null);
     }
     if (target.session_id) return host.openSessionById?.(target.session_id);
     if (target.page === "updates") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "updates" } }));

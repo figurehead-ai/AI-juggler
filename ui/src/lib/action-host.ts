@@ -83,6 +83,8 @@ export interface ActionHost {
   openHome?: () => void;
   // Conversations started outside AI Juggler (AJ-E1529)
   openConversation?: (conversation: ConversationInfo) => void;
+  /** AJ-E3104: one by its ids, loaded or not (a notice's). */
+  openConversationById?: (accountId: string, id: string, projectId: string | null) => void;
   /** AJ-E2102: its app forward, by the app's own process. */
   goToConversation?: (conversation: ConversationInfo) => void | Promise<void>;
   continueConversation?: (conversation: ConversationInfo) => void | Promise<void>;

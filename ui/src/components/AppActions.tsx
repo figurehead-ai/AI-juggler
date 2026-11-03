@@ -40,7 +40,8 @@ export function AppActions({
   refresh,
   children,
 }: {
-  selectConversation: (conversation: ConversationInfo) => void;
+  /** Its page, from its ids (one not loaded opens all the same). */
+  selectConversation: (conversation: Pick<ConversationInfo, "account_id" | "id" | "project_id">) => void;
   selectSession: (id: string) => void;
   selectProject: (id: string) => void;
   selectAccount: (id: string) => void;
@@ -83,6 +84,11 @@ export function AppActions({
       openConversation: (c) => {
         markSeen(c.account_id, c.id);
         selectConversation(c);
+      },
+      // AJ-E3104: a notice's conversation not loaded yet (past the list).
+      openConversationById: (accountId, id, projectId) => {
+        markSeen(accountId, id);
+        selectConversation({ account_id: accountId, id, project_id: projectId });
       },
       // AJ-E2102: feedback at once, then what really happened.
       goToConversation: async (c) => {

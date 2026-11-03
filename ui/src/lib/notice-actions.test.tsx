@@ -61,6 +61,15 @@ describe("AJ-E3104 each notice opens its page on its tab", () => {
     expect(openSessionById).toHaveBeenCalledTimes(3);
   });
 
+  it("another app's session not loaded yet opens by its ids, on Overview, not its App", () => {
+    const openConversationById = vi.fn();
+    const openAccountById = vi.fn();
+    actions({ openConversationById, openAccountById }).primary(notice("asks", "open", { conversation_id: "c-1", account_id: "acc-1", project_id: "p-1" }));
+    expect(openConversationById).toHaveBeenCalledWith("acc-1", "c-1", "p-1");
+    expect(openAccountById).not.toHaveBeenCalled();
+    expect(rememberedTabId("conversation")).toBe("overview");
+  });
+
   it("a sign-in opens its App on Overview, where its sign-in card is", () => {
     const openAccountById = vi.fn();
     actions({ openAccountById }).primary(notice("signin", "sign-in", { account_id: "acc-1" }));
