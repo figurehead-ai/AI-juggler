@@ -95,6 +95,8 @@ describe("D-62 the App page", () => {
     page("cli:z-out");
     expect((await screen.findAllByTestId("app-signed-out")).length).toBeGreaterThan(0);
     expect(screen.queryByTestId("account-limits")).toBeNull();
+    // Its notice's Sign in is the one way on: no New session beside it.
+    expect(screen.queryByTestId("app-new-session")).toBeNull();
     fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Settings")!);
     expect(await screen.findByTestId("renewal-editor")).toBeTruthy();
     expect(screen.queryByTestId("app-terms-account")).toBeNull();

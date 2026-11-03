@@ -27,8 +27,9 @@ export function AppTerms({ sub, all, now }: { sub: SubscriptionInfo; all: readon
     return term === "plan" ? planWords(raw) : termValueWords(term, raw, now);
   };
   const rows: [Term, string | null][] = [
-    ["plan", sub.plan],
-    ["renewal", sub.renewal_date],
+    // Optional in the type: a term left out reads as not set, never blank.
+    ["plan", sub.plan ?? null],
+    ["renewal", sub.renewal_date ?? null],
     ["fee", sub.fee_usd != null ? String(sub.fee_usd) : null],
   ];
   return (

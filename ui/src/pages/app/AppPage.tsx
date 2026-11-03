@@ -26,7 +26,7 @@ import { AppOverview, AppProjects, rowOf } from "./AppOverview";
 import { AppSettings } from "./AppSettings";
 import { ProcessesView } from "../../screens/processes/ProcessesView";
 import { FolderMenu } from "../../components/InspectorHeaderMenu";
-import { errorText, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
+import { errorText, signedIn, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { useApps, type AppModel } from "../../lib/apps";
 import { appItems, appProjects, openHere } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
@@ -203,7 +203,8 @@ function AppFacts({ app, open, total, now }: { app: AppModel; open: number; tota
  * App's New session. */
 function AppAction({ app }: { app: AppModel }): JSX.Element | null {
   if (app.kind === "cli") {
-    if (!app.folder) return null;
+    // Signed out, its Overview's notice is the one way on (sign in).
+    if (!app.folder || !signedIn(app.folder.login_state)) return null;
     const folder = app.folder.id;
     return (
       <Button size="md" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: folder } }))} data-testid="app-new-session">
