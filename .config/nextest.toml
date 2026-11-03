@@ -1,0 +1,116 @@
+# cargo-nextest (ADR-0024): every test in its own process, many at once.
+# `cargo test` ran the ~250 test binaries one after another; nextest runs
+# their tests side by side, so the rules below keep together what must not
+# overlap. No retries anywhere: a test that fails once is a failure (#198),
+# never a pass on the second try.
+
+[profile.default]
+retries = 0
+fail-fast = false
+# On a shared Mac (the maintainer's, with other projects running) four at
+# a time: local runs keep a small, fixed load. CI's `ci` profile uses
+# every core of its runner.
+test-threads = 4
+
+[profile.ci]
+test-threads = "num-cpus"
+failure-output = "immediate-final"
+
+[profile.ci.junit]
+# target/nextest/ci/junit.xml, uploaded by CI with each partition.
+path = "junit.xml"
+
+# The binaries other packages' tests reach by path (`target/debug/...`),
+# not through their own CARGO_BIN_EXE_*: an archive (CI builds once and
+# runs the tests on several runners) must carry them.
+[profile.default.archive]
+include = [
+    { path = "debug/fake-desktop", relative-to = "target", on-missing = "error" },
+    { path = "debug/fake-harness", relative-to = "target", on-missing = "error" },
+    { path = "debug/fake-claude", relative-to = "target", on-missing = "error" },
+    { path = "debug/fake-codex", relative-to = "target", on-missing = "error" },
+    { path = "debug/juggler-agent", relative-to = "target", on-missing = "error" },
+]
+
+[test-groups]
+# Binaries whose tests share one real resource. Under `cargo test` each
+# held an in-process mutex, which a process per test no longer shares.
+guardrails = { max-threads = 1 }     # ~40 real processes per matrix
+second-launch = { max-threads = 1 }  # one single-instance socket
+reconciler = { max-threads = 1 }     # real process trees and a soak budget
+# Timing-sensitive tests: one at a time, never beside each other.
+timing = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::guardrails)'
+test-group = 'guardrails'
+
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::second_launch)'
+test-group = 'second-launch'
+
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-supervisor::reconciler)'
+test-group = 'reconciler'
+
+# Wall-clock budgets ("in under 50 ms", "inside two seconds") measured
+# alone: every test thread is theirs, so no other test runs beside them.
+# `cargo test` ran one binary at a time, so a budget only ever shared the
+# machine with its own binary's tests; nextest runs binaries side by side,
+# and a 5 ms budget then measured its neighbours (CI, 2026-11-02). Every
+# test that asserts on elapsed time is listed (load_budgets and
+# paged_lists whole); a new one goes here too.
+[[profile.default.overrides]]
+filter = '''
+    binary_id(juggler-app::load_budgets) |
+    binary_id(juggler-app::paged_lists) |
+    (binary_id(juggler-agentbridge::bridge) & test(=calls_answer_in_under_50_ms)) |
+    (binary_id(juggler-account) & (test(/(^|::)a_25_mb_container_seals_and_opens_inside_a_second$/))) |
+    (binary_id(juggler-account::live_server) & (test(/(^|::)link_approve_account_rename_unlink$/))) |
+    (binary_id(juggler-adapter) & (test(/(^|::)a_login_shell_that_hangs_falls_back_within_the_timeout$/))) |
+    (binary_id(juggler-adapters::inference) & (test(/(^|::)two_hundred_candidates_within_budget$/))) |
+    (binary_id(juggler-agentbridge::reports) & (test(/(^|::)the_hook_command_is_silent_and_never_fails$/))) |
+    (binary_id(juggler-app) & (test(/(^|::)the_zip_holds_what_was_shown_and_nothing_it_shouldnt$/) | test(/(^|::)a_closed_queue_answers_no_without_asking$/) | test(/(^|::)instance_exit_stops_the_loop$/))) |
+    (binary_id(juggler-app::attention_corpus) & (test(/(^|::)live_dogfood_hang_fixture_flags_stuck_within_budget$/))) |
+    (binary_id(juggler-app::cloud_backup) & (test(/(^|::)round_trip_two_macs_with_the_recovery_code$/))) |
+    (binary_id(juggler-app::conversations) & (test(/(^|::)the_list_answers_at_once_while_a_pass_is_reading$/))) |
+    (binary_id(juggler-app::desktop) & (test(/(^|::)desktop_launch_tracks_in_the_same_ledger_without_a_pty$/))) |
+    (binary_id(juggler-app::fleet_link) & (test(/(^|::)the_right_code_and_both_confirmations_pair_and_connect_both_macs$/) | test(/(^|::)link_off_answers_a_waiting_question_no_at_once$/))) |
+    (binary_id(juggler-app::fleet_switch) & (test(/(^|::)t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage$/) | test(/(^|::)a_diverged_original_blocks_switch_back_until_the_user_chooses$/) | test(/(^|::)new_session_starts_on_the_other_mac_and_follows_it_within_five_seconds$/))) |
+    (binary_id(juggler-app::fleet_sync) & (test(/(^|::)a_thousand_queued_changes_catch_up_inside_three_seconds$/))) |
+    (binary_id(juggler-app::identity_guard) & (test(/(^|::)a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run$/))) |
+    (binary_id(juggler-app::instance_lock) & (test(/(^|::)a_launch_waits_for_an_ending_instance_to_let_go_of_the_data$/))) |
+    (binary_id(juggler-app::machine_lock) & (test(/(^|::)a_slow_disk_tick_never_holds_the_machine_lock$/))) |
+    (binary_id(juggler-app::messages) & (test(/(^|::)a_message_reaches_its_recipients_inbox_with_its_provenance_and_answers_fast$/) | test(/(^|::)a_thousand_messages_open_quickly_and_page$/))) |
+    (binary_id(juggler-app::overnight_summary) & (test(/(^|::)fifty_instances_summarise_inside_two_seconds$/))) |
+    (binary_id(juggler-app::parked_reset) & (test(/(^|::)a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original$/))) |
+    (binary_id(juggler-app::preview_real) & (test(/(^|::)real_capture_record$/))) |
+    (binary_id(juggler-app::qa_outside_estimate) & (test(/(^|::)outside_search_estimate_against_the_built_index$/))) |
+    (binary_id(juggler-app::second_launch) & (test(/(^|::)a_launch_whose_helpers_hold_its_stderr_never_hangs_the_test$/) | test(/(^|::)a_second_launch_says_a_frozen_app_isnt_answering$/) | test(/(^|::)a_second_launch_hands_over_to_an_app_that_answers$/) | test(/(^|::)with_nothing_answering_the_launch_asks_and_quit_quits$/))) |
+    (binary_id(juggler-app::session_lifecycle) & (test(/(^|::)archive_round_trips_exactly_and_delete_has_no_single_call_path$/) | test(/(^|::)search_finds_the_session_with_a_snippet_over_1000_sessions_and_replay_is_byte_identical$/))) |
+    (binary_id(juggler-app::stats_sync_live) & (test(/(^|::)a_synced_report_is_accepted_once_and_refused_after_unlink$/))) |
+    (binary_id(juggler-app::switch_staging) & (test(/(^|::)staging_a_large_session_stays_cheap$/))) |
+    (binary_id(juggler-app::tasks) & (test(/(^|::)two_hundred_tasks_list_fast_and_page$/))) |
+    (binary_id(juggler-app::triage_lifecycle) & (test(/(^|::)reviewed_is_an_explicit_recorded_step_and_only_for_an_ended_instance$/))) |
+    (binary_id(juggler-app::worktree_isolation) & (test(/(^|::)a_second_instance_gets_its_own_worktree_and_nothing_is_overwritten$/))) |
+    (binary_id(juggler-core) & (test(/(^|::)two_hundred_candidates_within_budget$/) | test(/(^|::)a_thousand_messages_page_quickly$/) | test(/(^|::)a_thousand_tasks_list_quickly$/))) |
+    (binary_id(juggler-core::busy_timeout) & (test(/(^|::)a_storage_write_waits_for_another_connections_write$/))) |
+    (binary_id(juggler-core::quality_signals) & (test(/(^|::)tokens_per_min_100k_events_under_budget$/))) |
+    (binary_id(juggler-core::quota_forecast) & (test(/(^|::)thirty_day_fixture_timeline_evaluates_fast$/))) |
+    (binary_id(juggler-core::quota_windows) & (test(/(^|::)window_fold_handles_100k_events$/))) |
+    (binary_id(juggler-core::usage_history) & (test(/(^|::)a_windows_readings_come_back_oldest_first$/))) |
+    (binary_id(juggler-handover::pack_load) & (test(/(^|::)a_500_turn_pack_is_assembled_and_written_in_under_5_s$/))) |
+    (binary_id(juggler-handover::pack_v1) & (test(/(^|::)a_large_pack_is_checked_in_under_two_seconds$/))) |
+    (binary_id(juggler-link) & (test(/(^|::)unpair_revokes_the_pin_immediately$/))) |
+    (binary_id(juggler-link::pairing) & (test(/(^|::)mdns_advertise_browse_and_withdraw$/))) |
+    (binary_id(juggler-supervisor) & (test(/(^|::)an_exit_without_a_helper_never_waits_out_the_bound$/) | test(/(^|::)an_exit_whose_output_a_helper_holds_is_reported_within_the_bound$/))) |
+    (binary_id(juggler-supervisor::orphan) & (test(/(^|::)orphan_detected_after_grace_and_stopped_gone$/))) |
+    (binary_id(juggler-supervisor::reconciler) & (test(/(^|::)fifty_instance_soak_and_construction_regression$/)))
+'''
+threads-required = 'num-test-threads'
+
+# Sleeps and launches timed against the clock (the flakes of 2026-10-30
+# to 11-02): one at a time.
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::runtime) | binary_id(juggler-app::trust) | binary_id(juggler-app::identity_guard) | binary_id(juggler-supervisor::identity)'
+test-group = 'timing'
