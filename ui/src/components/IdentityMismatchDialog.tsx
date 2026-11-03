@@ -102,11 +102,16 @@ export function IdentityMismatchDialog(): JSX.Element | null {
               type="button"
               onClick={() => decide({ kind: "switch", recipeId: alternative.recipe_id })}
               // 0.3.2: the first way out is the dialog's primary.
-              className={"rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-accent/40 bg-accent-soft text-accent-hi")}
+              className={"flex flex-col gap-0.5 rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-accent/40 bg-accent-soft text-accent-hi")}
               data-testid="identity-switch"
             >
-              Use {cliAppName(check.provider, alternative.account_label)} ({launchSettingsName(alternative.recipe_name)}) — it is signed in as{" "}
-              {check.detected}
+              <span className="font-medium">
+                Use {cliAppName(check.provider, alternative.account_label)} ({launchSettingsName(alternative.recipe_name)})
+              </span>
+              {/* The address whole, never broken across lines. */}
+              <span className="opacity-90">
+                Signed in as <span className="whitespace-nowrap">{check.detected}</span>
+              </span>
             </button>
           ))}
           <div className="flex justify-end gap-2">
