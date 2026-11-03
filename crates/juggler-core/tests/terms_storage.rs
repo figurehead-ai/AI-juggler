@@ -145,7 +145,7 @@ fn where_they_disagree_each_keeps_its_own_until_the_user_chooses_once() {
         ],
     );
     let choices = storage.terms().settle(&account).unwrap();
-    assert_eq!(choices.len(), 1, "only the renewal differs: {choices:?}");
+    assert_eq!(choices.len(), 1, "only the renewal differs");
     let renewal = &choices[0];
     assert_eq!(renewal.term, Term::Renewal);
     let said: Vec<(&str, Vec<&str>)> = renewal
