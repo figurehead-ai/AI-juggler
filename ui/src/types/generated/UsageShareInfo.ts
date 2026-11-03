@@ -14,11 +14,11 @@ key: string,
  */
 label: string, 
 /**
- * Input and output tokens.
+ * New tokens (input, cache writes, output and reasoning).
  */
 io: number, 
 /**
- * Cache tokens read and written.
+ * Tokens re-read from the cache.
  */
 cache: number, 
 /**

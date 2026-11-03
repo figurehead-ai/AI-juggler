@@ -41,7 +41,7 @@ export function ServiceUsage({ sub, service, displays }: { sub: SubscriptionInfo
       </span>
       {service.usage === "estimate" && (used.five > 0 || used.week > 0) && (
         <span data-testid="account-service-used">
-          Its sessions used about {tokenWords(used.five)} tokens in and out in the last 5 hours and {tokenWords(used.week)} this week.
+          Its sessions used about {tokenWords(used.five)} new tokens in the last 5 hours and {tokenWords(used.week)} this week.
         </span>
       )}
       <a href={service.console_url} target="_blank" rel="noreferrer" className="w-fit text-accent-hi underline-offset-2 hover:underline">

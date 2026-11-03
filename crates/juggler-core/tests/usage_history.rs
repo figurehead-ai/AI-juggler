@@ -38,6 +38,7 @@ fn event(account: &str, session: &str, ts: i64, model: &str, input: u64, uuid: &
         usd_est: None,
         source: UsageSource::Transcript,
         confidence: Confidence::Measured,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: Some(uuid.into()),
     }
 }
@@ -361,7 +362,10 @@ fn the_derived_tables_live_on_the_latest_schema_and_survive_its_upgrade() {
         .usage()
         .insert_events(&[event("work", "s-old", 1_000, "opus", 10, "old-1")])
         .unwrap();
-    assert_eq!(storage.usage_history().settled_stamp().unwrap(), (7, 4));
+    // (The call's detail is written with it, and counts as a change too.)
+    let (token, changed) = storage.usage_history().settled_stamp().unwrap();
+    assert_eq!(token, 7);
+    assert!(changed > 3, "{changed}");
     drop(storage);
     // A fresh database at the latest schema has them from its first open.
     let fresh = Storage::open_in_memory().unwrap();

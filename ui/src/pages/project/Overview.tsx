@@ -26,6 +26,7 @@ import { lastWorked } from "../../lib/project-words";
 import type { ProjectInfo } from "../../lib/bridge";
 import type { Row } from "../SessionsList";
 import { CheckoutCallout, OpenSessions } from "./Callouts";
+import { newTokens } from "../../lib/usage/tokens";
 
 export function ProjectOverviewView({
   project,
@@ -62,8 +63,8 @@ export function ProjectOverviewView({
   const cut = month.cut;
   const series = useMemo(() => (data && data.edges_ms.length === cut.edges.length ? chartSeries(data, split, "tokens") : []), [data, split, cut.edges.length]);
   const who = data ? shareItems(data.by_profile, "profile") : [];
-  const io = data ? data.totals.tokens.input + data.totals.tokens.output : 0;
-  const weekIo = week.data ? week.data.totals.tokens.input + week.data.totals.tokens.output : null;
+  const io = data ? newTokens(data.totals.tokens) : 0;
+  const weekIo = week.data ? newTokens(week.data.totals.tokens) : null;
   const live = rows.filter((row) => row.live);
   const needs = live.filter((row) => row.railState === "asks_you").length;
   const taskCounts = useProjectTasks(project.id);
@@ -92,7 +93,7 @@ export function ProjectOverviewView({
           note={<span data-testid="tile-tasks-note">{taskWords(taskCounts)}</span>}
           testId="tile-tasks"
         />
-        <StatTile label="Tokens this week" icon={<IconTokens width={15} height={15} />} value={weekIo} unit="tokens" before={week.data ? week.data.previous.tokens.input + week.data.previous.tokens.output : null} period="last week" trend={daily} holdSpace={week.data === null} testId="tile-week-tokens" />
+        <StatTile label="New tokens this week" icon={<IconTokens width={15} height={15} />} value={weekIo} unit="tokens" before={week.data ? newTokens(week.data.previous.tokens) : null} period="last week" trend={daily} holdSpace={week.data === null} testId="tile-week-tokens" />
         <StatTile
           label="Apps used"
           icon={<IconUser width={15} height={15} />}
@@ -106,7 +107,7 @@ export function ProjectOverviewView({
         <Section
           title="Activity"
           icon={<IconChart />}
-          sub={`tokens in and out on ${project.name}, per day`}
+          sub={`new tokens on ${project.name}, per day`}
           className={SPAN.wide}
           busy={month.loading && data !== null}
           testId="project-activity"

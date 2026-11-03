@@ -39,6 +39,7 @@ fn event(ts: i64, session: &str, tokens: u64, confidence: Confidence) -> UsageEv
         usd_est: None,
         source: UsageSource::Transcript,
         confidence,
+        detail: juggler_core::quota::UsageDetail::default(),
         msg_uuid: None,
     }
 }

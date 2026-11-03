@@ -100,7 +100,8 @@ pub struct UsageSeriesInfo {
     pub key: String,
     /// Its name.
     pub label: String,
-    /// Input and output tokens per bucket.
+    /// New tokens per bucket (input, cache writes, output and reasoning:
+    /// `fold::io`).
     #[ts(type = "number[]")]
     pub io: Vec<u64>,
     /// Estimated USD per bucket (what could be priced).
@@ -118,7 +119,8 @@ pub struct UsageTotalsInfo {
     pub usd: Option<f64>,
     /// Some usage couldn't be priced, so the estimate is low.
     pub unpriced: bool,
-    /// Sessions with usage.
+    /// Conversations with usage: a subagent's or an automatic review's
+    /// thread counts under the conversation that started it.
     pub sessions: u32,
     /// Hours with any usage.
     pub active_hours: u32,
@@ -134,10 +136,10 @@ pub struct UsageShareInfo {
     pub key: String,
     /// Its name.
     pub label: String,
-    /// Input and output tokens.
+    /// New tokens (input, cache writes, output and reasoning).
     #[ts(type = "number")]
     pub io: u64,
-    /// Cache tokens read and written.
+    /// Tokens re-read from the cache.
     #[ts(type = "number")]
     pub cache: u64,
     /// Estimated USD; `None` when none of it could be priced.
@@ -154,7 +156,7 @@ pub struct UsageShareInfo {
 pub struct UsagePartInfo {
     /// The profile.
     pub profile: String,
-    /// Its input and output tokens in the group.
+    /// Its new tokens in the group.
     #[ts(type = "number")]
     pub io: u64,
 }
@@ -175,10 +177,11 @@ pub struct UsageSessionInfo {
     pub title: Option<String>,
     /// Its project, when AI Juggler knows it.
     pub project_id: Option<String>,
-    /// Input and output tokens in the range.
+    /// New tokens in the range, its subagents' and automatic reviews'
+    /// included.
     #[ts(type = "number")]
     pub io: u64,
-    /// Cache tokens in the range.
+    /// Tokens re-read from the cache in the range.
     #[ts(type = "number")]
     pub cache: u64,
     /// Estimated USD in the range.
@@ -294,10 +297,10 @@ pub struct UsageWindowShareInfo {
     /// `window`: from the vendor's reset time; `rolling`: no reset is
     /// known, so the last 5 hours or 7 days.
     pub basis: String,
-    /// The session's input and output tokens in it.
+    /// The session's new tokens in it.
     #[ts(type = "number")]
     pub session_io: u64,
-    /// The profile's input and output tokens in it.
+    /// The profile's new tokens in it.
     #[ts(type = "number")]
     pub profile_io: u64,
 }

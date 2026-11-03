@@ -53,7 +53,9 @@ pub struct Lookups {
     pub projects: HashMap<String, String>,
 }
 
-/// How a row is priced: its model, its hour and its tokens.
+/// How a row's calls with no stored cost are priced: their model, their
+/// hour and their tokens summed (the rest of the row is priced per call
+/// already, [`HourRow::cost`]).
 pub type Price<'a> = &'a dyn Fn(Option<&str>, i64, TokenCounts) -> Option<f64>;
 
 /// The folded summary of one range.
@@ -89,14 +91,26 @@ pub fn bucket_of(edges: &[i64], at_ms: i64) -> Option<usize> {
     Some(edges.partition_point(|edge| *edge <= at_ms) - 1)
 }
 
-/// Input and output tokens: what the charts count.
+/// New tokens: what the charts count (0.3.7, the usage audit). Input,
+/// cache writes, output and reasoning: everything a call sent or made
+/// for the first time. Claude sends nearly all new input as cache writes
+/// (its plain input averages 2 tokens a call), and Codex's reasoning is
+/// output, so input and output alone made Claude look five times smaller
+/// than its use. Cache reads, the same context read again, are counted
+/// apart ([`cache`]).
 #[must_use]
 pub fn io(tokens: &TokenCounts) -> u64 {
-    tokens.input.saturating_add(tokens.output)
+    tokens
+        .input
+        .saturating_add(tokens.cache_write)
+        .saturating_add(tokens.output)
+        .saturating_add(tokens.reasoning)
 }
 
-fn cache(tokens: &TokenCounts) -> u64 {
-    tokens.cache_read.saturating_add(tokens.cache_write)
+/// Tokens re-read from the cache: shown apart from the new ones.
+#[must_use]
+pub fn cache(tokens: &TokenCounts) -> u64 {
+    tokens.cache_read
 }
 
 #[derive(Default)]
@@ -226,10 +240,14 @@ pub fn fold(
         let Some(bucket) = bucket_of(edges, row.hour_ms) else {
             continue;
         };
-        let conversation = row.session.clone().unwrap_or_default();
+        // A subagent's or an automatic review's calls count under the
+        // conversation that started them: its tokens, not a session.
+        let conversation = row.conversation().cloned().unwrap_or_default();
         let key = (profile.clone(), conversation);
         let facts = lookups.sessions.get(&key);
-        let usd = price(row.model.as_deref(), row.hour_ms, row.tokens);
+        let usd = row
+            .cost
+            .total(|rest| price(row.model.as_deref(), row.hour_ms, rest));
         add(&mut tokens, row.tokens);
         messages = messages.saturating_add(row.messages);
         match usd {

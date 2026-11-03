@@ -15,6 +15,9 @@ use crate::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
 
 mod cost_pages;
 pub use cost_pages::CostDay;
+mod detail;
+pub use detail::RepriceCursor;
+use detail::{Details, EVENT_COLUMNS, event_row};
 
 /// One window's readings, oldest first, each with its source (`None`:
 /// stored before sources were kept).
@@ -243,6 +246,10 @@ impl UsageRepo<'_> {
             }
             gone += tx.execute("DELETE FROM usage_events WHERE id = ?1", params![id])?;
             tx.execute(
+                "DELETE FROM usage_detail WHERE account = ?1 AND msg_uuid = ?2",
+                params![account, key],
+            )?;
+            tx.execute(
                 "DELETE FROM usage_holders WHERE account = ?1 AND msg_uuid = ?2 AND session = ?3",
                 params![account, key, session],
             )?;
@@ -262,34 +269,10 @@ impl UsageRepo<'_> {
         account: &str,
         since_ms: i64,
     ) -> Result<Vec<UsageEvent>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT account, session, ts, model, input, output, cache_r, cache_w,
-                    reasoning, credits, usd_est, source, confidence, msg_uuid
-             FROM usage_events
-             WHERE account = ?1 AND ts >= ?2
-             ORDER BY ts",
-        )?;
-        let rows = stmt.query_map(params![account, since_ms], |row| {
-            Ok(UsageEvent {
-                account: row.get(0)?,
-                session: row.get(1)?,
-                ts: row.get(2)?,
-                model: row.get(3)?,
-                tokens: crate::model::TokenCounts {
-                    input: u64::try_from(row.get::<_, i64>(4)?).unwrap_or(0),
-                    output: u64::try_from(row.get::<_, i64>(5)?).unwrap_or(0),
-                    cache_read: u64::try_from(row.get::<_, i64>(6)?).unwrap_or(0),
-                    cache_write: u64::try_from(row.get::<_, i64>(7)?).unwrap_or(0),
-                    reasoning: u64::try_from(row.get::<_, i64>(8)?).unwrap_or(0),
-                },
-                credits: row.get(9)?,
-                usd_est: row.get(10)?,
-                source: UsageSource::parse(&row.get::<_, String>(11)?)
-                    .unwrap_or(UsageSource::Transcript),
-                confidence: parse_confidence(&row.get::<_, String>(12)?),
-                msg_uuid: row.get(13)?,
-            })
-        })?;
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT {EVENT_COLUMNS} WHERE e.account = ?1 AND e.ts >= ?2 ORDER BY e.ts"
+        ))?;
+        let rows = stmt.query_map(params![account, since_ms], event_row)?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(CoreError::Storage)
     }
@@ -523,34 +506,10 @@ impl UsageRepo<'_> {
         lo_ms: i64,
         hi_ms: i64,
     ) -> Result<Vec<UsageEvent>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT account, session, ts, model, input, output, cache_r, cache_w,
-                    reasoning, credits, usd_est, source, confidence, msg_uuid
-             FROM usage_events
-             WHERE account = ?1 AND ts > ?2 AND ts <= ?3
-             ORDER BY ts",
-        )?;
-        let rows = stmt.query_map(params![account, lo_ms, hi_ms], |row| {
-            Ok(UsageEvent {
-                account: row.get(0)?,
-                session: row.get(1)?,
-                ts: row.get(2)?,
-                model: row.get(3)?,
-                tokens: crate::model::TokenCounts {
-                    input: u64::try_from(row.get::<_, i64>(4)?).unwrap_or(0),
-                    output: u64::try_from(row.get::<_, i64>(5)?).unwrap_or(0),
-                    cache_read: u64::try_from(row.get::<_, i64>(6)?).unwrap_or(0),
-                    cache_write: u64::try_from(row.get::<_, i64>(7)?).unwrap_or(0),
-                    reasoning: u64::try_from(row.get::<_, i64>(8)?).unwrap_or(0),
-                },
-                credits: row.get(9)?,
-                usd_est: row.get(10)?,
-                source: UsageSource::parse(&row.get::<_, String>(11)?)
-                    .unwrap_or(UsageSource::Transcript),
-                confidence: parse_confidence(&row.get::<_, String>(12)?),
-                msg_uuid: row.get(13)?,
-            })
-        })?;
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT {EVENT_COLUMNS} WHERE e.account = ?1 AND e.ts > ?2 AND e.ts <= ?3 ORDER BY e.ts"
+        ))?;
+        let rows = stmt.query_map(params![account, lo_ms, hi_ms], event_row)?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(CoreError::Storage)
     }
@@ -639,6 +598,11 @@ impl UsageRepo<'_> {
                 output_per_1k: row.get(3)?,
                 cache_read_per_1k: row.get(4)?,
                 cache_write_per_1k: row.get(5)?,
+                // An override is one set of rates: no tiers.
+                cache_write_1h_per_1k: None,
+                long_context: None,
+                fast: None,
+                us_multiplier: None,
                 source_url: row.get(6)?,
                 captured: row.get(7)?,
             })
@@ -787,6 +751,14 @@ fn from_sql(count: i64) -> u64 {
 ///   again when it is set ([`UsageRepo::derived_dirty`]). The triggers are
 ///   dropped and made again at each open, so a change to them always
 ///   lands.
+/// - `usage_detail` (0.3.7, the usage audit): each keyed call's facts
+///   beyond its token classes ([`UsageDetail`]) and its list-price cost,
+///   priced per call with the prices of `price_version`. Rows a build
+///   without it wrote (or calls with no key) have none: they are priced
+///   from their tokens at the standard rates, as before.
+/// - `usage_pricing`: the prices every stored cost was last made with
+///   ([`PricingCatalog::version`]); another means [`UsageRepo::reprice`]
+///   prices them again.
 /// - `quota_sample_sources`: where each `quota_samples` row came from (a
 ///   status line, a rollout, the tool's desktop app, its own cached
 ///   reading, a limit hit), keyed like the row. Kept beside the numbered
@@ -821,6 +793,23 @@ CREATE TABLE IF NOT EXISTS usage_unshared (
 CREATE TABLE IF NOT EXISTS usage_derived (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     dirty INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS usage_detail (
+    account TEXT NOT NULL,
+    msg_uuid TEXT NOT NULL,
+    cache_w_1h INTEGER NOT NULL DEFAULT 0,
+    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+    speed TEXT,
+    geo TEXT,
+    kind TEXT NOT NULL DEFAULT 'main',
+    root_session TEXT,
+    usd REAL,
+    price_version TEXT,
+    PRIMARY KEY (account, msg_uuid)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS usage_pricing (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    version TEXT
 );
 INSERT OR IGNORE INTO usage_derived (id, dirty) VALUES (1, 0);
 DROP TRIGGER IF EXISTS usage_events_unheld_insert;
@@ -1141,6 +1130,7 @@ impl<'c> Owners<'c> {
 
 /// Stores `events`, then settles what removing sessions left (see
 /// [`Removed`]).
+#[allow(clippy::too_many_lines)] // one pass: each call inserted or raised, its holders and detail kept
 fn store_in(
     conn: &Connection,
     events: &[UsageEvent],
@@ -1170,6 +1160,7 @@ fn store_in(
              model = COALESCE(model, ?8)
          WHERE account = ?1 AND msg_uuid = ?2",
     )?;
+    let mut details = Details::new(conn)?;
     for event in events {
         let known = match &event.msg_uuid {
             Some(key) => find
@@ -1207,6 +1198,7 @@ fn store_in(
                 confidence_name(event.confidence),
                 event.msg_uuid,
             ])?;
+            details.keep(event, event.tokens, event.model.as_deref())?;
             stored.push(Stored {
                 new: true,
                 added: event.tokens,
@@ -1232,6 +1224,7 @@ fn store_in(
                 event.model,
             ])?;
         }
+        details.keep(event, now, event.model.as_deref())?;
         stored.push(Stored {
             new: false,
             added: TokenCounts {
@@ -1279,6 +1272,15 @@ fn delete_in(
              SELECT 1 FROM usage_holders o
              WHERE o.account = usage_events.account AND o.msg_uuid = usage_events.msg_uuid))",
     )?;
+    // The same rows' details, first (they go with their rows).
+    let mut delete_details = conn.prepare(
+        "DELETE FROM usage_detail
+         WHERE account = ?1 AND msg_uuid IN (
+             SELECT e.msg_uuid FROM usage_events e
+             WHERE e.account = ?1 AND e.source = ?2 AND e.session = ?3 AND e.msg_uuid IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM usage_holders o
+                   WHERE o.account = e.account AND o.msg_uuid = e.msg_uuid))",
+    )?;
     let mut deleted = 0;
     let mut recheck = BTreeSet::new();
     let mut keys = BTreeSet::new();
@@ -1294,6 +1296,7 @@ fn delete_in(
         }
         forget.execute(params![account, session])?;
         forget_span.execute(params![account, session])?;
+        delete_details.execute(params![account, source.as_str(), session])?;
         deleted += delete.execute(params![account, source.as_str(), session])?;
     }
     for (account, _, session) in sessions {

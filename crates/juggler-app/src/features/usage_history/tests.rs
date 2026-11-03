@@ -1,25 +1,34 @@
 //! The usage history's folding and its input checks.
 
 use juggler_core::model::TokenCounts;
-use juggler_core::storage::HourRow;
+use juggler_core::quota::CallKind;
+use juggler_core::storage::{GroupCost, HourRow};
 
 use super::fold::{self, Lookups, MAX_SERIES, OTHER, ProfileFacts, SessionFacts};
 use super::{UsageQueryInput, checked};
 
 const HOUR: i64 = 3_600_000;
 
+/// An hour's row with no stored cost (priced from its sum by `price`).
 fn row(hour: i64, session: &str, model: &str, input: u64, output: u64) -> HourRow {
+    let tokens = TokenCounts {
+        input,
+        output,
+        cache_read: 1_000,
+        ..TokenCounts::default()
+    };
     HourRow {
         hour_ms: hour * HOUR,
         session: Some(session.to_owned()),
+        root: None,
+        kind: CallKind::Main,
         model: Some(model.to_owned()),
-        tokens: TokenCounts {
-            input,
-            output,
-            cache_read: 1_000,
-            ..TokenCounts::default()
-        },
+        tokens,
         messages: 2,
+        cost: GroupCost {
+            stored_usd: 0.0,
+            unstored: tokens,
+        },
     }
 }
 
@@ -211,4 +220,78 @@ fn only_ranges_the_screen_can_ask_for_pass() {
         checked(&query(vec![0, 30 * 366 * 86_400_000], "tool")).is_err(),
         "at most twenty years"
     );
+}
+
+/// 0.3.7, the usage audit: "tokens" are new tokens (input, cache writes,
+/// output and reasoning; cache reads apart), a subagent's or an automatic
+/// review's thread counts under its conversation, and a stored per-call
+/// cost is used as it is.
+#[test]
+fn new_tokens_and_conversations_count_as_the_vendors_bill_them() {
+    let claude = HourRow {
+        tokens: TokenCounts {
+            input: 2,
+            output: 100,
+            cache_read: 90_000,
+            cache_write: 4_000,
+            reasoning: 0,
+        },
+        cost: GroupCost {
+            stored_usd: 0.25,
+            unstored: TokenCounts::default(),
+        },
+        ..row(0, "s-1", "opus", 0, 0)
+    };
+    let main = HourRow {
+        tokens: TokenCounts {
+            input: 1_000,
+            output: 60,
+            cache_read: 0,
+            cache_write: 0,
+            reasoning: 40,
+        },
+        cost: GroupCost {
+            stored_usd: 0.5,
+            unstored: TokenCounts::default(),
+        },
+        ..row(1, "th-main", "gpt-5", 0, 0)
+    };
+    let review = HourRow {
+        root: Some("th-main".to_owned()),
+        kind: CallKind::Review,
+        ..row(1, "th-review", "mystery", 300, 0)
+    };
+    let rows = vec![
+        ("p-work".to_owned(), claude),
+        ("p-codex".to_owned(), main),
+        ("p-codex".to_owned(), review),
+    ];
+    let folded = fold::fold(&rows, &[0, 24 * HOUR], "tool", &lookups(), &price);
+
+    assert_eq!(folded.totals.sessions, 2, "the review is not a session");
+    let by_tool: Vec<_> = folded
+        .by_tool
+        .iter()
+        .map(|share| (share.key.as_str(), share.io, share.cache))
+        .collect();
+    assert_eq!(
+        by_tool,
+        [("claude-code", 4_102, 90_000), ("codex", 1_400, 1_000)],
+        "Claude's cache writes and Codex's reasoning are new tokens; reads apart"
+    );
+    let conversation = folded
+        .sessions
+        .iter()
+        .find(|session| session.id == "th-main")
+        .unwrap();
+    assert_eq!(
+        conversation.io,
+        1_100 + 300,
+        "the review's tokens, under it"
+    );
+    assert!(
+        folded.totals.unpriced,
+        "the review's model has no list price"
+    );
+    assert_eq!(folded.totals.usd, Some(0.75), "stored costs as they are");
 }

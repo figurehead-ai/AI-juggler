@@ -165,6 +165,7 @@ fn fixture() -> Fixture {
                 usd_est: None,
                 source: UsageSource::Transcript,
                 confidence: Confidence::Measured,
+                detail: juggler_core::quota::UsageDetail::default(),
                 msg_uuid: Some(format!("m-{n}")),
             })
             .collect();

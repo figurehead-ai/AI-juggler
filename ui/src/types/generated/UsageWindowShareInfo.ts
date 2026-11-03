@@ -18,10 +18,10 @@ since_ms: number,
  */
 basis: string, 
 /**
- * The session's input and output tokens in it.
+ * The session's new tokens in it.
  */
 session_io: number, 
 /**
- * The profile's input and output tokens in it.
+ * The profile's new tokens in it.
  */
 profile_io: number, };

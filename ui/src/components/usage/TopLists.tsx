@@ -22,6 +22,7 @@ import { exact, short, usdWords } from "../charts/scale";
 import { IconFolder, IconList } from "./controls";
 import type { Scope } from "./useUsage";
 import { ProfileBadge } from "../ProfileBadge";
+import { newTokens } from "../../lib/usage/tokens";
 
 const TOP = 10;
 
@@ -61,7 +62,7 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
   const host = useActionHost();
   const [all, setAll] = useState(false);
   const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, share.label]));
-  const total = data ? data.totals.tokens.input + data.totals.tokens.output : 0;
+  const total = data ? newTokens(data.totals.tokens) : 0;
   const rows = (data?.by_project ?? []).filter((share) => share.io > 0);
   const row = (share: UsageShareInfo) => (
     <tr key={share.key} className="group border-t border-hairline/60 hover:bg-surface-2" data-testid="top-project">
@@ -108,7 +109,7 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
     </table>
   );
   return (
-    <Section title="Top projects" icon={<IconFolder />} sub="by tokens in and out" className={className} busy={busy} testId="top-projects" actions={<SeeAll count={rows.length} noun="projects" onOpen={() => setAll(true)} />}>
+    <Section title="Top projects" icon={<IconFolder />} sub="by new tokens" className={className} busy={busy} testId="top-projects" actions={<SeeAll count={rows.length} noun="projects" onOpen={() => setAll(true)} />}>
       {rows.length === 0 ? <p className="py-6 text-center text-meta text-ink-2">{data ? "No project used anything in this range." : "Reading usage…"}</p> : <div className="overflow-x-auto">{table(rows.slice(0, TOP))}</div>}
       {all && (
         <Modal title="Every project, by usage" subtitle={`${rows.length} projects`} wide onClose={() => setAll(false)} testId="all-projects">
@@ -186,13 +187,13 @@ export function TopSessions({ data, busy, range, scope, className = "" }: { data
   const [all, setAll] = useState(false);
   const projects = new Map((data?.by_project ?? []).map((share) => [share.key, share.label]));
   const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, share.label]));
-  const total = data ? data.totals.tokens.input + data.totals.tokens.output : 0;
+  const total = data ? newTokens(data.totals.tokens) : 0;
   const rows = data?.top_sessions ?? [];
   return (
     <Section
       title="Top sessions"
       icon={<IconList />}
-      sub="by tokens in and out"
+      sub="by new tokens"
       className={className}
       busy={busy}
       testId="top-sessions"

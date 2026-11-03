@@ -2,37 +2,84 @@
 //! and session pages draw from. Each one answers with a few rows per chart,
 //! never the raw events: usage is summed per hour (or per day) in SQLite,
 //! one profile at a time through the `(account, ts)` index, so a range's
-//! cost grows with its active hours, not its messages. Nothing here writes,
-//! and no index or table is added (the schema is the one main shares with
-//! release/0.2).
+//! cost grows with its active hours, not its messages. No numbered table is
+//! added (the schema is the one main shares with release/0.2). Costs come
+//! from `usage_detail`, the store's derived per-call table (0.3.7), joined
+//! on the call's key; the settled hours are kept in derived tables too
+//! (`rollup`), the only writes here.
 
 use rusqlite::{Connection, params};
 
 use crate::error::CoreError;
 use crate::model::TokenCounts;
-use crate::quota::{QuotaSample, WindowKind};
+use crate::quota::{CallKind, QuotaSample, WindowKind};
+
+mod rollup;
+pub(crate) use rollup::ROLLUP_DERIVED;
+pub use rollup::{Replace, Rollup};
 
 /// An hour, in milliseconds.
 pub const HOUR_MS: i64 = 3_600_000;
 
+/// What a group of calls costs at list prices (0.3.7): the costs stored
+/// with its calls, each priced at its own tier when it was read, and the
+/// tokens of its calls with no stored cost (an unpriced model, or a call
+/// stored before costs were), which only a price for their sum can cover.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct GroupCost {
+    /// The calls' stored costs, summed (USD).
+    pub stored_usd: f64,
+    /// The tokens of the calls with no stored cost.
+    pub unstored: TokenCounts,
+}
+
+impl GroupCost {
+    /// The group's cost: the stored costs, plus `price` of the rest when
+    /// there is any. `None` when that rest can't be priced (its model has
+    /// no list price): never a partial figure.
+    #[must_use]
+    pub fn total(&self, price: impl FnOnce(TokenCounts) -> Option<f64>) -> Option<f64> {
+        if self.unstored == TokenCounts::default() {
+            return Some(self.stored_usd);
+        }
+        price(self.unstored).map(|rest| self.stored_usd + rest)
+    }
+}
+
 /// One profile's usage of one session with one model in one hour.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HourRow {
     /// The hour's start, epoch ms.
     pub hour_ms: i64,
     /// The session (the tool's conversation id); `None` when the event
     /// had none.
     pub session: Option<String>,
+    /// The conversation the session's calls belong to, when it is
+    /// another (a subagent's or an automatic review's thread): they count
+    /// under it, not as a session of their own.
+    pub root: Option<String>,
+    /// What kind of calls these are.
+    pub kind: CallKind,
     /// The model; `None` when the event didn't say.
     pub model: Option<String>,
     /// The tokens, each message counted once.
     pub tokens: TokenCounts,
     /// How many messages.
     pub messages: u32,
+    /// What they cost.
+    pub cost: GroupCost,
+}
+
+impl HourRow {
+    /// The conversation these calls count under.
+    #[must_use]
+    pub fn conversation(&self) -> Option<&String> {
+        self.root.as_ref().or(self.session.as_ref())
+    }
 }
 
 /// One message of a session: what a turn used.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TurnRow {
     /// When, epoch ms.
     pub ts: i64,
@@ -40,10 +87,12 @@ pub struct TurnRow {
     pub model: Option<String>,
     /// The tokens.
     pub tokens: TokenCounts,
+    /// What it cost.
+    pub cost: GroupCost,
 }
 
 /// One session's usage with one model.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ModelRow {
     /// The model.
     pub model: Option<String>,
@@ -53,6 +102,27 @@ pub struct ModelRow {
     pub tokens: TokenCounts,
     /// How many messages.
     pub messages: u32,
+    /// What they cost.
+    pub cost: GroupCost,
+}
+
+/// The calls with their stored costs (`d`), for the summaries.
+const WITH_COSTS: &str = "usage_events e
+    LEFT JOIN usage_detail d ON d.account = e.account AND d.msg_uuid = e.msg_uuid";
+
+/// A group's [`GroupCost`] columns (six), over [`WITH_COSTS`].
+const COST_SUMS: &str = "TOTAL(d.usd),
+    SUM(CASE WHEN d.usd IS NULL THEN e.input ELSE 0 END),
+    SUM(CASE WHEN d.usd IS NULL THEN e.output ELSE 0 END),
+    SUM(CASE WHEN d.usd IS NULL THEN e.cache_r ELSE 0 END),
+    SUM(CASE WHEN d.usd IS NULL THEN e.cache_w ELSE 0 END),
+    SUM(CASE WHEN d.usd IS NULL THEN e.reasoning ELSE 0 END)";
+
+fn cost_at(row: &rusqlite::Row<'_>, first: usize) -> rusqlite::Result<GroupCost> {
+    Ok(GroupCost {
+        stored_usd: row.get(first)?,
+        unstored: tokens_at(row, first + 1)?,
+    })
 }
 
 /// A move of a piece of work from one account to another.
@@ -159,24 +229,31 @@ impl UsageHistoryRepo<'_> {
         end_ms: i64,
         limit: usize,
     ) -> Result<(Vec<HourRow>, bool), CoreError> {
-        let mut stmt = self.conn.prepare_cached(
-            "SELECT ts / 3600000 AS h, session, model,
-                    SUM(input), SUM(output), SUM(cache_r), SUM(cache_w), SUM(reasoning), COUNT(*)
-             FROM usage_events
-             WHERE account = ?1 AND ts >= ?2 AND ts < ?3
-             GROUP BY h, session, model
+        let mut stmt = self.conn.prepare_cached(&format!(
+            "SELECT e.ts / 3600000 AS h, e.session, e.model, COALESCE(d.kind, 'main') AS k,
+                    MAX(d.root_session),
+                    SUM(e.input), SUM(e.output), SUM(e.cache_r), SUM(e.cache_w), SUM(e.reasoning),
+                    COUNT(*), {COST_SUMS}
+             FROM {WITH_COSTS}
+             WHERE e.account = ?1 AND e.ts >= ?2 AND e.ts < ?3
+             GROUP BY h, e.session, e.model, k
              ORDER BY h DESC
-             LIMIT ?4",
-        )?;
+             LIMIT ?4"
+        ))?;
         let wanted = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
         let mut rows = stmt
             .query_map(params![account, start_ms, end_ms, wanted], |row| {
+                let session: Option<String> = row.get(1)?;
+                let root: Option<String> = row.get(4)?;
                 Ok(HourRow {
                     hour_ms: row.get::<_, i64>(0)?.saturating_mul(HOUR_MS),
-                    session: row.get(1)?,
+                    root: root.filter(|root| Some(root) != session.as_ref()),
+                    session,
                     model: row.get(2)?,
-                    tokens: tokens_at(row, 3)?,
-                    messages: u32::try_from(row.get::<_, i64>(8)?).unwrap_or(u32::MAX),
+                    kind: CallKind::parse(&row.get::<_, String>(3)?),
+                    tokens: tokens_at(row, 5)?,
+                    messages: u32::try_from(row.get::<_, i64>(10)?).unwrap_or(u32::MAX),
+                    cost: cost_at(row, 11)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -186,7 +263,8 @@ impl UsageHistoryRepo<'_> {
     }
 
     /// One session's messages on one profile, oldest first: the newest
-    /// `limit` of them. Says whether older ones were left out.
+    /// `limit` of them. A conversation's include its subagents' and its
+    /// automatic reviews' (0.3.7). Says whether older ones were left out.
     ///
     /// # Errors
     ///
@@ -197,13 +275,14 @@ impl UsageHistoryRepo<'_> {
         session: &str,
         limit: usize,
     ) -> Result<(Vec<TurnRow>, bool), CoreError> {
-        let mut stmt = self.conn.prepare_cached(
-            "SELECT ts, model, input, output, cache_r, cache_w, reasoning
-             FROM usage_events
-             WHERE account = ?1 AND session = ?2
-             ORDER BY ts DESC
-             LIMIT ?3",
-        )?;
+        let mut stmt = self.conn.prepare_cached(&format!(
+            "SELECT e.ts, e.model, e.input, e.output, e.cache_r, e.cache_w, e.reasoning, {COST_SUMS}
+             FROM {WITH_COSTS}
+             WHERE e.account = ?1 AND (e.session = ?2 OR d.root_session = ?2)
+             GROUP BY e.id
+             ORDER BY e.ts DESC
+             LIMIT ?3"
+        ))?;
         let wanted = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
         let mut rows = stmt
             .query_map(params![account, session, wanted], |row| {
@@ -211,6 +290,7 @@ impl UsageHistoryRepo<'_> {
                     ts: row.get(0)?,
                     model: row.get(1)?,
                     tokens: tokens_at(row, 2)?,
+                    cost: cost_at(row, 7)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -258,13 +338,13 @@ impl UsageHistoryRepo<'_> {
         session: &str,
         since_ms: i64,
     ) -> Result<(TokenCounts, TokenCounts), CoreError> {
-        let mut stmt = self.conn.prepare_cached(
-            "SELECT session = ?2,
-                    SUM(input), SUM(output), SUM(cache_r), SUM(cache_w), SUM(reasoning)
-             FROM usage_events
-             WHERE account = ?1 AND ts >= ?3
-             GROUP BY session = ?2",
-        )?;
+        let mut stmt = self.conn.prepare_cached(&format!(
+            "SELECT e.session = ?2 OR d.root_session IS ?2 AS mine,
+                    SUM(e.input), SUM(e.output), SUM(e.cache_r), SUM(e.cache_w), SUM(e.reasoning)
+             FROM {WITH_COSTS}
+             WHERE e.account = ?1 AND e.ts >= ?3
+             GROUP BY mine"
+        ))?;
         let mut all = TokenCounts::default();
         let mut mine = TokenCounts::default();
         let rows = stmt.query_map(params![account, session, since_ms], |row| {
@@ -335,7 +415,8 @@ impl UsageHistoryRepo<'_> {
     }
 
     /// One session's totals per model, with each model's first use (the
-    /// instant it's priced at).
+    /// instant the calls with no stored cost are priced at); a
+    /// conversation's include its subagents' and automatic reviews'.
     ///
     /// # Errors
     ///
@@ -345,19 +426,21 @@ impl UsageHistoryRepo<'_> {
         account: &str,
         session: &str,
     ) -> Result<Vec<ModelRow>, CoreError> {
-        let mut stmt = self.conn.prepare_cached(
-            "SELECT model, MIN(ts),
-                    SUM(input), SUM(output), SUM(cache_r), SUM(cache_w), SUM(reasoning), COUNT(*)
-             FROM usage_events
-             WHERE account = ?1 AND session = ?2
-             GROUP BY model",
-        )?;
+        let mut stmt = self.conn.prepare_cached(&format!(
+            "SELECT e.model, MIN(e.ts),
+                    SUM(e.input), SUM(e.output), SUM(e.cache_r), SUM(e.cache_w), SUM(e.reasoning),
+                    COUNT(*), {COST_SUMS}
+             FROM {WITH_COSTS}
+             WHERE e.account = ?1 AND (e.session = ?2 OR d.root_session = ?2)
+             GROUP BY e.model"
+        ))?;
         let rows = stmt.query_map(params![account, session], |row| {
             Ok(ModelRow {
                 model: row.get(0)?,
                 first_ms: row.get(1)?,
                 tokens: tokens_at(row, 2)?,
                 messages: u32::try_from(row.get::<_, i64>(7)?).unwrap_or(u32::MAX),
+                cost: cost_at(row, 8)?,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>()

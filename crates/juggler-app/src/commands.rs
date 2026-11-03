@@ -219,7 +219,7 @@ fn rank_candidates_for(
         let headroom_pct = [display.five_hour.as_ref(), display.weekly.as_ref()]
             .into_iter()
             .flatten()
-            .filter_map(|window| window.percentage.map(|pct| 100.0 - pct))
+            .filter_map(|window| window.best_estimate().map(|pct| 100.0 - pct))
             .reduce(f64::min);
         let confidence = match display
             .five_hour
@@ -5581,7 +5581,7 @@ fn quota_gate_of(storage: &Storage, account: &Account, now: i64) -> (bool, Optio
             let used = target_display
                 .five_hour
                 .as_ref()
-                .and_then(|window| window.percentage)
+                .and_then(crate::features::quota::WindowDisplay::best_estimate)
                 .unwrap_or(0.0);
             let tight = target_display
                 .forecast
