@@ -64,7 +64,7 @@ test-group = 'reconciler'
 filter = '''
     binary_id(juggler-app::load_budgets) |
     binary_id(juggler-app::paged_lists) |
-    (binary_id(juggler-agentbridge::bridge) & test(=calls_answer_in_under_50_ms)) |
+    (binary_id(juggler-agentbridge::bridge) & (test(=calls_answer_in_under_50_ms) | test(=a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch))) |
     (binary_id(juggler-account) & (test(/(^|::)a_25_mb_container_seals_and_opens_inside_a_second$/))) |
     (binary_id(juggler-account::live_server) & (test(/(^|::)link_approve_account_rename_unlink$/))) |
     (binary_id(juggler-adapter) & (test(/(^|::)a_login_shell_that_hangs_falls_back_within_the_timeout$/))) |
