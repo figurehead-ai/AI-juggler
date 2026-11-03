@@ -1,5 +1,17 @@
 # The Floor — the Office look (research and prototype)
 
+> **Status 2026-11-03, round 2: low-poly 3D, rules and mechanics.** The maintainer liked the
+> first Floor. They asked for:
+> - more model detail;
+> - packed areas (at most 10 Apps a floor, at most two areas a column);
+> - stable reflow, and looks that stick;
+> - desks at varied angles;
+> - playful hover and click;
+> - every visual tied to a signal.
+>
+> They asked whether it can rotate. It now can: the prototype is real 3D drawn as pixel art. The
+> rules are in [`rules-and-mechanics.md`](rules-and-mechanics.md).
+
 > **Status 2026-11-03, latest: native wgpu, with per-App style kits.**
 > The measured spike (`floor-spike-results.html`, `spikes/floor-spike/`)
 > led the maintainer to choose a native wgpu window over a webview canvas.

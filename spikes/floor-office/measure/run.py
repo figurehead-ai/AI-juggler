@@ -3,11 +3,13 @@
 CPU: cumulative CPU time from `ps` for the app and the WebKit processes its main window brings
 (launchd starts those, so they are found as new processes), as % of one core. Energy: `top` POWER.
 Memory: `footprint`. Usage: python3 measure/run.py > measure/out/results.json"""
-import json, os, re, subprocess, sys, threading, time
+import json, os, re, subprocess, sys, tempfile, threading, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BIN = os.path.join(HERE, '..', 'target', 'release', 'floor-office')
 SETTLE, WINDOW = 7.0, 20.0
+# a throwaway office state, so measuring never touches the app's own
+STATE = os.path.join(tempfile.mkdtemp(prefix='floor-measure-'), 'floor-state.json')
 
 def rows():
     out = subprocess.run(['ps', '-A', '-o', 'pid=,time=,rss=,comm='], capture_output=True, text=True).stdout
@@ -37,7 +39,7 @@ def top_power(pids, seconds):
 def run(label, extra, window=WINDOW, marks=None):
     before = {r['pid'] for r in rows() if 'com.apple.WebKit.' in r['comm']}
     total = SETTLE + window + 3
-    proc = subprocess.Popen([BIN, '--on-top', '--exit-after', str(total)] + extra, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    proc = subprocess.Popen([BIN, '--on-top', '--state', STATE, '--exit-after', str(total)] + extra, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     events = []
     th = threading.Thread(target=lambda: [events.append(json.loads(l)) for l in proc.stdout if l.startswith('{')], daemon=True); th.start()
     time.sleep(SETTLE)
@@ -64,7 +66,7 @@ def run(label, extra, window=WINDOW, marks=None):
             'memory_total_mb': round(sum(v for v in mem0.values() if v), 1), 'app_memory_marks_mb': mem_marks,
             'first_frame_ms': next((round(e['ms']) for e in events if e.get('event') == 'first_frame'), None),
             'frames': st.get('frames'), 'draw_ms_per_frame': round(st['draw_ms'] / st['frames'], 3) if st.get('frames') else None,
-            'world': next(({k: e[k] for k in ('ms', 'canvas', 'atlas', 'sprites', 'items', 'actors', 'walkers')} for e in events if e.get('event') == 'world_built'), None)}
+            'world': next(({k: e.get(k) for k in ('ms', 'floors', 'static_parts', 'picks', 'lights')} for e in events if e.get('event') == 'world_built'), None)}
 
 def main():
     out = {'when': time.strftime('%Y-%m-%d %H:%M'), 'runs': []}

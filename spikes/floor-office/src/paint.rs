@@ -1,6 +1,5 @@
-//! Pixel painting: an RGBA image with a scanline rasteriser, the fixed perspective camera (with
-//! unprojection, so floors and walls can be shaded per pixel in perspective), hue-shifted colour
-//! ramps, seeded randomness and a small pixel font for signs.
+//! Pixel painting for textures: an RGBA image with a scanline rasteriser, hue-shifted colour ramps,
+//! OKLCH, seeded randomness and a small pixel font for signs.
 
 pub type Rgba = [u8; 4];
 
@@ -130,6 +129,12 @@ impl Img {
                 }
             }
         }
+    }
+    pub fn outline_rect(&mut self, x: i32, y: i32, w: i32, h: i32, c: Rgba) {
+        self.rect(x, y, w, 1, c);
+        self.rect(x, y + h - 1, w, 1, c);
+        self.rect(x, y, 1, h, c);
+        self.rect(x + w - 1, y, 1, h, c);
     }
     pub fn blit(&mut self, src: &Img, dx: i32, dy: i32) {
         for y in 0..src.h {
@@ -270,123 +275,6 @@ pub fn noise2(x: i32, y: i32, seed: u32) -> f32 {
     ((h ^ (h >> 16)) & 0xffff) as f32 / 65535.0
 }
 
-// ---------- the fixed camera ----------
-pub type V3 = [f32; 3];
-pub fn sub(a: V3, b: V3) -> V3 { [a[0] - b[0], a[1] - b[1], a[2] - b[2]] }
-pub fn dot(a: V3, b: V3) -> f32 { a[0] * b[0] + a[1] * b[1] + a[2] * b[2] }
-fn cross(a: V3, b: V3) -> V3 { [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]] }
-fn norm(a: V3) -> V3 { let l = dot(a, a).sqrt(); [a[0] / l, a[1] / l, a[2] / l] }
-
-pub struct Cam {
-    pub eye: V3,
-    r: V3,
-    u: V3,
-    f: V3,
-    focal: f32,
-    cx: f32,
-    cy: f32,
-}
-impl Cam {
-    /// Looks at `target` from above at `el_deg`, `dist` away, onto an image `w` x `h`.
-    pub fn new(target: V3, el_deg: f32, dist: f32, fov_deg: f32, w: i32, h: i32) -> Cam {
-        let el = el_deg.to_radians();
-        let eye = [target[0], target[1] + dist * el.sin(), target[2] + dist * el.cos()];
-        let f = norm(sub(target, eye));
-        let r = norm(cross(f, [0.0, 1.0, 0.0]));
-        let u = cross(r, f);
-        Cam { eye, r, u, f, focal: (h as f32 / 2.0) / (fov_deg.to_radians() / 2.0).tan(), cx: w as f32 / 2.0, cy: h as f32 / 2.0 }
-    }
-    /// Moves the picture within the image.
-    pub fn shift(&mut self, dx: f32, dy: f32) {
-        self.cx += dx;
-        self.cy += dy;
-    }
-    pub fn p(&self, w: V3) -> (f32, f32) {
-        let d = sub(w, self.eye);
-        let (x, y, z) = (dot(d, self.r), dot(d, self.u), dot(d, self.f));
-        (self.cx + x / z * self.focal, self.cy - y / z * self.focal)
-    }
-    pub fn quad(&self, q: [V3; 4]) -> [(f32, f32); 4] {
-        [self.p(q[0]), self.p(q[1]), self.p(q[2]), self.p(q[3])]
-    }
-    fn ray(&self, px: f32, py: f32) -> V3 {
-        let (a, b) = ((px - self.cx) / self.focal, -(py - self.cy) / self.focal);
-        [self.f[0] + self.r[0] * a + self.u[0] * b, self.f[1] + self.r[1] * a + self.u[1] * b, self.f[2] + self.r[2] * a + self.u[2] * b]
-    }
-    /// Where the pixel's ray meets the horizontal plane y = `y`.
-    pub fn on_plane_y(&self, px: f32, py: f32, y: f32) -> Option<(f32, f32)> {
-        let d = self.ray(px, py);
-        if d[1].abs() < 1e-6 { return None; }
-        let t = (y - self.eye[1]) / d[1];
-        (t > 0.0).then(|| (self.eye[0] + d[0] * t, self.eye[2] + d[2] * t))
-    }
-    /// Where the pixel's ray meets the vertical plane z = `z`.
-    pub fn on_plane_z(&self, px: f32, py: f32, z: f32) -> Option<(f32, f32)> {
-        let d = self.ray(px, py);
-        if d[2].abs() < 1e-6 { return None; }
-        let t = (z - self.eye[2]) / d[2];
-        (t > 0.0).then(|| (self.eye[0] + d[0] * t, self.eye[1] + d[1] * t))
-    }
-    /// Where the pixel's ray meets the vertical plane x = `x`.
-    pub fn on_plane_x(&self, px: f32, py: f32, x: f32) -> Option<(f32, f32)> {
-        let d = self.ray(px, py);
-        if d[0].abs() < 1e-6 { return None; }
-        let t = (x - self.eye[0]) / d[0];
-        (t > 0.0).then(|| (self.eye[1] + d[1] * t, self.eye[2] + d[2] * t))
-    }
-    /// Art pixels per metre at a floor point (for sizing sprites by depth).
-    pub fn scale_at(&self, w: V3) -> f32 {
-        let a = self.p(w);
-        let b = self.p([w[0] + 1.0, w[1], w[2]]);
-        (b.0 - a.0).abs()
-    }
-}
-
-/// Draws the camera-facing faces of an axis-aligned box. `shade` gives each face's colour from its normal.
-pub fn draw_box(img: &mut Img, cam: &Cam, off: (f32, f32), lo: V3, hi: V3, base: Rgba) {
-    draw_box_faces(img, cam, off, lo, hi, |n| match n {
-        1 => ramp(base, 0.18),           // top: lit
-        2 => ramp(base, -0.22),          // front (+z): toward the camera
-        3 => ramp(base, -0.42),          // sides
-        _ => ramp(base, -0.5),
-    });
-}
-pub fn draw_box_faces(img: &mut Img, cam: &Cam, off: (f32, f32), lo: V3, hi: V3, colour: impl Fn(u8) -> Rgba) {
-    let o = |q: [(f32, f32); 4]| q.map(|(x, y)| (x - off.0, y - off.1));
-    let faces: [(V3, V3, [V3; 4], u8); 5] = [
-        ([0.0, 1.0, 0.0], [lo[0], hi[1], lo[2]], [[lo[0], hi[1], lo[2]], [hi[0], hi[1], lo[2]], [hi[0], hi[1], hi[2]], [lo[0], hi[1], hi[2]]], 1),
-        ([0.0, 0.0, 1.0], [lo[0], lo[1], hi[2]], [[lo[0], lo[1], hi[2]], [hi[0], lo[1], hi[2]], [hi[0], hi[1], hi[2]], [lo[0], hi[1], hi[2]]], 2),
-        ([0.0, 0.0, -1.0], [lo[0], lo[1], lo[2]], [[lo[0], lo[1], lo[2]], [hi[0], lo[1], lo[2]], [hi[0], hi[1], lo[2]], [lo[0], hi[1], lo[2]]], 4),
-        ([1.0, 0.0, 0.0], [hi[0], lo[1], lo[2]], [[hi[0], lo[1], lo[2]], [hi[0], lo[1], hi[2]], [hi[0], hi[1], hi[2]], [hi[0], hi[1], lo[2]]], 3),
-        ([-1.0, 0.0, 0.0], [lo[0], lo[1], lo[2]], [[lo[0], lo[1], lo[2]], [lo[0], lo[1], hi[2]], [lo[0], hi[1], hi[2]], [lo[0], hi[1], lo[2]]], 3),
-    ];
-    for (n, pt, q, id) in faces {
-        if dot(n, sub(cam.eye, pt)) > 0.0 {
-            img.poly(&o(cam.quad(q)), colour(id));
-        }
-    }
-}
-/// Art-pixel bounds of world points (with a margin), as (x, y, w, h).
-pub fn bounds(cam: &Cam, pts: &[V3], margin: i32) -> (i32, i32, i32, i32) {
-    let ps: Vec<(f32, f32)> = pts.iter().map(|p| cam.p(*p)).collect();
-    let x0 = ps.iter().map(|p| p.0).fold(f32::MAX, f32::min).floor() as i32 - margin;
-    let y0 = ps.iter().map(|p| p.1).fold(f32::MAX, f32::min).floor() as i32 - margin;
-    let x1 = ps.iter().map(|p| p.0).fold(f32::MIN, f32::max).ceil() as i32 + margin;
-    let y1 = ps.iter().map(|p| p.1).fold(f32::MIN, f32::max).ceil() as i32 + margin;
-    (x0, y0, (x1 - x0).max(1), (y1 - y0).max(1))
-}
-pub fn corners(lo: V3, hi: V3) -> Vec<V3> {
-    let mut v = Vec::with_capacity(8);
-    for &x in &[lo[0], hi[0]] {
-        for &y in &[lo[1], hi[1]] {
-            for &z in &[lo[2], hi[2]] {
-                v.push([x, y, z]);
-            }
-        }
-    }
-    v
-}
-
 // ---------- a 5x7 pixel font for signs (upper case, digits, a few marks) ----------
 fn glyph(c: char) -> [&'static str; 7] {
     match c {
@@ -433,6 +321,7 @@ fn glyph(c: char) -> [&'static str; 7] {
         '?' => [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."],
         ':' => [".", "#", ".", ".", ".", "#", "."],
         '/' => ["....#", "...#.", "...#.", "..#..", ".#...", ".#...", "#...."],
+        '+' => [".....", "..#..", "..#..", "#####", "..#..", "..#..", "....."],
         '%' => ["##..#", "##.#.", "...#.", "..#..", ".#...", ".#.##", "#..##"],
         _ => ["..", "..", "..", "..", "..", "..", ".."],
     }

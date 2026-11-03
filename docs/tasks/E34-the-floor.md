@@ -21,6 +21,11 @@
 > recommendation is real 3D with three.js and a fixed angled camera, with
 > the 2D renderer as the fallback.
 >
+> **Update 2026-11-03, round 2.** The look is now low-poly 3D drawn as pixel art, with an orbit
+> camera that turns, tilts and zooms within limits. The signal, layout, model and interaction
+> rules are in [`rules-and-mechanics.md`](../research/floor/rules-and-mechanics.md). AJ-E3401's
+> bay grid is replaced by those cells (at most 10 Apps a floor, a setting) and the first-fit order.
+>
 > **Update 2026-11-03: native wgpu chosen.** The Floor will be a native
 > wgpu window beside the webview app, not three.js in the webview. Areas use
 > per-App style kits: the tool picks the family, the App id seeds the

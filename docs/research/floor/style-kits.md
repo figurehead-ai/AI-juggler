@@ -43,6 +43,17 @@
     props are depth-sorted instanced quads over it, with a screen-space
     overlay for chips and labels.
 
+> **Round 2 (2026-11-03).**
+> - The Floor is now low-poly 3D drawn as pixel art, not painted 2D, so it can turn and tilt.
+> - Each family has a set of layout types: Workshop pods, pinwheels or scatter; Studio tables,
+>   scatter or radial; Industrial benches, diagonal rows or pods; Garage scatter or pinwheels;
+>   Campus pinwheels, radial or tables; Lab pods or diagonal rows.
+> - The App's layout type and seed are chosen once and saved.
+>
+> The kits also gained more variety: 6 desk models, 5 chair types, 8 plants in 5 pots, 6 divider
+> styles and 7 nooks. See [`rules-and-mechanics.md`](rules-and-mechanics.md) for the layout and
+> signal rules.
+
 ## Style kits: one look per App, chosen deterministically
 
 Real offices give each team a neighbourhood with its own character. That

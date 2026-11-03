@@ -1,16 +1,24 @@
-//! The Floor, first prototype: the office in a native wgpu window beside a minimal main window.
+//! The Floor, second prototype: a low-poly 3D office in a native wgpu window beside a minimal main
+//! window. The office's choices (each App's layout and look) are saved in a small state file.
 //!
 //! Switches: --anim FPS (8; 0 = nothing moves), --on-top, --cover-after S, --minimize-after S,
-//! --exit-after S, --tour DIR (captures a scripted walk through the zoom levels), --alert.
-//! In the Floor window: drag or two-finger scroll to pan; pinch, ⌘-scroll or + / - to zoom;
-//! 0 building, 1 and 2 floors; click an area or a person to open it in the main window; R red alert.
+//! --exit-after S, --tour DIR (captures a scripted walk), --alert, --state PATH.
+//! In the Floor window: drag or two-finger scroll to pan; right-drag, ⌥-drag, a two-finger twist or
+//! Q / E and the arrow keys to turn and tilt; pinch, ⌘-scroll or + / - to zoom; H resets the view;
+//! 0 building, 1 and 2 floors; click an area, a desk, a person or a helper to open it in the main
+//! window; click plants, ping-pong, the coffee machine, beanbags or the cat for fun; A red alert;
+//! G grows one App (the reflow demo).
 
 mod input;
 mod kit;
+mod layout;
+mod math;
+mod mesh;
+mod models;
 mod paint;
-mod people;
 mod render;
-mod world;
+mod scene;
+mod tex;
 
 use std::io::Write;
 use std::sync::mpsc::{channel, Sender};
@@ -20,7 +28,7 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[derive(Clone, Default)]
-struct Args { anim: u32, on_top: bool, cover_after: Option<f64>, minimize_after: Option<f64>, exit_after: Option<f64>, tour: Option<String>, alert: bool }
+struct Args { anim: u32, on_top: bool, cover_after: Option<f64>, minimize_after: Option<f64>, exit_after: Option<f64>, tour: Option<String>, alert: bool, state: Option<String> }
 
 fn args() -> Args {
     let v: Vec<String> = std::env::args().collect();
@@ -33,6 +41,7 @@ fn args() -> Args {
         exit_after: get("--exit-after").and_then(|s| s.parse().ok()),
         tour: get("--tour"),
         alert: v.iter().any(|a| a == "--alert"),
+        state: get("--state"),
     }
 }
 
@@ -82,17 +91,17 @@ fn main() {
         .invoke_handler(tauri::generate_handler![focus_floor])
         .setup(move |app| {
             let h = app.handle().clone();
-            let t0 = Instant::now();
-            let world = Arc::new(world::build());
-            log(serde_json::json!({ "event": "world_built", "ms": t0.elapsed().as_secs_f64() * 1000.0, "canvas": [world.w, world.h], "atlas": [world.atlas.w, world.atlas.h], "sprites": world.sprites.len(), "items": world.items.len(), "actors": world.actors.len(), "walkers": world.walkers.len(),
-                "kits": world.kits.iter().zip(&world.apps).map(|(k, ap)| serde_json::json!({ "app": ap.name, "family": k.family, "variant": k.variant, "layout": format!("{:?}", k.layout), "sign": format!("{:?}", k.sign) })).collect::<Vec<_>>() }));
+            let state_path = match &a.state { Some(p) => std::path::PathBuf::from(p), None => app.path().app_data_dir()?.join("floor-state.json") };
             // the menu: the way back to the main window, and the floors
             let items = [
                 MenuItemBuilder::with_id("main", "Open the main window").accelerator("CmdOrCtrl+Shift+M").build(app)?,
                 MenuItemBuilder::with_id("bld", "Building").accelerator("CmdOrCtrl+0").build(app)?,
                 MenuItemBuilder::with_id("f1", "Floor 1").accelerator("CmdOrCtrl+1").build(app)?,
                 MenuItemBuilder::with_id("f2", "Floor 2").accelerator("CmdOrCtrl+2").build(app)?,
+                MenuItemBuilder::with_id("reset", "Reset the view").accelerator("CmdOrCtrl+R").build(app)?,
                 MenuItemBuilder::with_id("alert", "Red alert (demo)").build(app)?,
+                MenuItemBuilder::with_id("grow", "Grow an App (reflow demo)").build(app)?,
+                MenuItemBuilder::with_id("recreate", "Re-create the office…").build(app)?,
             ];
             let app_menu = SubmenuBuilder::new(app, "Floor Office").quit().build()?;
             let mut floor_menu = SubmenuBuilder::new(app, "Floor");
@@ -114,10 +123,13 @@ fn main() {
                 })?;
             }
             let surface = srx.recv().expect("surface");
-            let (wo, ho) = (world.clone(), h.clone());
-            let on_open: Arc<dyn Fn(world::Target) + Send + Sync> = Arc::new(move |t| match t {
-                world::Target::App(ai) => show_main(&ho, "App", wo.apps[ai].name),
-                world::Target::Session(ai, di) => show_main(&ho, "Session", &format!("{} · desk {}", wo.apps[ai].name, di + 1)),
+            let ho = h.clone();
+            let on_open: render::OnOpen = Arc::new(move |t, label| match t {
+                scene::Target::App(_) => show_main(&ho, "App", &label),
+                scene::Target::Session(..) => show_main(&ho, "Session", &label),
+                scene::Target::Helpers(..) => show_main(&ho, "Subagents", &label),
+                scene::Target::Account(_) => show_main(&ho, "Usage", &label),
+                scene::Target::ThisMac => show_main(&ho, "This Mac", &label),
                 _ => {}
             });
             let (hv, wv) = (h.clone(), fw.clone());
@@ -125,7 +137,7 @@ fn main() {
                 let w = wv.clone();
                 let _ = hv.run_on_main_thread(move || { let _ = tx.send(render::Msg::Visible(window_visible(&w))); });
             });
-            let floor = render::start(instance, surface, world.clone(), (size.width, size.height, sf), a.anim, opened, on_open, ask_visible, a.alert);
+            let floor = render::start(instance, surface, state_path, (size.width, size.height, sf), a.anim, opened, on_open, ask_visible, a.alert);
             {
                 let (w, tx) = (fw.clone(), floor.tx.clone());
                 app.run_on_main_thread(move || input::install(&w, tx))?;
@@ -136,7 +148,10 @@ fn main() {
                 "bld" => { let _ = txm.send(render::Msg::Key('0')); }
                 "f1" => { let _ = txm.send(render::Msg::Key('1')); }
                 "f2" => { let _ = txm.send(render::Msg::Key('2')); }
-                "alert" => { let _ = txm.send(render::Msg::Key('r')); }
+                "reset" => { let _ = txm.send(render::Msg::Key('h')); }
+                "alert" => { let _ = txm.send(render::Msg::Key('a')); }
+                "grow" => { let _ = txm.send(render::Msg::Key('g')); }
+                "recreate" => { let _ = txm.send(render::Msg::Recreate); }
                 _ => {}
             });
             let txr = floor.tx.clone();
