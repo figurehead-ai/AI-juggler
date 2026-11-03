@@ -10,7 +10,7 @@
  * "100% left" never reached it (ADR-0019: no duplicate logic).
  */
 import type { JSX } from "react";
-import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData, type WindowDisplay } from "../lib/bridge";
+import type { InstanceInfo, QuotaDisplayData, WindowDisplay } from "../lib/bridge";
 import { READING_LIMITS } from "../lib/history-reading";
 import { asOfWords, limitWindows, measured, resetWords, usedTokensWords, windowView } from "../lib/quotaWindow";
 import { resetsLead, resetsWords } from "../lib/time-words";
@@ -144,30 +144,23 @@ function modelWeekNote(display: QuotaDisplayData | undefined, accountLeft: numbe
 
 /** Where to start new work, in words, from the one runway (QA batch 8:
  * Home recommended an account with 6% left because the others weren't
- * measured). `best` is an account with room, never a low one; `words`
- * says so, or why it can't tell. Signed-out accounts can't take work. */
-export function newWorkAdvice(
-  accounts: AccountInfo[],
-  displays: QuotaDisplayData[],
-  sessions: InstanceInfo[],
-): { best: { account: AccountInfo; left: number } | null; words: string | null } {
-  const rows = accounts
-    .filter((account) => signedIn(account.login_state))
-    .map((account) => {
-      const run = runwayOf(displays.find((d) => d.account === account.id), sessions.filter((s) => s.account_id === account.id));
-      return { account, left: run.left, credits: run.credits ?? null };
-    });
+ * measured). `rows` are the Accounts as the Runway card shows them (D-62:
+ * named as Accounts, never by an App; `accountAdvice` builds them), the
+ * signed-in ones only: a signed-out account can't take work. `best` is
+ * one with room, never a low one; `words` says so, or why it can't tell. */
+export function newWorkAdvice<T extends { name: string; run: { left: number | null; credits?: CreditsCover | null } }>(rows: T[]): { best: { row: T; left: number } | null; words: string | null } {
+  const runs = rows.map((row) => ({ row, left: row.run.left, credits: row.run.credits ?? null }));
   // The one order by room (`lib/room`): the switch and New session rank
   // and suggest by the same rule.
-  const ranked = rankByRoom(rows, (row) => row.left, undefined, (row) => row.credits !== null);
-  const first = ranked.find((row) => row.left !== null);
+  const ranked = rankByRoom(runs, (run) => run.left, undefined, (run) => run.credits !== null);
+  const first = ranked.find((run) => run.left !== null);
   if (!first) return { best: null, words: null };
-  const top = { account: first.item.account, left: first.left! };
-  const unmeasured = ranked.filter((row) => row.left === null).map((row) => row.item.account.label);
-  // Who isn't measured, by name when it's one ("Personal isn't measured yet").
+  const top = { row: first.item.row, left: first.left! };
+  const unmeasured = ranked.filter((run) => run.left === null).map((run) => run.item.row.name);
+  // Who isn't measured, by name when it's one ("Claude Pro isn't measured yet").
   const unknown =
     unmeasured.length === 1 ? `${unmeasured[0]} isn't measured yet` : `${unmeasured.length} others aren't measured yet`;
-  const name = top.account.label;
+  const name = top.row.name;
   if (first.suggested) {
     return {
       best: top,

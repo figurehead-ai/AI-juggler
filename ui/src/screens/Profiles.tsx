@@ -9,7 +9,7 @@ import { launchTitle } from "../lib/account-words";
 import { cliAppName } from "../lib/app-name";
 import { useConversations } from "../lib/conversations";
 import { BetaMatrix } from "../components/BetaMatrix";
-import { newWorkAdvice } from "../components/AccountRunway";
+import { accountAdvice } from "../components/HomeRunway";
 import { useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
 import { ownSignIn, providerDisplayName, supportsInPlace, reportsLimits } from "../lib/providers";
@@ -109,6 +109,8 @@ export function ProfilesScreen({
       </div>
     );
   }
+  // D-62: where to start new work, by Account, as Home's Runway says it.
+  const summary = accountAdvice(accounts, subscriptions, displays, sessions).words;
   // Every profile under its account; one the grouping missed (just added)
   // stands alone until the next read.
   const grouped = subscriptions
@@ -132,9 +134,9 @@ export function ProfilesScreen({
             <strong className="font-semibold text-ink">app</strong> is one app in one profile, like Claude app · b-work or Claude Code · Work;
             one account can have several apps.
           </p>
-          {newWorkAdvice(accounts, displays, sessions).words && (
+          {summary && (
             <p className="text-meta text-ink" data-testid="accounts-summary">
-              {newWorkAdvice(accounts, displays, sessions).words}
+              {summary}
             </p>
           )}
         </div>

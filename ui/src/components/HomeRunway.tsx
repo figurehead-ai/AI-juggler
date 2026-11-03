@@ -11,8 +11,8 @@ import type { JSX } from "react";
 import { AccountAvatar } from "./Avatar";
 import { SectionTitle } from "./SectionTitle";
 import { useActionHost } from "./ItemMenu";
-import type { AccountInfo, InstanceInfo, QuotaDisplayData } from "../lib/bridge";
-import { runwayOf } from "./AccountRunway";
+import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData } from "../lib/bridge";
+import { newWorkAdvice, runwayOf } from "./AccountRunway";
 import type { CreditsCover } from "../lib/credits";
 import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { openAccount } from "../lib/accounts-page";
@@ -52,14 +52,26 @@ export interface RunwayLine {
   credits?: CreditsCover | null;
 }
 
-export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advice }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[]; advice: string | null }): JSX.Element {
+/** An Account's one runway: its newest measured window over every folder
+ * signed in to it, and the sessions on any of them. */
+export function groupRunway(group: AccountGroup, quota: QuotaDisplayData[], sessions: InstanceInfo[]): RunwayLine {
+  const ids = new Set(group.profiles.map((profile) => profile.id));
+  const display = group.subscription ? accountDisplay(group.subscription, quota) : quota.find((q) => q.account === group.profiles[0]!.id);
+  return runwayOf(display, sessions.filter((s) => s.account_id !== null && ids.has(s.account_id)));
+}
+
+/** Where to start new work, by Account (D-62): the Runway card's rows,
+ * named as it names them, never by a folder's App. */
+export function accountAdvice(accounts: AccountInfo[], subscriptions: SubscriptionInfo[] | null, quota: QuotaDisplayData[], sessions: InstanceInfo[]) {
+  const rows = accountGroups(accounts.filter((account) => signedIn(account.login_state)), subscriptions).map((group) => ({ name: group.name, group, run: groupRunway(group, quota, sessions) }));
+  return { count: rows.length, ...newWorkAdvice(rows) };
+}
+
+export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[] }): JSX.Element {
   const host = useActionHost();
   const subscriptions = useSubscriptions();
-  const lineOf = (group: AccountGroup): RunwayLine => {
-    const ids = new Set(group.profiles.map((profile) => profile.id));
-    const display = group.subscription ? accountDisplay(group.subscription, quota) : quota.find((q) => q.account === group.profiles[0]!.id);
-    return runwayOf(display, sessions.filter((s) => s.account_id !== null && ids.has(s.account_id)));
-  };
+  const lineOf = (group: AccountGroup): RunwayLine => groupRunway(group, quota, sessions);
+  const advice = accountAdvice(accounts, subscriptions, quota, sessions);
   return (
     <section aria-labelledby="home-runway" className="flex min-w-0 flex-col gap-2.5" data-testid="home-runway">
       <SectionTitle id="home-runway">Runway by account</SectionTitle>
@@ -122,9 +134,9 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, advic
             </div>
           );
         })}
-        {advice && accounts.length > 1 && (
+        {advice.words && advice.count > 1 && (
           <p className="border-t border-hairline/60 py-3 text-xs text-ink-2" data-testid="new-work-advice">
-            {advice}
+            {advice.words}
           </p>
         )}
       </div>

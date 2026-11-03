@@ -15,7 +15,7 @@ import * as subscriptions from "../lib/subscriptions";
 import * as data from "../pages/session/data";
 import type { AccountInfo, InstanceInfo, PreflightInfoData, QuotaDisplayData, SwitchTargetData } from "../lib/bridge";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
-import { newWorkAdvice } from "./AccountRunway";
+import { accountAdvice } from "./HomeRunway";
 import { rankByRoom } from "../lib/room";
 import { rankTargets } from "../lib/room-targets";
 import { ContinueOn } from "../pages/session/ContinueOn";
@@ -80,7 +80,7 @@ describe("F1 one order by room", () => {
 
   it("the switch suggests the account Home calls Best for new work", () => {
     const profiles = Object.keys(LEFT).map((id) => profile(id, `Account ${id.toUpperCase()}`));
-    const home = newWorkAdvice(profiles, DISPLAYS, []);
+    const home = accountAdvice(profiles, null, DISPLAYS, []);
     expect(home.words).toBe("Best for new work: Account B, 98% left.");
     const ranked = rankTargets(TARGETS, null, DISPLAYS, "src");
     expect(ranked.map((row) => row.room.left)).toEqual([98, 91, 76, 75, 66, 0]);

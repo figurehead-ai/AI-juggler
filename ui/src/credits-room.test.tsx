@@ -20,7 +20,8 @@ import { creditsConsequence, creditsCover, usingCredits, usingCreditsWords, whol
 import { rankByRoom, roomKind } from "./lib/room";
 import { rankTargets } from "./lib/room-targets";
 import { chooseApp } from "./lib/new-session-choice";
-import { newWorkAdvice, runwayLines, runwayOf } from "./components/AccountRunway";
+import { runwayLines, runwayOf } from "./components/AccountRunway";
+import { accountAdvice } from "./components/HomeRunway";
 import { SwitchTargetRows } from "./components/SwitchTargetRows";
 import { SwitchFlow } from "./components/SwitchFlow";
 import { RunwayPanel } from "./components/usage/Runway";
@@ -118,7 +119,7 @@ describe("the room state, credits", () => {
 
   it("Home's advice never calls it out of room", () => {
     const codex = { id: "codex", label: "Codex", login_state: "logged_in", provider: "codex" } as unknown as AccountInfo;
-    expect(newWorkAdvice([codex], [ON_CREDITS], []).words).toBe("No account has room in its window: Codex is using its credits.");
+    expect(accountAdvice([codex], null, [ON_CREDITS], []).words).toBe("No account has room in its window: Codex is using its credits.");
   });
 });
 

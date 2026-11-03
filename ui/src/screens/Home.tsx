@@ -29,7 +29,7 @@ import { ProjectMark } from "../components/ProjectMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
 import { MorningSummary } from "../components/MorningSummary";
-import { newWorkAdvice, runwayOf } from "../components/AccountRunway";
+import { runwayOf } from "../components/AccountRunway";
 import type { ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
@@ -325,7 +325,6 @@ export function HomeScreen({
     account,
     ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
   }));
-  const advice = newWorkAdvice(accounts, quota, sessions);
 
   // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
   if (loading && accounts.length === 0 && sessions.length === 0) {
@@ -484,7 +483,7 @@ export function HomeScreen({
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} advice={advice.words} />
+          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} />
         <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} />
         </div>
       </div>
