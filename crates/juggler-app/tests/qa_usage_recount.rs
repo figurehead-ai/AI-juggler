@@ -256,7 +256,6 @@ fn usage_numbers_recomputed_from_the_real_files() {
                 "hourly_ms_debug_build": hourly_ms,
             }),
         );
-        eprintln!("{folder}: {} calls", events.len());
     }
     calls.flush().unwrap();
     // A full re-price, as a new price table or an override starts one: an
@@ -331,7 +330,7 @@ fn usage_first_read_after_a_start() {
     };
     let ms = |started: std::time::Instant| started.elapsed().as_secs_f64() * 1000.0;
     let mut report = serde_json::Map::new();
-    for account in &accounts {
+    for (rank, account) in accounts.iter().enumerate() {
         let raw = rusqlite::Connection::open(&store).unwrap();
         let started = std::time::Instant::now();
         let old: usize = raw
@@ -371,8 +370,9 @@ fn usage_first_read_after_a_start() {
         let changed = history.take_changed_hours(account).unwrap();
         let start_ms = ms(started);
         assert_eq!(kept.rows.len(), rows.len());
+        // Profiles by their rank in calls, never by name or id.
         report.insert(
-            account.clone(),
+            format!("profile {}", rank + 1),
             serde_json::json!({
                 "hourly_rows": rows.len(), "old_rows": old,
                 "sum_0_3_5_ms": old_ms, "sum_0_3_6_ms": summed_ms,
