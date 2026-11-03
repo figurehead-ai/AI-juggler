@@ -199,9 +199,11 @@ describe("the accounts that worked in a project", () => {
       [conversation("c1", { live: true, last_activity_ms: NOW - 99_000 })],
       [{ id: "a-old", label: "Old Pro" }],
     );
+    // Each by its App's key, as its rows' marks are (the 0.4 review: a
+    // desktop App on a folder isn't that folder's CLI App).
     expect(accounts).toEqual([
-      { id: "a-personal", label: "Personal", live: true },
-      { id: "a-work", label: "Work Max", live: false },
+      { id: "a-personal", label: "Personal", live: true, app: "cli|claude-code|a-personal" },
+      { id: "a-work", label: "Work Max", live: false, app: "cli|claude-code|a-work" },
       { id: "a-old", label: "Old Pro", live: false },
     ]);
     expect(accountsWords(accounts)).toBe("on Personal (running), Work Max and Old Pro");

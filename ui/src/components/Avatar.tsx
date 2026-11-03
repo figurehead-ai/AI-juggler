@@ -75,7 +75,7 @@ export function AccountAvatar({
 }
 
 /** One account in a stack: by its folder (`id`). */
-export type StackedAccount = { id: string | null; label: string; live: boolean };
+export type StackedAccount = { id: string | null; label: string; live: boolean; /** Its App's key (the rows' marks), when known. */ app?: string };
 
 /** Up to `max` accounts' avatars, just overlapping (their initials stay
  * whole), then "+N" for the rest. */

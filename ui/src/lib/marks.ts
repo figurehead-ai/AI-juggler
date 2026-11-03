@@ -157,17 +157,28 @@ export function useMarks(): number {
 /** An App: its stored slot, else its id or the rail's key for it. */
 export type AppMark = number | string;
 
+/** The slot stored for `key`, else, for a desktop session AI Juggler
+ * started on a folder (`app|<host>|folder:<id>`) with no desktop App
+ * remembered there, its folder's App's: the App every list names it by
+ * (the 0.4 review: one App, one colour on every screen). */
+function storedSlot(key: string): number | undefined {
+  const own = appSlots.get(key);
+  if (own !== undefined) return own;
+  const folder = /\|folder:(.+)$/.exec(key)?.[1];
+  return folder ? appSlots.get(cliAppId(folder)) : undefined;
+}
+
 /** An App's slot: the one given, else the one stored for its id or key,
  * else the fallback from its id. */
 export function appSlot(app: AppMark): number {
   if (typeof app === "number") return app;
-  return appSlots.get(app) ?? fallbackSlot(app, new Set(appSlots.values()));
+  return storedSlot(app) ?? fallbackSlot(app, new Set(appSlots.values()));
 }
 
 /** Whether an App's colour is its own: given or stored, or only the
  * fallback from its id (a key no loaded list named). */
 export function appSlotKnown(app: AppMark): boolean {
-  return typeof app === "number" || appSlots.has(app);
+  return typeof app === "number" || storedSlot(app) !== undefined;
 }
 
 /** An App's one colour, as CSS. */

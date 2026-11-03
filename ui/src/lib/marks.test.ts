@@ -4,7 +4,7 @@
  * a name on screen), with a fallback made from the id for one not stored.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { MARK_COLOURS, slotOklch, accountColor, accountSlot, appColor, appSlot, fallbackSlot, forgetMarksForTests, learnFolders, learnPlaces } from "./marks";
+import { MARK_COLOURS, slotOklch, accountColor, accountSlot, appColor, appSlot, appSlotKnown, fallbackSlot, forgetMarksForTests, learnFolders, learnPlaces } from "./marks";
 import { fillSlots, previewAccountSlots, previewFolderSlots, previewPlaceSlots } from "./ipc/preview-slots";
 import { cliAppKey, desktopAppKey, ownDesktopAppKey } from "./app-name";
 import { deltaE } from "./oklch";
@@ -59,6 +59,15 @@ describe("AJ-E3206 the hues", () => {
 });
 
 describe("AJ-E3206 an App's colour", () => {
+  it("a desktop session AI Juggler started wears its folder's App colour until a desktop App is remembered there", () => {
+    learnFolders([folder("fake-desk", "Fake Desk", { app_colour_slot: 2 })]);
+    const own = ownDesktopAppKey("dev.example.fake", "Fake Desk", "fake-desk", "Fake Desk");
+    expect(appSlot(own)).toBe(2);
+    expect(appSlotKnown(own)).toBe(true);
+    learnPlaces([{ ...place("app:fake:/p/fake", "fake", 6), app_id: "dev.example.fake", app: "Fake Desk", account_id: "fake-desk" }]);
+    expect(appSlot(own)).toBe(6);
+  });
+
   it("is its stored slot, by its id or the rail's key for it, whatever its name", () => {
     learnFolders([folder("f-1", "Work", { app_colour_slot: 4 })]);
     expect(appSlot("cli:f-1")).toBe(4);
