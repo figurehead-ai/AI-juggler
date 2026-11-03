@@ -13,6 +13,7 @@
  *   in is where its window is, a detail of the session, never its name.
  */
 import { toolSpec } from "./tools";
+import { knownFolderTool } from "./palette";
 
 /** A desktop app's name on screen: the adapter's (`shown`) when given;
  * else "Claude app" for a tool's own desktop app whose name the tool's
@@ -69,4 +70,12 @@ export function ownDesktopAppKey(appId: string | null, app: string, folderId: st
 /** "in Terminal": where a CLI session's window is, as a row's detail. */
 export function hostWords(host: string | null | undefined): string | null {
   return host ? `in ${host}` : null;
+}
+
+/** A folder's App by its full name ("Claude Code · Work Max"), from the
+ * folders as last loaded; its label alone when its tool isn't known (the
+ * 0.4 review: an App is never named by its folder alone). */
+export function folderAppName(folderId: string | null | undefined, label: string): string {
+  const tool = knownFolderTool(folderId);
+  return tool ? cliAppName(tool, label) : label;
 }

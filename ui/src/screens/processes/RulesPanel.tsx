@@ -8,6 +8,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { cleanupPauseSet, cleanupTiersSet } from "../../lib/bridge";
 import { processesDryRun, processesPolicy, type CleanupPolicyInfo, type RulePreviewInfo } from "../../lib/ipc/processes";
+import { folderAppName } from "../../lib/app-name";
 
 function Switch({ on, label, onChange, testId }: { on: boolean; label: string; onChange: (on: boolean) => void; testId: string }): JSX.Element {
   return (
@@ -95,7 +96,7 @@ export function RulesPanel({ policy: seeded }: { policy?: CleanupPolicyInfo | nu
       <ul className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))" }}>
         {(policy?.accounts ?? []).map((account) => (
           <li key={account.account_id} className="flex flex-col gap-2 rounded-lg border border-hairline bg-surface-2/50 p-3" data-testid={`rules-account-${account.account_id}`}>
-            <span className="text-body font-medium text-ink">{account.label}</span>
+            <span className="text-body font-medium text-ink">{folderAppName(account.account_id, account.label)}</span>
             {([1, 2] as const).map((tier) => {
               const on = tier === 1 ? account.tier1 : account.tier2;
               const label = tier === 1 ? "Tidy left-behind dev servers" : "Also after a crash";
@@ -114,7 +115,7 @@ export function RulesPanel({ policy: seeded }: { policy?: CleanupPolicyInfo | nu
                       >
                         Preview
                       </Button>
-                      <Switch on={on} label={`${label} for ${account.label}`} onChange={(next) => void setTier(account.account_id, tier, next)} testId={`rules-switch-${account.account_id}-${tier}`} />
+                      <Switch on={on} label={`${label} for ${folderAppName(account.account_id, account.label)}`} onChange={(next) => void setTier(account.account_id, tier, next)} testId={`rules-switch-${account.account_id}-${tier}`} />
                     </span>
                   </div>
                   {shown && <Preview preview={preview} />}

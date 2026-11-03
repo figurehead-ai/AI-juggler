@@ -21,6 +21,7 @@ import {
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
 import { Picker } from "./controls";
+import { folderAppName } from "../lib/app-name";
 
 const CHOICES: Array<{ value: string; label: string }> = [
   { value: "forever", label: "Keep forever" },
@@ -61,7 +62,7 @@ export function StorageRetentionCard(): JSX.Element {
             className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-hairline px-3 py-2 text-label"
             data-testid="storage-row"
           >
-            <span className="min-w-0 flex-1 truncate font-medium text-ink">{row.label}</span>
+            <span className="min-w-0 flex-1 truncate font-medium text-ink">{folderAppName(row.account_id, row.label)}</span>
             <span className="order-last w-full text-muted" data-testid="storage-usage">
               {/* The 0.2 walk (F18): AI Juggler's own records, not the
                   sessions History lists from the tools' files. */}
@@ -79,7 +80,7 @@ export function StorageRetentionCard(): JSX.Element {
                     .then(load)
                     .catch((cause) => setError(errorText(cause)));
                 }}
-                ariaLabel={`Retention for ${row.label}`}
+                ariaLabel={`Retention for ${folderAppName(row.account_id, row.label)}`}
                 testId="storage-retention"
                 options={CHOICES}
               />
@@ -106,7 +107,7 @@ export function StorageRetentionCard(): JSX.Element {
       {preview && (
         <RetentionDryRun
           preview={preview}
-          label={rows?.find((row) => row.account_id === preview.account_id)?.label ?? ""}
+          label={folderAppName(preview.account_id, rows?.find((row) => row.account_id === preview.account_id)?.label ?? "")}
           onClose={(deleted) => {
             setPreview(null);
             if (deleted !== null) {

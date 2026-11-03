@@ -59,7 +59,7 @@ export function swatchColor(index: number): string {
 /** The user's folders, each with the initials that tell it from the
  * others (by id). */
 const initials = new Map<string, string>();
-let known: { id: string; label: string }[] = [];
+let known: { id: string; label: string; provider?: string }[] = [];
 
 /** One or two letters for a name: a two-word name's initials ("WM"),
  * else its first two letters ("Pe"). Words part at spaces, dashes,
@@ -112,9 +112,9 @@ export function distinctInitials(labels: string[]): string[] {
 
 /** Give each of the user's folders its initials (call when the list
  * loads; cheap and idempotent). */
-export function assignPalette(accounts: { id: string; label: string }[]): void {
+export function assignPalette(accounts: { id: string; label: string; provider?: string }[]): void {
   const sorted = [...new Map(accounts.map((account) => [account.id, account])).values()].sort((a, b) => (a.id < b.id ? -1 : 1));
-  known = sorted.map(({ id, label }) => ({ id, label }));
+  known = sorted.map(({ id, label, provider }) => (provider ? { id, label, provider } : { id, label }));
   initials.clear();
   const letters = distinctInitials(sorted.map((account) => account.label));
   sorted.forEach((account, index) => initials.set(account.id, letters[index]!));
@@ -123,6 +123,11 @@ export function assignPalette(accounts: { id: string; label: string }[]): void {
 /** The user's accounts as last loaded (id and label). */
 export function knownAccounts(): { id: string; label: string }[] {
   return known;
+}
+
+/** A folder's tool, from the folders as last loaded (null when unknown). */
+export function knownFolderTool(folderId: string | null | undefined): string | null {
+  return known.find((row) => row.id === folderId)?.provider ?? null;
 }
 
 /** A stable index into the palette for `key` (a project, tool or model
