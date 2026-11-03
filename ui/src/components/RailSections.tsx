@@ -13,6 +13,8 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo } from "../lib/bridge";
 import type { RowGroup } from "../lib/railview";
 import { useBackendNeeds } from "../lib/needs-you";
+import { useNoticeActions } from "../lib/notice-actions";
+import { RailNoticeRow } from "./RailNoticeRow";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -132,20 +134,26 @@ function Rows({ rows, selectedId, density, now }: RowProps & { rows: Conversatio
 }
 
 /** Needs you: AI Juggler's sessions that need you, then the ones other
- * apps say ask you or finished something to look at. Never grouped. */
-export function NeedsYouSection({ rows, renderRow, ...props }: RowProps & { rows: InstanceInfo[]; renderRow: (row: InstanceInfo) => ReactNode }): JSX.Element | null {
+ * apps say ask you or finished something to look at, then the rest the
+ * bell counts (a sign-in, a cap, an agent's message; AJ-E3104: the same
+ * number as the bell's, in every lens). Never grouped. */
+export function NeedsYouSection({ rows, renderRow, sessions, ...props }: RowProps & { rows: InstanceInfo[]; renderRow: (row: InstanceInfo) => ReactNode; sessions: InstanceInfo[] }): JSX.Element | null {
   const { all } = useConversations();
-  const { needOf } = useBackendNeeds();
+  const { needOf, rows: needs } = useBackendNeeds();
+  const actions = useNoticeActions(sessions);
   const [open, setOpen] = useState(true);
   const asking = outside(all).filter((c) => asksYou(c) && needOf.has(`c:${c.account_id}/${c.id}`));
-  if (rows.length === 0 && asking.length === 0) return null;
+  const others = needs.filter((row) => !needOf.has(row.subject));
+  const count = rows.length + asking.length + others.length;
+  if (count === 0) return null;
   return (
     <section aria-label="Needs you" data-testid="rail-needs-you" className="mb-1 flex flex-col gap-0.5">
       <SectionLabel open={open} onToggle={() => setOpen((now) => !now)}>
-        Needs you <span className="tabular-nums">{rows.length + asking.length}</span>
+        Needs you <span className="tabular-nums">{count}</span>
       </SectionLabel>
       {open && rows.map(renderRow)}
       {open && <Rows rows={asking} {...props} />}
+      {open && others.map((notice) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} />)}
     </section>
   );
 }

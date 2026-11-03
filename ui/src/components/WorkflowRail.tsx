@@ -517,7 +517,7 @@ export function InstanceBoard({
           <PlaceBoard sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} />
         )}
         {byProject && <>
-        {showLocal && order && <NeedsYouSection rows={order.needs} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={boardRow} />}
+        {showLocal && order && <NeedsYouSection rows={order.needs} sessions={sessions} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={boardRow} />}
         {!showLocal ? null : loading && sessions.length === 0 ? (
           <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
         ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (

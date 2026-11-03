@@ -103,6 +103,14 @@ function stateOf(rows: NeedSnoozeInfo[]): SnoozeState {
   return out;
 }
 
+/** AJ-E3104: what's snoozed now, by subject ("cap:…", "message:…",
+ * "task:…"): those rows are out of Needs you until then, as the bell
+ * counts them. */
+export function useSnoozedSubjects(now: number): ReadonlySet<string> {
+  const list = usePagedList<NeedSnoozeInfo>("notices:snoozes", notificationsSnoozes, { pageSize: MAX_PAGE, keyOf: (row) => row.subject });
+  return useMemo(() => new Set(list.items.filter((row) => row.until_ms === null || row.until_ms > now).map((row) => row.subject)), [list.items, now]);
+}
+
 /** The rail's snoozes, the backend's (D-49): out of Needs you until they
  * end. An updater form too, so Undo applies to the state as it is then.
  * Snoozes this window kept itself before 0.2 move over once. */
