@@ -157,6 +157,7 @@ unbounded quota_display_all  # bounded: one row per account, tool, launch settin
 unbounded ranking_rows  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded recommendation_for  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded relations_counts  # bounded: at most 200 entities asked for at once (relations::MAX_ASKED), one fixed-size answer each
+unbounded relations_related  # bounded: at most MAX_ASKED (200) ids, `more` past that; a page's pools or Apps
 unbounded reset_queue_list  # bounded: one per queued resume
 unbounded retention_preview  # TO PAGE: what a retention cleanup would delete
 unbounded runtime_asks  # bounded: at most 100 open questions a page (ASKS_PAGE_MAX)
