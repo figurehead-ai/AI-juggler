@@ -16,11 +16,13 @@
 //! account's transcripts or rollouts with the adapters' own readers, keeps
 //! the calls that database counts (so history a switch carried, or a call
 //! written after it, is left out as the app leaves it out), stores them in
-//! a temporary store (pricing each as the app does), and folds them with
-//! Usage's own fold. It writes per-account aggregates (`summary.json`) and
-//! one line per call (`calls.csv`: key, model, time, classes, detail, cost;
-//! numbers and ids, no message text) into the output folder. It never
-//! writes into a tool's folder or the database it reads.
+//! a store of its own in the output folder (`recount.sqlite`, pricing each
+//! call as the app does), and folds them with Usage's own fold. It writes
+//! per-account aggregates (`summary.json`, with how long the summary query
+//! and a full re-price took) and one line per call (`calls.csv`: key,
+//! model, time, classes, detail, cost; numbers and ids, no message text)
+//! into the output folder. It never writes into a tool's folder or the
+//! database it reads.
 
 #![allow(
     clippy::unwrap_used,
@@ -106,7 +108,7 @@ fn usage_numbers_recomputed_from_the_real_files() {
     )
     .unwrap();
     let accounts: Vec<(String, String, String)> = real
-        .prepare("SELECT id, harness, state_dir FROM accounts ORDER BY state_dir")
+        .prepare("SELECT id, provider_id, state_dir FROM accounts ORDER BY state_dir")
         .unwrap()
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
         .unwrap()
@@ -121,8 +123,11 @@ fn usage_numbers_recomputed_from_the_real_files() {
         .unwrap();
     drop(real);
 
-    let scratch = tempfile::tempdir().unwrap();
-    let storage = Storage::open(&scratch.path().join("recount.sqlite")).unwrap();
+    let store = out.join("recount.sqlite");
+    for suffix in ["", "-wal", "-shm"] {
+        let _ = std::fs::remove_file(format!("{}{suffix}", store.display()));
+    }
+    let storage = Storage::open(&store).unwrap();
     let catalog = PricingCatalog::with_overrides(Vec::new());
     let mut summary = serde_json::Map::new();
     let mut calls = std::io::BufWriter::new(std::fs::File::create(out.join("calls.csv")).unwrap());
@@ -166,10 +171,12 @@ fn usage_numbers_recomputed_from_the_real_files() {
             read += events.len();
             storage.usage().store_events(&events).unwrap();
         }
+        let started = std::time::Instant::now();
         let (rows, cut) = storage
             .usage_history()
             .hourly(id, 0, i64::MAX, 10_000_000)
             .unwrap();
+        let hourly_ms = started.elapsed().as_millis();
         assert!(!cut);
         let labelled: Vec<(String, juggler_core::storage::HourRow)> =
             rows.into_iter().map(|row| (id.clone(), row)).collect();
@@ -245,11 +252,48 @@ fn usage_numbers_recomputed_from_the_real_files() {
                 "threads_with_usage": threads.len(),
                 "calls_and_new_tokens_by_kind": kinds,
                 "active_hours": totals.active_hours,
+                "hourly_rows": labelled.len(),
+                "hourly_ms_debug_build": hourly_ms,
             }),
         );
         eprintln!("{folder}: {} calls", events.len());
     }
     calls.flush().unwrap();
+    // A full re-price, as a new price table or an override starts one: an
+    // override for a model nobody used changes the prices' version.
+    storage
+        .usage()
+        .pricing_override_upsert(&juggler_core::cost_ledger::LedgerPriceRow {
+            model: "qa-unused-model".to_owned(),
+            effective_from_ms: 0,
+            input_per_1k: 0.001,
+            output_per_1k: 0.001,
+            cache_read_per_1k: 0.0,
+            cache_write_per_1k: 0.0,
+            cache_write_1h_per_1k: None,
+            long_context: None,
+            fast: None,
+            us_multiplier: None,
+            source_url: "qa".to_owned(),
+            captured: "2026-11-03".to_owned(),
+        })
+        .unwrap();
+    let started = std::time::Instant::now();
+    let (mut cursor, mut batches, mut longest) = (None, 0u32, 0u128);
+    loop {
+        let batch = std::time::Instant::now();
+        cursor = storage.usage().reprice(cursor, 20_000).unwrap();
+        longest = longest.max(batch.elapsed().as_millis());
+        batches += 1;
+        if cursor.is_none() {
+            break;
+        }
+    }
+    summary.insert(
+        "_reprice_debug_build".to_owned(),
+        serde_json::json!({"ms": started.elapsed().as_millis(), "batches": batches,
+                           "longest_batch_ms": longest}),
+    );
     std::fs::write(
         out.join("summary.json"),
         serde_json::to_string_pretty(&summary).unwrap(),
