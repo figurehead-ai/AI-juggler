@@ -1,0 +1,631 @@
+{
+ "when": "2026-11-03 09:33",
+ "window_s": 20.0,
+ "runs": [
+  {
+   "label": "none anim=0",
+   "kind": "none",
+   "anim": 0,
+   "extra": [],
+   "seconds": 23.1,
+   "processes": {
+    "92411": "floor-spike",
+    "92412": "com.apple.WebKit.GPU",
+    "92415": "com.apple.WebKit.WebContent",
+    "92417": "com.apple.WebKit.Networking"
+   },
+   "cpu_pct": 1.43,
+   "top_cpu_pct": 1.0,
+   "top_power": 1.0,
+   "mem_mb_start": {
+    "92417": 4.9,
+    "92411": 40.0,
+    "92412": 24.0,
+    "92415": 22.0
+   },
+   "mem_mb_end": {},
+   "mem_total_start": 90.9,
+   "mem_total_end": 0,
+   "rss_mb_start": 205.0,
+   "mem_marks": null,
+   "gpu_util_avg": 2.0,
+   "first_frame_ms": null,
+   "frame_stats": []
+  },
+  {
+   "label": "web anim=0",
+   "kind": "web",
+   "anim": 0,
+   "extra": [],
+   "seconds": 22.7,
+   "processes": {
+    "97970": "floor-spike",
+    "98146": "com.apple.WebKit.GPU",
+    "98147": "com.apple.WebKit.WebContent",
+    "98151": "com.apple.WebKit.Networking",
+    "98160": "com.apple.WebKit.WebContent"
+   },
+   "cpu_pct": 0.26,
+   "top_cpu_pct": 0.0,
+   "top_power": 0.0,
+   "mem_mb_start": {
+    "98160": 26.0,
+    "97970": 46.0,
+    "98146": 26.0,
+    "98147": 23.0,
+    "98151": 5.8
+   },
+   "mem_mb_end": {
+    "98160": 25.0,
+    "97970": 45.0,
+    "98146": 16.0,
+    "98147": 22.0,
+    "98151": 5.7
+   },
+   "mem_total_start": 126.8,
+   "mem_total_end": 113.7,
+   "rss_mb_start": 209.2,
+   "mem_marks": null,
+   "gpu_util_avg": 15.5,
+   "first_frame_ms": 1408.23525,
+   "frame_stats": [
+    {
+     "draw_ms": 1.0,
+     "event": "frame_stats",
+     "frames": 1,
+     "hidden_events": 0,
+     "kind": "web",
+     "visibility": "visible"
+    }
+   ]
+  },
+  {
+   "label": "web anim=10",
+   "kind": "web",
+   "anim": 10,
+   "extra": [],
+   "seconds": 21.6,
+   "processes": {
+    "6522": "floor-spike",
+    "6628": "com.apple.WebKit.GPU",
+    "6630": "com.apple.WebKit.WebContent",
+    "6655": "com.apple.WebKit.Networking",
+    "6659": "com.apple.WebKit.WebContent"
+   },
+   "cpu_pct": 4.13,
+   "top_cpu_pct": 3.7,
+   "top_power": 4.3,
+   "mem_mb_start": {
+    "6659": 31.0,
+    "6628": 318.0,
+    "6630": 22.0,
+    "6522": 51.0,
+    "6655": 4.9
+   },
+   "mem_mb_end": {
+    "6659": 32.0,
+    "6628": 318.0,
+    "6630": 21.0,
+    "6522": 51.0,
+    "6655": 4.8
+   },
+   "mem_total_start": 426.9,
+   "mem_total_end": 426.8,
+   "rss_mb_start": 281.7,
+   "mem_marks": null,
+   "gpu_util_avg": 2.3,
+   "first_frame_ms": 330.492,
+   "frame_stats": [
+    {
+     "draw_ms": 44.0,
+     "event": "frame_stats",
+     "frames": 287,
+     "hidden_events": 0,
+     "kind": "web",
+     "visibility": "visible"
+    }
+   ]
+  },
+  {
+   "label": "web anim=30",
+   "kind": "web",
+   "anim": 30,
+   "extra": [],
+   "seconds": 21.6,
+   "processes": {
+    "9973": "floor-spike",
+    "9984": "com.apple.WebKit.GPU",
+    "9986": "com.apple.WebKit.WebContent",
+    "9987": "com.apple.WebKit.Networking",
+    "9988": "com.apple.WebKit.WebContent"
+   },
+   "cpu_pct": 10.97,
+   "top_cpu_pct": 10.1,
+   "top_power": 10.8,
+   "mem_mb_start": {
+    "9984": 318.0,
+    "9986": 22.0,
+    "9987": 4.9,
+    "9988": 37.0,
+    "9973": 52.0
+   },
+   "mem_mb_end": {
+    "9984": 318.0,
+    "9986": 21.0,
+    "9987": 4.8,
+    "9988": 38.0,
+    "9973": 52.0
+   },
+   "mem_total_start": 433.9,
+   "mem_total_end": 433.8,
+   "rss_mb_start": 282.6,
+   "mem_marks": null,
+   "gpu_util_avg": 1.0,
+   "first_frame_ms": 455.294625,
+   "frame_stats": [
+    {
+     "draw_ms": 82.0,
+     "event": "frame_stats",
+     "frames": 824,
+     "hidden_events": 0,
+     "kind": "web",
+     "visibility": "visible"
+    }
+   ]
+  },
+  {
+   "label": "web anim=10 --cover-after 4",
+   "kind": "web",
+   "anim": 10,
+   "extra": [
+    "--cover-after",
+    "4"
+   ],
+   "seconds": 21.7,
+   "processes": {
+    "19039": "floor-spike",
+    "19256": "com.apple.WebKit.GPU",
+    "19280": "com.apple.WebKit.WebContent",
+    "19286": "com.apple.WebKit.Networking",
+    "19315": "com.apple.WebKit.WebContent"
+   },
+   "cpu_pct": 3.27,
+   "top_cpu_pct": 2.9,
+   "top_power": 3.0,
+   "mem_mb_start": {
+    "19280": 22.0,
+    "19315": 32.0,
+    "19286": 4.9,
+    "19256": 318.0,
+    "19039": 54.0
+   },
+   "mem_mb_end": {
+    "19280": 21.0,
+    "19315": 37.0,
+    "19286": 4.8,
+    "19256": 318.0,
+    "19039": 49.0
+   },
+   "mem_total_start": 430.9,
+   "mem_total_end": 429.8,
+   "rss_mb_start": 283.0,
+   "mem_marks": null,
+   "gpu_util_avg": 1.8,
+   "first_frame_ms": 424.641208,
+   "frame_stats": [
+    {
+     "draw_ms": 96.0,
+     "event": "frame_stats",
+     "frames": 286,
+     "hidden_events": 0,
+     "kind": "web",
+     "visibility": "visible"
+    }
+   ]
+  },
+  {
+   "label": "web anim=10 --minimize-after 4",
+   "kind": "web",
+   "anim": 10,
+   "extra": [
+    "--minimize-after",
+    "4"
+   ],
+   "seconds": 21.7,
+   "processes": {
+    "41943": "floor-spike",
+    "42029": "com.apple.WebKit.GPU",
+    "42030": "com.apple.WebKit.WebContent",
+    "42057": "com.apple.WebKit.Networking",
+    "42061": "com.apple.WebKit.WebContent"
+   },
+   "cpu_pct": 0.14,
+   "top_cpu_pct": 0.0,
+   "top_power": 0.0,
+   "mem_mb_start": {
+    "42029": 26.0,
+    "41943": 54.0,
+    "42057": 4.9,
+    "42061": 31.0,
+    "42030": 22.0
+   },
+   "mem_mb_end": {
+    "42029": 15.0,
+    "41943": 53.0,
+    "42057": 4.9,
+    "42061": 28.0,
+    "42030": 21.0
+   },
+   "mem_total_start": 137.9,
+   "mem_total_end": 121.9,
+   "rss_mb_start": 283.1,
+   "mem_marks": null,
+   "gpu_util_avg": 1,
+   "first_frame_ms": 368.560208,
+   "frame_stats": [
+    {
+     "draw_ms": 11.0,
+     "event": "frame_stats",
+     "frames": 42,
+     "hidden_events": 1,
+     "kind": "web",
+     "visibility": "hidden"
+    }
+   ]
+  },
+  {
+   "label": "native anim=0",
+   "kind": "native",
+   "anim": 0,
+   "extra": [],
+   "seconds": 21.7,
+   "processes": {
+    "57798": "floor-spike",
+    "57829": "com.apple.WebKit.GPU",
+    "57830": "com.apple.WebKit.WebContent",
+    "57831": "com.apple.WebKit.Networking"
+   },
+   "cpu_pct": 0.05,
+   "top_cpu_pct": 0.0,
+   "top_power": 0.0,
+   "mem_mb_start": {
+    "57831": 5.0,
+    "57829": 23.0,
+    "57798": 74.0,
+    "57830": 22.0
+   },
+   "mem_mb_end": {
+    "57831": 4.9,
+    "57829": 12.0,
+    "57798": 69.0,
+    "57830": 21.0
+   },
+   "mem_total_start": 124.0,
+   "mem_total_end": 106.9,
+   "rss_mb_start": 231.5,
+   "mem_marks": null,
+   "gpu_util_avg": 1,
+   "first_frame_ms": 426.38775,
+   "frame_stats": [
+    {
+     "draw_ms": 2.463917,
+     "event": "frame_stats",
+     "frames": 1,
+     "kind": "native",
+     "visibility_checks": 0
+    }
+   ]
+  },
+  {
+   "label": "native anim=10",
+   "kind": "native",
+   "anim": 10,
+   "extra": [],
+   "seconds": 21.7,
+   "processes": {
+    "62431": "floor-spike",
+    "62437": "com.apple.WebKit.GPU",
+    "62439": "com.apple.WebKit.WebContent",
+    "62465": "com.apple.WebKit.Networking"
+   },
+   "cpu_pct": 0.97,
+   "top_cpu_pct": 0.8,
+   "top_power": 0.8,
+   "mem_mb_start": {
+    "62465": 4.9,
+    "62439": 22.0,
+    "62437": 22.0,
+    "62431": 573.0
+   },
+   "mem_mb_end": {
+    "62465": 4.9,
+    "62439": 21.0,
+    "62437": 12.0,
+    "62431": 572.0
+   },
+   "mem_total_start": 621.9,
+   "mem_total_end": 609.9,
+   "rss_mb_start": 226.2,
+   "mem_marks": null,
+   "gpu_util_avg": 0.8,
+   "first_frame_ms": 162.086875,
+   "frame_stats": [
+    {
+     "draw_ms": 100.12408300000006,
+     "event": "frame_stats",
+     "frames": 299,
+     "kind": "native",
+     "visibility_checks": 59
+    }
+   ]
+  },
+  {
+   "label": "native anim=30",
+   "kind": "native",
+   "anim": 30,
+   "extra": [],
+   "seconds": 21.8,
+   "processes": {
+    "70932": "floor-spike",
+    "71045": "com.apple.WebKit.GPU",
+    "71052": "com.apple.WebKit.WebContent",
+    "71060": "com.apple.WebKit.Networking"
+   },
+   "cpu_pct": 2.43,
+   "top_cpu_pct": 2.2,
+   "top_power": 2.2,
+   "mem_mb_start": {
+    "71060": 4.9,
+    "71052": 22.0,
+    "70932": 574.0,
+    "71045": 22.0
+   },
+   "mem_mb_end": {
+    "71060": 4.9,
+    "71052": 21.0,
+    "70932": 574.0,
+    "71045": 12.0
+   },
+   "mem_total_start": 622.9,
+   "mem_total_end": 611.9,
+   "rss_mb_start": 225.1,
+   "mem_marks": null,
+   "gpu_util_avg": 0.9,
+   "first_frame_ms": 93.598209,
+   "frame_stats": [
+    {
+     "draw_ms": 272.9283440000003,
+     "event": "frame_stats",
+     "frames": 898,
+     "kind": "native",
+     "visibility_checks": 59
+    }
+   ]
+  },
+  {
+   "label": "native anim=10 --cover-after 4",
+   "kind": "native",
+   "anim": 10,
+   "extra": [
+    "--cover-after",
+    "4"
+   ],
+   "seconds": 21.6,
+   "processes": {
+    "88865": "floor-spike",
+    "88990": "com.apple.WebKit.GPU",
+    "89000": "com.apple.WebKit.WebContent",
+    "89011": "com.apple.WebKit.Networking"
+   },
+   "cpu_pct": 0.92,
+   "top_cpu_pct": 0.8,
+   "top_power": 0.8,
+   "mem_mb_start": {
+    "89000": 22.0,
+    "88865": 573.0,
+    "89011": 4.9,
+    "88990": 22.0
+   },
+   "mem_mb_end": {
+    "89000": 21.0,
+    "88865": 573.0,
+    "89011": 4.9,
+    "88990": 12.0
+   },
+   "mem_total_start": 621.9,
+   "mem_total_end": 610.9,
+   "rss_mb_start": 224.5,
+   "mem_marks": null,
+   "gpu_util_avg": 1.8,
+   "first_frame_ms": 128.125875,
+   "frame_stats": [
+    {
+     "draw_ms": 96.97499700000002,
+     "event": "frame_stats",
+     "frames": 299,
+     "kind": "native",
+     "visibility_checks": 59
+    }
+   ]
+  },
+  {
+   "label": "native anim=10 --minimize-after 4",
+   "kind": "native",
+   "anim": 10,
+   "extra": [
+    "--minimize-after",
+    "4"
+   ],
+   "seconds": 22.1,
+   "processes": {
+    "90488": "floor-spike",
+    "90491": "com.apple.WebKit.GPU",
+    "90492": "com.apple.WebKit.WebContent",
+    "90493": "com.apple.WebKit.Networking"
+   },
+   "cpu_pct": 1.31,
+   "top_cpu_pct": 1.1,
+   "top_power": 1.1,
+   "mem_mb_start": {
+    "90488": 75.0,
+    "90491": 24.0,
+    "90492": 22.0,
+    "90493": 4.9
+   },
+   "mem_mb_end": {
+    "90488": 69.0,
+    "90491": 24.0,
+    "90492": 29.0,
+    "90493": 4.8
+   },
+   "mem_total_start": 125.9,
+   "mem_total_end": 126.8,
+   "rss_mb_start": 227.8,
+   "mem_marks": null,
+   "gpu_util_avg": 5.8,
+   "first_frame_ms": 226.40337499999998,
+   "frame_stats": [
+    {
+     "draw_ms": 17.866915,
+     "event": "frame_stats",
+     "frames": 44,
+     "kind": "native",
+     "visibility_checks": 59
+    }
+   ]
+  },
+  {
+   "label": "web anim=10, 10 minutes",
+   "kind": "web",
+   "anim": 10,
+   "extra": [],
+   "seconds": 601.9,
+   "processes": {
+    "91225": "floor-spike",
+    "91235": "com.apple.WebKit.GPU",
+    "91236": "com.apple.WebKit.WebContent",
+    "91237": "com.apple.WebKit.Networking",
+    "91238": "com.apple.WebKit.WebContent"
+   },
+   "cpu_pct": 4.64,
+   "top_cpu_pct": 3.7,
+   "top_power": 3.7,
+   "mem_mb_start": {
+    "91235": 317.0,
+    "91236": 22.0,
+    "91237": 5.0,
+    "91238": 31.0,
+    "91225": 52.0
+   },
+   "mem_mb_end": {
+    "91235": 319.0,
+    "91236": 23.0,
+    "91237": 5.8,
+    "91238": 58.0,
+    "91225": 47.0
+   },
+   "mem_total_start": 427.0,
+   "mem_total_end": 452.8,
+   "rss_mb_start": 279.0,
+   "mem_marks": {
+    "60": {
+     "91235": 317.0,
+     "91236": 21.0,
+     "91237": 4.8,
+     "91238": 33.0,
+     "91225": 52.0
+    },
+    "300": {
+     "91235": 319.0,
+     "91236": 23.0,
+     "91237": 5.8,
+     "91238": 36.0,
+     "91225": 47.0
+    },
+    "590": {
+     "91235": 319.0,
+     "91236": 23.0,
+     "91237": 5.8,
+     "91238": 58.0,
+     "91225": 47.0
+    }
+   },
+   "gpu_util_avg": 1.6,
+   "first_frame_ms": 462.623167,
+   "frame_stats": [
+    {
+     "draw_ms": 720.0,
+     "event": "frame_stats",
+     "frames": 5862,
+     "hidden_events": 0,
+     "kind": "web",
+     "visibility": "visible"
+    }
+   ]
+  },
+  {
+   "label": "native anim=10, 10 minutes",
+   "kind": "native",
+   "anim": 10,
+   "extra": [],
+   "seconds": 601.9,
+   "processes": {
+    "58128": "floor-spike",
+    "58155": "com.apple.WebKit.GPU",
+    "58159": "com.apple.WebKit.WebContent",
+    "58161": "com.apple.WebKit.Networking"
+   },
+   "cpu_pct": 1.29,
+   "top_cpu_pct": 0.8,
+   "top_power": 0.8,
+   "mem_mb_start": {
+    "58128": 572.0,
+    "58161": 4.9,
+    "58155": 22.0,
+    "58159": 22.0
+   },
+   "mem_mb_end": {
+    "58128": 542.0,
+    "58161": 5.8,
+    "58155": 15.0,
+    "58159": 23.0
+   },
+   "mem_total_start": 620.9,
+   "mem_total_end": 585.8,
+   "rss_mb_start": 222.9,
+   "mem_marks": {
+    "60": {
+     "58128": 581.0,
+     "58161": 4.8,
+     "58155": 13.0,
+     "58159": 21.0
+    },
+    "300": {
+     "58128": 542.0,
+     "58161": 5.8,
+     "58155": 15.0,
+     "58159": 23.0
+    },
+    "590": {
+     "58128": 542.0,
+     "58161": 5.8,
+     "58155": 15.0,
+     "58159": 23.0
+    }
+   },
+   "gpu_util_avg": 8.5,
+   "first_frame_ms": 132.030542,
+   "frame_stats": [
+    {
+     "draw_ms": 3775.428654999994,
+     "event": "frame_stats",
+     "frames": 6090,
+     "kind": "native",
+     "visibility_checks": 1211
+    }
+   ]
+  }
+ ],
+ "gpu_idle_baseline": 9.4,
+ "leftovers": "none (checked with pgrep -x floor-spike after the run)"
+}

@@ -1,0 +1,211 @@
+<title>The Floor · Drawing spike</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root {
+    --bg: #0b0e14; --bg-hi: #10141b; --surface: #151a23; --surface-2: #1b212c; --line: #2f3645;
+    --ink: #f3f5f9; --muted: #b0b8c5; --faint: #8e97a6;
+    --accent: #8787f6; --accent-soft: #7c7cf41f; --web: #22d3ee; --nat: #fbbf24; --ok: #34d399; --bad: #f87171;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eceef3; --bg-hi: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --line: #d7dbe3;
+      --ink: #161a22; --muted: #4b5466; --faint: #667085;
+      --accent: #4747d1; --accent-soft: #4747d114; --web: #0e7490; --nat: #a16207; --ok: #047857; --bad: #b91c1c;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eceef3; --bg-hi: #f4f5f8; --surface: #ffffff; --surface-2: #f6f7fa; --line: #d7dbe3;
+    --ink: #161a22; --muted: #4b5466; --faint: #667085;
+    --accent: #4747d1; --accent-soft: #4747d114; --web: #0e7490; --nat: #a16207; --ok: #047857; --bad: #b91c1c;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+  .eyebrow { font: 600 11px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .08em; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.12; margin: 10px 0 12px; letter-spacing: -0.02em; text-wrap: balance; }
+  h2 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 10px; letter-spacing: -0.01em; text-wrap: balance; }
+  h3 { font-size: 1rem; margin: 0 0 6px; }
+  p { margin: 0 0 12px; max-width: 74ch; }
+  .lede { font-size: 1.06rem; color: var(--muted); max-width: 74ch; }
+  section { margin-top: 40px; }
+  ul { padding-left: 18px; margin: 0 0 10px; }
+  li { margin-bottom: 4px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+  .verdict { border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line)); background: linear-gradient(180deg, var(--accent-soft), transparent); }
+  .shot { background: var(--bg-hi); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin: 0; }
+  .shot img { display: block; width: 100%; height: auto; image-rendering: pixelated; aspect-ratio: 852 / 532; background: #0b0e14; }
+  .shot figcaption { padding: 10px 14px; font-size: .86rem; color: var(--muted); border-top: 1px solid var(--line); }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .76rem; border: 1px solid var(--line); white-space: nowrap; }
+  .tag.web { color: var(--web); border-color: color-mix(in srgb, var(--web) 60%, var(--line)); }
+  .tag.nat { color: var(--nat); border-color: color-mix(in srgb, var(--nat) 60%, var(--line)); }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 600; background: var(--surface-2); }
+  tbody th { font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr:last-child td, tr:last-child th { border-bottom: 0; }
+  .muted { color: var(--muted); }
+  code { font: .85em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+  pre { font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; }
+  .big { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .kpi .l { font-size: .8rem; color: var(--muted); }
+  .kpi .v { display: flex; gap: 14px; align-items: baseline; margin-top: 4px; }
+  .kpi .v { flex-wrap: wrap; }
+  .kpi .v span { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .kpi .v .w { color: var(--web); } .kpi .v .n { color: var(--nat); }
+  .kpi .v small { font-size: .74rem; color: var(--faint); font-weight: 500; }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">AI Juggler · 0.5 · the Floor · measured spike</div>
+  <h1>Drawing the Floor: a webview canvas or a native window</h1>
+  <p class="lede">Two minimal spikes draw the same office from the same data. The office has 8 App zones, 150 desks and 142 people, 40 of whom move: 33 typing, 6 walking and one waving with a bubble, plus a small desk fire. A fixed camera looks onto a back wall with windows and doors and a glass side wall, drawn at 852×532 and scaled up with hard edges. Each spike draws only when something changes, in a window that pops out beside a minimal Tauri main window, as AI Juggler's would. Measured on this Mac on {{WHEN}}, then checked on GitHub's Windows and Linux runners.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">CPU at 10 fps, % of one core</div><div class="v"><span class="w">CANVAS_10</span><small>Canvas</small><span class="n">NATIVE_10</span><small>native</small></div></div>
+    <div class="kpi"><div class="l">CPU at 30 fps</div><div class="v"><span class="w">CANVAS_30</span><small>Canvas</small><span class="n">NATIVE_30</span><small>native</small></div></div>
+    <div class="kpi"><div class="l">Memory while animating, all processes</div><div class="v"><span class="w">CANVAS_MEM</span><small>Canvas</small><span class="n">NATIVE_MEM</span><small>native</small></div></div>
+    <div class="kpi"><div class="l">At rest, covered or minimised</div><div class="v"><span class="w">≈ 0</span><small>Canvas</small><span class="n">≈ 0–1</span><small>native</small></div></div>
+  </div>
+
+  <div class="card verdict" style="margin-top:18px">
+    <h3>Recommendation: VERDICT_HEAD</h3>
+    VERDICT_BODY
+  </div>
+
+  <section>
+    <div class="eyebrow">01 · the two spikes</div>
+    <h2>The same scene, drawn two ways</h2>
+    <div style="display:grid;gap:16px">
+      <figure class="shot"><img id="webimg" alt="The office drawn by the Canvas 2D spike: a back wall with night windows, an elevator, a whiteboard and clocks; a glass side wall with the meeting room; eight coloured App zones of desks with seated people; walkers in the aisles; someone waving under an exclamation bubble; a small desk fire."><figcaption><span class="tag web">Option 1 · Canvas 2D</span> A second Tauri webview window. The room is projected once with our own maths into a cached 852×532 image, and people, desks, the bubble and the fire are cached sprites, depth-sorted and drawn with <code>drawImage</code>. The compositor scales the canvas up with <code>image-rendering: pixelated</code>. Six frames, captured from the canvas.</figcaption></figure>
+      <figure class="shot"><img id="natimg" alt="The same office drawn by the native wgpu spike, identical apart from where the walkers and typists are in their cycle."><figcaption><span class="tag nat">Option 3 · native wgpu</span> A second, native window of the same Rust process (a Tauri window with no webview), drawn by wgpu on its own render thread. The scene is the same: background and sprite atlas are textures, and each frame is two draw calls, the background and then every sprite instanced. Six frames, read back from the GPU.</figcaption></figure>
+    </div>
+    <p class="muted" style="font-size:.86rem;margin-top:10px">Both draw from one Rust scene generator (projection, rasteriser, sprite atlas). Their frames match pixel for pixel apart from where the animation is in its cycle. Each window has a way back: the Canvas window has a button and a right-click menu, the native window an app-menu item, "Open Sessions in the main window" (⌘⇧S). Both call the same command, which brings the main window forward on that screen. I couldn't click the native menu from here (no UI automation on this Mac), so try it with the command in §05.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">02 · this Mac</div>
+    <h2>CPU, energy and memory</h2>
+    <p>Every row is a fresh launch: 7 s to settle, then 20 s measured (10 minutes for the long run), with the Floor window kept on top so "visible" really is visible. CPU is the cumulative CPU time of every process the app brings, as a percentage of one core: the app itself, plus the WebKit WebContent, GPU and Networking processes that macOS starts for its webviews through launchd. Energy is <code>top</code>'s POWER column for the same processes. Memory is <code>footprint</code> (physical footprint). For comparison, the main window alone, the baseline in every row, uses {{BASE_CPU}} CPU and {{BASE_MEM}} ({{BASE_PROCS}}); the brackets show what the Floor adds.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th></th><th class="num">CPU <span class="tag web">Canvas</span></th><th class="num">CPU <span class="tag nat">native</span></th><th class="num">Energy <span class="tag web">Canvas</span></th><th class="num">Energy <span class="tag nat">native</span></th><th class="num">Memory <span class="tag web">Canvas</span></th><th class="num">Memory <span class="tag nat">native</span></th></tr></thead>
+      <tbody>{{MAC_TABLE}}</tbody>
+    </table></div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="card">
+        <h3>Where the time goes</h3>
+        <ul>
+          <li><b>Canvas:</b> our drawing is about 0.2 ms a frame. Most of the cost is WebKit compositing the canvas across three processes (the app, WebContent and the WebKit GPU process) on every frame.</li>
+          <li><b>Native:</b> about 0.35 ms a frame including present, all in the app's render thread.</li>
+          <li>GPU utilisation (<code>ioreg</code>, whole machine) stayed at idle level for both, about {{GPU_IDLE}} %. The scene is trivial for this GPU.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Memory: a fixed graphics charge in both</h3>
+        <ul>
+          <li>While a window keeps presenting frames, macOS charges a block of GPU memory that <code>footprint</code> lists as "Owned physical footprint (unmapped) (graphics)": about 292 MB in WebKit's GPU process for the Canvas, and about 502 MB in the app for native.</li>
+          <li><b>It is not our textures</b>, which total about 4 MB. It's the same at 1278×798 and at 640×400 (native 571 vs 565 MB; WebKit GPU 317 vs 317 MB).</li>
+          <li>It didn't shrink when the native surface was cut to the art's size, or when finished GPU work was freed every frame.</li>
+          <li>It goes away at rest, when covered and when minimised.</li>
+          <li>Over 10 minutes at 10 fps: Canvas {{WEB_MARKS}} MB, native {{NAT_MARKS}} MB (at 1, 5 and 10 minutes). Neither leaks.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Covered and minimised</h3>
+        <ul>
+          <li><b>Canvas:</b> WebKit marks the page hidden and our ticker stops.</li>
+          <li><b>Native:</b> it asks AppKit twice a second whether the window can be seen, and stops drawing when it can't. It still used about 1 % of a core while covered, in the app process, and that residual isn't explained yet.</li>
+          <li><b>Partly covered counts as visible,</b> for macOS and for both spikes. That is the right behaviour.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Start-up, size, build</h3>
+        <ul>
+          <li><b>First frame</b> after asking for the window: Canvas {{WEB_FF}} ms; native {{NAT_FF}} ms.</li>
+          <li><b>Release binary:</b> 11.7 MB with the Canvas window only. wgpu adds 4.2 MB (15.9 MB).</li>
+          <li><b>Clean release build on this Mac</b> (4 jobs, low priority): 63 s with the Canvas window only, 75 s with wgpu. wgpu adds about 12 s, or 52 s of CPU time.</li>
+          <li><b>Processes:</b> Canvas runs {{WEB_PROCS}}; native runs {{NAT_PROCS}}. The native window adds no process; the main window's own WebKit processes stay in both.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">03 · Windows and Linux</div>
+    <h2>Does it run, and how do the two compare there</h2>
+    <p>Run by the <code>floor-spike</code> workflow on this branch only (manual dispatch works too), on GitHub's free runners. <b>They have no GPU</b>, so everything renders in software: WebView2 and WebKitGTK compositing in software, and wgpu on WARP (Windows) or llvmpipe (Linux). The numbers compare the two options on a weak machine; they are not what a laptop with a GPU would see.</p>
+    <div class="grid2">{{CI}}</div>
+    <ul style="margin-top:12px">
+      <li><b>Both options build, open, draw at the asked frame rate and quit cleanly on both systems.</b></li>
+      <li><b>Windows Canvas:</b> WebView2 with software compositing is expensive, about 15–20 % of a core at 10 fps and about 80 % at 30 fps, consistent across runs.</li>
+      <li><b>Windows native:</b> WARP was unstable across runs. One run used 0.8 % at 10 fps; another pegged four cores at about 150 ms per frame. No conclusion about native CPU on Windows without a GPU, beyond "it runs".</li>
+      <li><b>Linux:</b> both draw their full frame counts, but the runner's CPU readings didn't reflect the work. The app shows 0.1 % while drawing 30 frames a second, and the X server and WebKit processes never appear among the top users. So Linux proves only that it runs. A real Linux reading needs a desktop session with a GPU.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="eyebrow">04 · what it would take to build</div>
+    <h2>Beyond the numbers</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3><span class="tag web">Canvas</span> comes with</h3>
+        <ul>
+          <li>Text, hover, tooltips, context menus and focus.</li>
+          <li>The accessible list view, and the same React and Tauri stack as the rest of AI Juggler.</li>
+          <li>Visibility handling: WebKit and WebView2 hide the page when it is minimised or covered.</li>
+          <li>The round trip to the main window is one command.</li>
+          <li><b>Risk:</b> each animated frame goes through the browser's compositor in other processes. That made it 4× the native CPU here, and very expensive in software on Windows.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="tag nat">native</span> needs, on top</h3>
+        <ul>
+          <li><b>Input and visibility.</b> Tauri 2.12 passes no mouse, keyboard or occlusion events to a window without a webview (<code>WindowEvent</code> has none). Clicks, hover and "am I covered?" need code per OS: AppKit on macOS, Win32 on Windows, GTK on Linux. The spike polls AppKit for visibility.</li>
+          <li><b>Text.</b> Labels and bubble words need a text renderer such as glyphon or cosmic-text, which adds more megabytes and build time. Neither spike draws text.</li>
+          <li><b>Accessibility.</b> There's nothing for screen readers unless AccessKit is wired in, so the list view would live in the main window.</li>
+          <li><b>Menus</b> work through Tauri's menu: the spike's "Open Sessions in the main window" proves the round trip.</li>
+          <li><b>One way to close the gaps:</b> a transparent child webview over the native surface for text, input and menus. It would redraw only when labels change, while the pixels animate in wgpu. That isn't tried yet; Tauri's multi-webview API is still marked unstable.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">05 · how to check it</div>
+    <h2>Run it yourself</h2>
+    <p>The source is on the <code>proto/floor-office</code> branch in <code>spikes/floor-spike</code>, with its own workspace; it never joins the app's build. Each command opens a window and quits by itself.</p>
+<pre>cd spikes/floor-spike
+nice -n 10 cargo build --release -j 4
+./target/release/floor-spike --open web --anim 10 --exit-after 30      # option 1
+./target/release/floor-spike --open native --anim 10 --exit-after 30   # option 3; menu: Floor ▸ Open Sessions (⌘⇧S)
+python3 measure/run.py > measure/out/results-mac.json                  # the full measurement, about 27 minutes</pre>
+    <p class="muted" style="font-size:.86rem">Switches:</p>
+    <ul class="muted" style="font-size:.86rem">
+      <li><code>--anim 0|10|30</code>: frames per second while people animate (0: nothing moves);</li>
+      <li><code>--cover-after S</code> and <code>--minimize-after S</code>;</li>
+      <li><code>--size WxH</code>;</li>
+      <li><code>--art-surface</code> (native only: draw at art size and let macOS scale up);</li>
+      <li><code>--capture DIR</code>.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function () {
+  const web = {{WEB_FRAMES}}, nat = {{NAT_FRAMES}};
+  const wi = document.getElementById('webimg'), ni = document.getElementById('natimg');
+  let k = 0;
+  function show() { if (web.length) wi.src = 'data:image/png;base64,' + web[k % web.length]; if (nat.length) ni.src = 'data:image/png;base64,' + nat[k % nat.length]; }
+  show();
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce) setInterval(() => { if (document.visibilityState === 'visible') { k++; show(); } }, 200);
+})();
+</script>

@@ -1,0 +1,20 @@
+<ul>
+  <li><b>Why.</b> On this Mac the native window costs about a quarter of the Canvas window's CPU and energy at every frame rate:
+    <ul>
+      <li>0.8 vs 3.1 % of a core at 6 fps;</li>
+      <li>1.0 vs 4.1 % at 10 fps;</li>
+      <li>2.4 vs 11.0 % at 30 fps;</li>
+      <li>1.3 vs 4.6 % over ten minutes.</li>
+    </ul>
+    Slowing the Canvas down doesn't close that gap: even at 6 fps it sits at about the old budget of 3 points of a core while animating. The native window also shows its first frame sooner and adds no process. At rest, covered and minimised, both cost close to nothing.</li>
+  <li><b>What it costs instead.</b>
+    <ul>
+      <li>About 190 MB more graphics memory while animating: about 620 MB in all against about 430 MB. Both carry a fixed charge macOS makes for a presenting GPU layer, and it isn't explained yet.</li>
+      <li>4.2 MB more binary and about 12 s more build.</li>
+      <li>More code: per-OS input and visibility (Tauri gives a window without a webview no mouse, keyboard or occlusion events), a text renderer, and accessibility outside the canvas.</li>
+    </ul></li>
+  <li><b>Condition 1: close the gaps cheaply.</b> Prove in the next step that input and visibility on macOS and Windows, plus text and menus, work. The leading idea is a transparent child webview over the native surface. If that proves fragile, fall back to option 1 with a frame cap.</li>
+  <li><b>Condition 2: a rule for machines without a GPU.</b> On Windows without one, wgpu's software adapter pegged four cores in two of three runs. Detect a software adapter and drop to 1–2 fps, or to the Canvas path.</li>
+  <li><b>Condition 3: animate on attention.</b> Animate only while the Floor is visible and was looked at recently. That also releases the fixed graphics memory both options hold while animating.</li>
+</ul>
+<p style="margin:8px 0 0">If engineering time matters more than CPU and energy, option 1 is the safe choice: it is simpler, accessible, and identical everywhere. It costs about 3–4 % of a core while people move on this Mac, and much more in software on Windows.</p>

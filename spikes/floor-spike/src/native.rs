@@ -272,6 +272,8 @@ fn render_loop(instance: wgpu::Instance, surface: wgpu::Surface<'static>, scene:
         };
         gpu.draw(scene, t, &frame.texture.create_view(&wgpu::TextureViewDescriptor::default()));
         gpu.queue.present(frame);
+        // Let wgpu free what finished frames used (upload buffers, command buffers) without waiting.
+        let _ = gpu.device.poll(wgpu::PollType::Poll);
         let mut s = stats.lock().unwrap();
         s.frames += 1;
         s.draw_ms += t0.elapsed().as_secs_f64() * 1000.0;

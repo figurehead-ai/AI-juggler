@@ -1,0 +1,193 @@
+{
+ "os": "win32",
+ "runner": "Windows",
+ "runs": [
+  {
+   "kind": "none",
+   "anim": 0,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe",
+    "svchost.exe"
+   ],
+   "cpu_pct": 0.7,
+   "machine_cpu_pct": 3.5,
+   "rss_mb": 272.6,
+   "top_cpu_users": [
+    "System Idle Process: 396.8%",
+    "msedgewebview2.exe: 0.7%",
+    "MpDefenderCoreService.exe: 0.5%",
+    "hosted-compute-agent: 0.3%",
+    "WaAppAgent.exe: 0.2%",
+    "LsaIso.exe: 0.2%"
+   ],
+   "first_frame_ms": null,
+   "frames": null,
+   "draw_ms_per_frame": null,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/153123.776:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 0,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 0.1,
+   "machine_cpu_pct": 31.2,
+   "rss_mb": 356.2,
+   "top_cpu_users": [
+    "System Idle Process: 369.1%",
+    "WmiPrvSE.exe: 4.3%",
+    "taskhostw.exe: 3.3%",
+    "lsass.exe: 0.7%",
+    "System: 0.7%",
+    "svchost.exe: 0.3%"
+   ],
+   "first_frame_ms": 321,
+   "frames": 1,
+   "draw_ms_per_frame": 2.6,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/153158.122:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 10,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 17.7,
+   "machine_cpu_pct": 20.9,
+   "rss_mb": 371.2,
+   "top_cpu_users": [
+    "System Idle Process: 379.3%",
+    "msedgewebview2.exe: 17.7%",
+    "dwm.exe: 2.2%",
+    "System: 0.4%",
+    "hosted-compute-agent: 0.3%",
+    "provjobd.exe1266385594: 0.2%"
+   ],
+   "first_frame_ms": 302,
+   "frames": 301,
+   "draw_ms_per_frame": 1.02,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/153232.388:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 30,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 72.9,
+   "machine_cpu_pct": 79.3,
+   "rss_mb": 367.1,
+   "top_cpu_users": [
+    "System Idle Process: 322.0%",
+    "msedgewebview2.exe: 53.6%",
+    "msedgewebview2.exe: 19.1%",
+    "dwm.exe: 3.4%",
+    "provjobd.exe1266385594: 0.2%",
+    "Runner.Listener.exe: 0.2%"
+   ],
+   "first_frame_ms": 317,
+   "frames": 941,
+   "draw_ms_per_frame": 0.76,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/153306.648:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 0,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 0.0,
+   "machine_cpu_pct": 0.4,
+   "rss_mb": 290.9,
+   "top_cpu_users": [
+    "System Idle Process: 399.5%",
+    "provjobd.exe1266385594: 0.2%",
+    "WindowsAzureGuestAgent.exe: 0.2%"
+   ],
+   "first_frame_ms": 350,
+   "frames": 1,
+   "draw_ms_per_frame": 2.14,
+   "adapter": "AdapterInfo { name: \"Microsoft Basic Render Driver\", vendor: 5140, device: 140, device_type: Cpu, device_pci_bus_id: \"\", driver: \"10.0.20348.5756\", driver_info: \"\", backend: Dx12, subgroup_min_size: 4, subgroup_max_size: 4, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/153340.835:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 10,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 386.8,
+   "machine_cpu_pct": 389.6,
+   "rss_mb": 296.7,
+   "top_cpu_users": [
+    "floor-spike.exe: 384.4%",
+    "System Idle Process: 10.3%",
+    "provjobd.exe1266385594: 2.4%",
+    "Runner.Worker.exe: 0.6%",
+    "dockerd.exe: 0.4%",
+    "vctip.exe: 0.3%"
+   ],
+   "first_frame_ms": 157,
+   "frames": 248,
+   "draw_ms_per_frame": 131.4,
+   "adapter": "AdapterInfo { name: \"Microsoft Basic Render Driver\", vendor: 5140, device: 140, device_type: Cpu, device_pci_bus_id: \"\", driver: \"10.0.20348.5756\", driver_info: \"\", backend: Dx12, subgroup_min_size: 4, subgroup_max_size: 4, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/153414.953:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 30,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 387.9,
+   "machine_cpu_pct": 391.8,
+   "rss_mb": 298.1,
+   "top_cpu_users": [
+    "floor-spike.exe: 387.9%",
+    "System Idle Process: 8.4%",
+    "provjobd.exe1266385594: 1.0%",
+    "Runner.Worker.exe: 0.9%",
+    "dockerd.exe: 0.4%",
+    "Runner.Listener.exe: 0.4%"
+   ],
+   "first_frame_ms": 146,
+   "frames": 247,
+   "draw_ms_per_frame": 132.68,
+   "adapter": "AdapterInfo { name: \"Microsoft Basic Render Driver\", vendor: 5140, device: 140, device_type: Cpu, device_pci_bus_id: \"\", driver: \"10.0.20348.5756\", driver_info: \"\", backend: Dx12, subgroup_min_size: 4, subgroup_max_size: 4, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/153449.063:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  }
+ ]
+}

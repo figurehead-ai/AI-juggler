@@ -1,0 +1,145 @@
+{
+ "os": "win32",
+ "runner": "Windows",
+ "runs": [
+  {
+   "kind": "none",
+   "anim": 0,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe",
+    "svchost.exe"
+   ],
+   "cpu_pct": 2.0,
+   "machine_cpu_pct": 6.2,
+   "rss_mb": 274.2,
+   "first_frame_ms": null,
+   "frames": null,
+   "draw_ms_per_frame": null,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/145602.143:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 0,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 0.0,
+   "machine_cpu_pct": 0.4,
+   "rss_mb": 347.9,
+   "first_frame_ms": 334,
+   "frames": 1,
+   "draw_ms_per_frame": 3.2,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/145636.492:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 10,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 15.1,
+   "machine_cpu_pct": 22.0,
+   "rss_mb": 366.2,
+   "first_frame_ms": 311,
+   "frames": 301,
+   "draw_ms_per_frame": 1.02,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/145710.795:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 30,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 83.0,
+   "machine_cpu_pct": 113.6,
+   "rss_mb": 367.1,
+   "first_frame_ms": 335,
+   "frames": 942,
+   "draw_ms_per_frame": 0.91,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/145745.076:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 0,
+   "processes": [
+    "MpCmdRun.exe",
+    "MpDefenderCoreService.exe",
+    "MsMpEng.exe",
+    "conhost.exe",
+    "floor-spike.exe",
+    "msedgewebview2.exe",
+    "wevtutil.exe"
+   ],
+   "cpu_pct": 34.2,
+   "machine_cpu_pct": 40.9,
+   "rss_mb": 476.2,
+   "first_frame_ms": 542,
+   "frames": 1,
+   "draw_ms_per_frame": 2.53,
+   "adapter": "AdapterInfo { name: \"Microsoft Basic Render Driver\", vendor: 5140, device: 140, device_type: Cpu, device_pci_bus_id: \"\", driver: \"10.0.20348.5756\", driver_info: \"\", backend: Dx12, subgroup_min_size: 4, subgroup_max_size: 4, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/145819.538:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 10,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 0.8,
+   "machine_cpu_pct": 1.6,
+   "rss_mb": 296.3,
+   "first_frame_ms": 154,
+   "frames": 329,
+   "draw_ms_per_frame": 0.67,
+   "adapter": "AdapterInfo { name: \"Microsoft Basic Render Driver\", vendor: 5140, device: 140, device_type: Cpu, device_pci_bus_id: \"\", driver: \"10.0.20348.5756\", driver_info: \"\", backend: Dx12, subgroup_min_size: 4, subgroup_max_size: 4, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/145853.698:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 30,
+   "processes": [
+    "floor-spike.exe",
+    "msedgewebview2.exe"
+   ],
+   "cpu_pct": 2.3,
+   "machine_cpu_pct": 4.0,
+   "rss_mb": 298.8,
+   "first_frame_ms": 148,
+   "frames": 987,
+   "draw_ms_per_frame": 0.78,
+   "adapter": "AdapterInfo { name: \"Microsoft Basic Render Driver\", vendor: 5140, device: 140, device_type: Cpu, device_pci_bus_id: \"\", driver: \"10.0.20348.5756\", driver_info: \"\", backend: Dx12, subgroup_min_size: 4, subgroup_max_size: 4, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "[1103/145927.837:ERROR:window_impl.cc(121)] Failed to unregister class Chrome_WidgetWin_0. Error = 1412"
+   ]
+  }
+ ]
+}

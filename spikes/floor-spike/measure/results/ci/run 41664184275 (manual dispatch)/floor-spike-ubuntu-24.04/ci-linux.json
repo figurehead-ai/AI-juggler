@@ -1,0 +1,224 @@
+{
+ "os": "linux",
+ "runner": "Linux",
+ "runs": [
+  {
+   "kind": "none",
+   "anim": 0,
+   "processes": [
+    "dbus-daemon",
+    "floor-spike",
+    "fusermount3",
+    "xdg-desktop-portal",
+    "xdg-document-portal",
+    "xdg-permission-store"
+   ],
+   "cpu_pct": 0.2,
+   "machine_cpu_pct": 0.8,
+   "rss_mb": 137.7,
+   "top_cpu_users": [
+    "Runner.Worker: 0.3%",
+    "provjobd4067888974: 0.2%",
+    "floor-spike: 0.1%",
+    "xdg-desktop-portal: 0.1%",
+    "containerd: 0.1%",
+    "dbus-daemon: 0.0%"
+   ],
+   "first_frame_ms": null,
+   "frames": null,
+   "draw_ms_per_frame": null,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "",
+    "(floor-spike:4704): dbind-WARNING **: 15:30:07.985: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 0,
+   "processes": [
+    "floor-spike"
+   ],
+   "cpu_pct": 0.1,
+   "machine_cpu_pct": 0.7,
+   "rss_mb": 103.8,
+   "top_cpu_users": [
+    "Runner.Worker: 0.2%",
+    "provjobd4067888974: 0.1%",
+    "floor-spike: 0.1%",
+    "python: 0.1%",
+    "python3: 0.0%",
+    "hosted-compute-agent: 0.0%"
+   ],
+   "first_frame_ms": 5345,
+   "frames": 1,
+   "draw_ms_per_frame": 6.0,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "",
+    "(floor-spike:4837): dbind-WARNING **: 15:31:12.192: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 10,
+   "processes": [
+    "floor-spike",
+    "xdg-desktop-portal"
+   ],
+   "cpu_pct": 0.2,
+   "machine_cpu_pct": 0.8,
+   "rss_mb": 118.1,
+   "top_cpu_users": [
+    "provjobd4067888974: 0.2%",
+    "Runner.Worker: 0.2%",
+    "floor-spike: 0.1%",
+    "chronyd: 0.1%",
+    "xdg-desktop-portal: 0.1%",
+    "python: 0.1%"
+   ],
+   "first_frame_ms": 5215,
+   "frames": 316,
+   "draw_ms_per_frame": 3.0,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "",
+    "(floor-spike:4935): dbind-WARNING **: 15:32:21.134: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering"
+   ]
+  },
+  {
+   "kind": "web",
+   "anim": 30,
+   "processes": [
+    "floor-spike"
+   ],
+   "cpu_pct": 0.1,
+   "machine_cpu_pct": 0.6,
+   "rss_mb": 103.4,
+   "top_cpu_users": [
+    "Runner.Worker: 0.2%",
+    "provjobd4067888974: 0.1%",
+    "python: 0.1%",
+    "containerd: 0.1%",
+    "floor-spike: 0.1%",
+    "Runner.Listener: 0.0%"
+   ],
+   "first_frame_ms": 5217,
+   "frames": 859,
+   "draw_ms_per_frame": 2.99,
+   "adapter": null,
+   "exit_code": 0,
+   "log_tail": [
+    "",
+    "(floor-spike:5044): dbind-WARNING **: 15:33:29.965: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 0,
+   "processes": [
+    "floor-spike",
+    "xdg-desktop-portal"
+   ],
+   "cpu_pct": 0.2,
+   "machine_cpu_pct": 1.3,
+   "rss_mb": 118.3,
+   "top_cpu_users": [
+    "hv_kvp_daemon: 0.3%",
+    "Runner.Worker: 0.2%",
+    "provjobd4067888974: 0.2%",
+    "containerd: 0.1%",
+    "floor-spike: 0.1%",
+    "xdg-desktop-portal: 0.1%"
+   ],
+   "first_frame_ms": 6672,
+   "frames": 1,
+   "draw_ms_per_frame": 282.54,
+   "adapter": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "",
+    "(floor-spike:5140): dbind-WARNING **: 15:34:38.799: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 10,
+   "processes": [
+    "floor-spike"
+   ],
+   "cpu_pct": 0.1,
+   "machine_cpu_pct": 1.2,
+   "rss_mb": 105.6,
+   "top_cpu_users": [
+    "provjobd4067888974: 0.2%",
+    "hv_kvp_daemon: 0.2%",
+    "Runner.Worker: 0.2%",
+    "python3: 0.1%",
+    "floor-spike: 0.1%",
+    "containerd: 0.1%"
+   ],
+   "first_frame_ms": 5114,
+   "frames": 330,
+   "draw_ms_per_frame": 5.63,
+   "adapter": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "",
+    "(floor-spike:5246): dbind-WARNING **: 15:35:48.908: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering"
+   ]
+  },
+  {
+   "kind": "native",
+   "anim": 30,
+   "processes": [
+    "floor-spike",
+    "kworker/2:1",
+    "xdg-desktop-portal"
+   ],
+   "cpu_pct": 0.2,
+   "machine_cpu_pct": 0.8,
+   "rss_mb": 120.7,
+   "top_cpu_users": [
+    "provjobd4067888974: 0.2%",
+    "Runner.Worker: 0.2%",
+    "python3: 0.1%",
+    "floor-spike: 0.1%",
+    "xdg-desktop-portal: 0.1%",
+    "systemd: 0.0%"
+   ],
+   "first_frame_ms": 5121,
+   "frames": 988,
+   "draw_ms_per_frame": 5.1,
+   "adapter": "AdapterInfo { name: \"llvmpipe (LLVM 20.1.2, 256 bits)\", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: \"\", driver: \"llvmpipe\", driver_info: \"Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2)\", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }",
+   "exit_code": 0,
+   "log_tail": [
+    "",
+    "(floor-spike:5367): dbind-WARNING **: 15:36:57.764: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering",
+    "libEGL warning: DRI3 error: Could not get DRI3 device",
+    "libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering"
+   ]
+  }
+ ]
+}
