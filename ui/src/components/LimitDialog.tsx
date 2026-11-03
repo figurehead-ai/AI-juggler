@@ -29,6 +29,7 @@ import { SuggestedMark } from "./SwitchTargetRows";
 import { IconClose } from "./icons-controls";
 import { resetsWords, whenWords } from "../lib/time-words";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
+import { folderAppName } from "../lib/app-name";
 
 function inWords(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
@@ -209,12 +210,12 @@ export function LimitDialog({
               ) : target ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">Continue now on {target.account_label}</span>
+                    <span className="text-sm font-medium">Continue now in {folderAppName(target.account_id, target.account_label)}</span>
                     {target.suggested && <SuggestedMark />}
                   </div>
                   {ready && (
                     <p className="text-xs text-success" data-testid="limit-ready">
-                      Ready to continue on {target.account_label} · prepared {ago(now - ready.prepared_at_ms)}
+                      Ready to continue in {folderAppName(target.account_id, target.account_label)} · prepared {ago(now - ready.prepared_at_ms)}
                     </p>
                   )}
                   {target.room.kind === "credits" && target.room.credits && (
@@ -245,7 +246,7 @@ export function LimitDialog({
                     </p>
                   )}
                   <Button size="sm" variant="primary" data-autofocus onClick={() => onContinue(target)}>
-                    Continue on {target.account_label}
+                    Continue in {folderAppName(target.account_id, target.account_label)}
                   </Button>
                 </>
               ) : (

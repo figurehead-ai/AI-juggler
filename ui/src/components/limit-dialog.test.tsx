@@ -88,7 +88,7 @@ describe("D-25 limit decision — the dialog", () => {
     expect(dialog.textContent).toContain(`It ${resetsWords(reset, NOW)}, in 2 h 10 min.`);
     expect(dialog.textContent).toContain(`At ${whenWords(reset, NOW)} it's offered back to you`);
     expect(within(getByTestId("limit-wait")).getByRole("button", { name: `Park until ${whenWords(reset, NOW)}` })).toBeTruthy();
-    fireEvent.click(await findByRole("button", { name: "Continue on Personal" }));
+    fireEvent.click(await findByRole("button", { name: "Continue in Personal" }));
     expect(onContinue).toHaveBeenCalledWith(expect.objectContaining({ recipe_id: "r-acct-personal" }));
     expect(w().__AIJ_PARK_CALLS__).toBeUndefined();
   });
@@ -104,7 +104,7 @@ describe("D-25 limit decision — the dialog", () => {
       fidelity_words: "Full story",
     };
     const { findByTestId } = renderIt();
-    expect((await findByTestId("limit-ready")).textContent).toBe("Ready to continue on Personal · prepared 3 min ago");
+    expect((await findByTestId("limit-ready")).textContent).toBe("Ready to continue in Personal · prepared 3 min ago");
   });
 
   it("says nothing about a prepared switch for another account", async () => {
@@ -118,7 +118,7 @@ describe("D-25 limit decision — the dialog", () => {
       fidelity_words: "Full story",
     };
     const { findByRole, queryByTestId } = renderIt();
-    await findByRole("button", { name: "Continue on Personal" });
+    await findByRole("button", { name: "Continue in Personal" });
     expect(queryByTestId("limit-ready")).toBeNull();
   });
 

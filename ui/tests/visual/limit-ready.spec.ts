@@ -1,6 +1,6 @@
 /**
  * AJ-E1513 gallery: the limit dialog when the switch was prepared before
- * the limit — "Ready to continue on Work Max · prepared 4 min ago" under
+ * the limit — "Ready to continue in Claude Code · Work Max · prepared 4 min ago" under
  * the pick. Both themes; axe 0 critical/serious on each.
  */
 import AxeBuilder from "@axe-core/playwright";
@@ -47,8 +47,8 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme);
     await page.getByTestId("home-needs").getByRole("button", { name: /^Continue elsewhere/ }).first().click();
     const dialog = page.getByTestId("limit-dialog");
-    await expect(dialog.getByTestId("limit-ready")).toHaveText("Ready to continue on Work Max · prepared 4 min ago");
-    await expect(dialog.getByRole("button", { name: "Continue on Work Max" })).toBeVisible();
+    await expect(dialog.getByTestId("limit-ready")).toHaveText(/^Ready to continue in (Claude Code · )?Work Max · prepared 4 min ago$/);
+    await expect(dialog.getByRole("button", { name: /^Continue in (Claude Code · )?Work Max$/ })).toBeVisible();
     await page.mouse.move(0, 0);
     const results = await new AxeBuilder({ page }).analyze();
     const bad = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
