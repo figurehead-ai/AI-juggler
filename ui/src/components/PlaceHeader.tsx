@@ -93,14 +93,22 @@ export function PlaceHeader({
         <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
           {children ?? (place && <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />)}
-          <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
-          {/* The profile: its dot and name, beside the icon (D-38). The
-              folded summary gives way first. */}
-          {place?.profile && (
-            <span className="flex min-w-[4ch] shrink items-center gap-[3px] text-label font-medium text-muted" data-testid="place-profile">
-              <ProfileBadge app={place.key} name={place.profile} size={6} />
-              <span className="truncate">{place.profile}</span>
-            </span>
+          {/* An App with its own name: that name with its dot first, then
+              its app's word, muted, which gives way first but keeps enough
+              to tell "Claude Code" from "Claude app" (the 0.4 review:
+              "Claude Code · P…" cut the one word that told two Apps
+              apart); the full name is the button's. The folded summary
+              gives way before either. */}
+          {place?.profile ? (
+            <>
+              <span className="ml-0.5 flex max-w-[60%] min-w-[4ch] shrink-0 items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
+                <ProfileBadge app={place.key} name={place.profile} size={6} />
+                <span className="truncate">{place.profile}</span>
+              </span>
+              <span className="min-w-0 shrink truncate text-label text-muted">{label}</span>
+            </>
+          ) : (
+            <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
           )}
           {/* Folded, its summary ("4 idle"), unless the amber chip needs
               the room (the profile's name keeps it). */}
@@ -128,7 +136,9 @@ export function PlaceHeader({
           aria-label={`Open ${name}`}
           title={shortcut ? `${openWords} (⌘${shortcut})` : openWords}
           data-testid="place-open"
-          className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          // On hover and keyboard focus, as the rows' tools (the 0.4
+          // review: always shown, it took the room the App's name needs).
+          className="hidden size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:flex focus-visible:ring-1 focus-visible:ring-accent/60 group-hover/head:flex group-has-[:focus-visible]/head:flex"
         >
           {/* Its ↗, as a row's: the way out to the app. The words are its
               name; the room goes to the place's app and profile. */}
