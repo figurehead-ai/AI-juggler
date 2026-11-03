@@ -382,7 +382,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await openWorkMaxSession(page);
     const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText(["Overview", "Usage", "Processes"]);
+    await expect(tabs).toHaveText(["Overview", "Pools", "Usage", "Processes"]);
     await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
@@ -394,7 +394,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
     await seedInspectorPage(page, vp);
     await openWorkAccount(page);
     const tabs = page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab");
-    await expect(tabs).toHaveText([/^Overview/, /^Apps/, /^Sessions/, /^Projects/, /^Usage/, /^Settings/]);
+    await expect(tabs).toHaveText([/^Overview/, /^Apps/, /^Sessions/, /^Projects/, /^Pools/, /^Usage/, /^Settings/]);
     await tabs.filter({ hasText: /^Sessions/ }).click();
     await expect(tabs.filter({ hasText: /^Sessions/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("page-panel-sessions").getByTestId("page-session-row").first()).toBeVisible();
