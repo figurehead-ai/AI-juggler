@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (0.3.6)
+
+- **Usage numbers, after the usage audit** (docs/releases/0.3.6.md,
+  docs/research/model-pricing.md):
+  - each call's detail beyond its classes is read and kept in the derived
+    `usage_detail` table (outside the numbered schema; `REREAD_VERSION`
+    7 reads history again): Claude's 1-hour cache writes, the prompt's
+    size, speed and inference place, and a Codex thread's kind and
+    conversation (`session_meta.source`, `session_id`);
+  - every call is priced when it is stored (`PricingCatalog::price_event`:
+    long-context, fast-mode and 1-hour rates, US-only 1.1×; seed v4 adds
+    Claude Haiku 5.5) and its cost kept with the prices' version; a new
+    table or a user override re-prices in batches (`UsageRepo::reprice`);
+    summaries add the stored costs (`GroupCost`);
+  - "tokens" everywhere are new tokens (`fold::io`, `newTokens`: input,
+    cache writes, output and reasoning; cache reads apart), and a Codex
+    review's or subagent's thread counts under its conversation
+    (`HourRow::conversation`);
+  - a limit's percentage is the vendor's reading, verbatim; the
+    projection since is `WindowReading::projected`, shown apart as an
+    estimate.
+
 ### Added (0.3.5)
 
 - **Switch to Desktop or CLI** (docs/releases/0.3.5.md): the preflight's

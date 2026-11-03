@@ -13,10 +13,20 @@ Tokens and cost per session, per profile, per account and per project,
 counted from the tools' own records on your Mac: Claude Code's transcripts
 and Codex's session logs. It doesn't ask any provider for anything.
 
+- **New tokens** are what each call sent or made for the first time:
+  input, cache writes, output and reasoning. What was re-read from the
+  cache is shown apart. Claude sends nearly all new input as cache
+  writes, so counting only input and output would make it look far
+  smaller than it is.
 - A conversation that was resumed counts its earlier messages once, under
   the session where they first happened.
-- Costs use the providers' published prices. A model without a published
-  price says "No list price" instead of $0.
+- A subagent's work and Codex's automatic code reviews count under the
+  conversation that started them, not as sessions of their own.
+- Costs use the providers' published prices, each call at the rate it is
+  billed at: a long prompt's higher rate (Codex over 272K tokens of input,
+  Claude Haiku 5.5 over 100,000), Claude's 1-hour cache writes, fast mode
+  and US-only inference. A model without a published price says "No list
+  price" instead of $0.
 
 ### Prices and details
 
@@ -27,7 +37,7 @@ providers' API list prices.
   your plan's fee), and the models with no list price. Those models are
   named and left out of the total, never counted as $0.
 - Below, one row per session and day: the session's title and project,
-  its model, the estimate in US dollars, and its tokens in and out. A
+  its model, the estimate in US dollars, and its new tokens. A
   session that used several models that day shows the main one and
   "+1" (or more); click it to see each model's part. "≥ $0.42" means one
   of those models has no list price, so the real figure is at least that.
@@ -63,8 +73,11 @@ Your plan's 5-hour and weekly limits, as the tool itself reports them.
 - **"Not measured yet"** means the tool hasn't reported this limit to AI
   Juggler. AI Juggler never guesses a percentage. It shows the tokens you've
   used instead.
-- **"As of 12 min ago"** says when the limit was last measured. A limit
-  changes as you use it, so an older reading is less certain.
+- **"As of 12 min ago"** says when the limit was last measured. The
+  percentage is that reading, exactly as the tool reported it.
+- **"About 30% left now (estimate)"** appears when you've worked since the
+  reading: AI Juggler's estimate from your use since then, shown apart
+  from the reading and never in its place.
 - **"Not measured since the reset"** means the limit has reset and nothing
   newer has been measured.
 - A reset time is shown only when the tool reported one.
