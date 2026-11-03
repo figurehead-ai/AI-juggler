@@ -158,7 +158,9 @@ describe("AJ-E3206 a CLI App wears one colour on every surface", () => {
     const chip = render(<AccountMenu model={model} account={ACCOUNT} />);
     const button = chip.getByTestId("session-account-menu");
     expect(badgeIn(button)).toBe(work);
-    expect(button.style.borderColor).not.toBe("");
+    // Its dot alone wears the colour: a coloured border made it a pill like
+    // the state's beside it (the 0.4 review).
+    expect(button.style.borderColor).toBe("");
   });
 
   it("a rename, another App or a reload never moves it; another App is another colour", () => {
