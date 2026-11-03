@@ -111,7 +111,8 @@ filter = '''
 threads-required = 'num-test-threads'
 
 # Sleeps and launches timed against the clock (the flakes of 2026-10-30
-# to 11-02): one at a time.
+# to 11-02, and the stub launches of 11-03 on a loaded Mac): one at a
+# time.
 [[profile.default.overrides]]
-filter = 'binary_id(juggler-app::runtime) | binary_id(juggler-app::trust) | binary_id(juggler-app::identity_guard) | binary_id(juggler-supervisor::identity)'
+filter = 'binary_id(juggler-app::runtime) | binary_id(juggler-app::trust) | binary_id(juggler-app::identity_guard) | binary_id(juggler-supervisor::identity) | binary_id(juggler-app::codex_switch) | binary_id(juggler-app::in_place_accounts) | binary_id(juggler-app::juggling) | binary_id(juggler-app::processes)'
 test-group = 'timing'

@@ -139,8 +139,9 @@ fn drive_orphan_fixture(state: &Arc<AppState>, dir: &Path, id: &str) -> (Session
         )
         .unwrap();
 
-    // Tick until the tree shows root + child (the snapshot source).
-    let deadline = Instant::now() + Duration::from_secs(20);
+    // Tick until the tree shows root + child (the snapshot source); room
+    // for a loaded shared Mac.
+    let deadline = Instant::now() + Duration::from_secs(45);
     let mut child_pid = 0_u32;
     let state_ref = &state;
     while Instant::now() < deadline {

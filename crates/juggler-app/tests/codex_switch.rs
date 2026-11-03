@@ -77,7 +77,9 @@ fn brief_of(args: &[String]) -> String {
 
 fn args_of(home: &Path) -> Vec<String> {
     let file = home.join("last-args");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    // "Eventually": a loaded shared Mac (a security scan of each new stub)
+    // can take more than 10 s to start one; a calm one takes milliseconds.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
     while !file.is_file() {
         assert!(std::time::Instant::now() < deadline, "the stub never ran");
         std::thread::sleep(std::time::Duration::from_millis(20));
