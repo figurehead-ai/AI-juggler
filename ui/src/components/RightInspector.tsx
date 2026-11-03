@@ -1,14 +1,14 @@
 import { ToolChip } from "./ToolMark";
 import { matches } from "../lib/shortcuts";
 import { PageShell } from "../pages/PageShell";
-import { InspectorHeader, statusTone, toolRunning } from "../pages/ItemHeader";
+import { InspectorHeader, statusTone } from "../pages/ItemHeader";
 import { since } from "../lib/time-words";
 import { pageTabs, type PageKind, type PageTabId } from "../pages/registry";
 import { ProjectTab, useProjectTabCounts } from "../pages/project/ProjectTabs";
+import { ToolTab, useToolTabCounts } from "../pages/tool/ToolTabs";
 import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
-import { ToolUpdateLine } from "./ToolUpdateLine";
 import { identityWords } from "../lib/identity";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
@@ -26,19 +26,15 @@ import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo, FocusOutcomeInfo, InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge";
 import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
 import { WhenShown } from "../pages/PageShell";
-import { AccountRunway, runwayOf } from "./AccountRunway";
 import { QuotaBar } from "./primitives";
 import { useQualitySignals } from "../lib/kept-reads";
-import { quotaDisplayAll, type QuotaDisplayData, type SwitchBackSuggestionData, errorText,
-  signedIn,
-} from "../lib/bridge";
+import { type SwitchBackSuggestionData, errorText, signedIn } from "../lib/bridge";
 import { resourceLine } from "../lib/machine";
 import { modelName } from "./charts/colors";
 import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
-import { installWords, providerDisplayName } from "../lib/providers";
+import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
-import { useToolInstall } from "../lib/useToolInstall";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
@@ -172,6 +168,7 @@ export function RightInspector({
   const remote = data.remote ?? null;
   const { all: conversations } = useConversations();
   const projectCounts = useProjectTabCounts(data.project, sessions);
+  const toolCounts = useToolTabCounts(data.provider && !data.project ? { tool: data.provider, sessions, projects, accounts, now, onOpenSession, onOpenProject } : null);
   const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
   useEffect(() => {
@@ -195,7 +192,7 @@ export function RightInspector({
     desktop: data.instance?.kind === "desktop",
     ...sessionTabs,
     hasUsage: projectUsage,
-    counts: projectCounts,
+    counts: projectCounts ?? toolCounts,
   });
   const panelProps = {
     kind,
@@ -330,14 +327,15 @@ function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
         case "tasks":
         case "subagents":
         case "history":
+        case "pools":
           return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} onOpenProject={props.onOpenProject} /> : null;
         default:
           return null;
       }
     case "project": // 0.3: its seven tabs (pages/project/ProjectTabs).
       return props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null;
-    case "provider":
-      return tab === "overview" ? <ProviderOverview {...props} /> : null;
+    case "provider": // AJ-E3104: its tabs (pages/tool/ToolTabs).
+      return props.data.provider ? <ToolTab {...props} tool={props.data.provider} tab={tab} /> : null;
     case "machine":
       return null;
   }
@@ -843,78 +841,6 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
 // --- AJ-E408: Provider / Account / Project content -----------------------
 
 export { installWords } from "../lib/providers";
-
-/** Provider Overview (§5.3): counts, worst-first aggregate, honest
- * capability/version badges. */
-function ProviderOverview(props: PanelProps) {
-  const provider = props.data.provider;
-  const install = useToolInstall(provider?.id ?? null);
-  const { all: conversations } = useConversations();
-  // One source per fact: each account's line is Runway's own (runwayOf).
-  const [quota, setQuota] = useState<QuotaDisplayData[]>([]);
-  useEffect(() => {
-    let alive = true;
-    quotaDisplayAll().then(
-      (rows) => alive && setQuota(rows),
-      () => undefined,
-    );
-    return () => {
-      alive = false;
-    };
-  }, [provider?.id]);
-  if (!provider) return <HonestEmpty tab="overview" />;
-  const providerAccounts = props.accounts.filter((a) => a.provider === provider.id);
-  const providerSessions = props.sessions.filter((s) => s.provider === provider.id);
-  // One count everywhere: its sessions running now, outside ones too (AJ-E1529).
-  const running = toolRunning(provider.id, props.sessions, conversations);
-  // Each account's runway, the least left first (recognition over
-  // recall); each line is the one Home, Usage and Accounts show.
-  const perAccount = providerAccounts
-    .map((account) => {
-      const display = quota.find((q) => q.account === account.id);
-      const sessions = providerSessions.filter((s) => s.account_id === account.id);
-      return { account, display, sessions, left: runwayOf(display, sessions).left };
-    })
-    .sort((a, b) => (a.left ?? Number.POSITIVE_INFINITY) - (b.left ?? Number.POSITIVE_INFINITY));
-  return (
-    <div className="flex flex-col gap-3" data-testid="provider-overview">
-      <Card className="flex flex-col gap-2 p-4">
-        <div className="flex flex-wrap items-center gap-2 text-meta">
-          <span className="text-ink">
-            {providerAccounts.length} app{providerAccounts.length === 1 ? "" : "s"}
-          </span>
-          <span className="text-muted">· {running} running</span>
-        </div>
-        {/* Shown once known; nothing in its place until then (D-25). */}
-        {install !== null && (
-          <p className="text-label text-muted" data-testid="provider-install">
-            {install === "failed" ? "Couldn't check what's installed" : installWords(install)}
-          </p>
-        )}
-        {/* AJ-E1611: a newer version, and how to update it yourself. */}
-        <ToolUpdateLine tool={provider.id} name={providerDisplayName(provider.id)} />
-      </Card>
-      <Card className="flex flex-col gap-1.5 p-4" data-testid="provider-aggregate">
-        <p className="text-section font-semibold text-ink">Runway, least left first</p>
-        {perAccount.length === 0 ? (
-          <p className="text-meta text-ink-2">No apps for this tool yet.</p>
-        ) : (
-          perAccount.map(({ account, display, sessions }) => (
-            <div key={account.id} className="flex flex-col gap-1.5 py-1">
-              <span className="text-meta">
-                <span className="text-ink">{account.label}</span>
-                {!signedIn(account.login_state) ? <span className="text-muted"> · signed out</span> : null}
-              </span>
-              {/* D-25: a signed-out account with no reading says "signed
-                  out" above; its runway would only repeat it. */}
-              {display || signedIn(account.login_state) ? <AccountRunway display={display} sessions={sessions} /> : null}
-            </div>
-          ))
-        )}
-      </Card>
-    </div>
-  );
-}
 
 // --- AJ-E409: Quality/Performance tab (D-07 — signals, never a score) ---
 

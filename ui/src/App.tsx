@@ -273,7 +273,7 @@ export default function App() {
   // D-25: the account-limit decision, for this session id.
   const [limitFor, setLimitFor] = useState<string | null>(null);
   // The tool chip leaves the header when its view opens: focus follows.
-  const [inspectorFocus] = useState(0);
+  const [inspectorFocus, setInspectorFocus] = useState(0);
   const [switchFlow, setSwitchFlow] = useState<{ sessionId: string; targetProfileId: string; targetLabel: string } | null>(null);
   // AJ-E207: the suggested returns (reset-trigger cards) + the
   // switch-back review modal. Null = closed; suggest-only.
@@ -575,7 +575,7 @@ export default function App() {
       selectSession={selectSession}
       selectProject={selectProject}
       selectAccount={(id) => { setGlobal(null); setSelection({ kind: "app", id: cliAppId(id) }); }} // D-62: a folder is its CLI App
-      selectTool={() => openToolInSettings()}
+      selectTool={(id) => { setGlobal(null); setSelection({ kind: "provider", id }); setInspectorFocus((n) => n + 1); }} openToolSettings={openToolInSettings} // AJ-E3104: its page; focus follows
       selectPool={(id) => { setGlobal(null); setSelection({ kind: "pool", id }); }}
       openAccounts={() => setGlobal("accounts")} openHome={() => { setGlobal(null); setSelection({ kind: "none" }); }}
       stopSession={stopSession}

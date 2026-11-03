@@ -3857,9 +3857,9 @@ for (const theme of THEMES) {
   }
 }
 
-// AJ-E1025 — 72-tool-view: the tool's own view, opened from a session's
-// tool chip in the header ("About Claude Code"). It reads what is
-// installed in plain words and shows no task or decision code on any tab
+// AJ-E1025 — 72-tool-view: the tool's own page (AJ-E3104), opened from a
+// session's tool chip in the header ("About Claude Code"). It reads what
+// is installed in plain words and shows no task or decision code on any tab
 // (D-25) — 1280×800 + 1024×680 (the Tauri minimum) × light+dark.
 const TOOL_VIEW_VP = [
   { name: "1280x800", width: 1280, height: 800 },
@@ -3887,15 +3887,20 @@ for (const theme of THEMES) {
       const chip = page.getByRole("button", { name: "About Claude Code" });
       await expect(chip).toBeVisible();
       await chip.click();
-      // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
-      const tool = page.getByTestId("settings-tool").filter({ hasText: "Claude Code" });
-      await expect(tool).toBeVisible();
-      await expect(chip).toHaveCount(0); // the view doesn't link to itself
-      await expect(tool).toContainText(/Version \S+/);
+      // AJ-E3104: the tool's own page, its Apps, sessions, projects and
+      // pools counted beside their tabs; its Settings one click on.
+      const overview = page.getByTestId("provider-overview");
+      await expect(overview).toBeVisible();
+      await expect(chip).toHaveCount(0); // the page doesn't link to itself
+      await expect(page.getByTestId("provider-install")).toContainText(/Version \S+/);
+      await expect(page.getByRole("tab", { name: /^Sessions/ })).toBeVisible();
       await page.mouse.move(0, 0); // the chip's click would leave a hover on the nav line under it
       await page.screenshot({ path: resolve(GALLERY, `72-tool-view/overview-${vp.name}-${theme}.png`), fullPage: true });
-      const text = (await page.getByTestId("settings-pane-accounts").innerText()) ?? "";
+      const text = (await page.getByTestId("right-inspector").innerText()) ?? "";
       expect(text, "tool view").not.toMatch(/\bAJ-E\d+|\bE\d+\+|\(E\d+\)|\bD-\d{2}\b|lands with/);
+      // Its install and updates, in Settings › Accounts' Tools on this Mac.
+      await page.getByTestId("header-tool-settings").click();
+      await expect(page.getByTestId("settings-tool").filter({ hasText: "Claude Code" })).toContainText(/Version \S+/);
     });
   }
 }

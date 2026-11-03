@@ -1,10 +1,11 @@
 /**
- * 0.3 — a project's Pool tab: its own pool in brief — the sessions in it
- * and their states, what waits on you there — and "Open the pool ›" to
- * the pool's page, where it's watched and changed. A pool of yours for
- * this project is one click away too.
+ * 0.3 — a project's Pools tab (AJ-E3104: it was Pool): its own pool in
+ * brief — the sessions in it and their states, what waits on you there —
+ * and "Open the pool ›" to the pool's page, where it's watched and
+ * changed. Then every other pool its sessions are in, and the pools you
+ * made for it, each one click away.
  */
-import type { JSX } from "react";
+import { useCallback, useMemo, type JSX } from "react";
 import { Section } from "../../components/charts/ChartCard";
 import { PoolCardRows } from "../../components/PoolCards";
 import { IconPool } from "../../components/icons-actions";
@@ -14,13 +15,18 @@ import { defaultPoolIdOf, levelLabel, usePoolMembers, usePools } from "../../lib
 import { useTaskNeeds } from "../../lib/ipc/tasks";
 import { sessionState } from "../../lib/rail-items";
 import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
+import type { PoolInfo } from "../../lib/ipc/pools";
+import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 
 export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; sessions: InstanceInfo[]; now: number }): JSX.Element {
   const host = useActionHost();
   const poolId = defaultPoolIdOf(project.id);
   const pools = usePools()?.pools ?? [];
   const pool = pools.find((entry) => entry.id === poolId);
-  const yours = pools.filter((entry) => entry.kind === "user" && entry.project_id === project.id);
+  // Its other pools: the ones its sessions are in, and yours for it.
+  const mine = useMemo(() => sessions.filter((s) => s.project_id === project.id), [sessions, project.id]);
+  const forIt = useCallback((entry: PoolInfo) => entry.kind === "user" && entry.project_id === project.id, [project.id]);
+  const others = usePagePools("project", project.id, mine, forIt)?.filter((entry) => entry.id !== poolId);
   const list = usePoolMembers(poolId);
   const waiting = useTaskNeeds().filter((need) => need.pool_id === poolId);
   // Each state word, counted: "2 working · 1 asks you".
@@ -59,21 +65,17 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
           <p className="text-meta text-ink-2">Answer these in Needs you on Home, or on the pool's page.</p>
         </Section>
       )}
-      {yours.length > 0 && (
-        <Section title="Your pools for this project" testId="project-pool-yours">
-          <ul className="flex flex-col gap-1">
-            {yours.map((entry) => (
-              <li key={entry.id}>
-                <button type="button" onClick={() => open(entry.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-body text-ink outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60">
-                  <IconPool width={14} height={14} aria-hidden="true" className="shrink-0 text-muted" />
-                  <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-                  <span className="text-meta text-muted">{entry.members === 1 ? "1 member" : `${entry.members} members`} ›</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
+      <Section title="Its other pools" sub="pools of yours that hold its sessions, or were made for it" testId="project-pool-yours">
+        <RelatedPools
+          pools={others}
+          testId="project-other-pools"
+          inSection
+          teach={{
+            title: "No pool of yours holds this project's sessions yet",
+            body: "Its sessions are watched together in its own pool, above. Put some of them in a pool of their own from a session's ⋯ menu (Move to pool…) to give them roles.",
+          }}
+        />
+      </Section>
     </div>
   );
 }

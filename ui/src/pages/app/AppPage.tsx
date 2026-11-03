@@ -29,6 +29,7 @@ import { ProcessesView } from "../../screens/processes/ProcessesView";
 import { FolderMenu } from "../../components/InspectorHeaderMenu";
 import { errorText, hasLiveBackend, signedIn, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { useRelationCounts } from "../../lib/relation-counts";
+import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { useApps, type AppModel } from "../../lib/apps";
 import { appItems, appProjects, openHere } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
@@ -114,9 +115,12 @@ function AppBody({
   // relation counts); Projects, the projects its list shows.
   const related = useRelationCounts("app", app.id);
   const sessionsCount = hasLiveBackend() ? related?.sessions.all : items.length;
+  // AJ-E3104: the pools its sessions are in.
+  const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
+  const pools = usePagePools("app", app.id, own);
   const tabs = useMemo(
-    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, counts: { sessions: sessionsCount, projects: worked.length } }),
-    [app.folder, sessionsCount, worked.length, open],
+    () => pageTabs("app", { hasUsage: app.folder !== null, live: open > 0, counts: { sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
+    [app.folder, sessionsCount, worked.length, open, pools?.length],
   );
   return (
     <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col" data-testid="app-page" data-app-id={app.id}>
@@ -164,6 +168,16 @@ function AppBody({
               );
             case "projects":
               return <AppProjects projects={worked} sessions={items.length} now={now} onOpenProject={onOpenProject} />;
+            case "pools":
+              return (
+                <RelatedPools
+                  pools={pools}
+                  teach={{
+                    title: `No pools hold ${app.name}'s sessions yet`,
+                    body: "A session AI Juggler starts here joins its project's own pool and shows here; ones the app started itself aren't in pools.",
+                  }}
+                />
+              );
             case "usage":
               return app.folder && visible ? <AccountUsage account={app.folder} accounts={accounts} /> : null;
             case "processes":

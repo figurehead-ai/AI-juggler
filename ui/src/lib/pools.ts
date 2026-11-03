@@ -144,6 +144,12 @@ let current: PoolsInfo | null = null;
 const listeners = new Set<() => void>();
 let watching: (() => void) | null = null;
 
+/** Told whenever the pools' answer changes (a pool made, deleted, a
+ * session moved): the relation counts read again (AJ-E3104). */
+export function onPoolsChanged(listener: () => void): () => void {
+  return subscribe(listener);
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {

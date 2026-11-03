@@ -129,13 +129,13 @@ beforeEach(() => {
 describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   const kinds: { kind: InspectorSelection; name: string; type: string; tabs: string[] }[] = [
     // D-25: a session is titled by its label, else its place (branch, else folder).
-    { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Usage", "Processes"] },
-    // A tool's page is its body alone: no tab strip.
-    { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: [] },
+    { kind: { kind: "instance", id: "sess-1" }, name: "Untitled session · ai-juggler", type: "Session", tabs: ["Overview", "Pools", "Usage", "Processes"] },
+    // AJ-E3104: a tool's page leads to its Apps, sessions, projects and pools.
+    { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: ["Overview", "Apps", "Sessions 1", "Projects 1", "Pools"] },
     // Nothing measured yet: no Usage tab (no empty tabs).
     // 0.3: a project's seven doors (Usage once something is measured);
     // its crumb's last step is its name ("Projects › alpha").
-    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Tasks", "Pool", "Subagents", "History"] },
+    { kind: { kind: "project", id: "proj-1" }, name: "alpha", type: "alpha", tabs: ["Overview", "Sessions 1", "Tasks", "Pools", "Subagents", "History"] },
   ];
 
   for (const entry of kinds) {
@@ -219,9 +219,9 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
   // (⌥ changes what `key` reads; the digit comes from `code`).
   it("Option+Cmd/Ctrl+digit picks a tab; Cmd+digit alone doesn't", () => {
     const { container } = shell({ kind: "instance", id: "sess-1" });
-    fireEvent.keyDown(window, { key: "3", code: "Digit3", metaKey: true });
+    fireEvent.keyDown(window, { key: "4", code: "Digit4", metaKey: true });
     expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("false");
-    fireEvent.keyDown(window, { key: "£", code: "Digit3", metaKey: true, altKey: true });
+    fireEvent.keyDown(window, { key: "¢", code: "Digit4", metaKey: true, altKey: true });
     expect(container.querySelector("#page-tab-processes")!.getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement?.id).toBe("page-tab-processes");
   });

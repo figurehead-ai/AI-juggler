@@ -181,12 +181,9 @@ for (const theme of THEMES) {
         await expectRail(page);
         await openWorkMaxSession(page);
         await page.getByRole("button", { name: "About Claude Code" }).click();
-        // 0.1.5: the tool's view is Settings › Accounts' Tools on this Mac.
-        await expect(page.getByTestId("settings-tool").first()).toBeVisible();
-        // It opens on that section once its rows are drawn (the jump
-        // focuses the section's title), and with what's installed read.
-        await expect(page.locator("#settings-tools-title")).toBeFocused();
-        await expect(page.getByTestId("settings-tool").first()).not.toContainText("checking what's installed");
+        // AJ-E3104: the tool's own page, with what's installed read.
+        await expect(page.getByTestId("provider-overview")).toBeVisible();
+        await expect(page.getByTestId("provider-install")).toContainText(/Version \S+/);
         await page.mouse.move(0, 0);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`inspector-tool-${cell}.png`, SCREEN);

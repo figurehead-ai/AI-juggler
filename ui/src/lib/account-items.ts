@@ -34,8 +34,25 @@ export function accountApps(
   items: readonly RailItem[],
   byConversation: ReadonlyMap<string, string>,
 ): AccountApp[] {
+  return appRows(
+    apps.filter((app) => app.accountId === accountId || (app.folder !== null && folderIds.has(app.folder.id))),
+    items,
+    byConversation,
+  );
+}
+
+/** AJ-E3104: a tool's Apps, as an Account's are listed. */
+export function toolApps(apps: readonly AppModel[], tool: string, items: readonly RailItem[], byConversation: ReadonlyMap<string, string>): AccountApp[] {
+  return appRows(
+    apps.filter((app) => app.tool === tool),
+    items,
+    byConversation,
+  );
+}
+
+/** Each App with its sessions in `items`: busy ones first. */
+function appRows(apps: readonly AppModel[], items: readonly RailItem[], byConversation: ReadonlyMap<string, string>): AccountApp[] {
   return apps
-    .filter((app) => app.accountId === accountId || (app.folder !== null && folderIds.has(app.folder.id)))
     .map((app) => {
       const mine = appItems(items, app.railKey, byConversation);
       return {

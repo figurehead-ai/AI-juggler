@@ -1,7 +1,7 @@
 /**
- * AJ-E1025 (#80 review): the header's tool chip opens the tool's view and
- * leaves the header with it, so keyboard focus must follow into the
- * inspector — never drop to <body>.
+ * AJ-E1025 (#80 review): the header's tool chip opens the tool's page
+ * (AJ-E3104) and leaves the header with it, so keyboard focus must follow
+ * into the page — never drop to <body>.
  */
 import { cleanup, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -26,7 +26,7 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-it("Enter on About Claude Code opens Settings › Accounts at its tools, with focus on that section", async () => {
+it("Enter on About Claude Code opens the tool's page, with focus on its tabs", async () => {
   const user = userEvent.setup();
   const view = render(<App />);
   const rail = await waitFor(() => {
@@ -43,12 +43,11 @@ it("Enter on About Claude Code opens Settings › Accounts at its tools, with fo
   const chip = await view.findByRole("button", { name: "About Claude Code" });
   chip.focus();
   await user.keyboard("{Enter}");
-  // 0.1.5: the tool page folded into Settings › Accounts (its install
-  // and accounts), where the chip now leads.
-  const tool = await view.findByTestId("settings-tool");
-  expect(tool.textContent).toContain("Claude Code");
+  // AJ-E3104: the tool's own page (its Apps, sessions, projects and
+  // pools); its install and updates are one click on, in Settings.
+  await view.findByTestId("provider-overview");
+  expect(view.getByTestId("page-name").textContent).toBe("Claude Code");
   expect(view.queryByRole("button", { name: "About Claude Code" })).toBeNull();
-  // The opener went away: focus lands on the section, never on <body>.
-  await waitFor(() => expect(document.activeElement?.id).toBe("settings-tools-title"));
-  expect(document.activeElement?.textContent).toBe("Tools on this computer");
+  // The opener went away: focus lands on the page's tabs, never on <body>.
+  await waitFor(() => expect(document.activeElement?.getAttribute("role")).toBe("tab"));
 });

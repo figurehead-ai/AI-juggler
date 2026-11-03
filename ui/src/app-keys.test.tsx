@@ -290,8 +290,8 @@ describe("AJ-E1504 keys in the app", () => {
     fireEvent.click(row);
     await view.findByTestId("right-inspector");
     press({ key: "™", code: "Digit2", metaKey: true, altKey: true });
-    // A terminal's session: Overview (its terminal), then Usage.
-    await waitFor(() => expect(view.getByRole("tab", { selected: true }).textContent).toBe("Usage"));
+    // A terminal's session: Overview (its terminal), then its Pools.
+    await waitFor(() => expect(view.getByRole("tab", { selected: true }).textContent).toBe("Pools"));
     press({ key: "A", shiftKey: true, metaKey: true });
     await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Accounts"));
   });

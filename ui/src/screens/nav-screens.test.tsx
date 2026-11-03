@@ -316,18 +316,18 @@ describe("Pools and a project's page", () => {
   });
 
   it("a project's page has its seven tabs, Overview first", () => {
-    expect(pageTabs("project", { hasUsage: true, counts: { sessions: 3, tasks: 12 } }).map((tab) => [tab.label, tab.count])).toEqual([
+    expect(pageTabs("project", { hasUsage: true, counts: { sessions: 3, tasks: 12, pools: 2 } }).map((tab) => [tab.label, tab.count])).toEqual([
       ["Overview", undefined],
       ["Sessions", 3],
       ["Tasks", 12],
-      ["Pool", undefined],
+      ["Pools", 2],
       ["Subagents", undefined],
       ["Usage", undefined],
       ["History", undefined],
     ]);
   });
 
-  it("its Pool tab sums its pool up and opens the pool's page", async () => {
+  it("its Pools tab sums its own pool up and opens the pool's page", async () => {
     const actions = host();
     const view = render(
       <ActionHostProvider host={actions}>

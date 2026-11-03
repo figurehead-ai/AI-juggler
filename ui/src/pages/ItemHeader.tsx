@@ -253,6 +253,11 @@ export function InspectorHeader({
           New session here
         </Button>
       )}
+      {kind === "provider" && host.openToolSettings && (
+        <Button size="sm" variant="secondary" data-testid="header-tool-settings" onClick={() => host.openToolSettings!()}>
+          Tool settings
+        </Button>
+      )}
       {kind === "provider" && (
         <Button size="sm" variant="secondary" data-testid="header-add-account" onClick={() => window.dispatchEvent(new Event("aij:open-accounts"))}>
           Add app…

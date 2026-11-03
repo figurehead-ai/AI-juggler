@@ -40,7 +40,7 @@ export type PageTabId =
   | "tasks"
   | "subagents"
   | "access"
-  | "pool"
+  | "pools"
   | "projects"
   | "settings"
   | "apps";
@@ -69,7 +69,8 @@ const TAB: Record<PageTabId, PageTab> = {
   tasks: { id: "tasks", label: "Tasks", source: "the pool's tasks, kept by AI Juggler on this computer" },
   subagents: { id: "subagents", label: "Subagents", source: "the tool's own records of its subagents, read-only" },
   access: { id: "access", label: "Agent access", source: "your choices for this pool" },
-  pool: { id: "pool", label: "Pool", source: "AI Juggler's pools and the sessions' own transcripts" },
+  // AJ-E3104: the pools its sessions are in (a project's own and yours).
+  pools: { id: "pools", label: "Pools", source: "AI Juggler's pools, kept on this computer" },
   projects: { id: "projects", label: "Projects", source: "the tools' own session files" },
   settings: { id: "settings", label: "Settings", source: "your choices for this app" },
   apps: { id: "apps", label: "Apps", source: "AI Juggler's apps and their sign-ins" },
@@ -127,26 +128,28 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     case "session":
       // E18: its Messages, once it has any.
       return facts.desktop
-        ? [TAB.window, TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
-        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
+        ? [TAB.window, TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.pools, TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")]
+        : [{ ...TAB.terminal, label: "Overview" }, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasMessages, "messages"), ...when(facts.hasTasks, "tasks"), TAB.pools, TAB.usage, TAB.processes, ...when(facts.hasHistory, "history")];
     // 0.3 (the redesign, §3): everything about a project, its Overview
     // first (the work at a glance), then its sessions, its pool's tasks,
-    // its pool, its sessions' subagents, its usage and its past sessions.
+    // its pools (AJ-E3104: its own and yours), its sessions' subagents,
+    // its usage and its past sessions.
     case "project":
-      return [TAB.overview, TAB.sessions, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pool, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
+      return [TAB.overview, TAB.sessions, { ...TAB.tasks, source: "its pool's tasks, kept by AI Juggler on this computer" }, TAB.pools, TAB.subagents, ...when(facts.hasUsage, "usage"), { ...TAB.history, source: "the tools' own session files" }];
     // D-62 (AJ-E3204): what's open there and its room, then all its
     // sessions, the projects it worked in, its usage (where its folder
     // is known), its open sessions' processes, and its settings.
     case "app":
-      return [TAB.overview, TAB.sessions, TAB.projects, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
+      return [TAB.overview, TAB.sessions, TAB.projects, TAB.pools, ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes"), TAB.settings];
     // D-62 (AJ-E3205): its limits and what's open on it, then its Apps,
     // sessions, projects, usage and its own name and terms.
     case "subscription":
-      return [TAB.overview, TAB.apps, TAB.sessions, TAB.projects, TAB.usage, { ...TAB.settings, source: "your choices for this account" }];
+      return [TAB.overview, TAB.apps, TAB.sessions, TAB.projects, TAB.pools, TAB.usage, { ...TAB.settings, source: "your choices for this account" }];
     case "conversation":
       return [TAB.overview, ...when(facts.hasSubagents, "subagents"), ...when(facts.hasUsage, "usage"), ...when(facts.live, "processes")];
+    // AJ-E3104: its Apps, then everything they hold.
     case "tool":
-      return [TAB.overview];
+      return [TAB.overview, { ...TAB.apps, source: "AI Juggler's apps of this tool" }, TAB.sessions, TAB.projects, TAB.pools];
     case "machine":
       return [TAB.overview, TAB.processes, TAB.actions];
     case "remote-session":

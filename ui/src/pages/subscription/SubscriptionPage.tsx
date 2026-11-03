@@ -26,6 +26,7 @@ import { AccountAppRows } from "./AccountApps";
 import { AccountSettings } from "./AccountSettings";
 import { ChooseChip } from "./TermChoice";
 import { hasLiveBackend, quotaDisplayAll, type AccountInfo, type InstanceInfo, type ProjectInfo, type QuotaDisplayData } from "../../lib/bridge";
+import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { useRelationCounts } from "../../lib/relation-counts";
 import { accountApps, accountItems } from "../../lib/account-items";
 import { appProjects, openHere } from "../../lib/app-items";
@@ -97,7 +98,13 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   // relation counts); Apps and Projects, what their lists show.
   const related = useRelationCounts("subscription", sub.account_id);
   const sessionsCount = hasLiveBackend() ? related?.sessions.all : items.length;
-  const tabs = useMemo(() => pageTabs("subscription", { counts: { apps: onIt.length, sessions: sessionsCount, projects: worked.length } }), [onIt.length, sessionsCount, worked.length]);
+  // AJ-E3104: the pools its sessions are in.
+  const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
+  const pools = usePagePools("subscription", sub.account_id ?? "", own);
+  const tabs = useMemo(
+    () => pageTabs("subscription", { counts: { apps: onIt.length, sessions: sessionsCount, projects: worked.length, pools: pools?.length } }),
+    [onIt.length, sessionsCount, worked.length, pools?.length],
+  );
   const renewal = renewalLabel(sub.renewal_date, now);
   const facts = [
     accountLine(sub),
@@ -174,6 +181,13 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
               );
             case "projects":
               return <AppProjects projects={worked} sessions={items.length} now={now} onOpenProject={onOpenProject} />;
+            case "pools":
+              return (
+                <RelatedPools
+                  pools={pools}
+                  teach={{ title: `No pools hold ${name}'s sessions yet`, body: "A session AI Juggler starts in one of its Apps joins its project's own pool and shows here; ones an app started itself aren't in pools." }}
+                />
+              );
             case "usage":
               return visible ? <AccountUsageTab name={name} folders={[...folderIds]} accounts={accounts} /> : null;
             case "settings":

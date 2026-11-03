@@ -132,6 +132,10 @@ export function PageHeader({
   );
 }
 
+/** The last focus request a page took (each is taken once, by the page
+ * shown when it's made, never by the pages opened after it). */
+let focusHonoured = 0;
+
 export function PageShell({
   kind,
   tabs,
@@ -240,7 +244,8 @@ export function PageShell({
     [keep],
   );
   useEffect(() => {
-    if (focusTabsRequest > 0) pendingFocus.current = focusTabsRequest;
+    // Each request once, though the page it opens is a new shell.
+    if (focusTabsRequest > focusHonoured) pendingFocus.current = focusHonoured = focusTabsRequest;
   }, [focusTabsRequest]);
   useEffect(() => {
     if (pendingFocus.current === 0) return;

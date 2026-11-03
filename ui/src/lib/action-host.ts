@@ -60,7 +60,10 @@ export interface ActionHost {
   toggleDefaultAccount?: (account: AccountInfo) => void;
   removeAccount?: (account: AccountInfo) => void;
   // Tools
+  /** AJ-E3104: its page (its Apps, sessions, projects and pools). */
   openTool?: (tool: ToolSpecInfo) => void;
+  /** Its install, version and updates, in Settings. */
+  openToolSettings?: () => void;
   copyUpdateCommand?: (tool: ToolSpecInfo) => void | Promise<void>;
   toolAccounts?: (tool: ToolSpecInfo) => void;
   // History

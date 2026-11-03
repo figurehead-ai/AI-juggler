@@ -31,6 +31,7 @@ export function AppActions({
   selectProject,
   selectAccount,
   selectTool,
+  openToolSettings,
   selectPool,
   openAccounts,
   openHome,
@@ -44,6 +45,8 @@ export function AppActions({
   selectProject: (id: string) => void;
   selectAccount: (id: string) => void;
   selectTool: (id: string) => void;
+  /** A tool's install, version and updates, in Settings. */
+  openToolSettings: () => void;
   /** AJ-E1703: a pool's page. */
   selectPool: (id: string) => void;
   openAccounts: () => void;
@@ -117,9 +120,10 @@ export function AppActions({
       setProjectAccount: (project) => selectProject(project.id),
       openAccount: (account) => selectAccount(account.id),
       openTool: (tool) => selectTool(tool.id),
+      openToolSettings,
       toolAccounts: () => openAccounts(),
       copyUpdateCommand: (tool) => copy(tool.install_command ?? "", `Copied ${tool.display_name}'s update command. Paste it into a terminal.`),
     };
-  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, selectPool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
+  }, [selectConversation, conversations, selectSession, selectProject, selectAccount, selectTool, openToolSettings, selectPool, openAccounts, openHome, stopSession, newSessionIn, refresh]);
   return <ActionHostProvider host={host}>{children}</ActionHostProvider>;
 }

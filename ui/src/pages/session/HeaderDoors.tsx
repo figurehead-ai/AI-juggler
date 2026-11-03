@@ -5,8 +5,8 @@
  * into ellipses at 1280 px): its pool, opening the pool's page (a pool of
  * yours, or its project's own pool once another session shares it; a
  * session alone there has nothing to see), and its tool, which opens
- * the tool's details in Settings › Accounts (moved here from the window's
- * top bar, which lost its title).
+ * the tool's page (AJ-E3104; its Settings one click on from there),
+ * moved here from the window's top bar, which lost its title.
  */
 import type { JSX } from "react";
 import { useActionHost } from "../../components/ItemMenu";
@@ -58,7 +58,7 @@ export function SessionToolChip({ tool }: { tool: string }): JSX.Element | null 
         type="button"
         onClick={() => host.openTool?.(spec)}
         aria-label={`About ${spec.display_name}`}
-        title={`About ${spec.display_name}`}
+        title={`Open ${spec.display_name}'s page`}
         className={DOOR}
         data-testid="context-tool"
       >

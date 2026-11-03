@@ -11,7 +11,8 @@ import { useEffect } from "react";
 import { hasLiveBackend, onSessionsUpdated } from "./bridge";
 import { onConversationsChanged } from "./ipc/conversations";
 import { onPlacesChanged } from "./ipc/places";
-import { relationsCounts, type EntityKind, type RelationCountsInfo } from "./ipc/relations";
+import { relationsCounts, relationsRelated, type EntityKind, type RelationCountsInfo } from "./ipc/relations";
+import { onPoolsChanged } from "./pools";
 import { sharedReads, useSharedRead } from "./shared-read";
 
 const KEY = ":";
@@ -26,11 +27,16 @@ const countsOf = sharedReads<RelationCountsInfo | undefined>(async (key) => {
  * after it settles. */
 const SETTLE_MS = 250;
 
-/** `kind` `id`'s counts (`null` kind: none asked). */
-export function useRelationCounts(kind: EntityKind | null, id: string | null | undefined): RelationCountsInfo | undefined {
-  const live = hasLiveBackend();
-  const key = live && kind && id != null ? `${kind}${KEY}${id}` : null;
-  const source = key ? countsOf(key) : null;
+/** AJ-E3104: which of one kind an entity's sessions are on, by
+ * `of${KEY}kind${KEY}id`. */
+const relatedOf = sharedReads<string[] | undefined>(async (key) => {
+  const [of, kind, ...id] = key.split(KEY);
+  return (await relationsRelated({ kind: kind as EntityKind, id: id.join(KEY) }, of as EntityKind))?.ids;
+});
+
+/** Read `source` again once a change that could move a count settles:
+ * sessions, the tools' conversations, the apps' places, the pools. */
+function useReadAgain(source: { refresh: () => Promise<unknown> } | null): void {
   useEffect(() => {
     if (!source) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -38,11 +44,30 @@ export function useRelationCounts(kind: EntityKind | null, id: string | null | u
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void source.refresh(), SETTLE_MS);
     };
-    const stops = [onSessionsUpdated(again), onConversationsChanged(again), onPlacesChanged(again)];
+    const stops = [onSessionsUpdated(again), onConversationsChanged(again), onPlacesChanged(again), onPoolsChanged(again)];
     return () => {
       if (timer) clearTimeout(timer);
       stops.forEach((stop) => stop());
     };
   }, [source]);
+}
+
+/** `kind` `id`'s counts (`null` kind: none asked). */
+export function useRelationCounts(kind: EntityKind | null, id: string | null | undefined): RelationCountsInfo | undefined {
+  const live = hasLiveBackend();
+  const key = live && kind && id != null ? `${kind}${KEY}${id}` : null;
+  const source = key ? countsOf(key) : null;
+  useReadAgain(source);
+  return useSharedRead(source) ?? undefined;
+}
+
+/** AJ-E3104: the ids of the `of`s `kind` `id`'s sessions are on (its
+ * Pools tab's pools), sorted; `undefined` until read, and always in the
+ * design preview (its pages work them out from what they show). */
+export function useRelatedIds(kind: EntityKind | null, id: string | null | undefined, of: EntityKind): string[] | undefined {
+  const live = hasLiveBackend();
+  const key = live && kind && id != null ? `${of}${KEY}${kind}${KEY}${id}` : null;
+  const source = key ? relatedOf(key) : null;
+  useReadAgain(source);
   return useSharedRead(source) ?? undefined;
 }
