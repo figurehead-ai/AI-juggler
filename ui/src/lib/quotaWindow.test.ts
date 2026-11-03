@@ -41,7 +41,7 @@ it("the vendor's reading stands as read; the projection since is apart, called a
   // reading and still said Measured.
   const view = windowView(windowDisplay("tracking", { percentage: 64, projected_pct: 71.4, badge: "measured", measured_at_ms: NOW - 40 * MIN }));
   expect(view.left).toBe(36);
-  expect(view.words).toBe("36% left · as of 40 min ago · about 29% left now (estimate)");
+  expect(view.words).toBe("36% left · as of 40 min ago · estimated 29% left now");
 });
 
 it("after the reset with no new reading: not measured, never 0% or the old number", () => {

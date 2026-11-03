@@ -126,7 +126,7 @@ export function usedTokensWords(windows: ReadonlyArray<WindowDisplay | null | un
  * said Measured): apart, and called an estimate. `null` without one. */
 export function projectedWords(window: WindowDisplay): string | null {
   if (window.projected_pct == null) return null;
-  return `about ${Math.max(0, Math.round(100 - window.projected_pct))}% left now (estimate)`;
+  return `estimated ${Math.max(0, Math.round(100 - window.projected_pct))}% left now`;
 }
 
 /** True when the window carries a real percentage (never a default). */
