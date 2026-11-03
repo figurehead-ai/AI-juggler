@@ -7,7 +7,7 @@
 //! - Remove forgets an account used where it is without touching its
 //!   folder; a copy's folder stays, or goes to the Trash when the user
 //!   chooses that (never deleted). Open sessions refuse it, by name. Its
-//!   history stays, marked "removed account".
+//!   history stays, marked "removed app".
 //! - The global and per-project defaults; every change is an audit row.
 
 #![allow(
@@ -302,7 +302,7 @@ fn removing_an_account_used_where_it_is_never_touches_its_folder() {
     let storage = state.storage.lock().unwrap();
     let rows = commands::session_infos_snapshot(&storage).unwrap();
     assert_eq!(rows.len(), 1, "the session's history stays");
-    assert_eq!(rows[0].account_label, "Mine (removed account)");
+    assert_eq!(rows[0].account_label, "Mine (removed app)");
     assert_eq!(rows[0].account_id.as_deref(), Some("acc-own"));
     drop(storage);
 

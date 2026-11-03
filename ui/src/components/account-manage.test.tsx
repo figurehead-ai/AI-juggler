@@ -144,7 +144,7 @@ describe("AJ-E1501 the remove sheet", () => {
     expect(sheet.dataset.kind).toBe("in-place");
     expect(sheet.textContent).toContain("Your folder stays exactly as it is");
     expect(sheet.textContent).toContain("~/.claude");
-    expect(sheet.textContent).toContain("marked “removed account”");
+    expect(sheet.textContent).toContain("marked “removed app”");
     expect(view.queryByTestId("remove-folder-trash")).toBeNull();
     fireEvent.click(view.getByTestId("remove-account-confirm"));
     await waitFor(() => expect(remove).toHaveBeenCalledWith("acc-own", "keep"));

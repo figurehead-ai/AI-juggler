@@ -7,7 +7,7 @@
 //!   where it is (ADR-0018) keeps its folder untouched; a copy's folder
 //!   stays, or goes to the Trash when the user chooses that. An account
 //!   with open sessions is refused, naming them. Its sessions' history
-//!   stays readable, marked "removed account".
+//!   stays readable, marked "removed app".
 //! - Deleting launch settings (D-60) works the same way: refused while
 //!   one of their sessions is open, then marked removed; the sessions
 //!   made with them stay in History.

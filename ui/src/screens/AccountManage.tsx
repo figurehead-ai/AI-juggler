@@ -156,7 +156,7 @@ export function RemoveAccountModal({
             </div>
           </>
         )}
-        {open.length === 0 && <p className="text-xs text-ink-2">Its past sessions stay in History, marked “removed account”.</p>}
+        {open.length === 0 && <p className="text-xs text-ink-2">Its past sessions stay in History, marked “removed app”.</p>}
         {error && (
           <p className="text-xs text-danger" role="alert">
             {error}

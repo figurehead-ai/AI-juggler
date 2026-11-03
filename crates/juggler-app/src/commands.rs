@@ -4634,7 +4634,7 @@ pub(crate) fn session_join_indexes(storage: &Storage) -> AppResult<(AccountIndex
         .into_iter()
         .map(|account| {
             let label = if removed.contains(account.id.as_str()) {
-                format!("{} (removed account)", account.label)
+                format!("{} (removed app)", account.label)
             } else {
                 account.label
             };
