@@ -11,7 +11,16 @@
 > - this folder's 2D renderer as the fallback where hardware WebGL is
 >   missing (notably WebKitGTK).
 >
-> No build until the maintainer picks a look. Everything below describes
+> **Picked look (2026-11-03):** between B and C. It keeps A's high fixed
+> angle and see-through cutaway, uses fine pixel art (not chunky) and has no
+> rotation. `pixel-office.html` with `pixel-office.js` mocks it:
+> - a three.js scene seen from one fixed camera;
+> - rendered at a reduced internal resolution and scaled up with hard edges;
+> - a small pixel filter (colour steps, depth outlines);
+> - crisp labels on an overlay.
+>
+> A frame measured about 2 ms at any pixel size in the in-app browser.
+> No build until the maintainer confirms. Everything below describes
 > the stopped top-down round; its layout, data map, people-from-parts and
 > cost lessons carry over.
 
@@ -33,6 +42,7 @@
 |---|---|
 | `office-engine.js` | The prototype engine: seeded layout (bays, floors, rooms), the people and props generator, the on-demand Canvas 2D renderer, hit-testing and the desk vignette. Plain JS, no libraries. |
 | `prototype.html` | A playable page on synthetic data (generic names). It covers the three company sizes, events (App overload, Mac overload, close an App, +1 week), the Office settings, Needs you, the inspector with doors, the list view and a live cost readout. |
+| `pixel-office.html`, `pixel-office.js`, `pixel-measured.js` | The picked look: a fixed-angle pixel office mock with pixel-size, light and outline controls, a frame-cost measurement, and how to build it. |
 | `angled-office.html`, `angled-mocks.js` | The angled-camera research page and its three mocks: A isometric pixel, B three.js 3D, C cutaway building. |
 | `measure/measure.cjs` | The CPU measurement: headless WebKit and Chromium, 1440×900 at 2×, 15 s per scenario. CPU is read from the OS for the browser's whole process tree (WebKit's launchd-started WebContent, GPU and Networking processes included), and the page's own draw time is read inside it. |
 
