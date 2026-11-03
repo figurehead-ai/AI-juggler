@@ -63,7 +63,7 @@ for (const theme of ["dark", "light"] as const) {
     await projectLens(page);
     const rail = page.getByTestId("rail");
     await expect(rail.getByTestId("rail-project").first().getByTestId("mark-project")).toBeVisible();
-    await expect(rail.getByTestId("account-stack").first()).toBeVisible();
+    await expect(rail.getByTestId("app-stack").first()).toBeVisible();
     await rail.getByTestId("rail-fold").first().click();
     await expect(rail.getByTestId("rail-folded-stripe")).toHaveCount(1);
     await shoot(page, "rail-folded", theme);

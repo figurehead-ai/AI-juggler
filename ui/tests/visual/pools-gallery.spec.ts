@@ -98,7 +98,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`a session's Move to pool — ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await page.locator('[data-instance-id="sess-live-1"]').click({ button: "right" });
+    await page.getByTestId("rail").locator('[data-instance-id="sess-live-1"]').click({ button: "right" });
     await page.getByRole("menuitem", { name: "Move to pool…" }).click();
     const sheet = page.getByTestId("pool-move-sheet");
     await expect(sheet.getByTestId("pool-move-choice")).toHaveCount(3);

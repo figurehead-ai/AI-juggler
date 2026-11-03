@@ -538,8 +538,9 @@ test("status is never colour-only", async ({ page }) => {
   await expect(rail.getByTestId("place-board")).toBeVisible();
   const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // Open now and Ended today: a dot in the state's colour, its word beside
-  // it in words (E21's vocabulary), the row's name leading with that word.
-  const vocabulary = /^(Asks you|Probably asks you|Working|Idle|Done, review it|Ended)$/;
+  // it in words (E21's vocabulary, or why it needs you: needWord, AJ-E2104
+  // Req.3), the row's name leading with that word.
+  const vocabulary = /^(Asks you|Probably asks you|Working|Idle|Done, review it|Ended|Limit reached|Stopped with an error|Probably stuck)$/;
   // Every session drawn first: the rail's Needs you fills in from the
   // backend's one count (F2) after the first paint, and a row list read
   // before that changes under the checks below.
