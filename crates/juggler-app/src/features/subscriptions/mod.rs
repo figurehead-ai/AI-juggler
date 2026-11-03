@@ -365,7 +365,7 @@ fn on_account(
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for an Account that isn't stored, or a name
+/// [`AppError::Refused`](crate::error::AppError::Refused) for an Account that isn't stored, or a name
 /// over 60 characters; storage errors.
 pub fn rename_impl(state: &Arc<AppState>, id: &str, name: Option<&str>) -> AppResult<()> {
     if name.is_some_and(|name| name.trim().chars().count() > 60) {
