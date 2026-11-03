@@ -7,6 +7,7 @@ import type { JSX } from "react";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 import { lastWorked } from "../lib/project-words";
 import { attentionBadge } from "./indicator";
+import type { SectionId } from "../lib/rail-lines";
 
 const FOLDED_KEY = "aij.rail.folded";
 
@@ -20,6 +21,31 @@ export function safeId(prefix: string, key: string): string {
 export const HISTORY_GROUP = "history-projects";
 /** How many history projects show before "Show all". */
 export const HISTORY_SHOWN = 5;
+
+/** The rail's sections (Needs you, Open now, Inactive apps) folded. */
+const CLOSED_SECTIONS_KEY = "aij.rail.sections.closed";
+/** Folded by default: what isn't running stays out of the way until asked
+ * for (the maintainer, 2026-11-03). */
+const CLOSED_BY_DEFAULT: readonly SectionId[] = ["idle"];
+
+export function readClosedSections(): ReadonlySet<SectionId> {
+  try {
+    const raw = localStorage.getItem(CLOSED_SECTIONS_KEY);
+    if (raw === null) return new Set(CLOSED_BY_DEFAULT);
+    const ids = JSON.parse(raw) as unknown;
+    return new Set(Array.isArray(ids) ? ids.filter((id): id is SectionId => id === "needs" || id === "open" || id === "idle") : CLOSED_BY_DEFAULT);
+  } catch {
+    return new Set(CLOSED_BY_DEFAULT);
+  }
+}
+
+export function writeClosedSections(closed: ReadonlySet<SectionId>): void {
+  try {
+    localStorage.setItem(CLOSED_SECTIONS_KEY, JSON.stringify([...closed]));
+  } catch {
+    /* a private window: folding still works for this visit */
+  }
+}
 
 export function readFolded(): Set<string> {
   try {
