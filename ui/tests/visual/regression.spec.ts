@@ -71,7 +71,7 @@ const FIRST_RUN_SCAN = {
   })),
   probes: [
     { label: "Your standard setup (~/.claude)", health: "ok", detail: "1 found", reason: null },
-    { label: "Claude desktop profiles", health: "ok", detail: "1 profile", reason: null },
+    { label: "Desktop apps", health: "ok", detail: "Claude", reason: null },
   ],
   seeds: [],
   desktop_apps: ["Claude"],

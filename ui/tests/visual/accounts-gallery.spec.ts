@@ -106,7 +106,7 @@ const FOUND = {
       keychain_bound: false,
     },
   })),
-  probes: [{ label: "Claude desktop profiles", health: "ok", detail: "2 profiles", reason: null }],
+  probes: [{ label: "Desktop apps", health: "ok", detail: "Claude", reason: null }],
   seeds: [],
   desktop_apps: ["Claude"],
   cancelled: false,

@@ -49,7 +49,7 @@ const SCAN = {
     found("/Users/you/.claude-old", "home-pattern", { login: "logged_out", last_used_secs: NOW - 90 * 86_400 }),
     found(`${PROFILES}/already`, "manager-tool", { managed: true }),
   ],
-  probes: [{ label: "Claude desktop profiles", health: "ok", detail: "3 profiles", reason: null }],
+  probes: [{ label: "Desktop apps", health: "ok", detail: "Claude", reason: null }],
   seeds: [],
   desktop_apps: [],
   cancelled: false,
@@ -150,7 +150,7 @@ describe("D-25 first run — the flow", () => {
   it("shows where it looked, on request", async () => {
     const { findByRole, getByTestId } = renderIt();
     fireEvent.click(await findByRole("button", { name: "Where we looked" }));
-    expect(getByTestId("first-run-looked").textContent).toContain("Claude desktop profiles checked — 3 profiles");
+    expect(getByTestId("first-run-looked").textContent).toContain("Desktop apps checked — Claude");
   });
 
   it("copies: brings them in, then lists each sign-in once, with Sign in to all", async () => {

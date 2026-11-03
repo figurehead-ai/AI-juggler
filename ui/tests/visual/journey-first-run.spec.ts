@@ -47,7 +47,7 @@ const SCAN = {
   ],
   probes: [
     { label: "Your standard setup (~/.claude)", health: "ok", detail: "1 found", reason: null },
-    { label: "Claude desktop profiles", health: "ok", detail: "5 profiles", reason: null },
+    { label: "Desktop apps", health: "ok", detail: "Claude", reason: null },
     { label: "Other folders named .claude-*", health: "ok", detail: "none", reason: null },
   ],
   seeds: [],
