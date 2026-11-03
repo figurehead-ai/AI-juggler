@@ -132,12 +132,13 @@ export function RowShell({
       >
         <span className="sr-only">{label}</span>
       </button>
-      <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center " + (list ? (slim ? "pr-10 " : "pr-[4.25rem] ") : goTo && shown ? "pr-9 " : "pr-2 ") + shape + " " + className}>
+      <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center " + (list ? (slim || !goTo ? "pr-10 " : "pr-[4.25rem] ") : goTo && shown ? "pr-9 " : "pr-2 ") + shape + " " + className}>
         {children}
       </div>
       {below}
       {list ? (
-        // A page's row: ↗ and ⋯ in their own gutter, never over the state.
+        // A page's row: ↗ and ⋯ in their own gutter, never over the state;
+        // one with no ↗ (an ended session) keeps only the ⋯'s room.
         <span className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1" data-testid="row-tools">
           {goTo && !slim && <span className={ON_HOVER}>{goTo}</span>}
           {menu.button({ label: menuLabel })}
