@@ -122,7 +122,7 @@ export function PlaceLine({ item, when, app, project }: { item: RailItem; when: 
               event.stopPropagation();
               host.openProjectById!(id!);
             }}
-            className={`${LINK} -mx-0.5 flex max-w-[45%] shrink-0 items-start gap-1 px-0.5 leading-[18px]`}
+            className={`${LINK} -mx-0.5 flex min-w-[3.5rem] max-w-[45%] shrink items-start gap-1 px-0.5 leading-[18px]`}
           >
             <span className="mt-0.5 flex shrink-0">
               <ProjectMark projectId={id} size={14} />
@@ -130,21 +130,23 @@ export function PlaceLine({ item, when, app, project }: { item: RailItem; when: 
             <span className="truncate">{name}</span>
           </button>
         ) : (
-          <span aria-hidden="true" data-testid="page-session-project" className="flex max-w-[45%] shrink-0 items-start gap-1">
+          <span aria-hidden="true" data-testid="page-session-project" className="flex min-w-[3.5rem] max-w-[45%] shrink items-start gap-1">
             <span className="mt-0.5 flex shrink-0">
               <ProjectMark projectId={id} size={14} />
             </span>
             <span className="truncate">{name}</span>
           </span>
         ))}
-      {/* A narrow row (Home's column, a card) leaves the App's words to
-          its icon; the separators go with them. */}
+      {/* A narrow row (Home's column, a card) names the App by its own
+          name beside its dot, its icon saying the app (the 0.4 review: it
+          was dropped there). */}
       {words && (
-        <span aria-hidden="true" className="hidden min-w-0 items-start @[26rem]:flex" data-testid="page-session-app">
+        <span aria-hidden="true" className="flex min-w-[3.5rem] items-start" data-testid="page-session-app">
           {name !== null && sep}
           <span className="flex min-w-0 items-center gap-1">
             <ProfileBadge app={item.place.key} name={item.place.profile ?? item.accountLabel} size={7} />
-            <span className="truncate">{words}</span>
+            <span className="truncate @[26rem]:hidden">{item.place.profile ?? item.accountLabel ?? words}</span>
+            <span className="hidden truncate @[26rem]:inline">{words}</span>
           </span>
           {when && name === null && sep}
         </span>

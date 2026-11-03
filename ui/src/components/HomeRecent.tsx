@@ -10,6 +10,7 @@
  */
 import type { JSX } from "react";
 import { SectionTitle } from "./SectionTitle";
+import { IconCheck } from "./icons-controls";
 import { SessionRow } from "./row/SessionRow";
 import { sessionItem } from "../lib/rail-items";
 import { placeOf } from "../screens/Home";
@@ -82,17 +83,23 @@ export function HomeRecent({
                 slim
                 data={{ "data-home-item": "", "data-testid": "home-recent-item" }}
                 buttonData={{ "data-home-row": "" }}
-                trailing={
+                stateSlot={
                   // AJ-E1005 Req.4: it leaves this list only when you say so.
+                  // Every row here has ended: it stands where "Ended" would.
                   <button
                     type="button"
                     data-home-action
                     aria-keyshortcuts="A"
                     disabled={busy === session.id}
                     onClick={() => onReviewed(session)}
-                    className="pointer-events-auto relative z-10 -my-1 min-h-6 shrink-0 rounded px-1.5 text-meta text-muted outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
+                    title="Mark reviewed (A)"
+                    className="pointer-events-auto relative z-10 -my-1 -mr-1.5 flex min-h-6 shrink-0 items-center gap-1 rounded px-1.5 text-meta leading-[18px] text-muted outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
                   >
-                    Mark reviewed<span className="sr-only"> — {title}</span>
+                    {/* A narrow column (Home's beside Runway) keeps its mark;
+                        a wide one says it too (the 0.4 review). */}
+                    <IconCheck width={13} height={13} aria-hidden="true" className="@[26rem]:hidden" />
+                    <span className="sr-only @[26rem]:not-sr-only">Mark reviewed</span>
+                    <span className="sr-only"> — {title}</span>
                   </button>
                 }
               />

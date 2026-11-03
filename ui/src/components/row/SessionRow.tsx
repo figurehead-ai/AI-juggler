@@ -61,8 +61,12 @@ export interface SessionRowProps {
   tools?: boolean;
   /** "Subagents" is on in the View: the row says how many it runs. */
   subagents?: boolean;
-  /** Beside its state (History's "Archived", Home's "Mark reviewed"). */
+  /** Beside its state (History's "Archived"). */
   trailing?: ReactNode;
+  /** In place of its state word, where every row of the list shares that
+   * state (Home's Pick up: all ended, so its Mark reviewed stands there and
+   * the title keeps its line; the 0.4 review). */
+  stateSlot?: ReactNode;
   /** Under it (History's matching words). */
   below?: ReactNode;
   data?: Record<string, string | undefined>;
@@ -155,9 +159,11 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
           </span>
           <span className="flex min-w-0 items-start gap-3">
             <PlaceLine item={item} when={when} app={appShown} project={projectShown} />
-            <span aria-hidden="true" className={"shrink-0 text-meta leading-[18px] " + (needs ? "font-semibold " : "font-medium ") + state.text} data-testid="page-session-state">
-              {state.word}
-            </span>
+            {props.stateSlot ?? (
+              <span aria-hidden="true" className={"shrink-0 text-meta leading-[18px] " + (needs ? "font-semibold " : "font-medium ") + state.text} data-testid="page-session-state">
+                {state.word}
+              </span>
+            )}
           </span>
         </span>
       </RowShell>
