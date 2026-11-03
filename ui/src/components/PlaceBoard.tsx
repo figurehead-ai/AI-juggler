@@ -45,6 +45,7 @@ import { moveLine, onLine, roveKey } from "../lib/roving";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { railPoolOf, usePools } from "../lib/pools";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
+import { goToToast } from "../lib/go-to-words";
 
 interface BoardProps {
   sessions: InstanceInfo[];
@@ -168,7 +169,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     if (pid === null || pid === undefined) return;
     showToast({ id: "go-to", message: "Bringing it forward…" });
     conversationsBringForward(pid).then(
-      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      (outcome) => goToToast(outcome.outcome),
       () => showToast({ id: "go-to", message: "Couldn't bring it forward" }),
     );
   };

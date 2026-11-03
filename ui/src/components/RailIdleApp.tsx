@@ -23,6 +23,7 @@ import { openApp } from "../lib/apps";
 import { agoWords } from "../lib/time-words";
 import { cliAppId } from "../lib/app-name";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
+import { goToToast } from "../lib/go-to-words";
 
 /** What the app's one action is, in words and as an icon. */
 export function idleAction(app: IdleApp): { words: string; Icon: typeof IconPlus } {
@@ -71,7 +72,7 @@ export function RailIdleApp({
     const running = app.appPid !== null;
     showToast({ id: "go-to", message: running ? `Bringing ${app.name} forward…` : `Starting ${app.name}…` });
     placesOpen(app.placeId).then(
-      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      (outcome) => goToToast(outcome.outcome),
       () => showToast({ id: "go-to", message: running ? `Couldn't bring ${app.name} forward` : `Couldn't start ${app.name}` }),
     );
   };

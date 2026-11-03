@@ -15,6 +15,7 @@ import { useConversations } from "../lib/conversations";
 import { openPoolSheet } from "../lib/pools";
 import { markSeen } from "../lib/seen";
 import { focusHandoverSoon } from "../lib/handover-focus";
+import { goToToast } from "../lib/go-to-words";
 
 async function copy(text: Promise<string> | string, done: string): Promise<void> {
   try {
@@ -95,7 +96,7 @@ export function AppActions({
         markSeen(c.account_id, c.id);
         showToast({ id: "go-to", message: "Going to it…" });
         try {
-          showToast({ id: "go-to", message: (await conversationsGoTo(c.account_id, c.id)).outcome });
+          goToToast((await conversationsGoTo(c.account_id, c.id)).outcome);
         } catch (cause) {
           showToast({ id: "go-to", message: `Couldn't go to it: ${errorText(cause)}` });
         }

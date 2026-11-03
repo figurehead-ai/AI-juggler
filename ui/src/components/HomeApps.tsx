@@ -23,6 +23,7 @@ import { knownAppWord } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp } from "../lib/apps";
 import { appName, desktopProfile } from "../lib/app-name";
 import type { RailItem } from "../lib/rail-items";
+import { goToToast } from "../lib/go-to-words";
 
 /** Tiles shown before "+n". */
 export const TILES_SHOWN = 6;
@@ -45,7 +46,7 @@ function bringForward(group: RailGroup): void {
   if (pid === null || pid === undefined) return;
   showToast({ id: "go-to", message: "Bringing it forward…" });
   conversationsBringForward(pid).then(
-    (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+    (outcome) => goToToast(outcome.outcome),
     () => showToast({ id: "go-to", message: "Couldn't bring it forward" }),
   );
 }
@@ -63,7 +64,7 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const start = () => {
     showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
     placesOpen(place.id).then(
-      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      (outcome) => goToToast(outcome.outcome),
       () => showToast({ id: "go-to", message: running ? `Couldn't bring ${name} forward` : `Couldn't start ${name}` }),
     );
   };
