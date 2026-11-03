@@ -618,8 +618,8 @@ loading, error, stale/offline.
 > window or tab ("Claude Code · Work Max · in Terminal"); limits and
 > money show per Account.
 >
-> **Amended by AJ-E3206 (one mark and one colour per App):** the profile
-> badge is the App's mark, in the App's one colour, given once when the
+> **Amended by AJ-E3206 (one mark and one colour per App):**
+> the profile badge is the App's mark, in the App's one colour, given once when the
 > App is first stored (the least-used of eight, by its id) and the same on
 > every screen: a rename or a new App never moves it. An Account's mark is
 > another shape, the round avatar, in the Account's own colour given the
