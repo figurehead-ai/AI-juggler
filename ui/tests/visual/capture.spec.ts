@@ -2136,7 +2136,7 @@ const noticeFacts = { window: null, resets_at_ms: null, sessions: null, version:
 const noticeTarget = { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null };
 const notificationEvents = {
   app: [
-    { id: 41, kind: "quota", needs: true, title: "Work Max is almost out of room", detail: "8% of its 5-hour window left", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-work" }, facts: { ...noticeFacts, window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, account: "Work Max" }, action: "hand-over", meter: 8, created_ms: T0 - 60_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
+    { id: 41, kind: "quota", needs: true, title: "Claude Max 20x is almost out of room", detail: "8% of its 5-hour window left", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-work" }, facts: { ...noticeFacts, window: "5-hour", resets_at_ms: T0 + 95 * 60_000, sessions: 1, account: "Claude Max 20x" }, action: "hand-over", meter: 8, created_ms: T0 - 60_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
   ],
   earlier: [
     { id: 40, kind: "renewal", needs: false, title: "Personal: Renews in 6 days — check your plan", detail: "", project_id: null, project: null, target: { ...noticeTarget, account_id: "claude-personal" }, facts: noticeFacts, action: "open", meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false },
@@ -2171,7 +2171,7 @@ for (const theme of THEMES) {
       // AJ-E2501: on Home the account almost out of room is a Needs you
       // item (its banner is for the other screens); the renewal line is
       // under Earlier in the notification centre, never a window alert.
-      await expect(page.getByTestId("home-need-quota")).toContainText("Work Max is almost out of room");
+      await expect(page.getByTestId("home-need-quota")).toContainText("Claude Max 20x is almost out of room");
       await page.getByTestId("notification-bell").click();
       await expect(page.getByTestId("notices-earlier")).toContainText("Personal: Renews in 6 days — check your plan");
       await page.screenshot({
