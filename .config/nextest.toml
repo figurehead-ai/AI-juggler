@@ -114,5 +114,13 @@ threads-required = 'num-test-threads'
 # to 11-02, and the stub launches of 11-03 on a loaded Mac): one at a
 # time.
 [[profile.default.overrides]]
-filter = 'binary_id(juggler-app::runtime) | binary_id(juggler-app::trust) | binary_id(juggler-app::identity_guard) | binary_id(juggler-supervisor::identity) | binary_id(juggler-app::codex_switch) | binary_id(juggler-app::in_place_accounts) | binary_id(juggler-app::juggling) | binary_id(juggler-app::processes)'
+filter = 'binary_id(juggler-app::runtime) | binary_id(juggler-app::trust) | binary_id(juggler-app::identity_guard) | binary_id(juggler-supervisor::identity) | binary_id(juggler-app::codex_switch) | binary_id(juggler-app::in_place_accounts) | binary_id(juggler-app::juggling)'
 test-group = 'timing'
+
+# A session's process tree read from the real process table: another
+# binary's tests start and reap their own children beside it, and twice
+# in a full run (2026-11-03, test ~2085 of 2961) its child never showed.
+# Alone, nothing beside it (three tests, about two seconds).
+[[profile.default.overrides]]
+filter = 'binary_id(juggler-app::processes)'
+threads-required = 'num-test-threads'
