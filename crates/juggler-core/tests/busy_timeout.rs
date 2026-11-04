@@ -27,6 +27,9 @@ use juggler_core::storage::{
 };
 use rusqlite::Connection;
 
+/// v45 undone (`fixtures/undo_v45.sql`): every rollback past it starts here.
+const UNDO_V45: &str = include_str!("fixtures/undo_v45.sql");
+
 /// How long the other connection keeps the lock — well inside the
 /// timeout, well above scheduling noise.
 const HELD: Duration = Duration::from_millis(400);
@@ -317,36 +320,19 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v44, AJ-E3104's pools
-    // stamp and its triggers) is undone by hand and runs again on open.
+    // One version behind: the last migration (v45, D-62's pools model,
+    // AJ-E3003) is undone by hand and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 44,
-        "a new migration landed: undo it here instead (this test's undo is v44's)"
+        version, 45,
+        "a new migration landed: undo it here instead (this test's undo is v45's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        let undo: Vec<String> = conn
-            .prepare(
-                "SELECT 'DROP ' || upper(type) || ' ' || name || ';' FROM sqlite_master \
-                 WHERE type = 'trigger' AND (name LIKE 'relation\\_stamp\\_member\\_%' ESCAPE '\\' \
-                 OR name LIKE 'relation\\_stamp\\_epoch\\_%' ESCAPE '\\' \
-                 OR name LIKE 'relation\\_stamp\\_pool\\_%' ESCAPE '\\')",
-            )
-            .unwrap()
-            .query_map([], |row| row.get(0))
-            .unwrap()
-            .map(Result::unwrap)
-            .collect();
-        assert_eq!(undo.len(), 9, "v44's triggers");
-        conn.execute_batch(&format!(
-            "{} DELETE FROM relation_stamps WHERE source = 'pools';",
-            undo.join(" ")
-        ))
-        .unwrap();
+        conn.execute_batch(UNDO_V45).unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }

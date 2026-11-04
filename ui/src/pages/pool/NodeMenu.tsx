@@ -55,15 +55,15 @@ export function NodeMenu({
         <Line icon={<IconPage width={15} height={15} />}>Open session</Line>
       </MenuItem>
       {member.role === "lead" ? (
-        <MenuItem onClick={run(() => setRole(member, "member"))} testId="node-menu-unlead">
+        <MenuItem onClick={run(() => setRole(pool, member, "member"))} testId="node-menu-unlead">
           <Line icon={<IconLead width={15} height={15} />}>Make it a member</Line>
         </MenuItem>
       ) : (
-        <MenuItem onClick={run(() => makeLead(member, members))} testId="node-menu-lead">
+        <MenuItem onClick={run(() => makeLead(pool, member, members))} testId="node-menu-lead">
           <Line icon={<IconLead width={15} height={15} />}>Make lead</Line>
         </MenuItem>
       )}
-      <MenuItem onClick={run(() => setRole(member, member.role === "observer" ? "member" : "observer"))} testId="node-menu-observer">
+      <MenuItem onClick={run(() => setRole(pool, member, member.role === "observer" ? "member" : "observer"))} testId="node-menu-observer">
         <Line icon={<IconRead width={15} height={15} />}>{member.role === "observer" ? "Let it work here again" : "Only let it watch"}</Line>
       </MenuItem>
       {live && host.stopSession && (

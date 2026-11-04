@@ -455,7 +455,7 @@ fn a_switch_keeps_the_pool_of_its_own_line_of_work_only() {
     let info = pools::pool_create_impl(&state, "Checkout redesign", None).unwrap();
     let checkout = info.pools[0].id.clone();
     pools::pool_move_impl(&state, &planner, &checkout).unwrap();
-    pools::pool_set_role_impl(&state, &planner, "lead").unwrap();
+    pools::pool_set_role_impl(&state, &planner, "lead", None).unwrap();
 
     let loner_next =
         commands::switch_execute_impl(&state, &loner, &profile_b.id, "stop-now", None, &[])

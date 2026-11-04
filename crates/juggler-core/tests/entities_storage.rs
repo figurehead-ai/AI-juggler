@@ -10,6 +10,9 @@ use juggler_core::storage::{
 };
 use rusqlite::Connection;
 
+/// v45 undone (`fixtures/undo_v45.sql`): every rollback past it starts here.
+const UNDO_V45: &str = include_str!("fixtures/undo_v45.sql");
+
 fn folder(id: &str, tool: &str) -> Account {
     Account {
         id: AccountId::new(id),
@@ -51,6 +54,7 @@ fn v40_makes_one_cli_app_per_folder_in_use_and_nothing_else() {
     // open.
     {
         let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(UNDO_V45).unwrap();
         conn.execute_batch(
             "DROP TRIGGER relation_stamp_instance_changed; DROP TRIGGER relation_stamp_folder_changed; DROP INDEX idx_instances_app;
              ALTER TABLE accounts DROP COLUMN terms_moved;
@@ -426,6 +430,10 @@ fn v42_gives_the_rows_already_there_their_slots_in_list_order() {
             .unwrap();
     }
     // Back to v41, as an upgrade finds it: v42 runs on the next open.
+    Connection::open(&db)
+        .unwrap()
+        .execute_batch(UNDO_V45)
+        .unwrap();
     Connection::open(&db)
         .unwrap()
         .execute_batch(

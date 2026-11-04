@@ -35,6 +35,8 @@ fn task_words(actor: &str, verb: &str, title: &str, detail: Option<&str>) -> Str
         ("status", Some(change)) => format!("{actor} moved «{title}»: {change}"),
         ("approved", _) => format!("{actor} approved «{title}»"),
         ("sent_back", _) => format!("{actor} sent «{title}» back"),
+        ("review_approved", _) => format!("{actor} reviewed «{title}»: looks right"),
+        ("review_sent_back", _) => format!("{actor} reviewed «{title}» and sent it back"),
         ("freed", _) => format!("{actor} freed «{title}»"),
         ("cancelled", _) => format!("{actor} cancelled «{title}»"),
         ("noted", _) => format!("{actor} added a note to «{title}»"),

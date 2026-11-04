@@ -114,7 +114,7 @@ export function InspectNode({
             Open session
           </Button>
           {member.role !== "lead" && (
-            <Button size="sm" variant="secondary" onClick={() => void makeLead(member, members)} data-testid="inspect-node-lead">
+            <Button size="sm" variant="secondary" onClick={() => void makeLead(pool, member, members)} data-testid="inspect-node-lead">
               Make lead
             </Button>
           )}

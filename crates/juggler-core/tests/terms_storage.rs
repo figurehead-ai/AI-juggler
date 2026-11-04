@@ -9,6 +9,9 @@ use juggler_core::model::{Account, AccountId, HarnessId, PlanTier};
 use juggler_core::storage::{Storage, Term, Terms, fee_key};
 use rusqlite::Connection;
 
+/// v45 undone (`fixtures/undo_v45.sql`): every rollback past it starts here.
+const UNDO_V45: &str = include_str!("fixtures/undo_v45.sql");
+
 fn folder(id: &str, plan: Option<&str>, renewal: Option<&str>) -> Account {
     Account {
         id: AccountId::new(id),
@@ -69,6 +72,10 @@ fn v41_adds_one_column_and_changes_nothing_else() {
     }
     // Back to v40, as an upgrade finds it: v41 (and v42) run on the next
     // open.
+    Connection::open(&db)
+        .unwrap()
+        .execute_batch(UNDO_V45)
+        .unwrap();
     Connection::open(&db)
         .unwrap()
         .execute_batch(

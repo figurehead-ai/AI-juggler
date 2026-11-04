@@ -157,11 +157,23 @@ pub fn start(
     let launched =
         crate::commands::launch_profile_primed(state, profile_id, cwd, None, Some(first))?;
     let session = SessionId::new(launched.session_id.as_str());
-    // The new session joins the task's pool (the user's click moves it).
-    let in_pool = crate::features::pools::members::place_of(&*lock_storage_arc(state)?, &session)?
-        .is_some_and(|(pool_id, _)| pool_id == task.pool_id);
+    // The new session joins the task's pool (the user's click names it
+    // there; D-62: its other pools stay).
+    let in_pool = crate::features::pools::members::role_in(
+        &*lock_storage_arc(state)?,
+        &session,
+        &task.pool_id,
+    )?
+    .is_some();
     if !in_pool {
-        crate::features::pools::pool_move_impl(state, session.as_str(), &task.pool_id)?;
+        crate::features::pools::model::join_impl(
+            state,
+            &task.pool_id,
+            &format!("session:{}", session.as_str()),
+            "member",
+            None,
+            &[],
+        )?;
     }
     if state.runtime.is_driven(&session) {
         // The user's first message, between turns (E18's delivery).

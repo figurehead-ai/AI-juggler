@@ -28,8 +28,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use juggler_adapters::{ActivityLog, ActivityTail};
-use juggler_core::model::{ProjectId, SessionId};
-use juggler_core::storage::{MemberRef, Memberships, PoolRole};
+use juggler_core::model::SessionId;
+use juggler_core::pools::Memberships;
+use juggler_core::storage::{MemberRef, PoolRole};
 
 use super::members::role_rank;
 use super::{CardField, ContextCard, PoolCards};
@@ -190,11 +191,12 @@ pub fn tick(state: &Arc<AppState>) {
 /// [`crate::error::AppError::Refused`] for a pool that isn't there;
 /// storage failures.
 pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> {
-    let (memberships, projects) = {
+    let (memberships, facts, projects) = {
         let storage = lock_storage_arc(state)?;
         super::live_pool(&storage, pool_id)?;
         (
             super::members::memberships(&storage)?,
+            super::members::facts(&storage)?,
             super::project_names(&storage)?,
         )
     };
@@ -203,10 +205,12 @@ pub fn cards_impl(state: &Arc<AppState>, pool_id: &str) -> AppResult<PoolCards> 
         .into_iter()
         .filter(|row| row.lifecycle.as_deref() != Some("archived"))
         .filter_map(|row| {
-            let project = row.project_id.as_deref().map(ProjectId::new);
             let session = SessionId::new(row.id.as_str());
-            let (place, role) = memberships.place(&session, project.as_ref());
-            (place == pool_id).then(|| (role, card_for(state, &row, role, &projects, &memberships)))
+            let role = memberships
+                .resolve(facts.get(&session)?)
+                .in_pool(pool_id)?
+                .role;
+            Some((role, card_for(state, &row, role, &projects, &memberships)))
         })
         .collect();
     cards.sort_by(|(a_role, a), (b_role, b)| {

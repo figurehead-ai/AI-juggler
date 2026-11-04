@@ -31,6 +31,7 @@ use crate::tasks::{LinkKind, Priority, TaskKind, TaskStatus, effective};
 
 /// 0.3: the reads across pools (the Tasks screen's counts).
 mod across;
+mod review;
 
 /// v36: the E19 tables.
 pub(super) const MIGRATION: &str = "
@@ -208,6 +209,9 @@ pub struct NewTask<'a> {
     pub external_url: Option<&'a str>,
     /// The tasks that block it (in the same pool).
     pub blocked_by: &'a [String],
+    /// D-62: the project it's for (in a pool of several, the creating
+    /// session's); `None`: its pool's one project, if it has one.
+    pub project: Option<&'a str>,
 }
 
 /// What a list holds.
@@ -609,8 +613,10 @@ impl TasksRepo<'_> {
         }
         tx.execute(
             "INSERT INTO tasks (id, pool_id, kind, parent_id, title, body, acceptance, priority, status,
-                 assignee_ref, assignee_name, created_by, created_by_name, created_at, updated_at, external_url)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14, ?15)",
+                 assignee_ref, assignee_name, created_by, created_by_name, created_at, updated_at, external_url,
+                 project)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14, ?15,
+                     COALESCE(?16, (SELECT project FROM pools WHERE id = ?2)))",
             params![
                 task.id,
                 task.pool_id,
@@ -627,6 +633,7 @@ impl TasksRepo<'_> {
                 task.created_by_name,
                 now,
                 task.external_url,
+                task.project,
             ],
         )?;
         log_in(
@@ -904,100 +911,6 @@ impl TasksRepo<'_> {
         tx.execute(
             "UPDATE tasks SET updated_at = ?2 WHERE id = ?1",
             params![id, now],
-        )?;
-        tx.commit()?;
-        self.get(id)?
-            .ok_or_else(|| super::accounts::not_found("task", id))
-    }
-
-    /// The user's action on a task (D-44), checked against the task as it
-    /// is now ([`crate::tasks::may_user`]) and logged as one event, in one
-    /// transaction:
-    ///
-    /// - **Approve**: in review → done.
-    /// - **Send back** (`note` needed): in review → in progress, its holder
-    ///   kept (ready, when no one holds it).
-    /// - **Free**: its holder cleared, only while it's still `seen_holder`
-    ///   (the holder whose sessions the caller found not running); in
-    ///   progress goes back to ready, any other status stays.
-    /// - **Cancel**: open → cancelled.
-    ///
-    /// # Errors
-    ///
-    /// [`CoreError::NotFound`] for a task that isn't there;
-    /// [`CoreError::Validation`] with the rule, in words, when the task
-    /// isn't in a state for it (or its holder changed); storage failures.
-    pub fn user_action(
-        &self,
-        id: &str,
-        action: crate::tasks::UserAction,
-        note: Option<&str>,
-        seen_holder: Option<&str>,
-        holder_running: bool,
-        actor: (&str, &str),
-    ) -> Result<Task, CoreError> {
-        use crate::tasks::UserAction;
-        let now = Timestamp::now().millis();
-        let task = self
-            .get(id)?
-            .ok_or_else(|| super::accounts::not_found("task", id))?;
-        crate::tasks::may_user(
-            action,
-            task.stored,
-            task.assignee_ref.is_some(),
-            holder_running,
-        )
-        .map_err(invalid)?;
-        let note = note.map(str::trim).filter(|n| !n.is_empty());
-        let tx = self.conn.unchecked_transaction()?;
-        let (verb, detail) = match action {
-            UserAction::Approve | UserAction::Cancel => {
-                let to = if action == UserAction::Approve {
-                    TaskStatus::Done
-                } else {
-                    TaskStatus::Cancelled
-                };
-                tx.execute(
-                    "UPDATE tasks SET status = ?2, closed_at = ?3, updated_at = ?3 WHERE id = ?1",
-                    params![id, to.as_str(), now],
-                )?;
-                (action.verb(), note.map(str::to_owned))
-            }
-            UserAction::SendBack => {
-                let note = note.ok_or_else(|| invalid("say what should change: a short note"))?;
-                let to = if task.assignee_ref.is_some() {
-                    TaskStatus::InProgress
-                } else {
-                    TaskStatus::Ready
-                };
-                tx.execute(
-                    "UPDATE tasks SET status = ?2, closed_at = NULL, updated_at = ?3 WHERE id = ?1",
-                    params![id, to.as_str(), now],
-                )?;
-                (action.verb(), Some(note.to_owned()))
-            }
-            UserAction::Free => {
-                if task.assignee_ref.as_deref() != seen_holder {
-                    return Err(invalid("someone else holds it now: look again"));
-                }
-                tx.execute(
-                    "UPDATE tasks SET assignee_ref = NULL, assignee_name = NULL, updated_at = ?2,
-                            status = CASE WHEN status = 'in_progress' THEN 'ready' ELSE status END
-                      WHERE id = ?1",
-                    params![id, now],
-                )?;
-                (action.verb(), task.assignee_name.clone())
-            }
-        };
-        log_in(
-            &tx,
-            now,
-            &task.pool_id,
-            id,
-            actor.0,
-            actor.1,
-            verb,
-            detail.as_deref(),
         )?;
         tx.commit()?;
         self.get(id)?
@@ -1527,6 +1440,7 @@ mod tests {
             created_by: TASK_USER,
             created_by_name: "You",
             external_url: None,
+            project: None,
             blocked_by,
         }
     }

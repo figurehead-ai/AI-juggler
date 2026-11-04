@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 
+use super::dto::{PoolRulesInfo, SessionPoolsInfo};
 use super::{PoolCanvasInfo, PoolMemberInfo, PoolMemberRow, PoolPreviewInfo, PoolsInfo};
 use crate::error::AppResult;
 use crate::paging::{Page, PageRequest};
@@ -131,9 +132,10 @@ pub async fn pools_set_role(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     role: String,
+    pool_id: Option<String>,
 ) -> AppResult<PoolsInfo> {
     crate::ipc::blocking(state.inner(), "the pool", move |state| {
-        super::pool_set_role_impl(state, &session_id, &role)
+        super::pool_set_role_impl(state, &session_id, &role, pool_id.as_deref())
     })
     .await
 }
@@ -272,6 +274,155 @@ pub async fn pools_canvas_previews(
 ) -> AppResult<Vec<PoolPreviewInfo>> {
     crate::ipc::blocking(state.inner(), "the pools", move |state| {
         super::canvas::previews_impl(state, pool_ids)
+    })
+    .await
+}
+
+/// D-62: adds a member rule (a session, App, Account, Tool, Mac or
+/// everyone) to a pool, or changes its role and its own level there.
+///
+/// # Errors
+///
+/// As [`super::model::join_impl`].
+#[tauri::command]
+pub async fn pools_join(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    member: String,
+    role: String,
+    level: Option<String>,
+    actions: Option<Vec<String>>,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::join_impl(
+            state,
+            &pool_id,
+            &member,
+            &role,
+            level.as_deref(),
+            &actions.unwrap_or_default(),
+        )
+    })
+    .await
+}
+
+/// D-62: ends a member rule in a pool; its other pools stay.
+///
+/// # Errors
+///
+/// As [`super::model::leave_impl`].
+#[tauri::command]
+pub async fn pools_leave(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    member: String,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::leave_impl(state, &pool_id, &member)
+    })
+    .await
+}
+
+/// D-62 decision 8: sets a pool's scope.
+///
+/// # Errors
+///
+/// As [`super::model::set_scope_impl`].
+#[tauri::command]
+pub async fn pools_set_scope(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    every: bool,
+    projects: Vec<Option<String>>,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::set_scope_impl(state, &pool_id, every, &projects)
+    })
+    .await
+}
+
+/// D-62 decision 14: seals a pool or opens it.
+///
+/// # Errors
+///
+/// As [`super::model::set_sealed_impl`].
+#[tauri::command]
+pub async fn pools_set_sealed(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    sealed: bool,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::set_sealed_impl(state, &pool_id, sealed)
+    })
+    .await
+}
+
+/// Whether a pool's broad members skip sessions another pool names.
+///
+/// # Errors
+///
+/// As [`super::model::set_skip_held_impl`].
+#[tauri::command]
+pub async fn pools_set_skip_held(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    skip: bool,
+) -> AppResult<PoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::set_skip_held_impl(state, &pool_id, skip)
+    })
+    .await
+}
+
+/// D-62 decision 13: who may tell whom, per role pair or connection.
+///
+/// # Errors
+///
+/// As [`super::model::set_talk_impl`].
+#[tauri::command]
+pub async fn pools_set_talk(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    from: String,
+    to: String,
+    rule: Option<String>,
+) -> AppResult<PoolRulesInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::set_talk_impl(state, &pool_id, &from, &to, rule.as_deref())
+    })
+    .await
+}
+
+/// A pool's member rules and talk settings.
+///
+/// # Errors
+///
+/// As [`super::model::rules_impl`].
+#[tauri::command]
+pub async fn pools_rules(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+) -> AppResult<PoolRulesInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::rules_impl(state, &pool_id)
+    })
+    .await
+}
+
+/// A session's pools, how it got into each, and the ones that left it
+/// out.
+///
+/// # Errors
+///
+/// As [`super::model::session_pools_impl`].
+#[tauri::command]
+pub async fn pools_of_session(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<SessionPoolsInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::session_pools_impl(state, &session_id)
     })
     .await
 }

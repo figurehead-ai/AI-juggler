@@ -157,8 +157,9 @@ fn within_rate(state: &Arc<AppState>, session: &SessionId) -> bool {
     true
 }
 
-/// Where a session is: its pool's id, name and level, its role, its
-/// member ref, and its project and profile (for the switches).
+/// Where a session is, for one call: the pool it's for (the one it
+/// named, else its first), its level and role there, its member ref, and
+/// every pool it's in (for `whoami`).
 struct Place {
     pool_id: String,
     pool_name: String,
@@ -166,9 +167,28 @@ struct Place {
     may: Vec<String>,
     role: String,
     member: String,
+    pools: Vec<Value>,
 }
 
-fn place_of(state: &Arc<AppState>, session: &SessionId) -> Result<Place, Response> {
+/// D-62 (ADR-0020 §6 as amended): the calls that act in one pool. A
+/// session in several names which on each of these.
+const fn names_a_pool(call: Call) -> bool {
+    matches!(
+        call,
+        Call::SendMessage
+            | Call::ShareDoc
+            | Call::TaskCreate
+            | Call::TaskClaim
+            | Call::TaskUpdate
+            | Call::TaskAssign
+    )
+}
+
+fn place_of(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    request: &Request,
+) -> Result<Place, Response> {
     let storage = crate::commands::lock_storage_arc(state)
         .map_err(|_| Response::refused(Refusal::Bad, "AI Juggler is busy: try again."))?;
     let record = storage.sessions().get(session).map_err(|_| {
@@ -192,11 +212,54 @@ fn place_of(state: &Arc<AppState>, session: &SessionId) -> Result<Place, Respons
     }
     let unread = |_| Response::refused(Refusal::Bad, "AI Juggler couldn't read the pools.");
     let memberships = pools::members::memberships(&storage).map_err(unread)?;
-    let (pool_id, role) = memberships.place(session, record.project.as_ref());
-    let (_, pool_name) = pools::named_pool(&storage, &pool_id).map_err(|_| {
+    let resolution = pools::members::resolution_of(&storage, session)
+        .map_err(unread)?
+        .unwrap_or_default();
+    let named = |id: &str| pools::named_pool(&storage, id).map(|(_, name)| name).ok();
+    let listed: Vec<Value> = resolution
+        .placements
+        .iter()
+        .map(|place| {
+            json!({
+                "id": place.pool_id,
+                "name": named(&place.pool_id),
+                "role": place.role.as_str(),
+                "via": place.via().as_str(),
+                "sealed": place.sealed,
+            })
+        })
+        .collect();
+    let chosen = match request.pool.as_deref() {
+        Some(asked) => resolution.in_pool(asked).ok_or_else(|| {
+            Response::refused(
+                Refusal::Deny,
+                format!(
+                    "This session isn't in the pool {asked:?}. whoami lists the pools it's in."
+                ),
+            )
+        })?,
+        None if names_a_pool(request.call) && resolution.placements.len() > 1 => {
+            return Err(Response::refused(
+                Refusal::Bad,
+                format!(
+                    "This session is in {} pools: name the one this is for (pool, from whoami's pools).",
+                    resolution.placements.len()
+                ),
+            ));
+        }
+        None => resolution.primary().ok_or_else(|| {
+            Response::refused(Refusal::Deny, "This session isn't in any pool now.")
+        })?,
+    };
+    let (pool_id, role, own) = (chosen.pool_id.clone(), chosen.role, chosen.level.clone());
+    let pool_name = named(&pool_id).ok_or_else(|| {
         Response::refused(Refusal::Deny, "This session's pool isn't there any more.")
     })?;
-    let (access, rules) = pools::access::info(&storage, &pool_id).map_err(unread)?;
+    let (mut access, rules) = pools::access::info(&storage, &pool_id).map_err(unread)?;
+    if let Some(own) = own {
+        // D-62 decision 12: its own level replaces the pool's for it.
+        access = pools::access::at_level(&access, &own);
+    }
     let mut may = access.actions;
     may.extend(rules.into_iter().map(|rule| rule.action));
     may.sort();
@@ -208,6 +271,7 @@ fn place_of(state: &Arc<AppState>, session: &SessionId) -> Result<Place, Respons
         level: access.level,
         may,
         role: role.as_str().to_owned(),
+        pools: listed,
     })
 }
 
@@ -251,7 +315,7 @@ fn answer(
     session: &SessionId,
     request: &Request,
 ) -> Result<Value, Response> {
-    let place = place_of(state, session)?;
+    let place = place_of(state, session, request)?;
     if let Some(answered) = by_feature(state, session, &place, request) {
         return answered;
     }
@@ -299,6 +363,7 @@ fn answer(
                 "place": me.map(|card| card.place.clone()),
                 "tool": me.map(|card| card.tool.clone()),
                 "pool": pool,
+                "pools": place.pools,
                 "role": place.role,
                 "may": place.may,
                 "says": state.agent_bridge.status_of(&place.member).map(|said| said.text),

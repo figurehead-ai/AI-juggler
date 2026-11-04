@@ -52,7 +52,7 @@ fn status(word: Option<&str>) -> AppResult<Option<TaskStatus>> {
     word.map(|word| {
         TaskStatus::parse(word).ok_or_else(|| {
             refused(format!(
-                "{word} isn't a status (todo, ready, in_progress, blocked, in_review, done or cancelled)"
+                "{word} isn't a status (todo, ready, in_progress, blocked, in_review, done or cancelled; a reviewer's verdict is approved or sent_back)"
             ))
         })
     })
@@ -132,6 +132,13 @@ pub fn create(
     let task = {
         let storage = lock_storage_arc(state)?;
         let id = super::new_short_id(&storage)?;
+        // D-62: in a pool of several projects, the task is for the
+        // creating session's (the user's: its pool's, when it has one).
+        let project = actor
+            .session
+            .as_ref()
+            .and_then(|session| storage.sessions().get(session).ok())
+            .and_then(|record| record.project.map(|id| id.as_str().to_owned()));
         storage
             .tasks()
             .create(&NewTask {
@@ -149,6 +156,7 @@ pub fn create(
                 created_by_name: &actor.name,
                 external_url: link.as_deref(),
                 blocked_by: &blocked_by,
+                project: project.as_deref(),
             })
             .map_err(|error| match error {
                 juggler_core::CoreError::Validation { message, .. } => refused(message),
@@ -165,6 +173,7 @@ pub fn create(
 ///
 /// Storage failures.
 pub fn claim(state: &Arc<AppState>, actor: &Actor, pool_id: &str, id: &str) -> AppResult<Claim> {
+    tasks::may_claim(actor.role).map_err(refused)?;
     let claim = {
         let storage = lock_storage_arc(state)?;
         let works = storage.switch_graph().works_by_session()?;
@@ -188,6 +197,12 @@ pub fn claim(state: &Arc<AppState>, actor: &Actor, pool_id: &str, id: &str) -> A
         state.tasks.notify(pool_id);
     }
     Ok(claim)
+}
+
+/// D-62: a reviewer's verdict, when the update's status word is one
+/// (`approved`, `sent_back`).
+fn verdict_of(args: &TaskUpdateArgs) -> Option<tasks::Verdict> {
+    args.status.as_deref().and_then(tasks::Verdict::parse)
 }
 
 /// What a change asks, for the rules.
@@ -227,6 +242,9 @@ pub fn may_update(actor: &Actor, task: &Task, args: &TaskUpdateArgs) -> AppResul
         .assignee_ref
         .as_ref()
         .is_some_and(|holder| actor.refs.contains(holder) || *holder == actor.member_ref);
+    if verdict_of(args).is_some() {
+        return tasks::may_review(actor.role, task.stored, holds).map_err(refused);
+    }
     let made_it = actor.refs.contains(&task.created_by) || task.created_by == actor.member_ref;
     for change in changes_of(args)? {
         tasks::may_change(
@@ -255,6 +273,22 @@ pub fn update(
 ) -> AppResult<Task> {
     let task = task_in(state, pool_id, &args.task)?;
     may_update(actor, &task, args)?;
+    if let Some(verdict) = verdict_of(args) {
+        let note = args
+            .note
+            .as_deref()
+            .map(|n| text("a note", n, NOTE_MAX))
+            .transpose()?;
+        let reviewed = lock_storage_arc(state)?
+            .tasks()
+            .review(&task.id, verdict, note.as_deref(), actor.who())
+            .map_err(|error| match error {
+                juggler_core::CoreError::Validation { message, .. } => refused(message),
+                other => other.into(),
+            })?;
+        state.tasks.notify(pool_id);
+        return Ok(reviewed);
+    }
     let title = args.title.as_deref().map(title).transpose()?;
     let body = args
         .body

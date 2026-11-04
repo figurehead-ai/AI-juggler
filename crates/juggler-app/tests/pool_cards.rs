@@ -165,7 +165,7 @@ fn checkout(dir: &Path) -> (Arc<AppState>, String, std::path::PathBuf) {
     let pool = info.pools[0].id.clone();
     pools::pool_move_impl(&state, planner.as_str(), &pool).unwrap();
     pools::pool_move_impl(&state, builder.as_str(), &pool).unwrap();
-    pools::pool_set_role_impl(&state, planner.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&state, planner.as_str(), "lead", None).unwrap();
     (state, pool, transcript)
 }
 

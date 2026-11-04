@@ -20,11 +20,12 @@ export function nameOf(session: InstanceInfo): string {
   return session.label ?? session.title ?? session.git_branch ?? (session.cwd.replace(/\/+$/, "").split("/").pop() || "A session");
 }
 
-/** Why a session can't come into `pool`, or null when it can. */
+/** Why a session can't come into `pool`, or null when it can (D-62: the
+ * pool's scope holds its project, or the pool takes every project). */
 export function cannotJoin(pool: PoolInfo, session: InstanceInfo): string | null {
-  if (pool.project_id !== null && session.project_id !== pool.project_id) return "This pool is for one project; that session works in another.";
-  if (pool.kind === "default" && pool.project_id === null && session.project_id) return "This pool is for sessions with no project.";
-  return null;
+  if (pool.scope_all || pool.scope.includes(session.project_id ?? null)) return null;
+  if (pool.scope.length === 1 && pool.scope[0] === null) return "This pool is for sessions with no project.";
+  return pool.kind === "default" ? "This pool is for one project; that session works in another." : "That session's project isn't in this pool's scope. Add it to the scope first.";
 }
 
 /** Puts a session in the pool, at `at` on the canvas when it was dropped
@@ -67,7 +68,7 @@ export async function removeFromPool(pool: PoolInfo, member: MemberNode, at: Poi
       undo: {
         onUndo: async () => {
           setPools(await poolMove(member.id, pool.id));
-          if (member.role !== "member") setPools(await poolSetRole(member.id, member.role as PoolRole));
+          if (member.role !== "member") setPools(await poolSetRole(member.id, member.role as PoolRole, pool.id));
           if (at) await place([{ session_id: member.id, x: at.x, y: at.y }]);
         },
       },
@@ -79,19 +80,19 @@ export async function removeFromPool(pool: PoolInfo, member: MemberNode, at: Poi
 
 /** Makes a member the pool's lead; the lead it had becomes a member.
  * Undo gives the roles back. */
-export async function makeLead(member: MemberNode, members: MemberNode[]): Promise<void> {
+export async function makeLead(pool: PoolInfo, member: MemberNode, members: MemberNode[]): Promise<void> {
   const before = members.filter((other) => other.role === "lead" && other.id !== member.id);
   const was = member.role as PoolRole;
   try {
-    for (const lead of before) await poolSetRole(lead.id, "member");
-    setPools(await poolSetRole(member.id, "lead"));
+    for (const lead of before) await poolSetRole(lead.id, "member", pool.id);
+    setPools(await poolSetRole(member.id, "lead", pool.id));
     showToast({
       message: `${nameOf(member.session)} leads now`,
       detail: before.length > 0 ? `${before.map((lead) => nameOf(lead.session)).join(", ")} ${before.length === 1 ? "is a member" : "are members"} again.` : undefined,
       undo: {
         onUndo: async () => {
-          setPools(await poolSetRole(member.id, was));
-          for (const lead of before) setPools(await poolSetRole(lead.id, "lead"));
+          setPools(await poolSetRole(member.id, was, pool.id));
+          for (const lead of before) setPools(await poolSetRole(lead.id, "lead", pool.id));
         },
       },
     });
@@ -100,10 +101,10 @@ export async function makeLead(member: MemberNode, members: MemberNode[]): Promi
   }
 }
 
-/** Sets a member's role (member or observer). */
-export async function setRole(member: MemberNode, role: PoolRole): Promise<void> {
+/** Sets a member's role in `pool` (member, reviewer or observer). */
+export async function setRole(pool: PoolInfo, member: MemberNode, role: PoolRole): Promise<void> {
   try {
-    setPools(await poolSetRole(member.id, role));
+    setPools(await poolSetRole(member.id, role, pool.id));
   } catch (cause) {
     failed("Couldn't change its role")(cause);
   }

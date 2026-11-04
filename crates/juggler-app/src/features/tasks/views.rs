@@ -333,6 +333,12 @@ fn what(verb: &str, detail: Option<&str>) -> String {
         "session_started" => format!("started a session for it: {detail}"),
         "approved" => "approved it: done".to_owned(),
         "sent_back" => format!("sent it back: {detail}"),
+        // D-62: a reviewer's verdict (the person's Approve is still theirs).
+        "review_approved" if detail.is_empty() => {
+            "reviewed it: looks right (waits on your Approve)".to_owned()
+        }
+        "review_approved" => format!("reviewed it: looks right (waits on your Approve): {detail}"),
+        "review_sent_back" => format!("reviewed it and sent it back: {detail}"),
         "freed" if detail.is_empty() => "freed it: its session had ended".to_owned(),
         "freed" => format!("freed it from {detail}, whose session had ended"),
         "cancelled" if detail.is_empty() => "cancelled it".to_owned(),

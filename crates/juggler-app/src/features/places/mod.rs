@@ -245,7 +245,7 @@ fn named(state: &Arc<AppState>, place: &KnownPlace) -> String {
 /// The app's word as every screen says it (`lib/app-name`'s
 /// `desktopAppWord`, the 0.4 review): "Claude app" where its tool is named
 /// after it (the Claude app runs Claude Code), else its own name
-/// ("ChatGPT"), so its outcomes read "Restarting Claude app · Work Max".
+/// (`ChatGPT`), so its outcomes read "Restarting Claude app · Work Max".
 pub(super) fn app_word(state: &Arc<AppState>, place: &KnownPlace) -> String {
     let registry = &state.registry;
     let tool = registry

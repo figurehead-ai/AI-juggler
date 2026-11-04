@@ -96,6 +96,7 @@ mod tests {
                 created_by_name: "You",
                 external_url: None,
                 blocked_by: &[],
+                project: None,
             })
             .unwrap();
         let named = name_tasks(

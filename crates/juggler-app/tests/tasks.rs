@@ -337,7 +337,7 @@ fn the_lead_plans_and_gives_tasks_out_and_members_work_what_they_hold() {
     let lab = Lab::new();
     let (lead_id, lead) = lab.agent("s-lead", "Planner");
     let (builder_id, builder) = lab.agent("s-b", "Builder");
-    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead", None).unwrap();
     // Only the lead plans epics and stories.
     let refused = create(&lab, &builder, "Checkout", Some("epic"));
     assert_eq!(refused.refused, Some(Refusal::Deny));
@@ -481,7 +481,7 @@ fn a_holder_gives_it_back_with_a_note_and_the_next_one_reads_it() {
 fn an_agent_asks_for_a_session_and_only_the_user_starts_it() {
     let lab = Lab::new();
     let (lead_id, lead) = lab.agent("s-lead", "Planner");
-    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead", None).unwrap();
     let id = task(&lab, "Write the release notes", &[]);
     let live = || {
         lab.state

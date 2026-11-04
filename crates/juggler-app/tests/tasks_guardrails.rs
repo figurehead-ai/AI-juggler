@@ -131,7 +131,7 @@ fn no_agent_starts_a_session_or_picks_an_account() {
     // And it holds: a lead asks for a session; none starts.
     let lab = Lab::new();
     let (lead_id, lead) = lab.agent("s-lead", "Planner");
-    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&lab.state, lead_id.as_str(), "lead", None).unwrap();
     let id = seed_task(
         &lab.state,
         &lab.pool,

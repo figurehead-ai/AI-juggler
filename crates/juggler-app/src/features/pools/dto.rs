@@ -25,6 +25,7 @@ pub struct PoolsInfo {
 /// One pool.
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own setting the pool page shows
 pub struct PoolInfo {
     /// Its id.
     pub id: String,
@@ -47,6 +48,114 @@ pub struct PoolInfo {
     /// How many sessions are in it, archived ones aside: its member
     /// list's length (`pools_members`).
     pub members: u32,
+    /// D-62 decision 8: it takes every project's sessions (those with no
+    /// project too).
+    pub scope_all: bool,
+    /// Else the projects it takes (`null`: sessions with no project).
+    pub scope: Vec<Option<String>>,
+    /// D-62 decision 14: its sessions are in no other pool, nothing
+    /// leaves it.
+    pub sealed: bool,
+    /// Its broad members skip sessions another pool names on their own (a
+    /// project's own pool).
+    pub skip_held: bool,
+}
+
+/// One member rule of a pool (D-62 decision 9): what it matches, its
+/// role and its own level.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolRuleInfo {
+    /// Its stored ref (`work:…`, `session:…`, `app:…`, `account:…`,
+    /// `tool:…`, `mac:…`, `all`).
+    pub member: String,
+    /// `session` | `app` | `account` | `tool` | `mac` | `everyone`.
+    pub kind: String,
+    /// `lead` | `member` | `reviewer` | `observer`.
+    pub role: String,
+    /// Its own level, else `null` (the pool's).
+    pub level: Option<String>,
+    /// When it joined, epoch ms.
+    #[ts(type = "number")]
+    pub joined_at: i64,
+}
+
+/// One pool's talk settings (D-62 decision 13).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolTalkInfo {
+    /// From: `role:<role>`, or a member's stored ref.
+    pub from: String,
+    /// To: the same.
+    pub to: String,
+    /// `allowed` | `ask` | `blocked`.
+    pub rule: String,
+}
+
+/// A pool's rules: its members by kind and its talk settings.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PoolRulesInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// Its member rules, most specific first.
+    pub members: Vec<PoolRuleInfo>,
+    /// Its talk settings (anything unset is allowed).
+    pub talk: Vec<PoolTalkInfo>,
+}
+
+/// One pool a session is in, and how (its Pools tab).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SessionPoolInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// Its name on screen.
+    pub pool_name: String,
+    /// The session's role there.
+    pub role: String,
+    /// How it got in: `session` | `app` | `account` | `tool` | `mac` |
+    /// `everyone`.
+    pub via: String,
+    /// The member that brought it in (its stored ref).
+    pub member: String,
+    /// Its own level there, when the member carries one.
+    pub level: Option<String>,
+    /// The pool is sealed.
+    pub sealed: bool,
+}
+
+/// A pool a member matched the session in that doesn't hold it, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SessionSkipInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// Its name on screen.
+    pub pool_name: String,
+    /// `out_of_scope` | `sealed_elsewhere` | `held_elsewhere`.
+    pub reason: String,
+    /// The sealed pool, or the pool that names it.
+    pub by_pool: Option<String>,
+    /// That pool's name on screen.
+    pub by_pool_name: Option<String>,
+    /// The reason in words, with the step that would let it in.
+    pub words: String,
+}
+
+/// Every pool a session is in, how it got into each, and the pools that
+/// left it out (D-62; AJ-E3004 req. 3).
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SessionPoolsInfo {
+    /// The session.
+    pub session_id: String,
+    /// Its pools, the first the one it's shown in first.
+    pub pools: Vec<SessionPoolInfo>,
+    /// The pools that left it out.
+    pub skipped: Vec<SessionSkipInfo>,
+    /// Its sign-in can't be read: Account members can't match it.
+    pub account_unknown: bool,
 }
 
 /// One session's place.

@@ -60,7 +60,7 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
     // The stamps first: whatever changes while this reads makes the part
     // stale at once, never silently included or missed.
     let events = state.relations.snapshot();
-    let (stored, facets, accounts, recipes, lifecycle, signed_in, pools) = {
+    let (stored, facets, accounts, recipes, lifecycle, signed_in, pools, pool_facts) = {
         let storage = lock_storage_arc(state)?;
         let relations = storage.relations();
         let (accounts, recipes) = crate::commands::session_join_indexes(&storage)?;
@@ -72,6 +72,7 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
             storage.sessions().lifecycle_latest().unwrap_or_default(),
             accounts_of_folders(&storage)?,
             crate::features::pools::members::memberships(&storage)?,
+            crate::features::pools::members::facts(&storage)?,
         )
     };
     let no_desktop = BTreeMap::new();
@@ -83,16 +84,12 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
         let archived = lifecycle
             .get(&facet.id)
             .is_some_and(|(event, _)| event == "archived");
-        // Its pool as the pools' lists place it: a member row, else its
-        // project's own pool.
-        let (pool, _) = pools.place(
-            &juggler_core::model::SessionId::new(facet.id.clone()),
-            facet
-                .project
-                .clone()
-                .map(juggler_core::model::ProjectId::new)
-                .as_ref(),
-        );
+        // Its first pool, as the pools' lists show it (D-62: the
+        // resolver over its member rules).
+        let pool = pool_facts
+            .get(&juggler_core::model::SessionId::new(facet.id.clone()))
+            .and_then(|facts| pools.place(facts))
+            .map(|(pool, _)| pool);
         row(
             [
                 (EntityKind::Project, facet.project),
@@ -112,7 +109,7 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
                 (EntityKind::Tool, Some(tool)),
                 (EntityKind::Machine, Some(facet.machine)),
                 (EntityKind::LaunchSettings, Some(facet.launch_settings)),
-                (EntityKind::Pool, Some(pool)),
+                (EntityKind::Pool, pool),
             ],
             live,
             archived,

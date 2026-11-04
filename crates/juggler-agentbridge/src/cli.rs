@@ -64,6 +64,8 @@ pub const USAGE: &str = "juggler-agent: AI Juggler's pool tools for the agent in
                                 give a task back to the pool, with a note
   juggler-agent assign <id> <to>
                                 (the lead) give a task to a member, \"nobody\" or \"new_session\"
+  juggler-agent --pool <id> <call> …
+                                the same call, for one of your pools (whoami lists them)
   juggler-agent --mcp           serve the same as an MCP server on stdin and stdout
   juggler-agent --mcp --plugin  the same, as the Claude Code plugin's server
   juggler-agent hook <event>    (run by the tool's own hooks) report this session's state
@@ -97,6 +99,22 @@ pub enum Command {
 ///
 /// The words to show when they don't make a command.
 pub fn parse(args: &[String]) -> Result<Command, String> {
+    // D-62: `--pool <id>` first names which of the session's pools a call
+    // is for.
+    if let [flag, pool, rest @ ..] = args
+        && flag == "--pool"
+    {
+        return match parse(rest)? {
+            Command::Call(call, args) => Ok(Command::Call(
+                call,
+                Box::new(Args {
+                    pool: Some(pool.clone()),
+                    ..*args
+                }),
+            )),
+            _ => Err("--pool goes before a call: juggler-agent --pool <id> <call> …".to_owned()),
+        };
+    }
     let words: Vec<&str> = args.iter().map(String::as_str).collect();
     match words.as_slice() {
         ["--mcp"] => Ok(Command::Mcp),

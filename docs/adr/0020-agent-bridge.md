@@ -85,7 +85,8 @@ without MCP). The pools, their access levels and the one decision point
    decides and audits: `whoami` and `pool_roster` are `read_roster`, the
    cards resource `read_cards`, `set_status` `set_status`. Before that,
    in order: the request's one shape (`deny_unknown_fields`: no field
-   names a pool or another identity), the key, a rate limit (30 calls in
+   names another identity; since D-62 a call may name which of the
+   session's *own* pools it's for, see the D-62 addendum), the key, a rate limit (30 calls in
    10 s per session), the switches. An ask is a refusal that says the
    user decides, until E18 brings asks agents can wait on.
 7. **What agents see** (D-33): names, places, tools, states, roles,
@@ -108,7 +109,7 @@ without MCP). The pools, their access levels and the one decision point
 | Threat | Where | Mitigation | Test |
 |---|---|---|---|
 | **S**poofing: another local process poses as an agent | the socket | `0700` folder, `0600` socket, peer uid = ours, then a 256-bit key only the launched session has; a key is checked by its SHA-256, never stored | `the_socket_is_0600_in_a_0700_folder_and_answers_only_current_keys` |
-| Spoofing: an agent claims another session or pool | the request | identity is the key alone; the request has no field for a pool or a session (`deny_unknown_fields`) | `each_level_refuses_…` (the "sneaky" request), `a_request_round_trips_and_refuses_strangers` |
+| Spoofing: an agent claims another session or pool | the request | identity is the key alone; the request has no field for a session (`deny_unknown_fields`); its `pool` field (D-62) only chooses among the pools the resolver puts the key's session in, and any other is refused | `each_level_refuses_…` (the "sneaky" request), `a_request_round_trips_and_refuses_strangers` |
 | **T**ampering: a launch file changed to point elsewhere | `overlays/agent/<session>/` | written `0600` in `0700` folders that must be ours; the file holds no secret | `the_key_is_in_the_environment_only_…` |
 | **R**epudiation | every call | `allowed()` writes the audit (pool, actor, action, decision) for every call that reaches a decision | `each_level_refuses_…_every_call_is_audited` |
 | **I**nformation disclosure: the key leaks | argv, files, logs | environment only; only its hash on disk; the ledger records argv, which never has it | `the_key_is_in_the_environment_only_…`, `the_command_line_reads_the_key_from_its_environment_only` |
@@ -187,6 +188,32 @@ without MCP). The pools, their access levels and the one decision point
   fields, no call that changes a grant. **D** claim storms: the call rate
   limit (30 in 10 s) and one statement per claim. **I** quota: nothing in
   tasks reads it (`assignment_never_reads_quota`).
+
+## D-62 addendum: several pools per session (2026-11-04, AJ-E3004)
+
+D-62 lets a session be in several pools (decision 10), so §6's "no field
+names a pool" is amended:
+
+- Every call may carry `pool`: the id of one of the session's pools, as
+  `whoami`'s `pools` lists them (each with its role, how it got in and
+  whether it's sealed). The MCP tools take it as an optional `pool`
+  argument; the command line as `juggler-agent --pool <id> <call> …`.
+- The app resolves the key's session first (identity is still the key
+  alone), then checks the named pool is one the resolver puts it in. A
+  pool it isn't in is refused ("This session isn't in the pool …"), and
+  audited like any refusal.
+- Without `pool`, a call acts in the session's first pool. A session in
+  several pools must name one on every write (`send_message`,
+  `share_doc`, `task_create`, `task_claim`, `task_update`,
+  `task_assign`); reads use the first pool.
+- What a call may do is that pool's level and rules, or the member's own
+  level where it carries one (D-62 decision 12).
+
+STRIDE: spoofing gains no route, because the field chooses only among the
+caller's own pools; elevation gains none, because each pool's own level
+applies to what's done in it. Tests: `a_request_round_trips_and_refuses_strangers`
+(the field, and no identity field), and the app's bridge tests (a pool it
+isn't in is refused; a write in two pools must name one).
 
 ## Unverified until the spike (AJ-E1701, the maintainer's)
 

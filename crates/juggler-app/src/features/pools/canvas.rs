@@ -318,8 +318,8 @@ pub fn place_impl(
         let session = SessionId::new(node.session_id.as_str());
         let in_pool = storage
             .sessions()
-            .get(&session)
-            .is_ok_and(|record| memberships.place(&session, record.project.as_ref()).0 == pool_id);
+            .pool_facts_of(&session)?
+            .is_some_and(|facts| memberships.resolve(&facts).in_pool(pool_id).is_some());
         if !in_pool {
             return Err(AppError::Refused(
                 "That session isn't in this pool any more".to_owned(),

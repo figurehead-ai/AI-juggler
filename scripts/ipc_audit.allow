@@ -138,6 +138,14 @@ unbounded pools_set_access  # bounded: the pools (yours, one default per project
 unbounded pools_set_delivery  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
 unbounded pools_set_role  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
 unbounded pools_set_spans_macs  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_join  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_leave  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_scope  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_sealed  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_set_skip_held  # bounded: the pools (yours, one default per project) with counts, and the working set's places; members page via pools_members
+unbounded pools_rules  # bounded: one pool's member rules, each one the user added by hand (a canvas names at most 200), and at most 16 role pairs plus the connections the user set
+unbounded pools_set_talk  # bounded: one pool's member rules, each one the user added by hand (a canvas names at most 200), and at most 16 role pairs plus the connections the user set
+unbounded pools_of_session  # bounded: one session's pools and the ones that left it out: at most the user's own pools plus its project's
 unbounded port_inventory  # TO PAGE: every listening port
 unbounded pricing_catalog_info  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded processes_dry_run  # bounded: one account's left-behind processes

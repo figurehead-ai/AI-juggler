@@ -145,6 +145,26 @@ fn about(version: &str) -> Value {
     })
 }
 
+/// D-62: the argument every tool takes to name which pool it's for.
+const POOL_ARG: &str = "pool";
+
+/// Gives every tool's input the optional `pool` argument.
+fn with_pool(tools: &mut Value) {
+    let pool = json!({
+        "type": "string",
+        "maxLength": 200,
+        "description": "Which of your pools this is for: an id from whoami's pools. Leave it out when you're in one pool; name it on a write when you're in several.",
+    });
+    for tool in tools.as_array_mut().into_iter().flatten() {
+        if let Some(properties) = tool
+            .pointer_mut("/inputSchema/properties")
+            .and_then(Value::as_object_mut)
+        {
+            properties.insert(POOL_ARG.to_owned(), pool.clone());
+        }
+    }
+}
+
 /// The tools, with their read-only marks (a tool that only looks says
 /// so, so a tool's "ask for writes only" setting can tell).
 #[must_use]
@@ -155,7 +175,7 @@ pub fn tools() -> Value {
         {
             "name": "whoami",
             "title": "Who am I",
-            "description": "This session in AI Juggler: its name, place and tool, the pool it's in, its role there, and what the pool lets agents do.",
+            "description": "This session in AI Juggler: its name, place and tool, every pool it's in (with how it got in, its role there and what each pool lets agents do).",
             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": false},
             "annotations": looks,
         },
@@ -187,6 +207,7 @@ pub fn tools() -> Value {
             all.extend(more.iter().cloned());
         }
     }
+    with_pool(&mut tools);
     tools
 }
 
@@ -289,12 +310,21 @@ fn tool_call(params: &Value, backend: &mut dyn Backend) -> Value {
     let Some(call) = Call::of_tool(name) else {
         return tool_error(&format!("There's no tool called {name:?} here."));
     };
-    let arguments = params
+    let mut arguments = params
         .get("arguments")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    // D-62: any tool may name the pool it's for; the rest is its own shape.
+    let pool = match arguments
+        .as_object_mut()
+        .and_then(|map| map.remove(POOL_ARG))
+    {
+        None | Some(Value::Null) => None,
+        Some(Value::String(pool)) if !pool.trim().is_empty() && pool.len() <= 200 => Some(pool),
+        Some(_) => return tool_error("pool is the id of one of your pools, as whoami lists them."),
+    };
     let args = match args_of(call, arguments) {
-        Ok(args) => args,
+        Ok(args) => Args { pool, ..args },
         Err(words) => return tool_error(&words),
     };
     match backend.call(call, args) {

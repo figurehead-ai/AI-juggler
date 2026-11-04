@@ -369,10 +369,81 @@ fn above_the_level_a_message_is_held_for_the_users_ok() {
     );
     // An observer asks too, at any level.
     pools::access::set_level_impl(&lab.state, &lab.pool, "work_together", &[]).unwrap();
-    pools::pool_set_role_impl(&lab.state, "s-a", "observer").unwrap();
+    pools::pool_set_role_impl(&lab.state, "s-a", "observer", None).unwrap();
     assert_eq!(
         lab.say(&a, &b_id, "Watching", None).refused,
         Some(Refusal::Ask)
+    );
+}
+
+#[test]
+fn a_pools_talk_rules_hold_or_refuse_an_agents_message_d62() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Alpha");
+    let (b_id, b) = lab.agent("s-b", "Beta");
+    let inbox_empty = |key: &str| {
+        lab.inbox(key).result.unwrap()["messages"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    };
+    // Member to member asks first: the copy waits in Needs you.
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("ask"),
+    )
+    .unwrap();
+    let sent = lab.say(&a, &b_id, "Can I take the API?", None);
+    assert!(sent.refused.is_none(), "{sent:?}");
+    assert_eq!(
+        field(&sent, "/to/0/gets_it"),
+        "when the user delivers it (this pool asks first)"
+    );
+    assert!(inbox_empty(&b), "held until the person delivers it");
+    let ask = needs::needs(&lab.state)
+        .unwrap()
+        .into_iter()
+        .find(|need| need.kind == "ask")
+        .expect("the held message in Needs you");
+    assert!(
+        !ask.offer_always,
+        "a talk rule is the pool's, never an always"
+    );
+    assert!(ask.detail.contains("asks you first"), "{}", ask.detail);
+    assert!(needs::answer(&lab.state, ask.ask_id.as_deref().unwrap(), "always").is_err());
+    needs::answer(&lab.state, ask.ask_id.as_deref().unwrap(), "once").unwrap();
+    assert_eq!(
+        lab.inbox(&b).result.unwrap()["messages"][0]["body"],
+        "Can I take the API?"
+    );
+
+    // One connection blocked overrides its pair: refused, in words.
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "session:s-a",
+        "session:s-b",
+        Some("blocked"),
+    )
+    .unwrap();
+    let (why, words) = refusal(&lab.say(&a, &b_id, "Again?", None));
+    assert_eq!(why, Some(Refusal::Deny));
+    assert!(
+        words.contains("doesn't let you message that member"),
+        "{words}"
+    );
+
+    // Cleared: back to the pair's ask first; cleared too: allowed.
+    pools::model::set_talk_impl(&lab.state, &lab.pool, "session:s-a", "session:s-b", None).unwrap();
+    pools::model::set_talk_impl(&lab.state, &lab.pool, "role:member", "role:member", None).unwrap();
+    let sent = lab.say(&a, &b_id, "Plain again", None);
+    assert!(sent.refused.is_none(), "{sent:?}");
+    assert_ne!(
+        field(&sent, "/to/0/gets_it"),
+        "when the user delivers it (this pool asks first)"
     );
 }
 

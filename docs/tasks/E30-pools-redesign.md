@@ -89,7 +89,7 @@
 
 ## Step 3 — the model
 
-### AJ-E3003 The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3202, AJ-E3002
+### AJ-E3003 The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | Status: DONE (2026-11-04: schema v45, `crates/juggler-core/tests/pools_v45.rs`) | Priority P0 | Effort L | Depends: AJ-E3202, AJ-E3002
 **Goal**: Store everything D-62 decisions 8–16 need, additively, and move 0.3's pools with nothing lost.
 **User story**: As someone upgrading from 0.3, every pool, member, message, task and canvas position I had is still there, and my pools with no project now say "Every project".
 **Requirements**:
@@ -100,13 +100,13 @@
 **UI/UX reasoning**: nothing the user made changes meaning on upgrade (P9).
 **Performance budget**: the move runs in < 1 s for 100 pools and 10 000 messages.
 **Quality gates**: L1 migration table over every 0.3 pool kind × content; the reference diff shows additions only.
-**Evidence/validation proof**: scenario P9; `crates/juggler-core/tests/pools_v40.rs`.
+**Evidence/validation proof**: scenario P9; `crates/juggler-core/tests/pools_v45.rs` (every 0.3 pool kind with a row in every table keyed by a pool: the diff shows additions only; the move under 1 s for 100 pools and 10 000 messages; the copy taken first).
 **Visual testing**: project pools render as before (gallery unchanged).
 **Files to touch**: `crates/juggler-core/src/storage/mod.rs`, `storage/pools.rs`, `crates/juggler-app/src/newer_data.rs`.
 **Research basis**: `docs/research/pools-model.md` "Moving today's pools".
-**Handover note**: The schema number follows whatever 0.3.x has taken by then.
+**Handover note**: The schema number follows whatever 0.3.x has taken by then. Done as v45 (2026-11-04). Tests that roll a database back past v45 start from `crates/juggler-core/tests/fixtures/undo_v45.sql`. A session named on its own was checked against the scope when added, so the resolver doesn't drop it later; 0.3's rows move over unchanged.
 
-### AJ-E3004 Membership resolved: who is in which pool, how, and with what role and level | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3003
+### AJ-E3004 Membership resolved: who is in which pool, how, and with what role and level | Status: DONE (2026-11-04: `juggler_core::pools`; L1 28 224 cases against `scripts/qa/pool_oracle.py`; the L2 replica run is E33's) | Priority P0 | Effort L | Depends: AJ-E3003
 **Goal**: Every session's pools, role and level come from one resolver that follows D-62 decision 11 exactly.
 **User story**: As someone whose App is a pool member, every new session of that App in scope joins by itself, and its page says how it got in.
 **Requirements**:
@@ -121,9 +121,9 @@
 **Visual testing**: the session page's Pools tab (how it got in, skipped from).
 **Files to touch**: `crates/juggler-core/src/pools/` (resolver), `crates/juggler-app/src/agent_bridge/`, `docs/adr/ADR-0020*.md`.
 **Research basis**: `docs/research/pools-model.md` "Precedence", "Several pools per session".
-**Handover note**: The same maps feed E31's Pools tabs and counts.
+**Handover note**: The same maps feed E31's Pools tabs and counts. Built 2026-11-04: `juggler_core::pools::Memberships` (indexed by member kind; 500 sessions × 50 pools in under 10 ms in a debug build), `SessionsRepo::pool_facts`, `pools_of_session` (how it got in, what left it out, with the step), and the bridge's `pool` argument (ADR-0020's D-62 addendum). The relation counts still put each session under its first pool only; the Pools tabs (AJ-E3009) count every pool.
 
-### AJ-E3005 Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3004, AJ-E3002
+### AJ-E3005 Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3004, AJ-E3002
 **Goal**: What an agent may do and whom it may tell is decided by the pool's rules, and the person sees every hold.
 **User story**: As a feature-team lead, a member's message to another member waits in Needs you until I deliver it, and a sealed pool lets nothing out.
 **Requirements**:
@@ -139,7 +139,7 @@
 **Visual testing**: the held message in Needs you and on the canvas edge.
 **Files to touch**: `crates/juggler-core/src/pools/`, `crates/juggler-app/src/agent_bridge/`, `crates/juggler-app/src/features/messages/`.
 **Research basis**: D-28, D-29, D-44; `docs/research/pools-model.md` "Roles and access", "Communication".
-**Handover note**: A rule AJ-E3002 found unenforceable shows as "can't be enforced for this tool", never as kept.
+**Handover note**: A rule AJ-E3002 found unenforceable shows as "can't be enforced for this tool", never as kept. 2026-11-04, built: talk per role pair and connection (`juggler_core::pools::talk`, L1 9 216 cases plus the 27 channel cases against the oracle) applied to agents' messages (blocked leaves the recipient out with words; ask first holds that copy in Needs you, never an "always"); the Reviewer (verdicts `approved` and `sent_back` on a task in review, never a build task; the person's Approve stays theirs); a member's own level replacing the pool's at the decision point; sealed pools refuse links and end theirs. Left: Claude's own channel through `--settings` (waits on AJ-E3002's lab), the Watched hold's reason (AJ-E3006), and a check that two pools waking one session share its rate limit.
 
 ## Step 4 — on screen
 

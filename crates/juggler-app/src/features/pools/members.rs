@@ -1,8 +1,9 @@
 //! AJ-E1702: who is where, never the whole history at once (I6).
 //!
-//! - A session's place is what a member row says (the user put it, or
-//!   its Work item, there), else its project's default pool, as a member
-//!   (D-33). [`Memberships`] answers it per session from the rows alone.
+//! - D-62 (AJ-E3004): a session's pools are what the resolver says from
+//!   the member rules (a Session, App, Account, Tool, Mac or everyone in
+//!   scope) and the session's own facts; it can be in several. Its first
+//!   pool is the one a one-pool view shows it in.
 //! - The pools' answer counts each pool's sessions in one narrow storage
 //!   pass ([`Tally`]) and names only the places of the working set's
 //!   sessions (what the rail holds) that aren't that default
@@ -16,7 +17,8 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use juggler_core::model::{ProjectId, SessionId};
-use juggler_core::storage::{Memberships, PoolRole, SessionBrief, Storage};
+use juggler_core::pools::{Memberships, Resolution, SessionFacts};
+use juggler_core::storage::{PoolRole, SessionBrief, Storage};
 
 use super::dto::{PoolMemberInfo, PoolMemberRow};
 use crate::commands::lock_storage_arc;
@@ -31,23 +33,66 @@ use crate::state::AppState;
 /// Storage failures.
 pub fn memberships(storage: &Storage) -> AppResult<Memberships> {
     Ok(Memberships::new(
+        &storage.pools().list()?,
         &storage.pools().members()?,
         storage.switch_graph().works_by_session()?,
     ))
 }
 
-/// One session's pool and role; `None` when the session isn't there.
+/// Every session's facts, by id (one narrow pass).
+///
+/// # Errors
+///
+/// Storage failures.
+pub fn facts(storage: &Storage) -> AppResult<HashMap<SessionId, SessionFacts>> {
+    Ok(storage
+        .sessions()
+        .pool_facts()?
+        .into_iter()
+        .map(|facts| (facts.session.clone(), facts))
+        .collect())
+}
+
+/// One session's pools, how it got into each and why not the others;
+/// `None` when the session isn't there.
+///
+/// # Errors
+///
+/// Storage failures.
+pub fn resolution_of(storage: &Storage, session: &SessionId) -> AppResult<Option<Resolution>> {
+    let Some(facts) = storage.sessions().pool_facts_of(session)? else {
+        return Ok(None);
+    };
+    Ok(Some(memberships(storage)?.resolve(&facts)))
+}
+
+/// One session's first pool and role there; `None` when the session
+/// isn't there or is in no pool.
 ///
 /// # Errors
 ///
 /// Storage failures.
 pub fn place_of(storage: &Storage, session: &SessionId) -> AppResult<Option<(String, PoolRole)>> {
-    let Ok(record) = storage.sessions().get(session) else {
-        return Ok(None);
-    };
-    Ok(Some(
-        memberships(storage)?.place(session, record.project.as_ref()),
-    ))
+    Ok(resolution_of(storage, session)?.and_then(|resolution| {
+        resolution
+            .primary()
+            .map(|place| (place.pool_id.clone(), place.role))
+    }))
+}
+
+/// D-62: `session`'s role in `pool_id`, when it's in that pool (it may be
+/// in several).
+///
+/// # Errors
+///
+/// Storage failures.
+pub fn role_in(
+    storage: &Storage,
+    session: &SessionId,
+    pool_id: &str,
+) -> AppResult<Option<PoolRole>> {
+    Ok(resolution_of(storage, session)?
+        .and_then(|resolution| resolution.in_pool(pool_id).map(|place| place.role)))
 }
 
 /// The sessions archived now (they're history: no pool lists them).
@@ -80,16 +125,18 @@ impl Tally {
     pub fn read(storage: &Storage, memberships: &Memberships) -> AppResult<Self> {
         let archived = archived(storage)?;
         let mut tally = Self::default();
-        for brief in storage.sessions().briefs()? {
-            let (pool_id, _) = memberships.place(&brief.id, brief.project.as_ref());
-            if !archived.contains(brief.id.as_str()) {
-                *tally.members.entry(pool_id.clone()).or_default() += 1;
+        for facts in storage.sessions().pool_facts()? {
+            let live = !archived.contains(facts.session.as_str());
+            for place in memberships.resolve(&facts).placements {
+                if live {
+                    *tally.members.entry(place.pool_id.clone()).or_default() += 1;
+                }
+                tally
+                    .projects
+                    .entry(place.pool_id)
+                    .or_default()
+                    .insert(facts.project.clone());
             }
-            tally
-                .projects
-                .entry(pool_id)
-                .or_default()
-                .insert(brief.project);
         }
         Ok(tally)
     }
@@ -109,21 +156,24 @@ impl Tally {
     }
 }
 
-/// The places of the working set's sessions that a row sets apart from
-/// their project's default pool as a member, by session id.
+/// The working set's sessions' first places, where that isn't their
+/// project's default pool as a member, by session id. (Every pool a
+/// session is in is [`resolution_of`]'s, on its own page.)
 ///
 /// # Errors
 ///
 /// Storage failures.
 pub fn placements(storage: &Storage, memberships: &Memberships) -> AppResult<Vec<PoolMemberInfo>> {
+    let facts = facts(storage)?;
     let mut placements: Vec<PoolMemberInfo> = crate::commands::working_records(storage)?
         .into_iter()
         .filter_map(|record| {
-            let (pool_id, role) = memberships.placed(&record.id)?;
+            let facts = facts.get(&record.id)?;
+            let (pool_id, role) = memberships.place(facts)?;
             let default = juggler_core::storage::default_pool_id(record.project.as_ref());
             (pool_id != default || role != PoolRole::Member).then(|| PoolMemberInfo {
                 session_id: record.id.as_str().to_owned(),
-                pool_id: pool_id.to_owned(),
+                pool_id,
                 role: role.as_str().to_owned(),
             })
         })
@@ -153,7 +203,8 @@ pub(super) fn role_rank(role: PoolRole) -> i64 {
     match role {
         PoolRole::Lead => 0,
         PoolRole::Member => 1,
-        PoolRole::Observer => 2,
+        PoolRole::Reviewer => 2,
+        PoolRole::Observer => 3,
     }
 }
 
@@ -191,14 +242,18 @@ pub fn members_page(
         super::live_pool(&storage, pool_id)?;
         let memberships = memberships(&storage)?;
         let archived = archived(&storage)?;
+        let facts = facts(&storage)?;
         let candidates: Vec<Candidate> = storage
             .sessions()
             .briefs()?
             .into_iter()
             .filter(|brief| !archived.contains(brief.id.as_str()))
             .filter_map(|brief| {
-                let (place, role) = memberships.place(&brief.id, brief.project.as_ref());
-                (place == pool_id).then_some(Candidate { brief, role })
+                let role = memberships
+                    .resolve(facts.get(&brief.id)?)
+                    .in_pool(pool_id)?
+                    .role;
+                Some(Candidate { brief, role })
             })
             .collect();
         let page = crate::paging::page(candidates, Candidate::sort_key, request)?;

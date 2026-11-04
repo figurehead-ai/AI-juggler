@@ -90,8 +90,8 @@ fn info(
     place: &KnownPlace,
     // Its app's word as every screen says it ("Claude app"), for its label.
     word: &str,
-    pid: Option<u32>,
-    lost: bool,
+    // Its process, when it runs, and whether it lost its window (0.3.8).
+    (pid, lost): (Option<u32>, bool),
     hosts: &HostRegistry,
     accounts: &std::collections::HashMap<String, String>,
     slots: &std::collections::BTreeMap<String, u8>,
@@ -168,8 +168,7 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
                 id,
                 place,
                 &super::app_word(state, place),
-                running.map(|(_, pid, _)| *pid),
-                lost,
+                (running.map(|(_, pid, _)| *pid), lost),
                 &hosts,
                 &accounts,
                 &slots,

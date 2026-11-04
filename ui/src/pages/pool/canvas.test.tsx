@@ -16,7 +16,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../../lib/bridge";
-import { resetPreviewPools } from "../../lib/ipc/pools";
+import { resetPreviewPools, scopeOf } from "../../lib/ipc/pools";
 import { resetPreviewMessages } from "../../lib/ipc/messages";
 import { resetPreviewCanvas } from "../../lib/ipc/pool-canvas";
 import { forgetPaged } from "../../lib/paged";
@@ -170,7 +170,7 @@ describe("the Pools screen's words", () => {
     expect(newPoolName(["new pool", "New pool 2"])).toBe("New pool 3");
   });
   it("puts yours first, then projects' pools with open sessions; an empty project pool waits", () => {
-    const pool = (id: string, kind: string, members: number) => ({ id, name: id, kind, project_id: kind === "default" ? id : null, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members });
+    const pool = (id: string, kind: string, members: number) => ({ id, name: id, kind, project_id: kind === "default" ? id : null, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members, ...scopeOf(kind, kind === "default" ? id : null) });
     const order = cardOrder([pool("quiet", "default", 3), pool("busy", "default", 1), pool("empty", "default", 0), pool("mine", "user", 0)], new Map([["busy", 1]]));
     expect(order.map((row) => row.id)).toEqual(["mine", "busy", "quiet"]);
   });
@@ -304,7 +304,7 @@ describe("a pool's page: its canvas", () => {
   });
 
   it("says how a message gets into a session", () => {
-    const pool = { id: "p", name: "p", kind: "user", project_id: null, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 0 };
+    const pool = { id: "p", name: "p", kind: "user", project_id: null, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 0, ...scopeOf("user", null) };
     expect(deliveryWords(pool)).toBe("When you click Deliver");
     expect(deliveryWords({ ...pool, access: { ...pool.access, level: "full" } })).toBe("By themselves, between turns");
     expect(deliveryWords({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped: nothing goes into a session");

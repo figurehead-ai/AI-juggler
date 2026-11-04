@@ -24,6 +24,19 @@ const STATUSES: [&str; 7] = [
     "done",
     "cancelled",
 ];
+/// `task_update`'s words: the statuses, and (D-62) a reviewer's two
+/// verdicts on a task in review.
+const UPDATE_STATUSES: [&str; 9] = [
+    "todo",
+    "ready",
+    "in_progress",
+    "blocked",
+    "in_review",
+    "done",
+    "cancelled",
+    "approved",
+    "sent_back",
+];
 const PRIORITIES: [&str; 4] = ["urgent", "high", "normal", "low"];
 
 /// The task tools, with their read-only marks.
@@ -87,12 +100,12 @@ pub fn tools(looks: &Value, writes: &Value) -> Value {
         {
             "name": "task_update",
             "title": "Say where a task is",
-            "description": format!("Changes a task this session holds (or made, while no one holds it): its status (in_review when it's ready for a look), its words, priority or blockers, or release: true to give it back to the pool with a note for whoever takes it next (at most {NOTE_MAX} characters). The pool's lead may change any task."),
+            "description": format!("Changes a task this session holds (or made, while no one holds it): its status (in_review when it's ready for a look), its words, priority or blockers, or release: true to give it back to the pool with a note for whoever takes it next (at most {NOTE_MAX} characters). The pool's lead may change any task. A reviewer gives its verdict on a task in review: approved (it waits on the person's Approve) or sent_back with a note."),
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "task": task,
-                    "status": {"type": "string", "enum": STATUSES},
+                    "status": {"type": "string", "enum": UPDATE_STATUSES},
                     "release": {"type": "boolean"},
                     "note": {"type": "string", "maxLength": NOTE_MAX},
                     "title": {"type": "string", "maxLength": TASK_TITLE_MAX},

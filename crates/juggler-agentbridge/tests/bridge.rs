@@ -406,7 +406,7 @@ fn each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited() {
 
     // An observer only looks, whatever the level.
     level("full", &[]);
-    pools::pool_set_role_impl(&world.state, session.as_str(), "observer").unwrap();
+    pools::pool_set_role_impl(&world.state, session.as_str(), "observer", None).unwrap();
     assert!(ask(&world, &key, Call::Cards, None).result.is_some());
     assert_eq!(
         ask(&world, &key, Call::SetStatus, Some("x")).refused,
@@ -421,11 +421,22 @@ fn each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited() {
     );
     settings::set_impl(&world.state, "project", world.project.as_str(), true).unwrap();
 
-    // A request that names anything else isn't read at all.
-    let sneaky = format!(r#"{{"v":1,"token":"{key}","call":"whoami","pool":"pool-other"}}"#);
+    // A request that names another identity isn't read at all.
+    let sneaky = format!(r#"{{"v":1,"token":"{key}","call":"whoami","session":"other"}}"#);
     assert_eq!(
         calls::handle(&world.state, &sneaky).refused,
         Some(Refusal::Bad)
+    );
+    // D-62: naming a pool the session isn't in is refused in words.
+    let elsewhere = format!(r#"{{"v":1,"token":"{key}","call":"whoami","pool":"pool-other"}}"#);
+    let answer = calls::handle(&world.state, &elsewhere);
+    assert_eq!(answer.refused, Some(Refusal::Deny));
+    assert!(
+        answer
+            .reason
+            .as_deref()
+            .is_some_and(|words| words.contains("isn't in the pool")),
+        "{answer:?}"
     );
 
     // Every call that reached the decision is in the audit.
@@ -449,6 +460,88 @@ fn each_level_refuses_what_it_doesnt_allow_and_every_call_is_audited() {
     assert!(
         ours.iter()
             .any(|row| row.action == "read_cards" && row.decision == "allow")
+    );
+}
+
+#[test]
+fn a_session_in_two_pools_lists_both_and_names_one_on_a_write() {
+    let world = world(&[]);
+    settings::answer_impl(&world.state, true).unwrap();
+    let session = session(&world, "s-1", SessionStatus::Running);
+    let (_, spec) = prepare(&world, &session);
+    let key = token(&spec);
+    // D-62 P4: a reviewer pool over everyone, beside its project pool.
+    let info = pools::pool_create_impl(&world.state, "Reviews", None).unwrap();
+    let reviews = info
+        .pools
+        .iter()
+        .find(|pool| pool.name == "Reviews")
+        .unwrap()
+        .id
+        .clone();
+    pools::model::join_impl(&world.state, &reviews, "all", "member", None, &[]).unwrap();
+    let own = juggler_core::storage::default_pool_id(Some(&world.project));
+
+    let me = ask(&world, &key, Call::Whoami, None).result.unwrap();
+    let ids: Vec<&str> = me["pools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|pool| pool["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, [reviews.as_str(), own.as_str()], "{me}");
+    assert_eq!(me["pools"][0]["via"], "everyone");
+
+    let create = |pool: Option<&str>| {
+        let request = Request::new(
+            key.clone(),
+            Call::TaskCreate,
+            wire::Args {
+                new_task: Some(wire::TaskCreateArgs {
+                    title: "Review the refund change".to_owned(),
+                    ..serde_json::from_str(r#"{"title":"x"}"#).unwrap()
+                }),
+                pool: pool.map(str::to_owned),
+                ..wire::Args::default()
+            },
+        );
+        calls::handle(&world.state, &serde_json::to_string(&request).unwrap())
+    };
+    // A write in two pools must say which.
+    let unnamed = create(None);
+    assert_eq!(unnamed.refused, Some(Refusal::Bad));
+    assert!(unnamed.reason.unwrap().contains("is in 2 pools"));
+    // Named: it lands in that pool, and that pool only.
+    let made = create(Some(&reviews));
+    assert!(made.result.is_some(), "{made:?}");
+    // Its second pool is its own too: a write named there goes through.
+    let there = create(Some(&own));
+    assert!(there.result.is_some(), "{there:?}");
+    // D-62 decision 12: its member's own level replaces the pool's. At
+    // Read, a write in "Reviews" waits on the user; its project pool is
+    // untouched.
+    pools::model::join_impl(&world.state, &reviews, "all", "member", Some("read"), &[]).unwrap();
+    assert_eq!(create(Some(&reviews)).refused, Some(Refusal::Ask));
+    assert!(create(Some(&own)).result.is_some());
+    let storage = world.state.storage.lock().unwrap();
+    let pools_of_tasks: Vec<String> = storage
+        .raw_conn()
+        .prepare("SELECT pool_id FROM tasks")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(
+        pools_of_tasks
+            .iter()
+            .filter(|pool| **pool == reviews)
+            .count(),
+        1
+    );
+    assert_eq!(
+        pools_of_tasks.iter().filter(|pool| **pool == own).count(),
+        2
     );
 }
 

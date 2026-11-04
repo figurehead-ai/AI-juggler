@@ -77,6 +77,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             continue;
         };
         let deliver = ask.action == AgentAction::DeliverToSession.as_str();
+        let talk = ask.action == super::talk::TALK_ASK;
         let offer_always = !deliver
             && AgentAction::parse(&ask.action).is_some_and(|action| {
                 storage
@@ -102,6 +103,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                     "«{}» · {} agent messages in a row without you",
                     crate::features::tasks::words::name_tasks(&storage, &message.subject),
                     message.hop
+                )
+            } else if talk {
+                format!(
+                    "«{}» · this pool asks you first between these members",
+                    crate::features::tasks::words::name_tasks(&storage, &message.subject)
                 )
             } else {
                 format!(
@@ -268,7 +274,14 @@ pub fn answer(state: &Arc<AppState>, ask_id: &str, answer: &str) -> AppResult<()
                 .to_owned(),
         ));
     }
-    if !deliver {
+    let talk = ask.action == super::talk::TALK_ASK;
+    if talk && answer == "always" {
+        return Err(AppError::Refused(
+            "Ask first is the pool's rule between these members: Deliver once, or change it on the pool's canvas"
+                .to_owned(),
+        ));
+    }
+    if !deliver && !talk {
         // The same answer as every agent ask (counted, or a rule).
         crate::features::pools::access::answer_impl(state, &ask.pool_id, &ask.action, answer)?;
     }

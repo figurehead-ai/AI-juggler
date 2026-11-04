@@ -256,14 +256,20 @@ fn each_project_has_its_own_default_pool_holding_all_its_sessions() {
     assert!(words.contains("«shop · all sessions»"), "{words}");
     // A default pool takes only its own project's sessions.
     let words = refused(pools::pool_move_impl(&state, b.as_str(), &shop_pool));
-    assert!(words.contains("is for shop only"), "{words}");
+    assert!(
+        words.contains("holds shop only; this one works in blog"),
+        "{words}"
+    );
     refused(pools::pool_move_impl(&state, loose.as_str(), &shop_pool));
     let words = refused(pools::pool_move_impl(
         &state,
         w.as_str(),
         NO_PROJECT_POOL_ID,
     ));
-    assert!(words.contains("sessions with no project"), "{words}");
+    assert!(
+        words.contains("holds sessions with no project only"),
+        "{words}"
+    );
 
     // A renamed project renames its pool; a new project gets its own at
     // once; all of it is still there after a restart.
@@ -424,7 +430,7 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     for member in [&planner, &builder1, &builder2] {
         pools::pool_move_impl(&state, member.as_str(), &checkout).unwrap();
     }
-    let info = pools::pool_set_role_impl(&state, planner.as_str(), "lead").unwrap();
+    let info = pools::pool_set_role_impl(&state, planner.as_str(), "lead", None).unwrap();
     assert_eq!(
         place(&state, &info, planner.as_str()),
         (checkout.as_str(), "lead")
@@ -443,10 +449,10 @@ fn a_planner_and_two_builders_in_checkout_redesign_with_the_planner_as_lead() {
     );
 
     // An observer, then back.
-    let info = pools::pool_set_role_impl(&state, builder2.as_str(), "observer").unwrap();
+    let info = pools::pool_set_role_impl(&state, builder2.as_str(), "observer", None).unwrap();
     assert_eq!(place(&state, &info, builder2.as_str()).1, "observer");
     assert!(matches!(
-        pools::pool_set_role_impl(&state, builder2.as_str(), "owner"),
+        pools::pool_set_role_impl(&state, builder2.as_str(), "owner", None),
         Err(AppError::Validation { .. })
     ));
 
@@ -511,7 +517,7 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
     let info = pools::pool_create_impl(&state, "Checkout", None).unwrap();
     let checkout = pool_id(&info, "Checkout");
     pools::pool_move_impl(&state, a.as_str(), &checkout).unwrap();
-    pools::pool_set_role_impl(&state, a.as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&state, a.as_str(), "lead", None).unwrap();
 
     // Another session in the same project switched first: its Work item
     // is its own, and it stays out of the pool.
@@ -558,7 +564,14 @@ fn membership_hangs_off_the_work_item_so_a_switch_keeps_it() {
         );
     }
     let storage = state.storage.lock().unwrap();
-    let active = storage.pools().members().unwrap();
+    // One row for the line of work (beside each default pool's everyone).
+    let active: Vec<_> = storage
+        .pools()
+        .members()
+        .unwrap()
+        .into_iter()
+        .filter(|row| row.member != juggler_core::storage::MemberRef::Everyone)
+        .collect();
     assert_eq!(active.len(), 1, "{active:?}");
 }
 
@@ -617,7 +630,7 @@ fn a_pool_for_one_project_refuses_a_session_from_another_in_words() {
     let words = refused(pools::pool_move_impl(&state, in_blog.as_str(), &team));
     assert_eq!(
         words,
-        "«Shop team» is for shop only — this session works somewhere else"
+        "«Shop team» takes shop only; this one works in blog. Add blog to its scope to let it in."
     );
     refused(pools::pool_move_impl(&state, loose.as_str(), &team));
     let words = refused(pools::pool_create_impl(&state, "Ghost", Some("proj-gone")));
@@ -676,7 +689,7 @@ fn a_pools_members_come_a_page_at_a_time_its_lead_first() {
     for member in &sessions[..3] {
         pools::pool_move_impl(&state, member.as_str(), &team).unwrap();
     }
-    pools::pool_set_role_impl(&state, sessions[2].as_str(), "lead").unwrap();
+    pools::pool_set_role_impl(&state, sessions[2].as_str(), "lead", None).unwrap();
     state
         .storage
         .lock()
@@ -825,7 +838,7 @@ fn access_levels_are_the_users_and_the_decision_point_asks_above_them() {
     let team = pool_id(&info, "Team");
     pools::pool_move_impl(&state, planner.as_str(), &team).unwrap();
     pools::pool_move_impl(&state, watcher.as_str(), &team).unwrap();
-    pools::pool_set_role_impl(&state, watcher.as_str(), "observer").unwrap();
+    pools::pool_set_role_impl(&state, watcher.as_str(), "observer", None).unwrap();
     let level = |info: &PoolsInfo, pool: &str| {
         let row = info.pools.iter().find(|row| row.id == pool).unwrap();
         (row.access.level.clone(), row.access.actions.clone())
@@ -1161,8 +1174,8 @@ fn pool_operations_never_start_stop_or_type_into_a_session() {
     let info = pools::pool_create_impl(&state, "Team", None).unwrap();
     let team = pool_id(&info, "Team");
     pools::pool_move_impl(&state, id, &team).unwrap();
-    pools::pool_set_role_impl(&state, id, "lead").unwrap();
-    pools::pool_set_role_impl(&state, id, "observer").unwrap();
+    pools::pool_set_role_impl(&state, id, "lead", None).unwrap();
+    pools::pool_set_role_impl(&state, id, "observer", None).unwrap();
     pools::access::set_level_impl(&state, &team, "full", &[]).unwrap();
     pools::pool_rename_impl(&state, &team, "Team two").unwrap();
     pools::pools_list_impl(&state).unwrap();

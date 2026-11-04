@@ -423,6 +423,59 @@ impl SessionsRepo<'_> {
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
+    /// What the pools' resolver needs of every session (AJ-E3004): its
+    /// project, App, Account, Tool and Mac, in one narrow pass. The
+    /// Account is the one its folder's sign-in was last read as; `None`
+    /// when that isn't known ("Account unknown").
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn pool_facts(&self) -> Result<Vec<crate::pools::SessionFacts>, CoreError> {
+        self.pool_facts_where("", [])
+    }
+
+    /// [`Self::pool_facts`] for one session; `None` when it isn't there.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn pool_facts_of(
+        &self,
+        session: &SessionId,
+    ) -> Result<Option<crate::pools::SessionFacts>, CoreError> {
+        Ok(self
+            .pool_facts_where("WHERE i.id = ?1", [session.as_str()])?
+            .into_iter()
+            .next())
+    }
+
+    fn pool_facts_where<const N: usize>(
+        &self,
+        filter: &str,
+        args: [&str; N],
+    ) -> Result<Vec<crate::pools::SessionFacts>, CoreError> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT i.id, i.project, COALESCE(i.app_id, 'cli:' || r.account_id), a.subscription_id,
+                    a.provider_id, i.machine
+               FROM instances i
+               LEFT JOIN launch_recipes r ON r.id = i.launch_recipe_id
+               LEFT JOIN accounts a ON a.id = r.account_id {filter}"
+        ))?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(args), |row| {
+            Ok(crate::pools::SessionFacts {
+                session: SessionId::new(row.get::<_, String>(0)?),
+                work: None,
+                project: row.get::<_, Option<String>>(1)?.map(ProjectId::new),
+                app: row.get(2)?,
+                account: row.get(3)?,
+                tool: row.get(4)?,
+                mac: row.get(5)?,
+            })
+        })?;
+        rows.map(|row| row.map_err(CoreError::Storage)).collect()
+    }
+
     /// 0.1.8: the user's label of each session that has one and knows
     /// its conversation, `(account, conversation, label)` (the cost table
     /// names a session as the rail does). By account too: a switch to

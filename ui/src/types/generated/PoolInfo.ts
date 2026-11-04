@@ -44,4 +44,23 @@ scopes: number,
  * How many sessions are in it, archived ones aside: its member
  * list's length (`pools_members`).
  */
-members: number, };
+members: number, 
+/**
+ * D-62 decision 8: it takes every project's sessions (those with no
+ * project too).
+ */
+scope_all: boolean, 
+/**
+ * Else the projects it takes (`null`: sessions with no project).
+ */
+scope: Array<string | null>, 
+/**
+ * D-62 decision 14: its sessions are in no other pool, nothing
+ * leaves it.
+ */
+sealed: boolean, 
+/**
+ * Its broad members skip sessions another pool names on their own (a
+ * project's own pool).
+ */
+skip_held: boolean, };

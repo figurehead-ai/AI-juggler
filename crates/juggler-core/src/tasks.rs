@@ -450,8 +450,85 @@ pub enum Role {
     Lead,
     /// A member: takes and works tasks.
     Member,
+    /// D-62 decision 12: reads everything, gives its verdict on a task in
+    /// review (approved, or sent back to its holder); never takes build
+    /// tasks. The person's own Approve stays the last word (D-44).
+    Reviewer,
     /// Only looks.
     Observer,
+}
+
+/// A reviewer's verdict on a task in review.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Verdict {
+    /// It looks right: it stays in review for the person's Approve, with
+    /// the reviewer's word on it.
+    Approved,
+    /// It goes back to its holder with the reviewer's note.
+    SentBack,
+}
+
+impl Verdict {
+    /// The wire word (`task_update`'s status).
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Approved => "approved",
+            Self::SentBack => "sent_back",
+        }
+    }
+
+    /// The verdict a wire word names.
+    #[must_use]
+    pub fn parse(word: &str) -> Option<Self> {
+        [Self::Approved, Self::SentBack]
+            .into_iter()
+            .find(|verdict| verdict.as_str() == word)
+    }
+
+    /// Its history verb (`task_events.verb`).
+    #[must_use]
+    pub const fn verb(self) -> &'static str {
+        match self {
+            Self::Approved => "review_approved",
+            Self::SentBack => "review_sent_back",
+        }
+    }
+}
+
+/// Whether `role` may give a verdict on a task whose stored status is
+/// `stored`, given whether it holds it: the pool's reviewer or lead, on a
+/// task in review someone else holds.
+///
+/// # Errors
+///
+/// Why not, in words.
+pub const fn may_review(role: Role, stored: TaskStatus, holds: bool) -> Result<(), &'static str> {
+    if !matches!(role, Role::Reviewer | Role::Lead) {
+        return Err("only the pool's reviewer or lead reviews a task");
+    }
+    if !matches!(stored, TaskStatus::InReview) {
+        return Err("only a task in review gets a verdict");
+    }
+    if holds {
+        return Err("a task isn't reviewed by its own holder");
+    }
+    Ok(())
+}
+
+/// Whether `role` may take a task: a reviewer reviews, it doesn't take
+/// build tasks.
+///
+/// # Errors
+///
+/// Why not, in words.
+pub const fn may_claim(role: Role) -> Result<(), &'static str> {
+    match role {
+        Role::Reviewer => Err(
+            "a reviewer doesn't take build tasks: give your verdict on tasks in review (task_update with status approved or sent_back)",
+        ),
+        Role::Lead | Role::Member | Role::Observer => Ok(()),
+    }
 }
 
 /// Whether `role` may make an item of `kind`: epics and stories are the
@@ -463,8 +540,10 @@ pub enum Role {
 /// Why not, in words.
 pub const fn may_plan(role: Role, kind: TaskKind) -> Result<(), &'static str> {
     match (role, kind) {
-        (Role::Lead, _) | (Role::Member | Role::Observer, TaskKind::Task) => Ok(()),
-        (Role::Member | Role::Observer, TaskKind::Epic | TaskKind::Story) => {
+        (Role::Lead, _) | (Role::Member | Role::Reviewer | Role::Observer, TaskKind::Task) => {
+            Ok(())
+        }
+        (Role::Member | Role::Reviewer | Role::Observer, TaskKind::Epic | TaskKind::Story) => {
             Err("only the pool's lead plans epics and stories")
         }
     }

@@ -15,6 +15,9 @@ use juggler_core::model::{
 use juggler_core::storage::{InstanceColumn, MemberRef, PoolRole, Storage, StoredStamps};
 use rusqlite::Connection;
 
+/// v45 undone (`fixtures/undo_v45.sql`): every rollback past it starts here.
+const UNDO_V45: &str = include_str!("fixtures/undo_v45.sql");
+
 fn folder(id: &str) -> Account {
     Account {
         id: AccountId::new(id),
@@ -144,6 +147,7 @@ fn an_upgrade_from_v42_adds_the_indexes_and_stamps_with_every_row_kept() {
     // Back to v42, as an upgrade finds it.
     {
         let conn = Connection::open(&db).unwrap();
+        conn.execute_batch(UNDO_V45).unwrap();
         let names: Vec<(String, String)> = conn
             .prepare(
                 "SELECT type, name FROM sqlite_master WHERE \
@@ -168,9 +172,14 @@ fn an_upgrade_from_v42_adds_the_indexes_and_stamps_with_every_row_kept() {
     assert!(storage.migrated_on_open());
     assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
     assert_eq!(storage.sessions().list(None).unwrap().len(), 4);
+    // Fresh stamps; v45, running after v44, gives each default pool its
+    // everyone, which is a pools change like any other.
     assert_eq!(
         storage.relations().stamps().unwrap(),
-        StoredStamps::default()
+        StoredStamps {
+            pools: 1,
+            ..StoredStamps::default()
+        }
     );
     for column in InstanceColumn::ALL {
         assert!(
