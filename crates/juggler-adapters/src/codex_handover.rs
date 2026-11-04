@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::handover::{
-    BundleFile, BundleManifest, Fidelity, InstallOutcome, SessionBundle, TurnText, embedded_cwd,
-    tail_parses,
+    BundleFile, BundleManifest, Carrier, Fidelity, HEAD_BYTES, InstallOutcome, SessionBundle,
+    SwitchRoom, TurnText, embedded_cwd,
 };
 use juggler_adapter::model::Account;
 use juggler_core::model::{Timestamp, TranscriptRef};
@@ -42,24 +42,27 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             .unwrap_or_default();
         // AJ-E1540: Codex compresses older rollouts (`.jsonl.zst`). The copy
         // travels decompressed, as a plain `.jsonl` of the same name, which
-        // Codex reads like any rollout.
-        let bytes = crate::transcript::read_session_file(path)?;
-        let name = if crate::transcript::is_compressed(path) {
-            name.trim_end_matches(".zst").to_owned()
+        // Codex reads like any rollout. 0.3.9: a rollout past what memory
+        // holds (one here is 7.6 GB) travels as a frozen copy on disk.
+        let mut carrier = Carrier::new();
+        let file = if crate::transcript::is_compressed(path) {
+            decompressed(&mut carrier, name.trim_end_matches(".zst").to_owned(), path)?
         } else {
-            name
+            carrier.carry(name, path, 0)?
         };
-        if !tail_parses(&bytes) {
+        if !file.last_line_whole()? {
             return Err(AdapterError::Unsupported(
                 "source rollout tail does not parse — stop the session first".into(),
             ));
         }
+        // What its first lines say: its thread id, `cwd` and `session_meta`.
+        let head = file.head(HEAD_BYTES)?;
         let native_id = reference
             .native_id
             .clone()
-            .or_else(|| rollout_thread_id(&bytes, &name))
+            .or_else(|| rollout_thread_id(&head, &file.name))
             .ok_or_else(|| AdapterError::Unsupported("rollout has no thread id".into()))?;
-        let cwd = embedded_cwd(&bytes).map_or_else(
+        let cwd = embedded_cwd(&head).map_or_else(
             || {
                 path.parent()
                     .unwrap_or_else(|| Path::new("."))
@@ -67,12 +70,16 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             },
             PathBuf::from,
         );
-        let compacted = parse_rollout(&bytes).has_compact_boundary();
+        let compacted = if file.on_disk.is_none() {
+            parse_rollout(&file.bytes).has_compact_boundary()
+        } else {
+            parse_rollout(&file.lines_with(&["\"compacted\""])?).has_compact_boundary()
+        };
         let mut caps = Vec::new();
         if compacted {
             caps.push("compact-boundary".to_owned());
         }
-        if builds_on_another_rollout(&bytes) {
+        if builds_on_another_rollout(&head) {
             caps.push("base-rollout-not-carried".to_owned());
         }
         caps.push("unvalidated-pair".to_owned());
@@ -82,7 +89,7 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
                 harness: self.id(),
                 native_id,
                 cwd,
-                harness_version: session_meta_field(&bytes, "cli_version"),
+                harness_version: session_meta_field(&head, "cli_version"),
                 created_at: Timestamp::now(),
                 fidelity: Fidelity {
                     level: if compacted { "F2" } else { "F1" }.to_owned(),
@@ -90,7 +97,8 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
                 },
                 redacted: false,
             },
-            files: vec![BundleFile { name, bytes }],
+            files: vec![file],
+            scratch: carrier.into_scratch(),
         })
     }
 
@@ -128,25 +136,25 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             path: dir.clone(),
             message: error.to_string(),
         })?;
-        let (name, bytes) = if collision {
-            (
-                file.name.replace(old_id.as_str(), &installed_id),
-                fork_rollout(&file.bytes, old_id, &installed_id),
-            )
+        let name = if collision {
+            file.name.replace(old_id.as_str(), &installed_id)
         } else {
-            (file.name.clone(), file.bytes.clone())
+            file.name.clone()
         };
         // Stage beside, then link into place: a crash leaves no half
         // file Codex could pick up, and an existing file is never
-        // replaced (`hard_link` refuses a taken name).
+        // replaced (`hard_link` refuses a taken name). A large one is
+        // cloned, or forked line by line, never held whole.
         let staged = dir.join(format!(".stage-{installed_id}-{}", std::process::id()));
         let final_path = dir.join(&name);
-        let placed = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&staged)
-            .and_then(|mut out| std::io::Write::write_all(&mut out, &bytes))
-            .and_then(|()| std::fs::hard_link(&staged, &final_path));
+        let written = if collision {
+            file.rewrite_lines_to(&staged, |line| fork_rollout(line, old_id, &installed_id))
+        } else if staged.symlink_metadata().is_ok() {
+            Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists))
+        } else {
+            file.write_to(&staged)
+        };
+        let placed = written.and_then(|()| std::fs::hard_link(&staged, &final_path));
         let _ = std::fs::remove_file(&staged);
         placed.map_err(|error| AdapterError::AccountDir {
             path: final_path.clone(),
@@ -160,6 +168,34 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             forked: collision,
             target_dir_fallback: false,
         })
+    }
+
+    /// 0.3.9: the rollout, sized. A compressed one unpacks as it's
+    /// copied; a thread the target already has is forked, written in full.
+    fn switch_room(
+        &self,
+        reference: &TranscriptRef,
+        target: &Account,
+    ) -> Result<SwitchRoom, AdapterError> {
+        let path = &reference.path;
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let thread = reference
+            .native_id
+            .clone()
+            .or_else(|| thread_id_from_name(name.trim_end_matches(".zst")));
+        let forked = thread
+            .as_deref()
+            .is_some_and(|thread| thread_present(&target.state_dir.join("sessions"), thread));
+        let compressed = crate::transcript::is_compressed(path);
+        let mut room = juggler_adapter::handover::room_of(
+            &[(path.clone(), forked || compressed)],
+            &target.state_dir,
+        )?;
+        room.unpacks = compressed;
+        Ok(room)
     }
 
     fn prime_prompt(&self, turns: &[TurnText]) -> Result<String, AdapterError> {
@@ -179,6 +215,55 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
         }
         Ok(out)
     }
+}
+
+/// The most a compressed rollout may grow to when decompressed.
+const DECOMPRESSED_MAX: u64 = 64 * 1024 * 1024 * 1024;
+
+/// A compressed rollout, decompressed as it's carried: streamed into the
+/// bundle's scratch folder, then held in memory if it's small enough.
+fn decompressed(carrier: &mut Carrier, name: String, path: &Path) -> std::io::Result<BundleFile> {
+    let to = carrier.entry(0)?;
+    // Its decompressed size isn't known until it's done: room for the
+    // compressed size first, then the writer checks as it goes.
+    let dir = to.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
+    juggler_adapter::handover::ensure_room(&dir, std::fs::metadata(path)?.len())?;
+    let mut out = juggler_adapter::handover::RoomWriter::new(
+        std::io::BufWriter::with_capacity(
+            1 << 20,
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&to)?,
+        ),
+        &dir,
+    );
+    // Bounded: a damaged or hostile file must not fill the disk.
+    let wrote = std::io::copy(
+        &mut std::io::Read::take(
+            zstd::stream::Decoder::new(std::fs::File::open(path)?)?,
+            DECOMPRESSED_MAX + 1,
+        ),
+        &mut out,
+    )?;
+    if wrote > DECOMPRESSED_MAX {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "the session file is too large to read",
+        ));
+    }
+    std::io::Write::flush(&mut out)?;
+    drop(out);
+    if !carrier.fits(std::fs::metadata(&to)?.len()) {
+        return Ok(BundleFile {
+            name,
+            bytes: Vec::new(),
+            on_disk: Some(to),
+        });
+    }
+    let bytes = std::fs::read(&to)?;
+    std::fs::remove_file(&to)?;
+    Ok(BundleFile::inline(name, bytes))
 }
 
 /// Rewrites a rollout for a forked thread id: every occurrence of the old

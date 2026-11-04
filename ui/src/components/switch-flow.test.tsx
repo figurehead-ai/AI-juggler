@@ -4,6 +4,16 @@ import { SwitchFlow, showSwitchUndoToast } from "./SwitchFlow";
 import { resetToasts, ToastHost } from "./Toast";
 import type { PreflightInfoData } from "../lib/bridge";
 
+// The backend's switch progress events, sent by hand (0.3.9).
+const events = vi.hoisted(() => new Map<string, (event: { payload: unknown }) => void>());
+vi.mock("../lib/ipc/transport", async (original) => ({
+  ...(await original<typeof import("../lib/ipc/transport")>()),
+  listen: (name: string, handler: (event: { payload: unknown }) => void) => {
+    events.set(name, handler);
+    return Promise.resolve(() => events.delete(name));
+  },
+}));
+
 /**
  * AJ-E206 guardrails (pass2/02 §8, deep/09 H-5):
  *  - ZERO executions without a click: the door renders, nothing
@@ -392,6 +402,84 @@ describe("leaving the switch", () => {
     expect(text.match(/try again/gi)).toHaveLength(1);
     expect(text.match(/where you left it/gi)).toHaveLength(1);
     delete (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__;
+  });
+
+  it("marks each stage as the backend reaches it (0.3.9: a still screen for seconds)", async () => {
+    (window as never as Seams).__AIJ_SWITCH_EXECUTE_HANG__ = true;
+    const view = mountWith(ONECLICK);
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(events.has("switch://progress")).toBe(true));
+    const states = () => view.getAllByTestId("switch-stage").map((stage) => stage.getAttribute("data-state"));
+    const now = () => states().indexOf("now");
+    const first = now();
+    act(() => events.get("switch://progress")!({ payload: "checking" }));
+    expect(now()).toBe(first + 1);
+    act(() => events.get("switch://progress")!({ payload: "starting" }));
+    expect(now()).toBe(first + 2);
+    expect(states().slice(0, first + 2).every((state) => state === "done")).toBe(true);
+    // A late or repeated event never moves it back.
+    act(() => events.get("switch://progress")!({ payload: "copying" }));
+    expect(now()).toBe(first + 2);
+    expect(view.getByTestId("switch-progress").getAttribute("aria-valuenow")).toBe(String(first + 2));
+  });
+
+  it("a failure a retry can't fix offers no Retry, and Copy details carries what the program said", async () => {
+    const words = "This conversation is too large to carry to Personal in one piece, so nothing moved. Continue it with a summary on Personal instead.";
+    (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__ = {
+      code: "switch_failed",
+      retryable: false,
+      user_message: words,
+      detail: "adapter: the session file is too large to read (at Stage)",
+    };
+    const written: string[] = [];
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: (text: string) => (written.push(text), Promise.resolve()) } });
+    const view = mountWith(ONECLICK);
+    await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-confirm"));
+    await waitFor(() => expect(view.getByTestId("switch-failed")).toBeTruthy());
+    expect(view.queryByTestId("switch-retry")).toBeNull();
+    fireEvent.click(view.getByTestId("switch-copy-details"));
+    await waitFor(() => expect(view.getByRole("status").textContent).toContain("Copied"));
+    expect(written[0]).toContain("a switch to Personal didn't complete");
+    expect(written[0]).toContain(words);
+    expect(written[0]).toContain("too large to read (at Stage)");
+    delete (window as never as { __AIJ_SWITCH_EXECUTE_FAIL__?: unknown }).__AIJ_SWITCH_EXECUTE_FAIL__;
+  });
+
+  it("says the disk space it uses, and waits while there isn't enough (0.3.9)", async () => {
+    type SpaceSeam = { __AIJ_SWITCH_SPACE__?: unknown };
+    (window as never as SpaceSeam).__AIJ_SWITCH_SPACE__ = {
+      kind: "short",
+      words: "Not enough disk space: the copy needs about 8.0 GB and AI Juggler always leaves 4 GB free, but 10 GB is free.",
+      advice: "Free about 2.3 GB (empty the Trash, or remove large files you don't need), then switch. Nothing has moved.",
+      carried_bytes: 8e9,
+      writes_bytes: 8e9,
+      free_bytes: 1e10,
+    };
+    const onSwitched = vi.fn();
+    const view = mountWith(ONECLICK, vi.fn(), onSwitched);
+    await waitFor(() => expect(view.getByTestId("switch-disk-space")).toBeTruthy());
+    expect(view.getByTestId("switch-disk-space").textContent).toContain("Not enough disk space");
+    expect(view.getByTestId("switch-disk-space-advice").textContent).toContain("Free about 2.3 GB");
+    const confirm = view.getByTestId("switch-confirm") as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(onSwitched).not.toHaveBeenCalled();
+    // Room made: Check again reads it afresh, and the switch can go.
+    (window as never as SpaceSeam).__AIJ_SWITCH_SPACE__ = {
+      kind: "plenty",
+      words: "This conversation is 8.0 GB; the copy takes about 8.0 GB of disk space (30 GB free).",
+      advice: null,
+      carried_bytes: 8e9,
+      writes_bytes: 8e9,
+      free_bytes: 3e10,
+    };
+    fireEvent.click(view.getByTestId("switch-disk-space-again"));
+    await waitFor(() => expect((view.getByTestId("switch-confirm") as HTMLButtonElement).disabled).toBe(false));
+    expect(view.getByTestId("switch-disk-space").textContent).toContain("30 GB free");
+    expect(view.queryByTestId("switch-disk-space-advice")).toBeNull();
+    delete (window as never as SpaceSeam).__AIJ_SWITCH_SPACE__;
   });
 
   it("a double-click on Continue never starts the switch (H-5)", async () => {

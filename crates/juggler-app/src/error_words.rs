@@ -350,6 +350,66 @@ mod tests {
                 "adapter",
                 SwitchFailure::Adapter(AdapterError::InvalidLaunch("model_id is missing".into())),
             ),
+            (
+                "adapter-disk-full",
+                SwitchFailure::Adapter(AdapterError::Io(std::io::Error::from(
+                    std::io::ErrorKind::StorageFull,
+                ))),
+            ),
+            (
+                "adapter-not-allowed",
+                SwitchFailure::Adapter(AdapterError::Io(std::io::Error::from(
+                    std::io::ErrorKind::PermissionDenied,
+                ))),
+            ),
+            (
+                "adapter-folder-not-allowed",
+                SwitchFailure::Adapter(AdapterError::AccountDir {
+                    path: "/b/projects/x".into(),
+                    message: "Permission denied (os error 13)".into(),
+                }),
+            ),
+            (
+                "adapter-not-enough-room",
+                SwitchFailure::Adapter(AdapterError::AccountDir {
+                    path: "/b/projects/x".into(),
+                    message: "not enough free space: needs 6400 MB more".into(),
+                }),
+            ),
+            (
+                "adapter-folder-disk-full",
+                SwitchFailure::Adapter(AdapterError::AccountDir {
+                    path: "/b/projects/x".into(),
+                    message: "No space left on device (os error 28)".into(),
+                }),
+            ),
+            (
+                "adapter-already-there",
+                SwitchFailure::Adapter(AdapterError::AccountDir {
+                    path: "/b/projects/x/1.jsonl".into(),
+                    message: "refused: the target already has this file; nothing was replaced"
+                        .into(),
+                }),
+            ),
+            (
+                "adapter-still-writing",
+                SwitchFailure::Adapter(AdapterError::Unsupported(
+                    "source transcript tail does not parse — stop the session first".into(),
+                )),
+            ),
+            (
+                "adapter-too-large",
+                SwitchFailure::Adapter(AdapterError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "the session file is too large to read",
+                ))),
+            ),
+            (
+                "adapter-gone",
+                SwitchFailure::Adapter(AdapterError::Unsupported(
+                    "transcript not found: /a/projects/x/1.jsonl".into(),
+                )),
+            ),
         ]
     }
 
@@ -382,8 +442,8 @@ mod tests {
         let words: Vec<serde_json::Value> = switch_failures()
             .into_iter()
             .map(|(kind, failure)| {
-                let error = AppError::switch(failure, "Work", "Personal");
-                serde_json::json!({ "kind": kind, "words": error.wire().user_message })
+                let wire = AppError::switch(failure, "Work", "Personal").wire();
+                serde_json::json!({ "kind": kind, "words": wire.user_message, "retryable": wire.retryable })
             })
             .collect();
         let mut snapshot = serde_json::to_string_pretty(&words).unwrap();
@@ -405,6 +465,41 @@ mod tests {
             assert!(
                 !looks_internal(&words),
                 "a switch failure's words look internal"
+            );
+        }
+    }
+
+    /// 0.3.9: Copy details may go into a public bug report: the home
+    /// folder is `~`, as a path and as Claude's folder name for it.
+    #[test]
+    fn copied_details_never_carry_the_home_folder() {
+        let home = dirs::home_dir().unwrap().display().to_string();
+        let mangled = home.replace('/', "-");
+        let failure = SwitchFailure::Adapter(AdapterError::AccountDir {
+            path: format!("{home}/.claude/projects/{mangled}-Dev-shop").into(),
+            message: "Permission denied (os error 13)".into(),
+        });
+        let detail = AppError::switch(failure, "Work", "Personal")
+            .wire()
+            .detail
+            .unwrap();
+        assert!(!detail.contains(&home), "{detail}");
+        assert!(!detail.contains(&mangled), "{detail}");
+        assert!(detail.contains("~/.claude/projects/~-Dev-shop"), "{detail}");
+        assert!(detail.contains("os error 13"), "the reason stays: {detail}");
+    }
+
+    /// 0.3.9: Retry shows exactly when the words say trying again can
+    /// work (a Retry that fails again every time was offered before).
+    #[test]
+    fn retry_shows_exactly_when_the_words_say_to_try_again() {
+        for (kind, failure) in switch_failures() {
+            let wire = AppError::switch(failure, "Work", "Personal").wire();
+            let says = wire.user_message.to_lowercase().contains("try again");
+            assert_eq!(
+                says, wire.retryable,
+                "{kind}: the words and Retry disagree: {}",
+                wire.user_message
             );
         }
     }

@@ -673,6 +673,7 @@ fn a_bundle_name_that_climbs_out_is_refused() {
     bundle.files.push(juggler_adapter::handover::BundleFile {
         name: "~file-history/../../escape.txt".to_owned(),
         bytes: b"x".to_vec(),
+        on_disk: None,
     });
     assert!(
         adapter()
@@ -715,6 +716,7 @@ fn a_bundle_cant_bring_in_another_conversation() {
     bundle.files.push(juggler_adapter::handover::BundleFile {
         name: "9e9e9e9e-0000-4000-8000-000000000000.jsonl".to_owned(),
         bytes: b"{}\n".to_vec(),
+        on_disk: None,
     });
     assert!(
         adapter()
@@ -807,4 +809,162 @@ fn a_sessions_task_list_travels_with_it() {
         );
     }
     assert!(tasks.join("1.json").is_file(), "copied, never moved");
+}
+
+/// 0.3.9 (the maintainer's switch of 2026-11-04): a long Claude app
+/// conversation's transcript passed 800 MB, past the 512 MB a copy could
+/// hold in memory, and every switch of it failed. A transcript larger than
+/// [`juggler_adapter::handover::INLINE_MAX`] now travels as a frozen
+/// on-disk copy: it lands byte-identical, a very long last line still
+/// reads as whole, a collision forks it line by line, hundreds of history
+/// files travel too, and the frozen copies are gone once the bundle is.
+#[test]
+fn a_transcript_too_large_for_memory_travels_whole_and_byte_identical() {
+    use juggler_adapter::handover::INLINE_MAX;
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/manuscript";
+    let session = "1a967018-3bce-4925-b01a-0b46b11a35ea";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    // Past the in-memory limit: about 40 MB of turns, then a last line
+    // (a large tool output) longer than the first tail window.
+    {
+        use std::io::Write as _;
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&main)
+            .unwrap();
+        let filler = "w".repeat(1000);
+        let mut parent = "u2".to_owned();
+        for n in 0..41_000 {
+            let uuid = format!("t{n}");
+            let mut value: serde_json::Value =
+                serde_json::from_str(&line(&uuid, Some(&parent), session, cwd)).unwrap();
+            value["message"]["content"] = serde_json::Value::String(filler.clone());
+            writeln!(file, "{value}").unwrap();
+            parent = uuid;
+        }
+        let mut last: serde_json::Value =
+            serde_json::from_str(&line("big", Some(&parent), session, cwd)).unwrap();
+        last["message"]["content"] = serde_json::Value::String("x".repeat(3 * 1024 * 1024));
+        writeln!(file, "{last}").unwrap();
+    }
+    let size = std::fs::metadata(&main).unwrap().len();
+    assert!(
+        size > INLINE_MAX,
+        "the fixture is past the in-memory limit: {size}"
+    );
+    let history = a.path().join("file-history").join(session);
+    std::fs::create_dir_all(&history).unwrap();
+    for n in 0..300 {
+        std::fs::write(history.join(format!("{n:016x}@v1")), format!("edit {n}")).unwrap();
+    }
+    let source_hash = juggler_adapter::handover::sha256_file(&main, None).unwrap();
+    let reference = TranscriptRef {
+        path: main.clone(),
+        native_id: Some(session.to_owned()),
+    };
+
+    let bundle = adapter()
+        .bundle_session(&reference)
+        .expect("a transcript past the in-memory limit bundles");
+    let carried = bundle
+        .files
+        .iter()
+        .find(|file| file.name == format!("{session}.jsonl"))
+        .unwrap();
+    assert!(
+        carried.on_disk.is_some(),
+        "it travels on disk, not in memory"
+    );
+    assert!(carried.bytes.is_empty());
+    let scratch = bundle.scratch.as_ref().unwrap().path().to_path_buf();
+    let outcome = adapter()
+        .install_bundle(&bundle, &account(b.path(), "personal-max"))
+        .unwrap();
+    assert!(!outcome.forked);
+    assert_eq!(
+        juggler_adapter::handover::sha256_file(&outcome.reference.path, None).unwrap(),
+        source_hash,
+        "it lands byte-identical"
+    );
+    assert_eq!(
+        std::fs::read_dir(b.path().join("file-history").join(session))
+            .unwrap()
+            .count(),
+        300
+    );
+    // Copied, never moved.
+    assert_eq!(
+        juggler_adapter::handover::sha256_file(&main, None).unwrap(),
+        source_hash
+    );
+
+    // Switched there a second time: it forks, line by line, its turns all
+    // there under the new id.
+    let again = adapter()
+        .install_bundle(&bundle, &account(b.path(), "personal-max"))
+        .unwrap_or_else(|error| panic!("a second switch forks: {error}"));
+    assert!(again.forked);
+    let forked_id = again.reference.native_id.clone().unwrap();
+    let forked = std::fs::read_to_string(&again.reference.path).unwrap();
+    assert_eq!(forked.lines().count(), 41_003);
+    assert!(forked.lines().all(|row| row.contains(&forked_id)));
+
+    drop(bundle);
+    assert!(!scratch.exists(), "the frozen copies go with the bundle");
+}
+
+/// 0.3.9: a source the Claude app is still writing as it's switched is
+/// frozen when the bundle is made: what was carried is its state then.
+#[test]
+fn a_source_still_being_written_is_carried_as_it_was_when_frozen() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let cwd = "/Users/you/Dev/manuscript";
+    let session = "2b967018-3bce-4925-b01a-0b46b11a35ea";
+    let main = seed_sibling_tree(a.path(), cwd, session);
+    {
+        use std::io::Write as _;
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&main)
+            .unwrap();
+        let filler = "w".repeat(1000);
+        for n in 0..35_000 {
+            let mut value: serde_json::Value =
+                serde_json::from_str(&line(&format!("t{n}"), None, session, cwd)).unwrap();
+            value["message"]["content"] = serde_json::Value::String(filler.clone());
+            writeln!(file, "{value}").unwrap();
+        }
+    }
+    let before = juggler_adapter::handover::sha256_file(&main, None).unwrap();
+    let bundle = adapter()
+        .bundle_session(&TranscriptRef {
+            path: main.clone(),
+            native_id: Some(session.to_owned()),
+        })
+        .unwrap();
+    // The app writes its next turn while the switch runs.
+    {
+        use std::io::Write as _;
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&main)
+            .unwrap();
+        writeln!(file, "{}", line("later", None, session, cwd)).unwrap();
+    }
+    let outcome = adapter()
+        .install_bundle(&bundle, &account(b.path(), "B"))
+        .unwrap();
+    assert_eq!(
+        juggler_adapter::handover::sha256_file(&outcome.reference.path, None).unwrap(),
+        before,
+        "what landed is the source as it was frozen"
+    );
+    // And the source still starts with exactly what was carried.
+    assert_eq!(
+        juggler_adapter::handover::sha256_file(&main, Some(before.1)).unwrap(),
+        before
+    );
 }

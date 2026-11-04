@@ -3,7 +3,8 @@
  * Target step, the Conflicts and Rules steps, and the stages while the
  * switch runs.
  */
-import type { JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
+import { listen } from "../../lib/ipc/transport";
 import type { PreflightInfoData } from "../../lib/bridge";
 import { moveBadge, stageWords } from "../../lib/switch-words";
 import { outsideStays } from "../SwitchFreezeChoice";
@@ -79,17 +80,54 @@ export function OtherStep({ step }: { step: "Conflicts" | "Rules & diff" }): JSX
  * completion the engine hasn't reported — the one command reports only its
  * end; and, after an Esc, that it's finishing (§4.9). `app`: the desktop
  * app it opens in, when it continues on Desktop. */
+/** The pipeline's step words (`switch://progress`) to the list's place:
+ * 0 is pausing the original, done before the copy starts. */
+export const STEP_AT: Record<string, number> = { copying: 1, checking: 2, starting: 3, confirming: 4 };
+
+/** 0.3.9: where the switch is, as the pipeline says it, and how long it's
+ * taken (a large conversation's copy took seconds with nothing moving). */
+export function useSwitchStep(): { at: number; seconds: number } {
+  const [at, setAt] = useState(1);
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    let off: (() => void) | null = null;
+    let alive = true;
+    void listen<string>("switch://progress", (event) => setAt((was) => Math.max(was, STEP_AT[event.payload] ?? was))).then(
+      (unlisten) => (alive ? (off = unlisten) : unlisten()),
+      () => undefined,
+    );
+    const started = Date.now();
+    const tick = window.setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => {
+      alive = false;
+      off?.();
+      window.clearInterval(tick);
+    };
+  }, []);
+  return { at, seconds };
+}
+
 export function Executing({ target, holding, app = null }: { target: string; holding: boolean; app?: string | null }): JSX.Element {
+  const { at, seconds } = useSwitchStep();
+  const stages = stageWords(target, app);
   return (
     <div className="flex flex-col gap-3" aria-live="polite" data-testid="switch-executing">
       <h3 className="text-title text-ink">Switching to {target}…</h3>
-      <ol className="flex list-decimal flex-col gap-1 pl-5 text-body text-ink">
-        {stageWords(target, app).map((stage) => (
-          <li key={stage}>{stage}</li>
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-label="Switching" aria-valuemin={0} aria-valuemax={stages.length} aria-valuenow={at} data-testid="switch-progress">
+        <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${((at + 0.5) / stages.length) * 100}%` }} />
+      </div>
+      <ol className="flex flex-col gap-1 text-body">
+        {stages.map((stage, index) => (
+          <li key={stage} className={"flex items-center gap-2 " + (index < at ? "text-ink-2" : index === at ? "font-semibold text-ink" : "text-muted")} data-testid="switch-stage" data-state={index < at ? "done" : index === at ? "now" : "next"}>
+            <span aria-hidden="true" className="w-4 shrink-0 text-center">
+              {index < at ? "✓" : index === at ? <span className="inline-block size-3 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin" /> : "·"}
+            </span>
+            {stage}
+          </li>
         ))}
       </ol>
       <p className="text-body text-ink" data-testid="switch-elapsed">
-        The original stays safe until the new session is running.
+        {seconds >= 3 ? `${seconds} s so far. A long conversation takes a little longer to copy. ` : ""}The original stays safe until the new session is running.
       </p>
       {holding && (
         <p className="text-body font-semibold text-ink" role="status" data-testid="switch-holding">
