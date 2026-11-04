@@ -23,13 +23,35 @@ pub const AT_START_KEY: &str = "floor.open_at_start";
 /// Keep the Floor on top: `on` or `off`.
 pub const ON_TOP_KEY: &str = "floor.on_top";
 
+/// How much moves, as chosen.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MotionChoice {
+    /// Full, or Off while the system's Reduce motion is on.
+    #[default]
+    System,
+    /// Always the chosen one.
+    Fixed(Motion),
+}
+
+impl MotionChoice {
+    /// The motion now, given whether the system asks for less.
+    #[must_use]
+    pub const fn resolve(self, reduce: bool) -> Motion {
+        match self {
+            Self::System if reduce => Motion::Off,
+            Self::System => Motion::Full,
+            Self::Fixed(m) => m,
+        }
+    }
+}
+
 /// The Floor's settings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Settings {
     /// Apps a floor holds.
     pub per_floor: usize,
     /// How much moves.
-    pub motion: Motion,
+    pub motion: MotionChoice,
     /// Show unused Apps' decay.
     pub decay: bool,
     /// Open at start.
@@ -42,7 +64,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             per_floor: DEFAULT_PER_FLOOR,
-            motion: Motion::Full,
+            motion: MotionChoice::System,
             decay: true,
             at_start: false,
             on_top: false,
@@ -62,14 +84,22 @@ impl Settings {
                 .unwrap_or(d.per_floor)
                 .clamp(4, 16),
             motion: match get(MOTION_KEY).as_deref() {
-                Some("calm") => Motion::Calm,
-                Some("off") => Motion::Off,
-                _ => Motion::Full,
+                Some("full") => MotionChoice::Fixed(Motion::Full),
+                Some("calm") => MotionChoice::Fixed(Motion::Calm),
+                Some("off") => MotionChoice::Fixed(Motion::Off),
+                _ => MotionChoice::System,
             },
             decay: on(DECAY_KEY, d.decay),
             at_start: on(AT_START_KEY, d.at_start),
             on_top: on(ON_TOP_KEY, d.on_top),
         }
+    }
+
+    /// The motion now (the system's Reduce motion read for Follow the
+    /// system).
+    #[must_use]
+    pub fn motion_now(&self) -> Motion {
+        self.motion.resolve(juggler_window_events::reduce_motion())
     }
 
     /// The settings as stored.
@@ -191,7 +221,9 @@ mod tests {
     use juggler_floor::driver::Motion;
     use juggler_floor::family::Family;
 
-    use super::{DECAY_KEY, MOTION_KEY, PER_FLOOR_KEY, Settings, office_from, rows_of};
+    use super::{
+        DECAY_KEY, MOTION_KEY, MotionChoice, PER_FLOOR_KEY, Settings, office_from, rows_of,
+    };
     use juggler_floor::layout::Office;
 
     #[test]
@@ -203,7 +235,23 @@ mod tests {
             (DECAY_KEY, "off"),
         ]);
         let s = Settings::from_words(|k| words.get(k).map(|v| (*v).to_owned()));
-        assert_eq!((s.per_floor, s.motion, s.decay), (16, Motion::Calm, false));
+        assert_eq!(
+            (s.per_floor, s.motion, s.decay),
+            (16, MotionChoice::Fixed(Motion::Calm), false)
+        );
+    }
+
+    #[test]
+    fn follow_the_system_stops_motion_when_reduce_motion_is_on() {
+        let s = Settings::default();
+        assert_eq!(s.motion, MotionChoice::System);
+        assert_eq!(s.motion.resolve(false), Motion::Full);
+        assert_eq!(s.motion.resolve(true), Motion::Off);
+        assert_eq!(
+            MotionChoice::Fixed(Motion::Calm).resolve(true),
+            Motion::Calm,
+            "a chosen motion stays as chosen"
+        );
     }
 
     #[test]

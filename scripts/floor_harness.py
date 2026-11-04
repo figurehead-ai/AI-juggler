@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""AJ-E3513 req. 3: the Floor's budgets (SPEC §9.7), read on the release build.
+
+  floor_harness.py build                 the release build with the harness
+  floor_harness.py run --home H          runs it on the replica in H and
+                                         writes docs/qa/floor/budgets-<date>.md
+  floor_harness.py report RESULTS.json   writes the page from earlier results
+  floor_harness.py --selftest
+
+The harness is the `floor-harness` feature of juggler-app (never in a shipped
+build): it opens the Floor itself, walks the cases and quits; this script
+only starts it and judges the numbers. Run it with the cargo environment
+of the worktree (CARGO_TARGET_DIR, RUSTFLAGS) and nothing else heavy on
+the Mac. The replica's numbers only are written: no names.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
+import platform
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT_DIR = ROOT / "docs" / "qa" / "floor"
+RUN_LIMIT_S = 900
+
+# SPEC §9.7 Budgets: (what, budget in words, check on the results).
+CPU_REST = 0.1  # % of one core the Floor adds, open and still
+CPU_FULL = 2.0  # % of one core, animating Full
+DRAW_MS = 1.5  # CPU a frame
+FIRST_MS = 400
+CHANGE_MS = 100
+MEM_STILL = 150
+MEM_ANIM = 250
+BUILD_MS = 50
+
+
+def target_dir() -> Path:
+    return Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
+
+
+def build() -> int:
+    cmd = [
+        "cargo", "tauri", "build", "--no-bundle",
+        "--features", "floor-harness",
+        "--config", "crates/juggler-app/tauri.dev.conf.json",
+    ]
+    print("floor-harness:", " ".join(cmd))
+    return subprocess.call(["nice", "-n", "10", *cmd], cwd=ROOT)
+
+
+def run(home: Path) -> int:
+    binary = target_dir() / "release" / "juggler-app"
+    if not binary.exists():
+        print(f"floor-harness: no release build at {binary}; run `build` first", file=sys.stderr)
+        return 1
+    if not (home / "Library").exists():
+        print(f"floor-harness: no replica in {home}; run scripts/replica.py build --home {home}", file=sys.stderr)
+        return 1
+    with tempfile.TemporaryDirectory() as tmp:
+        results = Path(tmp) / "results.json"
+        env = {
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "HOME": str(home),
+            "TMPDIR": tmp,
+            "AIJ_FLOOR_HARNESS": str(results),
+        }
+        print(f"floor-harness: running (about 12 minutes) on the replica in {home}")
+        try:
+            subprocess.run([str(binary)], env=env, timeout=RUN_LIMIT_S, check=False,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.TimeoutExpired:
+            print("floor-harness: the run didn't finish in time", file=sys.stderr)
+            return 1
+        if not results.exists():
+            print("floor-harness: the app wrote no results", file=sys.stderr)
+            return 1
+        data = json.loads(results.read_text())
+    keep = OUT_DIR / f"budgets-{dt.date.today().isoformat()}.json"
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    data["machine"] = machine()
+    keep.write_text(json.dumps(data, indent=2) + "\n")
+    return report(keep)
+
+
+def machine() -> dict:
+    def sysctl(name: str) -> str:
+        return subprocess.run(["/usr/sbin/sysctl", "-n", name], capture_output=True, text=True).stdout.strip()
+
+    mem = sysctl("hw.memsize")
+    return {
+        "model": sysctl("hw.model"),
+        "chip": sysctl("machdep.cpu.brand_string"),
+        "memory_gb": round(int(mem) / 2**30) if mem.isdigit() else None,
+        "macos": platform.mac_ver()[0],
+    }
+
+
+def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
+    """(case, budget, measured, within) for each SPEC §9.7 row."""
+    cases = {c["name"]: c for c in data["cases"]}
+    base = cases["Never opened (the app alone)"]["cpu_pct"]
+    rest = cases["Open, at rest (Motion Off)"]
+    full = cases["Animating, Full (5 minutes)"]
+    calm = cases["Animating, Calm"]
+    covered = cases["Covered by another window"]
+    mini = cases["Minimised"]
+    closed = cases["Closed"]
+    before = data["footprint_before_mb"]
+    anim_peak = max([m["footprint_mb"] for m in data["full_memory_marks"]] + [full["footprint_mb"]])
+    changes = data["change_to_screen_ms"] or [float("nan")]
+    worst_change = max(changes)
+    rows = [
+        ("Open, nothing moving", "0 frames after the first",
+         f"{rest['frames']} frames in {rest['secs']:.0f} s", rest["frames"] == 0),
+        ("Open, nothing moving", f"< {CPU_REST}% of one core",
+         f"{rest['cpu_pct'] - base:+.3f}% over the app alone ({base:.3f}%)", rest["cpu_pct"] - base < CPU_REST),
+        ("Animating, Full", f"≤ {CPU_FULL}% of one core",
+         f"{full['cpu_pct'] - base:+.2f}% over the app alone", full["cpu_pct"] - base <= CPU_FULL),
+        ("Animating, Full", f"≤ {DRAW_MS} ms of CPU a frame",
+         f"{full['draw_ms_per_frame']:.2f} ms ({full['frames']} frames)", full["draw_ms_per_frame"] <= DRAW_MS),
+        ("Animating, Calm", f"≤ {CPU_FULL}% of one core",
+         f"{calm['cpu_pct'] - base:+.2f}% ({calm['frames']} frames)", calm["cpu_pct"] - base <= CPU_FULL),
+        ("Covered", "0 frames within 1 s",
+         f"{covered['frames'] - covered['first_second_frames']} after the first second "
+         f"({covered['first_second_frames']} in it)", covered["frames"] - covered["first_second_frames"] == 0),
+        ("Minimised", "0 frames within 1 s",
+         f"{mini['frames'] - mini['first_second_frames']} after the first second "
+         f"({mini['first_second_frames']} in it)", mini["frames"] - mini["first_second_frames"] == 0),
+        ("Closed", "0 frames", f"{closed['frames']}", closed["frames"] == 0),
+        ("Opening", f"first frame ≤ {FIRST_MS} ms", f"{data['first_frame_ms']} ms",
+         0 < data["first_frame_ms"] <= FIRST_MS),
+        ("A data change", f"on screen ≤ {CHANGE_MS} ms",
+         f"worst {worst_change:.1f} ms of {len(changes)}", worst_change <= CHANGE_MS),
+        ("Memory added, open and still", f"≤ {MEM_STILL} MB",
+         f"{data['footprint_open_still_mb'] - before:+.0f} MB", data["footprint_open_still_mb"] - before <= MEM_STILL),
+        ("Memory added, animating", f"≤ {MEM_ANIM} MB",
+         f"{anim_peak - before:+.0f} MB at its highest", anim_peak - before <= MEM_ANIM),
+        ("Memory once closed", "0 added",
+         f"{data['footprint_closed_mb'] - before:+.0f} MB", data["footprint_closed_mb"] - before <= 10),
+        ("Building the scene", f"≤ {BUILD_MS} ms", f"{data['scene_build_ms_mean']:.2f} ms on average",
+         data["scene_build_ms_mean"] <= BUILD_MS),
+    ]
+    return rows
+
+
+def report(results: Path) -> int:
+    data = json.loads(results.read_text())
+    rows = verdicts(data)
+    m = data.get("machine", {})
+    date = results.stem.removeprefix("budgets-")
+    lines = [
+        f"# The Floor's budgets, {date}",
+        "",
+        "Read by `scripts/floor_harness.py` on the release build with the harness",
+        "(AJ-E3513 req. 3), on the replica company: "
+        f"{data['apps']} Apps, {data['sessions']} sessions. Budgets: SPEC §9.7.",
+        "",
+        f"Machine: {m.get('model', '?')}, {m.get('chip', '?')}, {m.get('memory_gb', '?')} GB, macOS {m.get('macos', '?')}.",
+        "CPU is the whole app's, less the app alone; memory is its footprint (the GPU's",
+        "surfaces included) less before the Floor opened.",
+        "",
+        "| Case | Budget | Measured | |",
+        "|---|---|---|---|",
+    ]
+    for case, budget, measured, ok in rows:
+        lines.append(f"| {case} | {budget} | {measured} | {'within' if ok else '**over**'} |")
+    lines += ["", "## Every case", "", "| Case | Seconds | CPU (% of one core) | Frames | In the first second | Drawing a frame | Footprint |",
+              "|---|---|---|---|---|---|---|"]
+    for c in data["cases"]:
+        lines.append(f"| {c['name']} | {c['secs']:.0f} | {c['cpu_pct']:.3f} | {c['frames']} | "
+                     f"{c['first_second_frames']} | {c['draw_ms_per_frame']:.2f} ms | {c['footprint_mb']:.0f} MB |")
+    marks = ", ".join(f"{m_['at_s']} s: {m_['footprint_mb']:.0f} MB" for m_ in data["full_memory_marks"])
+    lines += ["", f"Memory while animating Full: {marks} (before opening: {data['footprint_before_mb']:.0f} MB).",
+              f"A data change on screen, 10 tries: {', '.join(str(x) for x in data['change_to_screen_ms'])} ms.", ""]
+    page = results.with_suffix(".md")
+    page.write_text("\n".join(lines))
+    over = [r for r in rows if not r[3]]
+    print(f"floor-harness: {page.relative_to(ROOT)}: {len(rows) - len(over)} within, {len(over)} over")
+    for case, budget, measured, _ in over:
+        print(f"  over: {case}: {measured} (budget {budget})")
+    return 0
+
+
+def selftest() -> int:
+    sample = {
+        "cases": [
+            {"name": n, "secs": 60, "cpu_pct": cpu, "frames": f, "first_second_frames": f1,
+             "draw_ms_per_frame": 0.7, "footprint_mb": 300}
+            for n, cpu, f, f1 in [
+                ("Never opened (the app alone)", 0.5, 0, 0), ("Open, at rest (Motion Off)", 0.55, 0, 0),
+                ("Animating, Calm", 1.0, 240, 4), ("Animating, Full (5 minutes)", 1.5, 2400, 8),
+                ("Covered by another window", 0.5, 1, 1), ("Minimised", 0.5, 0, 0), ("Closed", 0.5, 0, 0)]
+        ],
+        "apps": 7, "sessions": 30, "first_frame_ms": 120, "footprint_before_mb": 200,
+        "footprint_open_still_mb": 300, "footprint_closed_mb": 205,
+        "full_memory_marks": [{"at_s": 30, "footprint_mb": 380}], "change_to_screen_ms": [12.0, 30.5],
+        "scene_build_ms_mean": 9.0,
+    }
+    rows = verdicts(sample)
+    assert all(ok for *_, ok in rows), [r for r in rows if not r[3]]
+    sample["cases"][4]["frames"] = 5
+    assert not verdicts(sample)[5][3], "frames after the first second while covered are over"
+    print("floor-harness selftest: OK")
+    return 0
+
+
+def main() -> int:
+    if sys.argv[1:] == ["--selftest"]:
+        return selftest()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("build")
+    r = sub.add_parser("run")
+    r.add_argument("--home", type=Path, required=True)
+    p = sub.add_parser("report")
+    p.add_argument("results", type=Path)
+    args = parser.parse_args()
+    if args.cmd == "build":
+        return build()
+    if args.cmd == "run":
+        return run(args.home)
+    return report(args.results)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

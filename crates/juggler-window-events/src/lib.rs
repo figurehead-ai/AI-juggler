@@ -160,6 +160,14 @@ pub fn visible(window: &impl HasWindowHandle) -> Result<bool, Error> {
     imp::visible(window)
 }
 
+/// Whether the user asked the system for less motion (macOS: Reduce
+/// motion in Accessibility › Display). Any thread; a safe call, not one of
+/// the audited four. `false` where it can't be read.
+#[must_use]
+pub fn reduce_motion() -> bool {
+    imp::reduce_motion()
+}
+
 /// Whether the Floor's window can read its events on this system.
 ///
 /// # Errors
@@ -355,6 +363,10 @@ mod imp {
             .contains(NSWindowOcclusionState::Visible)
             && !window.isMiniaturized())
     }
+
+    pub(super) fn reduce_motion() -> bool {
+        objc2_app_kit::NSWorkspace::sharedWorkspace().accessibilityDisplayShouldReduceMotion()
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -382,6 +394,10 @@ mod imp {
 
     pub(super) fn visible(_window: &impl HasWindowHandle) -> Result<bool, Error> {
         Err(Error::Unsupported(WHY))
+    }
+
+    pub(super) const fn reduce_motion() -> bool {
+        false
     }
 }
 

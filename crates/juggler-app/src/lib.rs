@@ -906,6 +906,8 @@ pub fn run() {
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
+            #[cfg(feature = "floor-harness")]
+            features::floor::harness::start(app.handle());
             // AJ-E2302: driven sessions tell the window what changed.
             features::runtime::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),

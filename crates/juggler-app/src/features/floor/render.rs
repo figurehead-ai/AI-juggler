@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
@@ -20,12 +21,47 @@ use super::store::{self, Settings};
 use crate::features::notifications::OpenRequest;
 use crate::state::AppState;
 
+/// What the render thread has done, for the budgets (SPEC §9.7): read by
+/// the measurement harness and the frame log, a few relaxed adds a frame.
+#[derive(Debug, Default)]
+pub struct Counters {
+    /// Frames presented.
+    pub frames: AtomicU64,
+    /// Time spent drawing them, nanoseconds.
+    pub draw_ns: AtomicU64,
+    /// Time spent building scenes, nanoseconds.
+    pub build_ns: AtomicU64,
+    /// Scenes built.
+    pub builds: AtomicU64,
+    /// The last open's first frame, milliseconds after it was asked for.
+    pub first_ms: AtomicU64,
+    /// The last change's time to its frame on screen, microseconds.
+    pub change_us: AtomicU64,
+}
+
+/// The render thread's counters.
+pub static COUNTERS: Counters = Counters {
+    frames: AtomicU64::new(0),
+    draw_ns: AtomicU64::new(0),
+    build_ns: AtomicU64::new(0),
+    builds: AtomicU64::new(0),
+    first_ms: AtomicU64::new(0),
+    change_us: AtomicU64::new(0),
+};
+
+fn nanos(d: Duration) -> u64 {
+    u64::try_from(d.as_nanos()).unwrap_or(u64::MAX)
+}
+
 /// What the render thread is told.
 pub enum Msg {
     /// The window's input, resize or visibility.
     Input(Input),
     /// The company changed.
     Snapshot(Arc<FloorSnapshot>),
+    /// The settings or the saved office changed (Settings › The Floor,
+    /// Re-create): read them again.
+    Reload,
     /// The window closed: stop and let the GPU go.
     Close,
 }
@@ -148,7 +184,8 @@ impl World {
             .collect();
         let machine = machine_word();
         let logos = logos_of(state, snapshot);
-        Scene::build(scene::Inputs {
+        let built = Instant::now();
+        let scene = Scene::build(scene::Inputs {
             snapshot,
             office,
             seats: &seats,
@@ -157,7 +194,12 @@ impl World {
             now_ms: now,
             logos: &logos,
         })
-        .ok()
+        .ok();
+        COUNTERS
+            .build_ns
+            .fetch_add(nanos(built.elapsed()), Ordering::Relaxed);
+        COUNTERS.builds.fetch_add(1, Ordering::Relaxed);
+        scene
     }
 }
 
@@ -266,6 +308,8 @@ struct Running {
     opened: Instant,
     first: bool,
     title: String,
+    /// When the change waiting for its frame arrived.
+    changed: Option<Instant>,
 }
 
 impl Running {
@@ -311,7 +355,7 @@ impl Running {
             snapshot,
         };
         let renderer = Renderer::new(&instance, surface, (size.0, size.1), &world.scene).ok()?;
-        let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion);
+        let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion_now());
         driver.alert = world.snapshot.machine.alert_since_ms.is_some();
         if let Some(floor) = world.scene.neediest_floor() {
             driver.show_floor(floor);
@@ -328,6 +372,7 @@ impl Running {
             opened,
             first: true,
             title: String::new(),
+            changed: None,
         })
     }
 
@@ -335,38 +380,15 @@ impl Running {
     fn message(&mut self, msg: Msg, now: Duration, window: &impl Window) -> bool {
         match msg {
             Msg::Close => return false,
-            Msg::Snapshot(snapshot) => {
-                let w = &mut self.world;
-                if let Some(scene) = World::build(
-                    &self.state,
-                    &mut w.office,
-                    &mut w.seating,
-                    &w.hidden,
-                    &snapshot,
-                    &self.settings,
-                ) {
-                    self.renderer.load(&scene);
-                    w.scene = scene;
-                    self.driver.frame = w.scene.frame_size();
-                    self.driver.areas = w.scene.area_stops();
-                    self.driver.waiting = w.scene.waiting_stops();
-                }
-                let mut picks = Picks {
-                    renderer: &self.renderer,
-                    scene: &w.scene,
-                    scale: self.driver.size.2,
-                };
-                self.driver.input(
-                    Input::Alert(snapshot.machine.alert_since_ms.is_some()),
-                    now,
-                    &mut picks,
-                );
-                self.driver.input(Input::Changed, now, &mut picks);
-                w.snapshot = snapshot;
-            }
+            Msg::Reload => self.reload(now),
+            Msg::Snapshot(snapshot) => self.message_snapshot(snapshot, now),
             Msg::Input(input) => {
                 if let Input::Resize { w, h, .. } = input {
                     self.renderer.resize(w, h);
+                }
+                if input == Input::Visible(true) {
+                    // Reduce motion may have changed while it was away.
+                    self.driver.motion = self.settings.motion_now();
                 }
                 let mut picks = Picks {
                     renderer: &self.renderer,
@@ -383,6 +405,59 @@ impl Running {
         true
     }
 
+    /// Rebuilds the scene for `snapshot` and redraws.
+    fn message_snapshot(&mut self, snapshot: Arc<FloorSnapshot>, now: Duration) {
+        self.changed.get_or_insert_with(Instant::now);
+        let w = &mut self.world;
+        if let Some(scene) = World::build(
+            &self.state,
+            &mut w.office,
+            &mut w.seating,
+            &w.hidden,
+            &snapshot,
+            &self.settings,
+        ) {
+            self.renderer.load(&scene);
+            w.scene = scene;
+            self.driver.frame = w.scene.frame_size();
+            self.driver.areas = w.scene.area_stops();
+            self.driver.waiting = w.scene.waiting_stops();
+        }
+        let mut picks = Picks {
+            renderer: &self.renderer,
+            scene: &w.scene,
+            scale: self.driver.size.2,
+        };
+        self.driver.input(
+            Input::Alert(snapshot.machine.alert_since_ms.is_some()),
+            now,
+            &mut picks,
+        );
+        self.driver.input(Input::Changed, now, &mut picks);
+        w.snapshot = snapshot;
+    }
+
+    /// Reads the settings and the saved office again, and redraws.
+    fn reload(&mut self, now: Duration) {
+        let Ok(storage) = self.state.storage.lock() else {
+            return;
+        };
+        let Ok(settings) = Settings::read(&storage) else {
+            return;
+        };
+        if let Ok((office, hidden)) =
+            store::load(&storage, settings.per_floor, self.world.office.seed)
+        {
+            self.world.office = office;
+            self.world.hidden = hidden;
+        }
+        drop(storage);
+        self.settings = settings;
+        self.driver.motion = settings.motion_now();
+        let snapshot = Arc::clone(&self.world.snapshot);
+        self.message_snapshot(snapshot, now);
+    }
+
     /// Draws a frame (a refused one is retried by the driver).
     fn frame(&mut self, now: Duration) {
         let (d, w) = (&mut self.driver, &self.world);
@@ -394,18 +469,29 @@ impl Running {
             alert: d.alert,
             load: w.snapshot.machine.load,
             eye: [0.0; 3],
-            walkers: self.settings.motion.walkers(),
+            walkers: d.motion.walkers(),
         };
         let extras = Extras {
             hint: juggler_window_events::hint(),
             alert: w.snapshot.machine.alert.as_deref().filter(|_| d.alert),
             mouse: d.mouse,
         };
+        let drawing = Instant::now();
         match self
             .renderer
             .present(&w.scene, &d.view, &live, d.size, &extras)
         {
             Ok(shown) => {
+                COUNTERS.frames.fetch_add(1, Ordering::Relaxed);
+                COUNTERS
+                    .draw_ns
+                    .fetch_add(nanos(drawing.elapsed()), Ordering::Relaxed);
+                if let Some(at) = self.changed.take() {
+                    COUNTERS.change_us.store(
+                        u64::try_from(at.elapsed().as_micros()).unwrap_or(u64::MAX),
+                        Ordering::Relaxed,
+                    );
+                }
                 d.chips = shown.chips;
                 d.drew(true, shown.moving, now);
                 if std::mem::take(&mut self.first) {
@@ -419,6 +505,10 @@ impl Running {
 
 /// Logs how long the first frame took (the 400 ms budget).
 fn log_first_frame(took: Duration) {
+    COUNTERS.first_ms.store(
+        u64::try_from(took.as_millis()).unwrap_or(u64::MAX),
+        Ordering::Relaxed,
+    );
     eprintln!("floor: first frame in {} ms", took.as_millis());
 }
 

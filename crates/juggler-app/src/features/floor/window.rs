@@ -184,6 +184,26 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
     Ok(())
 }
 
+/// The Floor's settings or saved office changed: an open Floor reads them
+/// again (and keeps itself on top or not, as asked).
+pub fn reload(app: &tauri::AppHandle) {
+    let state = app.state::<Arc<AppState>>();
+    if let Ok(open) = state.floor.window.lock()
+        && let Some(open) = open.as_ref()
+    {
+        let _ = open.tx.send(Msg::Reload);
+    }
+    let on_top = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|s| Settings::read(&s).ok())
+        .is_some_and(|s| s.on_top);
+    if let Some(window) = app.get_window(LABEL) {
+        let _ = window.set_always_on_top(on_top);
+    }
+}
+
 /// ⌘⇧M: from the Floor, back to the main window; otherwise the Floor.
 pub fn toggle(app: &tauri::AppHandle) {
     let floor_in_front = app

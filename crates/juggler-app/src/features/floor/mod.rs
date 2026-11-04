@@ -10,6 +10,8 @@
 
 pub mod commands;
 pub mod feed;
+#[cfg(feature = "floor-harness")]
+pub mod harness;
 pub mod logos;
 pub mod render;
 pub mod store;

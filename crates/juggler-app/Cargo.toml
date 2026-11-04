@@ -12,6 +12,10 @@ default = ["stats"]
 # Usage statistics (D-19). Without it the crate is not in the binary and
 # Settings shows "not included in this build".
 stats = ["dep:juggler-stats", "dep:thread-priority"]
+# The Floor's measurement harness (AJ-E3513; scripts/floor_harness.py):
+# opens the Floor itself, walks the budget cases and quits. Never in a
+# shipped build; it runs only when AIJ_FLOOR_HARNESS names its output.
+floor-harness = []
 # The read-only test bridge (docs/qa/DEV-BRIDGE.md): the real UI in a
 # browser against this backend, for QA on real data without granting the
 # app Accessibility. Off by default, debug builds only — a release build
