@@ -497,7 +497,7 @@ export function HomeScreen({
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} />
+          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} items={items} />
         <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} />
         </div>
       </div>

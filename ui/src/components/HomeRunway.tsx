@@ -13,7 +13,9 @@ import { SectionTitle } from "./SectionTitle";
 import { useActionHost } from "./ItemMenu";
 import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData } from "../lib/bridge";
 import { newWorkAdvice, runwayOf } from "./AccountRunway";
-import { cliAppName } from "../lib/app-name";
+import { appName, cliAppName } from "../lib/app-name";
+import type { RailItem } from "../lib/rail-items";
+import { useApps, type AppModel } from "../lib/apps";
 import type { CreditsCover } from "../lib/credits";
 import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { openAccount } from "../lib/accounts-page";
@@ -68,9 +70,27 @@ export function accountAdvice(accounts: AccountInfo[], subscriptions: Subscripti
   return { count: rows.length, ...newWorkAdvice(rows) };
 }
 
-export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[] }): JSX.Element {
+/** Every App on an Account, each by its whole name (the 0.4 review): its
+ * folders' CLI Apps, then the desktop apps' profiles that ran on it ("Claude
+ * Code · Work Max, Claude app · Work Max"): a desktop App whose folder or
+ * place names the Account, or one of Home's rows of it on the Account (as
+ * its card on Home finds its runway). */
+export function appsOn(folders: AccountInfo[], apps: AppModel[] | null, items: readonly RailItem[] = []): string[] {
+  const ids = new Set(folders.map((folder) => folder.id));
+  const desktop = new Set<string>();
+  for (const app of apps ?? []) {
+    if (app.kind === "desktop" && ((app.folder !== null && ids.has(app.folder.id)) || (app.place?.account_id != null && ids.has(app.place.account_id)))) desktop.add(app.name);
+  }
+  for (const item of items) {
+    if (item.accountId !== null && ids.has(item.accountId) && !item.place.key.startsWith("cli|") && item.place.kind !== "own") desktop.add(appName(item.place.app, item.place.profile));
+  }
+  return [...folders.map((folder) => cliAppName(folder.provider, folder.label)), ...desktop];
+}
+
+export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, items = [] }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[]; items?: readonly RailItem[] }): JSX.Element {
   const host = useActionHost();
   const subscriptions = useSubscriptions();
+  const apps = useApps(accounts);
   const lineOf = (group: AccountGroup): RunwayLine => groupRunway(group, quota, sessions);
   const advice = accountAdvice(accounts, subscriptions, quota, sessions);
   return (
@@ -113,7 +133,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                   <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />
                 </div>
               )}
-              <span className="text-label text-muted">Apps: {group.profiles.map((profile) => cliAppName(profile.provider, profile.label)).join(", ")}</span>
+              <span className="text-label text-muted">Apps: {appsOn(group.profiles, apps, items).join(", ")}</span>
               {credits ? (
                 <span className="flex flex-col text-label" data-testid="home-runway-credits">
                   <span className="text-ink">{row.words}</span>

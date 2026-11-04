@@ -10,7 +10,7 @@ import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
 import { STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
-import { openWords, type ProjectOpen } from "../lib/project-summary";
+import { conversationWorking, openWords, sessionWorking, type ProjectOpen } from "../lib/project-summary";
 import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
@@ -325,7 +325,8 @@ export function toolRunning(toolId: string, sessions: InstanceInfo[], conversati
  * open, not working; the 0.4 review). */
 export function toolOpen(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): ProjectOpen {
   const mine = sessions.filter((s) => s.provider === toolId && isActiveStatus(s.status));
-  return { open: toolRunning(toolId, sessions, conversations), working: mine.filter((s) => s.status === "running").length, apps: 0 };
+  const theirs = outside(conversations).filter((c) => c.tool === toolId && c.live);
+  return { open: toolRunning(toolId, sessions, conversations), working: mine.filter(sessionWorking).length + theirs.filter(conversationWorking).length, apps: 0 };
 }
 
 /** A tool's facts in the project's words: "2 working · 5 open". */
