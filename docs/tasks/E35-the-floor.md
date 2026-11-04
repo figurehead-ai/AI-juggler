@@ -125,7 +125,7 @@
 **Research basis**: the spike's `layout.rs` (`pack`, `plan_area`, `pack_groups`, `group_shape`); `rules-and-mechanics.md` §3.
 **Handover note**: built in `crates/juggler-floor` (`layout.rs`, tests in `layout_tests.rs`): sizes S/M/L and annexes, first-fit order, the 4–16 floor limit, free cells (the first a kitchen), grow at once and shrink after a day, closed Apps' cells kept until the next reflow, Re-create, and desk plans that give up the nook, then use pods. An annex never goes on a floor before its App's, and shared cell edges are computed from whole cells (a property test found both). Storage: `floor_areas` (schema v46) and `FloorRepo` in `juggler-core` (`storage/floor.rs`, tests `tests/floor_storage.rs`); the seed key is `floor.seed`. Budget on the release build: placing 20 Apps and 150 sessions 0.27 ms, a reflow 5 µs. Left: saving each App the first time the Floor sees it, which comes with the feed (AJ-E3505), and the prototype-sample table for the evidence.
 
-### AJ-E3504 Style families as tool data, and each area's kit | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3503
+### AJ-E3504 Style families as tool data, and each area's kit | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3503
 **Goal**: Each tool's areas share a family look, each App's area is its own variant, and no code branches on a tool.
 **User story**: As someone with two Claude Code Apps, both areas read as Claude Code's workshop, and I can still tell them apart.
 **Requirements**:
@@ -152,7 +152,7 @@
 **Visual testing**: covered by AJ-E3513's gallery.
 **Files to touch**: `crates/juggler-adapters/src/` (each `ToolSpec`), `crates/juggler-adapter/` (the field), `crates/juggler-floor/src/kit/` (new).
 **Research basis**: `style-kits.md`; the spike's `kit.rs`.
-**Handover note**: —
+**Handover note**: `ToolSpec.floor` (`FloorFamilies`: a word for the tool's CLI Apps and, where it differs, its desktop app's) in `juggler-adapter`; Claude Code workshop with the Claude app studio, Codex industrial, OpenCode maker garage. Grok Build and Kimi Code take `neutral` on purpose, keeping campus and lab for Gemini CLI and Cursor when their adapters come. The conformance kit checks every adapter names a word (`names_a_floor_family`); `juggler-app/tests/floor_families.rs` checks the Floor knows each word. The catalog and kits are in `juggler-floor/src/kit.rs` (one module, not a folder: it fits the budget); the colour table is tested against `mark-hues.ts`. Left: the colour slot on sign, flag, rug, badges and logo ring belongs to the scene (AJ-E3506), and the kit table for the evidence.
 
 ### AJ-E3505 The feed: one snapshot from the backend, for the Floor and its list | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3503
 **Goal**: The Floor and the main window's Floor list read one snapshot of the company, kept current by the events the app already emits.

@@ -674,5 +674,8 @@ pub fn grok_build_spec() -> juggler_adapter::ToolSpec {
         // list is read for it.
         release_feed: None,
         update_command: Some("grok update".to_owned()),
+        // The plain office, on purpose: campus and lab are kept for the
+        // tools SPEC §9.7 names them for.
+        floor: juggler_adapter::FloorFamilies::all("neutral"),
     }
 }

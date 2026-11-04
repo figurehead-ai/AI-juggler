@@ -1381,6 +1381,12 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
             package: "@anthropic-ai/claude-code".to_owned(),
         }),
         update_command: Some("claude update".to_owned()),
+        // The Floor: a warm workshop for the CLI, a pale studio for the
+        // Claude app (SPEC §9.7).
+        floor: juggler_adapter::FloorFamilies {
+            desktop: Some("studio".to_owned()),
+            ..juggler_adapter::FloorFamilies::all("workshop")
+        },
     }
 }
 

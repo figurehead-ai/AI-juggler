@@ -1,0 +1,34 @@
+{
+  "about": "AJ-E3505: one session's data, its state on the rail, its words, and how the Floor draws it. Read by crates/juggler-floor (state.rs tests) and ui/src/lib/rail-items (session-states.test.ts); both must agree.",
+  "own": [
+    { "status": "running", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "working", "word": "Working", "floor": "working" },
+    { "status": "starting", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "working", "word": "Working", "floor": "working" },
+    { "status": "running", "needs_attention": null, "runtime": "idle", "snoozed": false, "rail": "idle", "word": "Idle", "floor": "idle" },
+    { "status": "idle", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "idle", "word": "Idle", "floor": "idle" },
+    { "status": "running", "needs_attention": null, "runtime": "done_review", "snoozed": false, "rail": "done_review", "word": "Done, review it", "floor": "done" },
+    { "status": "running", "needs_attention": "waiting_user", "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Asks you", "floor": "asks" },
+    { "status": "waiting_user", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Asks you", "floor": "asks" },
+    { "status": "running", "needs_attention": "waiting_user", "runtime": "asks_you", "snoozed": false, "rail": "asks_you", "word": "Asks you", "floor": "asks" },
+    { "status": "running", "needs_attention": "waiting_user", "runtime": null, "snoozed": true, "rail": "working", "word": "Working", "floor": "working" },
+    { "status": "stuck", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Probably stuck", "floor": "stuck" },
+    { "status": "running", "needs_attention": "stuck", "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Probably stuck", "floor": "stuck" },
+    { "status": "quota_blocked", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "asks_you", "word": "Limit reached", "floor": "limit" },
+    { "status": "running", "needs_attention": "quota_blocked", "runtime": "working", "snoozed": false, "rail": "working", "word": "Limit reached", "floor": "limit" },
+    { "status": "failed", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "ended", "word": "Stopped with an error", "floor": "crashed" },
+    { "status": "failed", "needs_attention": null, "runtime": null, "snoozed": true, "rail": "ended", "word": "Ended", "floor": "ended" },
+    { "status": "finished", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "ended", "word": "Ended", "floor": "ended" },
+    { "status": "stopped", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "ended", "word": "Ended", "floor": "ended" },
+    { "status": "handed_over", "needs_attention": null, "runtime": null, "snoozed": false, "rail": "ended", "word": "Ended", "floor": "ended" },
+    { "status": "running", "needs_attention": null, "runtime": "nonsense", "snoozed": false, "rail": "working", "word": "Working", "floor": "working" }
+  ],
+  "other": [
+    { "live": true, "state": "working", "probably": false, "looked": false, "rail": "working", "word": "Working", "floor": "working" },
+    { "live": true, "state": "idle", "probably": false, "looked": false, "rail": "idle", "word": "Idle", "floor": "idle" },
+    { "live": true, "state": "asks_you", "probably": false, "looked": false, "rail": "asks_you", "word": "Asks you", "floor": "asks" },
+    { "live": true, "state": "asks_you", "probably": true, "looked": false, "rail": "asks_you", "word": "Probably asks you", "floor": "asks" },
+    { "live": true, "state": "done_review", "probably": false, "looked": false, "rail": "done_review", "word": "Done, review it", "floor": "done" },
+    { "live": true, "state": "done_review", "probably": false, "looked": true, "rail": "idle", "word": "Idle", "floor": "idle" },
+    { "live": true, "state": null, "probably": false, "looked": false, "rail": "idle", "word": "Idle", "floor": "idle" },
+    { "live": false, "state": "working", "probably": false, "looked": false, "rail": "ended", "word": "Ended", "floor": "ended" }
+  ]
+}

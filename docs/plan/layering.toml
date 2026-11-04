@@ -33,6 +33,7 @@ juggler-app = [
   "juggler-adapter",
   "juggler-adapters",
   "juggler-core",
+  "juggler-floor",
   "juggler-handover",
   "juggler-link",
   "juggler-login-item",

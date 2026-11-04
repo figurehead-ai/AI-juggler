@@ -984,5 +984,6 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
             package: "@openai/codex".to_owned(),
         }),
         update_command: Some("npm install -g @openai/codex@latest".to_owned()),
+        floor: juggler_adapter::FloorFamilies::all("industrial"),
     }
 }

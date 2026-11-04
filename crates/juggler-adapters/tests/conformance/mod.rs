@@ -1503,12 +1503,40 @@ fn jsonl_under(dir: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// AJ-E3504: the tool names its Floor family by a word (`neutral` when a
+/// plain office is meant), for its command-line and desktop Apps alike.
+pub fn names_a_floor_family(subject: &dyn Subject) {
+    let sandbox = Sandbox::new();
+    let spec = subject.adapter(&sandbox).spec();
+    for kind in [
+        juggler_adapter::ToolKind::Cli,
+        juggler_adapter::ToolKind::Desktop,
+    ] {
+        let word = spec.floor.for_kind(kind).unwrap_or_else(|| {
+            panic!(
+                "{}: no Floor family for {kind:?} Apps; name one, or `neutral`",
+                spec.id
+            )
+        });
+        assert!(
+            !word.is_empty() && word.chars().all(|c| c.is_ascii_lowercase() || c == '-'),
+            "{}: the Floor family is a word, not {word:?}",
+            spec.id
+        );
+    }
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
     ($module:ident, $subject:expr) => {
         mod $module {
             use super::*;
+
+            #[test]
+            fn names_a_floor_family() {
+                conformance::names_a_floor_family(&$subject);
+            }
 
             #[test]
             fn isolates_each_home() {

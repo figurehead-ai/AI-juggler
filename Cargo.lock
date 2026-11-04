@@ -2812,6 +2812,7 @@ dependencies = [
  "juggler-adapters",
  "juggler-agentbridge",
  "juggler-core",
+ "juggler-floor",
  "juggler-handover",
  "juggler-link",
  "juggler-login-item",
@@ -2871,6 +2872,7 @@ version = "0.4.0"
 dependencies = [
  "proptest",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

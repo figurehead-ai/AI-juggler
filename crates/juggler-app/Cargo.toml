@@ -43,6 +43,7 @@ juggler-account = { version = "0.4.0", path = "../juggler-account" }
 juggler-agentbridge = { version = "0.4.0", path = "../juggler-agentbridge" }
 juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
 juggler-core = { version = "0.4.0", path = "../juggler-core" }
+juggler-floor = { version = "0.4.0", path = "../juggler-floor" }
 juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
 juggler-link = { version = "0.4.0", path = "../juggler-link" }
 # The OS seams: owner-only folders and files, local sockets, who we are.

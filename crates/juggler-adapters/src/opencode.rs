@@ -895,6 +895,7 @@ pub fn opencode_spec() -> juggler_adapter::ToolSpec {
             package: "opencode-ai".to_owned(),
         }),
         update_command: Some("opencode upgrade".to_owned()),
+        floor: juggler_adapter::FloorFamilies::all("maker-garage"),
     }
 }
 

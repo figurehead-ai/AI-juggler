@@ -52,6 +52,40 @@ pub struct ToolFlags {
     pub primary: bool,
 }
 
+/// The Floor's style family for a tool's Apps (SPEC §9.7, D-67), by word:
+/// `workshop`, `studio`, `industrial`, `maker-garage`, `campus`, `lab`,
+/// or `neutral` for a plain office chosen on purpose. The Floor reads the
+/// word; no code branches on the tool. A word the Floor doesn't know, or
+/// none, draws the plain office.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FloorFamilies {
+    /// The family of its command-line Apps (and of its desktop Apps when
+    /// `desktop` names none).
+    pub cli: Option<String>,
+    /// The family of its desktop app's Apps, where it differs.
+    pub desktop: Option<String>,
+}
+
+impl FloorFamilies {
+    /// One family for every App of the tool.
+    #[must_use]
+    pub fn all(word: &str) -> Self {
+        Self {
+            cli: Some(word.to_owned()),
+            desktop: None,
+        }
+    }
+
+    /// The family word for an App of `kind`.
+    #[must_use]
+    pub fn for_kind(&self, kind: ToolKind) -> Option<&str> {
+        match kind {
+            ToolKind::Cli => self.cli.as_deref(),
+            ToolKind::Desktop => self.desktop.as_deref().or(self.cli.as_deref()),
+        }
+    }
+}
+
 /// Everything a screen or a command needs to know about one tool,
 /// supplied by its adapter. Static and versioned with the adapter.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -107,6 +141,8 @@ pub struct ToolSpec {
     /// AJ-E1611: the command the user runs to update it themselves. AI
     /// Juggler shows it and never runs it.
     pub update_command: Option<String>,
+    /// The Floor's style family for its Apps (AJ-E3504).
+    pub floor: FloorFamilies,
 }
 
 /// AJ-E1611: a public list of a tool's released versions.
@@ -174,6 +210,7 @@ impl ToolSpec {
             terms: None,
             release_feed: None,
             update_command: None,
+            floor: FloorFamilies::default(),
         }
     }
 
@@ -197,7 +234,24 @@ impl ToolSpec {
 
 #[cfg(test)]
 mod tests {
-    use super::ToolSpec;
+    use super::{FloorFamilies, ToolKind, ToolSpec};
+
+    #[test]
+    fn a_desktop_app_takes_its_own_family_or_the_tools() {
+        let one = FloorFamilies::all("industrial");
+        assert_eq!(one.for_kind(ToolKind::Cli), Some("industrial"));
+        assert_eq!(one.for_kind(ToolKind::Desktop), Some("industrial"));
+        let two = FloorFamilies {
+            desktop: Some("studio".to_owned()),
+            ..FloorFamilies::all("workshop")
+        };
+        assert_eq!(two.for_kind(ToolKind::Cli), Some("workshop"));
+        assert_eq!(two.for_kind(ToolKind::Desktop), Some("studio"));
+        assert_eq!(
+            ToolSpec::generic("tool").floor.for_kind(ToolKind::Cli),
+            None
+        );
+    }
 
     #[test]
     fn a_rules_file_reads_another_only_through_a_line_of_its_own() {
