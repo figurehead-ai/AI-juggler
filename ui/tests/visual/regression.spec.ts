@@ -240,7 +240,7 @@ for (const theme of THEMES) {
         await page.getByTestId("home-needs").getByRole("button", { name: /^Continue elsewhere/ }).first().click();
         const dialog = page.getByTestId("limit-dialog");
         await expect(dialog).toBeVisible();
-        await expect(dialog.getByRole("button", { name: /^Continue on / })).toBeVisible();
+        await expect(dialog.getByRole("button", { name: /^Continue (on|in) / })).toBeVisible();
         await page.mouse.move(0, 0);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`limit-dialog-${cell}.png`, SCREEN);

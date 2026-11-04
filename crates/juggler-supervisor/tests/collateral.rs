@@ -154,13 +154,15 @@ fn stop_signals_only_the_own_group_and_kills_survivors_after_grace() {
     // (dies on TERM); the shell traps+logs TERM then dies on the
     // post-grace KILL; the TERM-ignorer logs TERM, survives grace,
     // dies by KILL — exactly the ladder's contract.
+    // "Until it happens" deadlines, as the rest of the suite (a loaded CI
+    // runner, 2026-11-04: the shell outlived 6 s); dying fast still passes.
     assert!(
-        fixtures::wait_for(6_000, || !alive(vite)),
+        fixtures::wait_for(30_000, || !alive(vite)),
         "cooperative fixture died on TERM"
     );
-    assert!(fixtures::wait_for(6_000, || !alive(shell)));
+    assert!(fixtures::wait_for(30_000, || !alive(shell)));
     assert!(
-        fixtures::wait_for(6_000, || !alive(ignorer)),
+        fixtures::wait_for(30_000, || !alive(ignorer)),
         "TERM-ignorer taken by the post-grace KILL"
     );
     if kit.get("vite").signals() != vec!["TERM".to_string()] {

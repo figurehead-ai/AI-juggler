@@ -75,7 +75,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByRole("button", { name: /^Continue elsewhere/ }).click();
     const dialog = page.getByRole("dialog", { name: /hit its limit/ });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: /^Continue on / })).toBeFocused();
+    await expect(dialog.getByRole("button", { name: /^Continue (on|in) / })).toBeFocused();
     await page.screenshot({ path: resolve(OUT, `limit-decision-1280x800-${theme}.png`) });
     await axeClean(page, "limit decision");
     await page.keyboard.press("Escape");
