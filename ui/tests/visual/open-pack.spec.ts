@@ -43,7 +43,7 @@ for (const theme of ["dark", "light"] as const) {
     await sheet.getByTestId("new-session-more").locator("summary").click();
     await sheet.getByRole("button", { name: "Start from a saved handover…" }).click();
     const summary = sheet.getByTestId("pack-summary");
-    await expect(summary).toContainText("Claude Code on Work Max");
+    await expect(summary).toContainText("Claude Code · Work Max");
     await expect(summary).toContainText("Full story, fresh start · Beta");
     await expect(sheet.getByTestId("pack-withheld")).toHaveText("2 API keys, when it was made. They stay out.");
     await summary.getByText("The handover's brief").click();

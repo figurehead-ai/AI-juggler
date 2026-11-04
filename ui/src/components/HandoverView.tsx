@@ -18,6 +18,7 @@ import { errorText } from "../lib/bridge";
 import { packsOpenPreview } from "../lib/ipc/packs";
 import { handoverOpen, handoverReveal, handoverSave, handoverSummary, type HandoverSummaryInfo, type SavedHandoverInfo } from "../lib/ipc/handover";
 import type { WithheldInfo } from "../types/generated/WithheldInfo";
+import { appName } from "../lib/app-name";
 
 /** What the rows show: a saved pack's (`PackOpenInfo`) or a switch's
  * handover (`HandoverSheetInfo`) alike. */
@@ -66,11 +67,11 @@ export function HandoverRows({ data, whereNote }: { data: HandoverRowsData; wher
   return (
     <>
       <Row label="From">
-        {data.from_tool} on {data.from_account} · {made}
+        {appName(data.from_tool, data.from_account)} · {made}
       </Row>
       {data.to_tool && (
         <Row label="To">
-          {data.to_tool} on {data.to_account}
+          {appName(data.to_tool, data.to_account)}
         </Row>
       )}
       <Row label="Where">

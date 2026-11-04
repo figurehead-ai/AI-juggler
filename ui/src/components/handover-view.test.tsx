@@ -67,7 +67,7 @@ describe("a switch's handover", () => {
     await waitFor(() => expect(view.getByTestId("pack-withheld").textContent).toBe("2 API keys, when it was made. They stay out."));
     const sheet = view.getByTestId("handover-sheet");
     expect(sheet.getAttribute("aria-label")).toBe("What Codex was told");
-    expect(sheet.textContent).toContain("Codex on Personal");
+    expect(sheet.textContent).toContain("Codex · Personal");
     expect(sheet.textContent).toContain("12 earlier turns");
     expect(view.getByRole("button", { name: "Hide the handover" }).getAttribute("aria-expanded")).toBe("true");
   });
