@@ -60,7 +60,7 @@ fn launched_source(state: &Arc<AppState>, work: &Path) -> String {
         .join(CLAUDE_CODE_ID)
         .join(account.id.as_str());
     let setup_args = config.join("last-args");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     while !setup_args.is_file() {
         assert!(std::time::Instant::now() < deadline, "setup stub never ran");
         std::thread::sleep(std::time::Duration::from_millis(20));

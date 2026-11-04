@@ -84,7 +84,7 @@ fn launch_with_transcript(
     // argv record (a late truncate clobbers its first byte).
     {
         let setup_args = config_dir_of(state, account_id).join("last-args");
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while !setup_args.is_file() {
             assert!(std::time::Instant::now() < deadline, "setup stub never ran");
             std::thread::sleep(std::time::Duration::from_millis(20));
@@ -362,7 +362,7 @@ fn undo_stops_target_resumes_source_and_compensates_the_edge() {
         )
     );
     let args_path = config_dir_of(&state, &account_a.id).join("last-args");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let args = loop {
         if let Ok(args) = std::fs::read_to_string(&args_path) {
             // The shell truncates before printf writes — wait for

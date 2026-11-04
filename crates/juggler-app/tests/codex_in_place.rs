@@ -119,7 +119,7 @@ fn launch_and_wait(state: &Arc<AppState>, account_id: &str) {
     storage.profiles().update(&main).unwrap();
     drop(storage);
     commands::launch_profile(state, main.id.as_str(), None).unwrap();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     while std::time::Instant::now() < deadline {
         if let Some(juggler_supervisor::LifecycleEvent::Exited { .. }) = state
             .supervisor

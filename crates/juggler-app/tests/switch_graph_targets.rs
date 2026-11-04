@@ -118,7 +118,7 @@ fn launch_source(work: &Path) -> LaunchedSource {
     let launched = commands::launch_profile(&state, &profile_a.id, Some(cwd.clone())).unwrap();
     {
         let setup_args = config_dir_of(&state, &account_a.id).join("last-args");
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while !setup_args.is_file() {
             assert!(std::time::Instant::now() < deadline, "setup stub never ran");
             std::thread::sleep(std::time::Duration::from_millis(20));

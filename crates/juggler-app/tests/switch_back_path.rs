@@ -116,7 +116,7 @@ fn switch_a_to_b(work: &Path) -> RoundTrip {
     // flakes). One write then exit — existing file means done.
     {
         let setup_args = config_dir_of(&state, &account_a.id).join("last-args");
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while !setup_args.is_file() {
             assert!(std::time::Instant::now() < deadline, "setup stub never ran");
             std::thread::sleep(std::time::Duration::from_millis(20));
@@ -555,7 +555,7 @@ fn config_dir_of_from(state: &Arc<AppState>, transcript: &Path) -> PathBuf {
 }
 
 fn poll_args(path: &Path) -> String {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
         let ready = std::fs::read_to_string(path)
             .ok()

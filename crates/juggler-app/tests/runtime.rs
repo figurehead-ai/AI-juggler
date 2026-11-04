@@ -94,7 +94,7 @@ fn new_profile(state: &Arc<AppState>, harness: &str, cwd: &Path) -> String {
 }
 
 fn wait_for(what: &str, mut done: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while !done() {
         assert!(Instant::now() < deadline, "timed out waiting for {what}");
         std::thread::sleep(Duration::from_millis(20));

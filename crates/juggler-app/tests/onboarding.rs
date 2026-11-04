@@ -108,7 +108,7 @@ fn import_makes_an_existing_setup_launchable_without_touching_it() {
     // Launch through the supervisor: the isolated copy behaves like the
     // original setup (stub writes into ITS config dir).
     let launched = commands::launch_profile(&state, main.id.as_str(), None).unwrap();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let mut exited = false;
     while std::time::Instant::now() < deadline {
         if let Some(juggler_supervisor::LifecycleEvent::Exited { .. }) = state

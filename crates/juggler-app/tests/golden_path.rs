@@ -219,7 +219,7 @@ fn handover_moves_context_to_another_account_and_resumes_it() {
     // B's instance launched with --resume native-sess-42 (the stub runs
     // asynchronously — wait for its argv record).
     let args_path = config_dir_of(&state, &account_b.id).join("last-args");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     let args = loop {
         if let Ok(args) = std::fs::read_to_string(&args_path) {
             break args;

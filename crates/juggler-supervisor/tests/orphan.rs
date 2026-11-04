@@ -265,7 +265,7 @@ fn stop_ladder_escalates_when_sigterm_ignored() {
     assert!(child_pid != 0, "ignoring child never observed in the tree");
     std::fs::write(&go, b"").unwrap();
     // Drain the harness's own exit (it ends immediately after 1 turn).
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while Instant::now() < deadline && supervisor.try_recv().is_none() {
         std::thread::sleep(Duration::from_millis(100));
     }

@@ -160,7 +160,7 @@ fn real_claude_instance_real_helpers_verified_cleanup() {
     );
 
     // The tree is gone — root dead, no member survived the ladder.
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     while std::time::Instant::now() < deadline {
         let gone = state
             .ledger

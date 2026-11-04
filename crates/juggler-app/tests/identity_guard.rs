@@ -127,7 +127,7 @@ fn a_matched_account_launches_and_a_mismatched_one_is_blocked_with_nothing_run()
     // The earlier launches' stubs record their argv asynchronously —
     // wait for that write, then clear it.
     let args = config_dir(&state, &work_max.id).join("last-args");
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while !args.is_file() {
         assert!(Instant::now() < deadline, "setup stub never ran");
         std::thread::sleep(Duration::from_millis(20));

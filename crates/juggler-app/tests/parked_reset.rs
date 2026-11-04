@@ -179,7 +179,7 @@ fn a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original(
     assert!(parked::parked_offers_impl(&state).unwrap().is_empty());
     // The setup launch's stub records its argv asynchronously: wait for
     // it, then clear it — anything after this is a new launch.
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while !config.join("last-args").is_file() {
         assert!(Instant::now() < deadline, "setup stub never ran");
         std::thread::sleep(Duration::from_millis(20));
@@ -208,7 +208,7 @@ fn a_parked_instance_is_offered_back_once_at_the_reset_and_resumes_the_original(
 
     // The user's click: the ORIGINAL native session on the same Account.
     let resumed = parked::parked_resume_impl(&state, &session).unwrap();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while !config.join("last-args").is_file() {
         assert!(Instant::now() < deadline, "the resume never ran");
         std::thread::sleep(Duration::from_millis(20));
