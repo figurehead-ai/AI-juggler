@@ -158,6 +158,15 @@ pub fn visible(window: &impl HasWindowHandle) -> Result<bool, Error> {
     imp::visible(window)
 }
 
+/// Whether the Floor's window can read its events on this system.
+///
+/// # Errors
+///
+/// [`Error::Unsupported`], with why, where it can't yet.
+pub const fn supported() -> Result<(), Error> {
+    imp::SUPPORTED
+}
+
 /// What the system calls the keys that move the Floor's view.
 #[must_use]
 pub const fn hint() -> &'static str {
@@ -187,6 +196,8 @@ mod imp {
     use super::{Error, Event, Key, Monitor};
 
     type Handler = RcBlock<dyn Fn(NonNull<NSEvent>) -> *mut NSEvent>;
+
+    pub(super) const SUPPORTED: Result<(), Error> = Ok(());
 
     thread_local! {
         static MONITORS: RefCell<HashMap<u64, (Retained<AnyObject>, Handler)>> = RefCell::new(HashMap::new());
@@ -354,6 +365,8 @@ mod imp {
     } else {
         "the Floor's window reads its input with GTK signals, coming in the Linux release"
     };
+
+    pub(super) const SUPPORTED: Result<(), Error> = Err(Error::Unsupported(WHY));
 
     pub(super) fn install(
         _window: &impl HasWindowHandle,

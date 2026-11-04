@@ -270,6 +270,7 @@ pub async fn fleet_launch_start(
                 session_id: Some(started.clone()),
                 page: None,
                 machine_id: Some(machine_id),
+                id: None,
             },
         );
     }

@@ -23,6 +23,9 @@
 mod gpu;
 mod shaders;
 
+/// The GPU library, for the window's instance and surface.
+pub use wgpu;
+
 use juggler_floor::camera::View;
 use juggler_floor::driver::Chip;
 use juggler_floor::models::Item;

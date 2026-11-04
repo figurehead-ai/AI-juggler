@@ -552,6 +552,8 @@ macro_rules! app_commands {
             Read  features::apps::commands::apps_list,
             // AJ-E3505: the Floor's snapshot, for its list (reads only).
             Read  features::floor::commands::floor_snapshot,
+            // AJ-E3501: opens the Floor's window (or brings it forward).
+            Write features::floor::commands::floor_open,
             Write features::apps::commands::apps_rename,
             Read  features::places::commands::places_list,
             Read  features::places::commands::places_find,
@@ -838,9 +840,16 @@ pub fn run() {
             if event.id() == quit::QUIT_MENU_ID {
                 let _ = quit::request(app);
             }
+            if event.id() == features::floor::window::MENU_ID {
+                features::floor::window::toggle(app);
+            }
         })
         .on_window_event(|window, event| {
             use tauri::Manager;
+            if window.label() == features::floor::window::LABEL {
+                features::floor::window::on_window_event(window, event);
+                return;
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event
                 && window.label() == "main"
                 && quit::request(window.app_handle())
@@ -891,6 +900,10 @@ pub fn run() {
             tauri::Manager::state::<Arc<state::AppState>>(app)
                 .floor
                 .attach(app.handle().clone());
+            features::floor::window::listen(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
+            );
             // AJ-E2302: driven sessions tell the window what changed.
             features::runtime::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),

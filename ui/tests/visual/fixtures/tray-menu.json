@@ -44,6 +44,11 @@
       "type": "item",
       "id": "tray:new-session",
       "text": "New session…"
+    },
+    {
+      "type": "item",
+      "id": "floor:open",
+      "text": "The Floor"
     }
   ]
 }

@@ -23,3 +23,16 @@ pub async fn floor_snapshot(state: tauri::State<'_, Arc<AppState>>) -> AppResult
     })
     .await
 }
+
+/// Opens the Floor's window, or brings it forward.
+///
+/// # Errors
+///
+/// [`crate::error::AppError::Refused`] where the Floor can't run yet
+/// (why, in words), or when its window can't be made.
+#[tauri::command]
+pub async fn floor_open(app: tauri::AppHandle) -> AppResult<()> {
+    tauri::async_runtime::spawn_blocking(move || super::window::open(&app))
+        .await
+        .map_err(|e| crate::error::AppError::Refused(format!("The Floor couldn't open: {e}.")))?
+}

@@ -44,7 +44,7 @@
 > - Each task names its scenarios in [`docs/qa/0.4-validation-plan.md`](../qa/0.4-validation-plan.md)'s
 >   form and isn't done until they pass by hand on the release build.
 
-### AJ-E3501 The Floor window: crates, a native surface, input and the draw-on-change loop | Status: TODO | Priority P0 | Effort L | Depends: —
+### AJ-E3501 The Floor window: crates, a native surface, input and the draw-on-change loop | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: —
 **Goal**: A second, native window opens from the main window, draws with wgpu, takes mouse, trackpad and keys, and draws only when something changes and it can be seen.
 **User story**: As someone who wants the Floor open all day, I open it with ⌘⇧M, and it costs nothing when nothing moves or when it's behind other windows.
 **Requirements**:
@@ -80,7 +80,7 @@
 **Visual testing**: n/a (an empty floor is enough here).
 **Files to touch**: `crates/juggler-floor/`, `crates/juggler-floor-render/`, `crates/juggler-window-events/` (new); `Cargo.toml` (members, lint carve-out comment); `docs/plan/layering.toml`; `crates/juggler-app/src/features/floor/` (new: window, commands); `crates/juggler-app/src/quit.rs` (menu), the tray; `ui/src/components/AppHeader.tsx`, `ui/src/lib/shortcuts.ts`, `ui/src/lib/app-keys.ts`.
 **Research basis**: ADR-0026; the spike's `render.rs` (loop, retry), `input.rs`, `main.rs`; `floor-spike-results.html`.
-**Handover note**: —
+**Handover note**: The three crates are in: `juggler-floor` (pure), `juggler-floor-render` (wgpu, safe `create_surface`), `juggler-window-events` (the audited carve-out: four unsafe calls, macOS; Unsupported with why elsewhere). Tauri pinned `=2.12.4` with `unstable`. `features/floor/window.rs` makes the window on first open (surface and monitor on the main thread) and drops it on close; `render.rs` runs the driver (`juggler-floor/src/driver.rs`, headless clock tests: 1 frame in 60 s at rest, none hidden, one per change, a refused frame retried every 100 ms). Entry points: the header's Floor button, Window › The Floor and the tray (⌘⇧M, which brings the main window back from the Floor); open-at-start reads `floor.open_at_start`. Left: the frame-log evidence of a 60 s run at rest, covered and minimised (`docs/qa/evidence/AJ-E3501/`), and the Linux/Windows build check in CI.
 
 ### AJ-E3502 Memory settled: the drawables held while animating | Status: TODO | Priority P0 | Effort S | Depends: AJ-E3501
 **Goal**: The Floor meets its memory budget while animating, not only at rest.
@@ -212,7 +212,7 @@
 **Research basis**: the spike's `mesh.rs`, `models.rs`, `scene.rs`, `tex.rs`.
 **Handover note**: —
 
-### AJ-E3507 The renderer: the pixel look, picking and the orbit camera | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3501, AJ-E3506
+### AJ-E3507 The renderer: the pixel look, picking and the orbit camera | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3501, AJ-E3506
 **Goal**: The scene is drawn as crisp pixel art with light and shadow, every pixel knows what it shows, and the view turns, tilts and zooms within limits.
 **User story**: As someone looking for a team, I turn the floor round to see behind a wall, zoom to a desk, and press H to come back.
 **Requirements**:
@@ -236,7 +236,7 @@
 **Visual testing**: the turn sequence and the tilt extremes in the gallery.
 **Files to touch**: `crates/juggler-floor-render/src/` (passes, shaders, camera, pick, capture).
 **Research basis**: the spike's `render.rs` (passes, `pick`, `Cam`, `pan`, `zoom_at`).
-**Handover note**: —
+**Handover note**: `juggler-floor-render`: four passes (shadow; the scene at the pixel size with a pick id per pixel, then glass; post; overlay), picking one pixel of the id buffer, offscreen capture. The camera (`camera.rs`) and the overlay (`overlay.rs`) are pure and tested. An offscreen test draws a real office and picks a sitter's session. Left: golden frames (AJ-E3513).
 
 ### AJ-E3508 The floor logo: the tool's mark and the Account's initials | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3507
 **Goal**: Every area's floor carries its tool's logo and its Account's initials, so an area is known from across the building.
@@ -297,7 +297,7 @@
 **Research basis**: `rules-and-mechanics.md` §2; the spike's `Scene::frame`.
 **Handover note**: —
 
-### AJ-E3510 Doors and play: hover, clicks, keys and the fun touches | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3509
+### AJ-E3510 Doors and play: hover, clicks, keys and the fun touches | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3509
 **Goal**: Everything you can see you can point at, and everything that stands for something opens it.
 **User story**: As someone who sees a person waving, I click them and land on the question in the main window.
 **Requirements**:
@@ -330,7 +330,7 @@
 **Visual testing**: hover and tooltip captures.
 **Files to touch**: `crates/juggler-floor/src/doors.rs` (new), `crates/juggler-app/src/features/notifications/mod.rs` (`OpenRequest`), `ui/src/lib/outside.ts`.
 **Research basis**: the spike's `Target` and click handling.
-**Handover note**: —
+**Handover note**: Doors go through the app's own `app://open` (`OpenRequest` gained `app`, `conversation`, `subagents`, `usage` and an `id`); `render::door` is the door table (tested; toys, the cat and floors never navigate); `ui/src/lib/outside.ts` `routeOpen` opens each in the main window (tested). Hover outline, tooltip and a hovered person looking up are in the post pass and the scene. Left: Tab/Shift-Tab between areas, Enter, N; pools' meeting rooms, the whiteboard (tasks) and notice board doors; the recording.
 
 ### AJ-E3511 Settings › The Floor, and Re-create | Status: TODO | Priority P0 | Effort S | Depends: AJ-E3503
 **Goal**: The Floor's few choices live in one Settings pane, and Re-create says plainly what it will do.

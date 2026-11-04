@@ -105,13 +105,16 @@ pub fn tray_clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
     let Some(click) = tray::click_of(id) else {
         return;
     };
+    if click == TrayClick::Floor {
+        let _ = app.emit(crate::features::floor::window::OPEN_REQUEST, ());
+        return;
+    }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
     }
     match click {
-        TrayClick::Open => {}
         TrayClick::NewSession => {
             let _ = app.emit(EVENT_NEW_SESSION, ());
         }
@@ -121,6 +124,7 @@ pub fn tray_clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
         TrayClick::Notice(id) => {
             let _ = app.emit(EVENT_OPEN, Some(id));
         }
+        TrayClick::Open | TrayClick::Floor => {}
     }
 }
 

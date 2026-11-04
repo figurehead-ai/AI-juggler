@@ -24,7 +24,7 @@ import {
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
-import { useOutsideRequests } from "./lib/outside";
+import { routeOpen, useOutsideRequests } from "./lib/outside";
 import { GLOBAL_NAV, PRIMARY_NAV, focusPageIfLost, focusPageSoon, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
 import { SkipLink } from "./components/SkipLink";
 import { RailHeader } from "./components/RailHeader";
@@ -542,7 +542,7 @@ export default function App() {
   });
 
   // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
-  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => (open.machine_id ? inspectRemote(open.machine_id, open.session_id) : open.session_id ? selectSession(open.session_id) : open.page === "notifications" ? setCentreOpen(true) : setGlobal("thismac")) });
+  useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => routeOpen(open, { remote: inspectRemote, session: selectSession, centre: () => setCentreOpen(true), page: setGlobal, app: (id) => (setGlobal(null), setSelection({ kind: "app", id })), conversation: (accountId, id) => (setGlobal(null), setSelection({ kind: "conversation", accountId, id, projectId: null })) }) });
 
   // E14: This Mac — one subscription for Home, the rail and the header.
   const thisMacInfo = useThisMac(sessions);

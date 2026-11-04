@@ -33,11 +33,18 @@ pub const EVENT_OPEN: &str = "app://open";
 pub struct OpenRequest {
     /// The session to open, when it's one.
     pub session_id: Option<String>,
-    /// `this_mac` for the This Mac page.
+    /// `this_mac` for the This Mac page, `notifications` for the centre;
+    /// from the Floor (AJ-E3510) also `app`, `conversation`, `subagents`
+    /// and `usage`, each with its [`Self::id`].
     pub page: Option<String>,
     /// AJ-E1515: the paired Mac the session runs on (`None`: this one).
     #[serde(default)]
     pub machine_id: Option<String>,
+    /// What `page` opens: an App's id, another app's session
+    /// (`<account>/<id>`), a session's subagents (the rail's key) or an
+    /// Account's id.
+    #[serde(default)]
+    pub id: Option<String>,
 }
 
 /// One notification as the system shows it.
@@ -544,11 +551,13 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
             session_id: Some(session_id),
             page: None,
             machine_id: None,
+            id: None,
         }),
         Some(Target::ThisMac) => Some(OpenRequest {
             session_id: None,
             page: Some("this_mac".to_owned()),
             machine_id: None,
+            id: None,
         }),
         // AJ-E2501: an account's notice opens the notification centre,
         // where its banner and its actions are.
@@ -556,6 +565,7 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
             session_id: None,
             page: Some("notifications".to_owned()),
             machine_id: None,
+            id: None,
         }),
         None => None,
     };

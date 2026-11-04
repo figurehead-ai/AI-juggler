@@ -10,6 +10,9 @@
 
 pub mod commands;
 pub mod feed;
+pub mod render;
+pub mod store;
+pub mod window;
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -44,7 +47,8 @@ pub struct Floor {
     stale: Arc<AtomicBool>,
     last: RwLock<Option<Arc<FloorSnapshot>>>,
     hot: Mutex<BTreeMap<String, i64>>,
-    subscribers: Mutex<Vec<std::sync::mpsc::Sender<Arc<FloorSnapshot>>>>,
+    subscribers: Mutex<Vec<Subscriber>>,
+    window: Mutex<Option<window::Open>>,
     published: Mutex<Option<Arc<FloorSnapshot>>>,
 }
 
@@ -56,24 +60,25 @@ impl std::fmt::Debug for Floor {
     }
 }
 
+/// Called with each new snapshot; `false` when it wants no more.
+pub type Subscriber = Box<dyn Fn(Arc<FloorSnapshot>) -> bool + Send>;
+
 impl Floor {
     /// Keeps the app's handle for when the Floor first runs (at setup).
     pub fn attach(&self, app: tauri::AppHandle) {
         let _ = self.app.set(app);
     }
 
-    /// A channel the render thread reads new snapshots from.
-    pub fn subscribe(&self) -> std::sync::mpsc::Receiver<Arc<FloorSnapshot>> {
-        let (tx, rx) = std::sync::mpsc::channel();
+    /// Calls `on` with each new snapshot until it returns `false`.
+    pub fn subscribe(&self, on: Subscriber) {
         if let Ok(mut subscribers) = self.subscribers.lock() {
-            subscribers.push(tx);
+            subscribers.push(on);
         }
-        rx
     }
 
     fn publish(&self, snapshot: &Arc<FloorSnapshot>) {
         if let Ok(mut subscribers) = self.subscribers.lock() {
-            subscribers.retain(|tx| tx.send(Arc::clone(snapshot)).is_ok());
+            subscribers.retain(|on| on(Arc::clone(snapshot)));
         }
     }
 }

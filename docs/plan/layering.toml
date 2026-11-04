@@ -38,6 +38,7 @@ juggler-app = [
   "juggler-adapters",
   "juggler-core",
   "juggler-floor",
+  "juggler-floor-render",
   "juggler-handover",
   "juggler-link",
   "juggler-login-item",
@@ -45,6 +46,7 @@ juggler-app = [
   "juggler-scap-init",
   "juggler-stats",
   "juggler-supervisor",
+  "juggler-window-events",
 ]
 
 # A6: an adapter module never imports a sibling tool's module; shared

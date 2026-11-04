@@ -368,6 +368,7 @@ fn a_click_brings_ai_juggler_forward_on_that_session() {
             session_id: Some(id),
             page: None,
             machine_id: None,
+            id: None,
         }]
     );
 }

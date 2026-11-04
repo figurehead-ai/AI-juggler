@@ -148,6 +148,9 @@ export const SHORTCUTS = [
   { id: "go-history", owner: "app", area: "Screens", keys: ["⌘⇧Y"], label: "History", match: cmd("y", { shift: true }) },
   { id: "go-fleet", owner: "app", area: "Screens", keys: ["⌘⇧F"], label: "Fleet", match: cmd("f", { shift: true }), fleet: true },
   { id: "settings", owner: "app", area: "Screens", keys: ["⌘,"], label: "Settings", match: cmd(",") },
+  // AJ-E3501: Window › The Floor (the app's menu takes the key, so it
+  // works in the Floor's window too, where it brings this one back).
+  { id: "floor", owner: "system", area: "Screens", keys: ["⌘⇧M"], label: "The Floor, and back" },
   { id: "processes", owner: "app", area: "Screens", keys: ["⌘⇧C"], label: "Processes", match: cmd("c", { shift: true }) },
   { id: "processes-search", owner: "app", area: "Screens", keys: ["⌘F"], label: "Search Processes (on Processes)", match: cmd("f") },
   // Session

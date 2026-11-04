@@ -299,6 +299,22 @@ pub fn app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri
         true,
         Some("CmdOrCtrl+Q"),
     )?;
+    // ADR-0026: Window › The Floor (⌘⇧M, which also brings the main
+    // window back from the Floor).
+    let floor = MenuItem::with_id(
+        app,
+        crate::features::floor::window::MENU_ID,
+        "The Floor",
+        true,
+        Some("CmdOrCtrl+Shift+M"),
+    )?;
+    for item in menu.items()? {
+        if let MenuItemKind::Submenu(submenu) = item
+            && submenu.text()? == "Window"
+        {
+            submenu.append(&floor)?;
+        }
+    }
     // macOS: the app submenu comes first and ends with Quit.
     if let Some(MenuItemKind::Submenu(app_submenu)) = menu.items()?.into_iter().next() {
         let items = app_submenu.items()?;

@@ -84,6 +84,12 @@ pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
     ("app://quit-requested", "the native window's own quit"),
     ("app://go-to", "the native menu asking the window to act"),
     ("app://open", "the menu-bar item asking the window to act"),
+    // AJ-E3501: the Floor's own window couldn't open (⌘⇧M or the tray):
+    // only the real window has a Floor to open.
+    (
+        "floor://unavailable",
+        "the Floor's window couldn't open, said in the window",
+    ),
     (
         "app://new-session",
         "the menu-bar item asking the window to act",

@@ -29,3 +29,39 @@ export function useOutsideRequests(on: { hotkey: (binding: string) => void; goTo
     };
   }, []);
 }
+
+/** Where an outside request leads: the main window's ways in. */
+export interface OpenRoutes {
+  remote: (machineId: string, sessionId: string | null) => void;
+  session: (id: string) => void;
+  centre: () => void;
+  page: (id: "thismac" | "usage") => void;
+  app: (id: string) => void;
+  conversation: (accountId: string, id: string) => void;
+}
+
+/** Opens what `open` asks for: a notification's session or page, or (AJ-E3510)
+ * a door on the Floor: an App, another app's session, a session's subagents
+ * (its session), an Account's usage, This Mac. */
+export function routeOpen(open: OpenRequest, to: OpenRoutes): void {
+  if (open.machine_id) return to.remote(open.machine_id, open.session_id);
+  if (open.session_id) return to.session(open.session_id);
+  const id = open.id ?? "";
+  switch (open.page) {
+    case "notifications":
+      return to.centre();
+    case "app":
+      return to.app(id);
+    case "conversation":
+    case "subagents": {
+      if (id.startsWith("s:")) return to.session(id.slice(2));
+      const bare = id.startsWith("c:") ? id.slice(2) : id;
+      const slash = bare.indexOf("/");
+      return slash > 0 ? to.conversation(bare.slice(0, slash), bare.slice(slash + 1)) : to.page("thismac");
+    }
+    case "usage":
+      return to.page("usage");
+    default:
+      return to.page("thismac");
+  }
+}
