@@ -21,9 +21,6 @@ import type { RailPlace } from "../lib/rail-items";
 
 /** A place's header: the fold chevron; app, profile, count (its page);
  * Open. Folded, it reads "Work · 4 idle". */
-/** An App's own name past this many characters leaves no room for its
- * app's word beside it (the icon still says it). */
-const LONG_PROFILE = 14;
 
 export function PlaceHeader({
   place,
@@ -110,16 +107,17 @@ export function PlaceHeader({
               gives way before either. */}
           {place?.profile ? (
             <>
-              {/* What tells this header from the others keeps its room (the
-                  0.4 review): its own name, unless another header shares it
-                  ("Work Max" in Claude Code and in the Claude app), then its
-                  app's word. The other gives way first. A long own name
-                  keeps the whole line: the icon says the app. */}
-              <span className={"ml-0.5 flex min-w-[4ch] items-center gap-[3px] text-label font-semibold text-ink " + (sharedName ? "shrink-[8]" : "shrink")} data-testid="place-profile" title={name}>
+              {/* Its own name, whole, beside its app's icon. Its app's word
+                  only where it tells two Apps apart: a name another header
+                  shares ("Work Max" in Claude Code and in the Claude app),
+                  and then the name gives way first (the 0.4 review: a word
+                  on some headers and not others, cut names). The full name
+                  is the button's. */}
+              <span className="ml-0.5 flex min-w-[4ch] shrink items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
                 <ProfileBadge app={place.key} name={place.profile} size={6} />
                 <span className="truncate">{place.profile}</span>
               </span>
-              {place.profile.length <= LONG_PROFILE && <span className={"min-w-0 truncate text-label text-muted " + (sharedName ? "shrink-0" : "shrink-[8]")}>{label}</span>}
+              {sharedName && <span className="shrink-0 text-label text-muted" data-testid="place-app-word">{label}</span>}
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>
