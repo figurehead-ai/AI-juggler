@@ -24,6 +24,7 @@
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
+    clippy::cast_possible_wrap,
     clippy::many_single_char_names
 )]
 
@@ -33,7 +34,9 @@ pub mod kit;
 pub mod layout;
 pub mod math;
 pub mod mesh;
+pub mod models;
 pub mod paint;
 pub mod rng;
 pub mod snapshot;
 pub mod state;
+pub mod tex;
