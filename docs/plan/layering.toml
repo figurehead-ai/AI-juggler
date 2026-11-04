@@ -10,6 +10,8 @@ juggler-core = []
 juggler-floor = []
 # ADR-0026: the wgpu renderer draws the pure model's scene.
 juggler-floor-render = ["juggler-floor"]
+# ADR-0026: the Floor window's input and visibility (the audited carve-out).
+juggler-window-events = []
 juggler-account = []
 # AJ-E1704: the agent bridge program; depends on nothing of ours (it holds
 # no state and only speaks to the app over its socket).
