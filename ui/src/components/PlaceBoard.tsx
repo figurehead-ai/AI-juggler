@@ -312,6 +312,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             compact={compact}
             tools
             arrange={arrangeOf("row", line.group.key, line.item.key)}
+            depth={line.depth}
+            parent={line.parent}
           />
         );
       case "plain":

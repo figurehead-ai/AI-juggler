@@ -46,6 +46,12 @@ git_branch: string | null,
  */
 started_in?: string | null, 
 /**
+ * 0.3.9: the conversation it was started from, when its app records
+ * one (a Claude app side session): the rail draws it under that one,
+ * as the app's sidebar does.
+ */
+started_from?: string | null, 
+/**
  * First activity, epoch ms.
  */
 started_ms: number | null, 
