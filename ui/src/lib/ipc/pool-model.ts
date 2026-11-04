@@ -42,7 +42,7 @@ const rulesOf = (poolId: string): PoolRulesInfo => {
   const known = previewRules.get(poolId);
   if (known) return known;
   const pool = previewPoolToChange(poolId);
-  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0 }] : [], talk: [] };
+  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [] };
   previewRules.set(poolId, made);
   return made;
 };
@@ -59,7 +59,7 @@ export async function poolJoin(poolId: string, member: string, role: PoolRole, l
     record(`join:${poolId}:${member}:${role}:${level ?? ""}`);
     const row = rules.members.find((one) => one.member === member);
     if (row) Object.assign(row, { role, level });
-    else rules.members.push({ member, kind: kindOf(member), role, level, joined_at: Date.now(), sessions: 0 });
+    else rules.members.push({ member, kind: kindOf(member), role, level, joined_at: Date.now(), sessions: 0, session_ids: [] });
     if (member.startsWith("session:")) previewPlaceSession(member.slice("session:".length), poolId, role);
     return previewPoolsInfo();
   }

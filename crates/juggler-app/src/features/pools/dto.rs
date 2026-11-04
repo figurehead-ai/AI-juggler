@@ -81,6 +81,8 @@ pub struct PoolRuleInfo {
     /// How many sessions it brings into the pool now (archived ones
     /// aside): a broad member's group node says it.
     pub sessions: u32,
+    /// Those sessions, at most the canvas's 60: its lines go to them.
+    pub session_ids: Vec<String>,
 }
 
 /// A Watched member: a session another app runs (D-62 decision 15).

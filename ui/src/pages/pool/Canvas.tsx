@@ -72,8 +72,9 @@ export function Canvas({
   data: CanvasData;
   /** What the empty canvas shows (it teaches the first steps). */
   empty?: (paletteOpen: boolean, openPalette: () => void) => ReactNode;
-  /** Drawn over the canvas: the member rules' group nodes. */
-  overlay?: ReactNode;
+  /** Drawn over the canvas (the rules' group nodes), told where each
+   * member's node is on screen now. */
+  overlay?: (placeOf: (id: string) => { x: number; y: number; w: number; h: number } | null) => ReactNode;
   /** The palette's other candidates (D-62). */
   paletteMore?: ReactNode;
   candidates: InstanceInfo[];
@@ -340,7 +341,10 @@ export function Canvas({
         })}
       </div>
 
-      {overlay}
+      {overlay?.((id) => {
+        const at = drawn.get(id);
+        return at ? { x: shown.x + at.x * shown.scale, y: shown.y + at.y * shown.scale, w: NODE_W * shown.scale, h: NODE_H * shown.scale } : null;
+      })}
       {members.length === 0 && canvas && empty && empty(paletteOpen ?? false, () => setPaletteOpen(true))}
       {members.length === 0 && canvas && !empty && (
         <div className={"pointer-events-none absolute inset-0 flex items-center justify-center p-8" + (paletteOpen ? " pl-[17rem]" : "")} data-testid="canvas-empty">

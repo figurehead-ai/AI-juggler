@@ -268,7 +268,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                   }}
                 />
               }
-              overlay={<RuleNodes rules={rules.rules?.members ?? []} watched={rules.watched} labelOf={ruleLabel} selection={selection} onSelect={(next) => select(next, true)} />}
+              overlay={(placeOf) => <RuleNodes rules={rules.rules?.members ?? []} watched={rules.watched} labelOf={ruleLabel} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
               empty={(paletteOpen, openPalette) =>
                 hasRules ? (
                   <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">

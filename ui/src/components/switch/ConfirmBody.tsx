@@ -16,6 +16,10 @@
  */
 import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { poolsSwitchLines, type SwitchPoolLineInfo } from "../../lib/ipc/pool-model";
+import { ChoiceOption } from "../controls";
+import { setSealOwed } from "./seal-confirm";
+
+export { useSealOwed } from "./seal-confirm";
 import type { PreflightInfoData } from "../../lib/bridge";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { moveBadge } from "../../lib/switch-words";
@@ -163,8 +167,10 @@ export function ConfirmBody({
  * is said in amber. Nothing when it's in no pool. */
 export function SwitchPoolLines({ sessionId, targetProfileId }: { sessionId: string; targetProfileId: string }): JSX.Element | null {
   const [lines, setLines] = useState<SwitchPoolLineInfo[]>([]);
+  const [ticked, setTicked] = useState(false);
   useEffect(() => {
     let alive = true;
+    setTicked(false);
     void poolsSwitchLines(sessionId, targetProfileId).then(
       (next) => alive && setLines(next),
       () => alive && setLines([]),
@@ -173,6 +179,12 @@ export function SwitchPoolLines({ sessionId, targetProfileId }: { sessionId: str
       alive = false;
     };
   }, [sessionId, targetProfileId]);
+  const sealed = lines.some((line) => line.confirm);
+  // The switch button waits for the tick while a sealed pool is at stake.
+  useEffect(() => {
+    setSealOwed(sessionId, targetProfileId, sealed && !ticked);
+    return () => setSealOwed(sessionId, targetProfileId, false);
+  }, [sessionId, targetProfileId, sealed, ticked]);
   if (lines.length === 0) return null;
   return (
     <section className="flex flex-col gap-1.5" aria-label="Its pools" data-testid="switch-pool-lines">
@@ -184,6 +196,16 @@ export function SwitchPoolLines({ sessionId, targetProfileId }: { sessionId: str
           </li>
         ))}
       </ul>
+      {sealed && (
+        <ChoiceOption
+          type="checkbox"
+          label="Switch anyway"
+          hint="A sealed pool keeps its sessions out of every other pool. The switch waits for this tick."
+          checked={ticked}
+          onChange={(event) => setTicked(event.target.checked)}
+          data-testid="switch-seal-confirm"
+        />
+      )}
     </section>
   );
 }

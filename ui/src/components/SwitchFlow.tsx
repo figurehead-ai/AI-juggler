@@ -23,7 +23,7 @@ import { SwitchSetupResults } from "./SwitchSetupList";
 import { takeSwitchOpener } from "../lib/handover-focus";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
-import { ConfirmBody, SwitchPoolLines } from "./switch/ConfirmBody";
+import { ConfirmBody, SwitchPoolLines, useSealOwed } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
 import { DoneStep } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
@@ -223,17 +223,17 @@ export function SwitchFlow({
       extra={preflight.door === "one-click" && preflight.secrets.asks ? keys(preflight) : undefined}
     />
   );
+  const sealOwed = useSealOwed(sessionId, targetProfileId); // D-62: a sealed pool's tick
   const switchButton = (preflight: PreflightInfoData) => (
     <button
       key="switch-now"
       type="button"
-      disabled={keysPending}
-      // Continue and Switch now sit in one place: the second click of a
-      // double-click on Continue never starts the switch from a screen
-      // the user hasn't seen (deep/09 H-5).
+      disabled={keysPending || sealOwed}
+      // Continue and Switch now share a place: a double-click's second click never
+      // starts the switch from an unseen screen (deep/09 H-5).
       onClick={(event) => event.detail < 2 && void execute(preflight)}
       data-testid="switch-confirm"
-      className={keysPending ? PRIMARY_WAITING : PRIMARY}
+      className={keysPending || sealOwed ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
       {/* 0.3.5: the button says where it goes on: Desktop or CLI. */}

@@ -30,4 +30,8 @@ joined_at: number,
  * How many sessions it brings into the pool now (archived ones
  * aside): a broad member's group node says it.
  */
-sessions: number, };
+sessions: number, 
+/**
+ * Those sessions, at most the canvas's 60: its lines go to them.
+ */
+session_ids: Array<string>, };

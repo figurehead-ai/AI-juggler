@@ -14,7 +14,12 @@ fn row(project: Option<&str>, folder: &str, app: &str, live: bool, archived: boo
     of[EntityKind::Folder.index()] = Some(folder.into());
     of[EntityKind::App.index()] = Some(app.into());
     of[EntityKind::Tool.index()] = Some("claude-code".into());
-    Row { of, live, archived }
+    Row {
+        of,
+        live,
+        archived,
+        more_pools: Vec::new(),
+    }
 }
 
 fn entity(kind: EntityKind, id: &str) -> EntityRef {
@@ -210,4 +215,26 @@ fn a_part_is_fresh_until_one_of_its_own_sources_moves() {
     let now = stamps.snapshot();
     assert!(own.fresh(PartKind::Own, &now, &stored));
     assert!(!outside.fresh(PartKind::Outside, &now, &stored));
+}
+
+#[test]
+fn a_session_in_two_pools_counts_in_each_d62() {
+    let mut first = row(Some("p-1"), "work", "cli:work", true, false);
+    first.of[EntityKind::Pool.index()] = Some("pool-reviews".into());
+    first.more_pools = vec!["pool-default:p-1".into()];
+    let own = Part::of([first], Snapshot::default(), StoredStamps::default());
+    let parts = [Arc::new(own), Arc::new(Part::default())];
+    for pool in ["pool-reviews", "pool-default:p-1"] {
+        assert_eq!(
+            answer(&parts, &entity(EntityKind::Pool, pool)).sessions.all,
+            1,
+            "{pool}"
+        );
+    }
+    assert_eq!(answer(&parts, &entity(EntityKind::Project, "p-1")).pools, 2);
+    assert_eq!(
+        answer(&parts, &entity(EntityKind::All, "x")).sessions.all,
+        1,
+        "one session, not two"
+    );
 }

@@ -121,7 +121,7 @@
 **Visual testing**: the session page's Pools tab (how it got in, skipped from).
 **Files to touch**: `crates/juggler-core/src/pools/` (resolver), `crates/juggler-app/src/agent_bridge/`, `docs/adr/ADR-0020*.md`.
 **Research basis**: `docs/research/pools-model.md` "Precedence", "Several pools per session".
-**Handover note**: The same maps feed E31's Pools tabs and counts. Built 2026-11-04: `juggler_core::pools::Memberships` (indexed by member kind; 500 sessions × 50 pools in under 10 ms in a debug build), `SessionsRepo::pool_facts`, `pools_of_session` (how it got in, what left it out, with the step), and the bridge's `pool` argument (ADR-0020's D-62 addendum). The relation counts still put each session under its first pool only; the Pools tabs (AJ-E3009) count every pool.
+**Handover note**: The same maps feed E31's Pools tabs and counts. Built 2026-11-04: `juggler_core::pools::Memberships` (indexed by member kind; 500 sessions × 50 pools in under 10 ms in a debug build), `SessionsRepo::pool_facts`, `pools_of_session` (how it got in, what left it out, with the step), and the bridge's `pool` argument (ADR-0020's D-62 addendum). The relation counts put a session under every pool it's in (`Row.more_pools`).
 
 ### AJ-E3005 Roles, levels and talk enforced: Reviewer, per-member level, allowed / ask first / blocked, sealed | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3004, AJ-E3002
 **Goal**: What an agent may do and whom it may tell is decided by the pool's rules, and the person sees every hold.
@@ -192,7 +192,7 @@
 **Visual testing**: wireframes 5–6, both themes.
 **Files to touch**: `ui/src/screens/pools/` (canvas, inspector, palette).
 **Research basis**: E28's canvas; the review's wireframes 5–6.
-**Handover note**: 2026-11-04, built: the teaching empty canvas (three steps, the next one primary, Use a template), the scope sheet, broad and Watched members as dashed group nodes with their sessions' count, the rule inspector (role, own level, take out), the palette's other candidates by kind with reasons, and a line's talk rule changeable for that pair only (`pools_edge_talk`). Left: drawing the group nodes inside the laid-out canvas with lines to their sessions (they sit in a column now), grouping past 50 members, and the keyboard-only path's check.
+**Handover note**: 2026-11-04, built: the teaching empty canvas (three steps, the next one primary, Use a template), the scope sheet, broad and Watched members as dashed group nodes with their sessions' count, the rule inspector (role, own level, take out), the palette's other candidates by kind with reasons, and a line's talk rule changeable for that pair only (`pools_edge_talk`). Also built: each group node draws a dashed line to every session it brings in on the canvas (up to the canvas's 60). Left: the keyboard-only path's check in the walk (the group nodes and the palette's rows are buttons in tab order).
 
 ### AJ-E3009 Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | Status: IN-PROGRESS | Priority P1 | Effort M | Depends: AJ-E3005
 **Goal**: Pools work with switching, notifications, tasks and usage as the proposal's fit table says.
@@ -209,4 +209,4 @@
 **Visual testing**: the switch sheet's pool lines.
 **Files to touch**: `ui/src/components/switch/`, `crates/juggler-app/src/features/notifications/`, `ui/src/screens/Tasks.tsx`.
 **Research basis**: `docs/research/pools-model.md` "Fit".
-**Handover note**: 2026-11-04, built: the switch sheet's line per pool (`pools_switch_lines`: stays with full tools or shell only, leaves and why, joins, a sealed pool in amber); Mute this pool (a notice's menu, the pool page's switch, Settings lists it); the Tasks filters follow a pool's scope and a task's own project; a pool's members' usage this week in its inspector, a view only. Left: a confirm the user must tick when a switch enters or leaves a sealed pool (the line says it now), the 150 ms timing check, and the live switch in the lab.
+**Handover note**: 2026-11-04, built: the switch sheet's line per pool (`pools_switch_lines`: stays with full tools or shell only, leaves and why, joins, a sealed pool in amber); Mute this pool (a notice's menu, the pool page's switch, Settings lists it); the Tasks filters follow a pool's scope and a task's own project; a pool's members' usage this week in its inspector, a view only. Also built: a switch into or out of a sealed pool waits for the person's "Switch anyway" tick. Left: the 150 ms timing check and the live switch in the lab.

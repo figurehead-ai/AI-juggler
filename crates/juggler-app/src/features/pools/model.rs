@@ -420,6 +420,9 @@ pub fn edge_talk_impl(
     })
 }
 
+/// The most sessions a rule names for its lines (the canvas draws 60).
+const CANVAS_IDS: usize = 60;
+
 /// A pool's member rules (most specific first) and talk settings.
 ///
 /// # Errors
@@ -429,6 +432,7 @@ pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
     // How many sessions each member brings in now.
     let memberships = members::memberships(storage)?;
     let mut brought: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let mut ids: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
     let archived = members::archived(storage)?;
     for facts in storage.sessions().pool_facts()? {
         if archived.contains(facts.session.as_str()) {
@@ -436,6 +440,10 @@ pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
         }
         if let Some(place) = memberships.resolve(&facts).in_pool(pool_id) {
             *brought.entry(place.member.to_wire()).or_default() += 1;
+            let some = ids.entry(place.member.to_wire()).or_default();
+            if some.len() < CANVAS_IDS {
+                some.push(facts.session.as_str().to_owned());
+            }
         }
     }
     let mut rows: Vec<PoolRuleInfo> = storage
@@ -445,6 +453,7 @@ pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
         .filter(|row| row.pool_id == pool_id)
         .map(|row| PoolRuleInfo {
             sessions: brought.get(&row.member.to_wire()).copied().unwrap_or(0),
+            session_ids: ids.remove(&row.member.to_wire()).unwrap_or_default(),
             member: row.member.to_wire(),
             kind: row.member.kind().as_str().to_owned(),
             role: row.role.as_str().to_owned(),

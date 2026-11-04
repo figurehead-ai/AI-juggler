@@ -70,6 +70,9 @@ pub struct Row {
     pub live: bool,
     /// Archived (AI Juggler's only).
     pub archived: bool,
+    /// D-62: the pools it's in beside its first (`of`'s), each counted
+    /// as its first is.
+    pub more_pools: Vec<String>,
 }
 
 /// What a part counts for one entity.
@@ -143,9 +146,21 @@ impl Part {
         for row in rows {
             let ids: [Option<u32>; KINDS] =
                 std::array::from_fn(|kind| row.of[kind].as_deref().map(|name| part.intern(name)));
-            for (kind, id) in ids.iter().enumerate() {
-                let Some(id) = id else { continue };
-                let tally = part.tallies.entry((kind, *id)).or_default();
+            // D-62: a session in several pools counts in each.
+            let pool = EntityKind::Pool.index();
+            let more: Vec<u32> = row
+                .more_pools
+                .iter()
+                .map(|name| part.intern(name))
+                .collect();
+            let mut entries: Vec<(usize, u32)> = ids
+                .iter()
+                .enumerate()
+                .filter_map(|(kind, id)| id.map(|id| (kind, id)))
+                .collect();
+            entries.extend(more.iter().map(|id| (pool, *id)));
+            for (kind, id) in &entries {
+                let tally = part.tallies.entry((*kind, *id)).or_default();
                 tally.sessions.all += 1;
                 if row.live {
                     tally.sessions.open += 1;
@@ -154,10 +169,8 @@ impl Part {
                 } else {
                     tally.sessions.ended += 1;
                 }
-                for (other, related) in ids.iter().enumerate() {
-                    if let Some(related) = related {
-                        tally.related[other].insert(*related);
-                    }
+                for (other, related) in &entries {
+                    tally.related[*other].insert(*related);
                 }
             }
         }

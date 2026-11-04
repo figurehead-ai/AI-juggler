@@ -86,11 +86,15 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
             .is_some_and(|(event, _)| event == "archived");
         // Its first pool, as the pools' lists show it (D-62: the
         // resolver over its member rules).
-        let pool = pool_facts
+        let mut placed = pool_facts
             .get(&juggler_core::model::SessionId::new(facet.id.clone()))
-            .and_then(|facts| pools.place(facts))
-            .map(|(pool, _)| pool);
-        row(
+            .map(|facts| pools.resolve(facts).placements)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|place| place.pool_id);
+        let pool = placed.next();
+        let more_pools: Vec<String> = placed.collect();
+        let mut out = row(
             [
                 (EntityKind::Project, facet.project),
                 (
@@ -113,7 +117,9 @@ fn own(state: &Arc<AppState>) -> AppResult<Part> {
             ],
             live,
             archived,
-        )
+        );
+        out.more_pools = more_pools;
+        out
     });
     Ok(Part::of(rows, events, stored))
 }
