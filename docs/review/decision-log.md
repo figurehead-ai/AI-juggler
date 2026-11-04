@@ -2379,3 +2379,22 @@ also draws nothing while covered or minimised. Round 2 measured 1.8% at
 
 **Amends.** D-65 (the Floor's "research and concepts first" is done; its
 build is 0.5.0's).
+
+### D-68 The Floor ships in 0.4, not 0.5.0 — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "I thought the Floor the game like
+visualizer of agents ...etc is also going into 0.4?", and on being asked
+again: "You asked me yesterday the same thing, and I chose 0.4". The
+question of 2026-11-03 ("Bring the Floor plan into the 0.4 branch so it
+ships on main with 0.4?", answered "Yes, bring it in") was read as the
+plan's documents only; the maintainer meant the Floor itself.
+
+**What changes.** E35 (AJ-E3501…AJ-E3514) moves from 0.5 into 0.4, whole:
+the native wgpu window, the areas with their tool's logo and the
+Account's initials, desks, subagents, the lobby, every visual a signal,
+its walks and its gallery. 0.4 still ships whole (2026-11-02): the Floor
+is one of its parts, validated as the rest (E33), and the 0.4.0 release
+notes describe it. D-67's design rulings stand unchanged.
+
+**Amends.** D-67 (its release: 0.4, not 0.5.0).
+

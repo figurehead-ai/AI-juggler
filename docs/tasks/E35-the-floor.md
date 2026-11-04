@@ -1,4 +1,4 @@
-# E35 — The Floor: the whole company as a live office, in its own window (0.5.0, D-67)
+# E35 — The Floor: the whole company as a live office, in its own window (0.4, D-67, D-68)
 
 > Source: the maintainer, 2026-11-03, approving the second prototype,
 > verbatim: "You know what it would be great if on the floor of the area,
@@ -27,7 +27,7 @@
 > - AJ-E3508, AJ-E3509 and AJ-E3511 beside each other.
 > - AJ-E3510, then AJ-E3512.
 > - AJ-E3513 gates all of it.
-> - AJ-E3514 is last: the Floor is done when the walks pass, in 0.5.0.
+> - AJ-E3514 is last: the Floor is done when the walks pass, in 0.4 (D-68: moved from 0.5.0).
 >
 > **Rules that hold for every task.**
 > - Original art only, generated from code. No bundled brand image: tool
@@ -93,7 +93,7 @@
    - the low-resolution targets sized to the pixel size;
    - a smaller shadow map;
    - releasing the surface after 30 s without a frame.
-3. Until it does, the surface SHALL be released after 30 s without a frame, and the gap SHALL be named in the 0.5.0 release notes' Known issues.
+3. Until it does, the surface SHALL be released after 30 s without a frame, and the gap SHALL be named in the 0.4.0 release notes' Known issues.
 **UI/UX reasoning**: always on means always affordable.
 **Performance budget**: SPEC §9.7 memory rows.
 **Quality gates**: the harness's memory reading at 30, 150 and 290 s stays flat and within budget.
@@ -394,13 +394,13 @@
    - 5 minutes animating with memory at three marks.
 
    Results are committed under `docs/qa/floor/`.
-4. The guide SHALL gain a page on the Floor (`docs/guide/`), and the 0.5.0 release notes SHALL describe it.
+4. The guide SHALL gain a page on the Floor (`docs/guide/`), and the 0.4.0 release notes SHALL describe it.
 **UI/UX reasoning**: test by hand, but gate by machine first; captures checked by eye.
 **Performance budget**: the gallery job ≤ 6 minutes.
 **Quality gates**: every frame critiqued once (design-quality review) before it becomes a baseline.
 **Evidence/validation proof**: the gallery, the harness results, the CI run.
 **Visual testing**: the gallery itself.
-**Files to touch**: `.github/workflows/ci.yml` (a `floor-gallery` job), `crates/juggler-floor-render/tests/`, `docs/qa/floor/` (new), `docs/guide/`, `docs/releases/0.5.0.md`.
+**Files to touch**: `.github/workflows/ci.yml` (a `floor-gallery` job), `crates/juggler-floor-render/tests/`, `docs/qa/floor/` (new), `docs/guide/`, `docs/releases/0.4.0.md`.
 **Research basis**: the spike's `--tour` capture and `measure/run.py`; ADR-0025 (jobs on GitHub's runners).
 **Handover note**: —
 
@@ -419,7 +419,7 @@
    - change Apps per floor;
    - Re-create;
    - use only the list view.
-2. Each step SHALL be scored for success, value, clarity and feeling. A score under 4 goes to the maintainer; a bug is fixed before 0.5.0.
+2. Each step SHALL be scored for success, value, clarity and feeling. A score under 4 goes to the maintainer; a bug is fixed before 0.4.0.
 3. The hand walk SHALL click every element in the Floor and its pane, and measure the response.
 **UI/UX reasoning**: persona-based validation; test by hand.
 **Performance budget**: as SPEC §9.7, read during the walk.
