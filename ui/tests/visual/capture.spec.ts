@@ -6151,6 +6151,9 @@ const SWITCHED_TASKS = {
 
 for (const theme of THEMES) {
   test(`95 tasks — a task's history with a switch — ${theme}`, async ({ page }) => {
+    // Many steps (the pool lens, its page, its Tasks, a task's history),
+    // each scanned under the accessibility gate: room on a slow runner.
+    test.setTimeout(60_000);
     await page.clock.setFixedTime(T0);
     await page.addInitScript(
       ({ theme: t, pool, seed }) => {
