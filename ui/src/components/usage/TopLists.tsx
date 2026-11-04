@@ -23,6 +23,7 @@ import { IconFolder, IconList } from "./controls";
 import type { Scope } from "./useUsage";
 import { ProfileBadge } from "../ProfileBadge";
 import { newTokens } from "../../lib/usage/tokens";
+import { folderAppName } from "../../lib/app-name";
 
 const TOP = 10;
 
@@ -61,7 +62,8 @@ function profileParts(share: UsageShareInfo, labels: Map<string, string>) {
 export function TopProjects({ data, busy, className = "" }: { data: UsageHistoryInfo | null; busy: boolean; className?: string }): JSX.Element {
   const host = useActionHost();
   const [all, setAll] = useState(false);
-  const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, share.label]));
+  // Each App by its full name (the 0.4 review: "Ran in Work").
+  const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, folderAppName(share.key, share.label)]));
   const total = data ? newTokens(data.totals.tokens) : 0;
   const rows = (data?.by_project ?? []).filter((share) => share.io > 0);
   const row = (share: UsageShareInfo) => (
@@ -186,7 +188,7 @@ function Header(): JSX.Element {
 export function TopSessions({ data, busy, range, scope, className = "" }: { data: UsageHistoryInfo | null; busy: boolean; range: RangeId; scope: Scope; className?: string }): JSX.Element {
   const [all, setAll] = useState(false);
   const projects = new Map((data?.by_project ?? []).map((share) => [share.key, share.label]));
-  const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, share.label]));
+  const labels = new Map((data?.by_profile ?? []).map((share) => [share.key, folderAppName(share.key, share.label)]));
   const total = data ? newTokens(data.totals.tokens) : 0;
   const rows = data?.top_sessions ?? [];
   return (
