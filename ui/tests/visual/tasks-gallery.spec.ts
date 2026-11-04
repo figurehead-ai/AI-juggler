@@ -178,6 +178,7 @@ async function axe(page: Page, what: string) {
 
 async function poolTab(page: Page, tab: string) {
   await groupBy(page, "Pool");
+  await page.getByTestId("place-header").filter({ hasText: "Checkout redesign" }).hover(); // its Open shows on hover (0.4)
   await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
   await expect(page.getByTestId("pool-page")).toBeVisible();
   // 0.3: the members are the canvas's List; Tasks and Messages open over it.
@@ -246,7 +247,7 @@ for (const theme of ["dark", "light"] as const) {
     await poolTasks(page);
     await page.getByTestId("task-start-open").click();
     await expect(page.getByTestId("task-start")).toBeVisible();
-    await pick(page, page.getByTestId("task-start-profile"), "Deep work · Work Max");
+    await pick(page, page.getByTestId("task-start-profile"), "Deep work · Claude Code · Work Max");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `task-start-1680x1050-${theme}.png`) });
     await axe(page, `task start ${theme}`);
@@ -313,7 +314,7 @@ test("keyboard: a held change answered with 1; a launch is started only by its b
   await expect(page.getByTestId("task-needs").getByTestId("ask-card")).toHaveCount(0);
   const start = page.getByTestId("task-needs").getByTestId("task-start-go");
   await expect(start).toBeDisabled();
-  await pick(page, page.getByTestId("task-needs").getByTestId("task-start-profile"), "Weekend build · Personal");
+  await pick(page, page.getByTestId("task-needs").getByTestId("task-start-profile"), "Weekend build · Claude Code · Personal");
   await start.focus();
   await page.keyboard.press("Enter");
   const calls = await page.evaluate(() => (window as unknown as { __AIJ_TASKS_CALLS__?: string[] }).__AIJ_TASKS_CALLS__ ?? []);

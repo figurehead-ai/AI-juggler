@@ -88,6 +88,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`the rail's Pool lens — ${theme}`, gate("91-pools"), async ({ page }) => {
     await open(page, theme);
     await groupByPool(page);
+    await page.getByTestId("place-header").filter({ hasText: "Checkout redesign" }).hover(); // its Open shows on hover (0.4)
     await expect(poolOpen(page, "Checkout redesign")).toBeVisible();
     // No pools section and no Home picker: a pool's view is its page.
     await expect(page.getByTestId("home-pool-filter")).toHaveCount(0);

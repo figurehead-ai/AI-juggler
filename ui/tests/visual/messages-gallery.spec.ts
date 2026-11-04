@@ -151,6 +151,7 @@ async function axe(page: Page, what: string) {
 
 async function poolMessages(page: Page) {
   await groupBy(page, "Pool");
+  await page.getByTestId("place-header").filter({ hasText: "Checkout redesign" }).hover(); // its Open shows on hover (0.4)
   await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
   await expect(page.getByTestId("pool-page")).toBeVisible();
   await page.getByTestId("pool-panel-messages").click();
