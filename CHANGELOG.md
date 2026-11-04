@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (0.3.9)
+
+- **A long conversation switches** (docs/releases/0.3.9.md): on
+  2026-11-04 a switch of a Claude app conversation from one account to
+  another stopped at "Something went wrong… Try again", every time. Its
+  transcript was 798 MB, past the 512 MB a bundle could read into
+  memory (`SESSION_FILE_MAX`); and once that was past, the after-launch
+  check wanted the source byte-identical, while a conversation open in
+  its app keeps writing at its end.
+  - `BundleFile::on_disk`: a file the bundle can't hold travels as a
+    frozen copy in the bundle's own scratch folder (`BundleScratch`, an
+    APFS clone: no time, no space), removed with the bundle. `Carrier`
+    keeps a bundle's whole in-memory part within `INLINE_MAX` (32 MB):
+    the 1,719 small files of that conversation's folder held 460 MB, now
+    68 MB at most.
+  - Every check streams: hashes (`sha256_file`), the torn-tail check
+    (`BundleFile::last_line_whole`, a window that grows for a very long
+    last line), the compaction marker (`lines_with`), a collision's fork
+    (`rewrite_lines_to`).
+  - Codex rollouts too (one on this Mac is 7.6 GB, another 496 MB
+    compressed): a compressed one is decompressed as a stream onto disk,
+    bounded at 64 GB.
+  - The after-launch check is a prefix check: the source still starts
+    with exactly what was carried; anything earlier changed still stops
+    it.
+  - A switch never fills a disk: what it writes in full (a copy that
+    can't be a clone, a fork, an unpacked rollout) checks for room
+    first and every 64 MB as it goes (`ensure_room`, `RoomWriter`,
+    `copy_file`), leaving `DISK_RESERVE` (4 GB) free; free space is read
+    through `juggler_platform::room::free_space`, which a test can
+    replace on its own thread. Tested on a mounted 64 MB disk image.
+  - The switch screen says the disk space before it's confirmed
+    (`switch_space_check`, `HandoverSupport::switch_room`: the carried
+    files, sized as the bundle carries them, a fork or an unpacked
+    rollout written in full): the size, what the copy takes, what's
+    free, and when that's low or short what to do; Switch waits when
+    it's short, with Check again.
+  - Copy details writes the home folder as `~`, as a path and as
+    Claude's folder name for it, and the screen shows what it copies.
+  - The switch's steps reach the window as they happen
+    (`pipeline::on_progress`, `switch://progress`): copying, checking,
+    starting, confirming, with a bar and the seconds so far.
+  - A failure says what happened (disk full, no permission, still
+    writing, too large, gone, already there) instead of "Something went
+    wrong"; Retry shows only when trying again can work
+    (`SwitchFailure::retryable`, checked against the words for every
+    failure); **Copy details** copies the words, the program's own
+    detail (`ErrorWire::detail`) and the time, for a bug report.
+  - Tested at the real size: `switch_real_size` in juggler-adapters (the
+    pipeline) and juggler-app (the switch command), opt-in: an 800 MB
+    transcript, 1,719 folder files and 904 file-history files, written to
+    while it switches, in about 5 s on a quiet Mac (14 to 28 s with the
+    Mac under heavy load from other work), at most 75 MB of memory; and
+    a 7.8 GB one in 30 s.
+
+- **A session started from another sits under it in Open now**
+  (docs/releases/0.3.9.md): the maintainer's walk of 2026-11-04 found
+  Claude app side sessions drawn as siblings of the session that started
+  them. The adapter already read the app's `spawnedFrom` and the scan
+  linked it (`started_links`), but only the session page's "Started from
+  here" list used it. `ConversationInfo::started_from` now carries it,
+  `RailItem::parentKey` takes it, and `rail-tree`'s `nestRows` draws each
+  group's rows depth-first under their parent (up to 3 levels in; a row
+  whose parent isn't shown keeps its own place). The row's name says
+  what it was started from.
+
 ### Fixed (0.3.8)
 
 - **An app or profile that lost its window when macOS restarted its
