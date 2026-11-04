@@ -73,6 +73,8 @@ pub struct AppState {
     /// their processes, rebuilt on the 2 s tick. Lock ordering: its own
     /// lock is never held while another is taken.
     pub processes: crate::features::processes::Processes,
+    /// The Floor's snapshot, kept current once first asked for (AJ-E3505).
+    pub floor: crate::features::floor::Floor,
     /// E19: tasks shared by pools — what tells the window. The rest is
     /// storage.
     pub tasks: crate::features::tasks::Tasks,
@@ -346,6 +348,7 @@ impl AppState {
             runtime: crate::features::runtime::Runtimes::default(),
             messages: crate::features::messages::Messages::default(),
             processes: crate::features::processes::Processes::default(),
+            floor: crate::features::floor::Floor::default(),
             tasks: crate::features::tasks::Tasks::default(),
             limits: crate::features::sessions::limits::LimitWatch::default(),
             heuristics,

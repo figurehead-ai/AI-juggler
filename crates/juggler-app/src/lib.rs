@@ -550,6 +550,8 @@ macro_rules! app_commands {
             // the read-only bridge (each may start an app).
             // D-62 (AJ-E3204): the Apps; naming one changes nothing it runs.
             Read  features::apps::commands::apps_list,
+            // AJ-E3505: the Floor's snapshot, for its list (reads only).
+            Read  features::floor::commands::floor_snapshot,
             Write features::apps::commands::apps_rename,
             Read  features::places::commands::places_list,
             Read  features::places::commands::places_find,
@@ -884,6 +886,11 @@ pub fn run() {
             // AJ-E1704: the agent bridge's socket, only if sessions that
             // outlived the last run still hold keys (else lazily).
             features::agent_bridge::resume(&tauri::Manager::state::<Arc<state::AppState>>(app));
+            // AJ-E3505: the Floor keeps the handle; nothing of it runs
+            // until the Floor or its list first asks.
+            tauri::Manager::state::<Arc<state::AppState>>(app)
+                .floor
+                .attach(app.handle().clone());
             // AJ-E2302: driven sessions tell the window what changed.
             features::runtime::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),

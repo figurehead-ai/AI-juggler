@@ -65,8 +65,9 @@ pub enum Need {
 }
 
 /// How the Floor draws a person at a desk (SPEC §9.7's table).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub enum FloorState {
     /// Typing.
     Working,

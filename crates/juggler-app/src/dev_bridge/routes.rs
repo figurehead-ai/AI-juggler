@@ -249,6 +249,8 @@ read_routes! {
     // 0.3.3: the apps and profiles remembered (reads only; Open and Keep
     // alive start apps, so they never come over the bridge).
     "apps_list" => async_result features::apps::commands::apps_list(state; page: Option<crate::paging::PageRequest>);
+    // AJ-E3505: the Floor's snapshot (reads only).
+    "floor_snapshot" => async_result features::floor::commands::floor_snapshot(state);
     "places_list" => async_result features::places::commands::places_list(state; page: Option<crate::paging::PageRequest>);
     "places_find" => async_result features::places::commands::places_find(state; tool: String, conversation_id: String);
     "places_profiles" => async_result features::places::commands::places_profiles(state);
@@ -301,6 +303,13 @@ read_routes! {
     // AJ-E1702/E1703: the pools, a pool's members a page at a time, and
     // one session's place (reads only).
     "pools_list" => async_result features::pools::commands::pools_list(state);
+    // D-62 (E30): the pool's rules, a session's pools, Watched members, a
+    // line's talk and a switch's pool lines (reads only).
+    "pools_rules" => async_result features::pools::commands::pools_rules(state; pool_id: String);
+    "pools_of_session" => async_result features::pools::commands::pools_of_session(state; session_id: String);
+    "pools_watched" => async_result features::pools::commands::pools_watched(state; pool_id: String);
+    "pools_edge_talk" => async_result features::pools::commands::pools_edge_talk(state; pool_id: String, from: String, to: String);
+    "pools_switch_lines" => async_result features::pools::commands::pools_switch_lines(state; session_id: String, target_profile_id: String);
     "pools_members" => async_result features::pools::commands::pools_members(state; pool_id: String, page: crate::paging::PageRequest);
     "pools_place" => async_result features::pools::commands::pools_place(state; session_id: String);
     // 0.3: a pool's canvas and the Pools screen's cards (reads only).

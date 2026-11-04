@@ -84,6 +84,7 @@ unbounded fleet_set_permission  # bounded: one row per account, tool, launch set
 unbounded fleet_switch_back_plan  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded fleet_switch_targets  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded fleet_usage_by_machine  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded floor_snapshot  # bounded: one snapshot of the working set (the Apps, their open sessions and those of the last day, as the rail holds them); the Floor draws all of it at once
 unbounded going_back_options  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded handover_open  # bounded: a fixed set (what carries, what was hidden by kind)
 unbounded harnesses_list_alias  # bounded: one row per account, tool, launch setting or paired Mac

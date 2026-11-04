@@ -1,0 +1,254 @@
+//! The Floor's snapshot rules (AJ-E3505), from plain inputs.
+
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
+use std::collections::BTreeMap;
+
+use juggler_core::storage::App;
+use juggler_floor::snapshot::FloorAppKind;
+use juggler_floor::state::FloorState;
+
+use super::feed::{FolderUsage, HOT_AFTER_MS, Inputs, OwnRow, assemble, initials};
+use crate::features::conversations::dto::ConversationInfo;
+
+const NOW: i64 = 1_800_000_000_000;
+
+fn app(id: &str, kind: &str, tool: &str, folder: Option<&str>) -> App {
+    App {
+        id: id.into(),
+        kind: kind.into(),
+        tool: tool.into(),
+        host_app_id: None,
+        instance_dir: (kind == "desktop").then(|| "/x/b-work".to_owned()),
+        folder_id: folder.map(Into::into),
+        label: None,
+        hidden: false,
+        keep_alive: false,
+        paused_json: None,
+        launch_json: None,
+        sessions_json: None,
+        first_seen: 1,
+        last_seen: NOW - 1000,
+    }
+}
+
+fn own(id: &str, status: &str, started: i64) -> OwnRow {
+    OwnRow {
+        id: id.into(),
+        status: status.into(),
+        title: format!("Task {id}"),
+        folder: Some("f-work".into()),
+        started_ms: started,
+        last_ms: Some(started + 10),
+        ..OwnRow::default()
+    }
+}
+
+fn talk(id: &str, state: &str, last: i64) -> ConversationInfo {
+    ConversationInfo {
+        id: id.into(),
+        tool: "tool-a".into(),
+        account_id: "f-work".into(),
+        account_label: "Work".into(),
+        project_id: None,
+        cwd: Some("/w/shop".into()),
+        title: None,
+        git_branch: Some("main".into()),
+        started_in: None,
+        started_ms: Some(last - 100),
+        last_activity_ms: Some(last),
+        tokens: None,
+        live: true,
+        session_id: None,
+        places: Vec::new(),
+        pid: None,
+        state: Some(state.into()),
+        probably: false,
+        viewed_ms: None,
+        background: false,
+        inactive: false,
+        subtask_count: Some(2),
+    }
+}
+
+fn inputs() -> Inputs {
+    Inputs {
+        apps: vec![
+            app("cli:f-work", "cli", "tool-a", Some("f-work")),
+            app("app:host:/x/b-work", "desktop", "tool-a", Some("f-work")),
+        ],
+        colour_slots: BTreeMap::from([("cli:f-work".into(), 3)]),
+        tool_names: BTreeMap::from([("tool-a".into(), "Tool A".into())]),
+        families: BTreeMap::from([(
+            "tool-a".into(),
+            (Some("workshop".into()), Some("studio".into())),
+        )]),
+        folder_names: BTreeMap::from([
+            ("f-work".into(), "Work Max".into()),
+            ("f-home".into(), "Home".into()),
+        ]),
+        folder_accounts: BTreeMap::from([
+            ("f-work".into(), "acct:1".into()),
+            ("f-home".into(), "acct:1".into()),
+        ]),
+        account_names: BTreeMap::from([("acct:1".into(), "Studio Pro".into())]),
+        cores: 8,
+        ..Inputs::default()
+    }
+}
+
+fn by_id<'a>(
+    snap: &'a juggler_floor::snapshot::FloorSnapshot,
+    id: &str,
+) -> &'a juggler_floor::snapshot::FloorApp {
+    snap.apps.iter().find(|a| a.id == id).expect("the App")
+}
+
+#[test]
+fn sessions_sit_in_their_apps_live_first_then_by_start() {
+    let mut i = inputs();
+    i.own = vec![
+        (own("late", "running", NOW - 10), "cli:f-work".into()),
+        (own("gone", "finished", NOW - 900), "cli:f-work".into()),
+        (
+            OwnRow {
+                needs_attention: Some("waiting_user"),
+                ..own("early", "running", NOW - 500)
+            },
+            "cli:f-work".into(),
+        ),
+    ];
+    i.other = vec![(
+        talk("t1", "done_review", NOW - 5),
+        "app:host:/x/b-work".into(),
+    )];
+    i.tasks = BTreeMap::from([("late".into(), 2)]);
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    let cli = by_id(&snap, "cli:f-work");
+    let keys: Vec<&str> = cli.sessions.iter().map(|s| s.key.as_str()).collect();
+    assert_eq!(keys, ["s:early", "s:late", "s:gone"]);
+    assert_eq!(
+        (cli.sessions[0].state, cli.sessions[0].word.as_str()),
+        (FloorState::Asks, "Asks you")
+    );
+    assert_eq!(cli.sessions[1].tasks, 2);
+    assert_eq!(cli.sessions[2].state, FloorState::Ended);
+    assert_eq!(
+        (
+            cli.name.as_str(),
+            cli.family.as_str(),
+            cli.colour_slot,
+            cli.initials.as_str()
+        ),
+        ("Tool A · Work Max", "workshop", 3, "SP")
+    );
+    assert!(cli.open);
+
+    let desktop = by_id(&snap, "app:host:/x/b-work");
+    assert_eq!(
+        (desktop.kind, desktop.family.as_str(), desktop.name.as_str()),
+        (FloorAppKind::Desktop, "studio", "Tool A · b-work")
+    );
+    let s = &desktop.sessions[0];
+    assert_eq!(
+        (s.key.as_str(), s.state, s.word.as_str(), s.subagents),
+        ("c:f-work/t1", FloorState::Done, "Done, review it", 2)
+    );
+    assert_eq!(s.title, "Untitled session · shop", "never a bare main");
+    assert_eq!(snap.waiting().len(), 1);
+}
+
+#[test]
+fn an_app_is_hot_only_after_two_minutes_over_half_the_mac() {
+    let mut i = inputs();
+    i.own = vec![(own("busy", "running", NOW - 10), "cli:f-work".into())];
+    i.cpu = BTreeMap::from([("s:busy".into(), 450.0)]);
+    let mut hot = BTreeMap::new();
+    let first = assemble(&i, NOW, &mut hot);
+    assert_eq!(by_id(&first, "cli:f-work").hot_since_ms, None, "not yet");
+    assert!((by_id(&first, "cli:f-work").cpu_pct - 450.0).abs() < f32::EPSILON);
+    let later = assemble(&i, NOW + HOT_AFTER_MS, &mut hot);
+    assert_eq!(by_id(&later, "cli:f-work").hot_since_ms, Some(NOW));
+    i.cpu = BTreeMap::from([("s:busy".into(), 100.0)]);
+    assert_eq!(
+        by_id(
+            &assemble(&i, NOW + HOT_AFTER_MS + 1, &mut hot),
+            "cli:f-work"
+        )
+        .hot_since_ms,
+        None
+    );
+    assert!(hot.is_empty(), "the clock starts again");
+}
+
+#[test]
+fn an_account_shows_its_tightest_folder_and_its_last_use() {
+    let mut i = inputs();
+    i.usage = BTreeMap::from([
+        (
+            "f-work".into(),
+            FolderUsage {
+                left_pct: Some(62.0),
+                resets_ms: Some(NOW + 9),
+                out: false,
+            },
+        ),
+        (
+            "f-home".into(),
+            FolderUsage {
+                left_pct: Some(14.0),
+                resets_ms: Some(NOW + 5),
+                out: true,
+            },
+        ),
+    ]);
+    i.own = vec![(own("a", "running", NOW - 50), "cli:f-work".into())];
+    i.other = vec![(talk("t", "idle", NOW - 20), "cli:f-work".into())];
+    let account = &assemble(&i, NOW, &mut BTreeMap::new()).accounts[0];
+    assert_eq!(
+        (account.id.as_str(), account.label.as_str()),
+        ("acct:1", "Studio Pro")
+    );
+    assert_eq!(
+        (account.left_pct, account.resets_ms, account.out),
+        (Some(14.0), Some(NOW + 5), true)
+    );
+    assert_eq!(account.last_used_ms, Some(NOW - 20));
+}
+
+#[test]
+fn initials_take_two_words() {
+    assert_eq!(initials("Work Max"), "WM");
+    assert_eq!(initials("personal-max"), "PM");
+    assert_eq!(initials("solo"), "S");
+    assert_eq!(initials(""), "");
+}
+
+/// AJ-E3505's budget: a snapshot of 20 Apps and 150 sessions ≤ 2 ms on a
+/// release build (a debug build gets ten times as long).
+#[test]
+fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
+    let scale = if cfg!(debug_assertions) { 10 } else { 1 };
+    let mut i = inputs();
+    i.apps = (0..20)
+        .map(|n| app(&format!("cli:f{n}"), "cli", "tool-a", Some("f-work")))
+        .collect();
+    for n in 0..150 {
+        let app = format!("cli:f{}", n % 20);
+        if n % 2 == 0 {
+            i.own.push((own(&format!("s{n}"), "running", NOW - n), app));
+        } else {
+            i.other
+                .push((talk(&format!("c{n}"), "working", NOW - n), app));
+        }
+        i.cpu.insert(format!("s:s{n}"), 3.0);
+    }
+    let started = std::time::Instant::now();
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    let took = started.elapsed();
+    assert_eq!(
+        snap.apps.iter().map(|a| a.sessions.len()).sum::<usize>(),
+        150
+    );
+    assert!(took.as_micros() <= 2_000 * scale, "{took:?}");
+}

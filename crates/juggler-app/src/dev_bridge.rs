@@ -60,6 +60,8 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     crate::features::runtime::EVENT_CHANGED,
     crate::features::tasks::EVENT_CHANGED,
     crate::features::messages::EVENT_CHANGED,
+    // AJ-E3505: the Floor list reads the new snapshot.
+    crate::features::floor::EVENT_CHANGED,
 ];
 
 /// Events the UI listens to that the bridge never forwards, each with its

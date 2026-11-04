@@ -154,7 +154,7 @@
 **Research basis**: `style-kits.md`; the spike's `kit.rs`.
 **Handover note**: `ToolSpec.floor` (`FloorFamilies`: a word for the tool's CLI Apps and, where it differs, its desktop app's) in `juggler-adapter`; Claude Code workshop with the Claude app studio, Codex industrial, OpenCode maker garage. Grok Build and Kimi Code take `neutral` on purpose, keeping campus and lab for Gemini CLI and Cursor when their adapters come. The conformance kit checks every adapter names a word (`names_a_floor_family`); `juggler-app/tests/floor_families.rs` checks the Floor knows each word. The catalog and kits are in `juggler-floor/src/kit.rs` (one module, not a folder: it fits the budget); the colour table is tested against `mark-hues.ts`. Left: the colour slot on sign, flag, rug, badges and logo ring belongs to the scene (AJ-E3506), and the kit table for the evidence.
 
-### AJ-E3505 The feed: one snapshot from the backend, for the Floor and its list | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3503
+### AJ-E3505 The feed: one snapshot from the backend, for the Floor and its list | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3503
 **Goal**: The Floor and the main window's Floor list read one snapshot of the company, kept current by the events the app already emits.
 **User story**: As someone glancing at the Floor, what it shows is what the rail says, within a breath of it changing.
 **Requirements**:
@@ -183,7 +183,7 @@
 **Visual testing**: n/a.
 **Files to touch**: `crates/juggler-app/src/features/floor/feed.rs` (new), `crates/juggler-floor/src/snapshot.rs` (new), `ui/src/lib/rail-items.ts` (its test reads the fixture), `ui/src/lib/ipc/floor.ts` (new).
 **Research basis**: ADR-0026 §5–6; the survey of the app's data in this epic's review notes.
-**Handover note**: —
+**Handover note**: `FloorSnapshot` and its parts live in `juggler-floor/src/snapshot.rs` (one type for the renderer and the list; TS types generated from it). `juggler-app/src/features/floor`: `feed::gather` reads the sources the rail and pages read (sessions from the last sample, the conversation index, stored Apps and Accounts, each folder's usage, pools' placements, the process graph, This Mac's cached health, the notification summary) and `feed::assemble` builds the snapshot purely (tests in `floor/tests.rs`, with the ≤ 2 ms budget). Lazy: the handle is kept at setup; the first `floor_snapshot` starts listening to the existing events, and a 250 ms pass rebuilds, then publishes to the render thread's channel and emits `floor://changed` only when something changed. New inputs: an App's last activity, an Account's last use (its sessions' latest activity), a per-App CPU share with since-when it's been hot (half the Mac for 2 minutes), the alert's `since_ms`. The state mapping is `juggler-floor/src/state.rs`, held to the rail by `ui/src/lib/fixtures/session-states.json` (Rust and `session-states.test.ts`). The rail's snooze is the window's own, so the Floor shows a snoozed ask as asking. Also served the E30 pool reads over the dev bridge. Left: the trace evidence (working → waiting → working, Floor and rail side by side), with AJ-E3507.
 
 ### AJ-E3506 Models, textures and the scene | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3503, AJ-E3504
 **Goal**: The office is built from shaped low-poly models: desks look like desks, plants like plants, people like people.

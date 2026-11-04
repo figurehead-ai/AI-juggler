@@ -2873,6 +2873,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+ "ts-rs",
 ]
 
 [[package]]

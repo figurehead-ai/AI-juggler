@@ -11,6 +11,7 @@ pub mod budgets;
 pub mod cache;
 pub mod conversations;
 pub mod fleet;
+pub mod floor;
 pub mod handover;
 pub mod messages;
 pub mod notifications;
