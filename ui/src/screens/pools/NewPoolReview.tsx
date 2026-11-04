@@ -72,7 +72,7 @@ export function NewPoolReview({
         <Sentence title="Who">{whoSentence(draft)}</Sentence>
         <Sentence title="Talk">
           {talkSentence(draft)} At {levelLabel(draft.level)}: anything more asks you.
-          {draft.sealed && <span className="mt-1 block font-semibold text-danger">Sealed: its sessions are in no other pool, and nothing leaves it.</span>}
+          {draft.sealed && <span className="mt-1 block font-semibold text-danger">Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler.</span>}
         </Sentence>
       </div>
       {draft.members.length > 0 && (
