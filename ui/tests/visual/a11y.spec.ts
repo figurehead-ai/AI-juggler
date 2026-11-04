@@ -455,7 +455,7 @@ for (const theme of ["dark", "light"] as const) {
           alerts: [
             {
               kind: "hog",
-              text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
+              text: "node (vite) under Claude Code · Work Max holds 3.1 GiB — review it in Processes.",
               pid: 8123,
               session: "s-1",
             },

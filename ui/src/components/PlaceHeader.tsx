@@ -105,12 +105,16 @@ export function PlaceHeader({
               gives way before either. */}
           {place?.profile ? (
             <>
-              <span className="ml-0.5 flex max-w-[60%] min-w-[4ch] shrink-0 items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
+              {/* The own name gives way before the app's word: two Apps
+                  can share a name ("Work Max" in Claude Code and in the
+                  Claude app), and the word is what tells them apart (the
+                  0.4 review). A long own name keeps the whole line. */}
+              <span className="ml-0.5 flex min-w-[4ch] shrink items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
                 <ProfileBadge app={place.key} name={place.profile} size={6} />
                 <span className="truncate">{place.profile}</span>
               </span>
               {/* A long own name keeps the line: the icon says the app. */}
-              {place.profile.length <= LONG_PROFILE && <span className="min-w-0 shrink truncate text-label text-muted">{label}</span>}
+              {place.profile.length <= LONG_PROFILE && <span className="max-w-[12ch] shrink-0 truncate text-label text-muted">{label}</span>}
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>

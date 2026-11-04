@@ -10478,7 +10478,13 @@ fn instance_label_for(state: &Arc<AppState>, session: &str) -> String {
             .ok()?;
         let recipe = storage.profiles().get(&record.profile).ok()?;
         let account = storage.accounts().get(&recipe.account).ok()?;
-        Some(account.label.clone())
+        // The App whole, as every screen names it ("Claude Code · Work
+        // Max"; the 0.4 review): a bare folder name is two Apps' name
+        // when an app profile shares it.
+        Some(state.registry.get(&account.harness).map_or_else(
+            || account.label.clone(),
+            |adapter| format!("{} · {}", adapter.spec().display_name, account.label),
+        ))
     })();
     lookup.unwrap_or_else(|| "its session".to_string())
 }

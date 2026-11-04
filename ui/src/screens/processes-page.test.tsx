@@ -137,7 +137,7 @@ describe("AJ-E2404 the Processes page", () => {
 
   it("an alert's Show it finds the process and takes focus to its row", async () => {
     (window as unknown as { __AIJ_CLEANUP_ALERTS__?: unknown }).__AIJ_CLEANUP_ALERTS__ = {
-      alerts: [{ kind: "hog", text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.", pid: 8123, session: "s-pay" }],
+      alerts: [{ kind: "hog", text: "node (vite) under Claude Code · Work Max holds 3.1 GiB — review it in Processes.", pid: 8123, session: "s-pay" }],
     };
     try {
       const { container, getByTestId } = page();

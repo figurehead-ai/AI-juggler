@@ -138,7 +138,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
   const profile = labels.get(row.profile) ?? "An app";
   const where = [row.project_id ? projects.get(row.project_id) : null, whenWords(row.last_ms)].filter(Boolean).join(" · ");
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_5rem_4.5rem] items-center gap-3 px-2.5 py-2 hover:bg-surface-2" data-testid="top-session">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,11.5rem)_5rem_4.5rem] items-center gap-3 px-2.5 py-2 hover:bg-surface-2" data-testid="top-session">
       <span className="flex min-w-0 items-center gap-2.5">
         <AppIcon {...(conversation ? appOfConversation(conversation) : appOfTool(row.tool))} size={20} />
         <span className="min-w-0 flex-1">
@@ -176,7 +176,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
 
 function Header(): JSX.Element {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)_5rem_4.5rem] gap-3 border-b border-hairline px-2.5 pb-2 text-meta font-semibold text-muted" aria-hidden="true">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,11.5rem)_5rem_4.5rem] gap-3 border-b border-hairline px-2.5 pb-2 text-meta font-semibold text-muted" aria-hidden="true">
       <span>Session</span>
       <span>Ran in</span>
       <span className="text-right">Tokens</span>

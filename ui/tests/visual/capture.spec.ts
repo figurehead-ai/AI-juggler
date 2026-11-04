@@ -1750,7 +1750,7 @@ for (const theme of THEMES) {
 
 const HOG_ALERT = {
   kind: "hog",
-  text: "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
+  text: "node (vite) under Claude Code · Work Max holds 3.1 GiB — review it in Processes.",
   pid: 8123,
   session: "s-1",
 };
@@ -1805,7 +1805,7 @@ for (const theme of THEMES) {
       await goTo(page, "Processes");
       await expect(page.getByTestId("cleanup-alerts")).toBeVisible();
       await expect(page.getByTestId("hog-alert-8123")).toContainText(
-        "node (vite) under Work Max holds 3.1 GiB — review it in Processes.",
+        "node (vite) under Claude Code · Work Max holds 3.1 GiB — review it in Processes.",
       );
       // A status message, not a dialog.
       await expect(

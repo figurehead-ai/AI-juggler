@@ -337,7 +337,7 @@ const LEGEND_NOTES: { sample: string; tone: string; meaning: string }[] = [
   { sample: "18% left", tone: "text-warning", meaning: "its account is running low" },
   { sample: "Parked 2h 10m", tone: "text-ink", meaning: "waiting for the limit to reset" },
   { sample: "3 changed", tone: "text-muted", meaning: "files not committed yet" },
-  { sample: "not signed in", tone: "text-muted", meaning: "the account needs its sign-in" },
+  { sample: "not signed in", tone: "text-muted", meaning: "its app needs you to sign in" },
   { sample: "APP", tone: "text-muted", meaning: "runs in the Claude desktop app" },
 ];
 
