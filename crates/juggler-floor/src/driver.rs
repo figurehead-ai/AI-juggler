@@ -63,6 +63,8 @@ pub enum Key {
     Down,
     /// Tab: the next area.
     Tab,
+    /// Shift-Tab: the area before.
+    BackTab,
     /// Enter: open what's selected.
     Enter,
 }
@@ -174,6 +176,18 @@ pub enum PickKind {
     Floor(usize),
 }
 
+/// A place the keyboard moves to: an area (Tab) or a desk waiting on you
+/// (N), with its pick id.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Stop {
+    /// Its floor.
+    pub floor: usize,
+    /// Where the camera looks.
+    pub at: crate::math::V3,
+    /// What Enter opens.
+    pub id: u32,
+}
+
 /// The loop's state.
 #[allow(clippy::struct_excessive_bools)] // each flag is its own fact the loop wakes on
 #[derive(Clone, Debug)]
@@ -196,6 +210,12 @@ pub struct Driver {
     pub alert: bool,
     /// The floor switcher's chips, from the last frame.
     pub chips: Vec<Chip>,
+    /// The areas, in order (Tab).
+    pub areas: Vec<Stop>,
+    /// The desks waiting on you, in order (N).
+    pub waiting: Vec<Stop>,
+    /// What the keyboard selected (Enter opens it; it's lit as if hovered).
+    pub selected: Option<u32>,
     tween: Option<(Cam, Cam, Duration)>,
     visible: bool,
     animating: bool,
@@ -237,6 +257,9 @@ impl Driver {
             clicked: HashMap::new(),
             alert: false,
             chips: Vec::new(),
+            areas: Vec::new(),
+            waiting: Vec::new(),
+            selected: None,
             tween: None,
             visible: true,
             animating: false,
@@ -370,12 +393,14 @@ impl Driver {
             }
             Input::Move { x, y } => {
                 self.mouse = Some((x * sf, y * sf));
+                self.selected = None;
                 let id = picker.pick(x * sf, y * sf);
                 // A tooltip follows the pointer while over something.
                 self.dirty |= id != self.hover || id != 0;
                 self.hover = id;
             }
             Input::Click { x, y } => return self.click(x * sf, y * sf, now, picker),
+            Input::Key(Key::Enter) => return self.selected.map(Effect::Open),
             Input::Key(key) => self.key(key, now),
             Input::Changed => self.dirty = true,
             Input::Alert(on) => {
@@ -460,7 +485,38 @@ impl Driver {
                 dist: (base.dist / 0.75).min(self.frame.max_dist()),
                 ..base
             },
-            Key::Char(_) | Key::Tab | Key::Enter => return,
+            Key::Tab => return self.step(1, false, now),
+            Key::BackTab => return self.step(-1, false, now),
+            Key::Char('n') => return self.step(1, true, now),
+            Key::Char(_) | Key::Enter => return,
+        };
+        self.move_to(to, now);
+    }
+
+    /// Selects the next (or previous) area, or desk waiting on you, and
+    /// moves the camera to it.
+    fn step(&mut self, by: isize, waiting: bool, now: Duration) {
+        let stops = if waiting { &self.waiting } else { &self.areas };
+        if stops.is_empty() {
+            return;
+        }
+        let len = stops.len() as isize;
+        let at = self
+            .selected
+            .and_then(|id| stops.iter().position(|s| s.id == id));
+        let next = at.map_or(if by > 0 { 0 } else { len - 1 }, |i| {
+            (i as isize + by).rem_euclid(len)
+        });
+        let stop = stops[usize::try_from(next).unwrap_or(0)];
+        self.selected = Some(stop.id);
+        self.hover = stop.id;
+        self.view.focus = Some(stop.floor);
+        let base = self.goal();
+        let dist = if waiting { 9.0 } else { 18.0 };
+        let to = Cam {
+            t: [stop.at[0], crate::scene::floor_y(stop.floor), stop.at[2]],
+            dist,
+            ..base
         };
         self.move_to(to, now);
     }
@@ -677,5 +733,52 @@ mod tests {
         run(&mut d, 0, 100, false);
         d.input(Input::Alert(true), Duration::from_millis(100), &mut Office);
         assert!(run(&mut d, 100, 5100, false) >= 18);
+    }
+
+    #[test]
+    fn tab_steps_through_areas_n_through_the_waiting_and_enter_opens() {
+        use super::Stop;
+        let mut d = driver(Motion::Off);
+        let t = Duration::from_secs(1);
+        d.areas = vec![
+            Stop {
+                floor: 0,
+                at: [10.0, 0.0, 5.0],
+                id: 11,
+            },
+            Stop {
+                floor: 1,
+                at: [20.0, 15.0, 5.0],
+                id: 12,
+            },
+        ];
+        d.waiting = vec![Stop {
+            floor: 1,
+            at: [21.0, 15.0, 6.0],
+            id: 40,
+        }];
+        assert_eq!(
+            d.input(Input::Key(Key::Enter), t, &mut Office),
+            None,
+            "nothing selected yet"
+        );
+        d.input(Input::Key(Key::Tab), t, &mut Office);
+        assert_eq!(d.selected, Some(11));
+        d.input(Input::Key(Key::Tab), t, &mut Office);
+        assert_eq!(
+            (d.selected, d.view.focus),
+            (Some(12), Some(1)),
+            "the camera follows to its floor"
+        );
+        d.input(Input::Key(Key::BackTab), t, &mut Office);
+        assert_eq!(d.selected, Some(11));
+        d.input(Input::Key(Key::Char('n')), t, &mut Office);
+        assert_eq!(d.selected, Some(40));
+        assert_eq!(
+            d.input(Input::Key(Key::Enter), t, &mut Office),
+            Some(Effect::Open(40))
+        );
+        d.input(Input::Move { x: 1.0, y: 1.0 }, t, &mut Office);
+        assert_eq!(d.selected, None, "the pointer takes over");
     }
 }

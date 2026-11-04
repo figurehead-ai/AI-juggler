@@ -40,6 +40,13 @@ struct Side {
 }
 
 impl render::Window for Side {
+    fn title(&self, summary: String) {
+        let window = self.window.clone();
+        let _ = self.app.run_on_main_thread(move || {
+            let _ = window.set_title(&format!("The Floor — {summary}"));
+        });
+    }
+
     fn ask_visible(&self, tx: Sender<Msg>) {
         let window = self.window.clone();
         let _ = self.app.run_on_main_thread(move || {
@@ -88,6 +95,7 @@ pub fn input_of(event: Event) -> Input {
             juggler_window_events::Key::Up => Key::Up,
             juggler_window_events::Key::Down => Key::Down,
             juggler_window_events::Key::Tab => Key::Tab,
+            juggler_window_events::Key::BackTab => Key::BackTab,
             juggler_window_events::Key::Enter => Key::Enter,
         }),
     }

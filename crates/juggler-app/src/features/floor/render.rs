@@ -76,6 +76,9 @@ pub trait Window: Send + 'static {
     /// Ask (on the main thread) whether the window can be seen; the
     /// answer comes back as [`Input::Visible`].
     fn ask_visible(&self, tx: Sender<Msg>);
+    /// The window's title: the floor in view in words (its accessible
+    /// summary, AJ-E3512 req. 3).
+    fn title(&self, summary: String);
     /// Open a door in the main window and bring it forward.
     fn open(&self, door: OpenRequest);
 }
@@ -223,6 +226,11 @@ pub fn run(start: Start, rx: &Receiver<Msg>, tx: &Sender<Msg>, window: &impl Win
         if tick.draw {
             floor.frame(now);
         }
+        let summary = floor.world.scene.summary(floor.driver.view.focus);
+        if summary != floor.title {
+            window.title(summary.clone());
+            floor.title = summary;
+        }
     }
 }
 
@@ -236,6 +244,7 @@ struct Running {
     started: Instant,
     opened: Instant,
     first: bool,
+    title: String,
 }
 
 impl Running {
@@ -286,6 +295,8 @@ impl Running {
         if let Some(floor) = world.scene.neediest_floor() {
             driver.show_floor(floor);
         }
+        driver.areas = world.scene.area_stops();
+        driver.waiting = world.scene.waiting_stops();
         Some(Self {
             state,
             settings,
@@ -295,6 +306,7 @@ impl Running {
             started: Instant::now(),
             opened,
             first: true,
+            title: String::new(),
         })
     }
 
@@ -315,6 +327,8 @@ impl Running {
                     self.renderer.load(&scene);
                     w.scene = scene;
                     self.driver.frame = w.scene.frame_size();
+                    self.driver.areas = w.scene.area_stops();
+                    self.driver.waiting = w.scene.waiting_stops();
                 }
                 let mut picks = Picks {
                     renderer: &self.renderer,

@@ -43,6 +43,8 @@ pub enum Key {
     Down,
     /// Tab.
     Tab,
+    /// Shift-Tab.
+    BackTab,
     /// Return.
     Enter,
 }
@@ -282,6 +284,7 @@ mod imp {
                 124 => Key::Right,
                 125 => Key::Down,
                 126 => Key::Up,
+                48 if flags.contains(NSEventModifierFlags::Shift) => Key::BackTab,
                 48 => Key::Tab,
                 36 | 76 => Key::Enter,
                 _ => Key::Char(

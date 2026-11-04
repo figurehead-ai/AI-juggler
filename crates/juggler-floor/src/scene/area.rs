@@ -439,11 +439,14 @@ impl Scene {
         self.signs
             .push((a.floor, t.t(0.0, -0.13, 0.0), a.app.account_id.clone()));
         self.beacons.push((a.floor, [ex, fy + 2.9, ez]));
-        self.labels.push(Label {
-            floor: a.placed.floor,
-            at: [ex, fy + 3.3, ez],
-            app: a.app.id.clone(),
-        });
+        if a.placed.annex == 0 {
+            self.labels.push(Label {
+                floor: a.placed.floor,
+                at: [ex, fy + 3.3, ez],
+                app: a.app.id.clone(),
+                id: a.id,
+            });
+        }
         Ok(())
     }
 

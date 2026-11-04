@@ -93,6 +93,8 @@ pub struct Label {
     pub at: V3,
     /// The App.
     pub app: String,
+    /// The area's pick.
+    pub id: u32,
 }
 
 /// A screen-space marker the overlay draws.
@@ -494,6 +496,73 @@ impl Scene {
             .into_iter()
             .max_by_key(|((floor, _), n)| (*n, std::cmp::Reverse(*floor)))
             .and_then(|((floor, _), _)| usize::try_from(floor).ok())
+    }
+
+    /// The areas for Tab, in the office's order.
+    #[must_use]
+    pub fn area_stops(&self) -> Vec<crate::driver::Stop> {
+        self.labels
+            .iter()
+            .map(|l| crate::driver::Stop {
+                floor: l.floor,
+                at: l.at,
+                id: l.id,
+            })
+            .collect()
+    }
+
+    /// The desks waiting on you for N: a question first, then stuck, then
+    /// out of usage, in the office's order.
+    #[must_use]
+    pub fn waiting_stops(&self) -> Vec<crate::driver::Stop> {
+        let rank = |s: FloorState| match s {
+            FloorState::Asks => Some(0),
+            FloorState::Stuck => Some(1),
+            FloorState::Limit => Some(2),
+            _ => None,
+        };
+        let mut desks: Vec<(u8, &DeskRec)> = self
+            .desks
+            .iter()
+            .filter_map(|d| Some((rank(d.state)?, d)))
+            .collect();
+        desks.sort_by_key(|(r, d)| (*r, d.floor, d.id));
+        desks
+            .into_iter()
+            .filter_map(|(_, d)| {
+                Some(crate::driver::Stop {
+                    floor: usize::try_from(d.floor).ok()?,
+                    at: d.frame.0.point([0.0, 0.0, 0.0]),
+                    id: d.id,
+                })
+            })
+            .collect()
+    }
+
+    /// The floor in view in words, for the window's accessible title
+    /// ("Floor 1: 6 Apps, 2 waiting on you").
+    #[must_use]
+    pub fn summary(&self, focus: Option<usize>) -> String {
+        let apps = self
+            .labels
+            .iter()
+            .filter(|l| focus.is_none_or(|f| l.floor == f))
+            .count();
+        let waiting = self
+            .waiting_stops()
+            .iter()
+            .filter(|s| focus.is_none_or(|f| s.floor == f))
+            .count();
+        let place = focus.map_or_else(|| "The building".to_owned(), |f| format!("Floor {}", f + 1));
+        let apps = if apps == 1 {
+            "1 App".to_owned()
+        } else {
+            format!("{apps} Apps")
+        };
+        match waiting {
+            0 => format!("{place}: {apps}"),
+            n => format!("{place}: {apps}, {n} waiting on you"),
+        }
     }
 
     /// An Account, by id.
