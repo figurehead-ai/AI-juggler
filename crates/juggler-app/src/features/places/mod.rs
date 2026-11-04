@@ -234,7 +234,35 @@ pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<s
 /// `place` in words, its profile named by its account (as the screens
 /// name it).
 fn named(state: &Arc<AppState>, place: &KnownPlace) -> String {
-    place.named(account_label(state, place).as_deref())
+    let word = app_word(state, place);
+    KnownPlace {
+        name: word,
+        ..place.clone()
+    }
+    .named(account_label(state, place).as_deref())
+}
+
+/// The app's word as every screen says it (`lib/app-name`'s
+/// `desktopAppWord`, the 0.4 review): "Claude app" where its tool is named
+/// after it (the Claude app runs Claude Code), else its own name
+/// ("ChatGPT"), so its outcomes read "Restarting Claude app · Work Max".
+pub(super) fn app_word(state: &Arc<AppState>, place: &KnownPlace) -> String {
+    let registry = &state.registry;
+    let tool = registry
+        .ids()
+        .iter()
+        .filter_map(|id| registry.get(id))
+        .find(|adapter| {
+            adapter.host_apps().iter().any(|app| {
+                app.id == place.app_id && app.kind == juggler_adapter::live::HostKind::Desktop
+            })
+        });
+    match tool {
+        Some(adapter) if adapter.spec().display_name.starts_with(&place.name) => {
+            format!("{} app", place.name)
+        }
+        _ => place.name.clone(),
+    }
 }
 
 /// Why `place`'s account may only be used by a person at the keyboard.
@@ -393,7 +421,16 @@ fn act(
                 };
                 let was_lost = lost.contains(&id);
                 let up = if was_lost {
-                    restart(state, &id, starter, true, QuitWait::default(), now).map(|_| ())
+                    restart(
+                        state,
+                        &id,
+                        starter,
+                        true,
+                        RestartOf::LostWindow,
+                        QuitWait::default(),
+                        now,
+                    )
+                    .map(|_| ())
                 } else {
                     start::start(
                         place,
@@ -518,11 +555,17 @@ pub fn forget(state: &Arc<AppState>, id: &str) -> AppResult<()> {
 
 /// The place as Go to it names it (`profile`, as the screens do),
 /// running as `pid`.
-fn host_of(place: &KnownPlace, profile: Option<String>, pid: u32, start: Option<i64>) -> Host {
+fn host_of(
+    place: &KnownPlace,
+    shown: String,
+    profile: Option<String>,
+    pid: u32,
+    start: Option<i64>,
+) -> Host {
     Host {
         app_id: Some(place.app_id.clone()),
         name: place.name.clone(),
-        shown: place.name.clone(),
+        shown,
         kind: Some(juggler_adapter::live::HostKind::Desktop),
         pid,
         start,
@@ -596,6 +639,16 @@ fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
         .count()
 }
 
+/// Which restart: of an app that lost its window (keep alive, the lost
+/// window's offer), or of a running one the user confirmed (D-71).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RestartOf {
+    /// Only one that runs on with no window; one with its window is left.
+    LostWindow,
+    /// Any running one: the user confirmed it, knowing what it stops.
+    Confirmed,
+}
+
 /// 0.3.8: restarts `id`, an app or profile that runs on but lost its
 /// window when the system restarted the display (the watchdog's restart of
 /// 2026-11-04 left five Claude profiles running with no window): asks
@@ -606,17 +659,23 @@ fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
 /// again, and never starts a second process beside one that won't quit.
 /// A restart by hand ends a pause of keep alive, as Open does.
 ///
+/// D-71 (2026-11-04): `RestartOf::Confirmed` restarts one that has its
+/// window too, once the user has confirmed it (the restart stops what's
+/// working in it); keep alive and Open only ever restart a lost one.
+///
 /// Returns what it did, in words.
 ///
 /// # Errors
 ///
-/// In words: it isn't remembered or can't be started, it has its window,
-/// it's already being restarted, it didn't quit, or it didn't start.
+/// In words: it isn't remembered or can't be started, it has its window
+/// (unless confirmed), it's already being restarted, it didn't quit, or it
+/// didn't start.
 pub fn restart(
     state: &Arc<AppState>,
     id: &str,
     starter: &dyn start::Starter,
     background: bool,
+    of: RestartOf,
     wait: QuitWait,
     now: i64,
 ) -> Result<String, String> {
@@ -644,7 +703,7 @@ pub fn restart(
         .is_ok_and(|watch| watch.coming_up(id, now));
     match running_now(state, id) {
         Some((pid, start)) => {
-            if !starter.detached(pid, start) {
+            if of == RestartOf::LostWindow && !starter.detached(pid, start) {
                 return Err(format!(
                     "{label} has its window, so it wasn't restarted. Open brings it forward"
                 ));
@@ -749,7 +808,7 @@ pub fn open(
     changed(state);
     let hosts = HostRegistry::of(&state.registry);
     let account = account_label(state, &place);
-    let label = place.named(account.as_deref());
+    let label = named(state, &place);
     let profile = place.profile(account.as_deref());
     let link = conversation.and_then(|conversation| {
         hosts
@@ -778,8 +837,10 @@ pub fn open(
     let still = label.clone();
     Ok(goto::within(goto::LIMIT, move || {
         if let Some((pid, start)) = running_now(&state, &id) {
-            let mut said =
-                goto::bring_forward(&host_of(&place, profile, pid, start), desktop.as_ref());
+            let mut said = goto::bring_forward(
+                &host_of(&place, app_word(&state, &place), profile, pid, start),
+                desktop.as_ref(),
+            );
             if said.reached == "app" {
                 said.outcome.push_str(pick);
             }

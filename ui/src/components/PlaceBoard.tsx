@@ -24,11 +24,11 @@ import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
-import { placesKeepAlive } from "../lib/ipc/places";
 import { placeFor, useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow } from "../lib/rail-items";
 import { useClosedSections } from "./rail-groups";
 import { buildLines, foldSections, lineHeights, lineKey, offsetOf, sharedProfileNames, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
+import { headerActions, keepAliveOf } from "./place-actions";
 import { recentWords } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp } from "../lib/apps";
 import { openAccount } from "../lib/accounts-page";
@@ -303,7 +303,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             onPage={pageOf(group)}
             shortcut={line.digit ?? undefined}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
-            keepAlive={known ? { on: known.keep_alive, toggle: () => void placesKeepAlive(known.id, !known.keep_alive).catch(() => showToast({ id: "keep-alive", message: `Couldn't change keep alive for ${known.label}` })) } : null}
+            {...headerActions(known, group)}
           >
             {/* Grouped by Account: its icon, not a colour (colour is the Apps' in the rows below). */}
             {lens === "account" ? <IconAccount width={14} height={14} aria-hidden="true" className="shrink-0 text-muted" data-testid="rail-account-icon" /> : undefined}
@@ -341,7 +341,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             open={line.open}
             onToggle={() => toggle(`${line.app.key}#recent`)}
             now={now}
-            keepAlive={known ? { on: known.keep_alive, toggle: () => void placesKeepAlive(known.id, !known.keep_alive).catch(() => showToast({ id: "keep-alive", message: `Couldn't change keep alive for ${known.label}` })) } : null}
+            keepAlive={keepAliveOf(known)}
           />
         );
       }

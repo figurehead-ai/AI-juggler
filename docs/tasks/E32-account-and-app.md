@@ -148,7 +148,7 @@
 **Research basis**: `docs/design/PRINCIPLES.md`; the review's New session wireframes.
 **Handover note**: —
 
-### AJ-E3208 Accounts and Apps, side by side: an Apps section on the Accounts screen | Status: TODO (the decision audit, 2026-11-04: asked for on 2026-11-01 and promised in 0.3.4's release notes) | Priority P0 | Effort M | Depends: AJ-E3202, AJ-E3204
+### AJ-E3208 Accounts and Apps, side by side: an Apps section on the Accounts screen | Status: IN-PROGRESS (built 2026-11-04: the Accounts screen switches between Accounts and Apps, each counted, the choice remembered (`screens/accounts/AccountsView.tsx`); every App as a row: icon and mark, its whole name, "on <its Account>" (or "Not signed in" for a CLI App), what's open in it, its one action (New session, Start, Go to it) and its ⋯ (its page, Restart…, Keep alive); running first, found-never-opened last (`screens/accounts/AppsSection.tsx`, `apps-section.test.tsx`). Left: a gallery capture in both themes and the A-walks by hand) | Priority P0 | Effort M | Depends: AJ-E3202, AJ-E3204
 **Source**: the maintainer, 2026-11-01: "Our accounts section really need to be better or expanded into both Apps and Accounts so both can be easily get to." 0.3.4's release notes promise "an **Apps** section beside Accounts" in 0.4.
 **Goal**: From the Accounts screen, every App is one click away as easily as every Account.
 **User story**: I open Accounts and see my Accounts and, beside them, my Apps (Claude Code · Work Max, Claude app · Work, Codex · Main), each with its state, its Account, and Start or Open; a click opens its page.
@@ -166,7 +166,7 @@
 **Research basis**: the review's Accounts wireframes; `docs/research/relations-map.md`.
 **Handover note**: —
 
-### AJ-E3209 Restart a running app or profile, after a confirm | Status: TODO (D-71, 2026-11-04) | Priority P0 | Effort S | Depends: AJ-E3208
+### AJ-E3209 Restart a running app or profile, after a confirm | Status: IN-PROGRESS (built 2026-11-04: `places::restart` takes `RestartOf::Confirmed` for a running one with its window, `places_restart`'s `confirmed`; one confirm (`components/RestartApp.tsx`: what it stops, Cancel focused, Escape closes) asked from the rail's App menu, the App page and the Accounts screen's Apps; outcomes name the app as the screens do ("Restarting Claude app · Work Max", `places::app_word`). Tests: `places::tests::a_confirmed_restart_quits_and_starts_one_that_has_its_window`, `apps-section.test.tsx`. Left: a restart walked by hand in the lab with a throwaway profile) | Priority P0 | Effort S | Depends: AJ-E3208
 **Goal**: A stuck or misbehaving app is one confirmed click from a fresh start.
 **User story**: Claude app · Work Max is slow; I pick Restart in its menu, read "Restart Claude app · Work Max? 2 sessions are working in it.", confirm, and it comes back on the same profile.
 **Requirements**:

@@ -17,6 +17,8 @@ import { withLiveLabels } from "../lib/subscriptions";
 import { useAccountsData, useToolCapabilities } from "./accounts/useAccountsData";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { AccountCard } from "./accounts/AccountCard";
+import { AppsSection } from "./accounts/AppsSection";
+import { AccountsViewSwitch, useAccountsView } from "./accounts/AccountsView";
 import {
   createProfile,
   deleteProfile,
@@ -76,6 +78,8 @@ export function ProfilesScreen({
   const { inPlace, limits } = useToolCapabilities();
   const { accounts, profiles, subscriptions, refresh } = useAccountsData({ knownAccounts, knownProfiles, onError: setError });
   const apps = useApps(accounts ?? []);
+  // AJ-E3208: Accounts and Apps side by side, the one last chosen first.
+  const [view, choose] = useAccountsView();
 
   const changed = async (words: string | null) => {
     setNotice(words);
@@ -153,8 +157,15 @@ export function ProfilesScreen({
         {notice}
       </p>
 
+      {accounts.length > 0 && (
+        <AccountsViewSwitch view={view} onChange={choose} accounts={grouped.length} apps={apps?.length ?? null} />
+      )}
       {accounts.length === 0 ? (
         <EmptyAccounts onAdd={onAddAccounts} />
+      ) : view === "apps" ? (
+        <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
+          <AppsSection apps={apps} subscriptions={subscriptions} sessions={sessions} conversations={conversations} now={Date.now()} />
+        </ActionHostProvider>
       ) : (
         <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
           <div className="grid grid-cols-1 items-start gap-grid 2xl:grid-cols-2">

@@ -34,10 +34,11 @@ export function showGoTo(outcome: GoToOutcomeInfo): void {
   });
 }
 
-/** Restarts the remembered app or profile `placeId` and says how it went. */
-export function restartPlace(placeId: string): void {
+/** Restarts the remembered app or profile `placeId` and says how it went.
+ * `confirmed`: a running one the user chose to restart (D-71). */
+export function restartPlace(placeId: string, confirmed = false): void {
   showToast({ id: "go-to", message: RESTARTING });
-  placesRestart(placeId).then(
+  placesRestart(placeId, confirmed).then(
     (outcome) => showToast({ id: "go-to", message: outcome.outcome, tone: outcome.reached === "none" ? "warning" : "neutral" }),
     (cause) => showToast({ id: "go-to", message: `Couldn't restart it: ${errorText(cause)}`, tone: "error" }),
   );

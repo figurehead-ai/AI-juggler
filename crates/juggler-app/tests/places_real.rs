@@ -378,6 +378,7 @@ fn a_profile_that_lost_its_window_is_restarted_never_doubled() {
             &id,
             system.as_ref(),
             false,
+            places::RestartOf::LostWindow,
             places::QuitWait::default(),
             now_ms(),
         );

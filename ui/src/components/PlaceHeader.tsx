@@ -37,6 +37,7 @@ export function PlaceHeader({
   children,
   keepAlive = null,
   onNew,
+  onRestart,
   sharedName = false,
 }: {
   place: RailPlace | null;
@@ -60,6 +61,8 @@ export function PlaceHeader({
   keepAlive?: { on: boolean; toggle: () => void } | null;
   /** 0.3.4: a CLI app: New session on its folder. */
   onNew?: () => void;
+  /** D-71: a running desktop app: Restart…, after its confirm. */
+  onRestart?: () => void;
   /** Another header in this list has the same own name ("Work Max" in
    * Claude Code and in the Claude app): its app's word is what tells
    * them apart, so it keeps its room and the name gives way. */
@@ -172,6 +175,11 @@ export function PlaceHeader({
           {onNew && (
             <MenuItem onClick={run(onNew)} testId="place-header-menu-new">
               New session
+            </MenuItem>
+          )}
+          {onRestart && (
+            <MenuItem onClick={run(onRestart)} testId="place-header-menu-restart">
+              Restart…
             </MenuItem>
           )}
           {keepAlive && (

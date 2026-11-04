@@ -39,6 +39,8 @@ import { appByConversation } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
+import { askRestart } from "../../components/RestartApp";
+import { showGoTo } from "../../lib/go-to";
 
 export function AppPage({
   id,
@@ -142,7 +144,7 @@ function AppBody({
             facts={<AppFacts app={app} open={open} total={items.length} now={now} />}
             actions={
               <>
-                <AppAction app={app} />
+                <AppAction app={app} open={open} />
                 {app.kind === "cli" && app.folder && <FolderMenu account={app.folder} sessions={sessions} onChanged={onChanged} />}
               </>
             }
@@ -227,7 +229,7 @@ function AppFacts({ app, open, total, now }: { app: AppModel; open: number; tota
 
 /** The one thing to do there: a desktop App's Go to it or Start, a CLI
  * App's New session. */
-function AppAction({ app }: { app: AppModel }): JSX.Element | null {
+function AppAction({ app, open }: { app: AppModel; open: number }): JSX.Element | null {
   if (app.kind === "cli") {
     // Signed out, its Overview's notice is the one way on (sign in).
     if (!app.folder || !signedIn(app.folder.login_state)) return null;
@@ -243,22 +245,28 @@ function AppAction({ app }: { app: AppModel }): JSX.Element | null {
   const running = place.app_pid !== null;
   const go = () => {
     showToast({ id: "go-to", message: running ? `Bringing ${app.name} forward…` : `Starting ${app.name}…` });
-    placesOpen(place.id).then(
-      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
-      (cause) => showToast({ id: "go-to", message: errorText(cause) }),
-    );
+    // 0.3.8: one that lost its window offers Restart in its toast.
+    placesOpen(place.id).then(showGoTo, (cause) => showToast({ id: "go-to", message: errorText(cause) }));
   };
   return (
-    <Button
-      size="md"
-      variant="primary"
-      onClick={go}
-      disabled={!running && place.cannot_start !== null}
-      title={running ? undefined : (place.cannot_start ?? undefined)}
-      data-testid="app-go"
-    >
-      {running ? "Go to it" : "Start"}
-    </Button>
+    <>
+      {/* D-71: a running one restarts after its confirm. */}
+      {running && (
+        <Button size="md" variant="secondary" onClick={() => askRestart({ placeId: place.id, name: app.name, working: open })} data-testid="app-restart">
+          Restart…
+        </Button>
+      )}
+      <Button
+        size="md"
+        variant="primary"
+        onClick={go}
+        disabled={!running && place.cannot_start !== null}
+        title={running ? undefined : (place.cannot_start ?? undefined)}
+        data-testid="app-go"
+      >
+        {running ? "Go to it" : "Start"}
+      </Button>
+    </>
   );
 }
 

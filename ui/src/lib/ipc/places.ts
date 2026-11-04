@@ -88,8 +88,10 @@ export async function placesOpen(id: string, conversationId: string | null = nul
 }
 
 /** 0.3.8: quits an app or profile that lost its window when macOS
- * restarted its display, and starts it again as it ran. */
-export async function placesRestart(id: string): Promise<GoToOutcomeInfo> {
+ * restarted its display, and starts it again as it ran. D-71: with
+ * `confirmed`, a running one with its window too (the user confirmed what
+ * it stops). */
+export async function placesRestart(id: string, confirmed = false): Promise<GoToOutcomeInfo> {
   if (!hasLiveBackend()) {
     const place = preview().places.find((row) => row.id === id);
     if (!place) return { outcome: "AI Juggler doesn't remember that app any more", reached: "none" };
@@ -99,7 +101,7 @@ export async function placesRestart(id: string): Promise<GoToOutcomeInfo> {
     changedHere();
     return { outcome: `Restarting ${place.label}`, reached: "started" };
   }
-  return invoke<GoToOutcomeInfo>("places_restart", { id });
+  return invoke<GoToOutcomeInfo>("places_restart", { id, confirmed });
 }
 
 /** Keep alive on or off. */

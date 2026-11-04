@@ -51,6 +51,7 @@ import { staleSubscriptions } from "./lib/subscriptions";
 import { useScrollMemory } from "./lib/scroll-memory";
 import { useNewSessionSheet } from "./lib/new-session-sheet";
 import { ToastHost } from "./components/Toast";
+import { RestartAppHost } from "./components/RestartApp";
 import { fleetPeers, launchPortWarning, statsEvent, type PortWarningInfo } from "./lib/bridge";
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
@@ -1066,6 +1067,7 @@ export default function App() {
       )}
       {/* AJ-E1503: the one feedback system, and the quit warning. */}
       <ToastHost />
+      <RestartAppHost />
       {shortcutsOpen && <ShortcutSheet fleet={pairedCount > 0} onClose={() => setShortcutsOpen(false)} />}
       <QuitSheet />
       <PoolSheetHost sessions={railSessions} projects={projects} />

@@ -88,6 +88,8 @@ fn recent(conversations: &[String]) -> Vec<String> {
 fn info(
     id: &str,
     place: &KnownPlace,
+    // Its app's word as every screen says it ("Claude app"), for its label.
+    word: &str,
     pid: Option<u32>,
     lost: bool,
     hosts: &HostRegistry,
@@ -104,7 +106,9 @@ fn info(
         app_id: place.app_id.clone(),
         app: place.name.clone(),
         instance: place.instance.clone(),
-        label: place.named(account),
+        label: place
+            .profile(account)
+            .map_or_else(|| word.to_owned(), |profile| format!("{word} · {profile}")),
         profile: place.profile(account),
         app_pid: pid,
         lost,
@@ -163,6 +167,7 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
             info(
                 id,
                 place,
+                &super::app_word(state, place),
                 running.map(|(_, pid, _)| *pid),
                 lost,
                 &hosts,
@@ -248,6 +253,8 @@ pub async fn places_open(
 
 /// 0.3.8: Restart, the answer to "lost its window … Restart it?": quits
 /// the place's process that lost its window and starts it again, in front.
+/// D-71: with `confirmed`, a running one with its window too (the user
+/// confirmed what it stops).
 /// Waits for it to quit (at most 10 s), so it runs off the window's
 /// thread.
 ///
@@ -258,13 +265,21 @@ pub async fn places_open(
 pub async fn places_restart(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
+    confirmed: Option<bool>,
 ) -> AppResult<GoToOutcomeInfo> {
+    // D-71: a running one only once the user confirmed it.
+    let of = if confirmed == Some(true) {
+        super::RestartOf::Confirmed
+    } else {
+        super::RestartOf::LostWindow
+    };
     crate::ipc::blocking(state.inner(), "restarting the app", move |state| {
         let said = super::restart(
             state,
             &id,
             &super::start::System,
             false,
+            of,
             super::QuitWait::default(),
             crate::commands::now_millis(),
         );
