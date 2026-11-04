@@ -1,107 +1,107 @@
 [
   {
     "kind": "unresolved-source",
-    "retryable": false,
-    "words": "AI Juggler couldn't tell which file holds this conversation on Work, so nothing moved. Resume it on Work where you left it."
+    "words": "AI Juggler couldn't tell which file holds this conversation on Work, so nothing moved. Resume it on Work where you left it.",
+    "retryable": false
   },
   {
     "kind": "torn-tail",
-    "retryable": true,
-    "words": "The original on Work is still writing its reply, so nothing moved. Let it finish, or stop it, and try again."
+    "words": "The original on Work is still writing its reply, so nothing moved. Let it finish, or stop it, and try again.",
+    "retryable": true
   },
   {
     "kind": "collision-forked",
-    "retryable": false,
-    "words": "Personal already has this conversation, so it opened as a separate copy."
+    "words": "Personal already has this conversation, so it opened as a separate copy.",
+    "retryable": false
   },
   {
     "kind": "staging-aborted",
-    "retryable": true,
-    "words": "Copying to Personal stopped partway, so nothing moved. What was copied has been cleaned up: try again."
+    "words": "Copying to Personal stopped partway, so nothing moved. What was copied has been cleaned up: try again.",
+    "retryable": true
   },
   {
     "kind": "launch-failed",
-    "retryable": true,
-    "words": "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it."
+    "words": "The new session on Personal didn't start, so nothing moved. Try again, or resume it on Work where you left it.",
+    "retryable": true
   },
   {
     "kind": "prime-quota-death",
-    "retryable": false,
-    "words": "Personal ran out of usage while picking up the work, so it stopped after using about 12,400 tokens. Pick another account."
+    "words": "Personal ran out of usage while picking up the work, so it stopped after using about 12,400 tokens. Pick another account.",
+    "retryable": false
   },
   {
     "kind": "original-session-gone",
-    "retryable": false,
-    "words": "The original conversation on Work is gone, so there's nothing to switch back to."
+    "words": "The original conversation on Work is gone, so there's nothing to switch back to.",
+    "retryable": false
   },
   {
     "kind": "merge-conflict-open",
-    "retryable": false,
-    "words": "Files changed on both Work and Personal, and they need your choice. The work stays split, and both can still be resumed."
+    "words": "Files changed on both Work and Personal, and they need your choice. The work stays split, and both can still be resumed.",
+    "retryable": false
   },
   {
     "kind": "hop-cost",
-    "retryable": false,
-    "words": "Moving to Personal makes 4 switches for this work, about 380,000 tokens in all. Switching within the same tool costs less."
+    "words": "Moving to Personal makes 4 switches for this work, about 380,000 tokens in all. Switching within the same tool costs less.",
+    "retryable": false
   },
   {
     "kind": "preflight-target-exhausted",
-    "retryable": false,
-    "words": "Personal has no usage left and doesn't reset before you'd need it, so nothing moved. Pick another account."
+    "words": "Personal has no usage left and doesn't reset before you'd need it, so nothing moved. Pick another account.",
+    "retryable": false
   },
   {
     "kind": "preflight-version-drift",
-    "retryable": false,
-    "words": "Personal's version of its tool hasn't been checked with this kind of switch yet, so nothing moved. Pick another account."
+    "words": "Personal's version of its tool hasn't been checked with this kind of switch yet, so nothing moved. Pick another account.",
+    "retryable": false
   },
   {
     "kind": "adapter",
-    "retryable": true,
-    "words": "The switch to Personal stopped before anything moved. Try again, or resume it on Work meanwhile; copy the details below for a bug report."
+    "words": "The switch to Personal stopped before anything moved. Try again, or resume it on Work meanwhile; copy the details below for a bug report.",
+    "retryable": true
   },
   {
     "kind": "adapter-disk-full",
-    "retryable": true,
-    "words": "There isn't enough free disk space to copy this conversation to Personal, so nothing moved; AI Juggler always leaves 4 GB free. Free some space, then try again."
+    "words": "There isn't enough free disk space to copy this conversation to Personal, so nothing moved; AI Juggler always leaves 4 GB free. Free some space, then try again.",
+    "retryable": true
   },
   {
     "kind": "adapter-not-allowed",
-    "retryable": true,
-    "words": "AI Juggler wasn't allowed to write to Personal's folder, so nothing moved. Check its folder's permissions, then try again."
+    "words": "AI Juggler wasn't allowed to write to Personal's folder, so nothing moved. Check its folder's permissions, then try again.",
+    "retryable": true
   },
   {
     "kind": "adapter-folder-not-allowed",
-    "retryable": true,
-    "words": "AI Juggler wasn't allowed to write to Personal's folder, so nothing moved. Check its folder's permissions, then try again."
+    "words": "AI Juggler wasn't allowed to write to Personal's folder, so nothing moved. Check its folder's permissions, then try again.",
+    "retryable": true
   },
   {
     "kind": "adapter-not-enough-room",
-    "retryable": true,
-    "words": "There isn't enough free disk space to copy this conversation to Personal, so nothing moved; AI Juggler always leaves 4 GB free. It needs about 6.4 GB more. Free some space, then try again."
+    "words": "There isn't enough free disk space to copy this conversation to Personal, so nothing moved; AI Juggler always leaves 4 GB free. It needs about 6.4 GB more. Free some space, then try again.",
+    "retryable": true
   },
   {
     "kind": "adapter-folder-disk-full",
-    "retryable": true,
-    "words": "There isn't enough free disk space to copy this conversation to Personal, so nothing moved; AI Juggler always leaves 4 GB free. Free some space, then try again."
+    "words": "There isn't enough free disk space to copy this conversation to Personal, so nothing moved; AI Juggler always leaves 4 GB free. Free some space, then try again.",
+    "retryable": true
   },
   {
     "kind": "adapter-already-there",
-    "retryable": false,
-    "words": "Personal already has this conversation's files, so nothing was replaced and nothing moved. Open it on Personal instead."
+    "words": "Personal already has this conversation's files, so nothing was replaced and nothing moved. Open it on Personal instead.",
+    "retryable": false
   },
   {
     "kind": "adapter-still-writing",
-    "retryable": true,
-    "words": "The original on Work is still writing its reply, so nothing moved. Let it finish, or stop it, and try again."
+    "words": "The original on Work is still writing its reply, so nothing moved. Let it finish, or stop it, and try again.",
+    "retryable": true
   },
   {
     "kind": "adapter-too-large",
-    "retryable": false,
-    "words": "This conversation is too large to carry to Personal in one piece, so nothing moved. Continue it with a summary on Personal instead."
+    "words": "This conversation is too large to carry to Personal in one piece, so nothing moved. Continue it with a summary on Personal instead.",
+    "retryable": false
   },
   {
     "kind": "adapter-gone",
-    "retryable": false,
-    "words": "This conversation's file on Work isn't there any more, so nothing moved. Resume it on Work where you left it."
+    "words": "This conversation's file on Work isn't there any more, so nothing moved. Resume it on Work where you left it.",
+    "retryable": false
   }
 ]

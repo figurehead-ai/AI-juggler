@@ -439,11 +439,25 @@ mod tests {
     /// `UPDATE_GOLDENS=1`.
     #[test]
     fn switch_failure_words_are_committed_for_the_interface() {
-        let words: Vec<serde_json::Value> = switch_failures()
+        // A struct, not a map: its fields keep this order whether or not
+        // another crate in the build turns on serde_json's
+        // `preserve_order` (a map's keys came out sorted in one build and
+        // as written in another).
+        #[derive(serde::Serialize)]
+        struct Row {
+            kind: &'static str,
+            words: String,
+            retryable: bool,
+        }
+        let words: Vec<Row> = switch_failures()
             .into_iter()
             .map(|(kind, failure)| {
                 let wire = AppError::switch(failure, "Work", "Personal").wire();
-                serde_json::json!({ "kind": kind, "words": wire.user_message, "retryable": wire.retryable })
+                Row {
+                    kind,
+                    words: wire.user_message,
+                    retryable: wire.retryable,
+                }
             })
             .collect();
         let mut snapshot = serde_json::to_string_pretty(&words).unwrap();
