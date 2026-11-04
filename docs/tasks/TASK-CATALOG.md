@@ -228,6 +228,7 @@
 | AJ-E1904 | Tasks follow sessions and switches | E19-agent-tasks.md | P1 | S | AJ-E1901, AJ-E201 |
 | AJ-E1905 | A Claude Code plugin | E19-agent-tasks.md | P2 | S | AJ-E1902 |
 | AJ-E1906 | Links to GitHub issues and Linear | E19-agent-tasks.md | P2 | S | AJ-E1901 |
+| AJ-E1907 | A task's session starts from a short pointer | E19-agent-tasks.md | P1 | S | AJ-E1902 |
 | AJ-E1613 | Antigravity on work plans | E16-more-tools.md | P2 | L | AJ-E1521 |
 | AJ-E2001 | Sign and publish separately from the build | E20-engineering-and-security.md | P0 | L | — |
 | AJ-E2002 | Agent bridge security design | E20-engineering-and-security.md | P0 | M | — |
@@ -368,6 +369,8 @@
 | AJ-E3205 | The Account page | E32-account-and-app.md | P0 | M | AJ-E3202 |
 | AJ-E3206 | Every name opens its own page | E32-account-and-app.md | P0 | M | AJ-E3204, AJ-E3205 |
 | AJ-E3207 | New session: the usual choice made and said, one button, the rest a step away | E32-account-and-app.md | P0 | M | AJ-E3202 |
+| AJ-E3208 | Accounts and Apps, side by side: an Apps section on the Accounts screen | E32-account-and-app.md | P0 | M | AJ-E3202, AJ-E3204 |
+| AJ-E3209 | Restart a running app or profile, after a confirm | E32-account-and-app.md | P0 | S | AJ-E3208 |
 | AJ-E3301 | The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | E33-validated-by-use.md | P0 | L | — |
 | AJ-E3302 | Account and App validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3207 |
 | AJ-E3303 | Links validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3105 |
@@ -394,5 +397,5 @@
 | AJ-E3512 | The Floor list in the main window: the same facts, accessible | E35-the-floor.md | P0 | M | AJ-E3505, AJ-E3510, AJ-E3511 |
 | AJ-E3513 | The Floor's gates: a gallery of golden frames, budgets and the other systems | E35-the-floor.md | P0 | M | AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512 |
 | AJ-E3514 | Walked by hand: persona walks on the release build | E35-the-floor.md | P0 | S | AJ-E3513 |
-Total: 392 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 395 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
