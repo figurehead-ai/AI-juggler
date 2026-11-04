@@ -1,0 +1,671 @@
+//! When the Floor draws (ADR-0026 §4, AJ-E3501 req. 3), as a state
+//! machine the render thread runs and a headless clock test drives:
+//!
+//! - it draws for input, a camera move, a new snapshot, and an animation
+//!   tick only while something moving is in view and the window can be
+//!   seen;
+//! - with nothing moving, nothing is drawn; covered or minimised, nothing
+//!   is drawn (it asks whether it can be seen at 2 Hz, only while it
+//!   would draw or is hidden);
+//! - a refused frame is retried every 100 ms while visible, never
+//!   dropped.
+//!
+//! Time is a [`Duration`] since the Floor opened, so tests choose it.
+
+use std::collections::HashMap;
+use std::time::Duration;
+
+use crate::camera::{Cam, Frame, MIN_DIST, PITCH_MAX, PITCH_MIN, TWEEN_S, View};
+
+/// How much moves (Settings › The Floor › Motion).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Motion {
+    /// 8 frames a second, people walking.
+    #[default]
+    Full,
+    /// 4 frames a second, no walkers.
+    Calm,
+    /// Nothing moves: a frame only on a change.
+    Off,
+}
+
+impl Motion {
+    /// Animation frames a second.
+    #[must_use]
+    pub const fn fps(self) -> u32 {
+        match self {
+            Self::Full => 8,
+            Self::Calm => 4,
+            Self::Off => 0,
+        }
+    }
+
+    /// People walk the aisle.
+    #[must_use]
+    pub const fn walkers(self) -> bool {
+        matches!(self, Self::Full)
+    }
+}
+
+/// A key the Floor answers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Key {
+    /// A character (lower case).
+    Char(char),
+    /// ←.
+    Left,
+    /// →.
+    Right,
+    /// ↑.
+    Up,
+    /// ↓.
+    Down,
+    /// Tab: the next area.
+    Tab,
+    /// Enter: open what's selected.
+    Enter,
+}
+
+/// What the window sends (positions in points from the top left).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Input {
+    /// The window's new size in device pixels, and its scale.
+    Resize {
+        /// Width.
+        w: u32,
+        /// Height.
+        h: u32,
+        /// Device pixels per point.
+        scale: f32,
+    },
+    /// Whether the window can be seen.
+    Visible(bool),
+    /// A scroll: a trackpad's (`precise`) pans, a wheel or ⌘ zooms.
+    Scroll {
+        /// Across.
+        dx: f32,
+        /// Down.
+        dy: f32,
+        /// A trackpad.
+        precise: bool,
+        /// Where, across.
+        x: f32,
+        /// Where, down.
+        y: f32,
+        /// ⌘ held.
+        zoom: bool,
+    },
+    /// A pinch.
+    Magnify {
+        /// How much.
+        m: f32,
+        /// Where, across.
+        x: f32,
+        /// Where, down.
+        y: f32,
+    },
+    /// A two-finger twist, degrees.
+    Twist(f32),
+    /// A drag; `rotate` for right-drag or ⌥-drag.
+    Drag {
+        /// Across.
+        dx: f32,
+        /// Down.
+        dy: f32,
+        /// Turn and tilt instead of pan.
+        rotate: bool,
+    },
+    /// The pointer moved.
+    Move {
+        /// Across.
+        x: f32,
+        /// Down.
+        y: f32,
+    },
+    /// A click.
+    Click {
+        /// Across.
+        x: f32,
+        /// Down.
+        y: f32,
+    },
+    /// A key.
+    Key(Key),
+    /// The company changed (a new snapshot is in the scene).
+    Changed,
+    /// The overload alert went on or off.
+    Alert(bool),
+}
+
+/// What the render thread should do after an input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Effect {
+    /// Open the pickable thing with this id in the main window.
+    Open(u32),
+    /// Play with the prop with this id.
+    Play(u32),
+}
+
+/// A floor-switcher chip's place (device pixels) and the floor it shows
+/// (`None`: the building).
+pub type Chip = ([f32; 4], Option<usize>);
+
+/// What the pickable thing under a point is (`picks` reads the last
+/// frame's pick buffer); 0 for nothing.
+pub trait Picker {
+    /// The pick id at (`x`, `y`) device pixels.
+    fn pick(&mut self, x: f32, y: f32) -> u32;
+    /// Whether pick id `id` is a prop or the cat (played with, not
+    /// opened), a floor (`Some(floor)`), or a door.
+    fn kind(&self, id: u32) -> PickKind;
+}
+
+/// What a click on a pick does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PickKind {
+    /// Nothing there.
+    Nothing,
+    /// Opens in the main window.
+    Door,
+    /// Something to play with.
+    Toy,
+    /// The lift to a floor.
+    Floor(usize),
+}
+
+/// The loop's state.
+#[allow(clippy::struct_excessive_bools)] // each flag is its own fact the loop wakes on
+#[derive(Clone, Debug)]
+pub struct Driver {
+    /// What is in view.
+    pub view: View,
+    /// The office's size.
+    pub frame: Frame,
+    /// The window's size in device pixels and its scale.
+    pub size: (u32, u32, f32),
+    /// How much moves.
+    pub motion: Motion,
+    /// The pick under the pointer.
+    pub hover: u32,
+    /// The pointer, device pixels.
+    pub mouse: Option<(f32, f32)>,
+    /// What was played with, and when (seconds).
+    pub clicked: HashMap<u32, f32>,
+    /// The overload alert is on.
+    pub alert: bool,
+    /// The floor switcher's chips, from the last frame.
+    pub chips: Vec<Chip>,
+    tween: Option<(Cam, Cam, Duration)>,
+    visible: bool,
+    animating: bool,
+    retry: bool,
+    dirty: bool,
+    next_tick: Duration,
+    next_check: Duration,
+}
+
+const RETRY: Duration = Duration::from_millis(100);
+const TWEEN_STEP: Duration = Duration::from_millis(16);
+const CHECK: Duration = Duration::from_millis(500);
+
+/// What [`Driver::tick`] says to do now.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Tick {
+    /// Draw a frame.
+    pub draw: bool,
+    /// Ask the window whether it can be seen.
+    pub check_visible: bool,
+}
+
+impl Driver {
+    /// A driver for an office of `frame`, a window of `size`, showing the
+    /// first floor; it draws its first frame at once.
+    #[must_use]
+    pub fn new(frame: Frame, size: (u32, u32, f32), motion: Motion) -> Self {
+        let aspect = size.0 as f32 / size.1.max(1) as f32;
+        Self {
+            view: View {
+                focus: Some(0),
+                cam: frame.home(Some(0), aspect),
+            },
+            frame,
+            size,
+            motion,
+            hover: 0,
+            mouse: None,
+            clicked: HashMap::new(),
+            alert: false,
+            chips: Vec::new(),
+            tween: None,
+            visible: true,
+            animating: false,
+            retry: false,
+            dirty: true,
+            next_tick: Duration::ZERO,
+            next_check: CHECK,
+        }
+    }
+
+    fn aspect(&self) -> f32 {
+        self.size.0 as f32 / self.size.1.max(1) as f32
+    }
+
+    fn period(&self) -> Option<Duration> {
+        let fps = self.motion.fps();
+        (fps > 0).then(|| Duration::from_secs_f64(1.0 / f64::from(fps)))
+    }
+
+    /// Something keeps it ticking: an animation in view, or the alert.
+    fn ticking(&self) -> bool {
+        (self.animating || self.alert) && self.period().is_some()
+    }
+
+    /// When to wake next (`None`: only for input).
+    #[must_use]
+    pub fn wake_at(&self, now: Duration) -> Option<Duration> {
+        if self.tween.is_some() {
+            Some(now + TWEEN_STEP)
+        } else if self.retry && self.visible {
+            Some(now + RETRY)
+        } else if self.ticking() && self.visible {
+            Some(self.next_tick.min(self.next_check))
+        } else if !self.visible {
+            Some(self.next_check)
+        } else {
+            None
+        }
+    }
+
+    fn move_to(&mut self, to: Cam, now: Duration) {
+        self.tween = Some((self.view.cam, to, now));
+        self.dirty = true;
+    }
+
+    fn goal(&self) -> Cam {
+        self.tween.map_or(self.view.cam, |(_, b, _)| b)
+    }
+
+    fn go_to_floor(&mut self, focus: Option<usize>, now: Duration) {
+        let yaw = self.goal().yaw;
+        self.view.focus = focus;
+        let home = self.frame.home(focus, self.aspect()).with_yaw(yaw);
+        self.move_to(home, now);
+    }
+
+    /// Takes in one input; what it asks of the render thread.
+    pub fn input(
+        &mut self,
+        input: Input,
+        now: Duration,
+        picker: &mut dyn Picker,
+    ) -> Option<Effect> {
+        let (w, h, sf) = self.size;
+        let aspect = self.aspect();
+        match input {
+            Input::Resize { w, h, scale } if w > 0 && h > 0 => {
+                self.size = (w, h, scale);
+                self.dirty = true;
+            }
+            Input::Resize { .. } => {}
+            Input::Visible(v) => {
+                self.dirty |= v && !self.visible;
+                self.visible = v;
+            }
+            Input::Scroll {
+                dx,
+                dy,
+                precise,
+                x,
+                y,
+                zoom,
+            } => {
+                self.tween = None;
+                if precise && !zoom {
+                    self.view.cam.pan(dx * sf, dy * sf, h);
+                } else {
+                    let step = if precise { dy / 30.0 } else { dy.signum() };
+                    self.view.zoom_at(
+                        &self.frame,
+                        step,
+                        (x * sf / w as f32, y * sf / h as f32),
+                        aspect,
+                    );
+                }
+                self.dirty = true;
+            }
+            Input::Magnify { m, x, y } => {
+                self.tween = None;
+                self.view.zoom_at(
+                    &self.frame,
+                    m * 4.0,
+                    (x * sf / w as f32, y * sf / h as f32),
+                    aspect,
+                );
+                self.dirty = true;
+            }
+            Input::Twist(deg) => {
+                self.tween = None;
+                self.view.cam.yaw -= deg.to_radians();
+                self.dirty = true;
+            }
+            Input::Drag { dx, dy, rotate } => {
+                self.tween = None;
+                if rotate {
+                    self.view.cam.turn(dx, dy);
+                } else {
+                    self.view.cam.pan(dx * sf, dy * sf, h);
+                }
+                self.dirty = true;
+            }
+            Input::Move { x, y } => {
+                self.mouse = Some((x * sf, y * sf));
+                let id = picker.pick(x * sf, y * sf);
+                // A tooltip follows the pointer while over something.
+                self.dirty |= id != self.hover || id != 0;
+                self.hover = id;
+            }
+            Input::Click { x, y } => return self.click(x * sf, y * sf, now, picker),
+            Input::Key(key) => self.key(key, now),
+            Input::Changed => self.dirty = true,
+            Input::Alert(on) => {
+                self.dirty |= on != self.alert;
+                self.alert = on;
+            }
+        }
+        None
+    }
+
+    fn click(
+        &mut self,
+        px: f32,
+        py: f32,
+        now: Duration,
+        picker: &mut dyn Picker,
+    ) -> Option<Effect> {
+        let chip = self
+            .chips
+            .iter()
+            .find(|(r, _)| px >= r[0] && py >= r[1] && px < r[0] + r[2] && py < r[1] + r[3])
+            .map(|(_, f)| *f);
+        if let Some(focus) = chip {
+            self.go_to_floor(focus, now);
+            return None;
+        }
+        let id = picker.pick(px, py);
+        self.dirty = true;
+        match picker.kind(id) {
+            PickKind::Nothing => None,
+            PickKind::Floor(f) => {
+                if self.view.focus != Some(f) {
+                    self.go_to_floor(Some(f), now);
+                }
+                None
+            }
+            PickKind::Toy => {
+                self.clicked.insert(id, now.as_secs_f32());
+                Some(Effect::Play(id))
+            }
+            PickKind::Door => Some(Effect::Open(id)),
+        }
+    }
+
+    fn key(&mut self, key: Key, now: Duration) {
+        let base = self.goal();
+        let aspect = self.aspect();
+        let to = match key {
+            Key::Char(c @ '1'..='9') => {
+                let f = c as usize - '1' as usize;
+                if f < self.frame.floors {
+                    self.go_to_floor(Some(f), now);
+                }
+                return;
+            }
+            Key::Char('0' | 'b') => {
+                self.go_to_floor(None, now);
+                return;
+            }
+            Key::Char('h') => self.frame.home(self.view.focus, aspect),
+            Key::Char('q') | Key::Left => Cam {
+                yaw: base.yaw + std::f32::consts::FRAC_PI_4,
+                ..base
+            },
+            Key::Char('e') | Key::Right => Cam {
+                yaw: base.yaw - std::f32::consts::FRAC_PI_4,
+                ..base
+            },
+            Key::Up => Cam {
+                pitch: (base.pitch + 0.2).min(PITCH_MAX),
+                ..base
+            },
+            Key::Down => Cam {
+                pitch: (base.pitch - 0.2).max(PITCH_MIN),
+                ..base
+            },
+            Key::Char('+' | '=') => Cam {
+                dist: (base.dist * 0.75).max(MIN_DIST),
+                ..base
+            },
+            Key::Char('-') => Cam {
+                dist: (base.dist / 0.75).min(self.frame.max_dist()),
+                ..base
+            },
+            Key::Char(_) | Key::Tab | Key::Enter => return,
+        };
+        self.move_to(to, now);
+    }
+
+    /// Moves the camera along and says whether to draw now (and whether to
+    /// ask if the window can be seen).
+    pub fn tick(&mut self, now: Duration) -> Tick {
+        if let Some((a, b, t0)) = self.tween {
+            let k = ((now.saturating_sub(t0)).as_secs_f32() / TWEEN_S).min(1.0);
+            self.view.cam = Cam::lerp(a, b, 1.0 - (1.0 - k).powi(3));
+            if k >= 1.0 {
+                self.tween = None;
+                self.view.cam = b;
+            }
+            self.dirty = true;
+        }
+        if let Some(period) = self.period()
+            && self.ticking()
+            && self.visible
+            && now >= self.next_tick
+        {
+            self.next_tick = (self.next_tick + period).max(now);
+            if self.next_tick == now {
+                self.next_tick = now + period;
+            }
+            self.dirty = true;
+        }
+        let mut check_visible = false;
+        if (self.ticking() || !self.visible) && now >= self.next_check {
+            self.next_check = now + CHECK;
+            check_visible = true;
+        }
+        let draw = (self.dirty || self.retry) && self.visible;
+        Tick {
+            draw,
+            check_visible,
+        }
+    }
+
+    /// The frame was drawn (`shown`), or refused; `moving`: something
+    /// moving is in view.
+    pub fn drew(&mut self, shown: bool, moving: bool, now: Duration) {
+        self.retry = !shown;
+        if shown {
+            self.dirty = false;
+            let was = self.ticking();
+            self.animating = moving && self.motion.fps() > 0;
+            if self.ticking() && !was {
+                self.next_tick = now + self.period().unwrap_or(RETRY);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::{Driver, Effect, Input, Key, Motion, PickKind, Picker};
+    use crate::camera::Frame;
+
+    struct Office;
+
+    impl Picker for Office {
+        fn pick(&mut self, x: f32, _y: f32) -> u32 {
+            if x < 100.0 {
+                0
+            } else if x < 200.0 {
+                7
+            } else {
+                9
+            }
+        }
+        fn kind(&self, id: u32) -> PickKind {
+            match id {
+                7 => PickKind::Door,
+                9 => PickKind::Toy,
+                _ => PickKind::Nothing,
+            }
+        }
+    }
+
+    /// Runs the loop from `from` to `to` ms, drawing whenever it says,
+    /// with `moving` as the scene's answer; how many frames it drew.
+    fn run(d: &mut Driver, from: u64, to: u64, moving: bool) -> usize {
+        let mut frames = 0;
+        let mut now = Duration::from_millis(from);
+        let end = Duration::from_millis(to);
+        while now < end {
+            let tick = d.tick(now);
+            if tick.draw {
+                frames += 1;
+                d.drew(true, moving, now);
+            }
+            now = match d.wake_at(now) {
+                Some(at) if at > now => at,
+                Some(_) => now + Duration::from_millis(1),
+                None => end,
+            };
+        }
+        frames
+    }
+
+    fn driver(motion: Motion) -> Driver {
+        Driver::new(
+            Frame {
+                width: 44.4,
+                floors: 2,
+            },
+            (1600, 1000, 2.0),
+            motion,
+        )
+    }
+
+    #[test]
+    fn at_rest_it_draws_once_and_then_nothing() {
+        let mut d = driver(Motion::Full);
+        assert_eq!(run(&mut d, 0, 60_000, false), 1);
+        assert_eq!(
+            d.wake_at(Duration::from_secs(60)),
+            None,
+            "asleep until input"
+        );
+    }
+
+    #[test]
+    fn animating_it_ticks_at_its_rate_and_hidden_it_draws_nothing() {
+        let mut d = driver(Motion::Full);
+        let frames = run(&mut d, 0, 10_000, true);
+        assert!((78..=82).contains(&frames), "8 a second for 10 s: {frames}");
+        d.input(Input::Visible(false), Duration::from_secs(10), &mut Office);
+        assert_eq!(run(&mut d, 10_000, 20_000, true), 0, "nothing while hidden");
+        let mut calm = driver(Motion::Calm);
+        assert!((38..=42).contains(&run(&mut calm, 0, 10_000, true)));
+        let mut off = driver(Motion::Off);
+        assert_eq!(
+            run(&mut off, 0, 10_000, true),
+            1,
+            "Motion off: nothing moves"
+        );
+    }
+
+    #[test]
+    fn each_change_draws_once_and_a_refused_frame_is_retried() {
+        let mut d = driver(Motion::Off);
+        assert_eq!(run(&mut d, 0, 1000, false), 1);
+        d.input(Input::Changed, Duration::from_secs(1), &mut Office);
+        assert_eq!(run(&mut d, 1000, 2000, false), 1);
+        d.input(
+            Input::Drag {
+                dx: 5.0,
+                dy: 0.0,
+                rotate: false,
+            },
+            Duration::from_secs(2),
+            &mut Office,
+        );
+        let t = Duration::from_secs(2);
+        assert!(d.tick(t).draw);
+        d.drew(false, false, t);
+        assert_eq!(
+            d.wake_at(t),
+            Some(t + Duration::from_millis(100)),
+            "retried in 100 ms"
+        );
+        assert_eq!(run(&mut d, 2000, 3000, false), 1, "then drawn once");
+    }
+
+    #[test]
+    fn a_camera_move_draws_until_it_lands() {
+        let mut d = driver(Motion::Off);
+        run(&mut d, 0, 100, false);
+        d.input(
+            Input::Key(Key::Char('2')),
+            Duration::from_millis(100),
+            &mut Office,
+        );
+        let frames = run(&mut d, 100, 2000, false);
+        assert!(
+            (25..=35).contains(&frames),
+            "a 0.45 s move at ~60 a second: {frames}"
+        );
+        assert_eq!(d.view.focus, Some(1));
+    }
+
+    #[test]
+    fn clicks_open_doors_and_play_with_toys() {
+        let mut d = driver(Motion::Full);
+        let t = Duration::from_secs(1);
+        assert_eq!(
+            d.input(Input::Click { x: 75.0, y: 10.0 }, t, &mut Office),
+            Some(Effect::Open(7))
+        );
+        assert_eq!(
+            d.input(Input::Click { x: 150.0, y: 10.0 }, t, &mut Office),
+            Some(Effect::Play(9))
+        );
+        assert!(d.clicked.contains_key(&9));
+        assert_eq!(
+            d.input(Input::Click { x: 10.0, y: 10.0 }, t, &mut Office),
+            None
+        );
+        d.chips = vec![([0.0, 0.0, 50.0, 50.0], None)];
+        assert_eq!(
+            d.input(Input::Click { x: 10.0, y: 10.0 }, t, &mut Office),
+            None
+        );
+        assert_eq!(d.view.focus, None, "the Building chip");
+    }
+
+    #[test]
+    fn the_alert_keeps_it_ticking_even_at_rest() {
+        let mut d = driver(Motion::Calm);
+        run(&mut d, 0, 100, false);
+        d.input(Input::Alert(true), Duration::from_millis(100), &mut Office);
+        assert!(run(&mut d, 100, 5100, false) >= 18);
+    }
+}

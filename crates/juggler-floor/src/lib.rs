@@ -28,13 +28,16 @@
     clippy::many_single_char_names
 )]
 
+pub mod camera;
 pub mod colour;
+pub mod driver;
 pub mod family;
 pub mod kit;
 pub mod layout;
 pub mod math;
 pub mod mesh;
 pub mod models;
+pub mod overlay;
 pub mod paint;
 pub mod rng;
 pub mod scene;

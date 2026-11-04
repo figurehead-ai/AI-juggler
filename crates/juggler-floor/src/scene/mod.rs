@@ -416,8 +416,31 @@ impl Scene {
         Ok(scene)
     }
 
-    fn account(&self, id: Option<&str>) -> Option<&FloorAccount> {
+    /// An Account, by id.
+    #[must_use]
+    pub fn account(&self, id: Option<&str>) -> Option<&FloorAccount> {
         self.accounts.iter().find(|a| Some(a.id.as_str()) == id)
+    }
+
+    /// An App, by id.
+    #[must_use]
+    pub fn app(&self, id: &str) -> Option<&FloorApp> {
+        self.apps.get(id)
+    }
+
+    /// How unused an App is ([`unused`]'s level).
+    #[must_use]
+    pub fn unused_level(&self, id: &str) -> u8 {
+        self.unused.get(id).copied().unwrap_or(0)
+    }
+
+    /// The office's size, for the camera.
+    #[must_use]
+    pub fn frame_size(&self) -> crate::camera::Frame {
+        crate::camera::Frame {
+            width: self.width,
+            floors: self.floors,
+        }
     }
 }
 

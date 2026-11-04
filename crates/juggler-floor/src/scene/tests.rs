@@ -291,3 +291,55 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
         out.len()
     );
 }
+
+#[test]
+fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
+    use crate::camera::View;
+    use crate::overlay::{Inputs as Over, build as overlay};
+    let snap = snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", FloorState::Asks, 0)],
+    )]);
+    let scene = build(&snap);
+    let frame = scene.frame_size();
+    let building = View {
+        focus: None,
+        cam: frame.home(None, 1.6),
+    };
+    let vp = building.cam.vp(1.6);
+    let mut out = Vec::new();
+    let drawn = scene.frame(&Live::default(), &building.floors(&frame), &mut out);
+    let inputs = Over {
+        view: &building,
+        vp: &vp,
+        size: (1600, 1000),
+        scale: 2.0,
+        marks: &drawn.marks,
+        hover: 0,
+        mouse: None,
+        alert: Some("CPU 97% for 6 minutes"),
+        hint: "Drag to pan",
+    };
+    let (quads, chips) = overlay(&scene, &inputs);
+    assert_eq!(chips.len(), scene.floors + 1);
+    assert_eq!(chips[0].1, None, "the Building chip first");
+    assert!(
+        quads.len() > 40,
+        "names, tags, the hint and the alert: {}",
+        quads.len()
+    );
+    let near = View {
+        focus: Some(0),
+        cam: frame.home(Some(0), 1.6),
+    };
+    let (fewer, _) = overlay(
+        &scene,
+        &Over {
+            view: &near,
+            alert: None,
+            ..inputs
+        },
+    );
+    assert!(fewer.len() < quads.len());
+}
