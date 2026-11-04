@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (0.3.8)
+
+- **An app or profile that lost its window when macOS restarted its
+  display** (docs/releases/0.3.8.md): after the window server's watchdog
+  restart of 2026-11-04, five Claude profiles ran on with no window and
+  no place in the apps macOS knows, and Open could only say "isn't open
+  now".
+  - `juggler_platform::apps::detached`: not registered
+    (`NSRunningApplication` by pid) **and** started before this login
+    session (the user's `loginwindow`); either unreadable means not lost.
+    `apps::quit` sends SIGTERM.
+  - Open and Go to it answer `reached: "lost"` with the place's id
+    (`GoToOutcomeInfo::place_id`); the window's toast asks "Restart it?"
+    (`showGoTo`), and `places_restart` quits the process, waits up to
+    10 s, then starts it as it ran (`start::start`, its tool folder),
+    never beside one that won't quit and never one that has its window.
+  - Keep alive counts a lost instance as down, under its limits (3 in 10
+    minutes, never locked, settling or quitting), and holds while a
+    session in it is working; the notice says it was restarted.
+  - A switch to Desktop refuses a lost profile instead of sending it the
+    session (`handoff::Running::lost`); Settings and Home say "Lost its
+    window" (`KnownPlaceInfo::lost`).
+
 ### Fixed (0.3.7)
 
 - **Usage numbers, after the usage audit** (docs/releases/0.3.7.md,

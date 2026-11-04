@@ -77,6 +77,7 @@ export function knownPlacesPreview(now: number): { places: KnownPlaceInfo[]; ses
     instance: null,
     profile: null,
     app_pid: null,
+    lost: false,
     keep_alive: false,
     paused: null,
     account_id: null,

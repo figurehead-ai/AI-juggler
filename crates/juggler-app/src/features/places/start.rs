@@ -15,8 +15,8 @@ use juggler_platform::apps::Start;
 use super::book::KnownPlace;
 use crate::features::conversations::places::HostRegistry;
 
-/// What starting an app needs from the system (a seam: the tests script
-/// it).
+/// What starting an app needs from the system, and (0.3.8) restarting one
+/// that lost its window (a seam: the tests script it).
 pub trait Starter: Send + Sync {
     /// Why `exe` may not run, when it may not.
     ///
@@ -30,6 +30,17 @@ pub trait Starter: Send + Sync {
     ///
     /// The system's reason.
     fn start(&self, launch: &Launch) -> Result<(), String>;
+    /// 0.3.8: process `pid` (started at `start`) runs on but lost this
+    /// login session's window server (`juggler_platform::apps::detached`).
+    fn detached(&self, pid: u32, start: Option<i64>) -> bool;
+    /// 0.3.8: asks process `pid` to quit (SIGTERM).
+    ///
+    /// # Errors
+    ///
+    /// The system's reason.
+    fn quit(&self, pid: u32) -> Result<(), String>;
+    /// Whether `pid` is still the process that started at `start`.
+    fn alive(&self, pid: u32, start: Option<i64>) -> bool;
 }
 
 /// How a place starts: its bundle, how, the one environment variable a
@@ -61,6 +72,20 @@ impl Starter for System {
     fn start(&self, launch: &Launch) -> Result<(), String> {
         juggler_platform::apps::open_app(&launch.bundle, launch.how, &launch.env, &launch.args)
             .map_err(|error| error.to_string())
+    }
+
+    fn detached(&self, pid: u32, start: Option<i64>) -> bool {
+        juggler_platform::apps::detached(pid, start)
+    }
+
+    fn quit(&self, pid: u32) -> Result<(), String> {
+        juggler_platform::apps::quit(pid).map_err(|error| error.to_string())
+    }
+
+    fn alive(&self, pid: u32, start: Option<i64>) -> bool {
+        crate::features::conversations::procs::some(&[pid])
+            .get(&pid)
+            .is_some_and(|process| juggler_adapter::live::same_start(start, process.start))
     }
 }
 
@@ -268,6 +293,15 @@ mod tests {
         }
         fn start(&self, _: &Launch) -> Result<(), String> {
             Err("STARTED-ANYWAY".into())
+        }
+        fn detached(&self, _: u32, _: Option<i64>) -> bool {
+            false
+        }
+        fn quit(&self, _: u32) -> Result<(), String> {
+            Err("never".into())
+        }
+        fn alive(&self, _: u32, _: Option<i64>) -> bool {
+            false
         }
     }
 

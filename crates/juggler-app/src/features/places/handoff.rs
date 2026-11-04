@@ -16,7 +16,9 @@
 //! A profile that's running is never started a second time: a second
 //! process on one profile folder doesn't hand anything over (the walk of
 //! 2026-11-02 found the running one only came forward) and two processes
-//! on one folder put its data at risk.
+//! on one folder put its data at risk. 0.3.8: nor is one that runs on but
+//! lost its window when macOS restarted its display; the switch says so,
+//! and Open offers the restart.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -24,6 +26,7 @@ use std::time::{Duration, Instant};
 
 use super::book::KnownPlace;
 use super::{named, running_now, start, tool_folder, with_book};
+use crate::features::conversations::goto;
 use crate::features::conversations::places::HostRegistry;
 use crate::state::AppState;
 
@@ -128,10 +131,21 @@ fn profile_for(state: &Arc<AppState>, account: &str) -> Option<(String, KnownPla
     running.or_else(|| places.into_iter().max_by_key(|(_, place)| place.seen_ms))
 }
 
+/// A profile's main process, as found now.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Running {
+    /// Its pid.
+    pub pid: u32,
+    /// 0.3.8: it runs on but lost its window when macOS restarted its
+    /// display: it takes no link, and a second process beside it is
+    /// never started.
+    pub lost: bool,
+}
+
 /// What a hand-off needs from the system (a seam: the tests script it).
 pub trait System: Send + Sync {
     /// The profile's main process, when it runs.
-    fn running(&self, state: &Arc<AppState>, place_id: &str) -> Option<u32>;
+    fn running(&self, state: &Arc<AppState>, place_id: &str) -> Option<Running>;
     /// Starts the profile on its tool folder.
     ///
     /// # Errors
@@ -151,8 +165,11 @@ pub trait System: Send + Sync {
 pub struct Real;
 
 impl System for Real {
-    fn running(&self, state: &Arc<AppState>, place_id: &str) -> Option<u32> {
-        running_now(state, place_id).map(|(pid, _)| pid)
+    fn running(&self, state: &Arc<AppState>, place_id: &str) -> Option<Running> {
+        running_now(state, place_id).map(|(pid, start)| Running {
+            pid,
+            lost: juggler_platform::apps::detached(pid, start),
+        })
     }
 
     fn start(&self, state: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
@@ -223,12 +240,19 @@ pub fn hand_off(
         (Some(dir), Some(record)) => dir.join(record),
         _ => return Err(format!("{name} can't take a session from AI Juggler")),
     };
-    let pid = if let Some(pid) = system.running(state, place_id) {
-        pid
-    } else {
-        system.start(state, &place)?;
-        wait_for(waits.start, waits.every, || system.running(state, place_id))
+    let pid = match system.running(state, place_id) {
+        Some(Running { lost: true, .. }) => return Err(lost(&name)),
+        Some(Running { pid, .. }) => pid,
+        None => {
+            system.start(state, &place)?;
+            wait_for(waits.start, waits.every, || {
+                system
+                    .running(state, place_id)
+                    .filter(|running| !running.lost)
+                    .map(|running| running.pid)
+            })
             .ok_or_else(|| format!("{name} didn't finish starting"))?
+        }
     };
     system
         .send(pid, &link)
@@ -240,6 +264,15 @@ pub fn hand_off(
         format!("{name} got the session but hasn't opened it yet: look at its window")
     })?;
     Ok(pid)
+}
+
+/// The switch's words for a profile that lost its window: what happened,
+/// and where its restart is.
+fn lost(name: &str) -> String {
+    format!(
+        "{}. Restart it from Home or Settings › Desktop apps, then switch again",
+        goto::lost_happened(name)
+    )
 }
 
 fn wait_for<T>(limit: Duration, every: Duration, mut look: impl FnMut() -> Option<T>) -> Option<T> {

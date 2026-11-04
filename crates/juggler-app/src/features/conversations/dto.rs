@@ -122,7 +122,14 @@ pub struct GoToOutcomeInfo {
     /// What happened, for the toast: "Brought Claude · Work forward; pick
     /// the session in its sidebar".
     pub outcome: String,
-    /// The step reached: `thread`, `tab`, `folder`, `app`, `pending`
-    /// (still on it after 1.5 s) or `none`.
+    /// The step reached: `thread`, `tab`, `folder`, `app`, `started`,
+    /// `pending` (still on it after 1.5 s), `lost` (0.3.8: it runs but
+    /// lost its window when macOS restarted its display; the toast offers
+    /// Restart) or `none`.
     pub reached: String,
+    /// 0.3.8: with `lost`, the remembered app or profile to restart
+    /// (`places_restart`); absent otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub place_id: Option<String>,
 }

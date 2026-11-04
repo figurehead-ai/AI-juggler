@@ -33,7 +33,7 @@ const past = (id: string, hours: number, over: Partial<ConversationInfo> = {}) =
 
 function known(instance: string, over: Partial<KnownPlaceInfo> = {}): KnownPlaceInfo {
   return {
-    id: `claude-app|/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null,
+    id: `claude-app|/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null, lost: false,
     keep_alive: false, paused: null, account_id: null, seen_ms: NOW - 5 * H, cannot_start: null, recent: [], ...over,
   };
 }

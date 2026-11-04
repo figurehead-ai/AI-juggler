@@ -18,6 +18,7 @@ import { accessCard, watchAccess } from "../../lib/osAccess";
 import { GO_TO_HOTKEY_EVENT } from "../../lib/outside";
 import { AppIcon } from "../../components/AppIcon";
 import { showToast } from "../../components/Toast";
+import { showGoTo } from "../../lib/go-to";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
 import { placeWords, useKnownPlaces } from "../../lib/places";
 import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
@@ -222,7 +223,7 @@ function PlaceRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
     setError(null);
     showToast({ id: "go-to", message: running ? `Bringing ${place.label} forward…` : `Starting ${place.label}…` });
     placesOpen(place.id).then(
-      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      showGoTo,
       (cause) => setError(errorText(cause)),
     );
   };

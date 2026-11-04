@@ -6,6 +6,9 @@
 //!   ended session's app (Codex at the thread itself, by its link);
 //! - **Keep alive**, turned on per app or profile, starts it again when
 //!   it stops ([`keep`]; SPEC §1's third amendment).
+//! - **Restart** (0.3.8) quits and starts again one that runs on but lost
+//!   its window when macOS restarted its display ([`restart`]): Open and
+//!   Go to it ask first, keep alive does it on its own.
 //!
 //! A place is started exactly as it last ran: its bundle and the
 //! instance folder it was given ([`start`]), so an account never changes.
@@ -18,7 +21,9 @@ pub mod handoff;
 pub mod keep;
 pub mod start;
 
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use book::{Book, KnownPlace};
 use keep::{Act, Kept, Watch};
@@ -48,6 +53,9 @@ pub struct Places {
     pub watch: Mutex<Watch>,
     /// Tells the window (set once the app is up).
     pub on_change: OnceLock<Box<dyn Fn() + Send + Sync>>,
+    /// 0.3.8: the places being restarted now (one restart at a time
+    /// each: two would start two processes on one folder).
+    restarting: Mutex<HashSet<String>>,
 }
 
 impl std::fmt::Debug for Places {
@@ -258,13 +266,23 @@ pub fn tick_with(
         Vec::new()
     };
     let mut places = Vec::new();
+    let mut lost: HashSet<String> = HashSet::new();
     for (id, place) in &kept {
         let running = match watch.pid_of(id) {
             Some((pid, start)) => {
                 let same = alive
                     .get(&pid)
                     .is_some_and(|process| juggler_adapter::live::same_start(start, process.start));
-                watch.seen(id, same)
+                let running = watch.seen(id, same);
+                // 0.3.8: running on with no window counts as down, unless
+                // a session in it is still working (a restart would end
+                // it); then it waits for the next tick.
+                if same && starter.detached(pid, start) && working_in(state, pid) == 0 {
+                    lost.insert(id.clone());
+                    false
+                } else {
+                    running
+                }
             }
             None => {
                 match found
@@ -294,6 +312,20 @@ pub fn tick_with(
     if acts.is_empty() {
         return;
     }
+    act(state, acts, &kept, &lost, starter, now);
+    changed(state);
+}
+
+/// Does what keep alive's step said: starts a place that's down (a lost
+/// one is restarted: quit, then started), or pauses one, and says so.
+fn act(
+    state: &Arc<AppState>,
+    acts: Vec<Act>,
+    kept: &[(String, KnownPlace)],
+    lost: &HashSet<String>,
+    starter: &dyn start::Starter,
+    now: i64,
+) {
     let hosts = HostRegistry::of(&state.registry);
     for act in acts {
         match act {
@@ -301,18 +333,25 @@ pub fn tick_with(
                 let Some((_, place)) = kept.iter().find(|(known, _)| *known == id) else {
                     continue;
                 };
-                match start::start(
-                    place,
-                    &hosts,
-                    tool_folder(state, place).as_deref(),
-                    starter,
-                    true,
-                ) {
+                let was_lost = lost.contains(&id);
+                let up = if was_lost {
+                    restart(state, &id, starter, true, QuitWait::default(), now).map(|_| ())
+                } else {
+                    start::start(
+                        place,
+                        &hosts,
+                        tool_folder(state, place).as_deref(),
+                        starter,
+                        true,
+                    )
+                };
+                match up {
                     Ok(()) => crate::features::notifications::sources::app_started_again(
                         state,
                         &id,
                         &named(state, place),
                         attempt,
+                        was_lost,
                     ),
                     Err(why) => pause(state, &id, &why),
                 }
@@ -320,7 +359,6 @@ pub fn tick_with(
             Act::Pause(id, why) => pause(state, &id, &why),
         }
     }
-    changed(state);
 }
 
 /// Pauses keep alive for `id`, and says why.
@@ -462,6 +500,169 @@ fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
     Some((app.pid, app.start))
 }
 
+/// How long a lost app is given to quit, and how often it's looked at.
+#[derive(Clone, Copy, Debug)]
+pub struct QuitWait {
+    /// The most it's waited for.
+    pub limit: Duration,
+    /// Between looks.
+    pub every: Duration,
+}
+
+impl Default for QuitWait {
+    fn default() -> Self {
+        Self {
+            limit: Duration::from_secs(10),
+            every: Duration::from_millis(250),
+        }
+    }
+}
+
+/// How many sessions are working (a turn running) in the app whose main
+/// process is `pid`, as the live view saw them last (read only for an
+/// app that lost its window).
+fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
+    use crate::features::conversations::scan::State;
+    state
+        .conversations
+        .live_model()
+        .entries
+        .iter()
+        .filter(|entry| entry.state == Some(State::Working))
+        .filter(|entry| {
+            entry
+                .places
+                .iter()
+                .any(|place| place.host.as_ref().is_some_and(|host| host.pid == pid))
+        })
+        .count()
+}
+
+/// 0.3.8: restarts `id`, an app or profile that runs on but lost its
+/// window when macOS restarted its display (the watchdog's restart of
+/// 2026-11-04 left five Claude profiles running with no window): asks
+/// its process to quit (SIGTERM), waits for it to end, then starts it
+/// again exactly as it ran ([`start::start`], on its tool folder, behind
+/// the app in front when `background`). It never quits an app that has
+/// its window (Open brings that forward), never one it couldn't start
+/// again, and never starts a second process beside one that won't quit.
+/// A restart by hand ends a pause of keep alive, as Open does.
+///
+/// Returns what it did, in words.
+///
+/// # Errors
+///
+/// In words: it isn't remembered or can't be started, it has its window,
+/// it's already being restarted, it didn't quit, or it didn't start.
+pub fn restart(
+    state: &Arc<AppState>,
+    id: &str,
+    starter: &dyn start::Starter,
+    background: bool,
+    wait: QuitWait,
+    now: i64,
+) -> Result<String, String> {
+    let place = with_book(state, |book| {
+        book.places.get_mut(id).map(|place| {
+            if !background {
+                place.paused = None;
+            }
+            place.clone()
+        })
+    })
+    .map_err(|error| error.to_string())?
+    .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
+    let label = named(state, &place);
+    let hosts = HostRegistry::of(&state.registry);
+    // Checked before anything is quit: it starts again as it ran.
+    start::plan(&place, &hosts, None, background)?;
+    let Some(_guard) = Restarting::begin(state, id) else {
+        return Err(format!("{label} is restarting already"));
+    };
+    let coming_up = state
+        .places
+        .watch
+        .lock()
+        .is_ok_and(|watch| watch.coming_up(id, now));
+    match running_now(state, id) {
+        Some((pid, start)) => {
+            if !starter.detached(pid, start) {
+                return Err(format!(
+                    "{label} has its window, so it wasn't restarted. Open brings it forward"
+                ));
+            }
+            mark_restarting(state, id, now);
+            starter
+                .quit(pid)
+                .map_err(|why| format!("Couldn't quit {label}: {why}"))?;
+            if !wait_until(wait, || !starter.alive(pid, start)) {
+                return Err(format!(
+                    "{label} didn't quit within {} seconds, so it wasn't started again. Quit it in Activity Monitor, then start it here",
+                    wait.limit.as_secs()
+                ));
+            }
+        }
+        // Already started (by keep alive, or a restart a moment ago): never
+        // a second one.
+        None if coming_up => return Ok(format!("{label} is starting")),
+        None => {}
+    }
+    mark_restarting(state, id, now);
+    let launched = start::start(
+        &place,
+        &hosts,
+        tool_folder(state, &place).as_deref(),
+        starter,
+        background,
+    );
+    changed(state);
+    launched.map(|()| format!("Restarting {label}"))
+}
+
+/// One restart of a place at a time: held while it runs.
+struct Restarting<'a> {
+    state: &'a Arc<AppState>,
+    id: String,
+}
+
+impl<'a> Restarting<'a> {
+    fn begin(state: &'a Arc<AppState>, id: &str) -> Option<Self> {
+        let mut now = state.places.restarting.lock().ok()?;
+        now.insert(id.to_owned()).then(|| Self {
+            state,
+            id: id.to_owned(),
+        })
+    }
+}
+
+impl Drop for Restarting<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut now) = self.state.places.restarting.lock() {
+            now.remove(&self.id);
+        }
+    }
+}
+
+/// Keep alive starts nothing of its own for `id` while it restarts.
+fn mark_restarting(state: &Arc<AppState>, id: &str, now: i64) {
+    if let Ok(mut watch) = state.places.watch.lock() {
+        watch.restarting(id, now);
+    }
+}
+
+fn wait_until(wait: QuitWait, mut done: impl FnMut() -> bool) -> bool {
+    let until = Instant::now() + wait.limit;
+    loop {
+        if done() {
+            return true;
+        }
+        if Instant::now() >= until {
+            return false;
+        }
+        std::thread::sleep(wait.every);
+    }
+}
+
 /// Open: `id` brought forward when it runs, else started (in front).
 /// With a session (`tool`, `conversation`), an app with a link to its
 /// sessions (Codex) opens at it. Open also ends a pause of keep alive.
@@ -524,6 +725,11 @@ pub fn open(
             if said.reached == "app" {
                 said.outcome.push_str(pick);
             }
+            // 0.3.8: lost its window: the toast offers to restart this
+            // place, never to start a second one beside it.
+            if said.reached == "lost" {
+                said.place_id = Some(id.clone());
+            }
             return said;
         }
         match start::start(&place, &hosts, folder.as_deref(), starter.as_ref(), false) {
@@ -538,6 +744,7 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     GoToOutcomeInfo {
         outcome: text,
         reached: reached.to_owned(),
+        place_id: None,
     }
 }
 

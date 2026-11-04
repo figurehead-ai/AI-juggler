@@ -18,6 +18,7 @@ import { IconUpRight } from "./icons-places";
 import { IconStateRunning } from "./icons";
 import { IconPlus } from "./icons-actions";
 import { showToast } from "./Toast";
+import { showGoTo } from "../lib/go-to";
 import { placesOpen } from "../lib/ipc/places";
 import { agoWords } from "../lib/time-words";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
@@ -69,7 +70,7 @@ export function RailIdleApp({
     const running = app.appPid !== null;
     showToast({ id: "go-to", message: running ? `Bringing ${app.name} forward…` : `Starting ${app.name}…` });
     placesOpen(app.placeId).then(
-      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      showGoTo,
       () => showToast({ id: "go-to", message: running ? `Couldn't bring ${app.name} forward` : `Couldn't start ${app.name}` }),
     );
   };
