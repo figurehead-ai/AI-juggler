@@ -309,6 +309,42 @@
 **Research basis**: deep/11 §4.1; wf02 (`docs/wireframes/index.html:232-245`: "Mark all finished as reviewed"); audit §1.3 rows (chips "No decision drops them", keys r/h/s/e, Mark all); `ui/src/lib/shortcuts.ts:173-191` (Home's keys today: J/K/↑↓, Enter, A); D-25, D-36, D-44, D-49.
 **Handover note**: The sources disagree on letters: wf02 says "S switch · P park · A archive", deep/11 §4.1 says r / h / s / e, and AJ-E1005 made A run the row's action. This task follows §4.1 and keeps A; say if you want wf02's letters instead. Plain-letter keys must stay on Home's list only and never fire in a field (`matches`, `ui/src/lib/shortcuts.ts:214-224`).
 
+### AJ-E2911 Report a bug: what goes, shown first, from Help, Settings and every failure | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1517
+**Goal**: When something goes wrong, telling the maintainer takes one click and carries what's needed to fix it, and nothing the user didn't see (D-75).
+**User story**: As someone whose switch just failed, I choose Report a bug, read exactly what the report says, and open a GitHub issue with it filled in, attaching the diagnostics zip if I want.
+**Requirements**:
+1. **Report a bug…** SHALL be reachable from Help › Report a bug…, Settings › About & updates (beside Export diagnostics) and every failure screen: a failed switch's step (where 0.3.9's Copy details is), a launch that failed, and an error toast's details.
+2. The report SHALL gather, in this order: what happened in the user's words (an empty field first), the failure the screen showed (its words and `ErrorWire::detail`, its stage and time), the app version and channel, the OS and its version, the last switch's stages with their timings and sizes (when there was one in the last hour), and the last 50 lines of the error log.
+3. Every part SHALL be scrubbed as Export diagnostics scrubs (home folder, user and account names, paths outside `~`, links, keys), then shown in full, as it will be sent, in one read-only preview. Never in it: message contents, transcripts, terminal output, credentials, account folders.
+4. Nothing SHALL leave the Mac without the user's click: **Open a GitHub issue** opens `github.com/figurehead-ai/AI-juggler/issues/new` in the browser with the title and the shown text filled in (cut to fit, saying so); **Copy** puts the same text on the clipboard; **Save diagnostics…** saves AJ-E1517's zip to attach. AI Juggler sends nothing itself.
+5. A part the user doesn't want SHALL be removable before sending (a checkbox per part, all on), and the preview SHALL update.
+**UI/UX reasoning**: serious choices explained (what goes, what never does, an example); Nielsen #9 (help users recognise and recover from errors) and #1 (visibility); progressive disclosure: the summary first, the full text a click away; WCAG 3.3.1. States: from Help (no failure), from a failed switch (its stages), a part removed, text cut to fit, offline (Copy and Save still work).
+**Performance budget**: the preview opens ≤ 300 ms with a 1 MB error log.
+**Quality gates**: the scrub corpus over the report text (`cargo test -p juggler-app diagnostics`); vitest for the sheet (parts, removal, cut-to-fit); the a11y and visual gates.
+**Evidence/validation proof**: a report from a failed switch on the replica, its text and the opened URL's length; `docs/qa/evidence/AJ-E2911/manifest.md`.
+**Visual testing**: the sheet from Help and from a failed switch, light and dark, 1024 and 1280.
+**Files to touch**: `crates/juggler-app/src/features/app/diagnostics/` (a `report` module), `crates/juggler-app/src/quit.rs` (Help menu), `ui/src/components/ReportBugSheet.tsx` (new), `ui/src/components/switch/FailedStep.tsx`, `ui/src/screens/settings/GeneralPane.tsx`.
+**Research basis**: the maintainer, 2026-11-04 (D-75); 0.3.9's Copy details; AJ-E1517; SPEC §8 Data.
+**Handover note**: —
+
+### AJ-E2912 Debug mode: a detailed local log of switches and launches | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2911
+**Goal**: A hard bug can be caught the second time it happens: with debug mode on, every step of a switch or launch is written down locally, never its contents (D-75).
+**User story**: As someone whose switch fails now and then, I turn on debug mode, carry on, and when it fails again the report has every step, size and timing.
+**Requirements**:
+1. Settings › Advanced › Diagnostics SHALL hold **Debug mode** (off), with what it keeps and its size in words, **Clear the debug log** (one click, with Undo-free confirmation in place: "Cleared"), and **Show the log** (the scrubbed text, read-only).
+2. While on, AI Juggler SHALL log each switch's and launch's steps: the step, its start and duration, sizes and counts (files, bytes, turns), the adapter's own errors and exit codes, and the decisions taken (fidelity, cut, fallbacks). Never message contents, prompts, file contents, credentials or environment values; paths as `~`-relative and scrubbed.
+3. The log SHALL be bounded: two files of at most 8 MB each, the older dropped; it SHALL stop by itself after 7 days on (saying so in Settings and in a notice), and SHALL be part of Report a bug and Export diagnostics while it has lines.
+4. Off, nothing extra SHALL be written, and turning it off SHALL keep the log until it's cleared.
+5. A test SHALL hold that no logged line carries a message's text (a switch of a fixture conversation with marked text, its log scanned).
+**UI/UX reasoning**: progressive disclosure (under Advanced); serious choices explained (what's kept, where, for how long); privacy by default.
+**Performance budget**: a logged step costs ≤ 50 µs; off costs nothing measurable.
+**Quality gates**: the no-contents test; the bound test (writing 20 MB keeps ≤ 16 MB); the scrub corpus over the log.
+**Evidence/validation proof**: a switch and a launch on the replica with debug mode on, the log's lines; `docs/qa/evidence/AJ-E2912/manifest.md`.
+**Visual testing**: the Diagnostics section on and off, light and dark.
+**Files to touch**: `crates/juggler-app/src/features/app/diagnostics/` (a `debug_log` module), the switch and launch paths, `ui/src/screens/settings/AdvancedPane.tsx`.
+**Research basis**: the maintainer, 2026-11-04 (D-75); AJ-E2013 (tracing with redaction) is the long-term home of the log's writer.
+**Handover note**: —
+
 ## Rulings (2026-10-30)
 
 Design calls, made by the goal (the best daily experience, usable and

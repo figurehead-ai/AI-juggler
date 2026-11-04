@@ -590,6 +590,26 @@ must cost the same as the first.
 **Research basis**: decision-log D-04 (`decision-log.md:39-48`); pass2/02 §10 (lines 512-540); deep/09 §H8-H9 (lines 281-315), D4; `docs/SPEC.md:434-442` testing strategy.
 **Handover note**: D-04 means do not block the beta on this gate — block only the *label graduation*. Trap: pass 2 ran no live dogfood and proved no Codex/ZCode binary behaviour (pass2/00 §6); every such claim here starts unproven. If a vendor format changes weekly, add a version-tagged fixture — never loosen an assertion to make CI green.
 
+### AJ-E211 Leave out part of a very large conversation when switching (advanced) | Status: TODO | Priority P1 | Effort L | Depends: AJ-E210
+**Goal**: A very large conversation can be switched without carrying all of it, when the user asks; by default everything still travels (D-76).
+**User story**: As someone with a months-long session of several GB, I open the switch's advanced options, keep only the last 400 turns, see it will carry 180 MB instead of 7.8 GB and what the new session won't know, and switch.
+**Requirements**:
+1. The switch's advanced options (closed by default) SHALL offer **Everything** (the default), **Leave out turns before** a date, or **Keep only the last N turns**.
+2. Each choice SHALL show the size it would carry and the disk it would use beside the free space (0.3.9's size line), recomputed as the choice changes.
+3. It SHALL say plainly what the new session won't know: the tasks, decisions and file history from before the cut, with the cut's date and how many turns go.
+4. The cut SHALL land on a turn boundary the target can resume from: for Claude, at a user turn, with the kept lines' `parentUuid` chain valid from its new root (the first kept line's parent cleared), tool uses and their results never split, and at a compaction boundary when one lies within 10% of the asked point. Codex's rollout is cut at a turn boundary its resume accepts.
+5. The cut SHALL be validated with the real tools: a cut conversation resumes in Claude Code and Codex and answers a question about a kept turn (the lab profiles, the throwaway lab folder).
+6. The fidelity label SHALL drop as a compaction drops it, and the handover notes SHALL record the cut (date, turns left out, sizes). Switch back SHALL never re-add what was left out.
+7. Without the advanced option, a switch SHALL be byte-for-byte what it is today (a test compares).
+**UI/UX reasoning**: progressive disclosure (the default carries everything; the cut is under advanced options); serious choices explained (what's lost, with an example and the guide's link); honest labels (D-04).
+**Performance budget**: the size for a choice ≤ 200 ms on a 7.8 GB conversation (an index of turn offsets read once); the cut streams, ≤ 100 MB of memory.
+**Quality gates**: chain-validity tests over the fixture corpus (compacted, subagent-heavy, malformed tail); the byte-identical default test; the live resume in the lab.
+**Evidence/validation proof**: the lab's cut-and-resume runs for Claude Code and Codex; `docs/qa/evidence/AJ-E211/manifest.md`.
+**Visual testing**: the advanced options with each choice, the size line, the warning; light and dark, 1024 and 1280.
+**Files to touch**: `crates/juggler-handover/` (the cut plan), `crates/juggler-adapters/src/claude_transcript.rs`, the Codex rollout reader, `crates/juggler-adapter/src/handover.rs` (sizes), `ui/src/components/switch/`.
+**Research basis**: the maintainer, 2026-11-04 (D-76); 0.3.9's any-size switch and size line (`ensure_room`, `DISK_RESERVE`); D-04 (fidelity labels).
+**Handover note**: builds on 0.3.9's size line, which is on release/0.3.9 until it merges into release/0.4.
+
 ---
 ---
 ---

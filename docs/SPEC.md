@@ -502,6 +502,14 @@ ceiling is the matrix, not the label.
    the source Instance always remains resumable (transplants copy,
    never move or destroy).
 
+**Leaving out the start (D-76, AJ-E211).** By default a switch carries the
+whole conversation, at any size. Under its advanced options the user may
+leave out turns before a date or keep only the last N turns; each choice
+shows the size it carries beside the free space and says what the new
+session won't know. The cut lands on a turn boundary the target resumes
+from (a compaction boundary when one is near), the fidelity label drops
+as a compaction drops it, and switch back never re-adds what was left out.
+
 ### 7.3 The hybrid door (D-03)
 
 - **One click, with an undo window** — when the pair is same-Provider
@@ -548,6 +556,7 @@ session → any managed Provider) unchanged (T4).
 - **Supply chain:** lockfile-audited deps, `cargo deny`, minimal JS in the webview (no remote content, CSP locked to self).
 - **Updates:** Tauri updater, minisign-style signatures, verification cannot be disabled; OS notarization/signing from v0.1 (Apple Developer + Azure Trusted Signing, individual tier — budgeted).
 - **Data:** everything local; "export diagnostics" redacts paths/tokens by default.
+- **Reporting a bug (D-75):** Report a bug… (Help, Settings › About & updates, every failure screen) shows the whole scrubbed report before anything leaves; the user opens a filled-in GitHub issue, copies it or saves the diagnostics zip. AI Juggler sends nothing itself. **Debug mode** (Settings › Advanced › Diagnostics, off) keeps a bounded local log of switch and launch steps, sizes and timings, never contents; it turns itself off after 7 days and clears in one click.
 
 ## 9. App & UX — Inspector-primary, indicators, Cleanup Centre (D-06/D-07)
 

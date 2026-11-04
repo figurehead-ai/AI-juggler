@@ -20,6 +20,7 @@
 | AJ-E208 | Pack redaction policy — global default plus per-Provider override (D-14) | E2-switching-engine.md | P0 | M | AJ-E202 |
 | AJ-E209 | Beta fidelity badges, explainable ranking, and Switch Graph UI | E2-switching-engine.md | P0 | L | AJ-E203, AJ-E206, AJ-E207 |
 | AJ-E210 | Fixture + live validation matrix per Provider pair and beta-exit gate (D-04) | E2-switching-engine.md | P0 | XL | AJ-E204, AJ-E205, AJ-E207, AJ-E209 |
+| AJ-E211 | Leave out part of a very large conversation when switching (advanced) | E2-switching-engine.md | P1 | L | AJ-E210 |
 | AJ-E301 | Parameterise the wizard by Provider and add the Step-0 install gate | E3-smart-onboarding.md | P0 | M | none |
 | AJ-E302 | Widen the scan engine: aliases, cc-switch, installed CLIs, projects, desktop | E3-smart-onboarding.md | P0 | L | AJ-E301 |
 | AJ-E303 | Found / Likely / Guessed inference with inline confidence display | E3-smart-onboarding.md | P0 | M | AJ-E302 |
@@ -347,6 +348,8 @@
 | AJ-E2908 | An ended session's page: Resume, Archive, Replay and Copy ID | E29-trust-and-the-finished-basics.md | P1 | M | — |
 | AJ-E2909 | A keyboard-operable rail splitter | E29-trust-and-the-finished-basics.md | P0 | S | — |
 | AJ-E2910 | Home: filter chips, the r / h / s / e keys, and Mark all finished as reviewed | E29-trust-and-the-finished-basics.md | P1 | M | AJ-E2801 |
+| AJ-E2911 | Report a bug: what goes, shown first, from Help, Settings and every failure | E29-trust-and-the-finished-basics.md | P0 | M | AJ-E1517 |
+| AJ-E2912 | Debug mode: a detailed local log of switches and launches | E29-trust-and-the-finished-basics.md | P0 | M | AJ-E2911 |
 | AJ-E3001 | Pools from real use: research, the model and a proposal for review | E30-pools-redesign.md | P0 | L | — |
 | AJ-E3002 | Labs: talk enforced per session, Claude's own channel, OpenCode and Grok tools per launch | E30-pools-redesign.md | P0 | M | AJ-E3001 |
 | AJ-E3003 | The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | E30-pools-redesign.md | P0 | L | AJ-E3202, AJ-E3002 |
@@ -397,5 +400,5 @@
 | AJ-E3512 | The Floor list in the main window: the same facts, accessible | E35-the-floor.md | P0 | M | AJ-E3505, AJ-E3510, AJ-E3511 |
 | AJ-E3513 | The Floor's gates: a gallery of golden frames, budgets and the other systems | E35-the-floor.md | P0 | M | AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512 |
 | AJ-E3514 | Walked by hand: persona walks on the release build | E35-the-floor.md | P0 | S | AJ-E3513 |
-Total: 395 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 398 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

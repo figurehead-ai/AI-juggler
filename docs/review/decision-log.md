@@ -2469,3 +2469,41 @@ route dropped in D-66.
 AJ-E1608 go ahead for 0.5 as written. The same day: "Also don't forget
 about ZCode": ZCode (AJ-E1605, SPEC §4.3) stays first among 0.5's new
 tools, its Stage-1 research re-verified before it's built.
+
+### D-75 Report a bug and a debug mode come in 0.4 — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04, after 0.3.8's switch failure: "We
+should also have a way to report bugs, and maybe offer some debugging info
+or something." and "We should have a debug mode too".
+
+- **Report a bug…** (AJ-E2911) from Help, Settings › About & updates and
+  every failure screen. It gathers the version, the system, the failure's
+  words and detail, the last switch's stages and timings and recent error
+  lines, scrubbed as Export diagnostics is, and shows all of it before
+  anything goes. AI Juggler sends nothing itself: the user opens a filled-in
+  GitHub issue, copies the text or saves the diagnostics zip. Never message
+  contents, paths with real names or credentials.
+- **Debug mode** (AJ-E2912) in Settings › Advanced › Diagnostics, off by
+  default: a detailed local log of switches and launches (steps, sizes,
+  timings, the adapters' errors), never contents, bounded (2 × 8 MB), off
+  by itself after 7 days, cleared in one click, part of a report while it
+  has lines.
+- Evidence: this entry; E29's AJ-E2911 and AJ-E2912.
+
+### D-76 A switch can leave out the start of a very large conversation, as an advanced option — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "maybe even offer certain date or
+turns they don't want transfered as advanced settings, the default
+transfers everything, but these advance settings can definitely come
+helpful for very large sessions".
+
+- The default carries everything, as 0.3.9 does at any size.
+- Under the switch's advanced options: leave out turns before a date, or
+  keep only the last N turns, each with the size it would carry beside the
+  free space, and in plain words what the new session won't know.
+- The cut lands on a turn boundary the target resumes from (Claude: a
+  valid `parentUuid` chain, tool uses never split, a compaction boundary
+  preferred), validated with the real tools; the fidelity label drops as
+  a compaction drops it, and switch back never re-adds what was left out.
+- Evidence: this entry; E2's AJ-E211.
+

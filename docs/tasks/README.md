@@ -12,7 +12,7 @@
 1. [AGENT-HANDOVER.md](../internal/AGENT-HANDOVER.md) — state snapshot, invariants,
    claiming protocol, compaction-recovery steps.
 2. [../review/decision-log.md](../review/decision-log.md) — settled
-   decisions D-01..D-74. Do not re-litigate them; supersede only via a
+   decisions D-01..D-76. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
 4. The epic file for the task you claim (E1-E35 below).
@@ -24,7 +24,7 @@
 | File | Epic | Tasks |
 |---|---|---|
 | [E1-terminology-and-naming.md](E1-terminology-and-naming.md) | Providers/Accounts/Instances rename | AJ-E101-E108 |
-| [E2-switching-engine.md](E2-switching-engine.md) | Switch Graph, pack, fidelity, switch-back | AJ-E201-E210 |
+| [E2-switching-engine.md](E2-switching-engine.md) | Switch Graph, pack, fidelity, switch-back | AJ-E201-E211 |
 | [E3-smart-onboarding.md](E3-smart-onboarding.md) | Smart scan, inference, six flows | AJ-E301-E309 |
 | [E4-indicators-and-inspector.md](E4-indicators-and-inspector.md) | Indicator row, Right Inspector, signals | AJ-E401-E415 |
 | [E5-process-ownership-and-cleanup.md](E5-process-ownership-and-cleanup.md) | Spawn ledger, zombies, Cleanup Centre | AJ-E501-E512 |
@@ -51,7 +51,7 @@
 | [E26-windows-release.md](E26-windows-release.md) | AI Juggler for Windows: a dedicated first release, then every release (D-52) | AJ-E2601-E2616 |
 | [E27-linux-release.md](E27-linux-release.md) | AI Juggler for Linux: a dedicated first release, then every release (D-52) | AJ-E2701-E2715 |
 | [E28-finding-your-way.md](E28-finding-your-way.md) | Finding your way: projects, pools, tasks and subagents (D-54..D-57) | AJ-E2801-E2814 |
-| [E29-trust-and-the-finished-basics.md](E29-trust-and-the-finished-basics.md) | Trust and the finished basics: what the spec promised for the daily loop (0.4, D-59) | AJ-E2901-E2910 |
+| [E29-trust-and-the-finished-basics.md](E29-trust-and-the-finished-basics.md) | Trust and the finished basics: what the spec promised for the daily loop (0.4, D-59) | AJ-E2901-E2912 |
 | [E30-pools-redesign.md](E30-pools-redesign.md) | Pools, redesigned from how people work (0.4, D-61) | AJ-E3001-E3009 |
 | [E31-everything-links.md](E31-everything-links.md) | Everything links to everything: each page leads to what's related (0.4, D-61) | AJ-E3101-E3106 |
 | [E32-account-and-app.md](E32-account-and-app.md) | Account and App: one word per thing, stored, each with its page; New session redesigned (0.4, D-62) | AJ-E3201-E3209 |
