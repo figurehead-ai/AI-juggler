@@ -1044,7 +1044,7 @@ fn codexs_final_answer_is_its_own_block_and_marked() {
         serde_json::json!({"timestamp": AT, "type": "response_item", "payload": {"type": "message", "role": "assistant", "phase": phase, "content": [{"type": "output_text", "text": words}]}})
             .to_string()
     };
-    let lines = vec![
+    let lines = [
         serde_json::json!({"timestamp": AT, "type": "turn_context", "payload": {"model": "gpt-5"}}).to_string(),
         serde_json::json!({"timestamp": AT, "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Fix the refunds"}]}}).to_string(),
         message("commentary", "Looking at the handler first."),
