@@ -65,6 +65,10 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 sha2 = "0.11"
 tar = "0.4"
+# AJ-E2912: the switch and launch steps, as events; one layer keeps them
+# (in memory; on disk only in debug mode). AJ-E2013 builds on it.
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.20", default-features = false, features = ["registry", "std"] }
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 # AJ-E2501: the menu-bar item (Tauri's tray, the same API on every desktop).
 # ADR-0026: pinned exactly; `unstable` gives the Floor its native window

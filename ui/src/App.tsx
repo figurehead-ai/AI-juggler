@@ -91,6 +91,7 @@ import {
   type SwitchBackSuggestionData, type LaunchRecipeInfo, type AccountInfo, type AppInfo, type ProjectInfo, type InstanceInfo,
 } from "./lib/bridge";
 import { PoolSheetHost } from "./components/PoolSheetHost";
+import { ReportBugHost } from "./components/ReportBugSheet";
 
 /**
  * App shell (ADR-0007, design iteration 5): a workflow navigator rail
@@ -1073,6 +1074,7 @@ export default function App() {
       {shortcutsOpen && <ShortcutSheet fleet={pairedCount > 0} onClose={() => setShortcutsOpen(false)} />}
       <QuitSheet />
       <PoolSheetHost sessions={railSessions} projects={projects} />
+      <ReportBugHost />
       {newSheet.open && (
         <NewSessionModal
           projects={shownProjects}

@@ -61,7 +61,6 @@ const diagnosticsSeams = () =>
     __AIJ_DIAGNOSTICS__?: DiagnosticsPreviewInfo;
     __AIJ_DIAGNOSTICS_DEST__?: string | null;
     __AIJ_DIAGNOSTICS_SAVED__?: { id: string; dest: string };
-    __AIJ_BUG_FORM_OPENED__?: number;
   };
 
 const SAMPLE_DIAGNOSTICS: DiagnosticsPreviewInfo = {
@@ -121,13 +120,4 @@ export async function appUserGet(): Promise<AppUserInfo> {
 export async function appHelpOpen(): Promise<void> {
   if (!hasLiveBackend()) return;
   return invoke<void>("app_help_open");
-}
-
-export async function appReportBugOpen(): Promise<void> {
-  if (!hasLiveBackend()) {
-    const seams = diagnosticsSeams();
-    seams.__AIJ_BUG_FORM_OPENED__ = (seams.__AIJ_BUG_FORM_OPENED__ ?? 0) + 1;
-    return;
-  }
-  return invoke<void>("app_report_bug_open");
 }

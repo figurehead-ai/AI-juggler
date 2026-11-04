@@ -6,6 +6,8 @@
 //! secret. Never in it: transcripts, terminal output, credentials, the
 //! Account folders, or settings that hold tokens, addresses or paths.
 
+pub mod debug_log;
+pub mod report;
 pub mod zip;
 
 use std::path::{Path, PathBuf};
@@ -104,6 +106,16 @@ const LOGS: &[(&str, &str, &str)] = &[
         crate::error_log::RELATIVE,
         "logs/errors.log",
         "What went wrong behind the messages you saw",
+    ),
+    (
+        debug_log::OLDER,
+        "logs/debug.1.log",
+        "Debug mode's older steps of switches and launches",
+    ),
+    (
+        debug_log::RELATIVE,
+        "logs/debug.log",
+        "Debug mode's steps of switches and launches",
     ),
     ("last-run", "logs/last-run", "How the last run ended"),
     (
@@ -428,24 +440,105 @@ pub async fn app_diagnostics_export(
     .await
 }
 
-/// Where a bug is reported: the repository's bug form.
-pub const REPORT_BUG_URL: &str =
-    "https://github.com/figurehead-ai/AI-juggler/issues/new?template=bug_report.yml";
-
-/// Opens the bug form in the browser.
+/// AJ-E2911: a bug report's parts, scrubbed, to look over first.
 ///
 /// # Errors
 ///
-/// When the system can't open the link.
+/// As [`report::preview`].
 #[tauri::command]
-pub async fn app_report_bug_open(app: tauri::AppHandle) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
-    app.opener()
-        .open_url(REPORT_BUG_URL, None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "bug report page",
-            message: e.to_string(),
-        })
+pub async fn app_bug_report_preview(
+    state: tauri::State<'_, Arc<AppState>>,
+    context: Option<report::BugContextArgs>,
+) -> AppResult<report::BugReportInfo> {
+    let context = context.unwrap_or_default();
+    crate::ipc::blocking(state.inner(), "report", move |state| {
+        report::preview(state, &context)
+    })
+    .await
+}
+
+/// What a bug report sends, with the user's words and the parts they kept.
+///
+/// # Errors
+///
+/// As [`report::compose`].
+#[tauri::command]
+pub async fn app_bug_report_compose(
+    id: String,
+    title: String,
+    words: String,
+    keep: Vec<String>,
+) -> AppResult<report::BugComposedInfo> {
+    report::compose(&id, &title, &words, &keep)
+}
+
+/// Opens the bug form in the browser, filled in with what the user saw.
+///
+/// # Errors
+///
+/// As [`report::open_issue`].
+#[tauri::command]
+pub async fn app_bug_report_open(
+    app: tauri::AppHandle,
+    id: String,
+    title: String,
+    words: String,
+    keep: Vec<String>,
+) -> AppResult<()> {
+    report::open_issue(&app, &id, &title, &words, &keep)
+}
+
+/// AJ-E2912: debug mode now.
+///
+/// # Errors
+///
+/// None (a command that borrows the state answers with a `Result`).
+#[tauri::command]
+pub async fn app_debug_mode_get(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<debug_log::DebugModeInfo> {
+    Ok(debug_log::info(&state.data_dir))
+}
+
+/// Turns debug mode on (for seven days) or off.
+///
+/// # Errors
+///
+/// Storage errors.
+#[tauri::command]
+pub async fn app_debug_mode_set(
+    state: tauri::State<'_, Arc<AppState>>,
+    on: bool,
+) -> AppResult<debug_log::DebugModeInfo> {
+    {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        debug_log::set(&storage, on)?;
+    }
+    Ok(debug_log::info(&state.data_dir))
+}
+
+/// Clears the debug log.
+///
+/// # Errors
+///
+/// When a file can't be removed.
+#[tauri::command]
+pub async fn app_debug_log_clear(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<debug_log::DebugModeInfo> {
+    debug_log::clear(&state.data_dir).map_err(|e| io("debug log", &e))?;
+    Ok(debug_log::info(&state.data_dir))
+}
+
+/// The debug log's newest lines, scrubbed, to read.
+///
+/// # Errors
+///
+/// None (a command that borrows the state answers with a `Result`).
+#[tauri::command]
+pub async fn app_debug_log_show(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
+    let text = debug_log::text(&state.data_dir, LOG_TAIL);
+    Ok(Scrub::here().text(&text))
 }
 
 #[cfg(test)]

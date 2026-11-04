@@ -59,7 +59,7 @@ fn append(path: &Path, code: &str, detail: &str) -> std::io::Result<()> {
 
 /// The line with every key or password it holds replaced (the same
 /// detectors a switch's handover uses).
-fn without_keys(line: &str) -> String {
+pub(crate) fn without_keys(line: &str) -> String {
     let (clean, _) = juggler_handover::redaction::strip_segments(
         &[line.to_owned()],
         true,

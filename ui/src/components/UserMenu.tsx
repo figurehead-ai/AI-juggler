@@ -6,7 +6,7 @@
  * before), the screens that left the header's More (This Mac, Processes;
  * My Macs only with a Figurehead account — the maintainer's ruling,
  * 2026-10-27, D-49), Privacy, Appearance inline, keyboard shortcuts,
- * help, Report a problem…, and About and updates with the version and
+ * help, Report a bug…, and About and updates with the version and
  * channel. The menu rule (AJ-E2106): icons on every line, three groups,
  * getting there first, the one destructive line last.
  */
@@ -17,7 +17,8 @@ import { IconBroom, IconComputer } from "./icons-actions";
 import { IconAppearance, IconCloud, IconConnect, IconGear, IconHelp, IconKeyboard, IconLeave, IconUpdate, IconAsk } from "./icons-menu";
 import { channelLabel, shownChannel } from "./ChannelChip";
 import { cloudBackupStatus, fetchAppInfo, figureheadStatus, fleetPeers, updateStatus, type FigureheadStatusInfo } from "../lib/bridge";
-import { appHelpOpen, appReportBugOpen, appUserGet } from "../lib/ipc/app";
+import { appHelpOpen, appUserGet } from "../lib/ipc/app";
+import { openReportBug } from "../lib/report-bug";
 import { agoWords } from "../lib/time-words";
 import { GLOBAL_NAV } from "../lib/nav";
 import { setTheme, storedTheme, THEME_EVENT, type ThemeChoice } from "../theme";
@@ -190,8 +191,8 @@ export function UserMenu(): JSX.Element {
           <MenuItem onClick={run(() => void appHelpOpen())}>
             <Line icon={IconHelp} label="Help and guides" />
           </MenuItem>
-          <MenuItem onClick={run(() => void appReportBugOpen())}>
-            <Line icon={IconAsk} label="Report a problem…" />
+          <MenuItem onClick={run(() => openReportBug())} testId="user-menu-report-bug">
+            <Line icon={IconAsk} label="Report a bug…" />
           </MenuItem>
           <MenuItem onClick={run(() => settings("updates"))} testId="user-menu-about">
             <Line icon={IconUpdate} label="About and updates" hint={[facts.version, facts.channel ? channelLabel(facts.channel) : null].filter(Boolean).join(" · ") || undefined} />

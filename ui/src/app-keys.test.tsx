@@ -63,7 +63,9 @@ describe("AJ-E1504 the ? sheet", () => {
     expect(new Set(SHORTCUTS.map((entry) => entry.id)).size).toBe(SHORTCUTS.length);
     for (const area of SHORTCUT_AREAS) expect(SHORTCUTS.some((entry) => entry.area === area)).toBe(true);
     const unmatched = SHORTCUTS.filter((entry) => !("match" in entry)).map((entry) => entry.id);
-    expect(unmatched.sort()).toEqual(["close", "go-to", "home-open", "leave-terminal", "row-menu", "row-open"]);
+    // ⌘⇧M (the Floor) is the menu bar's own accelerator, so it works from
+    // the Floor's window too.
+    expect(unmatched.sort()).toEqual(["close", "floor", "go-to", "home-open", "leave-terminal", "row-menu", "row-open"]);
   });
 
   // The anti-drift rule: App and Home test keys only through the

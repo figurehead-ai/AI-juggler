@@ -78,6 +78,7 @@ pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
         "the native terminal windows, window-only",
     ),
     ("preview://frame", "screen frames"),
+    ("app://report-bug", "a menu item of the app's own window"),
     ("preview://state", "the window preview, window-only"),
     ("fleet://switch-progress", "the progress of a write"),
     ("backup://progress", "the progress of a write"),

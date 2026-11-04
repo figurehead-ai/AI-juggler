@@ -30,6 +30,8 @@ unbounded accounts_list  # bounded: one row per account, tool, launch setting or
 unbounded agent_bridge_answer  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded agent_bridge_get  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded agent_bridge_set  # bounded: the projects and profiles the user switched the agent tools off for
+unbounded app_bug_report_compose  # bounded: the bug form's seven fields at most
+unbounded app_bug_report_preview  # bounded: a report's five parts at most
 unbounded alerts_tick  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_diagnostics_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded app_prepare_uninstall  # bounded: a fixed set (settings, checks, choices or tools)

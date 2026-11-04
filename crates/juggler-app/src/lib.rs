@@ -592,7 +592,15 @@ macro_rules! app_commands {
             // AJ-E1517: reads the logs (scrubbed): never over the bridge.
             Write features::app::diagnostics::app_diagnostics_preview,
             Write features::app::diagnostics::app_diagnostics_export,
-            Write features::app::diagnostics::app_report_bug_open,
+            // AJ-E2911/E2912: a bug report and debug mode read the logs
+            // (scrubbed) and open a browser: never over the bridge.
+            Write features::app::diagnostics::app_bug_report_preview,
+            Write features::app::diagnostics::app_bug_report_compose,
+            Write features::app::diagnostics::app_bug_report_open,
+            Write features::app::diagnostics::app_debug_mode_get,
+            Write features::app::diagnostics::app_debug_mode_set,
+            Write features::app::diagnostics::app_debug_log_clear,
+            Write features::app::diagnostics::app_debug_log_show,
             // AJ-E1511: reads a folder the user picked; starts a session.
             Write features::packs::packs_open_preview,
             Write features::packs::packs_open_start,
@@ -740,6 +748,10 @@ pub fn run() {
     // AJ-E1107: keep a scrubbed crash report if the user allows it.
     crash::install(&app_state);
     error_log::install(&data_dir);
+    // AJ-E2912: the flow steps' layer (in memory; on disk in debug mode).
+    if let Ok(storage) = app_state.storage.lock() {
+        features::app::diagnostics::debug_log::install(&data_dir, &storage);
+    }
     // AJ-E1516: a crash outside Rust last time, from macOS's own report;
     // and, in a build given the service's address, sending what the user
     // chose to send.
@@ -844,6 +856,11 @@ pub fn run() {
             }
             if event.id() == features::floor::window::MENU_ID {
                 features::floor::window::toggle(app);
+            }
+            if event.id() == quit::REPORT_MENU_ID {
+                use tauri::Emitter as _;
+                crate::main_window::bring_forward(app);
+                let _ = app.emit_to("main", quit::EVENT_REPORT_BUG, ());
             }
         })
         .on_window_event(|window, event| {

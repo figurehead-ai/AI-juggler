@@ -1,27 +1,30 @@
 /**
- * AJ-E1517 vitest — Settings › Report a problem: the bug form opens; the
+ * AJ-E1517 vitest — Settings › Report a problem: Report a bug opens its sheet; the
  * diagnostics are shown file by file with what's left out named before
  * anything is saved; cancelling (or the save sheet) saves nothing; saving
  * saves the preview shown and says where.
  */
-import { act, cleanup, fireEvent, render, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DiagnosticsCard } from "./DiagnosticsCard";
+import { closeReportBug, useReportBug } from "../lib/report-bug";
 
 const w = () => window as unknown as Record<string, unknown>;
 
 afterEach(cleanup);
 beforeEach(() => {
-  for (const key of ["__AIJ_DIAGNOSTICS__", "__AIJ_DIAGNOSTICS_DEST__", "__AIJ_DIAGNOSTICS_SAVED__", "__AIJ_BUG_FORM_OPENED__"]) delete w()[key];
+  for (const key of ["__AIJ_DIAGNOSTICS__", "__AIJ_DIAGNOSTICS_DEST__", "__AIJ_DIAGNOSTICS_SAVED__"]) delete w()[key];
+  closeReportBug();
 });
 
 describe("AJ-E1517 — Report a problem", () => {
-  it("opens the bug form", async () => {
+  it("opens Report a bug", async () => {
+    const asked = renderHook(() => useReportBug());
     const { getByTestId } = render(<DiagnosticsCard />);
     await act(async () => {
-      fireEvent.click(getByTestId("report-bug"));
+      fireEvent.click(getByTestId("report-bug-open"));
     });
-    expect(w().__AIJ_BUG_FORM_OPENED__).toBe(1);
+    expect(asked.result.current?.from).toBe("help");
   });
 
   it("shows every file and what's left out before anything is saved", async () => {
