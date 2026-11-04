@@ -56,11 +56,12 @@ proof on real accounts of what has so far been proven with fakes.
 | Settings that fit your hands | Search across Settings; shortcuts you can rebind, with a conflict check and reset | E29 |
 | A first run that shows its confidence | Found, Likely and Guessed, with where each guess came from; Rescan at any time | E29 |
 | Safe edges | Resume, Archive, Replay and Copy ID on an ended session; a keyboard-operable rail splitter; Home's filter chips and keys. (Deleting launch settings without losing their sessions ships earlier, in 0.3.1, D-60.) | E29 |
-| Account and App | One word per thing, and an Apps section beside Accounts (2026-11-01): an Account is a subscription, an App is an app or one of its profiles, several Apps share one Account. Both stored and named, each with its own page; every name on screen opens its page; Claude app profiles shown even when closed. Approved (D-62) | E32: AJ-E3201…AJ-E3206, AJ-E3208 |
+| Account and App | One word per thing, and an Apps section beside Accounts (2026-11-01), and Restart for a running app after a confirm (D-71): an Account is a subscription, an App is an app or one of its profiles, several Apps share one Account. Both stored and named, each with its own page; every name on screen opens its page; Claude app profiles shown even when closed. Approved (D-62) | E32: AJ-E3201…AJ-E3206, AJ-E3208, AJ-E3209 |
 | New session, redesigned | It opens with your usual folder and App chosen and said in one sentence; ⌘↩ starts it; changing either is one step away; rare options folded (D-62) | AJ-E3207 |
 | Everything links to everything | Every page (project, session, App, Account, pool, Mac, Tool) leads to everything related, both ways, with counts; one list and one row everywhere; lists open on what needs you and what's active, with search and filters; every picker shows what fits where you are, then All. Approved (D-62) | E31: AJ-E3102…AJ-E3105 |
 | Pools, redesigned from how people work | A pool covers every project or the ones you pick; members are a session, an App (its new sessions join by themselves), an Account, a Tool, a Mac or everyone; a session can be in several pools; Lead, Member, Reviewer and Observer; who may talk to whom; sealed pools; other apps' sessions shown as Watched with Continue in AI Juggler; a wizard with nine templates beside a canvas that teaches; today's pools moved with nothing lost. Approved (D-62) | E30: AJ-E3002…AJ-E3009 |
 | The Floor | The whole company as a live office in its own native window: every App an area with its tool's look and logo, every session a desk, subagents beside them, Accounts' usage and This Mac in the lobby; every visual a signal; turn, tilt and zoom (D-67; moved into 0.4 by D-68; ADR-0026, SPEC §9.7) | E35: AJ-E3501…AJ-E3514 |
+| A task's session starts from a pointer | The first prompt names the task and the session reads the brief through the task tool; nothing private in the process list (D-72) | AJ-E1907 |
 | Validated by real use | Every option combination that changes behaviour run against an independent reference; every real use case (writer and reviewer, feature team, across repositories, a reviewer for everything, rules by account, a build Mac, a sealed client, scouts, the upgrade, and the Account, App, links and New session journeys) walked by hand in the app, timed and scored; all of it again on the release candidate ([the plan](../qa/0.4-validation-plan.md)); and personas walking their day from first run, as newcomers, each step scored on whether it worked, gave value, was clear and felt good, so 0.4 is ready to announce | E33: AJ-E3301…AJ-E3307 |
 | Proven on real tools | Codex on real accounts; the runtime lab on real tools; the switching-fidelity matrix; Fleet on two Macs | AJ-E1305, AJ-E2301, AJ-E808, AJ-E710 |
 | An honest picture | The shipped work of E21, E23, E24, E25 and E28 evidenced and its statuses brought up to date; the README's roadmap matches this page | E21, E23, E24, E25, E28 |
@@ -134,10 +135,6 @@ macOS, Windows and Linux.
 
 | Decision | Holds up |
 |---|---|
-| Publishing the Claude Code plugin for pool tasks (D-43 point 6). Not the reply route D-66 dropped: this one gives a session the pool's tasks | AJ-E1905 |
-| How a task reaches its session: the whole brief as the first prompt (as built, D-44) or a short pointer to it (the labs' advice). Asked 2026-10-26, never ruled | A task's Start (E19) |
-| Restart for a running app or profile (quit it and start it again). D-64 point 3 recorded "no Restart" without a ruling; 0.3.8 restarts only one that lost its window | AJ-E3208 |
-| Which Hermes (Nous Research's Hermes Agent, or Hermes IDE) and which Muse (Meta's `muse` CLI) | AJ-E1607, AJ-E1608 |
 | Kimi Code's usage source | AJ-E1603 |
 | Windows: packaging, signing, scope | AJ-E2601, then 0.6 |
 | Linux: formats, repository, support matrix | AJ-E2701, then 0.7 |

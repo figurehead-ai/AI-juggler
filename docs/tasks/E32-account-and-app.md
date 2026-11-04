@@ -156,7 +156,7 @@
 1. The Accounts screen SHALL have two sections, Accounts and Apps (or tabs, if the screen reads better so), each counted.
 2. Each App row SHALL show its icon and mark, its whole name, its Account, whether it runs, and Start (closed) or Open (running); Keep alive in its menu.
 3. Apps SHALL include desktop apps' profiles never opened since AI Juggler was installed (AJ-E3203), shown as found.
-4. A Restart for a running App comes only if the maintainer rules for it (ROADMAP's Decisions owed); 0.3.8's restart of an App that lost its window shows here too.
+4. Restart for a running App (D-71, AJ-E3209) and 0.3.8's restart of one that lost its window show here too.
 **UI/UX reasoning**: desktop-first navigation: what is open, where, one click to it; recognition over recall.
 **Performance budget**: the screen paints from cache at once; ≤ 150 ms to a page.
 **Quality gates**: the counts equal their lists; every App reachable; walked by hand (A-scenarios).
@@ -164,4 +164,21 @@
 **Visual testing**: both themes, 1024 and 1280.
 **Files to touch**: `ui/src/screens/accounts/`, `ui/src/lib/apps.ts`.
 **Research basis**: the review's Accounts wireframes; `docs/research/relations-map.md`.
+**Handover note**: —
+
+### AJ-E3209 Restart a running app or profile, after a confirm | Status: TODO (D-71, 2026-11-04) | Priority P0 | Effort S | Depends: AJ-E3208
+**Goal**: A stuck or misbehaving app is one confirmed click from a fresh start.
+**User story**: Claude app · Work Max is slow; I pick Restart in its menu, read "Restart Claude app · Work Max? 2 sessions are working in it.", confirm, and it comes back on the same profile.
+**Requirements**:
+1. Restart SHALL be in the app's rail menu, on its page, and in the Accounts screen's Apps section.
+2. It SHALL ask first, naming what is working in that app; nothing happens without the confirm.
+3. It SHALL quit the app gracefully, wait for it to end (naming it if it stays), then start it again with the same profile and folder, through 0.3.8's restart path; it never starts a second copy beside a running one.
+4. Keep alive SHALL treat a restart as intended (no crash count).
+**UI/UX reasoning**: consequential action, named consequence, one confirm.
+**Performance budget**: the confirm opens at once; the app back within its normal start time.
+**Quality gates**: the restart path's tests (0.3.8's seams); a walk in the lab with a throwaway profile.
+**Evidence/validation proof**: a lab profile restarted from each entry point.
+**Visual testing**: the confirm in both themes.
+**Files to touch**: `crates/juggler-app/src/features/places/`, `ui/src/components/` (the app menu), `ui/src/pages/app/`.
+**Research basis**: 0.3.8's lost-window restart.
 **Handover note**: —

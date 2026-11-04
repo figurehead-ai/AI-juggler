@@ -2426,3 +2426,46 @@ pools across Macs after 0.4 (AJ-E1701, AJ-E1705), in 0.5. Recorded on
 amended it.
 
 **Amends.** D-32 (its release).
+
+### D-71 A running app or profile can be restarted, after a confirm — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04, asked "Should a running app or
+profile also get Restart (quit it, then start it again) in its menu and
+on its page? It stops anything working in that app, so it would ask
+first.": "Yes, with a confirm".
+
+**What it means.** Restart sits in an app's or profile's menu, on its
+page and in the Accounts screen's Apps section (AJ-E3208). It asks first,
+naming what is still working in that app, then quits it gracefully and
+starts it again with the same profile and folder (0.3.8's path). Ships
+in 0.4 (AJ-E3209).
+
+**Amends.** D-64 point 3.
+
+### D-72 A task's session starts from a short pointer, not the whole brief — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04, choosing between the whole brief
+as the first prompt (as built) and the labs' short pointer: "Short
+pointer". The first prompt names the task ("Work on task 12: read it with
+the task tool"); the session reads the brief through the task tool.
+Nothing private shows in the process list, and a long brief is never cut.
+Ships in 0.4 (AJ-E1907).
+
+**Amends.** D-43 point 4, D-44 point 4.
+
+### D-73 The Claude Code plugin for pool tasks is published with 0.5 — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "Publish it with 0.5". AJ-E1905
+ships beside the app's releases from 0.5, documented as optional; it
+works only while AI Juggler runs and says so otherwise. Not the reply
+route dropped in D-66.
+
+**Settles.** D-43 point 6.
+
+### D-74 Hermes means Nous Research's Hermes Agent; Muse means Meta's `muse` CLI — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04, asked which tools were meant:
+"Hermes Agent (Nous Research)" and "Muse CLI (Meta)". AJ-E1607 and
+AJ-E1608 go ahead for 0.5 as written. The same day: "Also don't forget
+about ZCode": ZCode (AJ-E1605, SPEC §4.3) stays first among 0.5's new
+tools, its Stage-1 research re-verified before it's built.
