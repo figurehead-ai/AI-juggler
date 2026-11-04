@@ -27,7 +27,8 @@ import { useRelationCounts } from "../../lib/relation-counts";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
 import { useToolInstall } from "../../lib/useToolInstall";
-import { toolRunning } from "../ItemHeader";
+import { toolOpen } from "../ItemHeader";
+import { openWords } from "../../lib/project-summary";
 import { AppProjects, rowOf } from "../app/AppOverview";
 import { AccountAppRows } from "../subscription/AccountApps";
 import type { PageTabId } from "../registry";
@@ -136,7 +137,7 @@ function ToolOverview({ tool, accounts, sessions }: ToolProps): JSX.Element {
   const toolAccounts = accounts.filter((a) => a.provider === tool.id);
   const toolSessions = sessions.filter((s) => s.provider === tool.id);
   // One count everywhere: its sessions running now, outside ones too (AJ-E1529).
-  const running = toolRunning(tool.id, sessions, conversations);
+  const now = toolOpen(tool.id, sessions, conversations);
   const perAccount = toolAccounts
     .map((account) => {
       const display = quota.find((q) => q.account === account.id);
@@ -147,12 +148,12 @@ function ToolOverview({ tool, accounts, sessions }: ToolProps): JSX.Element {
   return (
     <div className="flex flex-col gap-3" data-testid="provider-overview">
       <Card className="flex flex-col gap-2 p-4">
-        {/* The header's word for it: working (one word for one count). */}
+        {/* The header's words for it, a project's (one count, one word). */}
         <p className="text-meta">
           <span className="text-ink">
             {toolAccounts.length} app{toolAccounts.length === 1 ? "" : "s"}
           </span>
-          <span className="text-muted"> · {running} working</span>
+          <span className="text-muted"> · {openWords(now)}</span>
         </p>
         {/* Shown once known; nothing in its place until then (D-25). */}
         {install !== null && (

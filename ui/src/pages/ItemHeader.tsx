@@ -10,6 +10,7 @@ import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
 import { STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
+import { openWords, type ProjectOpen } from "../lib/project-summary";
 import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
@@ -319,10 +320,17 @@ export function toolRunning(toolId: string, sessions: InstanceInfo[], conversati
   );
 }
 
-/** A tool's facts: how many of its sessions run now. */
+/** A tool's sessions now, as a project's are counted: open (AI
+ * Juggler's and other apps'), and working (one asking you or stuck is
+ * open, not working; the 0.4 review). */
+export function toolOpen(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): ProjectOpen {
+  const mine = sessions.filter((s) => s.provider === toolId && isActiveStatus(s.status));
+  return { open: toolRunning(toolId, sessions, conversations), working: mine.filter((s) => s.status === "running").length, apps: 0 };
+}
+
+/** A tool's facts in the project's words: "2 working · 5 open". */
 function toolFacts(toolId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): string {
-  const running = toolRunning(toolId, sessions, conversations);
-  return running === 0 ? "Nothing working" : `${running} working`;
+  return openWords(toolOpen(toolId, sessions, conversations));
 }
 
 
