@@ -170,10 +170,11 @@ fn a_driven_session_is_exact_and_answered_only_by_the_user() {
         .get(&SessionId::new(session.as_str()))
         .unwrap();
     assert_eq!(stored.attention.as_ref().unwrap().rule, "tool_asks");
-    assert_eq!(
-        row(&state, &session).runtime.unwrap().state.as_deref(),
-        Some("asks_you")
-    );
+    // The runtime's own state follows the status a moment later on a busy
+    // runner (CI, 2026-11-04: "working" read once): it gets there.
+    wait_for("its runtime asks you", || {
+        row(&state, &session).runtime.and_then(|info| info.state).as_deref() == Some("asks_you")
+    });
 
     // Only an offered option is carried; then the turn carries on.
     assert!(runtime::answer_impl(&state, &session, &asks[0].id, choose("yes-to-all")).is_err());
