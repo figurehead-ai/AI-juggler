@@ -21,6 +21,10 @@ import type { RailPlace } from "../lib/rail-items";
 
 /** A place's header: the fold chevron; app, profile, count (its page);
  * Open. Folded, it reads "Work · 4 idle". */
+/** An App's own name past this many characters leaves no room for its
+ * app's word beside it (the icon still says it). */
+const LONG_PROFILE = 14;
+
 export function PlaceHeader({
   place,
   label,
@@ -105,7 +109,8 @@ export function PlaceHeader({
                 <ProfileBadge app={place.key} name={place.profile} size={6} />
                 <span className="truncate">{place.profile}</span>
               </span>
-              <span className="min-w-0 shrink truncate text-label text-muted">{label}</span>
+              {/* A long own name keeps the line: the icon says the app. */}
+              {place.profile.length <= LONG_PROFILE && <span className="min-w-0 shrink truncate text-label text-muted">{label}</span>}
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>

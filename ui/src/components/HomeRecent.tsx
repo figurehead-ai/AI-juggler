@@ -97,8 +97,8 @@ export function HomeRecent({
                   >
                     {/* A narrow column (Home's beside Runway) keeps its mark;
                         a wide one says it too (the 0.4 review). */}
-                    <IconCheck width={13} height={13} aria-hidden="true" className="@[26rem]:hidden" />
-                    <span className="sr-only @[26rem]:not-sr-only">Mark reviewed</span>
+                    <IconCheck width={13} height={13} aria-hidden="true" className="@[36rem]:hidden" />
+                    <span className="sr-only @[36rem]:not-sr-only">Mark reviewed</span>
                     <span className="sr-only"> — {title}</span>
                   </button>
                 }

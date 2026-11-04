@@ -145,8 +145,8 @@ export function PlaceLine({ item, when, app, project }: { item: RailItem; when: 
           {name !== null && sep}
           <span className="flex min-w-0 items-center gap-1">
             <ProfileBadge app={item.place.key} name={item.place.profile ?? item.accountLabel} size={7} />
-            <span className="truncate @[26rem]:hidden">{item.place.profile ?? item.accountLabel ?? words}</span>
-            <span className="hidden truncate @[26rem]:inline">{words}</span>
+            <span className="truncate @[36rem]:hidden">{item.place.profile ?? item.accountLabel ?? words}</span>
+            <span className="hidden truncate @[36rem]:inline">{words}</span>
           </span>
           {when && name === null && sep}
         </span>

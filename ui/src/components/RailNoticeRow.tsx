@@ -27,7 +27,7 @@ export function RailNoticeRow({ notice, now, onOpen }: { notice: NoticeInfo; now
       data-testid="rail-notice"
       data-kind={notice.kind}
       onClick={() => onOpen(notice)}
-      title={long && line ? `${notice.title} — ${line}` : undefined}
+      title={line ? `${notice.title} — ${line}` : undefined}
       className="flex h-[62px] w-full min-w-0 items-start gap-2.5 rounded-lg pb-2.5 pl-2 pr-2 pt-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
     >
       <span className="sr-only">{[notice.title, line, action].filter(Boolean).join(", ")}</span>

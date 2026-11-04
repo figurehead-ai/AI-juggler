@@ -107,7 +107,16 @@ export function Toast({ entry }: { entry: ToastEntry }): JSX.Element {
         {phase === "counting" && (
           <>
             <div className="min-w-0 flex-1">
-              <p className="text-body font-medium text-ink">{options.message}</p>
+              {/* Lines break between its " · " parts, never inside a name
+                  ("Claude / Code", the 0.4 review). */}
+              <p className="text-pretty text-body font-medium text-ink">
+                {options.message.split(" · ").map((part, index) => (
+                  <span key={index}>
+                    {index > 0 && " · "}
+                    <span className="whitespace-nowrap">{part}</span>
+                  </span>
+                ))}
+              </p>
               {options.detail && <p className="text-meta text-ink-2">{options.detail}</p>}
             </div>
             {options.undo && (
