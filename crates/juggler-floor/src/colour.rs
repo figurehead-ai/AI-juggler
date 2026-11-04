@@ -44,9 +44,87 @@ pub fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
     [channel(0), channel(1), channel(2), a[3]]
 }
 
+/// `c` with alpha `a`.
+#[must_use]
+pub const fn alpha(c: Rgba, a: u8) -> Rgba {
+    [c[0], c[1], c[2], a]
+}
+
+/// `c` with each channel scaled (a light's tint), capped at 255.
+#[must_use]
+pub fn tint(c: Rgba, k: [f32; 3]) -> Rgba {
+    let channel = |i: usize| (f32::from(c[i]) * k[i]).clamp(0.0, 255.0) as u8;
+    [channel(0), channel(1), channel(2), c[3]]
+}
+
+/// `(hue°, saturation, lightness)` of `c`.
+#[allow(clippy::float_cmp)] // exact: `high` is one of the three.
+fn to_hsl(c: Rgba) -> (f32, f32, f32) {
+    let (r, g, b) = (
+        f32::from(c[0]) / 255.0,
+        f32::from(c[1]) / 255.0,
+        f32::from(c[2]) / 255.0,
+    );
+    let (high, low) = (r.max(g).max(b), r.min(g).min(b));
+    let l = f32::midpoint(high, low);
+    if high == low {
+        return (0.0, 0.0, l);
+    }
+    let d = high - low;
+    let s = if l > 0.5 {
+        d / (2.0 - high - low)
+    } else {
+        d / (high + low)
+    };
+    let h = if high == r {
+        (g - b) / d + if g < b { 6.0 } else { 0.0 }
+    } else if high == g {
+        (b - r) / d + 2.0
+    } else {
+        (r - g) / d + 4.0
+    };
+    (h * 60.0, s, l)
+}
+
+/// An HSL colour, opaque.
+#[must_use]
+pub fn hsl(h: f32, s: f32, l: f32) -> Rgba {
+    let h = h.rem_euclid(360.0);
+    let a = s * l.min(1.0 - l);
+    let f = |n: f32| {
+        let k = (n + h / 30.0) % 12.0;
+        l - a * (k - 3.0).min(9.0 - k).clamp(-1.0, 1.0)
+    };
+    let byte = |v: f32| (v * 255.0).round().clamp(0.0, 255.0) as u8;
+    [byte(f(0.0)), byte(f(8.0)), byte(f(4.0)), 255]
+}
+
+/// A step along a hue-shifted ramp from `c`: darker steps lean cool
+/// (towards blue-violet) and lose a little saturation, lighter ones lean
+/// warm (towards yellow). `t` runs from -1 (darkest) to +1 (lightest).
+#[must_use]
+pub fn ramp(c: Rgba, t: f32) -> Rgba {
+    let (h, s, l) = to_hsl(c);
+    let target = if t < 0.0 { 245.0 } else { 55.0 };
+    let mut dh = target - h;
+    if dh > 180.0 {
+        dh -= 360.0;
+    }
+    if dh < -180.0 {
+        dh += 360.0;
+    }
+    let shift = dh.clamp(-22.0, 22.0) * t.abs() * if s < 0.08 { 0.3 } else { 1.0 };
+    let nl = if t < 0.0 {
+        l * (1.0 + t * 0.62)
+    } else {
+        l + (1.0 - l) * t * 0.55
+    };
+    let ns = (s * (1.0 - t.abs() * 0.18)).clamp(0.0, 1.0);
+    alpha(hsl(h + shift, ns, nl.clamp(0.0, 1.0)), c[3])
+}
+
 /// An OKLCH colour as sRGB (gamut-clipped).
 #[must_use]
-#[allow(clippy::many_single_char_names)] // OKLab's own names.
 pub fn oklch(l: f32, c: f32, h_deg: f32) -> Rgba {
     let h = h_deg.to_radians();
     let (a, b) = (c * h.cos(), c * h.sin());
@@ -94,6 +172,18 @@ mod tests {
             MARK_COLOURS.as_slice(),
             "mark-hues.ts and colour.rs differ"
         );
+    }
+
+    #[test]
+    fn a_ramp_darkens_cool_and_lightens_warm() {
+        use super::{hsl, ramp};
+        let base = hex("#8a6a4a");
+        let (dark, light) = (ramp(base, -0.6), ramp(base, 0.6));
+        let sum = |c: [u8; 4]| u32::from(c[0]) + u32::from(c[1]) + u32::from(c[2]);
+        assert!(sum(dark) < sum(base) && sum(light) > sum(base));
+        assert!(dark[2] > dark[0] / 2, "darker leans blue");
+        assert_eq!(ramp(base, 0.0)[3], 255);
+        assert_eq!(hsl(0.0, 1.0, 0.5), [255, 0, 0, 255]);
     }
 
     #[test]

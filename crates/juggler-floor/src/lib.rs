@@ -8,23 +8,32 @@
 //! - [`colour`] and [`rng`]: colours (the app's mark colours among them)
 //!   and the seeded randomness every choice comes from, so the same seed
 //!   always gives the same office.
+//! - [`state`] and [`snapshot`]: a session's state as the rail says it,
+//!   and the company at one moment, as the backend feeds it.
+//! - [`math`], [`mesh`] and [`paint`]: the matrices, the low-poly shapes
+//!   and the pixel painting the scene is built from.
 //!
 //! It runs on every OS and in Linux CI; the renderer
 //! (`juggler-floor-render`) and the window's events
 //! (`juggler-window-events`) sit beside it.
 
 // Geometry on small, bounded numbers (metres, pixels, a few hundred
-// desks): the casts between them can't lose anything that matters.
+// desks): the casts between them can't lose anything that matters. And
+// geometry and pixels have their own short names (x, y, w, h, a, b, c).
 #![allow(
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
+    clippy::cast_sign_loss,
+    clippy::many_single_char_names
 )]
 
 pub mod colour;
 pub mod family;
 pub mod kit;
 pub mod layout;
+pub mod math;
+pub mod mesh;
+pub mod paint;
 pub mod rng;
 pub mod snapshot;
 pub mod state;
