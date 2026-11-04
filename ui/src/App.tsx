@@ -25,6 +25,7 @@ import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { GoToPalette, paletteSelection } from "./components/GoToPalette";
 import { routeOpen, useOutsideRequests } from "./lib/outside";
+import { useFloorLogos } from "./lib/floor-logos";
 import { GLOBAL_NAV, PRIMARY_NAV, focusPageIfLost, focusPageSoon, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
 import { SkipLink } from "./components/SkipLink";
 import { RailHeader } from "./components/RailHeader";
@@ -542,6 +543,7 @@ export default function App() {
   });
 
   // AJ-E414, AJ-E1510: the go-to hotkey, and a clicked notification.
+  useFloorLogos(); // AJ-E3508: the Floor's logos, drawn once each (only after the Floor opens)
   useOutsideRequests({ hotkey: setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => routeOpen(open, { remote: inspectRemote, session: selectSession, centre: () => setCentreOpen(true), page: setGlobal, app: (id) => (setGlobal(null), setSelection({ kind: "app", id })), conversation: (accountId, id) => (setGlobal(null), setSelection({ kind: "conversation", accountId, id, projectId: null })), pool: (id) => (setGlobal(null), setSelection({ kind: "pool", id })) }) });
 
   // E14: This Mac — one subscription for Home, the rail and the header.

@@ -138,6 +138,8 @@ pub struct Inputs {
     pub machine: FloorMachine,
     /// Unread notifications.
     pub notices: u32,
+    /// The print of each App's kept floor logo.
+    pub logos: BTreeMap<String, String>,
 }
 
 fn needs_word(attention: NeedsAttention) -> &'static str {
@@ -310,6 +312,8 @@ pub fn assemble(inputs: &Inputs, now: i64, hot: &mut BTreeMap<String, i64>) -> F
             id: app.id.clone(),
             name: app_name(app, inputs),
             tool: app.tool.clone(),
+            host_app: app.host_app_id.clone(),
+            logo: inputs.logos.get(&app.id).cloned(),
             kind,
             family: family.unwrap_or_else(|| "neutral".to_owned()),
             colour_slot: inputs.colour_slots.get(&app.id).copied().unwrap_or(0),
@@ -424,6 +428,8 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
     }
     read_machine(state, &mut inputs);
     inputs.notices = crate::features::notifications::views::summary_now(state).unread;
+    let ids: Vec<&str> = inputs.apps.iter().map(|a| a.id.as_str()).collect();
+    inputs.logos = super::logos::prints(&state.cache.data_dir().join(super::logos::DIR), &ids);
     Ok(inputs)
 }
 

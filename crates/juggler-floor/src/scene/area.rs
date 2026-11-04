@@ -18,7 +18,7 @@ use crate::mesh::Mesh;
 use crate::models::{
     self, B, Growth, Item, Look, Skin, chair, desk, desk_props, long_table, plant,
 };
-use crate::paint::text_width;
+use crate::paint::{Img, text_width};
 use crate::rng::{Rng, hash};
 use crate::snapshot::{FloorApp, FloorSession};
 use crate::state::FloorState;
@@ -45,6 +45,7 @@ struct Area<'a> {
     dim: f32,
     level: u8,
     id: u32,
+    logo: Option<&'a Img>,
 }
 
 impl Scene {
@@ -96,6 +97,7 @@ impl Scene {
             dim: dimming(level),
             level,
             id,
+            logo: inputs.logos.get(&placed.id),
         };
         area_floor(out, atlas, &area)?;
         area_edges(out, atlas, &area)?;
@@ -752,10 +754,13 @@ fn area_floor(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
         );
     }
     if a.placed.annex == 0 {
-        let logo = atlas.add(
-            &format!("logo:{}", a.app.id),
-            &tex::logo_img(&mark_letters(&a.app.name), &a.app.initials, a.kit.accent),
-        )?;
+        let logo = match a.logo {
+            Some(drawn) => atlas.add(&format!("logo:{}", a.app.id), &drawn.scaled(128, 128))?,
+            None => atlas.add(
+                &format!("logo:{}", a.app.id),
+                &tex::logo_img(&mark_letters(&a.app.name), &a.app.initials, a.kit.accent),
+            )?,
+        };
         let side = (rect.w().min(rect.d()) * 0.62).min(6.5);
         let lz = if a.placed.size == Size::L && a.placed.row == 0 {
             rect.z0 + ROW_D * 0.5

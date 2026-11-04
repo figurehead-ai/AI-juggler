@@ -25,7 +25,7 @@ function seat(key: string, title: string, state: FloorState, ago: number, extra:
 
 function area(id: string, name: string, tool: string, family: string, slot: number, sessions: FloorSession[], extra: Partial<FloorApp> = {}): FloorApp {
   return {
-    id, name, tool, kind: id.startsWith("app:") ? "desktop" : "cli", family, colour_slot: slot, account_id: "acct:work", initials: "WM",
+    id, name, tool, host_app: null, logo: null, kind: id.startsWith("app:") ? "desktop" : "cli", family, colour_slot: slot, account_id: "acct:work", initials: "WM",
     open: sessions.some((s) => s.state !== "ended"), last_active_ms: Math.max(0, ...sessions.map((s) => s.last_ms)) || NOW - 3 * 24 * 60 * MIN, cpu_pct: 12, hot_since_ms: null, sessions, ...extra,
   };
 }

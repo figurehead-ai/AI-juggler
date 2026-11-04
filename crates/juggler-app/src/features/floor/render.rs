@@ -147,6 +147,7 @@ impl World {
             })
             .collect();
         let machine = machine_word();
+        let logos = logos_of(state, snapshot);
         Scene::build(scene::Inputs {
             snapshot,
             office,
@@ -154,9 +155,29 @@ impl World {
             decay: settings.decay,
             machine: &machine,
             now_ms: now,
+            logos: &logos,
         })
         .ok()
     }
+}
+
+/// The floor logos the window drew, for the Apps that have one.
+fn logos_of(
+    state: &AppState,
+    snapshot: &FloorSnapshot,
+) -> BTreeMap<String, juggler_floor::paint::Img> {
+    let dir = state.cache.data_dir().join(super::logos::DIR);
+    let gate = state.cache.gate();
+    snapshot
+        .apps
+        .iter()
+        .filter_map(|a| {
+            Some((
+                a.id.clone(),
+                super::logos::read(&dir, &gate, &a.id, a.logo.as_deref()?)?,
+            ))
+        })
+        .collect()
 }
 
 /// Reads picks from the last frame for the driver.

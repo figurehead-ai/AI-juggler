@@ -617,6 +617,9 @@ pub fn register_defaults(state: &Arc<AppState>) {
     state
         .cache
         .register(crate::features::relations::cache::local_cache(state));
+    state
+        .cache
+        .register(crate::features::floor::logos::local_cache(&state.data_dir));
 }
 
 /// A [`folder::FolderCache`]'s `current` that reads the app's state, or

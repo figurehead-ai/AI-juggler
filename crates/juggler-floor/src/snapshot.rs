@@ -62,6 +62,10 @@ pub struct FloorApp {
     pub name: String,
     /// Its tool, for its mark (drawn by the UI; never branched on).
     pub tool: String,
+    /// A desktop App's host app (the registry's id), for its own icon.
+    pub host_app: Option<String>,
+    /// The print of its floor logo kept now (AJ-E3508), when one is.
+    pub logo: Option<String>,
     /// How it's used.
     pub kind: FloorAppKind,
     /// Its tool's style family, by word.

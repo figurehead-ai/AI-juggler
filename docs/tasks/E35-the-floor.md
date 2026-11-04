@@ -238,7 +238,7 @@
 **Research basis**: the spike's `render.rs` (passes, `pick`, `Cam`, `pan`, `zoom_at`).
 **Handover note**: `juggler-floor-render`: four passes (shadow; the scene at the pixel size with a pick id per pixel, then glass; post; overlay), picking one pixel of the id buffer, offscreen capture. The camera (`camera.rs`) and the overlay (`overlay.rs`) are pure and tested. An offscreen test draws a real office and picks a sitter's session. Left: golden frames (AJ-E3513).
 
-### AJ-E3508 The floor logo: the tool's mark and the Account's initials | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3507
+### AJ-E3508 The floor logo: the tool's mark and the Account's initials | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3507
 **Goal**: Every area's floor carries its tool's logo and its Account's initials, so an area is known from across the building.
 **User story**: As someone with Codex and Claude Code on two Accounts each, I find "Codex, Max · work" by the logo in its floor before I can read any sign.
 **Requirements**:
@@ -264,7 +264,7 @@
 **Visual testing**: every family with its logo, from the default angle and from the building view.
 **Files to touch**: `ui/src/lib/floor-logos.ts` (new), `ui/src/components/ToolMark.tsx` (export a draw-to-canvas helper), `crates/juggler-app/src/features/floor/logos.rs` (new), `crates/juggler-app/src/features/cache/` (registration), `crates/juggler-floor/src/scene/`.
 **Research basis**: the maintainer's words (Source); the spike's `logo_img` and `initials`.
-**Handover note**: —
+**Handover note**: The window draws each logo (`ui/src/lib/floor-logos.ts`: a desktop App's own icon, else the tool's allowed mark as `ToolMark` draws it, else the tool's name in letters; the Account's initials, else the App's own; a ring of the App's colour) at 256 px, once, keyed by a print (FNV-1a, the backend's `hash`), only after the Floor has opened; `floor_logo_put` keeps it in the registered "Floor logos" cache (`features/floor/logos.rs`, one file per App, the old print removed). The scene prints it at 35% into the floor (scaled to 128 px in the atlas); without one, its own letters. Tests: prints, fallbacks, keep and replace. Left: captures of every family with its logo (AJ-E3513).
 
 ### AJ-E3509 Signals from real data: every row of the table | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3505, AJ-E3507
 **Goal**: Everything SPEC §9.7's signal table lists is drawn from the snapshot, with its limits.

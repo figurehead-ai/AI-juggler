@@ -19,6 +19,14 @@ name: string,
  */
 tool: string, 
 /**
+ * A desktop App's host app (the registry's id), for its own icon.
+ */
+host_app: string | null, 
+/**
+ * The print of its floor logo kept now (AJ-E3508), when one is.
+ */
+logo: string | null, 
+/**
  * How it's used.
  */
 kind: FloorAppKind, 

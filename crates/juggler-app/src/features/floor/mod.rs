@@ -10,6 +10,7 @@
 
 pub mod commands;
 pub mod feed;
+pub mod logos;
 pub mod render;
 pub mod store;
 pub mod window;
@@ -120,6 +121,12 @@ pub fn current(state: &Arc<AppState>) -> AppResult<Arc<FloorSnapshot>> {
         Some(snapshot) => Ok(snapshot),
         None => rebuild(state),
     }
+}
+
+/// Marks the snapshot stale: the next pass rebuilds it (a change the
+/// events don't carry, such as a logo the window drew).
+pub fn mark_stale(state: &AppState) {
+    state.floor.stale.store(true, Ordering::Release);
 }
 
 /// The same company, whenever each was built.

@@ -71,3 +71,9 @@ export function onFloorUnavailable(on: (words: string) => void): () => void {
     stop?.();
   };
 }
+
+/** Hands the backend a floor logo the window drew for an App (AJ-E3508). */
+export async function floorLogoPut(appId: string, print: string, png: Uint8Array): Promise<void> {
+  if (!hasLiveBackend()) return;
+  return invoke<void>("floor_logo_put", { appId, print, png: Array.from(png) });
+}

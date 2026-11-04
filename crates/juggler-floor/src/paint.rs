@@ -170,6 +170,39 @@ impl Img {
         }
     }
 
+    /// The image box-filtered down to `w` × `h` (a logo for the atlas).
+    #[must_use]
+    pub fn scaled(&self, w: i32, h: i32) -> Self {
+        let mut out = Self::new(w, h);
+        let (sx, sy) = (self.w as f32 / w as f32, self.h as f32 / h as f32);
+        for y in 0..out.h {
+            for x in 0..out.w {
+                let (x0, y0) = ((x as f32 * sx) as i32, (y as f32 * sy) as i32);
+                let (x1, y1) = (
+                    (((x + 1) as f32 * sx) as i32).max(x0 + 1),
+                    (((y + 1) as f32 * sy) as i32).max(y0 + 1),
+                );
+                let mut sum = [0u32; 4];
+                let mut n = 0u32;
+                for yy in y0..y1 {
+                    for xx in x0..x1 {
+                        let p = self.get(xx, yy);
+                        for (s, v) in sum.iter_mut().zip(p) {
+                            *s += u32::from(v);
+                        }
+                        n += 1;
+                    }
+                }
+                if let Some(i) = out.at(x, y) {
+                    for (k, s) in sum.iter().enumerate() {
+                        out.px[i + k] = (s / n.max(1)) as u8;
+                    }
+                }
+            }
+        }
+        out
+    }
+
     /// The image mirrored left to right.
     #[must_use]
     pub fn mirrored(&self) -> Self {

@@ -38,6 +38,8 @@ fn app(id: &str, family: &str, sessions: Vec<FloorSession>) -> FloorApp {
         id: id.into(),
         name: format!("Tool {id} · Work"),
         tool: "tool".into(),
+        host_app: None,
+        logo: None,
         kind: if id.starts_with("app:") {
             FloorAppKind::Desktop
         } else {
@@ -111,6 +113,7 @@ fn build(snap: &FloorSnapshot) -> Scene {
         decay: true,
         machine: "This computer",
         now_ms: NOW,
+        logos: &BTreeMap::new(),
     })
     .expect("it fits")
 }
@@ -259,6 +262,7 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
         decay: true,
         machine: "This computer",
         now_ms: NOW,
+        logos: &BTreeMap::new(),
     })
     .expect("the atlas holds a big office");
     let took = started.elapsed();

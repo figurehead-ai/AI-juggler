@@ -43,6 +43,8 @@ fn snapshot() -> FloorSnapshot {
         id: "cli:a".into(),
         name: "Tool · Work".into(),
         tool: "tool".into(),
+        host_app: None,
+        logo: None,
         kind: FloorAppKind::Cli,
         family: "workshop".into(),
         colour_slot: 0,
@@ -107,6 +109,7 @@ fn scene(snap: &FloorSnapshot) -> Scene {
         decay: true,
         machine: "This computer",
         now_ms: NOW,
+        logos: &BTreeMap::new(),
     })
     .unwrap()
 }

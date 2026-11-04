@@ -203,6 +203,9 @@ pub struct Inputs<'a> {
     pub machine: &'a str,
     /// Now, epoch ms.
     pub now_ms: i64,
+    /// Each App's floor logo the main window drew (AJ-E3508); without
+    /// one, the Floor writes the letters itself.
+    pub logos: &'a BTreeMap<String, Img>,
 }
 
 /// How unused an App is: 0 open, 1 under a week, 2 over a week, 3 over a

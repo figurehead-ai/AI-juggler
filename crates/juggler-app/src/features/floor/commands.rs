@@ -36,3 +36,23 @@ pub async fn floor_open(app: tauri::AppHandle) -> AppResult<()> {
         .await
         .map_err(|e| crate::error::AppError::Refused(format!("The Floor couldn't open: {e}.")))?
 }
+
+/// Keeps a floor logo the window drew for an App (AJ-E3508): `print`
+/// says what it was drawn from, `png` is the picture.
+///
+/// # Errors
+///
+/// [`crate::error::AppError::Refused`] for something that isn't a logo;
+/// an I/O error when it can't be kept.
+#[tauri::command]
+pub async fn floor_logo_put(
+    state: tauri::State<'_, Arc<AppState>>,
+    app_id: String,
+    print: String,
+    png: Vec<u8>,
+) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "the Floor's logo", move |state| {
+        super::logos::put_impl(state, &app_id, &print, &png)
+    })
+    .await
+}
