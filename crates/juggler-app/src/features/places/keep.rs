@@ -11,6 +11,11 @@
 //! limits as a session's restart (AJ-E1509): [`TRIES`] starts in
 //! [`WINDOW_MS`], then keep alive pauses and says why. A Stop from AI
 //! Juggler pauses it too, until the next Open.
+//!
+//! 0.3.8: an app that runs on but lost its window when macOS restarted
+//! its display counts as down too, under the same limits; it's quit and
+//! started again (`places::restart`), never started beside itself, and
+//! never while a session in it is still working.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -147,6 +152,23 @@ impl Watch {
         self.quiet_until_ms = 0;
     }
 
+    /// 0.3.8: `id` is being restarted at `now_ms` (it lost its window): it
+    /// counts as coming up, so keep alive starts nothing of its own while
+    /// the old process quits and the new one shows up. Its old process
+    /// stays known until it's seen gone.
+    pub fn restarting(&mut self, id: &str, now_ms: i64) {
+        self.started_at.insert(id.to_owned(), now_ms);
+    }
+
+    /// Whether `id` was started at most [`STARTING_MS`] before `now_ms`
+    /// and hasn't shown up yet.
+    #[must_use]
+    pub fn coming_up(&self, id: &str, now_ms: i64) -> bool {
+        self.started_at
+            .get(id)
+            .is_some_and(|at| now_ms.saturating_sub(*at) < STARTING_MS)
+    }
+
     /// Forgets a place (keep alive off, or the place forgotten), and its
     /// tries: turning it on again starts the count again.
     pub fn drop_place(&mut self, id: &str) {
@@ -168,10 +190,7 @@ impl Watch {
                 continue;
             }
             let gone = *self.gone_at.entry(place.id.clone()).or_insert(now_ms);
-            let starting = self
-                .started_at
-                .get(&place.id)
-                .is_some_and(|at| now_ms.saturating_sub(*at) < STARTING_MS);
+            let starting = self.coming_up(&place.id, now_ms);
             if starting
                 || now_ms.saturating_sub(gone) < WAIT_MS
                 || now_ms < self.quiet_until_ms

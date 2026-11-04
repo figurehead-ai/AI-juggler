@@ -244,6 +244,10 @@ jobs:
   promote:
     name: promote to ${{ inputs.channel }}
     needs: [check, a11y]
+    # Explicit, not the default success(): when CI already scanned the
+    # tree, the a11y shards are skipped, and a skipped job anywhere above
+    # skips this one by default (0.3.7's first Promote moved nothing).
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.a11y.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

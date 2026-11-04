@@ -77,6 +77,7 @@ export function knownPlacesPreview(now: number): { places: KnownPlaceInfo[]; ses
     instance: null,
     profile: null,
     app_pid: null,
+    lost: false,
     keep_alive: false,
     paused: null,
     account_id: null,
@@ -104,6 +105,7 @@ export function knownPlacesPreview(now: number): { places: KnownPlaceInfo[]; ses
 export function foundProfilesPreview(now: number): { answer: string; folders: { app_id: string; folder: string }[]; beside: KnownPlaceInfo[] } {
   const found = (name: string): KnownPlaceInfo => ({
     id: `app:claude-app:/Users/you/Profiles/${name}`,
+    lost: false,
     app_id: "claude-app",
     app: "Claude",
     instance: name,

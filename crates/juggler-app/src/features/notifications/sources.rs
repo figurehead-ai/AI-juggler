@@ -767,8 +767,15 @@ pub fn finished(state: &Arc<AppState>, session_id: &str) {
 /// 0.3.3: an app or profile kept alive stopped and was started again
 /// (`attempt` of the tries keep alive allows): told once per start, under
 /// Earlier; its action opens Settings › Desktop apps, where keep alive is
-/// turned off.
-pub fn app_started_again(state: &Arc<AppState>, place_id: &str, label: &str, attempt: usize) {
+/// turned off. 0.3.8: `lost`, it ran on with no window after macOS
+/// restarted its display, and was quit and started again.
+pub fn app_started_again(
+    state: &Arc<AppState>,
+    place_id: &str,
+    label: &str,
+    attempt: usize,
+    lost: bool,
+) {
     let now = crate::commands::now_millis();
     let attempt = u32::try_from(attempt).unwrap_or(u32::MAX);
     let tries = u32::try_from(crate::features::sessions::restart::TRIES).unwrap_or(u32::MAX);
@@ -777,7 +784,11 @@ pub fn app_started_again(state: &Arc<AppState>, place_id: &str, label: &str, att
         &NewNotice {
             key: format!("app-started:{place_id}:{now}"),
             kind: "app-started".to_owned(),
-            title: format!("{label} stopped and was started again"),
+            title: if lost {
+                format!("{label} lost its window and was restarted")
+            } else {
+                format!("{label} stopped and was started again")
+            },
             detail: format!("Keep alive · try {attempt} of {tries} in 10 minutes"),
             data: centre::data_of(
                 &NoticeTarget {

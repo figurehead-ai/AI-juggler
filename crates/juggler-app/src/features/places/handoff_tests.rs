@@ -44,14 +44,19 @@ fn state_with_profile(root: &Path, account: Option<&str>) -> (Arc<AppState>, Str
 #[derive(Default)]
 struct Scripted {
     pid: Mutex<Option<u32>>,
+    /// 0.3.8: the running one lost its window.
+    lost: bool,
     started: Mutex<u32>,
     sent: Mutex<Vec<(u32, String)>>,
     records: Option<PathBuf>,
 }
 
 impl System for Scripted {
-    fn running(&self, _: &Arc<AppState>, _: &str) -> Option<u32> {
-        *self.pid.lock().unwrap()
+    fn running(&self, _: &Arc<AppState>, _: &str) -> Option<Running> {
+        self.pid.lock().unwrap().map(|pid| Running {
+            pid,
+            lost: self.lost,
+        })
     }
     fn start(&self, _: &Arc<AppState>, _: &KnownPlace) -> Result<(), String> {
         *self.started.lock().unwrap() += 1;
@@ -121,6 +126,28 @@ fn it_isnt_switched_until_the_profile_records_the_session() {
     };
     let error = hand_off(&state, &id, SESSION, &system, quick()).unwrap_err();
     assert!(error.contains("hasn't opened it yet"), "{error}");
+}
+
+/// 0.3.8: a profile that runs on with no window after macOS restarted its
+/// display takes no link, and nothing is started beside it: the switch
+/// says what happened and where the restart is.
+#[test]
+fn a_profile_that_lost_its_window_is_never_sent_the_session_or_started_beside() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, id, profile) = state_with_profile(root.path(), None);
+    let system = Scripted {
+        pid: Mutex::new(Some(42)),
+        lost: true,
+        records: Some(profile.join("claude-code-sessions")),
+        ..Scripted::default()
+    };
+    let error = hand_off(&state, &id, SESSION, &system, quick()).unwrap_err();
+    assert_eq!(
+        error,
+        "Claude · b-lab lost its window when the system restarted the display. Restart it from Home or Settings › Desktop apps, then switch again"
+    );
+    assert_eq!(*system.started.lock().unwrap(), 0, "never a second process");
+    assert!(system.sent.lock().unwrap().is_empty(), "no link to it");
 }
 
 #[test]

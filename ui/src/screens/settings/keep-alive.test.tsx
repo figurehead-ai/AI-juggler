@@ -13,6 +13,7 @@ import { HomeApps } from "../../components/HomeApps";
 import { placeFor, placeWords } from "../../lib/places";
 import { placesFind } from "../../lib/ipc/places";
 import type { KnownPlaceInfo } from "../../lib/ipc/places";
+import { resetToasts, toastEntries } from "../../components/Toast";
 
 const NOW = Date.UTC(2026, 9, 31, 12);
 
@@ -26,6 +27,7 @@ function place(over: Partial<KnownPlaceInfo>): KnownPlaceInfo {
     profile: "b-lab",
     label: "Claude · b-lab",
     app_pid: null,
+    lost: false,
     keep_alive: false,
     paused: null,
     account_id: null,
@@ -41,6 +43,7 @@ const seams = () => window as unknown as Seams;
 
 afterEach(() => {
   cleanup();
+  resetToasts();
   delete seams().__AIJ_PLACES__;
 });
 
@@ -51,6 +54,8 @@ describe("the words for a place", () => {
     expect(placeWords(place({}), NOW)).toBe("Not running · seen 2 h ago");
     expect(placeWords(place({ keep_alive: true }), NOW)).toBe("Not running · keep alive starts it");
     expect(placeWords(place({ keep_alive: true, paused: "it stopped 3 times in 10 minutes" }), NOW)).toBe("Keep alive paused: it stopped 3 times in 10 minutes");
+    // 0.3.8: running on with no window after macOS restarted its display.
+    expect(placeWords(place({ app_pid: 10, lost: true, keep_alive: true }), NOW)).toBe("Lost its window when the system restarted the display");
   });
 
   it("finds a running app's place by its process, never by a name", () => {
@@ -126,6 +131,33 @@ describe("Home: an app that isn't running", () => {
     const kept = screen.getByTestId("home-app-kept");
     expect(kept.textContent).toContain("Running · kept alive");
     expect(within(kept).getByRole("button", { name: "Open Claude app · b-lab" })).toBeTruthy();
+  });
+});
+
+describe("0.3.8: a profile that lost its window", () => {
+  it("says so, Open asks to restart it, and only Restart restarts it", async () => {
+    seams().__AIJ_PLACES__ = { places: [place({ app_pid: 10, lost: true })] };
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    const row = await screen.findByTestId("desktop-place-claude-app-b-lab");
+    expect(row.textContent).toContain("Lost its window when the system restarted the display");
+    fireEvent.click(within(row).getByTestId("desktop-place-open"));
+    await waitFor(() => expect(toastEntries()[0]?.options.testId).toBe("go-to-lost"));
+    const asked = toastEntries()[0]!.options;
+    expect(asked.message).toBe("Claude · b-lab lost its window when the system restarted the display. Restart it?");
+    expect(asked.tone).toBe("warning");
+    expect(asked.detail).toBe("Restarting stops anything still working in it.");
+    // Asking restarts nothing.
+    expect(seams().__AIJ_PLACES__!.places[0]!.app_pid).toBe(10);
+    expect(asked.action?.label).toBe("Restart");
+    asked.action!.run();
+    await waitFor(() => expect(toastEntries()[0]?.options.message).toBe("Restarting Claude · b-lab"));
+    expect(seams().__AIJ_PLACES__!.places[0]!.lost).toBe(false);
+    expect(seams().__AIJ_PLACES__!.places[0]!.app_pid).not.toBe(10);
+    await waitFor(() => expect(screen.getByTestId("desktop-place-claude-app-b-lab").textContent).toContain("Running"));
   });
 });
 

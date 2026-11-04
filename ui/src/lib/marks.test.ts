@@ -30,6 +30,7 @@ const folder = (id: string, label: string, over: Partial<AccountInfo> = {}): Acc
 
 const place = (id: string, instance: string, slot: number | null): KnownPlaceInfo => ({
   id,
+  lost: false,
   app_id: "claude-app",
   app: "Claude",
   instance,

@@ -479,3 +479,52 @@ fn no_pass_reads_a_copy_while_its_switch_runs() {
         "B's own conversation keeps its usage; the copy's history is A's"
     );
 }
+
+/// 0.3.8: the same conversation copied into C outside AI Juggler (a Dev
+/// build's switch, a folder copied by hand): no switch is recorded, so P19
+/// can't leave the copy's history out, and 0.3.7 counted it under both
+/// accounts. Each call counts once: the history under B, where it was
+/// spent, and C's own new turn under C, the rows 0.3.7 stored for C
+/// cleared by the one-time re-read.
+#[test]
+fn a_conversation_copied_outside_ai_juggler_counts_each_call_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(
+        AppState::init_with_registry(
+            dir.path().join("app-data"),
+            juggler_adapter::AdapterRegistry::new(),
+        )
+        .unwrap(),
+    );
+    let (b, c) = (dir.path().join("b"), dir.path().join("c"));
+    account(&state, "acc-b", &b);
+    account(&state, "acc-c", &c);
+    let history = [line("1", "conv", 0, 100), line("2", "conv", 1, 200)];
+    write(b.join("projects/lab/conv.jsonl"), &history);
+    let mut copy = history.to_vec();
+    copy.push(line("3", "conv", SWITCH_MIN + 1, 300));
+    write(c.join("projects/lab/conv.jsonl"), &copy);
+    let quiet = [line("q", "quiet", 0, 50)];
+    write(b.join("projects/lab/quiet.jsonl"), &quiet);
+    write(c.join("projects/lab/quiet.jsonl"), &quiet);
+
+    usage_pipeline::ingest_pass(&state, 0);
+    let b_rows = vec![
+        (Some("m-1/r-1".into()), 100),
+        (Some("m-2/r-2".into()), 200),
+        (Some("m-q/r-q".into()), 50),
+    ];
+    let c_rows = vec![(Some("m-3/r-3".into()), 300)];
+    assert_eq!(outputs(&state, "acc-b"), b_rows, "the history, once");
+    assert_eq!(outputs(&state, "acc-c"), c_rows, "the copy's own turn");
+
+    // A later turn on C, and a pass that isn't a re-read: only C's own.
+    copy.push(line("4", "conv", SWITCH_MIN + 2, 400));
+    write(c.join("projects/lab/conv.jsonl"), &copy);
+    usage_pipeline::ingest_pass(&state, 1);
+    assert_eq!(outputs(&state, "acc-b"), b_rows);
+    assert_eq!(
+        outputs(&state, "acc-c"),
+        vec![(Some("m-3/r-3".into()), 300), (Some("m-4/r-4".into()), 400)]
+    );
+}

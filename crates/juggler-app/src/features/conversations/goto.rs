@@ -32,6 +32,9 @@ pub const LIMIT: Duration = Duration::from_millis(1500);
 pub trait Desktop: Front {
     /// The process's start time now; `None` when it's gone.
     fn start_of(&self, pid: u32) -> Option<i64>;
+    /// 0.3.8: process `pid` (started at `start`) runs on but lost this
+    /// login session's window server (`juggler_platform::apps::detached`).
+    fn detached(&self, pid: u32, start: Option<i64>) -> bool;
     /// Opens a link with the app that handles it.
     fn open_link(&self, link: &str) -> bool;
     /// Runs `command <folder>` (an editor's own command).
@@ -70,7 +73,46 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     GoToOutcomeInfo {
         outcome: text,
         reached: reached.to_owned(),
+        place_id: None,
     }
+}
+
+/// 0.3.8: what Open and Go to it say for `name`, an app that runs on but
+/// lost its window when the system restarted the display; with the remembered
+/// place to restart (`place_id`), the toast offers Restart.
+#[must_use]
+pub fn lost(name: &str, place_id: Option<String>) -> GoToOutcomeInfo {
+    GoToOutcomeInfo {
+        outcome: lost_words(name),
+        reached: "lost".to_owned(),
+        place_id,
+    }
+}
+
+/// The question [`lost`] asks.
+#[must_use]
+pub fn lost_words(name: &str) -> String {
+    format!("{}. Restart it?", lost_happened(name))
+}
+
+/// What happened to `name`, in words (no full stop).
+#[must_use]
+pub fn lost_happened(name: &str) -> String {
+    format!("{name} lost its window when the system restarted the display")
+}
+
+/// The app's process is there but macOS has no app for it: lost, when it
+/// is a desktop app that outlived the login session (0.3.8), else not
+/// open.
+fn gone(host: &Host, name: &str, desktop: &dyn Desktop) -> GoToOutcomeInfo {
+    if host.kind == Some(HostKind::Desktop) && desktop.detached(host.pid, host.start) {
+        let place = host
+            .app_id
+            .as_deref()
+            .map(|app| crate::features::places::book::place_id(app, host.instance_dir.as_deref()));
+        return lost(name, place);
+    }
+    outcome(format!("{name} isn't open now"), "none")
 }
 
 /// The place's name in the outcome: `Claude app · b-work`, `Terminal`.
@@ -126,7 +168,7 @@ pub fn go(
         return outcome(format!("{name} isn't open now"), "none");
     }
     let in_front = match desktop.request(host.pid) {
-        Request::Gone => return outcome(format!("{name} isn't open now"), "none"),
+        Request::Gone => return gone(host, &name, desktop),
         Request::Refused => return outcome(activation::behind_text(&name, Why::Refused), "none"),
         Request::Asked { in_front } => in_front,
     };
@@ -137,7 +179,7 @@ pub fn go(
     };
     match activation::settle(desktop, host.pid, in_front) {
         Activation::Forward => outcome(done.forward, done.reached),
-        Activation::Gone => outcome(format!("{name} isn't open now"), "none"),
+        Activation::Gone => gone(host, &name, desktop),
         Activation::Behind(why) => match done.kept {
             // The step itself held (the link opened, the tab selected).
             Some(kept) => outcome(
@@ -373,7 +415,7 @@ pub fn bring_forward(host: &Host, desktop: &dyn Desktop) -> GoToOutcomeInfo {
     }
     match activation::bring(desktop, host.pid) {
         Activation::Forward => outcome(format!("Brought {name} forward"), "app"),
-        Activation::Gone => outcome(format!("{name} isn't open now"), "none"),
+        Activation::Gone => gone(host, &name, desktop),
         Activation::Behind(why) => outcome(activation::behind_text(&name, why), "none"),
     }
 }
@@ -397,6 +439,10 @@ impl Desktop for MacDesktop {
         super::procs::some(&[pid])
             .get(&pid)
             .and_then(|process| process.start)
+    }
+
+    fn detached(&self, pid: u32, start: Option<i64>) -> bool {
+        juggler_platform::apps::detached(pid, start)
     }
 
     fn open_link(&self, link: &str) -> bool {

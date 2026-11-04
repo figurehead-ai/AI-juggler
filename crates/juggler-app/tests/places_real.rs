@@ -223,3 +223,208 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
         std::panic::resume_unwind(panic);
     }
 }
+
+/// 0.3.8: the system with one difference: the lab process `lost` counts
+/// as having lost its window (a real window-server restart can't be
+/// made in a test without ending the user's login session). Everything
+/// else is real: the quit is a real SIGTERM to that lab process, the
+/// start a real `open -n`.
+struct LostLab {
+    lost: std::sync::Mutex<Option<u32>>,
+}
+
+impl LostLab {
+    fn is_lost(&self, pid: u32) -> bool {
+        *self.lost.lock().unwrap() == Some(pid)
+    }
+}
+
+impl places::start::Starter for LostLab {
+    fn trusted(&self, exe: &Path) -> Result<(), String> {
+        places::start::System.trusted(exe)
+    }
+    fn start(&self, launch: &places::start::Launch) -> Result<(), String> {
+        places::start::System.start(launch)
+    }
+    fn detached(&self, pid: u32, _: Option<i64>) -> bool {
+        self.is_lost(pid)
+    }
+    fn quit(&self, pid: u32) -> Result<(), String> {
+        assert!(self.is_lost(pid), "only the lab's lost process is quit");
+        places::start::System.quit(pid)
+    }
+    fn alive(&self, pid: u32, start: Option<i64>) -> bool {
+        places::start::System.alive(pid, start)
+    }
+}
+
+impl juggler_app::activation::Front for LostLab {
+    fn request(&self, pid: u32) -> juggler_app::activation::Request {
+        if self.is_lost(pid) {
+            return juggler_app::activation::Request::Gone;
+        }
+        goto::MacDesktop.request(pid)
+    }
+    fn frontmost(&self) -> Option<u32> {
+        goto::MacDesktop.frontmost()
+    }
+}
+
+impl goto::Desktop for LostLab {
+    fn start_of(&self, pid: u32) -> Option<i64> {
+        goto::MacDesktop.start_of(pid)
+    }
+    fn detached(&self, pid: u32, _: Option<i64>) -> bool {
+        self.is_lost(pid)
+    }
+    fn open_link(&self, _: &str) -> bool {
+        false
+    }
+    fn open_folder(&self, _: &str, _: &Path) -> bool {
+        false
+    }
+    fn osascript(&self, _: &str) -> Result<String, String> {
+        Err("never in this walk".into())
+    }
+    fn tty(&self, _: u32) -> Option<String> {
+        None
+    }
+}
+
+fn now_ms() -> i64 {
+    i64::try_from(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis(),
+    )
+    .unwrap()
+}
+
+#[test]
+#[ignore = "starts a throwaway Claude profile on this computer; run by hand"]
+fn a_profile_that_lost_its_window_is_restarted_never_doubled() {
+    if !Path::new(BUNDLE).is_dir() {
+        println!("SKIP: no {BUNDLE}");
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let lab: PathBuf = std::fs::canonicalize(root.path())
+        .unwrap()
+        .join("Lab Claude profile");
+    std::fs::create_dir_all(&lab).unwrap();
+    let state = Arc::new(AppState::init(root.path().join("data")).unwrap());
+    let id = book::place_id("claude-app", Some(&lab));
+    places::with_book(&state, |book| {
+        book.places.insert(
+            id.clone(),
+            book::KnownPlace {
+                app_id: "claude-app".into(),
+                name: "Claude".into(),
+                instance: Some("Lab Claude profile".into()),
+                bundle: PathBuf::from(BUNDLE),
+                exe: PathBuf::from(BUNDLE).join("Contents/MacOS/Claude"),
+                given: Some(lab.clone()),
+                instance_dir: Some(lab.clone()),
+                account_id: None,
+                conversations: Vec::new(),
+                seen_ms: 0,
+                keep_alive: false,
+                paused: None,
+                found: false,
+            },
+        );
+    })
+    .unwrap();
+    let system = Arc::new(LostLab {
+        lost: std::sync::Mutex::new(None),
+    });
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        // The lab profile, started as Open starts it.
+        places::open(
+            &state,
+            &id,
+            None,
+            Arc::new(goto::MacDesktop),
+            Arc::new(places::start::System),
+        )
+        .unwrap();
+        wait_for(Duration::from_secs(30), || {
+            !lab_pids(&state, &lab).is_empty()
+        })
+        .expect("the lab profile never came up");
+        let first = lab_pids(&state, &lab);
+        assert_eq!(first.len(), 1, "one instance: {first:?}");
+        *system.lost.lock().unwrap() = Some(first[0]);
+
+        // 1. Open on it, lost: asks to restart that place; nothing started.
+        let clicked = Instant::now();
+        let said = places::open(&state, &id, None, system.clone(), system.clone()).unwrap();
+        println!(
+            "Open (lost): {:?} in {:?}: {}",
+            said.reached,
+            clicked.elapsed(),
+            said.outcome
+        );
+        assert_eq!(said.reached, "lost");
+        assert_eq!(said.place_id.as_deref(), Some(id.as_str()));
+        std::thread::sleep(Duration::from_secs(2));
+        assert_eq!(lab_pids(&state, &lab), first, "never a second instance");
+
+        // 2. Restart: the lost one quits (SIGTERM), then one new one starts.
+        let clicked = Instant::now();
+        let said = places::restart(
+            &state,
+            &id,
+            system.as_ref(),
+            false,
+            places::QuitWait::default(),
+            now_ms(),
+        );
+        println!("Restart: {said:?} in {:?}", clicked.elapsed());
+        assert!(said.is_ok(), "{said:?}");
+        assert!(
+            !lab_pids(&state, &lab).contains(&first[0]),
+            "the lost one ended"
+        );
+        let up = wait_for(Duration::from_secs(30), || {
+            lab_pids(&state, &lab).iter().any(|pid| *pid != first[0])
+        })
+        .expect("the restarted lab profile never came up");
+        println!("  its new main process seen after {up:?} more");
+        let second = lab_pids(&state, &lab);
+        assert_eq!(second.len(), 1, "one instance: {second:?}");
+
+        // 3. Keep alive on; the new one loses its window too: restarted on
+        // its own, once.
+        places::set_keep_alive(&state, &id, true).unwrap();
+        state.places.watch.lock().unwrap().settled_at(now_ms());
+        *system.lost.lock().unwrap() = Some(second[0]);
+        let lost_at = Instant::now();
+        let back = (|| {
+            while lost_at.elapsed() < Duration::from_secs(60) {
+                places::tick_with(&state, now_ms(), system.as_ref(), &|| false);
+                if lab_pids(&state, &lab).iter().any(|pid| *pid != second[0]) {
+                    return Some(lost_at.elapsed());
+                }
+                std::thread::sleep(Duration::from_secs(2));
+            }
+            None
+        })()
+        .expect("keep alive never restarted it");
+        println!("Keep alive: lost → running again after {back:?}");
+        std::thread::sleep(Duration::from_secs(3));
+        let third = lab_pids(&state, &lab);
+        assert_eq!(third.len(), 1, "one instance again: {third:?}");
+        assert_ne!(third[0], second[0]);
+    }));
+    *system.lost.lock().unwrap() = None;
+    reap(&state, &lab);
+    assert!(
+        lab_pids(&state, &lab).is_empty(),
+        "a lab process outlived the walk"
+    );
+    if let Err(panic) = outcome {
+        std::panic::resume_unwind(panic);
+    }
+}

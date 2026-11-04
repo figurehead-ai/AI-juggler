@@ -386,6 +386,14 @@ impl ConversationIndex {
             .unwrap_or_default()
     }
 
+    /// Test seam: what the live refresher saw.
+    #[cfg(test)]
+    pub(crate) fn set_live_model(&self, model: scan::LiveModel) {
+        if let Ok(mut now) = self.model.lock() {
+            *now = model;
+        }
+    }
+
     /// AJ-E2401: the titles of these conversations, `(tool, id)` →
     /// `(title, folder)`, from one pass over the index (the newest file of
     /// each).

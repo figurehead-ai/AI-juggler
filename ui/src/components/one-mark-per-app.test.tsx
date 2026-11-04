@@ -63,6 +63,7 @@ const HOME = folder("claude-personal", "Personal", 3, 2);
 
 const WORK_APP: KnownPlaceInfo = {
   id: "app:claude-app:/Users/you/Profiles/Work",
+  lost: false,
   app_id: "claude-app",
   app: "Claude",
   instance: "Work",

@@ -83,6 +83,15 @@ impl Starter for Recorder {
             .push((launch.bundle.clone(), launch.how, launch.args.clone()));
         Ok(())
     }
+    fn detached(&self, _: u32, _: Option<i64>) -> bool {
+        false
+    }
+    fn quit(&self, _: u32) -> Result<(), String> {
+        Err("never in these tests".into())
+    }
+    fn alive(&self, _: u32, _: Option<i64>) -> bool {
+        false
+    }
 }
 
 #[test]

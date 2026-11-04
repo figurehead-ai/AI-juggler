@@ -12,6 +12,13 @@
 //!   when the app runs several (a Claude profile beside another), `-g`
 //!   leaves it behind the app in front (a restart nobody clicked never
 //!   takes the keyboard). Windows and Linux: not built yet, said plainly.
+//!
+//! - [`detached`] (0.3.8): an app process that outlived its display. When
+//!   macOS restarts its window server (the watchdog ended `WindowServer`
+//!   on 2026-11-04 and the login session started again), an app can keep
+//!   running with no window and no place in the apps the system knows: it
+//!   can't be brought forward or sent a link, and starting a second one on
+//!   the same profile folder risks its data. [`quit`] asks it to end.
 
 use std::path::Path;
 
@@ -108,6 +115,116 @@ pub fn send_link(pid: u32, link: &str) -> std::io::Result<()> {
     }
 }
 
+/// Whether the app process `pid`, started at `start` (epoch seconds, as
+/// the process table reports it), lost the window server of this login
+/// session: it isn't one of the apps the system knows now
+/// ([`registered`]), **and** it started before this login session did
+/// ([`session_since`]). An app started in this session is always younger
+/// than the session, so the two together never
+/// take a working app for a lost one (an app still coming up isn't
+/// registered yet, but it's younger). `false` whenever either can't be
+/// read: never a restart on a guess.
+#[must_use]
+pub fn detached(pid: u32, start: Option<i64>) -> bool {
+    // The cheap check first: an app the system knows is never lost, and
+    // that's every app on a normal day.
+    if registered(pid) != Some(false) {
+        return false;
+    }
+    started_before(start, session_since())
+}
+
+/// `start` is earlier than `session`, both known (whole seconds: an app
+/// started in the session's own second is never counted as older).
+#[must_use]
+pub fn started_before(start: Option<i64>, session: Option<i64>) -> bool {
+    matches!((start, session), (Some(start), Some(session)) if start < session)
+}
+
+/// Whether `pid` is one of the apps this login session's window server
+/// knows (macOS: `NSRunningApplication`, what `lsappinfo` lists); `None`
+/// where this system can't tell yet.
+#[must_use]
+pub fn registered(pid: u32) -> Option<bool> {
+    #[cfg(target_os = "macos")]
+    {
+        let pid = i32::try_from(pid).ok()?;
+        Some(
+            objc2_app_kit::NSRunningApplication::runningApplicationWithProcessIdentifier(pid)
+                .is_some(),
+        )
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = pid;
+        None
+    }
+}
+
+/// When this login session started, epoch seconds: on macOS, this user's
+/// own `loginwindow`, which starts with the session and starts again with
+/// it when the window server is restarted (both at 01:59:05 on
+/// 2026-11-04; `WindowServer` itself runs as its own user, and the
+/// process table gives no start for it). `None` where it can't be read or
+/// this system has none to read yet.
+#[must_use]
+pub fn session_since() -> Option<i64> {
+    #[cfg(target_os = "macos")]
+    {
+        use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+        let me = crate::user::current().ok()?.uid();
+        let mut system = System::new();
+        // Names, owners and start times only: never arguments or
+        // environments.
+        system.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing()
+                .without_tasks()
+                .with_user(UpdateKind::Always),
+        );
+        system
+            .processes()
+            .values()
+            .filter(|process| process.name() == "loginwindow")
+            // Its effective user is the person logged in (its real one is
+            // the system's).
+            .filter(|process| process.effective_user_id().is_some_and(|user| **user == me))
+            .filter_map(|process| i64::try_from(process.start_time()).ok())
+            .filter(|at| *at > 0)
+            .max()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+/// Asks the app process `pid` to quit (SIGTERM: it ends as it would on
+/// a normal quit, saving what it saves then). Returns once the signal is
+/// sent; the caller waits for it to end.
+///
+/// # Errors
+///
+/// The process is gone or isn't this user's, or this system can't yet.
+pub fn quit(pid: u32) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use nix::sys::signal::{Signal, kill};
+        use nix::unistd::Pid;
+        let pid = i32::try_from(pid)
+            .ok()
+            .filter(|pid| *pid > 1)
+            .ok_or_else(|| std::io::Error::other("that isn't an app's process"))?;
+        kill(Pid::from_raw(pid), Signal::SIGTERM).map_err(std::io::Error::from)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = pid;
+        Err(crate::unsupported("quitting an app"))
+    }
+}
+
 #[cfg(target_os = "macos")]
 mod mac {
     use objc2_foundation::{NSAppleEventDescriptor, NSAppleEventSendOptions, NSString};
@@ -182,6 +299,37 @@ mod tests {
             &[],
         );
         assert_eq!(args, ["-g", "-a", "/Applications/Codex.app"]);
+    }
+
+    /// 0.3.8: only an app older than the login session counts as lost;
+    /// anything unknown is never lost.
+    #[test]
+    fn only_an_app_older_than_its_session_counts_as_lost() {
+        assert!(started_before(Some(100), Some(200)));
+        assert!(!started_before(Some(200), Some(200)), "the same second");
+        assert!(!started_before(Some(300), Some(200)), "started after it");
+        assert!(!started_before(None, Some(200)));
+        assert!(!started_before(Some(100), None));
+    }
+
+    /// This test process is no app: on a Mac it isn't registered, but it
+    /// started in this login session, so it is never lost. Pid 1 and an
+    /// unused pid are never asked to quit.
+    #[test]
+    fn a_process_started_in_this_session_is_never_lost() {
+        let me = std::process::id();
+        let start = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(!detached(me, i64::try_from(start).ok()));
+        // A runner with no one logged in has no session to read.
+        if let Some(session) = session_since() {
+            println!("this login session since {session}");
+            assert!(session <= i64::try_from(start).unwrap());
+        }
+        assert!(quit(1).is_err());
+        assert!(quit(0).is_err());
     }
 
     /// 0.3.5: a profile paired with a tool's folder starts with it, as

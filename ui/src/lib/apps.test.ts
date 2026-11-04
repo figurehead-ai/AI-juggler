@@ -21,7 +21,7 @@ const folder = (id: string, label: string): AccountInfo => ({ id, label, provide
 
 function known(instance: string, over: Partial<KnownPlaceInfo> = {}): KnownPlaceInfo {
   return {
-    id: `app:claude-app:/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null,
+    id: `app:claude-app:/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null, lost: false,
     keep_alive: false, paused: null, account_id: null, seen_ms: NOW - 5 * H, cannot_start: null, recent: [], found: false, ...over,
   };
 }

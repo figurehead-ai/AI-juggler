@@ -9,7 +9,7 @@ import type { KnownPlaceInfo } from "./ipc/places";
 const folders = [{ app_id: "claude-app", folder: "~/Library/Application Support/ClaudeProfiles" }];
 
 const place = (instance: string, over: Partial<KnownPlaceInfo> = {}): KnownPlaceInfo => ({
-  id: `app:claude-app:/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null,
+  id: `app:claude-app:/p/${instance}`, app_id: "claude-app", app: "Claude", instance, profile: instance, label: `Claude · ${instance}`, app_pid: null, lost: false,
   keep_alive: false, paused: null, account_id: null, seen_ms: 0, cannot_start: null, recent: [], found: false, ...over,
 });
 

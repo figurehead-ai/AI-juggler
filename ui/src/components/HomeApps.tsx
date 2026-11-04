@@ -15,6 +15,7 @@ import { IconAlert } from "./icons";
 import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
 import { showToast } from "./Toast";
+import { showGoTo } from "../lib/go-to";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
 import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
@@ -23,7 +24,6 @@ import { knownAppWord } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp } from "../lib/apps";
 import { appName, desktopProfile } from "../lib/app-name";
 import type { RailItem } from "../lib/rail-items";
-import { goToToast } from "../lib/go-to-words";
 
 /** Tiles shown before "+n". */
 export const TILES_SHOWN = 6;
@@ -46,7 +46,7 @@ function bringForward(group: RailGroup): void {
   if (pid === null || pid === undefined) return;
   showToast({ id: "go-to", message: "Bringing it forward…" });
   conversationsBringForward(pid).then(
-    (outcome) => goToToast(outcome.outcome),
+    showGoTo,
     () => showToast({ id: "go-to", message: "Couldn't bring it forward" }),
   );
 }
@@ -64,7 +64,7 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const start = () => {
     showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
     placesOpen(place.id).then(
-      (outcome) => goToToast(outcome.outcome),
+      showGoTo,
       () => showToast({ id: "go-to", message: running ? `Couldn't bring ${name} forward` : `Couldn't start ${name}` }),
     );
   };
@@ -88,7 +88,7 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
           )}
         </div>
       </div>
-      <span className={"text-meta " + (place.paused ? "text-warning" : "text-muted")}>{placeWords(place)}</span>
+      <span className={"text-meta " + (place.paused || place.lost ? "text-warning" : "text-muted")}>{placeWords(place)}</span>
       <div className="mt-auto flex flex-wrap items-center gap-2">
         <button
           type="button"

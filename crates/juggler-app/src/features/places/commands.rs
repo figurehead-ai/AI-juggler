@@ -32,6 +32,9 @@ pub struct KnownPlaceInfo {
     pub label: String,
     /// Its main process, while it runs.
     pub app_pid: Option<u32>,
+    /// 0.3.8: it runs on but lost its window when macOS restarted its
+    /// display (Open asks to restart it).
+    pub lost: bool,
     /// Keep alive is on.
     pub keep_alive: bool,
     /// Why keep alive is paused; `null` while it watches (or is off).
@@ -86,6 +89,7 @@ fn info(
     id: &str,
     place: &KnownPlace,
     pid: Option<u32>,
+    lost: bool,
     hosts: &HostRegistry,
     accounts: &std::collections::HashMap<String, String>,
     slots: &std::collections::BTreeMap<String, u8>,
@@ -103,6 +107,7 @@ fn info(
         label: place.named(account),
         profile: place.profile(account),
         app_pid: pid,
+        lost,
         keep_alive: place.keep_alive,
         paused: place.paused.clone(),
         account_id: place.account_id.clone(),
@@ -144,16 +149,26 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
     Ok(places
         .iter()
         .map(|(id, place)| {
-            let pid = pids
-                .iter()
-                .find(|(known, _, _)| known == id)
-                .filter(|(_, pid, start)| {
-                    alive.get(pid).is_some_and(|process| {
-                        juggler_adapter::live::same_start(*start, process.start)
-                    })
-                })
-                .map(|(_, pid, _)| *pid);
-            info(id, place, pid, &hosts, &accounts, &slots)
+            let running =
+                pids.iter()
+                    .find(|(known, _, _)| known == id)
+                    .filter(|(_, pid, start)| {
+                        alive.get(pid).is_some_and(|process| {
+                            juggler_adapter::live::same_start(*start, process.start)
+                        })
+                    });
+            let lost = running.is_some_and(|(_, pid, start)| {
+                super::start::Starter::detached(&super::start::System, *pid, *start)
+            });
+            info(
+                id,
+                place,
+                running.map(|(_, pid, _)| *pid),
+                lost,
+                &hosts,
+                &accounts,
+                &slots,
+            )
         })
         .collect())
 }
@@ -227,6 +242,44 @@ pub async fn places_open(
             Arc::new(crate::features::conversations::goto::MacDesktop),
             Arc::new(super::start::System),
         )
+    })
+    .await
+}
+
+/// 0.3.8: Restart, the answer to "lost its window … Restart it?": quits
+/// the place's process that lost its window and starts it again, in front.
+/// Waits for it to quit (at most 10 s), so it runs off the window's
+/// thread.
+///
+/// # Errors
+///
+/// None of its own: what went wrong is the outcome's words (`none`).
+#[tauri::command]
+pub async fn places_restart(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+) -> AppResult<GoToOutcomeInfo> {
+    crate::ipc::blocking(state.inner(), "restarting the app", move |state| {
+        let said = super::restart(
+            state,
+            &id,
+            &super::start::System,
+            false,
+            super::QuitWait::default(),
+            crate::commands::now_millis(),
+        );
+        Ok(match said {
+            Ok(words) => GoToOutcomeInfo {
+                outcome: words,
+                reached: "started".to_owned(),
+                place_id: None,
+            },
+            Err(why) => GoToOutcomeInfo {
+                outcome: why,
+                reached: "none".to_owned(),
+                place_id: None,
+            },
+        })
     })
     .await
 }

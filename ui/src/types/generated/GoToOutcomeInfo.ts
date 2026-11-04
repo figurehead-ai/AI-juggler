@@ -10,7 +10,14 @@ export type GoToOutcomeInfo = {
  */
 outcome: string, 
 /**
- * The step reached: `thread`, `tab`, `folder`, `app`, `pending`
- * (still on it after 1.5 s) or `none`.
+ * The step reached: `thread`, `tab`, `folder`, `app`, `started`,
+ * `pending` (still on it after 1.5 s), `lost` (0.3.8: it runs but
+ * lost its window when the system restarted the display; the toast offers
+ * Restart) or `none`.
  */
-reached: string, };
+reached: string, 
+/**
+ * 0.3.8: with `lost`, the remembered app or profile to restart
+ * (`places_restart`); absent otherwise.
+ */
+place_id?: string, };

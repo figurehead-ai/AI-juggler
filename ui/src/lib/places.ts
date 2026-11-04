@@ -61,6 +61,7 @@ export function placeFor(places: KnownPlaceInfo[] | null, appPid: number | null)
 /** A place's state in words: "Running", "Not running · seen 2 h ago",
  * "Keep alive paused: it stopped 3 times in 10 minutes". */
 export function placeWords(place: KnownPlaceInfo, now: number = Date.now()): string {
+  if (place.lost) return "Lost its window when the system restarted the display";
   if (place.paused) return `Keep alive paused: ${place.paused}`;
   if (place.app_pid !== null) return place.keep_alive ? "Running · kept alive" : "Running";
   if (place.keep_alive) return "Not running · keep alive starts it";
