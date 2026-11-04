@@ -252,3 +252,30 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
     );
     assert!(took.as_micros() <= 2_000 * scale, "{took:?}");
 }
+
+#[test]
+fn a_reading_that_wiggles_between_drawn_steps_is_not_news() {
+    let base = assemble(&inputs(), NOW, &mut BTreeMap::new());
+    let mut wiggle = base.clone();
+    wiggle.at_ms += 2_000;
+    wiggle.machine.load = base.machine.load + 0.01;
+    for app in &mut wiggle.apps {
+        if app.hot_since_ms.is_none() {
+            app.cpu_pct += 3.0;
+        }
+    }
+    assert!(super::same(&base, &wiggle), "no new step: nothing to draw");
+    let mut rack = base.clone();
+    rack.machine.load = base.machine.load + 0.3;
+    assert!(!super::same(&base, &rack), "the rack's lights change");
+    let mut state = base.clone();
+    if let Some(session) = state
+        .apps
+        .iter_mut()
+        .flat_map(|a| a.sessions.iter_mut())
+        .next()
+    {
+        session.word = "Asks you".into();
+        assert!(!super::same(&base, &state), "a state change is news");
+    }
+}

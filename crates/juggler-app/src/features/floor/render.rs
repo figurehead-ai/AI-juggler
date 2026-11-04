@@ -5,7 +5,8 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
@@ -37,6 +38,31 @@ pub struct Counters {
     pub first_ms: AtomicU64,
     /// The last change's time to its frame on screen, microseconds.
     pub change_us: AtomicU64,
+    /// The window's last visibility answer: 0 none yet, 1 seen, 2 not.
+    pub visible: AtomicU8,
+    /// Snapshots the render thread took in.
+    pub snapshots: AtomicU64,
+    /// The window's inputs taken in (resizes, visibility, pointer, keys).
+    pub inputs: AtomicU64,
+    /// Of those, resizes.
+    pub resizes: AtomicU64,
+}
+
+/// The last open's steps: each one's name and when it ended (ms after
+/// the Floor was asked for).
+pub static OPEN_STEPS: Mutex<Vec<(&'static str, u64)>> = Mutex::new(Vec::new());
+
+/// Notes that the open's step `name` ended now.
+pub fn open_step(name: &'static str, opened: Instant) {
+    if let Ok(mut steps) = OPEN_STEPS.lock() {
+        if name == "asked" {
+            steps.clear();
+        }
+        steps.push((
+            name,
+            u64::try_from(opened.elapsed().as_millis()).unwrap_or(u64::MAX),
+        ));
+    }
 }
 
 /// The render thread's counters.
@@ -47,6 +73,10 @@ pub static COUNTERS: Counters = Counters {
     builds: AtomicU64::new(0),
     first_ms: AtomicU64::new(0),
     change_us: AtomicU64::new(0),
+    visible: AtomicU8::new(0),
+    snapshots: AtomicU64::new(0),
+    inputs: AtomicU64::new(0),
+    resizes: AtomicU64::new(0),
 };
 
 fn nanos(d: Duration) -> u64 {
@@ -337,7 +367,9 @@ impl Running {
             .ok()
             .and_then(|s| store::load(&s, settings.per_floor, fresh_seed).ok())
             .unwrap_or_else(|| (Office::new(fresh_seed, settings.per_floor), Vec::new()));
+        open_step("settings and office", opened);
         let snapshot = super::current(&state).ok()?;
+        open_step("snapshot", opened);
         let mut seating = Seating::default();
         let scene = World::build(
             &state,
@@ -354,7 +386,9 @@ impl Running {
             scene,
             snapshot,
         };
+        open_step("scene", opened);
         let renderer = Renderer::new(&instance, surface, (size.0, size.1), &world.scene).ok()?;
+        open_step("renderer", opened);
         let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion_now());
         driver.alert = world.snapshot.machine.alert_since_ms.is_some();
         if let Some(floor) = world.scene.neediest_floor() {
@@ -381,10 +415,20 @@ impl Running {
         match msg {
             Msg::Close => return false,
             Msg::Reload => self.reload(now),
-            Msg::Snapshot(snapshot) => self.message_snapshot(snapshot, now),
+            Msg::Snapshot(snapshot) => {
+                COUNTERS.snapshots.fetch_add(1, Ordering::Relaxed);
+                self.message_snapshot(snapshot, now);
+            }
             Msg::Input(input) => {
+                COUNTERS.inputs.fetch_add(1, Ordering::Relaxed);
                 if let Input::Resize { w, h, .. } = input {
+                    COUNTERS.resizes.fetch_add(1, Ordering::Relaxed);
                     self.renderer.resize(w, h);
+                }
+                if let Input::Visible(seen) = input {
+                    COUNTERS
+                        .visible
+                        .store(if seen { 1 } else { 2 }, Ordering::Relaxed);
                 }
                 if input == Input::Visible(true) {
                     // Reduce motion may have changed while it was away.
@@ -505,6 +549,12 @@ impl Running {
 
 /// Logs how long the first frame took (the 400 ms budget).
 fn log_first_frame(took: Duration) {
+    if let Ok(mut steps) = OPEN_STEPS.lock() {
+        steps.push((
+            "first frame",
+            u64::try_from(took.as_millis()).unwrap_or(u64::MAX),
+        ));
+    }
     COUNTERS.first_ms.store(
         u64::try_from(took.as_millis()).unwrap_or(u64::MAX),
         Ordering::Relaxed,

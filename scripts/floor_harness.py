@@ -2,8 +2,10 @@
 """AJ-E3513 req. 3: the Floor's budgets (SPEC §9.7), read on the release build.
 
   floor_harness.py build                 the release build with the harness
-  floor_harness.py run --home H          runs it on the replica in H and
+  floor_harness.py run --home H [--quick] runs it on the replica in H and
                                          writes docs/qa/floor/budgets-<date>.md
+                                         (--quick: shorter cases, written to
+                                         the scratch folder given by --out)
   floor_harness.py report RESULTS.json   writes the page from earlier results
   floor_harness.py --selftest
 
@@ -54,7 +56,7 @@ def build() -> int:
     return subprocess.call(["nice", "-n", "10", *cmd], cwd=ROOT)
 
 
-def run(home: Path) -> int:
+def run(home: Path, quick: bool = False, out: Path | None = None) -> int:
     binary = target_dir() / "release" / "juggler-app"
     if not binary.exists():
         print(f"floor-harness: no release build at {binary}; run `build` first", file=sys.stderr)
@@ -70,10 +72,16 @@ def run(home: Path) -> int:
             "TMPDIR": tmp,
             "AIJ_FLOOR_HARNESS": str(results),
         }
-        print(f"floor-harness: running (about 12 minutes) on the replica in {home}")
+        if quick:
+            env["AIJ_FLOOR_HARNESS_QUICK"] = "1"
+        print(f"floor-harness: running (about {4 if quick else 12} minutes) on the replica in {home}")
         try:
-            subprocess.run([str(binary)], env=env, timeout=RUN_LIMIT_S, check=False,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            log = (out or Path(tmp)) / "harness-app.log" if quick else Path(os.devnull)
+            if quick and out:
+                out.mkdir(parents=True, exist_ok=True)
+            with open(log, "w") as sink:
+                subprocess.run([str(binary)], env=env, timeout=RUN_LIMIT_S, check=False,
+                               stdout=subprocess.DEVNULL, stderr=sink)
         except subprocess.TimeoutExpired:
             print("floor-harness: the run didn't finish in time", file=sys.stderr)
             return 1
@@ -81,8 +89,9 @@ def run(home: Path) -> int:
             print("floor-harness: the app wrote no results", file=sys.stderr)
             return 1
         data = json.loads(results.read_text())
-    keep = OUT_DIR / f"budgets-{dt.date.today().isoformat()}.json"
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    where = out if (quick and out) else OUT_DIR
+    keep = where / f"budgets-{dt.date.today().isoformat()}{'-quick' if quick else ''}.json"
+    where.mkdir(parents=True, exist_ok=True)
     data["machine"] = machine()
     keep.write_text(json.dumps(data, indent=2) + "\n")
     return report(keep)
@@ -113,8 +122,9 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
     closed = cases["Closed"]
     before = data["footprint_before_mb"]
     anim_peak = max([m["footprint_mb"] for m in data["full_memory_marks"]] + [full["footprint_mb"]])
-    changes = data["change_to_screen_ms"] or [float("nan")]
+    changes = [float("inf") if c is None else c for c in data["change_to_screen_ms"]] or [float("inf")]
     worst_change = max(changes)
+    undrawn = sum(1 for c in data["change_to_screen_ms"] if c is None)
     rows = [
         ("Open, nothing moving", "0 frames after the first",
          f"{rest['frames']} frames in {rest['secs']:.0f} s", rest["frames"] == 0),
@@ -136,7 +146,8 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
         ("Opening", f"first frame ≤ {FIRST_MS} ms", f"{data['first_frame_ms']} ms",
          0 < data["first_frame_ms"] <= FIRST_MS),
         ("A data change", f"on screen ≤ {CHANGE_MS} ms",
-         f"worst {worst_change:.1f} ms of {len(changes)}", worst_change <= CHANGE_MS),
+         f"{undrawn} of {len(changes)} never drawn" if undrawn else f"worst {worst_change:.1f} ms of {len(changes)}",
+         worst_change <= CHANGE_MS),
         ("Memory added, open and still", f"≤ {MEM_STILL} MB",
          f"{data['footprint_open_still_mb'] - before:+.0f} MB", data["footprint_open_still_mb"] - before <= MEM_STILL),
         ("Memory added, animating", f"≤ {MEM_ANIM} MB",
@@ -178,10 +189,23 @@ def report(results: Path) -> int:
     marks = ", ".join(f"{m_['at_s']} s: {m_['footprint_mb']:.0f} MB" for m_ in data["full_memory_marks"])
     lines += ["", f"Memory while animating Full: {marks} (before opening: {data['footprint_before_mb']:.0f} MB).",
               f"A data change on screen, 10 tries: {', '.join(str(x) for x in data['change_to_screen_ms'])} ms.", ""]
+    if data.get("open_steps"):
+        lines += ["Opening, step by step (ms after it was asked for): "
+                  + ", ".join(f"{st['step']} {st['at_ms']}" for st in data["open_steps"]) + ".", ""]
+    for key, words in (("memory_before", "before opening"), ("memory_still", "open and still"), ("memory_animating", "animating"), ("memory_closed", "closed")):
+        if data.get(key):
+            lines.append(f"Memory {words}, biggest parts: "
+                         + ", ".join(f"{m_['category']} {m_['mb']:.0f} MB" for m_ in data[key][:6]) + ".")
+    if "cases" in data and "visible_answer" in data["cases"][0]:
+        seen = {0: "no answer yet", 1: "seen", 2: "not seen"}
+        lines += ["", "What the window said at the end of each case: "
+                  + "; ".join(f"{c['name']}: {seen.get(c['visible_answer'], '?')}"
+                              f"{', minimised' if c.get('minimised_now') else ''}" for c in data["cases"]) + ".", ""]
     page = results.with_suffix(".md")
     page.write_text("\n".join(lines))
     over = [r for r in rows if not r[3]]
-    print(f"floor-harness: {page.relative_to(ROOT)}: {len(rows) - len(over)} within, {len(over)} over")
+    shown = page.resolve().relative_to(ROOT) if page.resolve().is_relative_to(ROOT) else page
+    print(f"floor-harness: {shown}: {len(rows) - len(over)} within, {len(over)} over")
     for case, budget, measured, _ in over:
         print(f"  over: {case}: {measured} (budget {budget})")
     return 0
@@ -206,6 +230,8 @@ def selftest() -> int:
     assert all(ok for *_, ok in rows), [r for r in rows if not r[3]]
     sample["cases"][4]["frames"] = 5
     assert not verdicts(sample)[5][3], "frames after the first second while covered are over"
+    sample["change_to_screen_ms"] = [12.0, None]
+    assert not verdicts(sample)[9][3], "a change never drawn is over"
     print("floor-harness selftest: OK")
     return 0
 
@@ -218,13 +244,15 @@ def main() -> int:
     sub.add_parser("build")
     r = sub.add_parser("run")
     r.add_argument("--home", type=Path, required=True)
+    r.add_argument("--quick", action="store_true")
+    r.add_argument("--out", type=Path)
     p = sub.add_parser("report")
     p.add_argument("results", type=Path)
     args = parser.parse_args()
     if args.cmd == "build":
         return build()
     if args.cmd == "run":
-        return run(args.home)
+        return run(args.home, args.quick, args.out)
     return report(args.results)
 
 

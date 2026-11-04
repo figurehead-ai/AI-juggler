@@ -309,7 +309,7 @@
 **Research basis**: deep/11 §4.1; wf02 (`docs/wireframes/index.html:232-245`: "Mark all finished as reviewed"); audit §1.3 rows (chips "No decision drops them", keys r/h/s/e, Mark all); `ui/src/lib/shortcuts.ts:173-191` (Home's keys today: J/K/↑↓, Enter, A); D-25, D-36, D-44, D-49.
 **Handover note**: The sources disagree on letters: wf02 says "S switch · P park · A archive", deep/11 §4.1 says r / h / s / e, and AJ-E1005 made A run the row's action. This task follows §4.1 and keeps A; say if you want wf02's letters instead. Plain-letter keys must stay on Home's list only and never fire in a field (`matches`, `ui/src/lib/shortcuts.ts:214-224`).
 
-### AJ-E2911 Report a bug: what goes, shown first, from Help, Settings and every failure | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1517
+### AJ-E2911 Report a bug: what goes, shown first, from Help, Settings and every failure | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E1517
 **Goal**: When something goes wrong, telling the maintainer takes one click and carries what's needed to fix it, and nothing the user didn't see (D-75).
 **User story**: As someone whose switch just failed, I choose Report a bug, read exactly what the report says, and open a GitHub issue with it filled in, attaching the diagnostics zip if I want.
 **Requirements**:
@@ -325,9 +325,9 @@
 **Visual testing**: the sheet from Help and from a failed switch, light and dark, 1024 and 1280.
 **Files to touch**: `crates/juggler-app/src/features/app/diagnostics/` (a `report` module), `crates/juggler-app/src/quit.rs` (Help menu), `ui/src/components/ReportBugSheet.tsx` (new), `ui/src/components/switch/FailedStep.tsx`, `ui/src/screens/settings/GeneralPane.tsx`.
 **Research basis**: the maintainer, 2026-11-04 (D-75); 0.3.9's Copy details; AJ-E1517; SPEC §8 Data.
-**Handover note**: —
+**Handover note**: built: `features/app/diagnostics/report.rs` (preview, compose, open; names scrubbed from Accounts, their folders and subscriptions, never a tool's own name), `ui/src/components/ReportBugSheet.tsx` with `lib/report-bug.ts` (one sheet, opened from anywhere), Help › Report a bug… (`quit.rs`), your menu and Settings › Advanced. It fills the repository's bug form's own fields (`.github/ISSUE_TEMPLATE/bug_report.yml` ids). Left: the failure screens (the failed switch's step comes with 0.3.9's `FailedStep` once release/0.3.9 merges; a failed launch; an error toast's details), the replica evidence and the gallery captures.
 
-### AJ-E2912 Debug mode: a detailed local log of switches and launches | Status: TODO | Priority P0 | Effort M | Depends: AJ-E2911
+### AJ-E2912 Debug mode: a detailed local log of switches and launches | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2911
 **Goal**: A hard bug can be caught the second time it happens: with debug mode on, every step of a switch or launch is written down locally, never its contents (D-75).
 **User story**: As someone whose switch fails now and then, I turn on debug mode, carry on, and when it fails again the report has every step, size and timing.
 **Requirements**:
@@ -343,7 +343,7 @@
 **Visual testing**: the Diagnostics section on and off, light and dark.
 **Files to touch**: `crates/juggler-app/src/features/app/diagnostics/` (a `debug_log` module), the switch and launch paths, `ui/src/screens/settings/AdvancedPane.tsx`.
 **Research basis**: the maintainer, 2026-11-04 (D-75); AJ-E2013 (tracing with redaction) is the long-term home of the log's writer.
-**Handover note**: —
+**Handover note**: built: `features/app/diagnostics/debug_log.rs` (a `tracing` layer on target `aij::flow`: the last 400 steps in memory always, `logs/debug.log` while on, two 8 MB files, off after 7 days, keys stripped) and `ui/src/screens/settings/DebugModeSection.tsx`; Export diagnostics carries the log. Left: the steps themselves, emitted from the switch and launch paths (after release/0.3.9 merges, since it rewrites the switch's streaming), and the no-contents test over a marked fixture.
 
 ## Rulings (2026-10-30)
 

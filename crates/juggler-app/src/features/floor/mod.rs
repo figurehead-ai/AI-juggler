@@ -131,13 +131,42 @@ pub fn mark_stale(state: &AppState) {
     state.floor.stale.store(true, Ordering::Release);
 }
 
-/// The same company, whenever each was built.
+/// The same company as drawn, whenever each was built: figures compared
+/// at the steps the Floor shows them (the rack's tenths, a battery's
+/// whole percent, a fire only while hot, times to the minute), so a
+/// reading that wiggles between two of them wakes nothing (SPEC §9.7:
+/// no frames at rest).
 fn same(a: &FloorSnapshot, b: &FloorSnapshot) -> bool {
+    let (a, b) = (coarse(a), coarse(b));
     a.apps == b.apps
         && a.accounts == b.accounts
         && a.pools == b.pools
         && a.machine == b.machine
         && a.notices == b.notices
+}
+
+/// `snapshot` at the steps it's drawn at.
+fn coarse(snapshot: &FloorSnapshot) -> FloorSnapshot {
+    const MINUTE: i64 = 60_000;
+    let minute = |ms: i64| ms - ms.rem_euclid(MINUTE);
+    let mut out = snapshot.clone();
+    out.at_ms = 0;
+    out.machine.load = (out.machine.load * 10.0).round() / 10.0;
+    for app in &mut out.apps {
+        let hot = app.hot_since_ms.is_some();
+        let cpu = |pct: f32| if hot { (pct / 5.0).round() * 5.0 } else { 0.0 };
+        app.cpu_pct = cpu(app.cpu_pct);
+        app.last_active_ms = app.last_active_ms.map(minute);
+        for session in &mut app.sessions {
+            session.cpu_pct = cpu(session.cpu_pct);
+            session.last_ms = minute(session.last_ms);
+        }
+    }
+    for account in &mut out.accounts {
+        account.left_pct = account.left_pct.map(f32::round);
+        account.last_used_ms = account.last_used_ms.map(minute);
+    }
+    out
 }
 
 /// Whether `snapshot` is news since the last one published (and, if so,

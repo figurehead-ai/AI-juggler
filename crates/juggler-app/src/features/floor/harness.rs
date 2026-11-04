@@ -12,7 +12,6 @@
 //! does), frames and drawing time the render thread's own counters. Then
 //! it puts the settings back and quits.
 
-use std::fmt::Write as _;
 use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -21,12 +20,14 @@ use std::time::{Duration, Instant};
 use tauri::Manager;
 
 use super::render::COUNTERS;
-use super::store::MOTION_KEY;
+use super::store::{MOTION_KEY, ON_TOP_KEY};
 use super::window::{self, LABEL};
 use crate::state::AppState;
 
 /// The variable naming the results file.
 pub const VAR: &str = "AIJ_FLOOR_HARNESS";
+/// Set: every case shorter (a check while fixing, not the record).
+pub const QUICK: &str = "AIJ_FLOOR_HARNESS_QUICK";
 
 /// Starts the harness when [`VAR`] is set.
 pub fn start(app: &tauri::AppHandle) {
@@ -51,6 +52,9 @@ struct Reading {
     footprint_mb: f64,
     frames: u64,
     draw_ns: u64,
+    snapshots: u64,
+    inputs: u64,
+    resizes: u64,
 }
 
 fn cpu_seconds(pid: u32) -> f64 {
@@ -87,6 +91,40 @@ fn footprint_mb(pid: u32) -> f64 {
     }
 }
 
+/// The footprint's biggest categories (dirty memory), MB.
+fn footprint_top(pid: u32) -> Vec<(String, f64)> {
+    let out = Command::new(juggler_adapter::system_tools::FOOTPRINT)
+        .args(["-p", &pid.to_string()])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default();
+    let mb = |n: &str, unit: &str| -> Option<f64> {
+        let n: f64 = n.parse().ok()?;
+        Some(match unit {
+            "KB" => n / 1024.0,
+            "GB" => n * 1024.0,
+            "B" => n / 1024.0 / 1024.0,
+            _ => n,
+        })
+    };
+    let mut rows: Vec<(String, f64)> = out
+        .lines()
+        .filter_map(|line| {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            // dirty unit clean unit reclaimable unit regions category…
+            if words.len() < 8 {
+                return None;
+            }
+            let dirty = mb(words[0], words[1])?;
+            words[6].parse::<u64>().ok()?;
+            Some((words[7..].join(" "), dirty))
+        })
+        .collect();
+    rows.sort_by(|a, b| b.1.total_cmp(&a.1));
+    rows.truncate(10);
+    rows
+}
+
 fn read() -> Reading {
     let pid = std::process::id();
     Reading {
@@ -95,6 +133,9 @@ fn read() -> Reading {
         footprint_mb: footprint_mb(pid),
         frames: COUNTERS.frames.load(Ordering::Relaxed),
         draw_ns: COUNTERS.draw_ns.load(Ordering::Relaxed),
+        snapshots: COUNTERS.snapshots.load(Ordering::Relaxed),
+        inputs: COUNTERS.inputs.load(Ordering::Relaxed),
+        resizes: COUNTERS.resizes.load(Ordering::Relaxed),
     }
 }
 
@@ -107,9 +148,23 @@ struct Case {
     first_second_frames: u64,
     draw_ms_per_frame: f64,
     footprint_mb: f64,
+    /// The window's last visibility answer (0 none, 1 seen, 2 not).
+    visible: u8,
+    /// Whether the window says it's minimised, and can be seen, now.
+    window: (Option<bool>, Option<bool>),
+    /// Snapshots (data news) the Floor took in meanwhile.
+    snapshots: u64,
+    /// Inputs, and of those resizes, meanwhile.
+    inputs: (u64, u64),
 }
 
-fn measure(name: &'static str, secs: u64, marks: &[u64], memory: &mut Vec<(u64, f64)>) -> Case {
+fn measure(
+    app: &tauri::AppHandle,
+    name: &'static str,
+    secs: u64,
+    marks: &[u64],
+    memory: &mut Vec<(u64, f64)>,
+) -> Case {
     let a = read();
     std::thread::sleep(Duration::from_secs(1));
     let first_second_frames = COUNTERS.frames.load(Ordering::Relaxed) - a.frames;
@@ -137,7 +192,44 @@ fn measure(name: &'static str, secs: u64, marks: &[u64], memory: &mut Vec<(u64, 
         first_second_frames,
         draw_ms_per_frame,
         footprint_mb: b.footprint_mb,
+        visible: COUNTERS.visible.load(Ordering::Relaxed),
+        window: window_now(app),
+        snapshots: b.snapshots - a.snapshots,
+        inputs: (b.inputs - a.inputs, b.resizes - a.resizes),
     }
+}
+
+/// The Floor window's own answers now (on the main thread).
+fn window_now(app: &tauri::AppHandle) -> (Option<bool>, Option<bool>) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Some(w) = handle.get_window(LABEL) {
+            let _ = tx.send(format!(
+                "{:?} {:?} on_top={:?} focused={:?}",
+                w.outer_position().ok(),
+                w.outer_size().ok(),
+                w.is_always_on_top().ok(),
+                w.is_focused().ok()
+            ));
+        }
+    });
+    if let Ok(line) = rx.recv_timeout(Duration::from_secs(2)) {
+        eprintln!("floor-harness: window {line}");
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        let answer = handle.get_window(LABEL).map_or((None, None), |w| {
+            (
+                w.is_minimized().ok(),
+                juggler_window_events::visible(&w).ok(),
+            )
+        });
+        let _ = tx.send(answer);
+    });
+    rx.recv_timeout(Duration::from_secs(2))
+        .unwrap_or((None, None))
 }
 
 fn set_motion(app: &tauri::AppHandle, word: &str) {
@@ -154,83 +246,166 @@ fn on_main(app: &tauri::AppHandle, job: impl FnOnce(&tauri::AppHandle) + Send + 
     std::thread::sleep(Duration::from_secs(2));
 }
 
-/// Covers the Floor with the main window, the size of the screen.
+/// The harness's own cover: an opaque window without a webview, a little
+/// bigger than the Floor and above it (the main window or another app's
+/// may not cover it whole, and the desktop is shared).
+const COVER: &str = "floor-harness-cover";
+
 fn cover(app: &tauri::AppHandle) {
     on_main(app, |app| {
-        if let (Some(main), Some(floor)) = (app.get_window("main"), app.get_window(LABEL))
-            && let (Ok(pos), Ok(size)) = (floor.outer_position(), floor.outer_size())
-        {
-            let _ = main.set_position(tauri::PhysicalPosition::new(pos.x - 40, pos.y - 40));
-            let _ = main.set_size(tauri::PhysicalSize::new(size.width + 80, size.height + 80));
-            let _ = main.set_always_on_top(true);
-            crate::main_window::bring_forward(app);
+        let Some(floor) = app.get_window(LABEL) else {
+            return;
+        };
+        let (Ok(pos), Ok(size), Ok(scale)) = (
+            floor.outer_position(),
+            floor.outer_size(),
+            floor.scale_factor(),
+        ) else {
+            return;
+        };
+        let pos = pos.to_logical::<f64>(scale);
+        let size = size.to_logical::<f64>(scale);
+        let _ = tauri::window::WindowBuilder::new(app, COVER)
+            .title("Cover")
+            .decorations(false)
+            .always_on_top(true)
+            .position(pos.x - 40.0, pos.y - 40.0)
+            .inner_size(size.width + 80.0, size.height + 80.0)
+            .build();
+    });
+}
+
+fn uncover(app: &tauri::AppHandle) {
+    on_main(app, |app| {
+        if let Some(cover) = app.get_window(COVER) {
+            let _ = cover.close();
+        }
+        if let Some(floor) = app.get_window(LABEL) {
+            let _ = floor.set_always_on_top(true);
         }
     });
 }
 
+/// Keeps the Floor above the shared desktop's other windows while it's
+/// measured (the harness's app isn't the one in front).
+fn on_top(app: &tauri::AppHandle) {
+    on_main(app, |app| {
+        if let Some(floor) = app.get_window(LABEL) {
+            let _ = floor.set_always_on_top(true);
+        }
+    });
+}
+
+/// Seconds for a case: as given, or a fifth in quick mode (10 at least).
+fn secs(full: u64, quick: bool) -> u64 {
+    if quick { (full / 5).max(10) } else { full }
+}
+
 #[allow(clippy::too_many_lines)] // one flat script of cases, read top to bottom
 fn run(app: &tauri::AppHandle) -> String {
+    let quick = std::env::var_os(QUICK).is_some();
     let state = Arc::clone(app.state::<Arc<AppState>>().inner());
-    let kept_motion = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|s| s.app_settings().get(MOTION_KEY).ok().flatten());
+    let kept = |key: &str| {
+        state
+            .storage
+            .lock()
+            .ok()
+            .and_then(|s| s.app_settings().get(key).ok().flatten())
+    };
+    let (kept_motion, kept_on_top) = (kept(MOTION_KEY), kept(ON_TOP_KEY));
+    // The desktop is shared: the Floor stays above other apps' windows
+    // while it's measured (as Settings' Keep it on top does), so only the
+    // harness's own cover hides it.
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.app_settings().set(ON_TOP_KEY, "on");
+    }
     let mut memory = Vec::new();
     let mut cases = Vec::new();
     // The app settles: its first scans and samples.
-    std::thread::sleep(Duration::from_secs(30));
+    std::thread::sleep(Duration::from_secs(if quick { 15 } else { 30 }));
     cases.push(measure(
+        app,
         "Never opened (the app alone)",
-        60,
+        secs(60, quick),
         &[],
         &mut memory,
     ));
     let before = read();
+    let memory_before = footprint_top(std::process::id());
 
     set_motion(app, "off");
     let _ = window::open(app);
-    std::thread::sleep(Duration::from_secs(5));
+    std::thread::sleep(Duration::from_secs(3));
+    on_top(app);
     let first_ms = COUNTERS.first_ms.load(Ordering::Relaxed);
-    cases.push(measure("Open, at rest (Motion Off)", 60, &[], &mut memory));
+    let open_steps: Vec<serde_json::Value> = super::render::OPEN_STEPS
+        .lock()
+        .map(|steps| {
+            steps
+                .iter()
+                .map(|(name, ms)| serde_json::json!({ "step": name, "at_ms": ms }))
+                .collect()
+        })
+        .unwrap_or_default();
+    cases.push(measure(
+        app,
+        "Open, at rest (Motion Off)",
+        secs(60, quick),
+        &[],
+        &mut memory,
+    ));
     let still = read();
+    let memory_still = footprint_top(std::process::id());
 
     set_motion(app, "calm");
     std::thread::sleep(Duration::from_secs(3));
-    cases.push(measure("Animating, Calm", 60, &[], &mut memory));
-
-    set_motion(app, "full");
-    std::thread::sleep(Duration::from_secs(3));
     cases.push(measure(
-        "Animating, Full (5 minutes)",
-        300,
-        &[30, 150, 290],
+        app,
+        "Animating, Calm",
+        secs(60, quick),
+        &[],
         &mut memory,
     ));
 
+    set_motion(app, "full");
+    std::thread::sleep(Duration::from_secs(3));
+    let marks: &[u64] = if quick {
+        &[10, 30, 55]
+    } else {
+        &[30, 150, 290]
+    };
+    cases.push(measure(
+        app,
+        "Animating, Full (5 minutes)",
+        secs(300, quick),
+        marks,
+        &mut memory,
+    ));
+    let memory_animating = footprint_top(std::process::id());
+
     cover(app);
-    cases.push(measure("Covered by another window", 30, &[], &mut memory));
-    on_main(app, |app| {
-        if let Some(main) = app.get_window("main") {
-            let _ = main.set_always_on_top(false);
-        }
-        if let Some(floor) = app.get_window(LABEL) {
-            let _ = floor.set_focus();
-        }
-    });
+    cases.push(measure(
+        app,
+        "Covered by another window",
+        secs(30, quick),
+        &[],
+        &mut memory,
+    ));
+    uncover(app);
 
     on_main(app, |app| {
         if let Some(floor) = app.get_window(LABEL) {
             let _ = floor.minimize();
         }
     });
-    cases.push(measure("Minimised", 30, &[], &mut memory));
+    cases.push(measure(app, "Minimised", secs(30, quick), &[], &mut memory));
     on_main(app, |app| {
         if let Some(floor) = app.get_window(LABEL) {
             let _ = floor.unminimize();
-            let _ = floor.set_focus();
         }
     });
+    on_top(app);
+    let after_minimised = window_now(app);
 
     // A data change: the scene rebuilt and on screen (Motion Off, so the
     // frame is the change's own).
@@ -238,13 +413,15 @@ fn run(app: &tauri::AppHandle) -> String {
     std::thread::sleep(Duration::from_secs(2));
     let mut changes = Vec::new();
     for _ in 0..10 {
+        let frames = COUNTERS.frames.load(Ordering::Relaxed);
         window::reload(app);
         // poll: one data change at a time, 600 ms apart (its frame comes
         // within 100 ms); ten in all.
         std::thread::sleep(Duration::from_millis(600));
-        changes.push(COUNTERS.change_us.load(Ordering::Relaxed));
+        let drawn = COUNTERS.frames.load(Ordering::Relaxed) > frames;
+        #[allow(clippy::cast_precision_loss)] // microseconds, far below 2^52
+        changes.push(drawn.then(|| COUNTERS.change_us.load(Ordering::Relaxed) as f64 / 1000.0));
     }
-    changes.sort_unstable();
     #[allow(clippy::cast_precision_loss)]
     let build_ms = COUNTERS.build_ns.load(Ordering::Relaxed) as f64
         / 1e6
@@ -255,57 +432,60 @@ fn run(app: &tauri::AppHandle) -> String {
             let _ = floor.close();
         }
     });
-    cases.push(measure("Closed", 30, &[], &mut memory));
+    cases.push(measure(app, "Closed", secs(30, quick), &[], &mut memory));
     let closed = read();
+    let memory_closed = footprint_top(std::process::id());
 
     if let Ok(storage) = state.storage.lock() {
-        let _ = storage
-            .app_settings()
-            .set(MOTION_KEY, kept_motion.as_deref().unwrap_or("system"));
+        let settings = storage.app_settings();
+        let _ = settings.set(MOTION_KEY, kept_motion.as_deref().unwrap_or("system"));
+        let _ = settings.set(ON_TOP_KEY, kept_on_top.as_deref().unwrap_or("off"));
     }
 
-    let mut out = String::from("{\n  \"cases\": [\n");
-    for (i, c) in cases.iter().enumerate() {
-        let _ = writeln!(
-            out,
-            "    {{\"name\": \"{}\", \"secs\": {:.1}, \"cpu_pct\": {:.3}, \"frames\": {}, \"first_second_frames\": {}, \"draw_ms_per_frame\": {:.3}, \"footprint_mb\": {:.1}}}{}",
-            c.name,
-            c.secs,
-            c.cpu_pct,
-            c.frames,
-            c.first_second_frames,
-            c.draw_ms_per_frame,
-            c.footprint_mb,
-            if i + 1 < cases.len() { "," } else { "" }
-        );
-    }
-    let marks: Vec<String> = memory
-        .iter()
-        .map(|(s, mb)| format!("{{\"at_s\": {s}, \"footprint_mb\": {mb:.1}}}"))
-        .collect();
-    let changes_ms: Vec<String> = changes
-        .iter()
-        .map(|us| {
-            format!(
-                "{:.1}",
-                f64::from(u32::try_from(*us).unwrap_or(u32::MAX)) / 1000.0
-            )
-        })
-        .collect();
     let (apps, sessions) = super::current(&state).map_or((0, 0), |s| {
         (
             s.apps.len(),
             s.apps.iter().map(|a| a.sessions.len()).sum::<usize>(),
         )
     });
-    let _ = write!(
-        out,
-        "  ],\n  \"apps\": {apps},\n  \"sessions\": {sessions},\n  \"first_frame_ms\": {first_ms},\n  \"footprint_before_mb\": {:.1},\n  \"footprint_open_still_mb\": {:.1},\n  \"footprint_closed_mb\": {:.1},\n  \"full_memory_marks\": [{}],\n  \"change_to_screen_ms\": [{}],\n  \"scene_build_ms_mean\": {build_ms:.2}\n}}\n",
-        before.footprint_mb,
-        still.footprint_mb,
-        closed.footprint_mb,
-        marks.join(", "),
-        changes_ms.join(", "),
-    );
-    out
+    let top = |rows: &[(String, f64)]| -> Vec<serde_json::Value> {
+        rows.iter()
+            .map(|(what, mb)| serde_json::json!({ "category": what, "mb": (mb * 10.0).round() / 10.0 }))
+            .collect()
+    };
+    let r1 = |x: f64| (x * 10.0).round() / 10.0;
+    let report = serde_json::json!({
+        "quick": quick,
+        "cases": cases.iter().map(|c| serde_json::json!({
+            "name": c.name,
+            "secs": r1(c.secs),
+            "cpu_pct": (c.cpu_pct * 1000.0).round() / 1000.0,
+            "frames": c.frames,
+            "first_second_frames": c.first_second_frames,
+            "draw_ms_per_frame": (c.draw_ms_per_frame * 1000.0).round() / 1000.0,
+            "footprint_mb": r1(c.footprint_mb),
+            "visible_answer": c.visible,
+            "minimised_now": c.window.0,
+            "seen_now": c.window.1,
+            "snapshots": c.snapshots,
+            "inputs": c.inputs.0,
+            "resizes": c.inputs.1,
+        })).collect::<Vec<_>>(),
+        "apps": apps,
+        "sessions": sessions,
+        "first_frame_ms": first_ms,
+        "open_steps": open_steps,
+        "after_unminimise": { "minimised": after_minimised.0, "seen": after_minimised.1 },
+        "footprint_before_mb": r1(before.footprint_mb),
+        "footprint_open_still_mb": r1(still.footprint_mb),
+        "footprint_closed_mb": r1(closed.footprint_mb),
+        "full_memory_marks": memory.iter().map(|(s, mb)| serde_json::json!({ "at_s": s, "footprint_mb": r1(*mb) })).collect::<Vec<_>>(),
+        "memory_before": top(&memory_before),
+        "memory_still": top(&memory_still),
+        "memory_animating": top(&memory_animating),
+        "memory_closed": top(&memory_closed),
+        "change_to_screen_ms": changes,
+        "scene_build_ms_mean": (build_ms * 100.0).round() / 100.0,
+    });
+    serde_json::to_string_pretty(&report).unwrap_or_default()
 }

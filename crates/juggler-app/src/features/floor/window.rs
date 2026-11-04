@@ -125,6 +125,7 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
         .and_then(|s| Settings::read(&s).ok())
         .unwrap_or_default();
     let opened = Instant::now();
+    render::open_step("asked", opened);
     let refused =
         |e: &dyn std::fmt::Display| AppError::Refused(format!("The Floor couldn't open: {e}."));
     let window = tauri::window::WindowBuilder::new(app, LABEL)
@@ -135,6 +136,7 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
         .focused(true)
         .build()
         .map_err(|e| refused(&e))?;
+    render::open_step("window", opened);
     let size = window.inner_size().map_err(|e| refused(&e))?;
     #[allow(clippy::cast_possible_truncation)] // a display's scale: 1–3
     let scale = window.scale_factor().map_err(|e| refused(&e))? as f32;
@@ -156,6 +158,7 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
     }
     let (surface, monitor) = made_rx.recv().map_err(|e| refused(&e))?;
     let surface = surface.map_err(|e| refused(&e))?;
+    render::open_step("surface", opened);
     if let Ok(mut open) = state.floor.window.lock() {
         *open = Some(Open {
             tx: tx.clone(),
