@@ -319,3 +319,15 @@ export function windowOf(lines: Line[], top: number, height: number, overscan = 
   for (let i = end; i < lines.length; i += 1) after += heights[lines[i]!.kind];
   return { start, end, before, after };
 }
+
+/** The own names two headers share (the 0.4 review): their app's word is
+ * what tells them apart, so it shows beside them; a unique name stands
+ * alone. */
+export function sharedProfileNames(lines: readonly Line[]): Set<string> {
+  const seen = new Map<string, number>();
+  for (const line of lines) {
+    const profile = line.kind === "header" ? line.group.place?.profile : undefined;
+    if (profile) seen.set(profile, (seen.get(profile) ?? 0) + 1);
+  }
+  return new Set([...seen].filter(([, n]) => n > 1).map(([name]) => name));
+}

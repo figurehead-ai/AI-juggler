@@ -30,7 +30,7 @@ function page() {
   return render(
     <ConversationsProvider>
       <ActionHostProvider host={{}}>
-        <ThisMacPage sessions={[]} projects={[]} accounts={folders} now={NOW} nameOf={() => "A session"} onOpenSession={() => {}} onOpenProject={() => {}} />
+        <ThisMacPage sessions={[]} projects={[]} accounts={folders} now={NOW} onOpenSession={() => {}} onOpenProject={() => {}} />
       </ActionHostProvider>
     </ConversationsProvider>,
   );

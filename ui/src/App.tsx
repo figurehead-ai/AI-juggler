@@ -65,7 +65,7 @@ const STAT_SCREENS: Partial<Record<string, string>> = {
 
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
-import { HomeScreen, placeOf } from "./screens/Home";
+import { HomeScreen } from "./screens/Home";
 import { funnelEvent } from "./lib/funnel";
 import { NotificationRegion } from "./components/NotificationRegion";
 import { ScreenBoundary, ScrollingScreen } from "./components/ScreenBoundary";
@@ -703,23 +703,9 @@ export default function App() {
             </ScrollingScreen>
           ) : global === "thismac" ? (
             // AJ-E3104: a page with its own tabs, which scroll themselves.
-            <div key="thismac" className="min-h-0 h-full" data-testid="this-mac-scroll">
-              <ScreenBoundary screen="this-mac-page" label="This Mac">
-                <ThisMacPage
-                  sessions={railSessions}
-                  projects={projects}
-                  accounts={accounts}
-                  now={now}
-                  nameOf={(id) => {
-                    const session = sessions.find((s) => s.id === id);
-                    return session ? placeOf(session, projects).title : "A session";
-                  }}
-                  onOpenSession={selectSession}
-                  onOpenProject={selectProject}
-                  onOpenCleanup={() => setGlobal("cleanup")}
-                />
-              </ScreenBoundary>
-            </div>
+            <ScreenBoundary key="thismac" screen="this-mac-page" label="This Mac">
+              <ThisMacPage sessions={railSessions} projects={projects} accounts={accounts} now={now} onOpenSession={selectSession} onOpenProject={selectProject} onOpenCleanup={() => setGlobal("cleanup")} />
+            </ScreenBoundary>
           ) : global === "privacy" ? (
             // Settings › Privacy, a frame from now (the redirect above).
             null

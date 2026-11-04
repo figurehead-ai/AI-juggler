@@ -27,7 +27,7 @@ import { placesKeepAlive } from "../lib/ipc/places";
 import { placeFor, useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow } from "../lib/rail-items";
 import { useClosedSections } from "./rail-groups";
-import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
+import { buildLines, foldSections, lineHeights, lineKey, offsetOf, sharedProfileNames, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import { recentWords } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp } from "../lib/apps";
 import { openAccount } from "../lib/accounts-page";
@@ -122,16 +122,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // Inactive apps starts folded, and each one stays as it was left.
   const [closed, foldSection] = useClosedSections();
   const lines = foldSections(built.lines, closed);
-  // Own names two headers share (the 0.4 review): their app's word tells
-  // them apart, so it keeps its room; a unique name keeps its own.
-  const sharedNames = useMemo(() => {
-    const seen = new Map<string, number>();
-    for (const line of built.lines) {
-      const profile = line.kind === "header" ? line.group.place?.profile : undefined;
-      if (profile) seen.set(profile, (seen.get(profile) ?? 0) + 1);
-    }
-    return new Set([...seen].filter(([, n]) => n > 1).map(([name]) => name));
-  }, [built.lines]);
+  const sharedNames = useMemo(() => sharedProfileNames(built.lines), [built.lines]);
   useEffect(() => {
     last.current = shownOrder(built.lines);
   });

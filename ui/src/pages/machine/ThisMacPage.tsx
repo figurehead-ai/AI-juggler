@@ -19,6 +19,7 @@ import { machineStatus, ThisMacContext } from "../../lib/machine";
 import { THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
 import { appByConversation, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
+import { placeOf } from "../../lib/project-words";
 import { useRelationCounts } from "../../lib/relation-counts";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
@@ -33,8 +34,6 @@ type Props = {
   projects: ProjectInfo[];
   accounts: AccountInfo[];
   now: number;
-  /** A session's name on screen (its place: branch, else folder). */
-  nameOf: (sessionId: string) => string;
   onOpenSession: (id: string) => void;
   onOpenProject: (id: string) => void;
   onOpenCleanup?: () => void;
@@ -57,7 +56,12 @@ function useThisMacSelf(): { id: string; label: string } | null {
   return self;
 }
 
-export function ThisMacPage({ sessions, projects, accounts, now, nameOf, onOpenSession, onOpenProject, onOpenCleanup }: Props): JSX.Element {
+export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, onOpenProject, onOpenCleanup }: Props): JSX.Element {
+  // A session's name on screen: its place (branch, else folder).
+  const nameOf = (id: string) => {
+    const session = sessions.find((s) => s.id === id);
+    return session ? placeOf(session, projects).title : "A session";
+  };
   const host = useActionHost();
   const self = useThisMacSelf();
   const status = machineStatus(useContext(ThisMacContext));
@@ -90,7 +94,7 @@ export function ThisMacPage({ sessions, projects, accounts, now, nameOf, onOpenS
     open > 0 ? <span key="open">{open} open</span> : null,
   ].filter((fact): fact is JSX.Element => fact !== null);
   return (
-    <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col" data-testid="this-mac-page">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col" data-testid="this-mac-page">
       <PageShell
         kind="machine"
         subject="this-mac"
