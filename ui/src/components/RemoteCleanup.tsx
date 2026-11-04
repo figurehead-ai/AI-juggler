@@ -203,7 +203,7 @@ function CleanSheet({
         </p>
         <p id="remote-clean-body" className="mt-1.5 text-xs leading-relaxed text-ink-2">
           {machine.label} checks again that pid {row.pid} is still the process it recorded for{" "}
-          {row.account_label || "that session"}, then asks it to quit and stops it if it doesn't. If
+          {row.account_label ? cliAppName(row.provider, row.account_label) : "that session"}, then asks it to quit and stops it if it doesn't. If
           anything changed, nothing is touched.
         </p>
         <div className="mt-4 flex justify-end gap-2">

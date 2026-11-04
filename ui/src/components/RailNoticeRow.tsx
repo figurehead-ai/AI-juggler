@@ -5,13 +5,32 @@
  * mark and words are the notification centre's; a click is the notice's
  * own primary (it opens what it is about; nothing runs by itself).
  */
-import type { JSX } from "react";
+import { useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
 import { NoticeMark } from "./NoticeRow";
 import { needLine, primaryLabel } from "../lib/notice-words";
 import type { NoticeInfo } from "../lib/ipc/notices";
 
-/** About how many characters fit the rail's title line. */
-const LONG_TITLE = 28;
+/** One title line's height (`leading-[18px]`); a taller title wrapped. */
+const TITLE_LINE = 18;
+
+/** Whether the title wraps onto a second line, measured as drawn (the
+ * rail's width and the font decide it, not a count of characters: "Planner
+ * has a message waiting" fits). */
+function useWraps(): [RefObject<HTMLSpanElement | null>, boolean] {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const [wraps, setWraps] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setWraps(el.getBoundingClientRect().height > TITLE_LINE * 1.5);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, wraps];
+}
 
 export function RailNoticeRow({ notice, now, onOpen }: { notice: NoticeInfo; now: number; onOpen: (notice: NoticeInfo) => void }): JSX.Element {
   const line = needLine(notice, now);
@@ -19,7 +38,7 @@ export function RailNoticeRow({ notice, now, onOpen }: { notice: NoticeInfo; now
   // A long title takes the detail's line (the row's height is fixed:
   // the rail's list is drawn by it); the detail stays in its name and
   // its tooltip (the 0.4 review: "Claude Max 20x is almost out…").
-  const long = notice.title.length > LONG_TITLE;
+  const [titleRef, long] = useWraps();
   return (
     <button
       type="button"
@@ -35,7 +54,7 @@ export function RailNoticeRow({ notice, now, onOpen }: { notice: NoticeInfo; now
         <NoticeMark kind={notice.kind} small />
       </span>
       <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col">
-        <span className={(long ? "line-clamp-2 " : "truncate ") + "text-meta font-semibold leading-[18px] text-ink"}>{notice.title}</span>
+        <span ref={titleRef} className="line-clamp-2 text-meta font-semibold leading-[18px] text-ink">{notice.title}</span>
         {line && !long && <span className="truncate text-label leading-4 text-muted">{line}</span>}
         {action && <span className="truncate text-label font-semibold leading-4 text-warning">{action}</span>}
       </span>

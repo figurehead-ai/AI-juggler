@@ -2385,6 +2385,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   // (the limit dialog's pick said nothing of Work Max's 58% left).
   {
     recipe_id: "recipe-work-max",
+    provider: "claude-code",
     account_id: "claude-work",
     account_label: "Work Max",
     badge: "Same conversation, another app · Beta",
@@ -2401,6 +2402,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-personal",
+    provider: "claude-code",
     account_id: "claude-personal",
     account_label: "Personal",
     badge: "Same conversation, another app · Beta",
@@ -2417,6 +2419,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-codex",
+    provider: "codex",
     account_id: "acct-codex",
     account_label: "Codex",
     badge: "Full story, fresh start · Beta",
@@ -2433,6 +2436,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-lab",
+    provider: "claude-code",
     account_id: "acct-lab",
     account_label: "Lab",
     badge: "Same conversation, another app · Beta",
