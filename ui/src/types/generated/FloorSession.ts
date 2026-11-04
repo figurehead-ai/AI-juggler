@@ -35,6 +35,11 @@ project: string | null,
  */
 tasks: number, 
 /**
+ * Its processes' CPU, percent of one core (the fire goes on the
+ * busiest desk).
+ */
+cpu_pct: number, 
+/**
  * When it started (epoch ms): desks go in this order.
  */
 started_ms: number, 

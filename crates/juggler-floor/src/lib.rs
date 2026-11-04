@@ -37,6 +37,8 @@ pub mod mesh;
 pub mod models;
 pub mod paint;
 pub mod rng;
+pub mod scene;
+pub mod seating;
 pub mod snapshot;
 pub mod state;
 pub mod tex;

@@ -20,7 +20,7 @@ const WORDS: Record<FloorState, string> = {
 };
 
 function seat(key: string, title: string, state: FloorState, ago: number, extra: Partial<FloorSession> = {}): FloorSession {
-  return { key, title, state, word: WORDS[state], subagents: 0, project: "shop", tasks: 0, started_ms: NOW - ago * MIN - 30 * MIN, last_ms: NOW - ago * MIN, ...extra };
+  return { key, title, state, word: WORDS[state], subagents: 0, project: "shop", tasks: 0, cpu_pct: state === "working" ? 18 : 1, started_ms: NOW - ago * MIN - 30 * MIN, last_ms: NOW - ago * MIN, ...extra };
 }
 
 function area(id: string, name: string, tool: string, family: string, slot: number, sessions: FloorSession[], extra: Partial<FloorApp> = {}): FloorApp {

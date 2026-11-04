@@ -111,6 +111,12 @@ impl B<'_> {
         );
     }
 
+    /// A plain part that vanishes when it stands between the camera and
+    /// the room (walls, mullions, sills).
+    pub fn cut(&mut self, mesh: Mesh, t: T, c: Rgba) {
+        self.raw(mesh, t, c, None, 0.0, CUTAWAY, false);
+    }
+
     /// A glass part.
     pub fn glass(&mut self, mesh: Mesh, t: T, c: Rgba, flags: u32) {
         self.raw(mesh, t, c, None, 0.0, flags, true);

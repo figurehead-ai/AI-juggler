@@ -166,6 +166,11 @@ pub fn initials(name: &str) -> String {
         .collect()
 }
 
+#[allow(clippy::cast_possible_truncation)] // percent of a core: small
+fn cpu_of(inputs: &Inputs, key: &str) -> f32 {
+    inputs.cpu.get(key).copied().unwrap_or(0.0) as f32
+}
+
 fn own_seat(row: &OwnRow, inputs: &Inputs) -> FloorSession {
     let seen = own_session(
         &row.status,
@@ -184,6 +189,7 @@ fn own_seat(row: &OwnRow, inputs: &Inputs) -> FloorSession {
             .as_ref()
             .and_then(|p| inputs.projects.get(p).cloned()),
         tasks: inputs.tasks.get(&row.id).copied().unwrap_or(0),
+        cpu_pct: cpu_of(inputs, &format!("s:{}", row.id)),
         started_ms: row.started_ms,
         last_ms: row.last_ms.unwrap_or(row.started_ms),
     }
@@ -217,6 +223,7 @@ fn other_seat(c: &ConversationInfo, inputs: &Inputs) -> FloorSession {
             .and_then(|p| inputs.projects.get(p).cloned())
             .or_else(|| (!folder.is_empty()).then(|| folder.to_owned())),
         tasks: 0,
+        cpu_pct: cpu_of(inputs, &format!("c:{}/{}", c.account_id, c.id)),
         started_ms: c.started_ms.unwrap_or(last),
         last_ms: last,
     }

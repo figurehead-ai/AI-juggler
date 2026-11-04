@@ -41,6 +41,9 @@ pub struct FloorSession {
     pub project: Option<String>,
     /// Its open tasks.
     pub tasks: u32,
+    /// Its processes' CPU, percent of one core (the fire goes on the
+    /// busiest desk).
+    pub cpu_pct: f32,
     /// When it started (epoch ms): desks go in this order.
     #[ts(type = "number")]
     pub started_ms: i64,

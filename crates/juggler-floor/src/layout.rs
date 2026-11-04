@@ -32,6 +32,11 @@ pub const ROW_D: f32 = 9.0;
 pub const AISLE: f32 = 2.6;
 /// A floor's depth, metres.
 pub const DEPTH: f32 = 2.0 * ROW_D + AISLE;
+/// From one floor to the next, metres (the building is cut away between
+/// them, so floors read apart).
+pub const STOREY: f32 = 15.0;
+/// A wall's height, metres.
+pub const WALL_H: f32 = 3.0;
 /// The fewest and most Apps a floor holds (Settings › The Floor).
 pub const PER_FLOOR: std::ops::RangeInclusive<usize> = 4..=16;
 /// Apps a floor holds by default.
