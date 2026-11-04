@@ -338,11 +338,12 @@ Your own `~/.claude` and `~/.codex` folders are otherwise left as they are.
   and shortcut settings that fit you, and every core feature checked on
   real tools. Also accounts and apps each with their own page, every page
   leading to everything related, pools redesigned around how people run
-  several agents, and a simpler New session, all walked through as real
-  use cases before release.
+  several agents, a simpler New session, and the Floor, a live picture of
+  all your agents at work, all walked through as real use cases before
+  release.
 - **0.5:** more tools (ZCode, Kiro, Hermes, Muse, Cursor, Antigravity),
-  pools across your Macs, handing work to a colleague, and a live
-  picture of all your agents at work. The first Stable is a 0.5.x.
+  pools across your Macs and handing work to a colleague. The first
+  Stable is a 0.5.x.
 - **0.6 and 0.7:** AI Juggler for Windows, then Linux.
 - **1.0:** after the Windows release has succeeded.
 

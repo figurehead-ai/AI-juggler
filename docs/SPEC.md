@@ -624,7 +624,7 @@ loading, error, stale/offline.
 > every screen: a rename or a new App never moves it. An Account's mark is
 > another shape, the round avatar, given its own colour the same way.
 >
-> **Amended by D-62's colour ruling (2026-11-03): colour is the Apps'.**
+> **Amended by D-69 (2026-11-03): colour is the Apps'.**
 > A row wears one colour, its App's dot; an Account beside an App is
 > neutral (a hollow ring when small, grey with its initials when large)
 > or named in words. An Account wears its own colour only where Accounts
@@ -814,7 +814,7 @@ Enter opens, N jumps to the next one waiting on you.
 | Memory added | ≤ 150 MB open and still; ≤ 250 MB animating; 0 once closed |
 | Building the scene | ≤ 50 ms for 20 Apps and 150 sessions; a reflow ≤ 20 ms |
 
-**Platforms.** macOS in 0.5.0. The window, input and visibility live
+**Platforms.** macOS in 0.4 (D-68). The window, input and visibility live
 behind `juggler-window-events`; Windows (0.6) and Linux (0.7)
 implement it in their first releases (D-52), and until then the Floor
 entry says it isn't available on that system yet, and why.

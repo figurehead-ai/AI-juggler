@@ -147,3 +147,21 @@
 **Files to touch**: `ui/src/screens/NewSession.tsx` and its parts.
 **Research basis**: `docs/design/PRINCIPLES.md`; the review's New session wireframes.
 **Handover note**: —
+
+### AJ-E3208 Accounts and Apps, side by side: an Apps section on the Accounts screen | Status: TODO (the decision audit, 2026-11-04: asked for on 2026-11-01 and promised in 0.3.4's release notes) | Priority P0 | Effort M | Depends: AJ-E3202, AJ-E3204
+**Source**: the maintainer, 2026-11-01: "Our accounts section really need to be better or expanded into both Apps and Accounts so both can be easily get to." 0.3.4's release notes promise "an **Apps** section beside Accounts" in 0.4.
+**Goal**: From the Accounts screen, every App is one click away as easily as every Account.
+**User story**: I open Accounts and see my Accounts and, beside them, my Apps (Claude Code · Work Max, Claude app · Work, Codex · Main), each with its state, its Account, and Start or Open; a click opens its page.
+**Requirements**:
+1. The Accounts screen SHALL have two sections, Accounts and Apps (or tabs, if the screen reads better so), each counted.
+2. Each App row SHALL show its icon and mark, its whole name, its Account, whether it runs, and Start (closed) or Open (running); Keep alive in its menu.
+3. Apps SHALL include desktop apps' profiles never opened since AI Juggler was installed (AJ-E3203), shown as found.
+4. A Restart for a running App comes only if the maintainer rules for it (ROADMAP's Decisions owed); 0.3.8's restart of an App that lost its window shows here too.
+**UI/UX reasoning**: desktop-first navigation: what is open, where, one click to it; recognition over recall.
+**Performance budget**: the screen paints from cache at once; ≤ 150 ms to a page.
+**Quality gates**: the counts equal their lists; every App reachable; walked by hand (A-scenarios).
+**Evidence/validation proof**: scenarios A1–A4; gallery captures in both themes.
+**Visual testing**: both themes, 1024 and 1280.
+**Files to touch**: `ui/src/screens/accounts/`, `ui/src/lib/apps.ts`.
+**Research basis**: the review's Accounts wireframes; `docs/research/relations-map.md`.
+**Handover note**: —

@@ -16,6 +16,10 @@
 > AJ-E3305 run alongside their epics. AJ-E3306 is the last thing before
 > 0.4 ships.
 
+> The Floor (E35) joined 0.4 on 2026-11-04 (D-68): its gates (AJ-E3513)
+> and walks (AJ-E3514) are part of this validation; see the plan's
+> "The Floor" section.
+
 ### AJ-E3301 The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | Status: TODO | Priority P0 | Effort L | Depends: —
 **Goal**: One scenario drives the exhaustive tests, the oracle check, the scripted journey and the hand walk, so they can't drift apart.
 **User story**: As the person walking P1, the sheet I fill in has the same steps and expectations the automation checked.

@@ -2222,7 +2222,12 @@ and thing user do a lot."
 3. Every app header has a menu: Start (closed) or Bring forward (running),
    Keep alive, its page. Home's Your apps shows closed apps too, with
    Start. No Restart of a running app (it would stop the sessions in it;
-   Keep alive restarts one that quits).
+   Keep alive restarts one that quits). *Correction (2026-11-04, the
+   decision audit): this point was the assistant's proposal, written down
+   as settled before the maintainer ruled on it; the maintainer had asked
+   for "a bunch of ways for user to quickly start or restart the app".
+   Owed (ROADMAP's Decisions owed). 0.3.8 restarts an app that lost its
+   window.*
 4. The rail groups by App (D-62's grouping, built for 0.4) from 0.3.4, so
    CLI apps exist in it; the other screens' words follow in 0.4.
 
@@ -2398,3 +2403,26 @@ notes describe it. D-67's design rulings stand unchanged.
 
 **Amends.** D-67 (its release: 0.4, not 0.5.0).
 
+### D-69 Colour is the Apps'; other groupings get their own identifiers — SETTLED (2026-11-03)
+
+**Ruling.** The maintainer, 2026-11-03, on the proposal that colour
+belongs to Apps and an Account beside an App is neutral: "Yes I agree,
+and you can use other identifiers, icons, tags for other types of
+grouping". Recorded on 2026-11-04 by the decision audit; SPEC §9 cited it
+as "D-62's colour ruling", which no entry held.
+
+**What it means.** A row wears one colour, its App's. An Account beside
+an App is neutral (a ring, or grey initials). Other groupings (project,
+pool, Mac, tool) are told apart by their own identifiers: icons, marks
+and tags, never a second colour.
+
+**Amends.** D-62 (its colour wording).
+
+### D-70 Pools across your Macs ship in 0.5 — SETTLED (2026-10-30)
+
+**Ruling.** The roadmap the maintainer locked in on 2026-10-30 lists
+pools across Macs after 0.4 (AJ-E1701, AJ-E1705), in 0.5. Recorded on
+2026-11-04 by the decision audit: D-32 still said "in 0.2" and no entry
+amended it.
+
+**Amends.** D-32 (its release).
