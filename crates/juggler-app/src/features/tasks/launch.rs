@@ -2,10 +2,13 @@
 //! user's click, on the launch settings the user picks.
 //!
 //! The session starts the way every session the user starts does (the
-//! project's folder, its runtime, its agent tools), with the task's brief
-//! as its first prompt: a terminal launch takes it as the tool's own first
-//! prompt; a session run in AI Juggler gets it as the user's message,
-//! delivered between turns (E18). Then the task is the new session's, in
+//! project's folder, its runtime, its agent tools). D-72: its first prompt
+//! is a pointer to the task, never the brief (a terminal launch takes its
+//! first prompt on the command line, where other programs can read it):
+//! with the agent tools it reads the brief through them; without, from a
+//! private copy only this user can open. A session run in AI Juggler still
+//! gets the whole brief as the user's message, delivered between turns
+//! (E18), which no command line carries. Then the task is the new session's, in
 //! progress, and the session is linked to it ("started for"). A request
 //! from an agent that waited in Needs you is closed with it.
 //!
@@ -70,6 +73,52 @@ fn brief_of(task: &juggler_core::storage::Task, pool: &str) -> String {
     })
 }
 
+/// The folder a task's private brief is kept in when its session has no
+/// agent tools (D-72).
+const BRIEFS: &str = "task-briefs";
+
+/// D-72: the first prompt of a session started for `task` on `profile_id`:
+/// a pointer to the task. With the agent tools (on for its project and
+/// account), it reads the brief through them; without, the brief is
+/// written to a private file (this user only) and the pointer names it.
+fn first_prompt(
+    state: &Arc<AppState>,
+    task: &juggler_core::storage::Task,
+    pool: &str,
+    profile_id: &str,
+    brief: &str,
+) -> AppResult<String> {
+    let (project, account) = {
+        let storage = lock_storage_arc(state)?;
+        let project = storage
+            .pools()
+            .get(&task.pool_id)
+            .ok()
+            .and_then(|pool| pool.project)
+            .map(|id| id.to_string());
+        let account = storage
+            .profiles()
+            .get(&juggler_core::model::ProfileId::new(profile_id))
+            .map(|recipe| recipe.account.to_string())?;
+        (project, account)
+    };
+    if crate::features::agent_bridge::tools_offered(state, project.as_deref(), &account) {
+        return Ok(tasks::pointer(&task.id, pool, &task.title, None));
+    }
+    let dir = state.data_dir.join(BRIEFS);
+    crate::features::agent_bridge::own_dir(&dir)
+        .map_err(|error| AppError::io("the task's brief", &error))?;
+    let path = dir.join(format!("{}.md", task.id));
+    crate::features::agent_bridge::write_private(&path, brief)
+        .map_err(|error| AppError::io("the task's brief", &error))?;
+    Ok(tasks::pointer(
+        &task.id,
+        pool,
+        &task.title,
+        Some(&path.to_string_lossy()),
+    ))
+}
+
 /// The user starts a session for a task on `profile_id` (their pick); it
 /// closes `need` (an agent's request) when there was one.
 ///
@@ -104,8 +153,9 @@ pub fn start(
     let pool_name = super::pool_name(&*lock_storage_arc(state)?, &task.pool_id)?;
     let brief = brief_of(&task, &pool_name);
     let cwd = folder_of(state, &task.pool_id, &task.created_by)?;
+    let first = first_prompt(state, &task, &pool_name, profile_id, &brief)?;
     let launched =
-        crate::commands::launch_profile_primed(state, profile_id, cwd, None, Some(brief.clone()))?;
+        crate::commands::launch_profile_primed(state, profile_id, cwd, None, Some(first))?;
     let session = SessionId::new(launched.session_id.as_str());
     // The new session joins the task's pool (the user's click moves it).
     let in_pool = crate::features::pools::members::place_of(&*lock_storage_arc(state)?, &session)?

@@ -620,6 +620,22 @@ pub fn brief(task: &Brief<'_>) -> String {
     out
 }
 
+/// D-72: a task's session starts from a pointer, never its brief: the
+/// first prompt names the task and where to read it (the juggler tool, or
+/// `juggler-agent task` from a shell; or `file`, a private copy, when the
+/// session has no tools), so nothing the task says is on a command line.
+#[must_use]
+pub fn pointer(id: &str, pool: &str, title: &str, file: Option<&str>) -> String {
+    let next = file.map_or_else(
+        || format!("Read it in full with the juggler tool task_get {id} (or `juggler-agent task {id}` from a shell), then work on it. When you can, say where it is with the juggler tool task_update (in_review when it's ready for a look), or `juggler-agent task-update {id} in_review` from a shell."),
+        |path| format!("Read it in full in {path}, then work on it."),
+    );
+    format!(
+        "{}you started this session for the task {id} in the pool «{pool}». It's this session's now.]\n\n{id} · {title}\n\n{next}",
+        crate::injected::TASK_OPENER,
+    )
+}
+
 /// What [`brief`] reads.
 #[derive(Clone, Debug)]
 pub struct Brief<'a> {
@@ -639,6 +655,34 @@ pub struct Brief<'a> {
 
 #[cfg(test)]
 mod tests {
+    /// D-72: the pointer names the task and where to read it, and never
+    /// carries what the task says.
+    #[test]
+    fn a_pointer_names_the_task_but_never_its_brief() {
+        let with_tools = super::pointer("aj-12", "Checkout", "Ship the refunds", None);
+        assert!(with_tools.starts_with(crate::injected::TASK_OPENER));
+        assert!(with_tools.contains("aj-12 · Ship the refunds"));
+        assert!(with_tools.contains("task_get aj-12"));
+        let without = super::pointer(
+            "aj-12",
+            "Checkout",
+            "Ship the refunds",
+            Some("/data/task-briefs/aj-12.md"),
+        );
+        assert!(without.contains("Read it in full in /data/task-briefs/aj-12.md"));
+        assert!(!without.contains("task_update"), "no tools to name");
+        let brief = super::brief(&super::Brief {
+            id: "aj-12",
+            pool: "Checkout",
+            title: "Ship the refunds",
+            body: "The secret plan: rotate key sk-live-…",
+            acceptance: "",
+            written_by_agent: None,
+        });
+        assert!(brief.contains("The secret plan"));
+        assert!(!with_tools.contains("The secret plan") && !without.contains("The secret plan"));
+    }
+
     use super::*;
 
     #[test]
