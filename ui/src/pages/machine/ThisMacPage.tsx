@@ -16,6 +16,7 @@ import { appProjects, openHere } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
 import { fleetSelf, hasLiveBackend, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { machineStatus, ThisMacContext } from "../../lib/machine";
+import { THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
 import { appByConversation, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { useRelationCounts } from "../../lib/relation-counts";
@@ -102,7 +103,7 @@ export function ThisMacPage({ sessions, projects, accounts, now, nameOf, onOpenS
                 <IconComputer width={18} height={18} aria-hidden="true" />
               </span>
             }
-            name="This Mac"
+            name={THIS_MACHINE}
             facts={facts.map((fact, index) => (
               <span key={fact.key} className="flex items-center gap-2">
                 {index > 0 && <span aria-hidden="true">·</span>}
@@ -129,9 +130,9 @@ export function ThisMacPage({ sessions, projects, accounts, now, nameOf, onOpenS
                   folders={accounts}
                   projects={projects}
                   showProjects
-                  teach={{ title: "No sessions on this Mac yet", body: "Every session here shows up in this list, what needs you first: AI Juggler's and the ones your apps started." }}
+                  teach={{ title: `No sessions on ${THIS_MACHINE_IN_TEXT} yet`, body: "Every session here shows up in this list, what needs you first: AI Juggler's and the ones your apps started." }}
                   onOpenSession={onOpenSession}
-                  searchLabel="Search this Mac's sessions"
+                  searchLabel={`Search ${THIS_MACHINE_IN_TEXT}'s sessions`}
                 />
               );
             case "apps":
@@ -146,7 +147,7 @@ export function ThisMacPage({ sessions, projects, accounts, now, nameOf, onOpenS
               return (
                 <RelatedPools
                   pools={pools}
-                  teach={{ title: "No pools hold this Mac's sessions yet", body: "A session AI Juggler starts joins its project's own pool and shows here; ones an app started itself aren't in pools." }}
+                  teach={{ title: `No pools hold ${THIS_MACHINE_IN_TEXT}'s sessions yet`, body: "A session AI Juggler starts joins its project's own pool and shows here; ones an app started itself aren't in pools." }}
                 />
               );
             default:

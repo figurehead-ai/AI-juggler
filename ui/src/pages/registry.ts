@@ -6,6 +6,7 @@
  * sessions. A tab shows only when it has something to show; the actions
  * live in the header and its ⋯ menu, never in a tab of their own.
  */
+import { MACHINE_WORD, THIS_MACHINE_IN_TEXT } from "../lib/machine-words";
 
 export type PageKind = "session" | "conversation" | "project" | "app" | "subscription" | "tool" | "machine" | "remote-session" | "pool";
 
@@ -20,7 +21,7 @@ export const PAGE_LABELS: Record<PageKind, string> = {
   app: "App",
   subscription: "Account",
   tool: "Tool",
-  machine: "Mac",
+  machine: MACHINE_WORD,
   "remote-session": "Session",
   pool: "Pool",
 };
@@ -158,7 +159,7 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // answers, its processes and what can be done there.
     case "machine":
       return facts.local
-        ? [{ ...TAB.overview, source: "measured on this Mac" }, TAB.sessions, { ...TAB.apps, source: "the apps and profiles on this Mac" }, TAB.projects, TAB.pools]
+        ? [{ ...TAB.overview, source: `measured on ${THIS_MACHINE_IN_TEXT}` }, TAB.sessions, { ...TAB.apps, source: `the apps and profiles on ${THIS_MACHINE_IN_TEXT}` }, TAB.projects, TAB.pools]
         : [TAB.overview, TAB.processes, TAB.actions];
     case "remote-session":
       return [TAB.overview, TAB.quality, TAB.processes, TAB.actions];
