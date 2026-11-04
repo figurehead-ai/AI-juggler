@@ -41,6 +41,8 @@
 - [Pools](pools.md): grouping sessions that work together, what each
   member is working on, what agents may do in a pool, their messages and
   shared documents, and the pool's tasks.
+- [The Floor](the-floor.md): all your AI work as an office, what each
+  sign on it means, getting to what needs you, and moving around.
 
 - [What AI Juggler touches](trust.md): what it reads, changes and sends,
   and what it never does, each line checked by tests.
