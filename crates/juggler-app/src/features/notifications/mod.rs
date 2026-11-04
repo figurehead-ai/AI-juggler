@@ -34,8 +34,8 @@ pub struct OpenRequest {
     /// The session to open, when it's one.
     pub session_id: Option<String>,
     /// `this_mac` for the This Mac page, `notifications` for the centre;
-    /// from the Floor (AJ-E3510) also `app`, `conversation`, `subagents`
-    /// and `usage`, each with its [`Self::id`].
+    /// from the Floor (AJ-E3510) also `app`, `conversation`, `subagents`,
+    /// `usage` and `pool`, each with its [`Self::id`].
     pub page: Option<String>,
     /// AJ-E1515: the paired Mac the session runs on (`None`: this one).
     #[serde(default)]

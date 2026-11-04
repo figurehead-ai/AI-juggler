@@ -445,6 +445,7 @@ impl Scene {
                 0.0,
             );
         }
+        self.notice_board(out, atlas, f)?;
         if f == 0 {
             let id = self.pick(
                 Target::Prop(self.props.len()),
@@ -520,6 +521,171 @@ impl Scene {
             t,
             id,
         });
+    }
+
+    /// The lobby's notice board: a note for each unread notification (up
+    /// to nine, then the count). A click opens Notifications.
+    fn notice_board(
+        &mut self,
+        out: &mut Vec<Item>,
+        atlas: &mut Atlas,
+        f: usize,
+    ) -> Result<(), Full> {
+        let (fy, fl) = (floor_y(f), f as i32);
+        let unread = self.notices;
+        let detail = match unread {
+            0 => "nothing unread".to_owned(),
+            1 => "1 unread".to_owned(),
+            n => format!("{n} unread"),
+        };
+        let id = self.pick(Target::Notices, "Notifications", detail);
+        let mut b = B {
+            out,
+            floor: fl,
+            id,
+            dim: 1.0,
+        };
+        let t = T::new().t(0.06, fy, 10.6).ry(FRAC_PI_2);
+        b.cut(
+            Mesh::Box,
+            t.t(0.0, 1.0, 0.0).s(1.6, 1.0, 0.04),
+            hex("#b08a5a"),
+        );
+        let notes = ["#ffe27a", "#ffb3c7", "#a8e6cf", "#9fd3ff"];
+        for k in 0..unread.min(9) as usize {
+            let (col, row) = (k % 3, k / 3);
+            let at = t
+                .t(
+                    -0.5 + col as f32 * 0.5,
+                    1.15 + row as f32 * 0.3 - 0.15,
+                    0.03,
+                )
+                .rz(((k * 37) % 7) as f32 * 0.04 - 0.12);
+            b.cut(
+                Mesh::Box,
+                at.s(0.22, 0.22, 0.01),
+                hex(notes[k % notes.len()]),
+            );
+        }
+        if unread > 9 {
+            let more = atlas.add(
+                &format!("notes{unread}"),
+                &tex::text_img(
+                    &[(&format!("+{}", unread - 9), hex("#2a2530"))],
+                    hex("#ffe27a"),
+                    2,
+                ),
+            )?;
+            b.tex(
+                Mesh::QuadWall,
+                t.t(0.55, 1.62, 0.035).s(0.32, 0.16, 1.0),
+                [255; 4],
+                skin(more, [1.0, 1.0], 0.2, CUTAWAY),
+            );
+        }
+        Ok(())
+    }
+
+    /// A pool's meeting room in a free cell: glass walls, a long table, and
+    /// the pool's name over the door. A click opens the pool.
+    pub(super) fn meeting_room(
+        &mut self,
+        out: &mut Vec<Item>,
+        atlas: &mut Atlas,
+        f: usize,
+        r: Rect,
+        pool: &crate::snapshot::FloorPool,
+    ) -> Result<(), Full> {
+        let (fy, fl) = (floor_y(f), f as i32);
+        let members = pool.sessions.len();
+        let detail = if pool.sealed {
+            format!("{members} sessions · sealed")
+        } else {
+            format!("{members} sessions")
+        };
+        let id = self.pick(Target::Pool(pool.id.clone()), pool.name.clone(), detail);
+        let name = atlas.add(
+            &format!("room:{}", pool.id),
+            &tex::text_img(
+                &[(&pool.name.to_uppercase(), hex("#f4efe6"))],
+                hex("#26222e"),
+                3,
+            ),
+        )?;
+        let mut b = B {
+            out,
+            floor: fl,
+            id,
+            dim: 1.0,
+        };
+        let room = r.inset(0.6);
+        b.put(
+            Mesh::QuadUp,
+            T::new()
+                .t(room.cx(), fy + 0.006, room.cz())
+                .s(room.w(), 1.0, room.d()),
+            hex("#5a5f7a"),
+        );
+        let glass = [200, 220, 235, 55];
+        let frame = hex("#9aa0a8");
+        for (x0, z0, x1, z1) in [
+            (room.x0, room.z0, room.x1, room.z0),
+            (room.x0, room.z1, room.x1, room.z1),
+            (room.x0, room.z0, room.x0, room.z1),
+            (room.x1, room.z0, room.x1, room.z1),
+        ] {
+            let len = ((x1 - x0).powi(2) + (z1 - z0).powi(2)).sqrt();
+            let turn = if (z1 - z0).abs() > 0.01 {
+                FRAC_PI_2
+            } else {
+                0.0
+            };
+            let t = T::new()
+                .t(f32::midpoint(x0, x1), fy, f32::midpoint(z0, z1))
+                .ry(turn);
+            b.put(Mesh::Box, t.s(len, 0.08, 0.06), frame);
+            b.put(Mesh::Box, t.t(0.0, 2.2, 0.0).s(len, 0.06, 0.06), frame);
+            for side in [0.0, PI] {
+                b.glass(
+                    Mesh::QuadWall,
+                    t.t(0.0, 0.08, 0.0).ry(side).s(len, 2.1, 1.0),
+                    glass,
+                    0,
+                );
+            }
+        }
+        let table = T::new().t(room.cx(), fy, room.cz());
+        crate::models::long_table(
+            &mut b,
+            table,
+            (room.w() - 2.2).clamp(2.0, 4.6),
+            hex("#c8a070"),
+            hex("#2a2733"),
+        );
+        let seats = ((room.w() - 2.2).clamp(2.0, 4.6) / 1.1) as usize;
+        for k in 0..seats {
+            let x = -0.55 * (seats as f32 - 1.0) + k as f32 * 1.1;
+            for side in [-1.0f32, 1.0] {
+                chair(
+                    &mut b,
+                    table
+                        .t(x, 0.0, side * 0.85)
+                        .ry(if side > 0.0 { 0.0 } else { PI }),
+                    ChairKind::Task,
+                    hex("#3a3d43"),
+                    false,
+                );
+            }
+        }
+        let sign = T::new().t(room.cx(), fy + 2.45, room.z1 + 0.02);
+        let w = 0.4 + 0.11 * pool.name.chars().count() as f32 * 0.7;
+        b.tex(
+            Mesh::QuadWall,
+            sign.s(w, 0.3, 1.0),
+            [255; 4],
+            skin(name, [1.0, 1.0], 0.6, 0),
+        );
+        Ok(())
     }
 
     /// A free cell: the floor's kitchen, or a lounge.

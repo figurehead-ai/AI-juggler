@@ -49,6 +49,10 @@ pub enum Target {
     ThisMac,
     /// A floor (the lift).
     Floor(usize),
+    /// A pool (its meeting room).
+    Pool(String),
+    /// The notification centre (the lobby's notice board).
+    Notices,
     /// Something to play with (no door).
     Prop(usize),
     /// The office cat (no door).
@@ -167,6 +171,8 @@ struct DeskRec {
     shared: bool,
     width: f32,
     phase: f32,
+    /// A crash's smoke stops 10 minutes after it (SPEC §9.7).
+    smoke: bool,
 }
 
 /// The pictures screens show.
@@ -274,6 +280,7 @@ pub struct Scene {
     pub width: f32,
     apps: BTreeMap<String, FloorApp>,
     unused: BTreeMap<String, u8>,
+    notices: u32,
     accounts: Vec<FloorAccount>,
     desks: Vec<DeskRec>,
     signs: Vec<(i32, T, Option<String>)>,
@@ -283,6 +290,7 @@ pub struct Scene {
     beacons: Vec<(i32, V3)>,
     pictures: Pictures,
     cat: u32,
+    now_ms: i64,
 }
 
 impl Scene {
@@ -381,6 +389,7 @@ impl Scene {
             width,
             apps,
             unused: levels,
+            notices: inputs.snapshot.notices,
             accounts: inputs.snapshot.accounts.clone(),
             desks: Vec::new(),
             signs: Vec::new(),
@@ -390,6 +399,7 @@ impl Scene {
             beacons: Vec::new(),
             pictures,
             cat: 0,
+            now_ms: inputs.now_ms,
         };
         let mut out = Vec::new();
         scene.skyline(&mut out, &mut atlas)?;
@@ -400,20 +410,90 @@ impl Scene {
         for placed in &areas {
             scene.area(&mut out, &mut atlas, placed, &inputs)?;
         }
+        let mut rooms = scene.meeting_rooms(&inputs.snapshot.pools);
         let mut commons = vec![true; floors];
         for (f, what, rect) in scene.plan.free.clone() {
-            let first = std::mem::replace(&mut commons[f], false);
-            scene.free_cell(
-                &mut out,
-                f,
-                rect,
-                first && what == crate::layout::Free::Kitchen,
-            );
+            let kitchen =
+                std::mem::replace(&mut commons[f], false) && what == crate::layout::Free::Kitchen;
+            match rooms
+                .iter()
+                .position(|(floor, _)| *floor == f)
+                .filter(|_| !kitchen)
+            {
+                Some(at) => {
+                    let (_, pool) = rooms.remove(at);
+                    scene.meeting_room(&mut out, &mut atlas, f, rect, &pool)?;
+                }
+                None => scene.free_cell(&mut out, f, rect, kitchen),
+            }
         }
         scene.cat = scene.pick(Target::Cat, "The office cat", "pet it");
         scene.stat = out;
         scene.atlas = atlas.img;
         Ok(scene)
+    }
+
+    /// Each pool with members seated, and the floor most of them sit on
+    /// (SPEC §9.7: its meeting room is there), in the snapshot's order.
+    fn meeting_rooms(
+        &self,
+        pools: &[crate::snapshot::FloorPool],
+    ) -> Vec<(usize, crate::snapshot::FloorPool)> {
+        let floor_of: BTreeMap<&str, usize> = self
+            .desks
+            .iter()
+            .filter_map(|d| Some((d.session.key.as_str(), usize::try_from(d.floor).ok()?)))
+            .collect();
+        pools
+            .iter()
+            .filter_map(|pool| {
+                let mut counts: BTreeMap<usize, usize> = BTreeMap::new();
+                for key in &pool.sessions {
+                    if let Some(f) = floor_of.get(key.as_str()) {
+                        *counts.entry(*f).or_default() += 1;
+                    }
+                }
+                let (floor, n) = counts
+                    .into_iter()
+                    .max_by_key(|(f, n)| (*n, std::cmp::Reverse(*f)))?;
+                (n >= 2).then(|| (floor, pool.clone()))
+            })
+            .collect()
+    }
+
+    /// The floor holding the App most in need of you (the most sessions
+    /// waiting: a question, stuck, out of usage), where the Floor opens;
+    /// `None` when nothing waits (it opens on floor 1).
+    #[must_use]
+    pub fn neediest_floor(&self) -> Option<usize> {
+        let mut waiting: BTreeMap<(i32, &str), usize> = BTreeMap::new();
+        for d in &self.desks {
+            if matches!(
+                d.state,
+                FloorState::Asks | FloorState::Stuck | FloorState::Limit
+            ) {
+                *waiting
+                    .entry((d.floor, d.session.key.as_str()))
+                    .or_default() += 1;
+            }
+        }
+        let mut by_app: BTreeMap<(i32, String), usize> = BTreeMap::new();
+        for d in self
+            .desks
+            .iter()
+            .filter(|d| waiting.contains_key(&(d.floor, d.session.key.as_str())))
+        {
+            let app = self
+                .apps
+                .values()
+                .find(|a| a.sessions.iter().any(|s| s.key == d.session.key))
+                .map_or_else(String::new, |a| a.id.clone());
+            *by_app.entry((d.floor, app)).or_default() += 1;
+        }
+        by_app
+            .into_iter()
+            .max_by_key(|((floor, _), n)| (*n, std::cmp::Reverse(*floor)))
+            .and_then(|((floor, _), _)| usize::try_from(floor).ok())
     }
 
     /// An Account, by id.

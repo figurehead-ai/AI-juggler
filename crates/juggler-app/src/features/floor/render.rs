@@ -60,6 +60,13 @@ pub fn door(target: &Target) -> Option<OpenRequest> {
             machine_id: None,
             id: None,
         },
+        Target::Pool(id) => page("pool", id),
+        Target::Notices => OpenRequest {
+            session_id: None,
+            page: Some("notifications".to_owned()),
+            machine_id: None,
+            id: None,
+        },
         Target::Floor(_) | Target::Prop(_) | Target::Cat => return None,
     })
 }
@@ -276,6 +283,9 @@ impl Running {
         let renderer = Renderer::new(&instance, surface, (size.0, size.1), &world.scene).ok()?;
         let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion);
         driver.alert = world.snapshot.machine.alert_since_ms.is_some();
+        if let Some(floor) = world.scene.neediest_floor() {
+            driver.show_floor(floor);
+        }
         Some(Self {
             state,
             settings,
@@ -406,6 +416,11 @@ mod tests {
                 (None, Some("usage"), Some("acct:1")),
             ),
             (Target::ThisMac, (None, Some("this_mac"), None)),
+            (
+                Target::Pool("pool-1".into()),
+                (None, Some("pool"), Some("pool-1")),
+            ),
+            (Target::Notices, (None, Some("notifications"), None)),
         ];
         for (target, (session, page, id)) in table {
             let open = door(&target).unwrap_or_else(|| panic!("{target:?} opens something"));

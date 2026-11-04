@@ -16,6 +16,7 @@ function routes(): OpenRoutes & { calls: string[] } {
     page: (id) => calls.push(`page ${id}`),
     app: (id) => calls.push(`app ${id}`),
     conversation: (a, id) => calls.push(`conversation ${a} ${id}`),
+    pool: (id) => calls.push(`pool ${id}`),
   };
 }
 
@@ -30,6 +31,7 @@ describe("doors into the main window (AJ-E3510)", () => {
     [{ session_id: null, page: "subagents" as const, id: "c:acct/77" }, "conversation acct 77"],
     [{ session_id: null, page: "usage" as const, id: "acct:1" }, "page usage"],
     [{ session_id: null, page: "this_mac" as const }, "page thismac"],
+    [{ session_id: null, page: "pool" as const, id: "pool-1" }, "pool pool-1"],
   ])("%j → %s", (open, expected) => {
     const to = routes();
     routeOpen(open, to);

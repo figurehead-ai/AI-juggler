@@ -30,7 +30,7 @@ export interface OpenRequest {
   /** `this_mac`, or (AJ-E2501) `notifications`: the centre; from the
    * Floor (AJ-E3510) also `app`, `conversation` (another app's session),
    * `subagents` and `usage`, each with its `id`. */
-  page: "this_mac" | "notifications" | "app" | "conversation" | "subagents" | "usage" | null;
+  page: "this_mac" | "notifications" | "app" | "conversation" | "subagents" | "usage" | "pool" | null;
   /** AJ-E1515: the paired Mac the session runs on (absent: this one). */
   machine_id?: string | null;
   /** What `page` opens: an App's id, `<account>/<id>` of another app's

@@ -343,3 +343,78 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
     );
     assert!(fewer.len() < quads.len());
 }
+
+#[test]
+fn a_pool_gets_a_meeting_room_and_the_lobby_a_notice_board() {
+    use crate::snapshot::FloorPool;
+    let mut snap = snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![
+            session("s:1", FloorState::Working, 0),
+            session("s:2", FloorState::Idle, 0),
+            session("s:3", FloorState::Working, 0),
+        ],
+    )]);
+    snap.pools = vec![
+        FloorPool {
+            id: "pool-1".into(),
+            name: "Shop".into(),
+            sealed: false,
+            sessions: vec!["s:1".into(), "s:2".into()],
+        },
+        FloorPool {
+            id: "pool-2".into(),
+            name: "Alone".into(),
+            sealed: false,
+            sessions: vec!["s:3".into()],
+        },
+    ];
+    snap.notices = 12;
+    let scene = build(&snap);
+    let targets: Vec<&Target> = scene.picks.iter().map(|p| &p.target).collect();
+    assert!(
+        targets.contains(&&Target::Pool("pool-1".into())),
+        "two members: a room"
+    );
+    assert!(
+        !targets.contains(&&Target::Pool("pool-2".into())),
+        "one member: no room"
+    );
+    let notices = scene
+        .picks
+        .iter()
+        .find(|p| p.target == Target::Notices)
+        .expect("the notice board");
+    assert_eq!(notices.detail, "12 unread");
+}
+
+#[test]
+fn the_floor_opens_where_an_app_needs_you_most() {
+    let mut apps: Vec<FloorApp> = (0..12)
+        .map(|n| {
+            app(
+                &format!("cli:{n}"),
+                "neutral",
+                vec![session(&format!("s:{n}"), FloorState::Working, 0)],
+            )
+        })
+        .collect();
+    apps[11].sessions = vec![
+        session("s:a", FloorState::Asks, 0),
+        session("s:b", FloorState::Stuck, 0),
+    ];
+    let scene = build(&snapshot(apps));
+    assert!(scene.floors >= 2);
+    assert_eq!(
+        scene.neediest_floor(),
+        Some(1),
+        "the last App sits on floor 2"
+    );
+    let calm = build(&snapshot(vec![app(
+        "cli:a",
+        "neutral",
+        vec![session("s:1", FloorState::Working, 0)],
+    )]));
+    assert_eq!(calm.neediest_floor(), None);
+}

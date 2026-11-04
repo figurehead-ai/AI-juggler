@@ -120,7 +120,8 @@ impl Scene {
             );
         }
         self.pendants(out, &area, desks.len());
-        if placed.annex == 0 {
+        whiteboard(out, atlas, &area)?;
+        {
             self.sign(out, atlas, &area)?;
         }
         Ok(())
@@ -302,6 +303,7 @@ impl Scene {
             shared,
             width,
             phase: (hash(&session.key) % 1000) as f32 / 37.0,
+            smoke: self.now_ms - session.last_ms < 10 * 60 * 1000,
         });
     }
 
@@ -368,9 +370,13 @@ impl Scene {
             SignKind::Banner => SignStyle::Light,
             SignKind::Plate | SignKind::Pennant | SignKind::Blade => SignStyle::Dark,
         };
-        let name = a.app.name.to_uppercase();
+        let name = if a.placed.annex == 0 {
+            a.app.name.to_uppercase()
+        } else {
+            format!("{} · ANNEX", a.app.name.to_uppercase())
+        };
         let face = atlas.add(
-            &format!("sign:{}", a.app.id),
+            &format!("sign:{}:{}", a.app.id, a.placed.annex),
             &tex::sign_img(&mark_letters(&a.app.name), &name, a.kit.accent, style),
         )?;
         let (sw, sh) = ((text_width(&name, 1) + 22) as f32 * 0.024, 13.0 * 0.024);
@@ -953,6 +959,71 @@ fn flag(b: &mut B, a: &Area<'_>) {
         a.kit.accent,
         0.25,
     );
+}
+
+/// The App's whiteboard on its back wall (or, in the front row, a
+/// stand by the way in): its open tasks in a count, SPEC §9.7's
+/// "Tasks" signal. A click opens the App.
+fn whiteboard(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<(), Full> {
+    if a.placed.annex != 0 {
+        return Ok(());
+    }
+    let open: u32 = a.app.sessions.iter().map(|s| s.tasks).sum();
+    let words = if open == 1 {
+        "1 TASK".to_owned()
+    } else {
+        format!("{open} TASKS")
+    };
+    let ink = if open == 0 {
+        hex("#9aa0a8")
+    } else {
+        hex("#2f6fbf")
+    };
+    let face = atlas.add(
+        &format!("tasks:{}", a.app.id),
+        &tex::text_img(&[(&words, ink)], hex("#f4f4f0"), 3),
+    )?;
+    let rect = a.placed.rect;
+    let mut b = B {
+        out,
+        floor: a.floor,
+        id: a.id,
+        dim: a.dim,
+    };
+    let (w, h) = (1.2, 0.5);
+    if a.placed.row == 0 {
+        let t = T::new().t(rect.x1 - 1.2, a.fy + 1.55, 0.04);
+        b.cut(Mesh::Box, t.s(w + 0.08, h + 0.08, 0.03), hex("#9aa0a8"));
+        b.tex(
+            Mesh::QuadWall,
+            t.t(0.0, 0.04, 0.02).s(w, h, 1.0),
+            [255; 4],
+            skin(face, 0.2, models::CUTAWAY),
+        );
+    } else {
+        let t = T::new().t(rect.x1 - 0.9, a.fy, rect.z0 + 0.6).ry(PI);
+        for x in [-0.55f32, 0.55] {
+            b.put(
+                Mesh::Box,
+                t.t(x, 0.0, 0.0).s(0.04, 1.5, 0.04),
+                hex("#9aa0a8"),
+            );
+        }
+        b.put(
+            Mesh::Box,
+            t.t(0.0, 1.0, 0.0).s(w + 0.08, h + 0.08, 0.03),
+            hex("#9aa0a8"),
+        );
+        for side in [0.0, PI] {
+            b.tex(
+                Mesh::QuadWall,
+                t.t(0.0, 1.04, 0.0).ry(side).t(0.0, 0.0, 0.02).s(w, h, 1.0),
+                [255; 4],
+                skin(face, 0.2, 0),
+            );
+        }
+    }
+    Ok(())
 }
 
 /// The seats of `placed` (its slice of its App's desks: an annex's come

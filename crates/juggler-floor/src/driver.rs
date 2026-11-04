@@ -247,6 +247,16 @@ impl Driver {
         }
     }
 
+    /// Shows floor `focus` at once (where the Floor opens).
+    pub fn show_floor(&mut self, focus: usize) {
+        let focus = focus.min(self.frame.floors.max(1) - 1);
+        self.view = View {
+            focus: Some(focus),
+            cam: self.frame.home(Some(focus), self.aspect()),
+        };
+        self.dirty = true;
+    }
+
     fn aspect(&self) -> f32 {
         self.size.0 as f32 / self.size.1.max(1) as f32
     }

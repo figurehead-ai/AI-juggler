@@ -414,7 +414,7 @@ fn state_effects(b: &mut B, d: &DeskRec, t: f32, drawn: &mut Drawn) {
                 owner: 0,
             });
         }
-        FloorState::Crashed => {
+        FloorState::Crashed if d.smoke => {
             for k in 0..4 {
                 let a = (t * 0.6 + k as f32 * 0.25 + ph).rem_euclid(1.0);
                 let p = d
@@ -439,6 +439,7 @@ fn state_effects(b: &mut B, d: &DeskRec, t: f32, drawn: &mut Drawn) {
         }
         FloorState::Working
         | FloorState::Idle
+        | FloorState::Crashed
         | FloorState::Done
         | FloorState::Limit
         | FloorState::Ended => {}

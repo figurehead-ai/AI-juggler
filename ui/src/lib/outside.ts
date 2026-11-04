@@ -38,6 +38,7 @@ export interface OpenRoutes {
   page: (id: "thismac" | "usage") => void;
   app: (id: string) => void;
   conversation: (accountId: string, id: string) => void;
+  pool: (id: string) => void;
 }
 
 /** Opens what `open` asks for: a notification's session or page, or (AJ-E3510)
@@ -61,6 +62,8 @@ export function routeOpen(open: OpenRequest, to: OpenRoutes): void {
     }
     case "usage":
       return to.page("usage");
+    case "pool":
+      return to.pool(id);
     default:
       return to.page("thismac");
   }
