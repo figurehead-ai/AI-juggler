@@ -29,6 +29,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A switch to Desktop refuses a lost profile instead of sending it the
     session (`handoff::Running::lost`); Settings and Home say "Lost its
     window" (`KnownPlaceInfo::lost`).
+- **A call copied into another account outside AI Juggler counts once**
+  (docs/releases/0.3.8.md): a conversation copied into a second account
+  with no switch recorded (a Dev build's switch, a folder copied by hand,
+  another Mac) counted under both, since P19's `drop_carried` only knows
+  AI Juggler's switches. On the maintainer's Mac: 264 calls (726K new
+  tokens) in 27 sessions.
+  - The keeper rule (`Span::rank`) now runs over every account's holders
+    (`usage_holders` by key, new index): the original keeps the shared
+    history, the copy its own new messages; the one row moves to the
+    keeper's account with its detail (`Rows::give`), and rows two accounts
+    stored before are merged into it.
+  - Codex's accounts keep no holders (their keys name the thread): a
+    copied rollout's calls stay with the account that stored them first.
+  - `REREAD_VERSION` 8: standings counted afresh
+    (`UsageRepo::forget_standings`), then `UsageRepo::settle_copies` for
+    copies whose files are gone. P19 is unchanged.
 
 ### Fixed (0.3.7)
 

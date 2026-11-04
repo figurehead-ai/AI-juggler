@@ -1,7 +1,11 @@
 //! Usage event & quota sample store (AJ-E606, deep/09 §Q8 schema):
 //! append-only `usage_events` + `quota_samples` (+ the §Q8
 //! `reset_queue` for AJ-E611), with `UNIQUE(account, msg_uuid)`
-//! dedupe so resumed transcript files can never double-count. The
+//! dedupe so resumed transcript files can never double-count, and (0.3.8)
+//! one row per keyed call across accounts: a conversation copied into
+//! another account's folder outside AI Juggler (a Dev build's switch, a
+//! folder copied by hand, another Mac) repeats the vendor's own call keys,
+//! and the call was billed once. The
 //! engine's maths (§Q3) lives in [`crate::quota`] as pure functions;
 //! THIS module only persists and fetches.
 
@@ -126,6 +130,85 @@ impl UsageRepo<'_> {
         }
         tx.commit()?;
         Ok(())
+    }
+
+    /// 0.3.8: before everything is read again, the sessions' standings go
+    /// and are counted afresh from the holders as they're needed: a
+    /// standing kept by an older build counted only its own account's
+    /// sessions as sharing a message.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn forget_standings(&self) -> Result<(), CoreError> {
+        self.conn
+            .execute("DELETE FROM usage_spans", [])
+            .map(|_| ())
+            .map_err(CoreError::Storage)
+    }
+
+    /// 0.3.8: settles every keyed call that more than one account holds,
+    /// so its one row is the keeper's: what a re-read of the files on disk
+    /// doesn't reach (a copy whose file is gone). Returns how many calls
+    /// it settled.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; nothing changes
+    /// then.
+    pub fn settle_copies(&self) -> Result<usize, CoreError> {
+        let tx = write_transaction(self.conn)?;
+        let keys: Vec<String> = tx
+            .prepare(
+                "SELECT DISTINCT a.msg_uuid FROM usage_holders a
+                 WHERE EXISTS (SELECT 1 FROM usage_holders b
+                     WHERE b.msg_uuid = a.msg_uuid AND b.account <> a.account)",
+            )?
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<_, _>>()?;
+        let mut count = keys.len();
+        let mut owners = Owners::new(&tx)?;
+        owners.keys.extend(keys);
+        owners.finish()?;
+        // Unshared accounts keep no holders: their copies are found by key
+        // among themselves, and the row stored first stays.
+        let copies: Vec<(String, String)> = tx
+            .prepare(
+                "SELECT msg_uuid, source FROM usage_events
+                 WHERE msg_uuid IS NOT NULL
+                   AND account IN (SELECT account FROM usage_unshared)
+                 GROUP BY msg_uuid, source HAVING COUNT(*) > 1",
+            )?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        count += copies.len();
+        let mut rows = Rows::new(&tx)?;
+        for (key, source) in copies {
+            let (account, session): (String, Option<String>) = tx.query_row(
+                "SELECT account, session FROM usage_events
+                 WHERE msg_uuid = ?1 AND source = ?2
+                   AND account IN (SELECT account FROM usage_unshared)
+                 ORDER BY id LIMIT 1",
+                params![key, source],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            let Some(session) = session else {
+                continue; // no session to keep it on: left as it is
+            };
+            let first = (account, session);
+            let accounts: BTreeSet<String> = tx
+                .prepare(
+                    "SELECT account FROM usage_events
+                     WHERE msg_uuid = ?1 AND source = ?2
+                       AND account IN (SELECT account FROM usage_unshared)",
+                )?
+                .query_map(params![key, source], |row| row.get::<_, String>(0))?
+                .collect::<Result<_, _>>()?;
+            rows.give(&key, &accounts, &first)?;
+        }
+        drop(rows);
+        tx.commit()?;
+        Ok(count)
     }
 
     /// Marks the holders whole again (after reading everything again).
@@ -737,7 +820,9 @@ fn from_sql(count: i64) -> u64 {
 /// numbered schema: reading the files again (the pipeline's re-read)
 /// rebuilds them, so they need no migration of their own.
 /// - `usage_holders`: every session that offered each keyed message,
-///   whichever one keeps it.
+///   whichever one keeps it, in any account (0.3.8: a key is the vendor's
+///   own id for one call, so the holders of a key across accounts are
+///   copies of one call; the tools' keys never take each other's form).
 /// - `usage_spans`: each session's standing under the shared-message rule
 ///   ([`Span`]).
 /// - `usage_unshared`: accounts whose usage keys name their own session (a
@@ -779,6 +864,7 @@ CREATE TABLE IF NOT EXISTS usage_holders (
     PRIMARY KEY (account, msg_uuid, session)
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS idx_usage_holders_session ON usage_holders(account, session, ts);
+CREATE INDEX IF NOT EXISTS idx_usage_holders_key ON usage_holders(msg_uuid);
 CREATE TABLE IF NOT EXISTS usage_spans (
     account TEXT NOT NULL,
     session TEXT NOT NULL,
@@ -854,7 +940,11 @@ impl Span {
     ///    original has none then, or starts them later.
     /// 3. Between sessions with none of their own, the earlier last
     ///    message (in a chain of copies, the shorter one is older).
-    /// 4. The smaller id.
+    /// 4. The smaller id, then (0.3.8) the smaller account.
+    ///
+    /// 0.3.8: the holders are every account's. A conversation copied into
+    /// another account outside AI Juggler is a resumed copy for this rule:
+    /// the original keeps the history, the copy its own new messages.
     ///
     /// None of these moves as a session grows past its own start, so a
     /// message's keeper doesn't either.
@@ -875,7 +965,10 @@ impl Span {
     ///   takes O's history.
     /// - A resume that never writes: the original and the copy tie on
     ///   everything but the id, so the smaller id keeps the history.
-    fn rank<'s>(&self, session: &'s str) -> (i64, std::cmp::Reverse<i64>, i64, &'s str) {
+    fn rank<'s>(
+        &self,
+        who: &'s SessionKey,
+    ) -> (i64, std::cmp::Reverse<i64>, i64, &'s str, &'s str) {
         (
             self.first,
             std::cmp::Reverse(self.own_start.unwrap_or(i64::MAX)),
@@ -884,7 +977,8 @@ impl Span {
             } else {
                 0
             },
-            session,
+            &who.1,
+            &who.0,
         )
     }
 
@@ -898,6 +992,7 @@ impl Span {
     }
 }
 
+/// `(account, session)`.
 type SessionKey = (String, String);
 
 /// Settles who keeps each shared message (see [`Span::rank`]). Every
@@ -905,6 +1000,10 @@ type SessionKey = (String, String);
 /// updates the standing of the sessions it touched and settles every
 /// shared message whose keeper could have changed. The answer depends
 /// only on what has been offered, never on the order or the passes.
+///
+/// 0.3.8: a holder is an account's session, and a message is shared when
+/// another account's session offers it too; its one row goes to the
+/// keeper's account (any copy another account held merged into it).
 struct Owners<'c> {
     hold: rusqlite::Statement<'c>,
     holders_of: rusqlite::Statement<'c>,
@@ -912,7 +1011,7 @@ struct Owners<'c> {
     save_span: rusqlite::Statement<'c>,
     count_span: rusqlite::Statement<'c>,
     shared_keys: rusqlite::Statement<'c>,
-    move_to: rusqlite::Statement<'c>,
+    rows: Rows<'c>,
     /// Standing as stored when the pass first touched each session.
     before: HashMap<SessionKey, Option<Span>>,
     /// Standing now.
@@ -921,8 +1020,8 @@ struct Owners<'c> {
     /// their own messages became shared, or a session they shared with
     /// was removed).
     recount: HashSet<SessionKey>,
-    /// Shared messages to settle: (account, key).
-    keys: BTreeSet<(String, String)>,
+    /// Shared messages to settle, by key.
+    keys: BTreeSet<String>,
 }
 
 impl<'c> Owners<'c> {
@@ -933,7 +1032,7 @@ impl<'c> Owners<'c> {
                  VALUES (?1, ?2, ?3, ?4)",
             )?,
             holders_of: conn.prepare(
-                "SELECT session, ts FROM usage_holders WHERE account = ?1 AND msg_uuid = ?2",
+                "SELECT account, session, ts FROM usage_holders WHERE msg_uuid = ?1",
             )?,
             load_span: conn.prepare(
                 "SELECT first, last, own_start FROM usage_spans WHERE account = ?1 AND session = ?2",
@@ -945,21 +1044,18 @@ impl<'c> Owners<'c> {
             count_span: conn.prepare(
                 "SELECT MIN(h.ts), MAX(h.ts), MIN(CASE WHEN NOT EXISTS (
                      SELECT 1 FROM usage_holders o
-                     WHERE o.account = h.account AND o.msg_uuid = h.msg_uuid
-                       AND o.session <> h.session) THEN h.ts END)
+                     WHERE o.msg_uuid = h.msg_uuid
+                       AND (o.account <> h.account OR o.session <> h.session)) THEN h.ts END)
                  FROM usage_holders h WHERE h.account = ?1 AND h.session = ?2",
             )?,
             shared_keys: conn.prepare(
                 "SELECT h.msg_uuid FROM usage_holders h
                  WHERE h.account = ?1 AND h.session = ?2 AND EXISTS (
                      SELECT 1 FROM usage_holders o
-                     WHERE o.account = h.account AND o.msg_uuid = h.msg_uuid
-                       AND o.session <> h.session)",
+                     WHERE o.msg_uuid = h.msg_uuid
+                       AND (o.account <> h.account OR o.session <> h.session))",
             )?,
-            move_to: conn.prepare(
-                "UPDATE usage_events SET session = ?3
-                 WHERE account = ?1 AND msg_uuid = ?2 AND session IS NOT ?3",
-            )?,
+            rows: Rows::new(conn)?,
             before: HashMap::new(),
             spans: HashMap::new(),
             recount: HashSet::new(),
@@ -1012,27 +1108,37 @@ impl<'c> Owners<'c> {
         Ok(stored)
     }
 
-    fn holders(&mut self, account: &str, key: &str) -> Result<Vec<(String, i64)>, CoreError> {
-        let rows = self
-            .holders_of
-            .query_map(params![account, key], |row| Ok((row.get(0)?, row.get(1)?)))?;
+    /// Every account's session that offered `key`, with when.
+    fn holders(&mut self, key: &str) -> Result<Vec<(SessionKey, i64)>, CoreError> {
+        let rows = self.holders_of.query_map(params![key], |row| {
+            Ok(((row.get(0)?, row.get(1)?), row.get(2)?))
+        })?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(CoreError::Storage)
     }
 
-    /// `session` offered the message `key` at `ts`.
+    /// The accounts holding `key` (where its one row can be).
+    fn holding_accounts(&mut self, key: &str) -> Result<BTreeSet<String>, CoreError> {
+        Ok(self
+            .holders(key)?
+            .into_iter()
+            .map(|((account, _), _)| account)
+            .collect())
+    }
+
+    /// `session` of `account` offered the message `key` at `ts`.
     fn offer(&mut self, account: &str, key: &str, session: &str, ts: i64) -> Result<(), CoreError> {
-        let holders = self.holders(account, key)?;
-        if holders.iter().any(|(holder, _)| holder == session) {
+        let who = (account.to_owned(), session.to_owned());
+        let holders = self.holders(key)?;
+        if holders.iter().any(|(holder, _)| *holder == who) {
             return Ok(()); // it had offered it before
         }
         // Every standing this offer can move is read before it is written:
         // a session without a stored standing is counted from the holders,
         // which must not include this offer yet, or its move goes unseen.
-        let who = (account.to_owned(), session.to_owned());
         let was = self.span(&who)?;
         for (holder, _) in &holders {
-            self.span(&(account.to_owned(), holder.clone()))?;
+            self.span(holder)?;
         }
         self.hold.execute(params![account, key, session, ts])?;
         let own = holders.is_empty();
@@ -1058,13 +1164,12 @@ impl<'c> Owners<'c> {
         }
         // A message that was another session's own is now shared: its
         // own start may have been this one.
-        if let [(other, at)] = holders.as_slice() {
-            let other = (account.to_owned(), other.clone());
-            if self.span(&other)?.and_then(|span| span.own_start) == Some(*at) {
-                self.recount.insert(other);
-            }
+        if let [(other, at)] = holders.as_slice()
+            && self.span(other)?.and_then(|span| span.own_start) == Some(*at)
+        {
+            self.recount.insert(other.clone());
         }
-        self.keys.insert((account.to_owned(), key.to_owned()));
+        self.keys.insert(key.to_owned());
         Ok(())
     }
 
@@ -1103,26 +1208,189 @@ impl<'c> Owners<'c> {
                     .shared_keys
                     .query_map(params![who.0, who.1], |row| row.get::<_, String>(0))?
                     .collect::<Result<Vec<_>, _>>()?;
-                self.keys
-                    .extend(keys.into_iter().map(|key| (who.0.clone(), key)));
+                self.keys.extend(keys);
             }
         }
-        for (account, key) in std::mem::take(&mut self.keys) {
-            let mut best: Option<(Span, String)> = None;
-            for (holder, _) in self.holders(&account, &key)? {
-                let Some(span) = self.span(&(account.clone(), holder.clone()))? else {
-                    continue;
-                };
-                if best
-                    .as_ref()
-                    .is_none_or(|(kept, by)| span.rank(&holder) < kept.rank(by))
-                {
-                    best = Some((span, holder));
-                }
+        for key in std::mem::take(&mut self.keys) {
+            self.settle(&key)?;
+        }
+        Ok(())
+    }
+
+    /// Gives `key`'s row to its best holder (account and session); copies
+    /// of it other accounts hold go, merged into it.
+    fn settle(&mut self, key: &str) -> Result<(), CoreError> {
+        let mut best: Option<(Span, SessionKey)> = None;
+        for (holder, _) in self.holders(key)? {
+            let Some(span) = self.span(&holder)? else {
+                continue;
+            };
+            if best
+                .as_ref()
+                .is_none_or(|(kept, by)| span.rank(&holder) < kept.rank(by))
+            {
+                best = Some((span, holder));
             }
-            if let Some((_, keeper)) = best {
-                self.move_to.execute(params![account, key, keeper])?;
+        }
+        let Some((_, keeper)) = best else {
+            return Ok(());
+        };
+        let accounts = self.holding_accounts(key)?;
+        self.rows.give(key, &accounts, &keeper)
+    }
+}
+
+/// The one row of a keyed call among the accounts that hold it (0.3.8).
+struct Rows<'c> {
+    find: rusqlite::Statement<'c>,
+    has_detail: rusqlite::Statement<'c>,
+    set_tokens: rusqlite::Statement<'c>,
+    drop_row: rusqlite::Statement<'c>,
+    drop_detail: rusqlite::Statement<'c>,
+    move_detail: rusqlite::Statement<'c>,
+    move_row: rusqlite::Statement<'c>,
+    move_session: rusqlite::Statement<'c>,
+}
+
+impl<'c> Rows<'c> {
+    fn new(conn: &'c Connection) -> Result<Self, CoreError> {
+        Ok(Self {
+            find: conn.prepare(
+                "SELECT input, output, cache_r, cache_w, reasoning, source FROM usage_events
+                 WHERE account = ?1 AND msg_uuid = ?2",
+            )?,
+            has_detail: conn
+                .prepare("SELECT 1 FROM usage_detail WHERE account = ?1 AND msg_uuid = ?2")?,
+            set_tokens: conn.prepare(
+                "UPDATE usage_events
+                 SET input = ?3, output = ?4, cache_r = ?5, cache_w = ?6, reasoning = ?7
+                 WHERE account = ?1 AND msg_uuid = ?2",
+            )?,
+            drop_row: conn
+                .prepare("DELETE FROM usage_events WHERE account = ?1 AND msg_uuid = ?2")?,
+            drop_detail: conn
+                .prepare("DELETE FROM usage_detail WHERE account = ?1 AND msg_uuid = ?2")?,
+            move_detail: conn.prepare(
+                "UPDATE usage_detail SET account = ?3 WHERE account = ?1 AND msg_uuid = ?2",
+            )?,
+            move_row: conn.prepare(
+                "UPDATE usage_events SET account = ?3, session = ?4
+                 WHERE account = ?1 AND msg_uuid = ?2",
+            )?,
+            move_session: conn.prepare(
+                "UPDATE usage_events SET session = ?3
+                 WHERE account = ?1 AND msg_uuid = ?2 AND session IS NOT ?3",
+            )?,
+        })
+    }
+
+    /// `key`'s row in `account`, with its source.
+    fn of(&mut self, account: &str, key: &str) -> Result<Option<(TokenCounts, String)>, CoreError> {
+        self.find
+            .query_row(params![account, key], |row| {
+                Ok((
+                    TokenCounts {
+                        input: from_sql(row.get(0)?),
+                        output: from_sql(row.get(1)?),
+                        cache_read: from_sql(row.get(2)?),
+                        cache_write: from_sql(row.get(3)?),
+                        reasoning: from_sql(row.get(4)?),
+                    },
+                    row.get(5)?,
+                ))
+            })
+            .optional()
+            .map_err(CoreError::Storage)
+    }
+
+    /// The account among `accounts` (`first` looked at first) holding a
+    /// row of `key` from `source`, with its tokens.
+    fn find_among(
+        &mut self,
+        key: &str,
+        source: &str,
+        first: &str,
+        accounts: &BTreeSet<String>,
+    ) -> Result<Option<(String, TokenCounts)>, CoreError> {
+        let order = std::iter::once(first).chain(
+            accounts
+                .iter()
+                .map(String::as_str)
+                .filter(|account| *account != first),
+        );
+        for account in order {
+            // Its own account's row is the call whatever reader stored it
+            // (as before 0.3.8); another account's only from the same one.
+            if let Some((tokens, from)) = self.of(account, key)?
+                && (from == source || account == first)
+            {
+                return Ok(Some((account.to_owned(), tokens)));
             }
+        }
+        Ok(None)
+    }
+
+    /// Puts `key`'s one row on `keeper`: the keeper account's row if it has
+    /// one, else another holding account's, moved there; any further copy
+    /// (rows two accounts stored before 0.3.8) merged in, each class at its
+    /// largest, and removed.
+    fn give(
+        &mut self,
+        key: &str,
+        accounts: &BTreeSet<String>,
+        keeper: &SessionKey,
+    ) -> Result<(), CoreError> {
+        let mut rows: Vec<(String, TokenCounts, String)> = Vec::new();
+        for account in accounts {
+            if let Some((tokens, source)) = self.of(account, key)? {
+                rows.push((account.clone(), tokens, source));
+            }
+        }
+        let Some(at) = rows
+            .iter()
+            .position(|(account, _, _)| *account == keeper.0)
+            .or(if rows.is_empty() { None } else { Some(0) })
+        else {
+            return Ok(());
+        };
+        let (target, mut tokens, source) = rows.swap_remove(at);
+        let mut detail = self.has_detail.exists(params![target, key])?;
+        let was = tokens;
+        for (other, copy, from) in rows {
+            if from != source {
+                continue; // another tool's row: never one call
+            }
+            tokens = TokenCounts {
+                input: tokens.input.max(copy.input),
+                output: tokens.output.max(copy.output),
+                cache_read: tokens.cache_read.max(copy.cache_read),
+                cache_write: tokens.cache_write.max(copy.cache_write),
+                reasoning: tokens.reasoning.max(copy.reasoning),
+            };
+            self.drop_row.execute(params![other, key])?;
+            if detail {
+                self.drop_detail.execute(params![other, key])?;
+            } else {
+                detail = self.move_detail.execute(params![other, key, target])? > 0;
+            }
+        }
+        if tokens != was {
+            self.set_tokens.execute(params![
+                target,
+                key,
+                as_sql(tokens.input),
+                as_sql(tokens.output),
+                as_sql(tokens.cache_read),
+                as_sql(tokens.cache_write),
+                as_sql(tokens.reasoning),
+            ])?;
+        }
+        if target == keeper.0 {
+            self.move_session.execute(params![target, key, keeper.1])?;
+        } else {
+            self.move_row
+                .execute(params![target, key, keeper.0, keeper.1])?;
+            self.move_detail.execute(params![target, key, keeper.0])?;
         }
         Ok(())
     }
@@ -1137,11 +1405,8 @@ fn store_in(
     removed: Removed,
 ) -> Result<Vec<Stored>, CoreError> {
     let mut stored = Vec::with_capacity(events.len());
-    let mut find = conn.prepare(
-        "SELECT input, output, cache_r, cache_w, reasoning FROM usage_events
-         WHERE account = ?1 AND msg_uuid = ?2",
-    )?;
     let mut owners = Owners::new(conn)?;
+    let mut rows = Rows::new(conn)?;
     let unshared: BTreeSet<String> = conn
         .prepare("SELECT account FROM usage_unshared")?
         .query_map([], |row| row.get::<_, String>(0))?
@@ -1162,26 +1427,30 @@ fn store_in(
     )?;
     let mut details = Details::new(conn)?;
     for event in events {
+        let shared = !unshared.contains(&event.account);
+        // 0.3.8: a key another account of the tool holds is the same call
+        // (a copy of the conversation made outside AI Juggler), so its row
+        // is found there. A shared account's holders say where; the row is
+        // settled onto one keeper below. An unshared account's keys name
+        // their own thread, so a copy repeats the thread too: the account
+        // that stored the call first keeps it.
         let known = match &event.msg_uuid {
-            Some(key) => find
-                .query_row(params![event.account, key], |row| {
-                    Ok(TokenCounts {
-                        input: from_sql(row.get(0)?),
-                        output: from_sql(row.get(1)?),
-                        cache_read: from_sql(row.get(2)?),
-                        cache_write: from_sql(row.get(3)?),
-                        reasoning: from_sql(row.get(4)?),
-                    })
-                })
-                .optional()?,
+            Some(key) => {
+                let accounts = if shared {
+                    owners.holding_accounts(key)?
+                } else {
+                    unshared.clone()
+                };
+                rows.find_among(key, event.source.as_str(), &event.account, &accounts)?
+            }
             None => None,
         };
         if let (Some(key), Some(session)) = (&event.msg_uuid, &event.session)
-            && !unshared.contains(&event.account)
+            && shared
         {
             owners.offer(&event.account, key, session, event.ts)?;
         }
-        let Some(was) = known else {
+        let Some((row_account, was)) = known else {
             insert.execute(params![
                 event.account,
                 event.session,
@@ -1198,7 +1467,7 @@ fn store_in(
                 confidence_name(event.confidence),
                 event.msg_uuid,
             ])?;
-            details.keep(event, event.tokens, event.model.as_deref())?;
+            details.keep(&event.account, event, event.tokens, event.model.as_deref())?;
             stored.push(Stored {
                 new: true,
                 added: event.tokens,
@@ -1214,7 +1483,7 @@ fn store_in(
         };
         if now != was {
             raise.execute(params![
-                event.account,
+                row_account,
                 event.msg_uuid,
                 as_sql(now.input),
                 as_sql(now.output),
@@ -1224,7 +1493,7 @@ fn store_in(
                 event.model,
             ])?;
         }
-        details.keep(event, now, event.model.as_deref())?;
+        details.keep(&row_account, event, now, event.model.as_deref())?;
         stored.push(Stored {
             new: false,
             added: TokenCounts {
@@ -1246,7 +1515,7 @@ fn store_in(
 #[derive(Default)]
 struct Removed {
     recheck: Vec<SessionKey>,
-    keys: Vec<(String, String)>,
+    keys: Vec<String>,
 }
 
 /// Deletes what the sessions offered, and their rows that no other session
@@ -1258,8 +1527,8 @@ fn delete_in(
     sessions: &[(String, UsageSource, String)],
 ) -> Result<(usize, Removed), CoreError> {
     let mut shared = conn.prepare(
-        "SELECT h.msg_uuid, o.session FROM usage_holders h JOIN usage_holders o
-           ON o.account = h.account AND o.msg_uuid = h.msg_uuid AND o.session <> h.session
+        "SELECT h.msg_uuid, o.account, o.session FROM usage_holders h JOIN usage_holders o
+           ON o.msg_uuid = h.msg_uuid AND (o.account <> h.account OR o.session <> h.session)
          WHERE h.account = ?1 AND h.session = ?2",
     )?;
     let mut forget =
@@ -1269,8 +1538,7 @@ fn delete_in(
     let mut delete = conn.prepare(
         "DELETE FROM usage_events
          WHERE account = ?1 AND source = ?2 AND session = ?3 AND (msg_uuid IS NULL OR NOT EXISTS (
-             SELECT 1 FROM usage_holders o
-             WHERE o.account = usage_events.account AND o.msg_uuid = usage_events.msg_uuid))",
+             SELECT 1 FROM usage_holders o WHERE o.msg_uuid = usage_events.msg_uuid))",
     )?;
     // The same rows' details, first (they go with their rows).
     let mut delete_details = conn.prepare(
@@ -1278,8 +1546,7 @@ fn delete_in(
          WHERE account = ?1 AND msg_uuid IN (
              SELECT e.msg_uuid FROM usage_events e
              WHERE e.account = ?1 AND e.source = ?2 AND e.session = ?3 AND e.msg_uuid IS NOT NULL
-               AND NOT EXISTS (SELECT 1 FROM usage_holders o
-                   WHERE o.account = e.account AND o.msg_uuid = e.msg_uuid))",
+               AND NOT EXISTS (SELECT 1 FROM usage_holders o WHERE o.msg_uuid = e.msg_uuid))",
     )?;
     let mut deleted = 0;
     let mut recheck = BTreeSet::new();
@@ -1287,12 +1554,15 @@ fn delete_in(
     for (account, source, session) in sessions {
         let pairs = shared
             .query_map(params![account, session], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                Ok((
+                    row.get::<_, String>(0)?,
+                    (row.get::<_, String>(1)?, row.get::<_, String>(2)?),
+                ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         for (key, other) in pairs {
-            keys.insert((account.clone(), key));
-            recheck.insert((account.clone(), other));
+            keys.insert(key);
+            recheck.insert(other);
         }
         forget.execute(params![account, session])?;
         forget_span.execute(params![account, session])?;

@@ -175,12 +175,14 @@ impl<'c> Details<'c> {
         })
     }
 
-    /// Keeps `event`'s detail for its stored row, whose tokens are now
-    /// `tokens`: merged with what is stored (each figure its largest, as
-    /// the tokens are; a one-time kind or conversation is kept), and
-    /// priced at the call's own tier.
+    /// Keeps `event`'s detail for its stored row, in `account` (0.3.8: the
+    /// account the call's one row is in, which may be another account's
+    /// copy of it), whose tokens are now `tokens`: merged with what is
+    /// stored (each figure its largest, as the tokens are; a one-time kind
+    /// or conversation is kept), and priced at the call's own tier.
     pub(super) fn keep(
         &mut self,
+        account: &str,
         event: &UsageEvent,
         tokens: TokenCounts,
         model: Option<&str>,
@@ -190,7 +192,7 @@ impl<'c> Details<'c> {
         };
         let was = self
             .find
-            .query_row(params![event.account, key], |row| {
+            .query_row(params![account, key], |row| {
                 Ok((
                     UsageDetail {
                         cache_write_1h: from_sql(row.get(0)?),
@@ -229,7 +231,7 @@ impl<'c> Details<'c> {
             return Ok(());
         }
         self.write.execute(params![
-            event.account,
+            account,
             key,
             as_sql(detail.cache_write_1h),
             as_sql(detail.prompt_tokens),
