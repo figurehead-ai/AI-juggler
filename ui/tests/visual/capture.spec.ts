@@ -18,7 +18,7 @@ const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
 import { previewMac } from "../../src/preview/processes-fixture";
-import { allStatuses, honestEmpty, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openWorkMaxSession } from "./fixtures";
+import { allStatuses, honestEmpty, openRailGroup, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openWorkMaxSession } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -6151,9 +6151,6 @@ const SWITCHED_TASKS = {
 
 for (const theme of THEMES) {
   test(`95 tasks — a task's history with a switch — ${theme}`, async ({ page }) => {
-    // Many steps (the pool lens, its page, its Tasks, a task's history),
-    // each scanned under the accessibility gate: room on a slow runner.
-    test.setTimeout(60_000);
     await page.clock.setFixedTime(T0);
     await page.addInitScript(
       ({ theme: t, pool, seed }) => {
@@ -6176,8 +6173,7 @@ for (const theme of THEMES) {
     await page.goto("/");
     await expect(page.getByTestId("rail")).toBeVisible();
     await groupBy(page, "Pool");
-    await page.getByTestId("place-header").filter({ hasText: "Checkout redesign" }).hover(); // its Open shows on hover (0.4)
-    await page.getByTestId("place-header").getByRole("button", { name: /^Open Checkout redesign/ }).click();
+    await openRailGroup(page, "Checkout redesign");
     await expect(page.getByTestId("pool-page")).toBeVisible();
     await page.getByTestId("pool-panel-tasks").click();
     await expect(page.getByTestId("task-view")).toBeVisible();
