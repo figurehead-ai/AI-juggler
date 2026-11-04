@@ -174,7 +174,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll>
         {selection.kind === "pool" ? (
-          <InspectPool pool={pool} project={project} now={now} onDeleted={onDeleted} />
+          <InspectPool pool={pool} project={project} now={now} members={members.map((row) => ({ id: row.id, name: names.get(row.id) ?? row.card.name }))} onDeleted={onDeleted} />
         ) : member ? (
           <InspectNode
             pool={pool}

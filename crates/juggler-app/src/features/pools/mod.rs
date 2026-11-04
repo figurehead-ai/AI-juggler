@@ -25,6 +25,7 @@ pub mod commands;
 pub mod dto;
 pub mod members;
 pub mod model;
+pub mod switching;
 pub mod watched;
 
 use std::collections::HashMap;

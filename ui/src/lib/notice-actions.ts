@@ -49,7 +49,7 @@ export interface NoticeActions {
   snooze: (notice: NoticeInfo, until: "hour" | "tomorrow") => Promise<boolean>;
   /** Ends its snooze now: back into Needs you. */
   wake: (notice: NoticeInfo) => void;
-  mute: (notice: NoticeInfo, scope: "project" | "kind") => void;
+  mute: (notice: NoticeInfo, scope: "project" | "pool" | "kind") => void;
 }
 
 export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
@@ -144,11 +144,15 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     });
   };
   const wake = (notice: NoticeInfo) => void acted(() => notificationsSnooze(notice.subject, null), "Couldn't wake it");
-  const mute = (notice: NoticeInfo, scope: "project" | "kind") => {
-    const value = scope === "project" ? notice.project_id : notice.kind;
+  const mute = (notice: NoticeInfo, scope: "project" | "pool" | "kind") => {
+    const value = scope === "project" ? notice.project_id : scope === "pool" ? notice.target.pool_id : notice.kind;
     if (!value) return;
-    void acted(() => notificationsMute(scope, value, scope === "project" ? (notice.project ?? value) : ""), "Couldn't mute it").then(
-      (done) => done && showToast({ id: `muted:${scope}:${value}`, message: scope === "project" ? `Muted ${notice.project ?? "this project"}` : "Muted this kind", detail: "It stops interrupting; Needs you still counts it. Unmute in Notification settings." }),
+    // D-62: a pool's notices name it first in their line ("Reviews · …").
+    const pool = scope === "pool" ? (notice.detail.split(" · ")[0] ?? "this pool") : "";
+    const label = scope === "project" ? (notice.project ?? value) : pool;
+    const message = scope === "project" ? `Muted ${notice.project ?? "this project"}` : scope === "pool" ? `Muted ${pool}` : "Muted this kind";
+    void acted(() => notificationsMute(scope, value, label), "Couldn't mute it").then(
+      (done) => done && showToast({ id: `muted:${scope}:${value}`, message, detail: "It stops interrupting; Needs you still counts it. Unmute in Notification settings." }),
     );
   };
   const second = (notice: NoticeInfo, which: Second) => {

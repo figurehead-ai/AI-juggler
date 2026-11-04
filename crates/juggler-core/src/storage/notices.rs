@@ -137,9 +137,9 @@ pub struct Notice {
 /// One mute: a project or a kind that may not interrupt.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoticeMute {
-    /// `project` | `kind`.
+    /// `project` | `pool` | `kind`.
     pub scope: String,
-    /// The project's id, or the kind.
+    /// The project's or pool's id, or the kind.
     pub value: String,
     /// How Settings names it.
     pub label: String,

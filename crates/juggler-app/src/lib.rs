@@ -354,6 +354,7 @@ macro_rules! app_commands {
             Read  features::pools::commands::pools_of_session,
             Read  features::pools::commands::pools_watched,
             Read  features::pools::commands::pools_edge_talk,
+            Read  features::pools::commands::pools_switch_lines,
             Read  features::pools::commands::pools_canvas,
             Read  features::pools::commands::pools_canvas_previews,
             Write features::pools::commands::pools_canvas_place,

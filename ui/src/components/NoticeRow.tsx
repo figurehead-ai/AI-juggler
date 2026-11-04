@@ -127,6 +127,11 @@ export function NoticeRow({ notice, actions, now }: { notice: NoticeInfo; action
           <MenuItem onClick={pick(() => actions.mute(notice, "project"))} disabled={!notice.project_id} title={notice.project_id ? undefined : "It belongs to no project"} testId="notice-mute-project">
             <Line icon={IconMute} label="Mute this project" />
           </MenuItem>
+          {notice.target.pool_id && (
+            <MenuItem onClick={pick(() => actions.mute(notice, "pool"))} testId="notice-mute-pool">
+              <Line icon={IconMute} label="Mute this pool" />
+            </MenuItem>
+          )}
           <MenuItem onClick={pick(() => actions.mute(notice, "kind"))} testId="notice-mute-kind">
             <Line icon={IconMute} label="Mute this kind" />
           </MenuItem>

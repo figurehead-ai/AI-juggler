@@ -194,7 +194,7 @@
 **Research basis**: E28's canvas; the review's wireframes 5–6.
 **Handover note**: 2026-11-04, built: the teaching empty canvas (three steps, the next one primary, Use a template), the scope sheet, broad and Watched members as dashed group nodes with their sessions' count, the rule inspector (role, own level, take out), the palette's other candidates by kind with reasons, and a line's talk rule changeable for that pair only (`pools_edge_talk`). Left: drawing the group nodes inside the laid-out canvas with lines to their sessions (they sit in a column now), grouping past 50 members, and the keyboard-only path's check.
 
-### AJ-E3009 Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3005
+### AJ-E3009 Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | Status: IN-PROGRESS | Priority P1 | Effort M | Depends: AJ-E3005
 **Goal**: Pools work with switching, notifications, tasks and usage as the proposal's fit table says.
 **User story**: As someone switching a pool member to another account, the switch check tells me what happens to its pools before I confirm.
 **Requirements**:
@@ -209,4 +209,4 @@
 **Visual testing**: the switch sheet's pool lines.
 **Files to touch**: `ui/src/components/switch/`, `crates/juggler-app/src/features/notifications/`, `ui/src/screens/Tasks.tsx`.
 **Research basis**: `docs/research/pools-model.md` "Fit".
-**Handover note**: —
+**Handover note**: 2026-11-04, built: the switch sheet's line per pool (`pools_switch_lines`: stays with full tools or shell only, leaves and why, joins, a sealed pool in amber); Mute this pool (a notice's menu, the pool page's switch, Settings lists it); the Tasks filters follow a pool's scope and a task's own project; a pool's members' usage this week in its inspector, a view only. Left: a confirm the user must tick when a switch enters or leaves a sealed pool (the line says it now), the 150 ms timing check, and the live switch in the lab.

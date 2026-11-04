@@ -5,7 +5,9 @@
 
 use std::sync::Arc;
 
-use super::dto::{EdgeTalkInfo, PoolRulesInfo, SessionPoolsInfo, WatchedMemberInfo};
+use super::dto::{
+    EdgeTalkInfo, PoolRulesInfo, SessionPoolsInfo, SwitchPoolLineInfo, WatchedMemberInfo,
+};
 use super::{PoolCanvasInfo, PoolMemberInfo, PoolMemberRow, PoolPreviewInfo, PoolsInfo};
 use crate::error::AppResult;
 use crate::paging::{Page, PageRequest};
@@ -457,6 +459,24 @@ pub async fn pools_edge_talk(
 ) -> AppResult<EdgeTalkInfo> {
     crate::ipc::blocking(state.inner(), "the pool", move |state| {
         super::model::edge_talk_impl(state, &pool_id, &from, &to)
+    })
+    .await
+}
+
+/// D-62 (AJ-E3009): what switching a session to a profile does to its
+/// pools, one line each.
+///
+/// # Errors
+///
+/// As [`super::switching::switch_lines_impl`].
+#[tauri::command]
+pub async fn pools_switch_lines(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+    target_profile_id: String,
+) -> AppResult<Vec<SwitchPoolLineInfo>> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::switching::switch_lines_impl(state, &session_id, &target_profile_id)
     })
     .await
 }

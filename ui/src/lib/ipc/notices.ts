@@ -58,7 +58,7 @@ export function resetNoticeStandIn(): void {
 }
 
 function mutedIn(s: Stand, row: NoticeInfo): boolean {
-  return s.mutes.some((mute) => (mute.scope === "kind" && mute.value === row.kind) || (mute.scope === "project" && mute.value === row.project_id));
+  return s.mutes.some((mute) => (mute.scope === "kind" && mute.value === row.kind) || (mute.scope === "project" && mute.value === row.project_id) || (mute.scope === "pool" && mute.value === row.target.pool_id));
 }
 
 /** The snoozes on now (one whose time has come ends, as the tick does). */
@@ -211,7 +211,7 @@ export async function notificationsDismiss(id: number): Promise<NoticeSummaryInf
 }
 
 /** Mutes a project or a kind. */
-export async function notificationsMute(scope: "project" | "kind", value: string, label: string): Promise<NoticeSummaryInfo> {
+export async function notificationsMute(scope: "project" | "pool" | "kind", value: string, label: string): Promise<NoticeSummaryInfo> {
   if (!hasLiveBackend()) {
     refuseIfAsked();
     const s = standIn();

@@ -14,7 +14,8 @@
  *   explanation folded;
  * - everything else behind "Details", closed every time the dialog opens.
  */
-import type { JSX, ReactNode } from "react";
+import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { poolsSwitchLines, type SwitchPoolLineInfo } from "../../lib/ipc/pool-model";
 import type { PreflightInfoData } from "../../lib/bridge";
 import type { SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { moveBadge } from "../../lib/switch-words";
@@ -49,6 +50,7 @@ export function ConfirmBody({
   onToggle,
   onCheckAgain,
   extra,
+  pools,
 }: {
   preflight: PreflightInfoData;
   target: string;
@@ -65,8 +67,11 @@ export function ConfirmBody({
   /** Reads the target again; resolves to what it found for that offer,
    * in words. */
   onCheckAgain: (offerId: string) => Promise<string>;
-  /** Anything else that needs an answer first (the keys question). */
+  /** Anything else that needs an answer first (the keys question, asked
+   * here when it applies: one screen). */
   extra?: ReactNode;
+  /** D-62: what the switch does to each of its pools. */
+  pools?: ReactNode;
 }): JSX.Element {
   const where = whereWords(destination, preflight);
   const outside = preflight.source_outside ? { app: preflight.source_app ?? null, target, where } : null;
@@ -105,6 +110,8 @@ export function ConfirmBody({
           </p>
         )}
       </div>
+
+      {pools}
 
       {before && (
         <section className="flex flex-col gap-4 border-t border-hairline pt-4" aria-labelledby="switch-before" data-testid="switch-before">
@@ -148,5 +155,35 @@ export function ConfirmBody({
         </div>
       </Disclosure>
     </div>
+  );
+}
+
+/** D-62 (AJ-E3009): one line per pool: it stays with full tools or its
+ * shell only, leaves (and why), or joins; a sealed pool entered or left
+ * is said in amber. Nothing when it's in no pool. */
+export function SwitchPoolLines({ sessionId, targetProfileId }: { sessionId: string; targetProfileId: string }): JSX.Element | null {
+  const [lines, setLines] = useState<SwitchPoolLineInfo[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void poolsSwitchLines(sessionId, targetProfileId).then(
+      (next) => alive && setLines(next),
+      () => alive && setLines([]),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [sessionId, targetProfileId]);
+  if (lines.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-1.5" aria-label="Its pools" data-testid="switch-pool-lines">
+      <h4 className="text-label font-semibold uppercase tracking-wide text-muted">Its pools</h4>
+      <ul className="flex flex-col gap-1">
+        {lines.map((line) => (
+          <li key={line.pool_id} className={"text-body " + (line.confirm ? "rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-ink" : "text-ink-2")} data-kind={line.kind}>
+            {line.words}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

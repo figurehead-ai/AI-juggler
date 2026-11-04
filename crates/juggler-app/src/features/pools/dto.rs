@@ -120,6 +120,20 @@ pub struct PoolTalkInfo {
     pub rule: String,
 }
 
+/// What a switch does to one of a session's pools (D-62, AJ-E3009).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct SwitchPoolLineInfo {
+    /// The pool.
+    pub pool_id: String,
+    /// `stays` | `shell` | `leaves` | `joins` | `sealed`.
+    pub kind: String,
+    /// The line, in words.
+    pub words: String,
+    /// A sealed pool is entered or left: the switch asks for a confirm.
+    pub confirm: bool,
+}
+
 /// Who may tell whom along one line on the canvas (D-62 decision 13).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]

@@ -1265,3 +1265,68 @@ fn the_pool_code_has_no_path_to_a_session() {
         }
     }
 }
+
+#[test]
+fn a_switch_says_what_happens_to_each_pool_d62() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    account(&state, "home");
+    let root = dir.path().join("shop");
+    let shop = project(&state, &root, "shop");
+    let s = session(&state, "s-1", "work", Some(&shop), &root);
+    let made = |name: &str| {
+        let info = pools::pool_create_impl(&state, name, None).unwrap();
+        pool_id(&info, name)
+    };
+    let named = made("Named");
+    pools::model::join_impl(
+        &state,
+        &named,
+        &format!("session:{}", s.as_str()),
+        "lead",
+        None,
+        &[],
+    )
+    .unwrap();
+    let by_app = made("Work app");
+    pools::model::join_impl(&state, &by_app, "app:cli:work", "member", None, &[]).unwrap();
+    let client = made("Client");
+    pools::model::join_impl(&state, &client, "app:cli:home", "member", None, &[]).unwrap();
+    pools::model::set_sealed_impl(&state, &client, true).unwrap();
+
+    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home").unwrap();
+    let line = |pool: &str| {
+        lines
+            .iter()
+            .find(|line| line.pool_id == pool)
+            .unwrap_or_else(|| panic!("no line for {pool}: {lines:?}"))
+    };
+    // Named on its own: it stays, and the tool acts there in full.
+    assert_eq!(
+        line(&named).kind,
+        "leaves",
+        "a sealed pool takes it out of the others: {lines:?}"
+    );
+    // Through the old App: it leaves, and says why.
+    assert!(
+        line(&by_app).words.contains("Leaves «Work app»"),
+        "{lines:?}"
+    );
+    // The new App is sealed: it joins, and the switch asks first.
+    let sealed = line(&client);
+    assert_eq!((sealed.kind.as_str(), sealed.confirm), ("sealed", true));
+
+    // Unsealed: the named pool stays. This lab registers no tool, so none
+    // is known to carry the agent tools: it says shell only.
+    pools::model::set_sealed_impl(&state, &client, false).unwrap();
+    let lines = pools::switching::switch_lines_impl(&state, s.as_str(), "rec-home").unwrap();
+    let stays = lines.iter().find(|line| line.pool_id == named).unwrap();
+    assert_eq!(stays.kind, "shell");
+    assert!(stays.words.contains("Stays in «Named»"), "{stays:?}");
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.pool_id == client && line.kind == "joins")
+    );
+}

@@ -37,11 +37,13 @@ fn scope(storage: &Storage, filter: &TasksFilterInput) -> AppResult<Scope> {
     let pools = shown
         .iter()
         .filter(|(pool, _)| filter.pool_id.as_deref().is_none_or(|id| pool.id == id))
+        // D-62: a pool whose scope holds the project (its tasks for that
+        // project are picked by the query).
         .filter(|(pool, _)| {
-            filter
-                .project_id
-                .as_deref()
-                .is_none_or(|id| pool.project.as_ref().is_some_and(|p| p.as_str() == id))
+            filter.project_id.as_deref().is_none_or(|id| {
+                pool.scope
+                    .holds(Some(&juggler_core::model::ProjectId::new(id)))
+            })
         })
         .map(|(pool, _)| pool.id.clone())
         .collect();
@@ -153,6 +155,7 @@ pub fn across(
             kinds: Some(kinds),
             words: filter.words.as_deref().filter(|w| !w.trim().is_empty()),
             after: after_of(request)?,
+            project: filter.project_id.as_deref(),
             ..TaskQuery::default()
         },
         u32::try_from(limit + 1).unwrap_or(u32::MAX),
@@ -161,8 +164,10 @@ pub fn across(
     let fetched = rows
         .iter()
         .map(|task| {
-            let (pool_name, project_id) =
+            let (pool_name, pool_project) =
                 scope.names.get(&task.pool_id).cloned().unwrap_or_default();
+            // D-62: the task's own project, else its pool's one.
+            let project_id = task.project.clone().or(pool_project);
             let row = TaskBoardRow {
                 task: info(&storage, task),
                 pool_name,
@@ -196,6 +201,7 @@ pub fn across_counts(state: &Arc<AppState>, filter: &TasksFilterInput) -> AppRes
         unheld,
         kinds: Some(kinds),
         words: filter.words.as_deref().filter(|w| !w.trim().is_empty()),
+        project: filter.project_id.as_deref(),
         ..TaskQuery::default()
     })? {
         *super::views::slot(&mut out, status) = count;
@@ -230,9 +236,11 @@ pub fn counts_by_project(
     let repo = storage.tasks();
     let mut rows = Vec::with_capacity(project_ids.len());
     for (at, project) in project_ids.iter().enumerate() {
+        // D-62: every pool whose scope holds it, its tasks for it.
+        let id = juggler_core::model::ProjectId::new(project.as_str());
         let pools: Vec<String> = shown
             .iter()
-            .filter(|(pool, _)| pool.project.as_ref().is_some_and(|p| p.as_str() == project))
+            .filter(|(pool, _)| pool.scope.holds(Some(&id)))
             .map(|(pool, _)| pool.id.clone())
             .collect();
         let mut counts = TaskCounts::default();
@@ -240,6 +248,7 @@ pub fn counts_by_project(
             for (status, count) in repo.counts_where(&TaskQuery {
                 pools: Some(&pools),
                 kinds: Some(&[TaskKind::Task]),
+                project: Some(project.as_str()),
                 ..TaskQuery::default()
             })? {
                 *super::views::slot(&mut counts, status) = count;

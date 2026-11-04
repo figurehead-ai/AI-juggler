@@ -23,7 +23,7 @@ import { SwitchSetupResults } from "./SwitchSetupList";
 import { takeSwitchOpener } from "../lib/handover-focus";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { showToast } from "./Toast";
-import { ConfirmBody } from "./switch/ConfirmBody";
+import { ConfirmBody, SwitchPoolLines } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
 import { DoneStep } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
@@ -219,7 +219,7 @@ export function SwitchFlow({
       picked={picked}
       onToggle={togglePicked}
       onCheckAgain={setupCheck.recheck}
-      // One screen: the keys question (when it applies) is asked here.
+      pools={<SwitchPoolLines sessionId={sessionId} targetProfileId={targetProfileId} />}
       extra={preflight.door === "one-click" && preflight.secrets.asks ? keys(preflight) : undefined}
     />
   );

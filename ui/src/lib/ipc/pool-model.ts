@@ -18,7 +18,9 @@ import type { PoolTalkInfo } from "../../types/generated/PoolTalkInfo";
 import type { SessionPoolsInfo } from "../../types/generated/SessionPoolsInfo";
 import type { WatchedMemberInfo } from "../../types/generated/WatchedMemberInfo";
 import type { EdgeTalkInfo } from "../../types/generated/EdgeTalkInfo";
+import type { SwitchPoolLineInfo } from "../../types/generated/SwitchPoolLineInfo";
 
+export type { SwitchPoolLineInfo };
 export type { EdgeTalkInfo, PoolRuleInfo, PoolRulesInfo, PoolTalkInfo, SessionPoolsInfo, WatchedMemberInfo };
 
 /** How a member matches sessions, most specific first (D-62 decision 11). */
@@ -161,6 +163,12 @@ export async function poolEdgeTalk(poolId: string, from: string, to: string): Pr
     return { rule: own?.rule ?? pairRule, pair_rule: pairRule, own: !!own, from_role: role(from), to_role: role(to) };
   }
   return invoke<EdgeTalkInfo>("pools_edge_talk", { poolId, from, to });
+}
+
+/** What switching a session to a profile does to each of its pools. */
+export async function poolsSwitchLines(sessionId: string, targetProfileId: string): Promise<SwitchPoolLineInfo[]> {
+  if (!hasLiveBackend()) return [];
+  return invoke<SwitchPoolLineInfo[]>("pools_switch_lines", { sessionId, targetProfileId });
 }
 
 /** A pool's Watched members (sessions other apps run), with their titles. */

@@ -94,7 +94,8 @@ export function TasksScreen({ projects, sessions, now }: { projects: ProjectInfo
   const projectName = (id: string | null) => (id ? (names.get(id) ?? null) : null);
   // 0.3.2, the pickers rule: pools with members first, empty ones last
   // (the maintainer's 0.3.0 walk: dozens of empty project pools first).
-  const shownPools = pools.filter((pool) => !projectId || pool.project_id === projectId);
+  // D-62: a pool over several projects (or every one) shows under each.
+  const shownPools = pools.filter((pool) => !projectId || pool.scope_all || pool.scope.includes(projectId));
   const poolOptions = shownPools.map((pool): PickerOption => ({ value: pool.id, label: pool.name, hint: pool.members === 0 ? "No members" : pool.members === 1 ? "1 member" : `${pool.members} members`, icon: IconPool, empty: pool.members === 0 }));
   const poolGroups = [{ label: "With members", values: [...shownPools].filter((pool) => pool.members > 0).sort((a, b) => b.members - a.members).slice(0, 5).map((pool) => pool.id) }];
   const projectOptions: PickerOption[] = [{ value: ALL, label: "All", hint: "Every project", icon: IconProjects, pinned: true }, ...projects.map((project): PickerOption => ({ value: project.id, label: project.name, icon: IconProjects }))];

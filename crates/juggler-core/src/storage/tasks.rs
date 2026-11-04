@@ -176,6 +176,8 @@ pub struct Task {
     pub external: Option<External>,
     /// Items under it, and how many of them are done.
     pub children: (u32, u32),
+    /// D-62: the project it's for (`None`: its pool's, or none).
+    pub project: Option<String>,
 }
 
 /// A task to write.
@@ -235,6 +237,8 @@ pub struct TaskQuery<'a> {
     pub pools: Option<&'a [String]>,
     /// 0.3: only those no one holds (the Tasks screen's "No one yet").
     pub unheld: bool,
+    /// D-62: only those for this project.
+    pub project: Option<&'a str>,
 }
 
 /// A task's place in a list: ready work first (its honest status's rank),
@@ -418,7 +422,7 @@ fn select_sql() -> String {
                 t.external_checked_at, {BLOCKERS} AS blockers,
                 (SELECT COUNT(*) FROM tasks c WHERE c.parent_id = t.id) AS children,
                 (SELECT COUNT(*) FROM tasks c WHERE c.parent_id = t.id AND c.status = 'done') AS done,
-                {EFFECTIVE} AS eff
+                {EFFECTIVE} AS eff, t.project
            FROM tasks t"
     )
 }
@@ -460,6 +464,7 @@ fn task_of(row: &Row<'_>) -> rusqlite::Result<Task> {
             None => None,
         },
         children: (row.get(22)?, row.get(23)?),
+        project: row.get(25)?,
     })
 }
 
@@ -693,7 +698,8 @@ impl TasksRepo<'_> {
                 AND (?5 IS NULL OR (?5 = '' AND t.parent_id IS NULL) OR t.parent_id = ?5)
                 AND (?6 IS NULL OR t.title LIKE '%' || ?6 || '%' ESCAPE '\\')
                 AND (?11 IS NULL OR t.pool_id IN (SELECT value FROM json_each(?11)))
-                AND (?12 = 0 OR t.assignee_ref IS NULL)))
+                AND (?12 = 0 OR t.assignee_ref IS NULL)
+                AND (?13 IS NULL OR t.project = ?13)))
               WHERE (?3 IS NULL OR eff IN (SELECT value FROM json_each(?3)))
                 AND (?8 IS NULL OR (rk, priority, -seq) > (?8, ?9, ?10))
               ORDER BY rk, priority, seq DESC LIMIT ?7",
@@ -720,6 +726,7 @@ impl TasksRepo<'_> {
                 query.after.map(|key| -key.seq),
                 query.pools.map(json),
                 query.unheld,
+                query.project,
             ],
             task_of,
         )?;

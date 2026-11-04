@@ -319,7 +319,12 @@ pub fn changed(state: &Arc<AppState>) {
 /// account almost out of room) once while it holds.
 pub fn model_event(state: &Arc<AppState>, target: Target, kind: Kind, info: &centre::NoticeInfo) {
     let muted = state.storage.lock().is_ok_and(|storage| {
-        !centre::may_interrupt(&storage, &info.kind, info.project_id.as_deref())
+        !centre::may_interrupt_in(
+            &storage,
+            &info.kind,
+            info.project_id.as_deref(),
+            info.target.pool_id.as_deref(),
+        )
     });
     if muted {
         return;
