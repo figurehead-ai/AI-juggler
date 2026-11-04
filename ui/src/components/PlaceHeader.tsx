@@ -40,6 +40,7 @@ export function PlaceHeader({
   children,
   keepAlive = null,
   onNew,
+  sharedName = false,
 }: {
   place: RailPlace | null;
   label: string;
@@ -62,6 +63,10 @@ export function PlaceHeader({
   keepAlive?: { on: boolean; toggle: () => void } | null;
   /** 0.3.4: a CLI app: New session on its folder. */
   onNew?: () => void;
+  /** Another header in this list has the same own name ("Work Max" in
+   * Claude Code and in the Claude app): its app's word is what tells
+   * them apart, so it keeps its room and the name gives way. */
+  sharedName?: boolean;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
   const [menu, setMenu] = useState<MenuAt | null>(null);
@@ -105,16 +110,16 @@ export function PlaceHeader({
               gives way before either. */}
           {place?.profile ? (
             <>
-              {/* The own name gives way before the app's word: two Apps
-                  can share a name ("Work Max" in Claude Code and in the
-                  Claude app), and the word is what tells them apart (the
-                  0.4 review). A long own name keeps the whole line. */}
-              <span className="ml-0.5 flex min-w-[4ch] shrink items-center gap-[3px] text-label font-semibold text-ink" data-testid="place-profile" title={name}>
+              {/* What tells this header from the others keeps its room (the
+                  0.4 review): its own name, unless another header shares it
+                  ("Work Max" in Claude Code and in the Claude app), then its
+                  app's word. The other gives way first. A long own name
+                  keeps the whole line: the icon says the app. */}
+              <span className={"ml-0.5 flex min-w-[4ch] items-center gap-[3px] text-label font-semibold text-ink " + (sharedName ? "shrink-[8]" : "shrink")} data-testid="place-profile" title={name}>
                 <ProfileBadge app={place.key} name={place.profile} size={6} />
                 <span className="truncate">{place.profile}</span>
               </span>
-              {/* A long own name keeps the line: the icon says the app. */}
-              {place.profile.length <= LONG_PROFILE && <span className="max-w-[12ch] shrink-0 truncate text-label text-muted">{label}</span>}
+              {place.profile.length <= LONG_PROFILE && <span className={"min-w-0 truncate text-label text-muted " + (sharedName ? "shrink-0" : "shrink-[8]")}>{label}</span>}
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>

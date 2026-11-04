@@ -122,6 +122,16 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // Inactive apps starts folded, and each one stays as it was left.
   const [closed, foldSection] = useClosedSections();
   const lines = foldSections(built.lines, closed);
+  // Own names two headers share (the 0.4 review): their app's word tells
+  // them apart, so it keeps its room; a unique name keeps its own.
+  const sharedNames = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const line of built.lines) {
+      const profile = line.kind === "header" ? line.group.place?.profile : undefined;
+      if (profile) seen.set(profile, (seen.get(profile) ?? 0) + 1);
+    }
+    return new Set([...seen].filter(([, n]) => n > 1).map(([name]) => name));
+  }, [built.lines]);
   useEffect(() => {
     last.current = shownOrder(built.lines);
   });
@@ -289,6 +299,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return (
           <PlaceHeader
             place={lens === "account" || lens === "pool" ? null : group.place}
+            sharedName={!!group.place?.profile && sharedNames.has(group.place.profile)}
             label={group.label}
             count={group.items.length}
             needs={line.needs}

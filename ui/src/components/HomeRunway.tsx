@@ -13,6 +13,7 @@ import { SectionTitle } from "./SectionTitle";
 import { useActionHost } from "./ItemMenu";
 import { signedIn, type AccountInfo, type InstanceInfo, type QuotaDisplayData } from "../lib/bridge";
 import { newWorkAdvice, runwayOf } from "./AccountRunway";
+import { cliAppName } from "../lib/app-name";
 import type { CreditsCover } from "../lib/credits";
 import { accountDisplay, accountLine, accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { openAccount } from "../lib/accounts-page";
@@ -112,7 +113,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                   <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />
                 </div>
               )}
-              <span className="text-label text-muted">Apps: {group.profiles.map((profile) => profile.label).join(", ")}</span>
+              <span className="text-label text-muted">Apps: {group.profiles.map((profile) => cliAppName(profile.provider, profile.label)).join(", ")}</span>
               {credits ? (
                 <span className="flex flex-col text-label" data-testid="home-runway-credits">
                   <span className="text-ink">{row.words}</span>

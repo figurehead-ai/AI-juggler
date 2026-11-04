@@ -147,7 +147,7 @@ describe("Home, desktop first", () => {
   it("Runway by account: each with its profiles; the way to measure one that isn't", async () => {
     const view = home([], []);
     const rows = await view.findAllByTestId("home-runway-account");
-    expect(rows[0]!.textContent).toContain("Apps: Work Max");
+    expect(rows[0]!.textContent).toContain("Apps: Claude Code · Work Max");
     expect(rows[1]!.textContent).toContain("Not measured yet");
     expect(within(rows[1]!).getByRole("button", { name: /^Measure its limits/ })).toBeTruthy();
   });
@@ -168,7 +168,7 @@ describe("Home, desktop first", () => {
     );
     await waitFor(() => expect(view.getAllByTestId("home-runway-account")).toHaveLength(1));
     const row = view.getByTestId("home-runway-account");
-    expect(row.textContent).toContain("Apps: Work Max, Personal");
+    expect(row.textContent).toContain("Apps: Claude Code · Work Max, Claude Code · Personal");
     expect(row.textContent).toContain("o@work.com");
   });
 
