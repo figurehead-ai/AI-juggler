@@ -7,7 +7,7 @@
 //! - **Keep alive**, turned on per app or profile, starts it again when
 //!   it stops ([`keep`]; SPEC §1's third amendment).
 //! - **Restart** (0.3.8) quits and starts again one that runs on but lost
-//!   its window when macOS restarted its display ([`restart`]): Open and
+//!   its window when the system restarted the display ([`restart`]): Open and
 //!   Go to it ask first, keep alive does it on its own.
 //!
 //! A place is started exactly as it last ran: its bundle and the
@@ -539,7 +539,7 @@ fn working_in(state: &Arc<AppState>, pid: u32) -> usize {
 }
 
 /// 0.3.8: restarts `id`, an app or profile that runs on but lost its
-/// window when macOS restarted its display (the watchdog's restart of
+/// window when the system restarted the display (the watchdog's restart of
 /// 2026-11-04 left five Claude profiles running with no window): asks
 /// its process to quit (SIGTERM), waits for it to end, then starts it
 /// again exactly as it ran ([`start::start`], on its tool folder, behind

@@ -70,7 +70,7 @@ export async function placesOpen(id: string, conversationId: string | null = nul
     const place = preview().places.find((row) => row.id === id);
     if (!place) return { outcome: "AI Juggler doesn't remember that app", reached: "none" };
     place.paused = null;
-    if (place.lost) return { outcome: `${place.label} lost its window when macOS restarted its display. Restart it?`, reached: "lost", place_id: place.id };
+    if (place.lost) return { outcome: `${place.label} lost its window when the system restarted the display. Restart it?`, reached: "lost", place_id: place.id };
     const running = place.app_pid !== null;
     if (!running) place.app_pid = 90_000 + preview().places.indexOf(place);
     changedHere();

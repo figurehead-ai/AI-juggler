@@ -17,7 +17,7 @@
 //! process on one profile folder doesn't hand anything over (the walk of
 //! 2026-11-02 found the running one only came forward) and two processes
 //! on one folder put its data at risk. 0.3.8: nor is one that runs on but
-//! lost its window when macOS restarted its display; the switch says so,
+//! lost its window when the system restarted the display; the switch says so,
 //! and Open offers the restart.
 
 use std::path::{Path, PathBuf};

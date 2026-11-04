@@ -322,7 +322,7 @@ fn an_app_that_lost_its_window_offers_a_restart_of_that_place() {
     let said = go(&profile, &hosts(), &lost, Gates::default());
     assert_eq!(
         said.outcome,
-        "Claude · Work lost its window when macOS restarted its display. Restart it?"
+        "Claude · Work lost its window when the system restarted the display. Restart it?"
     );
     assert_eq!(said.reached, "lost");
     assert_eq!(

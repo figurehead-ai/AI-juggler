@@ -12,7 +12,7 @@ outcome: string,
 /**
  * The step reached: `thread`, `tab`, `folder`, `app`, `started`,
  * `pending` (still on it after 1.5 s), `lost` (0.3.8: it runs but
- * lost its window when macOS restarted its display; the toast offers
+ * lost its window when the system restarted the display; the toast offers
  * Restart) or `none`.
  */
 reached: string, 

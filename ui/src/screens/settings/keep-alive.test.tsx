@@ -54,7 +54,7 @@ describe("the words for a place", () => {
     expect(placeWords(place({ keep_alive: true }), NOW)).toBe("Not running · keep alive starts it");
     expect(placeWords(place({ keep_alive: true, paused: "it stopped 3 times in 10 minutes" }), NOW)).toBe("Keep alive paused: it stopped 3 times in 10 minutes");
     // 0.3.8: running on with no window after macOS restarted its display.
-    expect(placeWords(place({ app_pid: 10, lost: true, keep_alive: true }), NOW)).toBe("Lost its window when macOS restarted its display");
+    expect(placeWords(place({ app_pid: 10, lost: true, keep_alive: true }), NOW)).toBe("Lost its window when the system restarted the display");
   });
 
   it("finds a running app's place by its process, never by a name", () => {
@@ -142,11 +142,11 @@ describe("0.3.8: a profile that lost its window", () => {
       </ConversationsProvider>,
     );
     const row = await screen.findByTestId("desktop-place-claude-app-b-lab");
-    expect(row.textContent).toContain("Lost its window when macOS restarted its display");
+    expect(row.textContent).toContain("Lost its window when the system restarted the display");
     fireEvent.click(within(row).getByTestId("desktop-place-open"));
     await waitFor(() => expect(toastEntries()[0]?.options.testId).toBe("go-to-lost"));
     const asked = toastEntries()[0]!.options;
-    expect(asked.message).toBe("Claude · b-lab lost its window when macOS restarted its display. Restart it?");
+    expect(asked.message).toBe("Claude · b-lab lost its window when the system restarted the display. Restart it?");
     expect(asked.tone).toBe("warning");
     expect(asked.detail).toBe("Restarting stops anything still working in it.");
     // Asking restarts nothing.

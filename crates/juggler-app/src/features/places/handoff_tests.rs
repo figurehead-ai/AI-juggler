@@ -143,7 +143,7 @@ fn a_profile_that_lost_its_window_is_never_sent_the_session_or_started_beside() 
     let error = hand_off(&state, &id, SESSION, &system, quick()).unwrap_err();
     assert_eq!(
         error,
-        "Claude · b-lab lost its window when macOS restarted its display. Restart it from Home or Settings › Desktop apps, then switch again"
+        "Claude · b-lab lost its window when the system restarted the display. Restart it from Home or Settings › Desktop apps, then switch again"
     );
     assert_eq!(*system.started.lock().unwrap(), 0, "never a second process");
     assert!(system.sent.lock().unwrap().is_empty(), "no link to it");

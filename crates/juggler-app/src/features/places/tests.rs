@@ -372,7 +372,7 @@ fn open_on_a_profile_that_lost_its_window_asks_to_restart_it() {
     let said = open(&state, &work, None, Arc::new(LostMac), starter.clone()).unwrap();
     assert_eq!(
         said.outcome,
-        "Claude · b-lab lost its window when macOS restarted its display. Restart it?"
+        "Claude · b-lab lost its window when the system restarted the display. Restart it?"
     );
     assert_eq!(said.reached, "lost");
     assert_eq!(said.place_id.as_deref(), Some(work.as_str()));

@@ -78,7 +78,7 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
 }
 
 /// 0.3.8: what Open and Go to it say for `name`, an app that runs on but
-/// lost its window when macOS restarted its display; with the remembered
+/// lost its window when the system restarted the display; with the remembered
 /// place to restart (`place_id`), the toast offers Restart.
 #[must_use]
 pub fn lost(name: &str, place_id: Option<String>) -> GoToOutcomeInfo {
@@ -98,7 +98,7 @@ pub fn lost_words(name: &str) -> String {
 /// What happened to `name`, in words (no full stop).
 #[must_use]
 pub fn lost_happened(name: &str) -> String {
-    format!("{name} lost its window when macOS restarted its display")
+    format!("{name} lost its window when the system restarted the display")
 }
 
 /// The app's process is there but macOS has no app for it: lost, when it
