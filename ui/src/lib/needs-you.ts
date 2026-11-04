@@ -69,7 +69,14 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       out.push({ key: item.key, kind, title: item.title, detail: [item.project, ...placeWords(item.place)].filter(Boolean).join(" · "), severe: kind !== "session", item });
       continue;
     }
-    if (SESSION_KINDS.has(row.kind)) continue; // its row isn't loaded here yet
+    if (SESSION_KINDS.has(row.kind)) {
+      // E3104: a session the list hasn't loaded (past its working set)
+      // still needs you, as the bell counts it: the notice's own words,
+      // opened by its ids.
+      const ids = row.target.account_id && row.target.conversation_id ? { accountId: row.target.account_id, id: row.target.conversation_id } : undefined;
+      out.push({ key: row.subject, kind, title: row.title, detail: row.detail, severe: kind !== "session", sessionId: row.target.session_id ?? undefined, conversationIds: row.target.session_id ? undefined : ids });
+      continue;
+    }
     const account = row.target.account_id ? accounts.find((entry) => entry.id === row.target.account_id) : undefined;
     out.push({
       key: row.subject,

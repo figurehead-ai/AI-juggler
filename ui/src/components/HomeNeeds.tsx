@@ -47,6 +47,11 @@ function Mark({ need, size }: { need: HomeNeed; size: number }): JSX.Element {
 /** Runs an item's primary (or its second choice). */
 function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => void {
   const host = useActionHost();
+  // E3104: a need whose session the list hasn't loaded opens by its ids.
+  const openUnloaded = (need: HomeNeed) => {
+    if (need.sessionId) handlers.onOpenSession(need.sessionId);
+    else if (need.conversationIds) host.openConversationById?.(need.conversationIds.accountId, need.conversationIds.id, null);
+  };
   return (need, second = false) => {
     const item = need.item;
     const session = item?.session;
@@ -62,10 +67,11 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
         } else if (session) {
           handlers.onOpenSession(session.id);
           if (second) focusHandoverSoon();
-        }
+        } else openUnloaded(need);
         return;
       case "limit":
         if (session) (second ? handlers.onWait : handlers.onLimit)?.(session.id);
+        else openUnloaded(need);
         return;
       case "signin":
         handlers.onSignIn?.(need);

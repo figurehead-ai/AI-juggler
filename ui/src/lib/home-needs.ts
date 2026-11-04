@@ -25,6 +25,9 @@ export interface HomeNeed {
   sessionId?: string;
   /** An out-of-room account's open session in another app (F16). */
   conversation?: ConversationInfo;
+  /** E3104: another app's session the list hasn't loaded, by its ids
+   * (opened as notices open one, `openConversationById`). */
+  conversationIds?: { accountId: string; id: string };
 }
 
 /** The order kinds come in: what blocks work first. */
