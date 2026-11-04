@@ -2866,6 +2866,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "juggler-floor"
+version = "0.4.0"
+dependencies = [
+ "proptest",
+ "serde",
+]
+
+[[package]]
 name = "juggler-handover"
 version = "0.4.0"
 dependencies = [

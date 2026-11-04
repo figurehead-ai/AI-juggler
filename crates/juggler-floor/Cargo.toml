@@ -1,0 +1,17 @@
+[package]
+name = "juggler-floor"
+description = "The Floor's model (ADR-0026): the office layout, style families and kits, signals and the scene, as pure Rust with no GPU and no platform code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+
+[dev-dependencies]
+proptest = "1.12.0"
+
+[lints]
+workspace = true

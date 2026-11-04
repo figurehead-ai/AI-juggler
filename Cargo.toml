@@ -7,6 +7,7 @@ members = [
     "crates/juggler-adapters",
     "crates/juggler-app",
     "crates/juggler-core",
+    "crates/juggler-floor",
     "crates/juggler-handover",
     "crates/juggler-link",
     "crates/juggler-platform",

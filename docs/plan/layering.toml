@@ -7,6 +7,7 @@
 
 [allow]
 juggler-core = []
+juggler-floor = []
 juggler-account = []
 # AJ-E1704: the agent bridge program; depends on nothing of ours (it holds
 # no state and only speaks to the app over its socket).

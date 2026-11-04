@@ -1,3 +1,5 @@
+-- v46 (the Floor's areas, AJ-E3503) undone first: it sits on v45.
+DROP TABLE floor_areas;
 -- v45 (D-62's pools model, AJ-E3003) undone by hand, for the tests that
 -- roll a database back to an older schema and let the migrations run
 -- again. The trigger first: it writes to pool_scope.

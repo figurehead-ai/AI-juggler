@@ -103,7 +103,7 @@
 **Research basis**: round 2's measurements in `docs/research/floor/README.md`; the spike's `measure/run.py`.
 **Handover note**: —
 
-### AJ-E3503 The office model: cells, order, sizes, floors and saved choices | Status: TODO | Priority P0 | Effort L | Depends: —
+### AJ-E3503 The office model: cells, order, sizes, floors and saved choices | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: —
 **Goal**: One pure model places every App on stable cells and every session at a stable desk, and keeps each App's look once chosen.
 **User story**: As someone with twenty Apps, my areas stay where I learnt them; when one grows, the others move on in order, never jumbled.
 **Requirements**:
@@ -123,7 +123,7 @@
 **Visual testing**: n/a.
 **Files to touch**: `crates/juggler-floor/src/layout/` (new); `crates/juggler-core/src/storage/` (the `floor_areas` migration and repo).
 **Research basis**: the spike's `layout.rs` (`pack`, `plan_area`, `pack_groups`, `group_shape`); `rules-and-mechanics.md` §3.
-**Handover note**: —
+**Handover note**: built in `crates/juggler-floor` (`layout.rs`, tests in `layout_tests.rs`): sizes S/M/L and annexes, first-fit order, the 4–16 floor limit, free cells (the first a kitchen), grow at once and shrink after a day, closed Apps' cells kept until the next reflow, Re-create, and desk plans that give up the nook, then use pods. An annex never goes on a floor before its App's, and shared cell edges are computed from whole cells (a property test found both). Storage: `floor_areas` (schema v46) and `FloorRepo` in `juggler-core` (`storage/floor.rs`, tests `tests/floor_storage.rs`); the seed key is `floor.seed`. Budget on the release build: placing 20 Apps and 150 sessions 0.27 ms, a reflow 5 µs. Left: saving each App the first time the Floor sees it, which comes with the feed (AJ-E3505), and the prototype-sample table for the evidence.
 
 ### AJ-E3504 Style families as tool data, and each area's kit | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3503
 **Goal**: Each tool's areas share a family look, each App's area is its own variant, and no code branches on a tool.
