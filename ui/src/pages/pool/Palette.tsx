@@ -4,7 +4,7 @@
  * place). While a member is dragged, it turns into the place to drop it
  * to take it out of the pool. Folds to a single line.
  */
-import { useState, type JSX, type PointerEvent } from "react";
+import { useState, type JSX, type PointerEvent, type ReactNode } from "react";
 
 import { ToolMark } from "../../components/ToolMark";
 import { IconGrip } from "../../components/icons-places";
@@ -25,8 +25,11 @@ export function Palette({
   onOpen,
   onStartDrag,
   onAdd,
+  more,
 }: {
   sessions: InstanceInfo[];
+  /** D-62: every other candidate, by kind, with its reason. */
+  more?: ReactNode;
   projects: ProjectInfo[];
   /** A member is being dragged: `over` while it's over the palette, `why`
    * when it can't be taken out. */
@@ -126,6 +129,7 @@ export function Palette({
           )}
         </div>
       )}
+      {open && more}
     </section>
   );
 }

@@ -166,6 +166,7 @@ fn membership_matches_the_reference_model_in_all_28_224_cases() {
         account: Some("acct-1".to_owned()),
         tool: Some("claude-code".to_owned()),
         mac: Some("mac-1".to_owned()),
+        conversation: None,
     };
     let settings = Setting::all();
     let mut wrong = Vec::new();

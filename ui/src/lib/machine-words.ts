@@ -10,3 +10,6 @@ export const THIS_MACHINE_IN_TEXT = THIS_MACHINE.replace(/^This\b/, "this");
 
 /** One machine, as a kind of page (a page's label above its name). */
 export const MACHINE_WORD = THIS_MACHINE.replace(/^This\s+/, "");
+
+/** Several machines ("Macs"), from the one word above. */
+export const MACHINES_WORD = `${MACHINE_WORD}s`;

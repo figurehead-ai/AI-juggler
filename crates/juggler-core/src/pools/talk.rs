@@ -55,6 +55,12 @@ impl PoolTalk {
             .unwrap_or(TalkRule::Allowed)
     }
 
+    /// One connection's own rule, when it has one.
+    #[must_use]
+    pub fn connection(&self, from: &MemberRef, to: &MemberRef) -> Option<TalkRule> {
+        self.connections.get(&(from.clone(), to.clone())).copied()
+    }
+
     /// The role pair's rule alone.
     #[must_use]
     pub fn pair(&self, from: PoolRole, to: PoolRole) -> TalkRule {

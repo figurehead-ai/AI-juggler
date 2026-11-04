@@ -58,6 +58,7 @@ fn facts(id: &str, project: &str, app: &str, account: Option<&str>) -> SessionFa
         account: account.map(str::to_owned),
         tool: Some("claude-code".to_owned()),
         mac: Some("this-mac".to_owned()),
+        conversation: None,
     }
 }
 
@@ -174,6 +175,34 @@ fn an_unknown_sign_in_stays_in_through_any_other_member_and_says_so() {
     assert!(unknown.account_unknown);
     assert!(unknown.in_pool("personal").is_none());
     assert_eq!(unknown.primary().unwrap().pool_id, "apps");
+}
+
+#[test]
+fn a_watched_conversation_becomes_the_session_that_continues_it() {
+    let pools = [pool("team", PoolKind::User, shop(), 1)];
+    let watched = MemberRef::parse("conversation:acc-work/conv-9").unwrap();
+    assert!(watched.is_watched());
+    assert_eq!(watched.to_wire(), "conversation:acc-work/conv-9");
+    let members = [row("team", watched, PoolRole::Reviewer, 1)];
+    let index = Memberships::new(&pools, &members, HashMap::new());
+    // Before it's continued, no AI Juggler session is it.
+    assert!(
+        index
+            .resolve(&facts("s-1", "shop", "cli:work", Some("acct-w")))
+            .placements
+            .is_empty()
+    );
+    // Continued in AI Juggler: its session is the member, named on its own.
+    let continued = SessionFacts {
+        conversation: Some(("acc-work".to_owned(), "conv-9".to_owned())),
+        ..facts("s-1", "shop", "cli:work", Some("acct-w"))
+    };
+    let resolved = index.resolve(&continued);
+    let place = resolved.in_pool("team").unwrap();
+    assert_eq!(
+        (place.role, place.via()),
+        (PoolRole::Reviewer, MemberKind::Session)
+    );
 }
 
 #[test]

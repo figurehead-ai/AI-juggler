@@ -14,11 +14,11 @@ pub struct PoolsInfo {
     /// The pools: the user's, oldest first, then each project's default
     /// pool by name, "No project" last.
     pub pools: Vec<PoolInfo>,
-    /// The places of the working set's sessions (what the rail holds)
-    /// that aren't their project's default pool as a member. A session of
-    /// the working set that isn't here is in that default pool, as a
-    /// member; one past it (opened from History) is read alone
-    /// (`pools_place`).
+    /// The places of the working set's sessions (what the rail holds),
+    /// one row per pool a session is in, its first pool first (D-62);
+    /// a session whose only place is its project's own pool as a member
+    /// has no row. One past the working set (opened from History) is read
+    /// alone (`pools_place`).
     pub placements: Vec<PoolMemberInfo>,
 }
 
@@ -78,6 +78,34 @@ pub struct PoolRuleInfo {
     /// When it joined, epoch ms.
     #[ts(type = "number")]
     pub joined_at: i64,
+    /// How many sessions it brings into the pool now (archived ones
+    /// aside): a broad member's group node says it.
+    pub sessions: u32,
+}
+
+/// A Watched member: a session another app runs (D-62 decision 15).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct WatchedMemberInfo {
+    /// Its stored ref (`conversation:<folder>/<id>`).
+    pub member: String,
+    /// The folder it was read from.
+    pub folder: String,
+    /// The tool's own conversation id.
+    pub conversation_id: String,
+    /// Its title, when the index has one.
+    pub title: Option<String>,
+    /// Its tool, when known.
+    pub tool: Option<String>,
+    /// Its account's label, when known.
+    pub account_label: Option<String>,
+    /// Its project, when known.
+    pub project_id: Option<String>,
+    /// Its role in the pool.
+    pub role: String,
+    /// The AI Juggler session that continued it, when one did (then it's
+    /// a full member).
+    pub continued_session: Option<String>,
 }
 
 /// One pool's talk settings (D-62 decision 13).
@@ -90,6 +118,22 @@ pub struct PoolTalkInfo {
     pub to: String,
     /// `allowed` | `ask` | `blocked`.
     pub rule: String,
+}
+
+/// Who may tell whom along one line on the canvas (D-62 decision 13).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct EdgeTalkInfo {
+    /// The rule that applies: `allowed` | `ask` | `blocked`.
+    pub rule: String,
+    /// The role pair's rule (what the line follows unless it's set).
+    pub pair_rule: String,
+    /// The line has its own rule, overriding its pair's.
+    pub own: bool,
+    /// The sender's role in the pool.
+    pub from_role: String,
+    /// The receiver's role in the pool.
+    pub to_role: String,
 }
 
 /// A pool's rules: its members by kind and its talk settings.

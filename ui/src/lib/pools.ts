@@ -24,6 +24,7 @@ export type { PoolRole };
 export const ROLES: { id: PoolRole; label: string }[] = [
   { id: "lead", label: "Lead" },
   { id: "member", label: "Member" },
+  { id: "reviewer", label: "Reviewer" },
   { id: "observer", label: "Observer" },
 ];
 
@@ -65,10 +66,17 @@ export function roleLabel(role: string): string {
   return ROLES.find((entry) => entry.id === role)?.label ?? "Member";
 }
 
-/** A session's place when the pools name it (one set apart from its
- * project's default, or read alone). */
+/** A session's first place when the pools name it (one set apart from
+ * its project's default, or read alone). */
 function placed(pools: PoolsInfo | null, sessionId: string): PoolMemberInfo | undefined {
   return pools?.placements.find((row) => row.session_id === sessionId);
+}
+
+/** D-62: every pool a session is in, its first pool first; a session the
+ * pools don't name is in its project's own pool. */
+export function poolIdsOf(pools: PoolsInfo | null, session: InstanceInfo): string[] {
+  const rows = pools?.placements.filter((row) => row.session_id === session.id) ?? [];
+  return rows.length > 0 ? rows.map((row) => row.pool_id) : [defaultPoolIdOf(session.project_id)];
 }
 
 /** The pool a session is in: the place the pools name, else its
@@ -77,9 +85,11 @@ export function poolIdOf(pools: PoolsInfo | null, session: InstanceInfo): string
   return placed(pools, session.id)?.pool_id ?? defaultPoolIdOf(session.project_id);
 }
 
-export function roleOf(pools: PoolsInfo | null, sessionId: string): PoolRole {
-  const role = placed(pools, sessionId)?.role;
-  return role === "lead" || role === "observer" ? role : "member";
+/** A session's role in `poolId` (else in its first pool). */
+export function roleOf(pools: PoolsInfo | null, sessionId: string, poolId?: string): PoolRole {
+  const row = poolId ? pools?.placements.find((one) => one.session_id === sessionId && one.pool_id === poolId) : placed(pools, sessionId);
+  const role = row?.role;
+  return role === "lead" || role === "observer" || role === "reviewer" ? role : "member";
 }
 
 /** The user has made a pool (pools stay out of sight until then). */

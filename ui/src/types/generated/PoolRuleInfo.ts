@@ -25,4 +25,9 @@ level: string | null,
 /**
  * When it joined, epoch ms.
  */
-joined_at: number, };
+joined_at: number, 
+/**
+ * How many sessions it brings into the pool now (archived ones
+ * aside): a broad member's group node says it.
+ */
+sessions: number, };

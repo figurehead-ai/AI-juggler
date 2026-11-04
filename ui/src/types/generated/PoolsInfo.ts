@@ -14,10 +14,10 @@ export type PoolsInfo = {
  */
 pools: Array<PoolInfo>, 
 /**
- * The places of the working set's sessions (what the rail holds)
- * that aren't their project's default pool as a member. A session of
- * the working set that isn't here is in that default pool, as a
- * member; one past it (opened from History) is read alone
- * (`pools_place`).
+ * The places of the working set's sessions (what the rail holds),
+ * one row per pool a session is in, its first pool first (D-62);
+ * a session whose only place is its project's own pool as a member
+ * has no row. One past the working set (opened from History) is read
+ * alone (`pools_place`).
  */
 placements: Array<PoolMemberInfo>, };

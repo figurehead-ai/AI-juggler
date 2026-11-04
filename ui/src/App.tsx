@@ -659,7 +659,7 @@ export default function App() {
           <div className="min-h-0 flex-1">
           {global === "projects" || global === "pools" || global === "tasks" ? (
             <ScrollingScreen key={global} screen={global} label={GLOBAL_NAV.find((entry) => entry.id === global)!.label}>
-              <NavScreen id={global} projects={shownProjects} sessions={sessions} loading={!loaded} now={now} onNewProject={() => setNewProjectDir((current) => current ?? "")} />
+              <NavScreen id={global} projects={shownProjects} sessions={sessions} accounts={accounts} loading={!loaded} now={now} onNewProject={() => setNewProjectDir((current) => current ?? "")} />
             </ScrollingScreen>
           ) : global === "cleanup" ? (
             <ScrollingScreen key="cleanup" screen="cleanup" label="Processes">
@@ -827,7 +827,7 @@ export default function App() {
               ) : selection.kind === "pool" ? (
                 // The band above takes its height: the page shrinks to fit, never runs past the window (0.3.1).
                 <div className="min-h-0 flex-1" data-testid="pool-scroll">
-                  <PoolPage poolId={selection.id} sessions={railSessions} projects={projects} now={now} />
+                  <PoolPage poolId={selection.id} sessions={railSessions} projects={projects} accounts={accounts} now={now} />
                 </div>
               ) : (
               <div className="min-h-0 flex-1">

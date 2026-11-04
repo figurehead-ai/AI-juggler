@@ -96,7 +96,7 @@ pub fn role_in(
 }
 
 /// The sessions archived now (they're history: no pool lists them).
-fn archived(storage: &Storage) -> AppResult<BTreeSet<String>> {
+pub(super) fn archived(storage: &Storage) -> AppResult<BTreeSet<String>> {
     Ok(storage
         .sessions()
         .lifecycle_latest()?
@@ -156,29 +156,42 @@ impl Tally {
     }
 }
 
-/// The working set's sessions' first places, where that isn't their
-/// project's default pool as a member, by session id. (Every pool a
-/// session is in is [`resolution_of`]'s, on its own page.)
+/// Every place of the working set's sessions, unless a session's only
+/// place is its project's own pool as a member: one row per pool it's in,
+/// its first pool first (D-62: a session can be in several). A session of
+/// the working set with no row is in its project's own pool, as a member.
 ///
 /// # Errors
 ///
 /// Storage failures.
 pub fn placements(storage: &Storage, memberships: &Memberships) -> AppResult<Vec<PoolMemberInfo>> {
     let facts = facts(storage)?;
-    let mut placements: Vec<PoolMemberInfo> = crate::commands::working_records(storage)?
-        .into_iter()
-        .filter_map(|record| {
-            let facts = facts.get(&record.id)?;
-            let (pool_id, role) = memberships.place(facts)?;
-            let default = juggler_core::storage::default_pool_id(record.project.as_ref());
-            (pool_id != default || role != PoolRole::Member).then(|| PoolMemberInfo {
-                session_id: record.id.as_str().to_owned(),
-                pool_id,
-                role: role.as_str().to_owned(),
-            })
-        })
-        .collect();
-    placements.sort_by(|a, b| a.session_id.cmp(&b.session_id));
+    let mut records = crate::commands::working_records(storage)?;
+    records.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+    let mut placements = Vec::new();
+    for record in records {
+        let Some(facts) = facts.get(&record.id) else {
+            continue;
+        };
+        let resolution = memberships.resolve(facts);
+        let default = juggler_core::storage::default_pool_id(record.project.as_ref());
+        if let [only] = resolution.placements.as_slice()
+            && only.pool_id == default
+            && only.role == PoolRole::Member
+        {
+            continue;
+        }
+        placements.extend(
+            resolution
+                .placements
+                .into_iter()
+                .map(|place| PoolMemberInfo {
+                    session_id: record.id.as_str().to_owned(),
+                    pool_id: place.pool_id,
+                    role: place.role.as_str().to_owned(),
+                }),
+        );
+    }
     Ok(placements)
 }
 

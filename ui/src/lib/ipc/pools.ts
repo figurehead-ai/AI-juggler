@@ -384,6 +384,13 @@ function previewCard(session: InstanceInfo, role: string): ContextCard {
  * change in place (for `pool-model.ts`). */
 export const previewPoolsInfo = (): PoolsInfo => preview();
 export const previewPoolToChange = (poolId: string): PoolInfo => livePool(poolId);
+/** D-62: a session named in a pool in the preview (its other pools stay). */
+export function previewPlaceSession(sessionId: string, poolId: string, role: string): void {
+  preview();
+  const row = store!.places.find((one) => one.session_id === sessionId && one.pool_id === poolId);
+  if (row) row.role = role;
+  else store!.places.push({ session_id: sessionId, pool_id: poolId, role });
+}
 
 export function resetPreviewPools(): void {
   store = null;

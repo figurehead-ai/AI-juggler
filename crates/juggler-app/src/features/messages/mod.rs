@@ -189,6 +189,13 @@ pub(crate) fn refs_of(storage: &Storage, session: &SessionId) -> Vec<String> {
         .works_by_session()
         .unwrap_or_default();
     let mut refs = vec![format!("session:{}", session.as_str())];
+    // D-62 decision 15: what was written to it while it was Watched in
+    // another app, now that it's continued here.
+    if let Ok(Some(facts)) = storage.sessions().pool_facts_of(session)
+        && let Some((folder, id)) = facts.conversation
+    {
+        refs.push(format!("conversation:{folder}/{id}"));
+    }
     if let Some(work) = works.get(session) {
         refs.push(MemberRef::Work(work.clone()).to_wire());
         refs.extend(

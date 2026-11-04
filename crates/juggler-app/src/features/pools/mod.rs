@@ -25,6 +25,7 @@ pub mod commands;
 pub mod dto;
 pub mod members;
 pub mod model;
+pub mod watched;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -243,6 +244,7 @@ pub fn pool_names(storage: &Storage) -> AppResult<HashMap<String, String>> {
 pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
     let memberships = members::memberships(storage)?;
     let tally = members::Tally::read(storage, &memberships)?;
+    let watched = watched::counts(storage)?;
     let mut pools = Vec::new();
     for (pool, name) in shown_pools(storage)? {
         let (access, rules) = access::info(storage, &pool.id)?;
@@ -250,7 +252,7 @@ pub fn pools_info(storage: &Storage) -> AppResult<PoolsInfo> {
             name,
             // How many projects its sessions come from (D-33).
             scopes: tally.scopes(&pool.id),
-            members: tally.members(&pool.id),
+            members: tally.members(&pool.id) + watched.get(&pool.id).copied().unwrap_or(0),
             kind: pool.kind.as_str().to_owned(),
             project_id: pool.project.map(|project| project.as_str().to_owned()),
             access,

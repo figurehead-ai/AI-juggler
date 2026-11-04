@@ -68,6 +68,9 @@ pub struct ToolSupportsInfo {
     /// own link (the Codex app's `codex://threads/…`), so nothing is left
     /// to pick in the app's sidebar.
     pub thread_link: bool,
+    /// D-62: sessions AI Juggler starts carry its agent tools as tools
+    /// (MCP); without, a pool member acts through its shell only.
+    pub agent_tools: bool,
 }
 
 /// One tool, as every screen reads it (ADR-0019 §1).

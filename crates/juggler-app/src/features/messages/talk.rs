@@ -13,13 +13,17 @@
 //! are theirs.
 
 use juggler_agentbridge::wire::{Refusal, Response};
-use juggler_core::pools::talk::{self, PoolTalk, Reach, RefuseReason, Route, Talk};
+use juggler_core::pools::talk::{self, HoldReason, PoolTalk, Reach, RefuseReason, Route, Talk};
 use juggler_core::storage::{MemberRef, PoolRole, Storage};
 
 /// The held ask's action word for a message a pool's talk rule holds
 /// (beside the D-28 actions; it never offers "always": the rule is on the
 /// pool's canvas).
 pub const TALK_ASK: &str = "talk";
+
+/// The held ask's action word for a message to a Watched member (D-62
+/// decision 15): it waits until the session is continued in AI Juggler.
+pub const WATCHED_ASK: &str = "watched";
 
 /// One recipient as the talk rules see it: its stored ref, its role in
 /// the pool it's reached in, and whether that's across a link.
@@ -32,13 +36,16 @@ pub struct Receiver<'a> {
     pub linked: bool,
     /// The pool it's reached in is sealed.
     pub sealed: bool,
+    /// A session another app runs (a Watched member).
+    pub watched: bool,
 }
 
 /// What the rules leave of a send: for each recipient, whether its copy
 /// waits on the person; the refused ones are gone.
 pub struct Ruled {
-    /// Each kept recipient's index in the input, and whether it's held.
-    pub kept: Vec<(usize, bool)>,
+    /// Each kept recipient's index in the input, and why it's held, when
+    /// it is.
+    pub kept: Vec<(usize, Option<HoldReason>)>,
     /// The words for each recipient left out.
     pub refused: Vec<&'static str>,
 }
@@ -74,14 +81,18 @@ pub fn rule(
         let (Some(sender), Some(anchor)) = (sender.as_ref(), MemberRef::parse(receiver.anchor))
         else {
             // The user, or a ref the rules don't name: as before.
-            kept.push((at, false));
+            kept.push((at, None));
             continue;
         };
         let decided = talk::decide(
             &rules,
             (sender, from.1),
             (&anchor, receiver.role),
-            Reach::Tools,
+            if receiver.watched {
+                Reach::Watched
+            } else {
+                Reach::Tools
+            },
             false,
             Route {
                 linked: receiver.linked,
@@ -89,8 +100,8 @@ pub fn rule(
             },
         );
         match decided {
-            Talk::Deliver { .. } => kept.push((at, false)),
-            Talk::Hold(_) => kept.push((at, true)),
+            Talk::Deliver { .. } => kept.push((at, None)),
+            Talk::Hold(why) => kept.push((at, Some(why))),
             Talk::Refuse(why) => refused.push(why.words()),
         }
     }

@@ -10,7 +10,7 @@ import { useMemo, type JSX } from "react";
 import { hasLiveBackend, type InstanceInfo } from "../lib/bridge";
 import type { PoolInfo } from "../lib/ipc/pools";
 import type { EntityKind } from "../lib/ipc/relations";
-import { levelLabel, poolIdOf, usePools } from "../lib/pools";
+import { levelLabel, poolIdsOf, usePools } from "../lib/pools";
 import { useRelatedIds } from "../lib/relation-counts";
 import { useActionHost } from "./ItemMenu";
 import { IconPool } from "./icons-actions";
@@ -27,7 +27,7 @@ export function usePagePools(kind: EntityKind | null, id: string, local: Instanc
   const live = hasLiveBackend();
   return useMemo(() => {
     if (!info) return undefined;
-    const ids = live ? related : [...new Set(local.map((session) => poolIdOf(info, session)))];
+    const ids = live ? related : [...new Set(local.flatMap((session) => poolIdsOf(info, session)))];
     if (!ids) return undefined;
     const wanted = new Set(ids);
     return info.pools

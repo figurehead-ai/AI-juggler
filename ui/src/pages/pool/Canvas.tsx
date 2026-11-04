@@ -16,7 +16,7 @@
  *   what waits on an edge is a badge that opens its answer. The places,
  *   Tidy up, Fit and the keys are the same in both.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 
 import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
 import type { PoolInfo } from "../../lib/ipc/pools";
@@ -29,7 +29,7 @@ import { cannotRemove, nameOf, removeFromPool } from "./actions";
 import { fitView, neighbour, NODE_H, NODE_W, toCanvas, zoomAt, type Point, type View } from "./layout";
 import type { CanvasData, MemberNode } from "./useCanvas";
 
-export type Selection = { kind: "none" } | { kind: "pool" } | { kind: "node"; id: string } | { kind: "edge"; key: string };
+export type Selection = { kind: "none" } | { kind: "pool" } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string };
 
 type Drag =
   | { kind: "node"; id: string; start: Point; origin: Point; moved: boolean }
@@ -64,9 +64,18 @@ export function Canvas({
   selection,
   onSelect,
   onAdd,
+  empty,
+  overlay,
+  paletteMore,
 }: {
   pool: PoolInfo;
   data: CanvasData;
+  /** What the empty canvas shows (it teaches the first steps). */
+  empty?: (paletteOpen: boolean, openPalette: () => void) => ReactNode;
+  /** Drawn over the canvas: the member rules' group nodes. */
+  overlay?: ReactNode;
+  /** The palette's other candidates (D-62). */
+  paletteMore?: ReactNode;
   candidates: InstanceInfo[];
   projects: ProjectInfo[];
   selection: Selection;
@@ -331,7 +340,9 @@ export function Canvas({
         })}
       </div>
 
-      {members.length === 0 && canvas && (
+      {overlay}
+      {members.length === 0 && canvas && empty && empty(paletteOpen ?? false, () => setPaletteOpen(true))}
+      {members.length === 0 && canvas && !empty && (
         <div className={"pointer-events-none absolute inset-0 flex items-center justify-center p-8" + (paletteOpen ? " pl-[17rem]" : "")} data-testid="canvas-empty">
           <div className="flex max-w-sm flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hairline bg-surface/80 px-6 py-8 text-center">
             <span className="text-section text-ink">No one in this pool yet</span>
@@ -353,6 +364,7 @@ export function Canvas({
             setDrag({ kind: "session", session, start: { x: event.clientX, y: event.clientY }, moved: false });
           }}
           onAdd={(session) => onAdd(session, null)}
+          more={paletteMore}
         />
         </div>
       </div>

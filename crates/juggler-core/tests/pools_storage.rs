@@ -295,7 +295,13 @@ fn one_active_row_per_pool_and_member_a_move_ends_the_old_one_and_a_join_keeps_i
     );
     assert!(twice.is_err());
     // Leaving one pool keeps the other.
-    assert_eq!(storage.pools().leave(&one.id, std::slice::from_ref(&a)).unwrap(), 1);
+    assert_eq!(
+        storage
+            .pools()
+            .leave(&one.id, std::slice::from_ref(&a))
+            .unwrap(),
+        1
+    );
     assert_eq!(mine(&storage), [two.id.as_str()]);
 }
 

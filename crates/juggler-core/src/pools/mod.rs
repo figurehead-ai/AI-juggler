@@ -54,6 +54,9 @@ pub struct SessionFacts {
     pub tool: Option<String>,
     /// The Mac it runs on.
     pub mac: Option<String>,
+    /// Its conversation, `(folder, id)`, when known: a Watched member
+    /// naming it names this session (continued in AI Juggler).
+    pub conversation: Option<(String, String)>,
 }
 
 impl SessionFacts {
@@ -68,6 +71,7 @@ impl SessionFacts {
             account: None,
             tool: None,
             mac: None,
+            conversation: None,
         }
     }
 
@@ -189,6 +193,7 @@ const SLOT_APP: usize = 2;
 const SLOT_ACCOUNT: usize = 3;
 const SLOT_TOOL: usize = 4;
 const SLOT_MAC: usize = 5;
+const SLOT_CONVERSATION: usize = 6;
 /// Everyone shares the session slot's map under the empty id: no session
 /// id is empty.
 const SLOT_EVERYONE: usize = SLOT_SESSION;
@@ -203,6 +208,7 @@ fn slot_of(member: &MemberRef) -> (usize, String) {
         MemberRef::Tool(id) => (SLOT_TOOL, id.clone()),
         MemberRef::Mac(id) => (SLOT_MAC, id.clone()),
         MemberRef::Everyone => (SLOT_EVERYONE, String::new()),
+        MemberRef::Conversation { folder, id } => (SLOT_CONVERSATION, format!("{folder}/{id}")),
     }
 }
 
@@ -213,7 +219,7 @@ pub struct Memberships {
     entries: Vec<Entry>,
     /// Each kind's rows by the id they name (a session row under its Work
     /// item when its session switched), as indexes into `entries`.
-    by_kind: [HashMap<String, Vec<u32>>; 6],
+    by_kind: [HashMap<String, Vec<u32>>; 7],
     /// Some pool has an Account member (an unknown sign-in matters).
     account_members: bool,
     works: HashMap<SessionId, WorkItemId>,
@@ -245,7 +251,7 @@ impl Memberships {
             })
             .collect();
         let mut entries = Vec::new();
-        let mut by_kind: [HashMap<String, Vec<u32>>; 6] = Default::default();
+        let mut by_kind: [HashMap<String, Vec<u32>>; 7] = Default::default();
         let mut account_members = false;
         for row in members {
             let Some(&pool) = index.get(row.pool_id.as_str()) else {
@@ -294,7 +300,11 @@ impl Memberships {
             .as_ref()
             .or_else(|| self.works.get(&facts.session));
         // The most specific match in each pool.
-        let lookups: [(usize, Option<&str>); 7] = [
+        let conversation = facts
+            .conversation
+            .as_ref()
+            .map(|(folder, id)| format!("{folder}/{id}"));
+        let lookups: [(usize, Option<&str>); 8] = [
             (SLOT_WORK, work.map(WorkItemId::as_str)),
             (SLOT_SESSION, Some(facts.session.as_str())),
             (SLOT_APP, facts.app.as_deref()),
@@ -302,6 +312,7 @@ impl Memberships {
             (SLOT_TOOL, facts.tool.as_deref()),
             (SLOT_MAC, facts.mac.as_deref()),
             (SLOT_EVERYONE, Some("")),
+            (SLOT_CONVERSATION, conversation.as_deref()),
         ];
         let mut best: Vec<(usize, &Entry)> = Vec::new();
         for (slot, id) in lookups {

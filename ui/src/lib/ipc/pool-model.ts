@@ -11,13 +11,15 @@
  */
 import { invoke } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
-import { previewPoolToChange, previewPoolsInfo, type PoolRole, type PoolsInfo } from "./pools";
+import { previewPlaceSession, previewPoolToChange, previewPoolsInfo, type PoolRole, type PoolsInfo } from "./pools";
 import type { PoolRuleInfo } from "../../types/generated/PoolRuleInfo";
 import type { PoolRulesInfo } from "../../types/generated/PoolRulesInfo";
 import type { PoolTalkInfo } from "../../types/generated/PoolTalkInfo";
 import type { SessionPoolsInfo } from "../../types/generated/SessionPoolsInfo";
+import type { WatchedMemberInfo } from "../../types/generated/WatchedMemberInfo";
+import type { EdgeTalkInfo } from "../../types/generated/EdgeTalkInfo";
 
-export type { PoolRuleInfo, PoolRulesInfo, PoolTalkInfo, SessionPoolsInfo };
+export type { EdgeTalkInfo, PoolRuleInfo, PoolRulesInfo, PoolTalkInfo, SessionPoolsInfo, WatchedMemberInfo };
 
 /** How a member matches sessions, most specific first (D-62 decision 11). */
 export const MEMBER_KINDS = ["session", "app", "account", "tool", "mac", "everyone"] as const;
@@ -38,11 +40,15 @@ const rulesOf = (poolId: string): PoolRulesInfo => {
   const known = previewRules.get(poolId);
   if (known) return known;
   const pool = previewPoolToChange(poolId);
-  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0 }] : [], talk: [] };
+  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0 }] : [], talk: [] };
   previewRules.set(poolId, made);
   return made;
 };
-const kindOf = (member: string): string => (member === "all" ? "everyone" : member.split(":")[0] === "work" ? "session" : member.split(":")[0]);
+const kindOf = (member: string): string => {
+  const kind = member.split(":")[0] ?? "";
+  // A Work item and a Watched conversation are sessions named on their own.
+  return member === "all" ? "everyone" : kind === "work" || kind === "conversation" ? "session" : kind;
+};
 
 /** Adds a member rule to a pool, or changes its role and its own level. */
 export async function poolJoin(poolId: string, member: string, role: PoolRole, level: string | null = null, actions: string[] = []): Promise<PoolsInfo> {
@@ -51,7 +57,8 @@ export async function poolJoin(poolId: string, member: string, role: PoolRole, l
     record(`join:${poolId}:${member}:${role}:${level ?? ""}`);
     const row = rules.members.find((one) => one.member === member);
     if (row) Object.assign(row, { role, level });
-    else rules.members.push({ member, kind: kindOf(member), role, level, joined_at: Date.now() });
+    else rules.members.push({ member, kind: kindOf(member), role, level, joined_at: Date.now(), sessions: 0 });
+    if (member.startsWith("session:")) previewPlaceSession(member.slice("session:".length), poolId, role);
     return previewPoolsInfo();
   }
   return invoke<PoolsInfo>("pools_join", { poolId, member, role, level, actions });
@@ -140,6 +147,33 @@ export async function poolsOfSession(sessionId: string): Promise<SessionPoolsInf
     };
   }
   return invoke<SessionPoolsInfo>("pools_of_session", { sessionId });
+}
+
+/** The rule along one line between two sessions: its own, else its
+ * roles' pair's. */
+export async function poolEdgeTalk(poolId: string, from: string, to: string): Promise<EdgeTalkInfo> {
+  if (!hasLiveBackend()) {
+    const rules = rulesOf(poolId);
+    const role = (id: string) => rules.members.find((row) => row.member === `session:${id}`)?.role ?? "member";
+    const own = rules.talk.find((row) => row.from === `session:${from}` && row.to === `session:${to}`);
+    const pair = rules.talk.find((row) => row.from === `role:${role(from)}` && row.to === `role:${role(to)}`);
+    const pairRule = pair?.rule ?? "allowed";
+    return { rule: own?.rule ?? pairRule, pair_rule: pairRule, own: !!own, from_role: role(from), to_role: role(to) };
+  }
+  return invoke<EdgeTalkInfo>("pools_edge_talk", { poolId, from, to });
+}
+
+/** A pool's Watched members (sessions other apps run), with their titles. */
+export async function poolWatched(poolId: string): Promise<WatchedMemberInfo[]> {
+  if (!hasLiveBackend()) {
+    return rulesOf(poolId)
+      .members.filter((row) => row.member.startsWith("conversation:"))
+      .map((row) => {
+        const [folder = "", id = ""] = row.member.slice("conversation:".length).split("/");
+        return { member: row.member, folder, conversation_id: id, title: null, tool: null, account_label: null, project_id: null, role: row.role, continued_session: null };
+      });
+  }
+  return invoke<WatchedMemberInfo[]>("pools_watched", { poolId });
 }
 
 export function resetPreviewPoolModel(): void {

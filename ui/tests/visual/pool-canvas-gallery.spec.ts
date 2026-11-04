@@ -251,10 +251,30 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("pool-panel-tasks-open")).toHaveCount(0);
   });
 
-  test(`a new pool — 1280x800 ${theme}`, async ({ page }) => {
+  for (const [width, height] of [[1280, 800], [1024, 720]] as const) {
+    test(`the new pool wizard, each step — ${width}x${height} ${theme}`, async ({ page }) => {
+      await open(page, theme, width, height);
+      await poolsScreen(page);
+      await page.getByTestId("pools-new").click();
+      await expect(page.getByTestId("new-pool")).toBeVisible();
+      for (const step of ["template", "who", "roles", "review"]) {
+        await page.mouse.move(0, 0);
+        await page.screenshot({ path: resolve(OUT, `new-pool-${step}-${width}x${height}-${theme}.png`) });
+        await axe(page, `new pool ${step} ${width} ${theme}`);
+        if (step === "who") await page.getByTestId("new-pool-candidate").first().getByRole("checkbox").click();
+        if (step !== "review") await page.getByTestId("new-pool-next").click();
+      }
+      await expect(page.getByTestId("new-pool-review")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByTestId("new-pool")).toHaveCount(0);
+    });
+  }
+
+  test(`a new pool by hand — 1280x800 ${theme}`, async ({ page }) => {
     await open(page, theme, 1280, 800);
     await poolsScreen(page);
     await page.getByTestId("pools-new").click();
+    await page.getByTestId("new-pool-by-hand").click();
     await expect(page.getByTestId("canvas-empty")).toBeVisible();
     await expect(page.getByTestId("pool-name-input")).toBeFocused();
     await expect(page.getByTestId("pool-name-input")).toHaveValue("New pool");

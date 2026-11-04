@@ -143,7 +143,7 @@
 
 ## Step 4 — on screen
 
-### AJ-E3006 Sessions other apps run, as Watched members, and Continue in AI Juggler | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3004
+### AJ-E3006 Sessions other apps run, as Watched members, and Continue in AI Juggler | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3004
 **Goal**: Every session a person has can be shown in a pool, and the one step that gives it tools is right there.
 **User story**: As someone with a Claude app session in my project, I add it to the pool as Watched, and Continue in AI Juggler gives it the tools.
 **Requirements**:
@@ -157,9 +157,9 @@
 **Visual testing**: the Watched node and its fix, both themes.
 **Files to touch**: `ui/src/screens/pools/`, `crates/juggler-app/src/commands/pools.rs`.
 **Research basis**: `docs/research/pools-model.md` "Sessions other apps run".
-**Handover note**: Joining from anywhere stays a later spike with its own ADR.
+**Handover note**: Joining from anywhere stays a later spike with its own ADR. 2026-11-04, built: a Watched member is `conversation:<folder>/<id>` (named on its own); counted in the pool's members; in agents' rosters as "watched: can't reply"; a message to it waits in Needs you with the reason and is read once it's continued (the session's refs include its conversation); continued in AI Juggler, its session matches the member as itself. On screen: the wizard and the palette add it, the canvas draws it dashed with Continue in AI Juggler. Shell-only members show "shell only" from the tool's own `agent_tools` support. Left: L2 on the replica's Claude app sessions and the by-hand walk (E33).
 
-### AJ-E3007 New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3005, AJ-E3105
+### AJ-E3007 New pool opens a wizard: templates, where and who from what exists, roles and talk, a review in sentences | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3005, AJ-E3105
 **Goal**: A template gets most people to a working pool in one step, with every choice shown before it's made.
 **User story**: As someone new to pools, I pick "Writer and reviewer", pick my two sessions from Open now, and make the pool; the review said exactly what it would do.
 **Requirements**:
@@ -175,9 +175,9 @@
 **Visual testing**: each step, both themes, 1024 and 1280.
 **Files to touch**: `ui/src/screens/pools/NewPool*.tsx` (new), `ui/src/lib/pool-templates.ts` (new).
 **Research basis**: the review's wireframes 1–4.
-**Handover note**: Templates are data, so one is added without new screens.
+**Handover note**: Templates are data, so one is added without new screens. 2026-11-04, built: `ui/src/screens/pools/NewPool*.tsx`, `ui/src/lib/pool-templates.ts`, `ui/src/lib/new-pool.ts`; nine templates; every candidate by kind with its reason and fix; the role-pair grid; the review in sentences; Make sends the user's own calls; an empty pool's "Use a template" sets that pool up. Left: the L3 all-pairs rows with timings and the gallery's new captures (both run at the end of 0.4).
 
-### AJ-E3008 Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3005
+### AJ-E3008 Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: AJ-E3005
 **Goal**: The canvas is where a pool is seen and changed, and it's clear what to do first.
 **User story**: As someone who skipped the wizard, the empty canvas shows three numbered steps, and I make a working pool without reading docs.
 **Requirements**:
@@ -192,7 +192,7 @@
 **Visual testing**: wireframes 5–6, both themes.
 **Files to touch**: `ui/src/screens/pools/` (canvas, inspector, palette).
 **Research basis**: E28's canvas; the review's wireframes 5–6.
-**Handover note**: —
+**Handover note**: 2026-11-04, built: the teaching empty canvas (three steps, the next one primary, Use a template), the scope sheet, broad and Watched members as dashed group nodes with their sessions' count, the rule inspector (role, own level, take out), the palette's other candidates by kind with reasons, and a line's talk rule changeable for that pair only (`pools_edge_talk`). Left: drawing the group nodes inside the laid-out canvas with lines to their sessions (they sit in a column now), grouping past 50 members, and the keyboard-only path's check.
 
 ### AJ-E3009 Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3005
 **Goal**: Pools work with switching, notifications, tasks and usage as the proposal's fit table says.

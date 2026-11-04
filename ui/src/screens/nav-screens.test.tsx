@@ -307,7 +307,7 @@ describe("Pools and a project's page", () => {
     const actions = host();
     const view = render(
       <ActionHostProvider host={actions}>
-        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />
+        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} />
       </ActionHostProvider>,
     );
     const rows = await view.findAllByTestId("pool-card-tile");

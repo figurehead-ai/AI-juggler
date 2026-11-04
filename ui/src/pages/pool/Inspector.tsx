@@ -20,6 +20,11 @@ import type { Selection } from "./Canvas";
 import { edgeKey, type MemberNode } from "./useCanvas";
 
 // The conversation loads only when an edge is opened.
+import { EdgeTalk } from "./EdgeTalk";
+import { InspectRule } from "./InspectRule";
+import type { PoolRules } from "../../lib/pool-rules";
+import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
+
 const ThreadView = lazyNamed(() => import("../messages/ThreadView"), "ThreadView");
 
 function Fact({ label, children }: { label: string; children: ReactNode }): JSX.Element {
@@ -82,7 +87,17 @@ function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; ca
 
 function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; edgeId: string; names: ReadonlyMap<string, string>; now: number }): JSX.Element {
   const edge = canvas?.edges.find((row) => edgeKey(row.from_session_id, row.to_session_id) === edgeId);
-  if (!edge) return <p className="px-4 py-3 text-meta text-ink-2">Nothing passes between these two this week.</p>;
+  const [fromId = "", toId = ""] = edgeId.split(">");
+  // D-62: the line's talk rule, whether or not anything passed yet.
+  const talk = <EdgeTalk poolId={pool.id} from={fromId} to={toId} fromName={names.get(fromId) ?? "A member"} toName={names.get(toId) ?? "a member"} />;
+  if (!edge) {
+    return (
+      <div className="flex flex-col gap-3" data-testid="inspect-edge">
+        {talk}
+        <p className="px-4 text-meta text-ink-2">Nothing passes between these two this week.</p>
+      </div>
+    );
+  }
   const from = names.get(edge.from_session_id) ?? "A member";
   const to = names.get(edge.to_session_id) ?? "a member";
   const members = [
@@ -97,6 +112,7 @@ function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; can
         </span>
         <span className="text-meta text-muted">{edgeWords(edge, from, to).count} this week · last {agoWords(edge.last_at_ms, now)}</span>
       </div>
+      <div className="pb-3">{talk}</div>
       {edge.pending.length > 0 && (
         <Section title="Waiting on you">
           <ul className="flex flex-col gap-1.5">
@@ -136,9 +152,14 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   onSelect: (selection: Selection) => void;
   onOpenTask: (task: TaskInfo) => void;
   onDeleted: () => void;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted }, heading): JSX.Element {
+  /** D-62: the pool's member rules and Watched members, and their names. */
+  rules: PoolRules;
+  ruleLabel: (rule: PoolRuleInfo) => string;
+}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
-  const title = selection.kind === "pool" ? "Pool settings" : member ? "Member" : selection.kind === "edge" ? "Conversation" : "Activity";
+  const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
+  const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
+  const title = selection.kind === "pool" ? "Pool settings" : member ? "Member" : selection.kind === "rule" ? (watched ? "Watched member" : "Member rule") : selection.kind === "edge" ? "Conversation" : "Activity";
   return (
     <aside aria-labelledby="pool-inspector-title" className="flex h-full min-h-0 w-[340px] shrink-0 flex-col border-l border-hairline bg-surface" data-testid="pool-inspector">
       <div className="flex h-11 shrink-0 items-center gap-2 px-4">
@@ -166,6 +187,15 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
             onSelectEdge={(key) => onSelect({ kind: "edge", key })}
             onSelectPool={() => onSelect({ kind: "pool" })}
             onOpenTask={onOpenTask}
+          />
+        ) : selection.kind === "rule" ? (
+          <InspectRule
+            pool={pool}
+            rule={rule}
+            watched={watched}
+            label={rule ? ruleLabel(rule) : (watched?.title ?? "A session in another app")}
+            onChanged={rules.reload}
+            onGone={() => onSelect({ kind: "none" })}
           />
         ) : selection.kind === "edge" ? (
           <InspectEdge pool={pool} canvas={canvas} edgeId={selection.key} names={names} now={now} />

@@ -448,6 +448,68 @@ fn a_pools_talk_rules_hold_or_refuse_an_agents_message_d62() {
 }
 
 #[test]
+fn a_watched_member_shows_counts_cant_reply_and_its_messages_wait_d62() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Alpha");
+    let watched = "conversation:folder-x/conv-7";
+    let before = pools::pools_list_impl(&lab.state)
+        .unwrap()
+        .pools
+        .into_iter()
+        .find(|pool| pool.id == lab.pool)
+        .unwrap()
+        .members;
+    let info =
+        pools::model::join_impl(&lab.state, &lab.pool, watched, "member", None, &[]).unwrap();
+    let after = info
+        .pools
+        .iter()
+        .find(|pool| pool.id == lab.pool)
+        .unwrap()
+        .members;
+    assert_eq!(after, before + 1, "a Watched member counts");
+    let listed = pools::watched::watched_impl(&lab.state, &lab.pool).unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].continued_session, None);
+
+    // In the agents' roster, as one that can't reply.
+    let roster = lab.call(&a, Call::PoolRoster, Args::default());
+    let members = roster.result.unwrap()["members"]
+        .as_array()
+        .unwrap()
+        .clone();
+    let shown = members
+        .iter()
+        .find(|member| member["watched"] == watched)
+        .expect("the Watched member in the roster");
+    assert_eq!(shown["state"], "watched: can't reply");
+
+    // A message to it waits, with the reason, and asks the person.
+    let sent = lab.send(
+        &a,
+        SendArgs {
+            to: watched.into(),
+            body: "The schema changed.".into(),
+            ..SendArgs::default()
+        },
+    );
+    assert!(sent.refused.is_none(), "{sent:?}");
+    assert!(field(&sent, "/to/0/gets_it").starts_with("when it's continued in AI Juggler"));
+    let ask = needs::needs(&lab.state)
+        .unwrap()
+        .into_iter()
+        .find(|need| need.kind == "ask")
+        .expect("the waiting message in Needs you");
+    assert!(
+        ask.detail
+            .contains("can't read messages until it's continued"),
+        "{}",
+        ask.detail
+    );
+    assert!(!ask.offer_always);
+}
+
+#[test]
 fn delivery_waits_for_the_users_click_at_work_together() {
     let lab = Lab::new();
     let (_a, a) = lab.agent("s-a", "Planner");

@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use super::dto::{PoolRulesInfo, SessionPoolsInfo};
+use super::dto::{EdgeTalkInfo, PoolRulesInfo, SessionPoolsInfo, WatchedMemberInfo};
 use super::{PoolCanvasInfo, PoolMemberInfo, PoolMemberRow, PoolPreviewInfo, PoolsInfo};
 use crate::error::AppResult;
 use crate::paging::{Page, PageRequest};
@@ -423,6 +423,40 @@ pub async fn pools_of_session(
 ) -> AppResult<SessionPoolsInfo> {
     crate::ipc::blocking(state.inner(), "the pool", move |state| {
         super::model::session_pools_impl(state, &session_id)
+    })
+    .await
+}
+
+/// D-62 decision 15: a pool's Watched members (sessions other apps run).
+///
+/// # Errors
+///
+/// As [`super::watched::watched_impl`].
+#[tauri::command]
+pub async fn pools_watched(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+) -> AppResult<Vec<WatchedMemberInfo>> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::watched::watched_impl(state, &pool_id)
+    })
+    .await
+}
+
+/// D-62 decision 13: the rule along one line between two sessions.
+///
+/// # Errors
+///
+/// As [`super::model::edge_talk_impl`].
+#[tauri::command]
+pub async fn pools_edge_talk(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+    from: String,
+    to: String,
+) -> AppResult<EdgeTalkInfo> {
+    crate::ipc::blocking(state.inner(), "the pool", move |state| {
+        super::model::edge_talk_impl(state, &pool_id, &from, &to)
     })
     .await
 }

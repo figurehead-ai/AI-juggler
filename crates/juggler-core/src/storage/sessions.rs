@@ -457,7 +457,7 @@ impl SessionsRepo<'_> {
     ) -> Result<Vec<crate::pools::SessionFacts>, CoreError> {
         let mut stmt = self.conn.prepare(&format!(
             "SELECT i.id, i.project, COALESCE(i.app_id, 'cli:' || r.account_id), a.subscription_id,
-                    a.provider_id, i.machine
+                    a.provider_id, i.machine, r.account_id, i.conversation_id
                FROM instances i
                LEFT JOIN launch_recipes r ON r.id = i.launch_recipe_id
                LEFT JOIN accounts a ON a.id = r.account_id {filter}"
@@ -471,6 +471,13 @@ impl SessionsRepo<'_> {
                 account: row.get(3)?,
                 tool: row.get(4)?,
                 mac: row.get(5)?,
+                conversation: match (
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                ) {
+                    (Some(folder), Some(id)) => Some((folder, id)),
+                    _ => None,
+                },
             })
         })?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()

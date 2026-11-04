@@ -335,11 +335,21 @@ pub enum MemberRef {
     Mac(String),
     /// Everyone in the pool's scope.
     Everyone,
+    /// D-62 decision 15: a session another app runs, by its folder and
+    /// conversation: a Watched member (no tools, no rules) until it's
+    /// continued in AI Juggler, whose session then matches it as itself.
+    Conversation {
+        /// The folder (config folder row) it was read from.
+        folder: String,
+        /// The tool's own conversation id.
+        id: String,
+    },
 }
 
 impl MemberRef {
     /// The stored form: `work:<id>` | `session:<id>` | `app:<id>` |
-    /// `account:<id>` | `tool:<id>` | `mac:<id>` | `all`.
+    /// `account:<id>` | `tool:<id>` | `mac:<id>` | `all` |
+    /// `conversation:<folder>/<id>`.
     #[must_use]
     pub fn to_wire(&self) -> String {
         match self {
@@ -350,6 +360,7 @@ impl MemberRef {
             Self::Tool(id) => format!("tool:{id}"),
             Self::Mac(id) => format!("mac:{id}"),
             Self::Everyone => "all".to_owned(),
+            Self::Conversation { folder, id } => format!("conversation:{folder}/{id}"),
         }
     }
 
@@ -370,15 +381,32 @@ impl MemberRef {
             "account" => Self::Account(id.to_owned()),
             "tool" => Self::Tool(id.to_owned()),
             "mac" => Self::Mac(id.to_owned()),
+            "conversation" => {
+                let (folder, id) = id.split_once('/')?;
+                if folder.is_empty() || id.is_empty() {
+                    return None;
+                }
+                Self::Conversation {
+                    folder: folder.to_owned(),
+                    id: id.to_owned(),
+                }
+            }
             _ => return None,
         })
+    }
+
+    /// Whether it names a session another app runs (a Watched member
+    /// until continued in AI Juggler).
+    #[must_use]
+    pub const fn is_watched(&self) -> bool {
+        matches!(self, Self::Conversation { .. })
     }
 
     /// How it matches sessions.
     #[must_use]
     pub const fn kind(&self) -> MemberKind {
         match self {
-            Self::Work(_) | Self::Session(_) => MemberKind::Session,
+            Self::Work(_) | Self::Session(_) | Self::Conversation { .. } => MemberKind::Session,
             Self::App(_) => MemberKind::App,
             Self::Account(_) => MemberKind::Account,
             Self::Tool(_) => MemberKind::Tool,

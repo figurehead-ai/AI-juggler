@@ -208,7 +208,7 @@ async function openPage(poolId = "pool-team") {
   const view = render(
     <ConversationsProvider want={null}>
       <ActionHostProvider host={{}}>
-        <PoolPage poolId={poolId} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} now={Date.now()} />
+        <PoolPage poolId={poolId} sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} now={Date.now()} />
         <ToastHost />
       </ActionHostProvider>
     </ConversationsProvider>,
@@ -226,7 +226,7 @@ describe("one count of what needs you", () => {
     page.unmount();
     const screen = render(
       <ActionHostProvider host={{}}>
-        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} />
+        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} />
       </ActionHostProvider>,
     );
     await waitFor(() => expect(screen.getAllByTestId("pool-card-words").some((line) => line.textContent!.includes(header!))).toBe(true));
@@ -459,7 +459,7 @@ describe("the List view under 1100 px", () => {
     const page = () => (
       <ConversationsProvider want={null}>
         <ActionHostProvider host={{}}>
-          <PoolPage poolId="pool-team" sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} now={Date.now()} />
+          <PoolPage poolId="pool-team" sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} now={Date.now()} />
         </ActionHostProvider>
       </ConversationsProvider>
     );

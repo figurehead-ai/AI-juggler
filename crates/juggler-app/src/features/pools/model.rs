@@ -17,8 +17,8 @@ use juggler_core::storage::{
 };
 
 use super::dto::{
-    PoolRuleInfo, PoolRulesInfo, PoolTalkInfo, PoolsInfo, SessionPoolInfo, SessionPoolsInfo,
-    SessionSkipInfo,
+    EdgeTalkInfo, PoolRuleInfo, PoolRulesInfo, PoolTalkInfo, PoolsInfo, SessionPoolInfo,
+    SessionPoolsInfo, SessionSkipInfo,
 };
 use super::{live_pool, members, pool_names, pools_info};
 use crate::commands::lock_storage_arc;
@@ -157,8 +157,23 @@ pub fn join_impl(
     let pool = live_pool(&storage, pool_id)?;
     let role = role_from(role)?;
     let level = level_from(level, actions)?;
-    if let Some(MemberRef::Session(session)) = MemberRef::parse(member) {
-        may_join(&storage, &pool, &session)?;
+    match MemberRef::parse(member) {
+        Some(MemberRef::Session(session)) => may_join(&storage, &pool, &session)?,
+        Some(MemberRef::Conversation { folder, id }) => {
+            // A Watched member's project, from the conversation index.
+            drop(storage);
+            let project = crate::features::conversations::commands::list_indexed(state)?
+                .into_iter()
+                .find(|info| info.account_id == folder && info.id == id)
+                .and_then(|info| info.project_id);
+            if !pool.scope.holds(project.map(ProjectId::new).as_ref()) {
+                return Err(AppError::Refused(
+                    "That session works outside this pool's projects. Add its project to the pool's scope first.".to_owned(),
+                ));
+            }
+            return join_checked(state, &pool, member, role, level.as_ref());
+        }
+        _ => {}
     }
     let member = member_from(&storage, member)?;
     let mut replaces = Vec::new();
@@ -175,6 +190,22 @@ pub fn join_impl(
     storage
         .pools()
         .join(&pool.id, &member, &replaces, role, level.as_ref())?;
+    super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
+    pools_info(&storage)
+}
+
+/// Adds a member that needs no session check (a Watched conversation)
+/// after its own check.
+fn join_checked(
+    state: &Arc<AppState>,
+    pool: &Pool,
+    member: &str,
+    role: PoolRole,
+    level: Option<&MemberLevel>,
+) -> AppResult<PoolsInfo> {
+    let storage = lock_storage_arc(state)?;
+    let member = member_from(&storage, member)?;
+    storage.pools().join(&pool.id, &member, &[], role, level)?;
     super::super::relations::changed(state, super::super::relations::Change::PoolsChanged);
     pools_info(&storage)
 }
@@ -298,7 +329,13 @@ pub fn set_skip_held_impl(
     pools_info(&storage)
 }
 
-fn talk_key(from: &str, to: &str) -> AppResult<TalkKey> {
+/// A connection's end: a session named by id stands for its Work item
+/// (so a switch keeps the rule), as its member rows do.
+fn talk_end(storage: &Storage, wire: &str) -> AppResult<MemberRef> {
+    member_from(storage, wire)
+}
+
+fn talk_key(storage: &Storage, from: &str, to: &str) -> AppResult<TalkKey> {
     let bad = || AppError::Validation {
         subject: "talk",
         message: format!("{from} → {to} isn't a role pair or a connection"),
@@ -309,8 +346,8 @@ fn talk_key(from: &str, to: &str) -> AppResult<TalkKey> {
             PoolRole::parse(to).ok_or_else(bad)?,
         )),
         (None, None) => Ok(TalkKey::Connection(
-            MemberRef::parse(from).ok_or_else(bad)?,
-            MemberRef::parse(to).ok_or_else(bad)?,
+            talk_end(storage, from).map_err(|_| bad())?,
+            talk_end(storage, to).map_err(|_| bad())?,
         )),
         _ => Err(bad()),
     }
@@ -332,7 +369,7 @@ pub fn set_talk_impl(
 ) -> AppResult<PoolRulesInfo> {
     let storage = lock_storage_arc(state)?;
     live_pool(&storage, pool_id)?;
-    let key = talk_key(from, to)?;
+    let key = talk_key(&storage, from, to)?;
     let rule = match rule {
         None => None,
         Some(word) => Some(TalkRule::parse(word).ok_or_else(|| AppError::Validation {
@@ -344,18 +381,70 @@ pub fn set_talk_impl(
     rules_of(&storage, pool_id)
 }
 
+/// The rule along one line between two of a pool's sessions: its own,
+/// else its roles' pair's (D-62 decision 13).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a session that isn't in the pool; storage
+/// failures.
+pub fn edge_talk_impl(
+    state: &Arc<AppState>,
+    pool_id: &str,
+    from: &str,
+    to: &str,
+) -> AppResult<EdgeTalkInfo> {
+    use juggler_core::pools::talk::PoolTalk;
+    let storage = lock_storage_arc(state)?;
+    live_pool(&storage, pool_id)?;
+    let gone = || AppError::Refused("That session isn't in this pool any more".to_owned());
+    let (from_session, to_session) = (SessionId::new(from), SessionId::new(to));
+    let from_role = members::role_in(&storage, &from_session, pool_id)?.ok_or_else(gone)?;
+    let to_role = members::role_in(&storage, &to_session, pool_id)?.ok_or_else(gone)?;
+    let (from_ref, _) = super::member_of(&storage, &from_session)?;
+    let (to_ref, _) = super::member_of(&storage, &to_session)?;
+    let rows = storage.pools().talk()?;
+    let talk = PoolTalk::new(
+        rows.iter()
+            .filter(|(pool, ..)| pool == pool_id)
+            .map(|(_, key, rule)| (key, *rule)),
+    );
+    let own = talk.connection(&from_ref, &to_ref);
+    let pair = talk.pair(from_role, to_role);
+    Ok(EdgeTalkInfo {
+        rule: own.unwrap_or(pair).as_str().to_owned(),
+        pair_rule: pair.as_str().to_owned(),
+        own: own.is_some(),
+        from_role: from_role.as_str().to_owned(),
+        to_role: to_role.as_str().to_owned(),
+    })
+}
+
 /// A pool's member rules (most specific first) and talk settings.
 ///
 /// # Errors
 ///
 /// Storage failures.
 pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
+    // How many sessions each member brings in now.
+    let memberships = members::memberships(storage)?;
+    let mut brought: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let archived = members::archived(storage)?;
+    for facts in storage.sessions().pool_facts()? {
+        if archived.contains(facts.session.as_str()) {
+            continue;
+        }
+        if let Some(place) = memberships.resolve(&facts).in_pool(pool_id) {
+            *brought.entry(place.member.to_wire()).or_default() += 1;
+        }
+    }
     let mut rows: Vec<PoolRuleInfo> = storage
         .pools()
         .members()?
         .into_iter()
         .filter(|row| row.pool_id == pool_id)
         .map(|row| PoolRuleInfo {
+            sessions: brought.get(&row.member.to_wire()).copied().unwrap_or(0),
             member: row.member.to_wire(),
             kind: row.member.kind().as_str().to_owned(),
             role: row.role.as_str().to_owned(),

@@ -370,25 +370,7 @@ fn answer(
                 "note": "Only the user changes pools, roles and what agents may do, in AI Juggler.",
             }))
         }
-        Call::PoolRoster => {
-            let members: Vec<Value> = cards(state, &place.pool_id)?
-                .into_iter()
-                .map(|card| {
-                    json!({
-                        "you": card.session_id == session.as_str(),
-                        "session_id": card.session_id,
-                        "name": card.name,
-                        "place": card.place,
-                        "tool": card.tool,
-                        "account": card.account,
-                        "state": card.state,
-                        "role": card.role,
-                        "says": card.said.value,
-                    })
-                })
-                .collect();
-            Ok(json!({"pool": pool, "members": members, "note": OWN_WORDS}))
-        }
+        Call::PoolRoster => roster(state, session, &place.pool_id, &pool),
         Call::SendMessage
         | Call::ReadInbox
         | Call::Ack
@@ -416,6 +398,52 @@ fn answer(
             Ok(json!({"pool": pool, "cards": cards, "note": OWN_WORDS}))
         }
     }
+}
+
+/// `pool_roster`: the pool's members by their cards, and (D-62 decision
+/// 15) its Watched members, who can't reply until continued.
+fn roster(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    pool_id: &str,
+    pool: &Value,
+) -> Result<Value, Response> {
+    let mut members: Vec<Value> = cards(state, pool_id)?
+        .into_iter()
+        .map(|card| {
+            json!({
+                "you": card.session_id == session.as_str(),
+                "session_id": card.session_id,
+                "name": card.name,
+                "place": card.place,
+                "tool": card.tool,
+                "account": card.account,
+                "state": card.state,
+                "role": card.role,
+                "says": card.said.value,
+            })
+        })
+        .collect();
+    // D-62 decision 15: sessions other apps run, shown but unable
+    // to reply until they're continued in AI Juggler.
+    let watched = pools::watched::watched_impl(state, pool_id).unwrap_or_default();
+    members.extend(
+        watched
+            .into_iter()
+            .filter(|one| one.continued_session.is_none())
+            .map(|one| {
+                json!({
+                    "you": false,
+                    "watched": one.member,
+                    "name": one.title.unwrap_or_else(|| "A session in another app".to_owned()),
+                    "tool": one.tool,
+                    "account": one.account_label,
+                    "state": "watched: can't reply",
+                    "role": one.role,
+                })
+            }),
+    );
+    Ok(json!({"pool": pool, "members": members, "note": OWN_WORDS}))
 }
 
 fn cards(state: &Arc<AppState>, pool_id: &str) -> Result<Vec<ContextCard>, Response> {

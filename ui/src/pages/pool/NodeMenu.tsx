@@ -63,6 +63,9 @@ export function NodeMenu({
           <Line icon={<IconLead width={15} height={15} />}>Make lead</Line>
         </MenuItem>
       )}
+      <MenuItem onClick={run(() => setRole(pool, member, member.role === "reviewer" ? "member" : "reviewer"))} testId="node-menu-reviewer">
+        <Line icon={<IconRead width={15} height={15} />}>{member.role === "reviewer" ? "Let it build again" : "Make it the reviewer"}</Line>
+      </MenuItem>
       <MenuItem onClick={run(() => setRole(pool, member, member.role === "observer" ? "member" : "observer"))} testId="node-menu-observer">
         <Line icon={<IconRead width={15} height={15} />}>{member.role === "observer" ? "Let it work here again" : "Only let it watch"}</Line>
       </MenuItem>
