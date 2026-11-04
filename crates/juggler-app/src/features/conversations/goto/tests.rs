@@ -326,8 +326,12 @@ fn an_app_that_lost_its_window_offers_a_restart_of_that_place() {
     );
     assert_eq!(said.reached, "lost");
     assert_eq!(
-        said.place_id.as_deref(),
-        Some("claude-app|/Users/you/Profiles/b-work")
+        said.place_id,
+        // The place's id as the book keys it (0.4: `app:<app>:<folder>`).
+        Some(crate::features::places::book::place_id(
+            "claude-app",
+            Some(std::path::Path::new("/Users/you/Profiles/b-work"))
+        ))
     );
     assert_eq!(lost.log(), ["activate 10"], "nothing else is tried");
     let host = profile.place.host.clone().unwrap();
