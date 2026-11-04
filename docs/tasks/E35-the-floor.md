@@ -378,7 +378,7 @@
 **Research basis**: the round-1 list view in `docs/research/floor/README.md`; SPEC §9.7 Accessible.
 **Handover note**: —
 
-### AJ-E3513 The Floor's gates: a gallery of golden frames, budgets and the other systems | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512
+### AJ-E3513 The Floor's gates: a gallery of golden frames, budgets and the other systems | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512
 **Goal**: The canvas has gates as strong as the pages': its frames, its budgets and its builds are checked on every change.
 **User story**: As the maintainer, a change that breaks the Floor's look or cost fails CI before I see it.
 **Requirements**:
@@ -402,7 +402,7 @@
 **Visual testing**: the gallery itself.
 **Files to touch**: `.github/workflows/ci.yml` (a `floor-gallery` job), `crates/juggler-floor-render/tests/`, `docs/qa/floor/` (new), `docs/guide/`, `docs/releases/0.4.0.md`.
 **Research basis**: the spike's `--tour` capture and `measure/run.py`; ADR-0025 (jobs on GitHub's runners).
-**Handover note**: —
+**Handover note**: `crates/juggler-floor-render/tests/golden.rs` draws 23 frames offscreen from a neutral sample company (made-up names, so frames can be shared; the replica's folder names come from real profiles): the building, each floor, a full turn, both tilt limits, every area (every family, every state, a hot App, unused ones, an out Account), hover, the red alert, and after a reflow. CI job `floor-gallery` (required through `verify`) runs it on software Vulkan in the visual gate's pinned Ubuntu image and uploads every frame; Linux compares against `tests/golden/` with a 2% tolerance; `build-macos` runs it as the Metal smoke render. The Linux baselines come from that job's first run, looked at by eye and committed (no local Docker build: the shared Mac's disk). Every frame was critiqued on Metal once (the hover frame reframed). Left: the baselines; the budget harness on the release build (`docs/qa/floor/`); the guide page and 0.4.0 notes.
 
 ### AJ-E3514 Walked by hand: persona walks on the release build | Status: TODO | Priority P0 | Effort S | Depends: AJ-E3513
 **Goal**: The Floor is proven useful by use, not only by tests.

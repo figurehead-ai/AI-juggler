@@ -13,5 +13,9 @@ juggler-floor = { version = "0.4.0", path = "../juggler-floor" }
 pollster = "1.0.1"
 wgpu = "30.0.1"
 
+[dev-dependencies]
+# The gallery's golden frames (AJ-E3513) are PNGs.
+png = "0.18"
+
 [lints]
 workspace = true

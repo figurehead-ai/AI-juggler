@@ -120,7 +120,9 @@ fn it_draws_the_office_offscreen_and_picks_a_desk() {
     let scene = scene(&snap);
     let mut renderer = match Renderer::headless(&scene) {
         Ok(r) => r,
-        Err(Error::NoAdapter(why)) if !cfg!(target_os = "macos") => {
+        Err(Error::NoAdapter(why))
+            if !cfg!(target_os = "macos") || std::env::var_os("CI").is_some() =>
+        {
             eprintln!("no GPU here, the drawing test stops: {why}");
             return;
         }
