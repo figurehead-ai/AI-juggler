@@ -2375,6 +2375,12 @@ export interface SwitchTargetData {
   suggested: boolean;
 }
 
+/** The preview's two tools, named once: Claude Code as its first
+ * account's, Codex for the rows that move to it (ADR-0019 keeps tool ids
+ * out of the code). */
+const PREVIEW_CLAUDE = MOCK_ACCOUNTS[0]!.provider;
+const PREVIEW_CODEX = "codex";
+
 /** The no-backend switch-targets default (preview mode shows a
  * realistic ranked, badged set; fixtures override wholesale). */
 const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
@@ -2385,7 +2391,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   // (the limit dialog's pick said nothing of Work Max's 58% left).
   {
     recipe_id: "recipe-work-max",
-    provider: "claude-code",
+    provider: PREVIEW_CLAUDE,
     account_id: "claude-work",
     account_label: "Work Max",
     badge: "Same conversation, another app · Beta",
@@ -2402,7 +2408,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-personal",
-    provider: "claude-code",
+    provider: PREVIEW_CLAUDE,
     account_id: "claude-personal",
     account_label: "Personal",
     badge: "Same conversation, another app · Beta",
@@ -2419,7 +2425,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-codex",
-    provider: "codex",
+    provider: PREVIEW_CODEX,
     account_id: "acct-codex",
     account_label: "Codex",
     badge: "Full story, fresh start · Beta",
@@ -2436,7 +2442,7 @@ const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
   },
   {
     recipe_id: "recipe-lab",
-    provider: "claude-code",
+    provider: PREVIEW_CLAUDE,
     account_id: "acct-lab",
     account_label: "Lab",
     badge: "Same conversation, another app · Beta",
@@ -2516,7 +2522,7 @@ const DEFAULT_SWITCH_GRAPH: WorkGraphData[] = [
     title: "Login refactor",
     epochs: [
       { id: "ep-1", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-a" },
-      { id: "ep-2", provider: "codex", account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b" },
+      { id: "ep-2", provider: PREVIEW_CODEX, account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b" },
       { id: "ep-3", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-c" },
     ],
     edges: [
