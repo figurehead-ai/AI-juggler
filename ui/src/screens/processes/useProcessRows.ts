@@ -73,6 +73,15 @@ export function useProcessRows(query: ProcessQueryInput): ProcessRows {
   const again = useRef(false);
   const latest = useRef({ key, query, state });
   latest.current = { key, query, state };
+  // A read can answer after the view has gone (a page closed, a test
+  // ended): it's kept for the next view, never set on this one.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   /** Reads pages from the start until `want` rows (at least one page). */
   const read = useCallback(async (want: number) => {
@@ -101,15 +110,15 @@ export function useProcessRows(query: ProcessQueryInput): ProcessRows {
       kept.delete(readKey);
       kept.set(readKey, next);
       while (kept.size > KEPT_VIEWS) kept.delete(kept.keys().next().value as string);
-      if (latest.current.key === readKey) {
+      if (mounted.current && latest.current.key === readKey) {
         setState(next);
         setError(null);
       }
     } catch (failure) {
-      if (latest.current.key === readKey) setError(failure instanceof Error ? failure.message : String(failure));
+      if (mounted.current && latest.current.key === readKey) setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
       busy.current = false;
-      if (again.current) {
+      if (again.current && mounted.current) {
         again.current = false;
         void read(Math.max(PAGE_ROWS, latest.current.state?.rows.length ?? 0));
       }
