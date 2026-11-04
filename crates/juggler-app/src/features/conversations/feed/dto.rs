@@ -69,6 +69,10 @@ pub struct TurnBlockInfo {
     /// When it was last written (epoch ms).
     #[ts(type = "number | null")]
     pub at_ms: Option<i64>,
+    /// AJ-E3106 Req.3: the tool marked these words its turn's reply
+    /// (Codex's `final_answer`): the page shows them as the reply, and
+    /// what it said around them folds with the work.
+    pub final_answer: bool,
 }
 
 /// One turn, redacted, with its id.
@@ -241,6 +245,7 @@ fn block_info(block: &Block, layout: Layout) -> TurnBlockInfo {
         after_thinking: false,
         message_id: None,
         at_ms: None,
+        final_answer: false,
     };
     match block {
         Block::Text(text) | Block::Narration(text) => TurnBlockInfo {
@@ -254,6 +259,7 @@ fn block_info(block: &Block, layout: Layout) -> TurnBlockInfo {
             after_thinking: text.after_thinking,
             message_id: text.message_id.clone(),
             at_ms: text.at_ms,
+            final_answer: text.final_answer && matches!(block, Block::Text(_)),
             ..empty
         },
         Block::Steps(run) => steps_info(run, layout, empty),

@@ -118,7 +118,7 @@
 **Research basis**: D-62 decision 21.
 **Handover note**: —
 
-### AJ-E3106 Beside a session's conversation, what the tools' own apps show: subagents running, the sessions it started; and each tool's own marks | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3103
+### AJ-E3106 Beside a session's conversation, what the tools' own apps show: subagents running, the sessions it started; and each tool's own marks | Status: IN-PROGRESS (Req.1–2 built in 0.3.4: `pages/session/ConversationSwitcher.tsx`, Running, Started from here, Done. Req.3–4 built 2026-11-04: Codex's `phase: "final_answer"` marks a text block (`conversation_lines`, the feed never merges it with commentary, `TurnBlockInfo.final_answer`) and `foldOf` takes it as the reply, commentary folded even after it; a step's own description shows with its command beside it (`Steps`). Tests: `conversation_feed_tests::codexs_final_answer_is_its_own_block_and_marked`, `turn-marks.test.tsx`. Left: the K-walk on a live session with running and ended subagents) | Priority P0 | Effort M | Depends: AJ-E3103
 **Goal**: A session's Overview lets you switch, from beside its conversation, to what runs inside it and to what it started, the way the Claude app's tasks pane and ChatGPT's Codex side panel do. The Subagents tab stays the full, deeper list.
 **User story**: As someone watching a long session, I see the three subagents running now and the two sessions it started beside its conversation, and one click shows each one's conversation or page, without leaving the Overview.
 **Requirements**:

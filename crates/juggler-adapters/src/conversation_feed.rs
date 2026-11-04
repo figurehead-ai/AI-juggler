@@ -198,6 +198,8 @@ pub struct TextBlock {
     pub message_id: Option<String>,
     /// When its latest words were written (epoch ms).
     pub at_ms: Option<i64>,
+    /// AJ-E3106 Req.3: the tool marked these words its turn's reply.
+    pub final_answer: bool,
 }
 
 impl TextBlock {
@@ -593,6 +595,7 @@ impl TurnLog {
             message_id,
             model,
             at_ms,
+            final_answer,
             ..
         } = message;
         let (parts, redacted) = self.scrubbed(parts);
@@ -623,7 +626,11 @@ impl TurnLog {
         if model.is_some() {
             turn.model = model;
         }
-        let said = Origin { message_id, at_ms };
+        let said = Origin {
+            message_id,
+            at_ms,
+            final_answer,
+        };
         for part in parts {
             match part {
                 Part::Text(text) => {
@@ -768,6 +775,7 @@ impl TurnLog {
 struct Origin {
     message_id: Option<String>,
     at_ms: Option<i64>,
+    final_answer: bool,
 }
 
 /// `text`'s end, at most `max` characters.
@@ -783,7 +791,10 @@ fn push_text(turn: &mut FeedTurn, text: &str, thought: bool, said: &Origin) {
     if text.is_empty() {
         return;
     }
-    if let Some(Block::Text(last)) = turn.blocks.last_mut() {
+    // A reply the tool marked never joins its commentary, nor the reverse.
+    if let Some(Block::Text(last)) = turn.blocks.last_mut()
+        && last.final_answer == said.final_answer
+    {
         last.push(text, BLOCK_CHARS);
         last.at_ms = said.at_ms.or(last.at_ms);
         return;
@@ -792,6 +803,7 @@ fn push_text(turn: &mut FeedTurn, text: &str, thought: bool, said: &Origin) {
         after_thinking: thought,
         message_id: said.message_id.clone(),
         at_ms: said.at_ms,
+        final_answer: said.final_answer,
         ..TextBlock::default()
     };
     block.push(text, BLOCK_CHARS);

@@ -36,6 +36,7 @@ export function blockOf(block: SeededBlock): TurnBlockInfo {
     message_id: null,
     at_ms: null,
     ...block,
+    final_answer: block.final_answer ?? false,
   };
 }
 

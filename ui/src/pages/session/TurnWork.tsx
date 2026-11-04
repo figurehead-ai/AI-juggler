@@ -17,6 +17,14 @@ import { Markdown } from "./Markdown";
  * that ends on a step has no reply yet: all of it is work.
  */
 export function foldOf(turn: TurnInfo): { work: TurnBlockInfo[]; reply: TurnBlockInfo | null } {
+  // AJ-E3106 Req.3: the tool's own mark decides when it gives one (Codex's
+  // final_answer): that message is the reply, and its commentary folds
+  // with the work even when it comes after.
+  let marked = -1;
+  turn.blocks.forEach((block, index) => {
+    if (block.kind === "text" && block.final_answer) marked = index;
+  });
+  if (marked >= 0) return { work: turn.blocks.filter((_, index) => index !== marked), reply: turn.blocks[marked]! };
   const last = turn.blocks[turn.blocks.length - 1];
   return last?.kind === "text" ? { work: turn.blocks.slice(0, -1), reply: last } : { work: turn.blocks, reply: null };
 }
@@ -130,11 +138,21 @@ export function Steps({ block }: { block: TurnBlockInfo }): JSX.Element {
       {open && (
         <ul className="mt-2 flex flex-col gap-1 border-l border-hairline pl-4" data-testid="last-turn-step-lines">
           {block.hidden > 0 && <li className="text-label text-muted">{block.hidden === 1 ? "1 earlier step" : `${block.hidden} earlier steps`} not shown</li>}
-          {block.steps.map((line, index) => (
-            <li key={index} className="break-words font-mono text-meta leading-[1.5] text-ink/90">
-              {line}
-            </li>
-          ))}
+          {block.steps.map((line, index) => {
+            // AJ-E3106 Req.4: a step's own description when its tool
+            // records one ("Run the full preflight"), its command beside it.
+            const said = block.calls[index]?.description;
+            return said ? (
+              <li key={index} className="flex flex-wrap items-baseline gap-x-2 break-words text-meta leading-[1.5]" data-testid="last-turn-step-described">
+                <span className="text-ink/90">{said}</span>
+                <span className="font-mono text-muted">{line}</span>
+              </li>
+            ) : (
+              <li key={index} className="break-words font-mono text-meta leading-[1.5] text-ink/90">
+                {line}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

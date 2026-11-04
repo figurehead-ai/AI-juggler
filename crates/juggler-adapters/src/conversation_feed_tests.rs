@@ -1034,3 +1034,40 @@ fn a_save_mid_image_holds_no_part_of_it_and_a_restore_reads_it_whole() {
         ]
     );
 }
+
+/// AJ-E3106 Req.3: Codex's own mark decides a turn's reply. The message it
+/// marked `final_answer` is the reply; its commentary is its own block,
+/// never merged into it, even when it comes after.
+#[test]
+fn codexs_final_answer_is_its_own_block_and_marked() {
+    let message = |phase: &str, words: &str| {
+        serde_json::json!({"timestamp": AT, "type": "response_item", "payload": {"type": "message", "role": "assistant", "phase": phase, "content": [{"type": "output_text", "text": words}]}})
+            .to_string()
+    };
+    let lines = vec![
+        serde_json::json!({"timestamp": AT, "type": "turn_context", "payload": {"model": "gpt-5"}}).to_string(),
+        serde_json::json!({"timestamp": AT, "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Fix the refunds"}]}}).to_string(),
+        message("commentary", "Looking at the handler first."),
+        message("final_answer", "Refunds are fixed and tested."),
+        message("commentary", "One more note on the logs."),
+    ];
+    let bytes = (lines.join("\n") + "\n").into_bytes();
+    let log = chunked(&bytes, 3);
+    let turn = log.turns().back().expect("the reply's turn");
+    let texts: Vec<(String, bool)> = turn
+        .blocks
+        .iter()
+        .filter_map(|block| match block {
+            crate::conversation_feed::Block::Text(text) => Some((text.text(), text.final_answer)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        texts,
+        vec![
+            ("Looking at the handler first.".to_owned(), false),
+            ("Refunds are fixed and tested.".to_owned(), true),
+            ("One more note on the logs.".to_owned(), false),
+        ]
+    );
+}

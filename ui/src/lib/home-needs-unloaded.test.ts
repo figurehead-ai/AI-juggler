@@ -8,7 +8,7 @@ import { homeNeedsOf } from "./needs-you";
 import type { NoticeInfo } from "./ipc/notices";
 import type { RailItem } from "./rail-items";
 
-const notice = (over: Partial<NoticeInfo> & { target: Partial<NoticeInfo["target"]> }): NoticeInfo =>
+const notice = (over: Omit<Partial<NoticeInfo>, "target"> & { target: Partial<NoticeInfo["target"]> }): NoticeInfo =>
   ({
     id: 1,
     kind: "asks",
