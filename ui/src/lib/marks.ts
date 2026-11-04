@@ -75,6 +75,11 @@ export function fallbackSlot(id: string, taken: ReadonlySet<number> = new Set())
  * and by the rail's key for it (`cli|<tool>|<folder>`,
  * `app|<host>|<instance>`). */
 const appSlots = new Map<string, number>();
+/** Apps no list gave a slot, each with the slot guessed for it: kept, so
+ * one App wears one guess everywhere, and the next guess avoids it (two
+ * unstored Apps never share a colour while slots are free; the 0.4
+ * review). Forgotten when a list teaches a stored slot. */
+const guessed = new Map<string, number>();
 /** Each folder's Account and that Account's slot. */
 const folderAccounts = new Map<string, { id: string | null; slot: number | null }>();
 let version = 0;
@@ -82,6 +87,7 @@ const listeners = new Set<() => void>();
 
 function changed(): void {
   version += 1;
+  guessed.clear();
   for (const listener of listeners) listener();
 }
 
@@ -172,7 +178,13 @@ function storedSlot(key: string): number | undefined {
  * else the fallback from its id. */
 export function appSlot(app: AppMark): number {
   if (typeof app === "number") return app;
-  return storedSlot(app) ?? fallbackSlot(app, new Set(appSlots.values()));
+  const stored = storedSlot(app);
+  if (stored !== undefined) return stored;
+  const kept = guessed.get(app);
+  if (kept !== undefined) return kept;
+  const slot = fallbackSlot(app, new Set([...appSlots.values(), ...guessed.values()]));
+  guessed.set(app, slot);
+  return slot;
 }
 
 /** Whether an App's colour is its own: given or stored, or only the

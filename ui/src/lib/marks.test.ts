@@ -82,18 +82,22 @@ describe("AJ-E3206 an App's colour", () => {
 
   it("not stored yet: a fallback from its id, the same each time and never from a name", () => {
     expect(appSlot("app:claude-app:/p/new")).toBe(fallbackSlot("app:claude-app:/p/new"));
-    expect(fallbackSlot("app:claude-app:/p/new")).toBe(fallbackSlot("app:claude-app:/p/new"));
+    expect(appSlot("app:claude-app:/p/new")).toBe(appSlot("app:claude-app:/p/new"));
     expect(fallbackSlot("x")).toBeLessThan(MARK_COLOURS.length);
-    learnPlaces([place("app:claude-app:/p/none", "none", null)]);
-    expect(appSlot("app:claude-app:/p/none")).toBe(fallbackSlot("app:claude-app:/p/none"));
   });
 
-  it("not stored yet: never the colour of an App that is, while a colour is free", () => {
+  it("not stored yet: never the colour of an App that is, nor of another guess, while a colour is free", () => {
     learnFolders(MARK_COLOURS.slice(0, 5).map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
-    for (const key of ["app|claude-app|Work", "app|claude-app|Home", "cli|codex|x", "app:claude-app:/p/new"]) expect(appSlot(key)).toBeGreaterThanOrEqual(5);
-    // Every colour taken: any of them.
+    const keys = ["app|claude-app|Work", "app|claude-app|Home", "cli|codex|x"];
+    const slots = keys.map((key) => appSlot(key));
+    for (const slot of slots) expect(slot).toBeGreaterThanOrEqual(5);
+    // Two Apps no list coloured never share one while slots are free (the
+    // 0.4 review: two Claude app groups in one purple).
+    expect(new Set(slots).size).toBe(slots.length);
+    expect(keys.map((key) => appSlot(key))).toEqual(slots);
+    // Every colour taken: any of them, still one per App each time.
     learnFolders(MARK_COLOURS.map((_, slot) => folder(`f-${slot}`, `F${slot}`, { app_colour_slot: slot })));
-    expect(appSlot("app|claude-app|Work")).toBe(fallbackSlot("app|claude-app|Work"));
+    expect(appSlot("app|claude-app|Work")).toBe(appSlot("app|claude-app|Work"));
   });
 
   it("not stored yet: the free colour most unlike every one in use, not a near-twin", () => {

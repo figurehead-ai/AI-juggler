@@ -12,7 +12,7 @@ export const FOCUSED = "Focused window";
 /** A Go to it that ran but didn't bring the window forward (the app
  * opened without it, isn't running, or macOS kept it behind). */
 export function partialGoTo(outcome: string): boolean {
-  return /window not found|not running|didn't bring/i.test(outcome);
+  return /window not found|not running|didn't bring|permission needed/i.test(outcome);
 }
 
 export function goToToast(outcome: string): void {
