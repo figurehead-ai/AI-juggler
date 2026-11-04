@@ -39,7 +39,7 @@ import { NothingMatches, RelatedEmpty, type Teach } from "./related/RelatedEmpty
 export const SEARCH_PAST = 8;
 
 /** What a list is of: one page's entity. */
-export type Anchor = Pick<Partial<SessionsQuery>, "project_id" | "app_id" | "subscription_id" | "account_id" | "tool_id">;
+export type Anchor = Pick<Partial<SessionsQuery>, "project_id" | "app_id" | "subscription_id" | "account_id" | "tool_id" | "machine_id">;
 
 /** The anchor's kind in the relation counts, and the filter it makes
  * pointless (the page's own). */
@@ -49,6 +49,7 @@ function anchorKind(anchor: Anchor): { kind: EntityKind; id: string; own: FacetK
   if (anchor.subscription_id) return { kind: "subscription", id: anchor.subscription_id, own: "account" };
   if (anchor.account_id) return { kind: "folder", id: anchor.account_id, own: "app" };
   if (anchor.tool_id) return { kind: "tool", id: anchor.tool_id, own: null };
+  if (anchor.machine_id) return { kind: "machine", id: anchor.machine_id, own: "machine" };
   return { kind: "all", id: "", own: null };
 }
 

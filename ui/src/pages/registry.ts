@@ -20,7 +20,7 @@ export const PAGE_LABELS: Record<PageKind, string> = {
   app: "App",
   subscription: "Account",
   tool: "Tool",
-  machine: "Machine",
+  machine: "Mac",
   "remote-session": "Session",
   pool: "Pool",
 };
@@ -95,6 +95,8 @@ export type TabFacts = {
   /** AJ-E1520: a session whose tool records subagents, and it started
    * some. */
   hasSubagents?: boolean;
+  /** AJ-E3104: this Mac's page (a paired Mac's has its peer's tabs). */
+  local?: boolean;
   /** 0.3: how many each tab holds, where known (a project's sessions,
    * tasks, subagents). */
   counts?: Partial<Record<PageTabId, number>>;
@@ -151,8 +153,13 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     // AJ-E3104: its Apps, then everything they hold.
     case "tool":
       return [TAB.overview, { ...TAB.apps, source: "AI Juggler's apps of this tool" }, TAB.sessions, TAB.projects, TAB.pools];
+    // AJ-E3104: this Mac's page: its state and what's using it, then
+    // everything on it, counted. A paired Mac's (AJ-E705): its peer's
+    // answers, its processes and what can be done there.
     case "machine":
-      return [TAB.overview, TAB.processes, TAB.actions];
+      return facts.local
+        ? [{ ...TAB.overview, source: "measured on this Mac" }, TAB.sessions, { ...TAB.apps, source: "the apps and profiles on this Mac" }, TAB.projects, TAB.pools]
+        : [TAB.overview, TAB.processes, TAB.actions];
     case "remote-session":
       return [TAB.overview, TAB.quality, TAB.processes, TAB.actions];
     case "pool":

@@ -169,7 +169,7 @@ function InstanceOverview({
   return (
     <Card className="p-4" data-testid="remote-overview">
       <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-        <Field label="Machine" value={machine.label} source={`paired · ${machine.connection}`} />
+        <Field label="Mac" value={machine.label} source={`paired · ${machine.connection}`} />
         <Field label="Tool" value={providerDisplayName(instance.provider)} source={source} />
         <Field label="App" value={instance.account_label} source={source} />
         <Field label="Model" value={model} source={source} testId="remote-model" />

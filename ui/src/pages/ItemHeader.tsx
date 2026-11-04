@@ -143,7 +143,7 @@ export function InspectorHeader({
         ? (data.provider?.name ?? "Tool")
         : kind === "project"
             ? (data.project?.name ?? "Project")
-            : "Machine";
+            : "Mac";
   const crumbs: Crumb[] =
     kind === "instance" && project
       ? [{ label: project.name, onOpen: () => onOpenProject(project.id), testId: "crumb-project" }]

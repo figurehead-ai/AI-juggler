@@ -50,6 +50,12 @@ export function toolApps(apps: readonly AppModel[], tool: string, items: readonl
   );
 }
 
+/** AJ-E3104: every App on this Mac (an App is this Mac's: a CLI folder or
+ * a desktop app's profile here), busy ones first. */
+export function macApps(apps: readonly AppModel[], items: readonly RailItem[], byConversation: ReadonlyMap<string, string>): AccountApp[] {
+  return appRows(apps, items, byConversation);
+}
+
 /** AJ-E3104: the Apps `ids` names (a project's, from the relation
  * counts), else those with a session in `items`, as an Account's are
  * listed. */

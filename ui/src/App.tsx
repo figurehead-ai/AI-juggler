@@ -17,7 +17,7 @@ import { useCleanupCount } from "./lib/cleanup-count";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { prefetchLazy } from "./lib/lazy";
 import {
-  ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacScreen, ShortcutSheet, History,
+  ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacPage, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
   SettingsScreen, SessionPanel, SwitchFlow, SwitchBackFlow, PoolPage, NavScreen,
 } from "./lazyParts";
@@ -702,16 +702,24 @@ export default function App() {
               />
             </ScrollingScreen>
           ) : global === "thismac" ? (
-            <ScrollingScreen key="thismac" screen="this-mac-page" label="This Mac">
-              <ThisMacScreen
-                nameOf={(id) => {
-                  const session = sessions.find((s) => s.id === id);
-                  return session ? placeOf(session, projects).title : "A session";
-                }}
-                onOpenSession={selectSession}
-                onOpenCleanup={() => setGlobal("cleanup")}
-              />
-            </ScrollingScreen>
+            // AJ-E3104: a page with its own tabs, which scroll themselves.
+            <div key="thismac" className="min-h-0 h-full" data-testid="this-mac-scroll">
+              <ScreenBoundary screen="this-mac-page" label="This Mac">
+                <ThisMacPage
+                  sessions={railSessions}
+                  projects={projects}
+                  accounts={accounts}
+                  now={now}
+                  nameOf={(id) => {
+                    const session = sessions.find((s) => s.id === id);
+                    return session ? placeOf(session, projects).title : "A session";
+                  }}
+                  onOpenSession={selectSession}
+                  onOpenProject={selectProject}
+                  onOpenCleanup={() => setGlobal("cleanup")}
+                />
+              </ScreenBoundary>
+            </div>
           ) : global === "privacy" ? (
             // Settings › Privacy, a frame from now (the redirect above).
             null
