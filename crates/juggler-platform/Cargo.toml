@@ -26,10 +26,15 @@ sysinfo = { version = "0.39.6", default-features = false, features = ["system"] 
 # through Foundation's safe bindings (no `unsafe` here).
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSAppleEventDescriptor", "NSString", "NSDate", "NSError", "objc2-core-services", "libc"] }
+# 0.3.8: whether an app process is one this login session's window server
+# knows (`apps::detached`): `NSRunningApplication` by pid, a safe call
+# (already in the tree through juggler-app).
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "libc", "NSRunningApplication"] }
 
 [target."cfg(unix)".dependencies]
-# The effective user id (safe bindings; no `unsafe` here).
-nix = { version = "0.31.3", features = ["user", "fs"] }
+# The effective user id (safe bindings; no `unsafe` here); 0.3.8: asking an
+# app that lost its window to quit (`apps::quit`, SIGTERM).
+nix = { version = "0.31.3", features = ["user", "fs", "signal"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"

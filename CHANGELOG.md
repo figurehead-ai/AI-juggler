@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (0.3.8)
+
+- **An app or profile that lost its window when macOS restarted its
+  display** (docs/releases/0.3.8.md): after the window server's watchdog
+  restart of 2026-11-04, five Claude profiles ran on with no window and
+  no place in the apps macOS knows, and Open could only say "isn't open
+  now".
+  - `juggler_platform::apps::detached`: not registered
+    (`NSRunningApplication` by pid) **and** started before this login
+    session (the user's `loginwindow`); either unreadable means not lost.
+    `apps::quit` sends SIGTERM.
+  - Open and Go to it answer `reached: "lost"` with the place's id
+    (`GoToOutcomeInfo::place_id`); the window's toast asks "Restart it?"
+    (`showGoTo`), and `places_restart` quits the process, waits up to
+    10 s, then starts it as it ran (`start::start`, its tool folder),
+    never beside one that won't quit and never one that has its window.
+  - Keep alive counts a lost instance as down, under its limits (3 in 10
+    minutes, never locked, settling or quitting), and holds while a
+    session in it is working; the notice says it was restarted.
+  - A switch to Desktop refuses a lost profile instead of sending it the
+    session (`handoff::Running::lost`); Settings and Home say "Lost its
+    window" (`KnownPlaceInfo::lost`).
+- **A call copied into another account outside AI Juggler counts once**
+  (docs/releases/0.3.8.md): a conversation copied into a second account
+  with no switch recorded (a Dev build's switch, a folder copied by hand,
+  another Mac) counted under both, since P19's `drop_carried` only knows
+  AI Juggler's switches. On the maintainer's Mac: 264 calls (726K new
+  tokens) in 27 sessions.
+  - The keeper rule (`Span::rank`) now runs over every account's holders
+    (`usage_holders` by key, new index): the original keeps the shared
+    history, the copy its own new messages; the one row moves to the
+    keeper's account with its detail (`Rows::give`), and rows two accounts
+    stored before are merged into it.
+  - Codex's accounts keep no holders (their keys name the thread): a
+    copied rollout's calls stay with the account that stored them first.
+  - `REREAD_VERSION` 8: standings counted afresh
+    (`UsageRepo::forget_standings`), then `UsageRepo::settle_copies` for
+    copies whose files are gone. P19 is unchanged.
+
 ### Fixed (0.3.7)
 
 - **Usage numbers, after the usage audit** (docs/releases/0.3.7.md,

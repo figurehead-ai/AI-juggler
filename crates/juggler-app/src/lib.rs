@@ -540,6 +540,9 @@ macro_rules! app_commands {
             Read  features::places::commands::places_list,
             Read  features::places::commands::places_find,
             Write features::places::commands::places_open,
+            // 0.3.8: quits and starts again one that lost its window when
+            // macOS restarted its display (asked first, in the toast).
+            Write features::places::commands::places_restart,
             Write features::places::commands::places_keep_alive,
             Write features::places::commands::places_forget,
             // Launches a session: never from the read-only bridge.

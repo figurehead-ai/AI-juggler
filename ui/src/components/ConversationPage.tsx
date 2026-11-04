@@ -32,6 +32,7 @@ import { ConversationSubagents } from "./SessionNotes";
 import { useLastPlace } from "../lib/places";
 import { placesOpen } from "../lib/ipc/places";
 import { showToast } from "./Toast";
+import { showGoTo } from "../lib/go-to";
 
 const SessionOverview = lazyNamed(() => import("../pages/session/SessionOverview"), "SessionOverview");
 const UsagePanel = lazyNamed(() => import("../pages/session/UsagePanel"), "UsagePanel");
@@ -141,7 +142,7 @@ function ConversationView({
     if (!lastPlace) return;
     showToast({ id: "go-to", message: `Opening ${lastPlace.label}…` });
     placesOpen(lastPlace.id, latest.current.id).then(
-      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      showGoTo,
       () => showToast({ id: "go-to", message: `Couldn't open ${lastPlace.label}` }),
     );
   }, [lastPlace]);

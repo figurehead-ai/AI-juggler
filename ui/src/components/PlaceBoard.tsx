@@ -19,6 +19,7 @@ import { useArrange } from "./rail-arrange";
 import { useActionHost } from "./ItemMenu";
 import { AccountAvatar } from "./Avatar";
 import { showToast } from "./Toast";
+import { showGoTo } from "../lib/go-to";
 import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesKeepAlive } from "../lib/ipc/places";
@@ -161,7 +162,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     if (pid === null || pid === undefined) return;
     showToast({ id: "go-to", message: "Bringing it forward…" });
     conversationsBringForward(pid).then(
-      (outcome) => showToast({ id: "go-to", message: outcome.outcome }),
+      showGoTo,
       () => showToast({ id: "go-to", message: "Couldn't bring it forward" }),
     );
   };

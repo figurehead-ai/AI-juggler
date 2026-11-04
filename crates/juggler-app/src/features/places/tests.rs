@@ -15,6 +15,14 @@ use crate::activation::{Front, Request};
 #[derive(Default)]
 struct Recorder {
     starts: Mutex<Vec<(PathBuf, Start, Vec<String>)>>,
+    /// The env each start passed.
+    envs: Mutex<Vec<Vec<(String, String)>>>,
+    /// 0.3.8: a running process lost its window.
+    lost: bool,
+    /// It won't quit when asked.
+    stays: bool,
+    /// The processes asked to quit, in order (never really signalled).
+    quits: Mutex<Vec<u32>>,
 }
 
 impl start::Starter for Recorder {
@@ -27,7 +35,21 @@ impl start::Starter for Recorder {
             .lock()
             .unwrap()
             .push((launch.bundle.clone(), launch.how, launch.args.clone()));
+        self.envs.lock().unwrap().push(launch.env.clone());
         Ok(())
+    }
+
+    fn detached(&self, _: u32, _: Option<i64>) -> bool {
+        self.lost
+    }
+
+    fn quit(&self, pid: u32) -> Result<(), String> {
+        self.quits.lock().unwrap().push(pid);
+        Ok(())
+    }
+
+    fn alive(&self, pid: u32, _: Option<i64>) -> bool {
+        self.stays || !self.quits.lock().unwrap().contains(&pid)
     }
 }
 
@@ -47,6 +69,9 @@ impl Front for Links {
 impl Desktop for Links {
     fn start_of(&self, _: u32) -> Option<i64> {
         None
+    }
+    fn detached(&self, _: u32, _: Option<i64>) -> bool {
+        false
     }
     fn open_link(&self, link: &str) -> bool {
         self.0.lock().unwrap().push(link.to_owned());
@@ -278,4 +303,268 @@ fn nothing_starts_unless_keep_alive_was_turned_on() {
         tick_with(&state, start + tick * 2_000, &starter, &|| false);
     }
     assert!(starter.starts.lock().unwrap().is_empty());
+}
+
+/// 0.3.8: a desktop that finds the app by its process but macOS has no
+/// app for it: it runs on with no window.
+struct LostMac;
+
+impl Front for LostMac {
+    fn request(&self, _: u32) -> Request {
+        Request::Gone
+    }
+    fn frontmost(&self) -> Option<u32> {
+        None
+    }
+    fn pause(&self, _: Duration) {}
+}
+
+impl Desktop for LostMac {
+    fn start_of(&self, pid: u32) -> Option<i64> {
+        crate::features::conversations::procs::some(&[pid])
+            .get(&pid)
+            .and_then(|process| process.start)
+    }
+    fn detached(&self, _: u32, _: Option<i64>) -> bool {
+        true
+    }
+    fn open_link(&self, _: &str) -> bool {
+        false
+    }
+    fn open_folder(&self, _: &str, _: &Path) -> bool {
+        false
+    }
+    fn osascript(&self, _: &str) -> Result<String, String> {
+        Err("never".into())
+    }
+    fn tty(&self, _: u32) -> Option<String> {
+        None
+    }
+}
+
+/// The place `id` runs as this test's own process (a real pid and start,
+/// so it's found alive; nothing is ever signalled: the recorder only
+/// notes the quit).
+fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
+    let me = std::process::id();
+    let start = crate::features::conversations::procs::some(&[me])
+        .get(&me)
+        .and_then(|process| process.start);
+    state.places.watch.lock().unwrap().found(id, me, start);
+    (me, start)
+}
+
+fn quick() -> QuitWait {
+    QuitWait {
+        limit: Duration::from_millis(100),
+        every: Duration::from_millis(5),
+    }
+}
+
+/// 0.3.8: Open on a profile that runs on with no window asks to restart
+/// that place, and starts nothing beside it.
+#[test]
+fn open_on_a_profile_that_lost_its_window_asks_to_restart_it() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    running_as_me(&state, &work);
+    let starter = Arc::new(Recorder::default());
+    let said = open(&state, &work, None, Arc::new(LostMac), starter.clone()).unwrap();
+    assert_eq!(
+        said.outcome,
+        "Claude · b-lab lost its window when the system restarted the display. Restart it?"
+    );
+    assert_eq!(said.reached, "lost");
+    assert_eq!(said.place_id.as_deref(), Some(work.as_str()));
+    assert!(
+        starter.starts.lock().unwrap().is_empty(),
+        "never a second process on one profile folder"
+    );
+}
+
+/// Restart quits the lost process, waits for it to end, then starts the
+/// place exactly as it ran (its folder, its tool folder), in front.
+#[test]
+fn restart_quits_the_lost_process_then_starts_it_as_it_ran() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    let (me, _) = running_as_me(&state, &work);
+    let starter = Recorder {
+        lost: true,
+        ..Recorder::default()
+    };
+    let said = restart(&state, &work, &starter, false, quick(), 10_000_000).unwrap();
+    assert_eq!(said, "Restarting Claude · b-lab");
+    assert_eq!(*starter.quits.lock().unwrap(), [me]);
+    let starts = starter.starts.lock().unwrap();
+    assert_eq!(starts.len(), 1);
+    assert!(
+        starts[0].1.new_instance && !starts[0].1.background,
+        "in front"
+    );
+    assert_eq!(
+        starts[0].2,
+        [format!(
+            "--user-data-dir={}",
+            root.path().join("Profiles/b-lab").display()
+        )]
+    );
+    assert!(
+        state
+            .places
+            .watch
+            .lock()
+            .unwrap()
+            .coming_up(&work, 10_000_000),
+        "keep alive starts nothing of its own meanwhile"
+    );
+}
+
+/// 0.3.5's pairing holds through a restart: a profile on an account
+/// starts on that account's tool folder.
+#[test]
+fn a_restarted_profile_keeps_its_tool_folder() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    let folder = root.path().join("CodeProfiles/work");
+    let account = juggler_core::model::Account {
+        id: juggler_core::model::AccountId::new("acct-work"),
+        harness: juggler_core::model::HarnessId::new("claude-code"),
+        label: "Work Max".into(),
+        plan: None,
+        state_dir: folder.clone(),
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+    };
+    crate::commands::lock_storage_arc(&state)
+        .unwrap()
+        .accounts()
+        .insert(&account)
+        .unwrap();
+    with_book(&state, |book| {
+        book.places.get_mut(&work).unwrap().account_id = Some("acct-work".into());
+    })
+    .unwrap();
+    running_as_me(&state, &work);
+    let starter = Recorder {
+        lost: true,
+        ..Recorder::default()
+    };
+    restart(&state, &work, &starter, false, quick(), 10_000_000).unwrap();
+    assert_eq!(
+        *starter.envs.lock().unwrap(),
+        [vec![(
+            "CLAUDE_CONFIG_DIR".to_owned(),
+            folder.to_string_lossy().into_owned()
+        )]]
+    );
+}
+
+/// One that won't quit is reported and never started beside; one that
+/// has its window is never quit.
+#[test]
+fn restart_never_starts_beside_one_that_stays_or_quits_one_that_has_its_window() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    running_as_me(&state, &work);
+    let stays = Recorder {
+        lost: true,
+        stays: true,
+        ..Recorder::default()
+    };
+    let error = restart(&state, &work, &stays, false, quick(), 10_000_000).unwrap_err();
+    assert!(error.contains("didn't quit"), "{error}");
+    assert!(stays.starts.lock().unwrap().is_empty());
+    let fine = Recorder::default();
+    let error = restart(&state, &work, &fine, false, quick(), 10_000_000).unwrap_err();
+    assert!(error.contains("has its window"), "{error}");
+    assert!(fine.quits.lock().unwrap().is_empty(), "never quit");
+    assert!(fine.starts.lock().unwrap().is_empty());
+}
+
+/// Keep alive treats a kept place that lost its window as down: after the
+/// wait it's quit and started once, behind; told as a restart.
+#[test]
+fn keep_alive_restarts_a_place_that_lost_its_window_once() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    set_keep_alive(&state, &work, true).unwrap();
+    let start = 10_000_000;
+    state.places.watch.lock().unwrap().settled_at(start);
+    let (me, _) = running_as_me(&state, &work);
+    let starter = Recorder {
+        lost: true,
+        ..Recorder::default()
+    };
+    let mut now = start;
+    while now < start + keep::WAIT_MS + 10_000 {
+        now += 2_000;
+        tick_with(&state, now, &starter, &|| false);
+    }
+    assert_eq!(*starter.quits.lock().unwrap(), [me], "quit once");
+    let starts = starter.starts.lock().unwrap();
+    assert_eq!(starts.len(), 1, "started once");
+    assert!(starts[0].1.background, "behind the app in front");
+}
+
+/// Never while locked, and never while a session in it is working (a
+/// restart would end the turn).
+#[test]
+fn keep_alive_leaves_a_lost_place_while_locked_or_while_a_session_works_in_it() {
+    use crate::features::conversations::places::Host;
+    use crate::features::conversations::scan::{LiveEntry, LiveModel, Place, State};
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    set_keep_alive(&state, &work, true).unwrap();
+    let start = 10_000_000;
+    state.places.watch.lock().unwrap().settled_at(start);
+    let (me, at) = running_as_me(&state, &work);
+    let starter = Recorder {
+        lost: true,
+        ..Recorder::default()
+    };
+    for tick in 1..=20 {
+        tick_with(&state, start + tick * 2_000, &starter, &|| true);
+    }
+    assert!(starter.quits.lock().unwrap().is_empty(), "locked");
+    state.conversations.set_live_model(LiveModel {
+        entries: vec![LiveEntry {
+            tool: "claude-code".into(),
+            account_id: None,
+            session_id: "s-1".into(),
+            places: vec![Place {
+                pid: 77,
+                start: None,
+                host: Some(Host {
+                    app_id: Some("claude-app".into()),
+                    name: "Claude".into(),
+                    shown: "Claude".into(),
+                    kind: Some(juggler_adapter::live::HostKind::Desktop),
+                    pid: me,
+                    start: at,
+                    instance_dir: None,
+                    instance: Some("b-lab".into()),
+                }),
+                profile: None,
+            }],
+            state: Some(State::Working),
+            probably: false,
+            viewed_ms: None,
+            app_title: None,
+            background: false,
+        }],
+        ..LiveModel::default()
+    });
+    for tick in 21..=60 {
+        tick_with(&state, start + tick * 2_000, &starter, &|| false);
+    }
+    assert!(
+        starter.quits.lock().unwrap().is_empty(),
+        "a working session holds it"
+    );
 }

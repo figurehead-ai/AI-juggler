@@ -11,6 +11,9 @@ use super::*;
 struct FakeMac {
     gone: bool,
     refused: bool,
+    /// 0.3.8: it runs on, but lost the window server (macOS restarted its
+    /// display): no app macOS knows, and older than the login session.
+    lost: bool,
     restarted: bool,
     /// macOS takes the request, and another app stays in front.
     behind: bool,
@@ -30,6 +33,9 @@ impl FakeMac {
 impl Front for FakeMac {
     fn request(&self, pid: u32) -> Request {
         self.log.lock().unwrap().push(format!("activate {pid}"));
+        if self.lost {
+            return Request::Gone;
+        }
         if self.refused {
             return Request::Refused;
         }
@@ -52,6 +58,10 @@ impl Front for FakeMac {
 impl Desktop for FakeMac {
     fn start_of(&self, pid: u32) -> Option<i64> {
         (!self.gone).then_some(i64::from(pid) + if self.restarted { 999 } else { 0 })
+    }
+
+    fn detached(&self, _pid: u32, _start: Option<i64>) -> bool {
+        self.lost
     }
 
     fn open_link(&self, link: &str) -> bool {
@@ -293,6 +303,40 @@ fn a_gone_reused_or_refused_app_says_so() {
         go(&nowhere, &hosts(), &FakeMac::default(), Gates::default()).reached,
         "none"
     );
+}
+
+/// 0.3.8: a Claude profile that outlived a restart of macOS's display
+/// runs on with no window: Go to it and Open say so and name the place to
+/// restart; an app that's merely gone, or isn't a desktop app, never
+/// offers a restart.
+#[test]
+fn an_app_that_lost_its_window_offers_a_restart_of_that_place() {
+    let lost = FakeMac {
+        lost: true,
+        ..FakeMac::default()
+    };
+    let mut profile = claude();
+    if let Some(host) = profile.place.host.as_mut() {
+        host.instance_dir = Some(PathBuf::from("/Users/you/Profiles/b-work"));
+    }
+    let said = go(&profile, &hosts(), &lost, Gates::default());
+    assert_eq!(
+        said.outcome,
+        "Claude · Work lost its window when the system restarted the display. Restart it?"
+    );
+    assert_eq!(said.reached, "lost");
+    assert_eq!(
+        said.place_id.as_deref(),
+        Some("claude-app|/Users/you/Profiles/b-work")
+    );
+    assert_eq!(lost.log(), ["activate 10"], "nothing else is tried");
+    let host = profile.place.host.clone().unwrap();
+    assert_eq!(bring_forward(&host, &lost).reached, "lost");
+    // A terminal isn't an app AI Juggler restarts.
+    let terminal = target(Some("terminal"), "Terminal", Some(HostKind::Terminal), None);
+    let said = go(&terminal, &hosts(), &lost, Gates::default());
+    assert_eq!(said.reached, "none");
+    assert_eq!(said.place_id, None);
 }
 
 #[test]

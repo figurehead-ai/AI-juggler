@@ -34,6 +34,11 @@ label: string,
  */
 app_pid: number | null, 
 /**
+ * 0.3.8: it runs on but lost its window when macOS restarted its
+ * display (Open asks to restart it).
+ */
+lost: boolean, 
+/**
  * Keep alive is on.
  */
 keep_alive: boolean, 

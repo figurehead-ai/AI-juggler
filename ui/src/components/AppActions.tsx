@@ -7,6 +7,7 @@
 import { useMemo, type JSX, type ReactNode } from "react";
 import { ActionHostProvider } from "./ItemMenu";
 import { showToast } from "./Toast";
+import { showGoTo } from "../lib/go-to";
 import type { ActionHost } from "../lib/actions";
 import { desktopFocus, errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
@@ -86,7 +87,7 @@ export function AppActions({
         markSeen(c.account_id, c.id);
         showToast({ id: "go-to", message: "Going to it…" });
         try {
-          showToast({ id: "go-to", message: (await conversationsGoTo(c.account_id, c.id)).outcome });
+          showGoTo(await conversationsGoTo(c.account_id, c.id));
         } catch (cause) {
           showToast({ id: "go-to", message: `Couldn't go to it: ${errorText(cause)}` });
         }

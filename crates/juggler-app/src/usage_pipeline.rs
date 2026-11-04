@@ -60,7 +60,14 @@ pub const CREDITS_KEY_PREFIX: &str = "credits:";
 /// (Claude's 1-hour cache writes, the prompt's size, speed and inference
 /// place; a Codex thread's kind and conversation) and its list price,
 /// made per call with its own tier.
-const REREAD_VERSION: u32 = 7;
+///
+/// 8 = 0.3.8: a call is counted once across a tool's accounts. A
+/// conversation copied into another account outside AI Juggler (no switch
+/// recorded, so P19 can't tell) counted under both; now the original keeps
+/// the shared history and the copy its own new messages. The standings are
+/// counted afresh and, once the files are read, the copies whose files are
+/// gone are settled too (`UsageRepo::settle_copies`).
+const REREAD_VERSION: u32 = 8;
 
 /// The first read of the tools' history (the 0.2 walk, F6: for about ten
 /// minutes after the first start every screen said "0 tokens" while it
@@ -309,14 +316,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
     }
 
-    // P19: the history a same-tool switch carried belongs to the account
-    // it was spent on, never to the one it was copied into.
-    let emptied = drop_carried(state, &mut store_batch);
-    if rereading
-        && !emptied.is_empty()
-        && let Ok(storage) = state.storage.lock()
-        && storage.usage().delete_session_events(&emptied).is_err()
-    {
+    if !before_store(state, rereading, &mut store_batch) {
         return;
     }
 
@@ -331,6 +331,10 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     if let Ok(storage) = state.storage.lock() {
         let usage = storage.usage();
         if rereading {
+            // 0.3.8: copies two accounts hold that no file read reached.
+            if usage.settle_copies().is_err() {
+                return;
+            }
             ingest.reread = REREAD_VERSION;
             if usage.clear_derived_dirty().is_err() {
                 return;
@@ -400,6 +404,28 @@ fn reprice_stored(state: &Arc<AppState>) {
 /// How long a staged switch's copy is recognised by the source's id,
 /// before its launch is recorded with the copy's own (P19).
 const CARRY_STAGED_MS: i64 = 10 * 60 * 1000;
+
+/// What a pass does before it stores `batch`; `false` stops the pass.
+/// - P19: the history a same-tool switch carried belongs to the account it
+///   was spent on, never to the one it was copied into.
+/// - 0.3.8, on a re-read: the standings an older build kept saw only their
+///   own account, so they're counted afresh.
+fn before_store(
+    state: &Arc<AppState>,
+    rereading: bool,
+    batch: &mut Vec<juggler_core::quota::UsageEvent>,
+) -> bool {
+    let emptied = drop_carried(state, batch);
+    if !rereading {
+        return true;
+    }
+    let Ok(storage) = state.storage.lock() else {
+        return true;
+    };
+    let usage = storage.usage();
+    (emptied.is_empty() || usage.delete_session_events(&emptied).is_ok())
+        && usage.forget_standings().is_ok()
+}
 
 /// Removes from `batch` the lines a same-tool switch carried into an
 /// account: in the target's copy of a switched conversation, every line
