@@ -40,7 +40,7 @@ export function previewFloor(): FloorSnapshot {
         seat("s:p2", "Checkout copy", "asks", 2),
         seat("s:p3", "Flaky test", "stuck", 9, { project: "api" }),
       ]),
-      area("app:claude-app:work", "Claude app · work", "claude-code", "studio", 1, [
+      area("app:claude-app:work", "Claude app · Work", "claude-code", "studio", 1, [
         seat("c:work/t1", "Launch notes", "done", 4, { project: null }),
         seat("c:work/t2", "Pricing page", "idle", 30),
       ]),

@@ -1,9 +1,10 @@
 /**
  * AJ-E2109 (D-35) — one profile under its account: its badge, name, the
- * apps using it, its folder and how many sessions are open on it, Open,
- * and its menu (the registry's: start, sign in, launch settings, measure
- * its limits, rename, default, remove). Its launch settings unfold under
- * it on demand.
+ * apps its sessions are open in and how many, Open, and its menu (the
+ * registry's: start, sign in, launch settings, measure its limits,
+ * rename, default, remove). Its launch settings unfold under it on
+ * demand. Its folder is said on its App's page, and its renewal on its
+ * Account's card, not here (the 0.4 review).
  */
 import { AppIcon } from "../../components/AppIcon";
 import type { AppRef } from "../../lib/app-of";
@@ -20,7 +21,6 @@ import { launchSettingsName } from "../../lib/account-words";
 import { providerDisplayName } from "../../lib/providers";
 import { cliAppName } from "../../lib/app-name";
 import { signedIn, type AccountInfo, type LaunchRecipeInfo } from "../../lib/bridge";
-import { renewalLabel } from "../../lib/renewal";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
 import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
@@ -42,8 +42,6 @@ export type ProfileRowProps = {
   openNow: number;
   /** The apps those sessions run in, each with its icon's ref. */
   apps: AppRef[];
-  /** Its folder, `~`-relative, when known. */
-  folder: string | null;
   canUseInPlace: boolean;
   reportsLimits: boolean;
   now: number;
@@ -72,19 +70,18 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
     editLaunchSettings: () => setSettingsOpen(true),
     measureLimits: props.reportsLimits && props.onInspect ? () => props.onInspect!() : undefined,
   });
-  // Values its account's profiles disagree on show on each profile.
+  // Values its account's profiles disagree on show on each profile; but
+  // not its renewal: that's the Account's, said on its card, where the
+  // choice between two is asked (the 0.4 review, 17).
   const own = subscription?.profiles.find((p) => p.id === account.id);
   const differs = subscription?.differs ?? [];
-  const renewal = differs.includes("renewal") ? renewalLabel(own?.renewal_date ?? null, props.now) : null;
-  const perProfile = [
-    differs.includes("plan") && own?.plan ? own.plan : null,
-    renewal ? renewal.text : null,
-    differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null,
-  ].filter(Boolean);
+  const perProfile = [differs.includes("plan") && own?.plan ? own.plan : null, differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null].filter(Boolean);
   const tool = service ? `${providerDisplayName(account.provider)} through ${service}` : providerDisplayName(account.provider);
   // D-62: the row is an App; its full name where the tool isn't beside it.
   const name = cliAppName(account.provider, account.label);
-  const where = [props.apps.length > 0 ? props.apps.map((app) => app.name).join(", ") : tool, ...perProfile].join(" · ");
+  // Where its sessions are open, said so: a Claude Code App "open in
+  // Claude app, Terminal", never as if it were the Claude app (64).
+  const where = [props.apps.length > 0 ? `open in ${props.apps.map((app) => app.name).join(", ")}` : tool, ...perProfile].join(" · ");
   return (
     <li className="flex flex-col" data-testid="profile-row" data-profile={account.id}>
       <div className="group flex flex-wrap items-center gap-3 px-5 py-3" {...menu.triggerProps}>
@@ -114,11 +111,6 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
               </span>
             )}
             <span className="truncate" data-testid="profile-apps">{where}</span>
-            {props.folder && (
-              <span className="truncate font-mono text-label text-muted" title={props.folder} data-testid="profile-folder">
-                {shortPath(props.folder)}
-              </span>
-            )}
           </span>
           {placementWords(account) && (
             <span className="flex min-w-0 items-center gap-1.5 text-meta">

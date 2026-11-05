@@ -141,7 +141,7 @@ function AppBody({
               </span>
             }
             name={app.name}
-            facts={<AppFacts app={app} open={open} total={items.length} now={now} />}
+            facts={<AppFacts app={app} now={now} />}
             actions={
               <>
                 <AppAction app={app} open={open} />
@@ -205,14 +205,16 @@ function soonestReset(sessions: InstanceInfo[], folder: string | null): number |
   return read.at(-1)?.quota?.resets_at_ms ?? null;
 }
 
-/** What it is and whether it runs: its tool (a door to its page), its
- * state, its sessions, then its Account (a door, AJ-E3104). */
-function AppFacts({ app, open, total, now }: { app: AppModel; open: number; total: number; now: number }): JSX.Element {
-  const parts = [
-    app.kind === "cli" ? (app.tool ? "runs in a terminal" : `${app.app} in a terminal`) : app.app,
-    app.place ? placeWords(app.place, now) : null,
-    total === 0 ? "No sessions yet" : `${total === 1 ? "1 session" : `${total} sessions`}${open > 0 ? ` · ${open} open` : ""}`,
-  ].filter((part): part is string => part !== null);
+/** Whether it runs and where, then its Account (a door, AJ-E3104). A
+ * desktop App starts at its state: its app is its title's first word, and
+ * its sessions are counted on the Sessions tab and in Open now, not here
+ * again (the 0.4 review, 47). A CLI App says it runs in a terminal. */
+export function appFactParts(app: Pick<AppModel, "kind" | "tool" | "app" | "place">, now: number): string[] {
+  return [app.kind === "cli" ? (app.tool ? "runs in a terminal" : `${app.app} in a terminal`) : null, app.place ? placeWords(app.place, now) : null].filter((part): part is string => part !== null);
+}
+
+function AppFacts({ app, now }: { app: AppModel; now: number }): JSX.Element {
+  const parts = appFactParts(app, now);
   return (
     <>
       {app.kind === "cli" && app.tool && <SessionToolChip tool={app.tool} />}

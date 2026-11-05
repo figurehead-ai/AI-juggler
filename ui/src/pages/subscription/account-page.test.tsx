@@ -130,9 +130,12 @@ describe("D-62 the Account page", () => {
     expect(choice.textContent).toContain("Work Max and Work 2 say different renewal dates: 12 Nov or 3 Dec?");
     expect(choice.textContent).toContain("Until you choose, each app keeps its own.");
     const options = within(choice).getAllByTestId("account-term-option");
-    expect(options.map((option) => option.textContent)).toEqual(["12 Novin Claude Code · Work Max", "3 Decin Claude Code · Work 2"]);
+    // The 0.4 review (18): the later date is chosen already, saying why, and ⌘↩ takes it.
+    expect(options.map((option) => option.textContent)).toEqual(["12 Novin Claude Code · Work Max", "3 Dec⌘↩in Claude Code · Work 2the newer reading"]);
+    expect(options.map((option) => option.dataset.preferred ?? null)).toEqual([null, "true"]);
+    expect(options[1]!.getAttribute("aria-keyshortcuts")).toBe("Meta+Enter");
     expect(screen.getByTestId("account-renewal-row").textContent).toContain("choose above");
-    fireEvent.click(options[1]!);
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
     // Chosen once: the question is gone, and the account has the date.
     await waitFor(() => expect(screen.queryByTestId("account-term-choice")).toBeNull());
     expect((screen.getByTestId("account-renewal-input") as HTMLInputElement).value).toBe(`${year}-12-03`);

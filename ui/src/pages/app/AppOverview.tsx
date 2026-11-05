@@ -1,6 +1,7 @@
 /**
  * D-62 (AJ-E3204) — an App's Overview and its Projects tab. The Overview
- * answers "this app, now": what's open in it, what was last open, how
+ * answers "this app, now": what's open in it, what was last open (once
+ * something has ended), how
  * much room its account has (and who shares it), and where it works. Its
  * sessions are the rail's under this App, drawn with the rows every
  * session list uses.
@@ -87,18 +88,23 @@ export function AppOverview({
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="app-overview">
       <FindProfiles key={app.id} app={app} />
       {signedOut && <SignedOut name={app.name} />}
-      <div className="grid grid-cols-1 gap-grid @min-[900px]:grid-cols-2">
-        <Section title="Open now" icon={<IconPlay />} sub={open.length > 0 ? `${open.length} open` : undefined} testId="app-open">
+      {/* The 0.4 review: Open now's count is its rows (not a sub-line
+          again), and Last used shows only once something has ended;
+          until then Open now takes the whole width (47, 78). */}
+      <div className={"grid grid-cols-1 gap-grid" + (recent.length > 0 ? " @min-[900px]:grid-cols-2" : "")}>
+        <Section title="Open now" icon={<IconPlay />} testId="app-open">
           <RowList rows={rows(open)} empty={app.kind === "desktop" ? `Nothing open in ${app.name} now.` : `Nothing running on ${app.name} now.`} />
         </Section>
-        <Section
-          title="Last used"
-          icon={<IconHistory />}
-          actions={items.length > open.length + recent.length ? <MoreLink label="All sessions" onOpen={() => showTab("sessions")} testId="app-all-sessions" /> : undefined}
-          testId="app-recent"
-        >
-          <RowList rows={rows(recent)} empty="Everything here is open now." />
-        </Section>
+        {recent.length > 0 && (
+          <Section
+            title="Last used"
+            icon={<IconHistory />}
+            actions={items.length > open.length + recent.length ? <MoreLink label="All sessions" onOpen={() => showTab("sessions")} testId="app-all-sessions" /> : undefined}
+            testId="app-recent"
+          >
+            <RowList rows={rows(recent)} empty="" />
+          </Section>
+        )}
       </div>
       {folder && !signedOut && (
         <div className="flex flex-col gap-2" data-testid="app-room">

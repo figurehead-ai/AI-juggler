@@ -10,7 +10,7 @@ import type { AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
 import { Card } from "../../components/primitives";
 import { runwayOf } from "../../components/AccountRunway";
-import { RunwayPanel } from "../../components/usage/Runway";
+import { nothingRead, RunwayPanel } from "../../components/usage/Runway";
 import { useWeekByProfile } from "../../components/usage/RunwayCards";
 import { accountColor } from "../../lib/marks";
 import { providerDisplayName, noLimitsWords } from "../../lib/providers";
@@ -63,6 +63,35 @@ export function unmeasuredWords(tool: string): string {
     : `No current reading. Limits come from ${name}'s own records when it reports them.`;
 }
 
+/** "Not measured yet ▸ · Measure its limits…": the unknown said once;
+ * where limits come from folds behind it (the 0.4 review, 63). */
+function Unmeasured({ tool, onMeasure }: { tool: string; onMeasure?: () => void }): JSX.Element {
+  const [why, setWhy] = useState(false);
+  const link = "rounded text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60";
+  return (
+    <div className="flex flex-col gap-1 text-meta text-ink-2" data-testid="account-unmeasured">
+      <p className="flex flex-wrap items-center gap-x-1.5">
+        <button type="button" aria-expanded={why} onClick={() => setWhy(!why)} className="rounded font-medium text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-unmeasured-fold">
+          Not measured yet <span aria-hidden="true">{why ? "▾" : "▸"}</span>
+        </button>
+        {onMeasure && (
+          <>
+            <span aria-hidden="true">·</span>
+            <button type="button" onClick={onMeasure} className={link} data-testid="account-measure">
+              Measure its limits…
+            </button>
+          </>
+        )}
+      </p>
+      {why && (
+        <p className="text-label text-muted" data-testid="account-unmeasured-why">
+          {unmeasuredWords(tool)}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export type AccountCardProps = {
   subscription: SubscriptionInfo;
   profiles: AccountInfo[];
@@ -91,6 +120,8 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const display = accountDisplay(sub, props.displays);
   const ownSessions = props.sessions.filter((s) => profiles.some((p) => p.id === s.account_id));
   const unmeasured = runwayOf(display, ownSessions).left === null;
+  // No window read: said in one line, not a dial (the 0.4 review).
+  const quiet = nothingRead(display);
   const renewal = renewalLabel(sub.renewal_date, props.now);
   // AJ-E1601: an account through another service says which.
   const service = sub.service ?? null;
@@ -155,6 +186,8 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
             <ServiceUsage sub={sub} service={service} displays={props.displays} />
           ) : props.reportsLimits(sub.tool) ? (
             <>
+              {/* Nothing measured: said once, in one line, with no dial (the 0.4 review, 50 and 79). */}
+              {quiet && <Unmeasured tool={sub.tool} onMeasure={profiles[0] && props.onInspect ? () => props.onInspect!(profiles[0]!.id) : undefined} />}
               <RunwayPanel
                 display={display}
                 limitsProfile={display && !unmeasured ? display.account : null}
@@ -164,17 +197,8 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
                 name={name}
                 now={props.now}
                 compact
+                unreadSaidAbove={quiet}
               />
-              {unmeasured && ownSessions.length === 0 && (
-                <p className="text-meta text-ink-2" data-testid="account-unmeasured">
-                  {unmeasuredWords(sub.tool)}{" "}
-                  {profiles[0] && props.onInspect && (
-                    <button type="button" onClick={() => props.onInspect!(profiles[0]!.id)} className="text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-measure">
-                      Measure its limits…
-                    </button>
-                  )}
-                </p>
-              )}
             </>
           ) : (
             <p className="text-meta text-ink-2" data-testid="account-no-limits">
@@ -194,7 +218,6 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
               recipes={props.recipes.filter((recipe) => recipe.account_id === profile.id)}
               openNow={open.count}
               apps={open.apps}
-              folder={sub.profiles.find((p) => p.id === profile.id)?.folder ?? null}
               canUseInPlace={props.canUseInPlace(profile.provider)}
               reportsLimits={!service && props.reportsLimits(profile.provider)}
               now={props.now}

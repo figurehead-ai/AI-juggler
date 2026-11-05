@@ -55,6 +55,24 @@ describe("D-62 the App page", () => {
     expect(tabs).toContain("Settings");
   });
 
+  it("its facts start at its state, counted nowhere else; Last used shows only once something has ended (the 0.4 review, 47 and 78)", async () => {
+    page(WORK);
+    const open = await screen.findByTestId("app-open");
+    await waitFor(() => expect(within(open).getAllByTestId("page-session-item").length).toBeGreaterThan(0));
+    const facts = screen.getByTestId("page-facts").textContent!;
+    expect(facts.startsWith("Running · kept alive")).toBe(true);
+    expect(facts).not.toMatch(/\bsessions?\b|\bopen\b/);
+    // Open now's rows are its count: no "2 open" sub-line over them.
+    expect(open.querySelector("h2, h3")?.parentElement?.textContent ?? "").not.toMatch(/\d+ open/);
+    expect(await screen.findByTestId("app-recent")).toBeTruthy();
+    cleanup();
+    // Everything in the Codex app is open: no Last used card at all.
+    page("app:codex-app:");
+    await waitFor(() => expect(within(screen.getByTestId("app-open")).getAllByTestId("page-session-item").length).toBeGreaterThan(0));
+    expect(screen.queryByTestId("app-recent")).toBeNull();
+    expect(screen.getByTestId("app-overview").textContent).not.toContain("Everything here is open now.");
+  });
+
   it("one that isn't running offers Start; renamed, its new name shows", async () => {
     page("app:claude-app:/Users/you/Profiles/Lab");
     expect((await screen.findByTestId("app-go")).textContent).toBe("Start");

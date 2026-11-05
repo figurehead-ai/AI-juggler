@@ -70,6 +70,13 @@ function unread(window: WindowDisplay | null | undefined): boolean {
   return !measured(window);
 }
 
+/** Nothing read at all: no window read, no first read under way, and no
+ * reason it can't be (an Account card then says "Not measured yet" in
+ * one line, with no dial). */
+export function nothingRead(display: QuotaDisplayData | undefined): boolean {
+  return !display?.unavailable_reason && !display?.history_reading && limitWindows(display).every((entry) => unread(entry.window));
+}
+
 /** Neither window read: one gauge for both, with the tokens used, so
  * "Not measured yet" is said once (the review of 0.1.5), not per window. */
 export function BothUnread({ display }: { display: QuotaDisplayData | undefined }): JSX.Element {
@@ -110,6 +117,7 @@ export function RunwayPanel({
   name,
   now,
   compact = false,
+  unreadSaidAbove = false,
 }: {
   display: QuotaDisplayData | undefined;
   /** The profile whose readings draw the week (the account's measured one). */
@@ -121,6 +129,8 @@ export function RunwayPanel({
   name: string;
   now: number;
   compact?: boolean;
+  /** Nothing read, and the caller says so in its own line: no dial. */
+  unreadSaidAbove?: boolean;
 }): JSX.Element {
   const start = now - 7 * 86_400_000;
   const hour = Math.floor(now / 3_600_000);
@@ -139,7 +149,7 @@ export function RunwayPanel({
   return (
     <div className="flex flex-col gap-3.5" data-testid="account-runway">
       {limitWindows(display).every((entry) => unread(entry.window)) ? (
-        <BothUnread display={display} />
+        unreadSaidAbove && nothingRead(display) ? null : <BothUnread display={display} />
       ) : (
         <div className="grid grid-cols-1 gap-3 @min-[500px]:grid-cols-2">
           {limitWindows(display).map((entry) => (

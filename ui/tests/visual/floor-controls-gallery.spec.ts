@@ -54,10 +54,10 @@ for (const theme of THEMES) {
       await page.getByTestId("floor-menu-list").click();
       await expect(page.getByTestId("floor-list-floor")).toHaveCount(2);
       await shot(page, LIST, `list-${where}`);
-      // Keyboard: Tab reaches each "Show on the Floor" in order.
+      // Keyboard: Tab goes from Open the Floor to the list's search.
       await page.getByRole("button", { name: "Open the Floor ⌘⇧M" }).focus();
       await page.keyboard.press("Tab");
-      await expect(page.getByRole("button", { name: /^Show on the Floor: / }).first()).toBeFocused();
+      await expect(page.getByTestId("floor-list").getByRole("searchbox")).toBeFocused();
     });
   }
 }
@@ -79,7 +79,9 @@ test("The Floor list renders 150 rows within 16 ms", async ({ page }) => {
       // Committed to the DOM: a MutationObserver fires as a microtask after
       // the commit, so this is render time, not the next frame.
       await new Promise<void>((done) => {
-        const ready = () => document.querySelectorAll("[data-testid='floor-list-row']").length === 150 && document.querySelector(`[title='Session ${run * 1000}']`);
+        // The list is paged (design review #22): the new snapshot's rows in
+        // view, its first session drawn.
+        const ready = () => document.querySelectorAll("[data-testid='floor-list-row']").length > 0 && document.querySelector(`[title='Session ${run * 1000}']`);
         const watch = new MutationObserver(() => ready() && (watch.disconnect(), done()));
         watch.observe(document.body, { childList: true, subtree: true });
       });
@@ -134,10 +136,15 @@ test("The Floor list, keyboard only: every door in reading order", async ({ page
   await expect(page.getByTestId("floor-list-floor")).toHaveCount(2);
   await page.getByTestId("floor-list").getByRole("button").first().focus();
   const order: string[] = [];
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 200; i++) {
     const name = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement | null;
-      return el?.closest("[data-testid='floor-list']") ? (el.getAttribute("aria-label") ?? el.textContent ?? "").trim() : null;
+      if (!el?.closest("[data-testid='floor-list']")) return null;
+      // What a screen reader says: its label, or its text without what's
+      // hidden from it (a state's glyph).
+      const copy = el.cloneNode(true) as HTMLElement;
+      copy.querySelectorAll("[aria-hidden='true']").forEach((part) => part.remove());
+      return (el.getAttribute("aria-label") ?? copy.textContent ?? "").replace(/\s+/g, " ").trim();
     });
     if (name === null) break;
     order.push(name);
@@ -145,9 +152,9 @@ test("The Floor list, keyboard only: every door in reading order", async ({ page
   }
   const rows = await page.getByTestId("floor-list-row").count();
   const apps = await page.getByTestId("floor-list-app").count();
-  const empty = await page.getByTestId("floor-list-app").filter({ hasText: "No sessions" }).count();
-  // The header's Open the Floor, then one Show per session and per App with none.
-  expect(order.length).toBe(1 + rows + empty);
+  // The header's Open the Floor, the search and the Waiting chip, then per
+  // App its page and its Show on the Floor, and each session's row.
+  expect(order.length).toBe(3 + 2 * apps + rows);
   const lines = order.map((name, i) => `${i + 1}. ${name}`).join("\n");
   writeFileSync(
     resolve(process.cwd(), "../docs/qa/evidence/AJ-E3512/keyboard-walk.md"),

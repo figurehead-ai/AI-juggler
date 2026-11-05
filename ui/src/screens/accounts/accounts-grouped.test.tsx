@@ -5,7 +5,7 @@
  * per profile. AJ-E2108: a profile on the session's own account gives no
  * new room, so it isn't offered as a move.
  */
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilesScreen } from "../Profiles";
 import * as bridge from "../../lib/bridge";
@@ -103,22 +103,51 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(within(cards[0]!).getAllByTestId("account-runway")).toHaveLength(1);
     expect(within(cards[2]!).queryByTestId("account-runway")).toBeNull();
     expect(within(cards[2]!).getByTestId("profile-signed-out").textContent).toBe("Not signed in");
-    expect(within(cards[1]!).getAllByTestId("profile-folder").map((n) => n.textContent)).toEqual(["~/p/p1", "~/p/p2"]);
+    // The 0.4 review (63): an App's folder is said on its own page, not on its row.
+    expect(within(cards[1]!).queryAllByTestId("profile-folder")).toHaveLength(0);
     expect(screen.getByTestId("accounts-definition").textContent).toContain("one account can serve several apps.");
   });
 
-  it("one profile: one account; nothing measured says so and still shows its usage", async () => {
+  it("one profile: one account; nothing measured says so once, in one line, and still shows its usage", async () => {
     vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
     render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
-    const runway = await screen.findByTestId("account-runway");
-    expect(runway.textContent).toContain("Not measured yet");
-    // Its usage shows either way, and where limits come from, with the way to its page.
-    expect(screen.getByTestId("runway-usage").textContent).toContain("Last 7 days");
+    // The 0.4 review (50, 79): one "Not measured yet · Measure its limits…" line, and no dial.
     const note = await screen.findByTestId("account-unmeasured");
-    expect(note.textContent).toContain("No current reading.");
+    expect(note.textContent).toBe("Not measured yet ▸·Measure its limits…");
+    const card = screen.getByTestId("account-card");
+    expect(within(card).queryByTestId("window-gauge")).toBeNull();
+    expect(card.textContent!.split("Not measured yet").length - 1).toBe(1);
+    // Its usage shows either way.
+    expect(screen.getByTestId("runway-usage").textContent).toContain("Last 7 days");
+    // Where limits come from is folded behind it (63).
+    expect(screen.queryByTestId("account-unmeasured-why")).toBeNull();
+    fireEvent.click(screen.getByTestId("account-unmeasured-fold"));
+    expect(screen.getByTestId("account-unmeasured-why").textContent).toContain("No current reading.");
+    expect(screen.getByTestId("account-unmeasured-fold").getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByTestId("account-measure").textContent).toBe("Measure its limits…");
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
+  });
+
+  it("a measured account keeps its dial, and says no unmeasured line", async () => {
+    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
+    vi.spyOn(bridge, "quotaDisplayAll").mockResolvedValue([measured("w1", 40, Date.now())]);
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    await waitFor(() => expect(screen.getAllByTestId("window-gauge").length).toBeGreaterThan(0));
+    expect(screen.queryByTestId("account-unmeasured")).toBeNull();
+  });
+
+  it("an App row says where its sessions are open, and never its own renewal (the 0.4 review, 17 and 64)", async () => {
+    vi.spyOn(bridge, "accountsList").mockResolvedValue([profile("a", "A"), profile("b", "B")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([
+      { ...account("x", []), profiles: [member("a", { renewal_date: "2030-11-12" }), member("b", { renewal_date: "2030-12-03" })], differs: ["renewal"] },
+    ]);
+    const running = [{ id: "s1", account_id: "a", status: "running", kind: "cli", provider: "claude-code" } as unknown as bridge.InstanceInfo];
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} sessions={running} />);
+    await waitFor(() => expect(screen.getAllByTestId("profile-apps")).toHaveLength(2));
+    expect(screen.getAllByTestId("profile-apps").map((n) => n.textContent)).toEqual(["open in AI Juggler", "Claude Code"]);
+    for (const row of screen.getAllByTestId("profile-row")) expect(row.textContent).not.toMatch(/Renews|Nov|Dec/);
   });
 
   it("what the profiles disagree on shows on each profile", async () => {

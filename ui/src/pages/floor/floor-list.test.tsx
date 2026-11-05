@@ -7,7 +7,8 @@
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { FloorList, GLYPH, groups, summary, waitingFirst } from "./FloorList";
+import { FloorList, floorColumns, floorRows, GLYPH, groups, summary, waitingFirst } from "./FloorList";
+import { forgetPaged } from "../../lib/paged";
 import { FloorPane } from "../../screens/settings/FloorPane";
 import { FloorButton } from "../../components/FloorButton";
 import type { FloorApp, FloorSnapshot } from "../../lib/ipc/floor";
@@ -15,6 +16,7 @@ import type { FloorApp, FloorSnapshot } from "../../lib/ipc/floor";
 const w = () => window as unknown as Record<string, unknown>;
 afterEach(() => {
   cleanup();
+  forgetPaged();
   for (const key of ["__AIJ_FLOOR_SETTINGS__", "__AIJ_FLOOR_PLACES__"]) delete w()[key];
 });
 
@@ -58,13 +60,76 @@ describe("AJ-E3512 the Floor list", () => {
     await waitFor(() => expect(view.getAllByTestId("floor-list-floor")).toHaveLength(2));
     const asks = view.getAllByTestId("floor-list-row").find((row) => row.dataset.state === "asks")!;
     expect(asks.textContent).toContain("!Asks you");
-    expect(view.getAllByTestId("floor-list-app")[0]!.textContent).toContain("Work Max · 62% left");
-    expect(view.getAllByTestId("floor-list-app")[2]!.textContent).toContain("No sessions");
+    expect(view.getAllByTestId("floor-list-accounts")[0]!.textContent).toBe("Work Max · 62% left");
+    expect(view.getAllByTestId("floor-list-app")[2]!.textContent).toContain("Unused");
     const next = { ...SNAPSHOT, apps: [SNAPSHOT.apps[0]!, { ...SNAPSHOT.apps[1]!, sessions: [...SNAPSHOT.apps[1]!.sessions, session("c:acc/s4", "Flaky test", "asks", "Asks you"), session("s:i9", "Run by AI Juggler", "asks", "Asks you")] }, SNAPSHOT.apps[2]!] };
     act(() => void window.dispatchEvent(new CustomEvent("aij:floor-changed", { detail: next })));
     await waitFor(() => expect(view.getByTestId("floor-list-said").textContent).toBe("Flaky test in Claude Code · Work asks you."));
     // A session AI Juggler runs is said by the main window's AttentionAnnouncer, not twice.
     expect(view.getByTestId("floor-list-said").textContent).not.toContain("Run by AI Juggler");
+  });
+});
+
+async function shown(snapshot: FloorSnapshot) {
+  w().__AIJ_FLOOR_PLACES__ = PLACES;
+  const view = render(<FloorList />);
+  await waitFor(() => expect(view.getByTestId("floor-list-summary").textContent).not.toBe("Reading the office…"));
+  act(() => void window.dispatchEvent(new CustomEvent("aij:floor-changed", { detail: snapshot })));
+  await waitFor(() => expect(view.getAllByTestId("floor-list-floor")).toHaveLength(2));
+  return view;
+}
+const titles = (view: ReturnType<typeof render>) => view.queryAllByTestId("floor-list-row").map((row) => row.textContent);
+
+describe("the 0.4 review of the Floor list", () => {
+  it("one header per floor, the room once, no empty columns, and the App's own mark (43, 81, 67)", async () => {
+    const view = await shown(SNAPSHOT);
+    // One column header per floor (floor 1 has two Apps), and only the columns with a value on it.
+    const heads = view.getAllByTestId("floor-list-columns");
+    expect(heads).toHaveLength(2);
+    expect(heads[0]!.textContent).toBe("StateSessionProject");
+    expect(floorColumns(groups(SNAPSHOT, PLACES)[0]!)).toEqual({ project: true, subagents: false, tasks: false });
+    expect(view.getByTestId("floor-list").textContent).not.toContain("—");
+    // Both Apps on floor 1 share one Account: its room is said once, on the floor.
+    const floor = view.getAllByTestId("floor-list-floor")[0]!;
+    expect(floor.textContent!.split("62% left").length - 1).toBe(1);
+    for (const app of within(floor).getAllByTestId("floor-list-app")) expect(app.textContent).not.toContain("left");
+    // The App's icon and its profile's dot, not initials or a style name.
+    const mark = within(floor).getAllByTestId("floor-list-app-mark")[0]!;
+    expect(within(mark).getByTestId("app-icon")).toBeTruthy();
+    expect(within(mark).getByTestId("profile-badge").getAttribute("title")).toBe("Work");
+    expect(floor.textContent).not.toContain("CC");
+    expect(floor.textContent).not.toMatch(/workshop/i);
+    // Show on the Floor once per App, and each row is the action too.
+    expect(within(floor).getAllByRole("button", { name: /^Show on the Floor: / })).toHaveLength(2);
+    expect(view.getAllByTestId("floor-list-row")[0]!.getAttribute("title")).toBe("Show on the Floor (↩)");
+  });
+
+  it("searches, and the Waiting on you chip leaves what waits (22)", async () => {
+    const view = await shown(SNAPSHOT);
+    const chip = view.getByTestId("floor-list-waiting");
+    expect(chip.textContent).toBe("Waiting on you1");
+    fireEvent.change(view.getByTestId("floor-list-search"), { target: { value: "refund" } });
+    await waitFor(() => expect(titles(view)).toEqual(["▸Working, Refund flow, project shop. Show on the Floor"]));
+    // An App whose name matches keeps all its sessions.
+    fireEvent.change(view.getByTestId("floor-list-search"), { target: { value: "codex" } });
+    await waitFor(() => expect(view.getAllByTestId("floor-list-row").map((row) => row.dataset.state)).toEqual(["working"]));
+    fireEvent.change(view.getByTestId("floor-list-search"), { target: { value: "" } });
+    fireEvent.click(chip);
+    expect(chip.getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(view.getAllByTestId("floor-list-row").map((row) => row.dataset.state)).toEqual(["asks"]));
+    // Floor 2 holds nothing waiting: it goes.
+    expect(view.getAllByTestId("floor-list-floor")).toHaveLength(1);
+    fireEvent.change(view.getByTestId("floor-list-search"), { target: { value: "nowhere" } });
+    await waitFor(() => expect(view.getByTestId("floor-list-none").textContent).toContain("Nothing on the Floor matches"));
+    expect(floorRows(groups(SNAPSHOT, PLACES)[1]!, "", true)).toEqual([]);
+  });
+
+  it("a floor is the shared paged list: a page at a time, not every session at once", async () => {
+    const many = Array.from({ length: 140 }, (_, i) => session(`m${i}`, `Task ${i}`, "working", "Working"));
+    const big = { ...SNAPSHOT, apps: [{ ...SNAPSHOT.apps[0]!, sessions: many }, SNAPSHOT.apps[1]!, SNAPSHOT.apps[2]!] } as FloorSnapshot;
+    const view = await shown(big);
+    await waitFor(() => expect(view.getByTestId("floor-list-0-more")).toBeTruthy());
+    expect(view.getAllByTestId("floor-list-row").length).toBeLessThan(60);
   });
 });
 

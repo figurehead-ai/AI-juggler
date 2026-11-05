@@ -1,8 +1,8 @@
 {
   "rows": 150,
   "runs": 20,
-  "median_ms": 1.9,
-  "p95_ms": 10.3,
+  "median_ms": 2.7,
+  "p95_ms": 4.6,
   "budget_ms": 16,
   "measured": "a new snapshot dispatched to 150 rows committed to the DOM (MutationObserver), Chromium, Playwright"
 }
