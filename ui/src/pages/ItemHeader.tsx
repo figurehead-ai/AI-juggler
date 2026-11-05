@@ -325,13 +325,14 @@ export function InspectorHeader({
  * out of the row's flow, so the buttons beside it keep their line. */
 function Hinted({ hint, testId, children }: { hint: string | null; testId: string; children: ReactNode }) {
   if (hint === null) return <>{children}</>;
-  // The line is wider than its button: it takes no height but sets the
-  // column's width, so two side by side never print over each other.
+  // The line wraps to its button's width and takes no height: side by
+  // side, two never print over each other, and the row gets no wider (a
+  // wider one cut the App chip to "Claude Code · Work …" at 1280).
   return (
     <span className="flex flex-col items-center">
       {children}
-      <span className="pointer-events-none h-0 whitespace-nowrap">
-        <span className="relative top-1 block text-label text-muted" data-testid={testId}>
+      <span className="pointer-events-none h-0 w-0 min-w-full">
+        <span className="relative top-1 block text-center text-label leading-tight text-muted" data-testid={testId}>
           {hint}
         </span>
       </span>

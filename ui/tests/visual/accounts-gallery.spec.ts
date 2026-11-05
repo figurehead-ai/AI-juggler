@@ -72,7 +72,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`limit decision — from Home — ${theme}`, async ({ page }) => {
     await seed(page, allStatuses, theme);
-    await page.getByRole("button", { name: /^Continue elsewhere/ }).click();
+    await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Continue in another app/ }).click();
     const dialog = page.getByRole("dialog", { name: /hit its limit/ });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("button", { name: /^Continue (on|in) / })).toBeFocused();

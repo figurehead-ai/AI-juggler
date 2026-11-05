@@ -180,6 +180,10 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await expectRail(page);
         await openWorkMaxSession(page);
+        // The session names its tool once, in its App chip (the 0.4
+        // review, 46): the tool's door is on its App's page.
+        await page.getByTestId("session-account-menu").click();
+        await page.getByTestId("session-account-open").click();
         await page.getByRole("button", { name: "About Claude Code" }).click();
         // AJ-E3104: the tool's own page, with what's installed read.
         await expect(page.getByTestId("provider-overview")).toBeVisible();
@@ -237,7 +241,9 @@ for (const theme of THEMES) {
 
       test(`limit dialog — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
-        await page.getByTestId("home-needs").getByRole("button", { name: /^Continue elsewhere/ }).first().click();
+        // The limit row's own button: "Continue in another app…" (the 0.4
+        // review, 69) also names an asking session's second choice.
+        await page.getByTestId("home-need-limit").first().getByRole("button", { name: /^Continue in another app/ }).click();
         const dialog = page.getByTestId("limit-dialog");
         await expect(dialog).toBeVisible();
         await expect(dialog.getByRole("button", { name: /^Continue (on|in) / })).toBeVisible();
