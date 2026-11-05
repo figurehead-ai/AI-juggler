@@ -1,3 +1,4 @@
+import { RailSplitter, readWidth } from "./RailSplitter";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { ProjectMark } from "./ProjectMark";
 import { AppIcon } from "./AppIcon";
@@ -71,20 +72,6 @@ export type { Freshness } from "../lib/live-deltas";
 import type { Freshness } from "../lib/live-deltas";
 import { ProfileBadge } from "./ProfileBadge";
 
-const WIDTH_MIN = 208;
-const WIDTH_MAX = 360;
-const WIDTH_DEFAULT = 264;
-const STORE_WIDTH = "aij.rail.width";
-
-/** The rail's stored width; nothing stored (or junk) is the default —
- * `Number(null)` is 0, which clamped every install to the minimum. */
-export function readWidth(): number {
-  const stored = localStorage.getItem(STORE_WIDTH);
-  const raw = stored === null || stored.trim() === "" ? Number.NaN : Number(stored);
-  if (!Number.isFinite(raw)) return WIDTH_DEFAULT;
-  return Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, raw));
-}
-
 /**
  * The workflow navigator (ADR-0007): one rail, three tabs, and the live
  * list of whichever the user is working through. The rail drag-resizes
@@ -151,48 +138,11 @@ export function WorkflowRail({
   const [snooze, updateSnooze] = useRailSnoozes();
   const [width, setWidth] = useState<number>(readWidth);
   const [dragging, setDragging] = useState(false);
-  const dragState = useRef<{ startX: number; startWidth: number } | null>(null);
-
-  const beginDrag = useCallback(
-    (event: React.PointerEvent) => {
-      if (minimal) return;
-      event.preventDefault();
-      dragState.current = { startX: event.clientX, startWidth: width };
-      setDragging(true);
-    },
-    [minimal, width],
-  );
-
-  useEffect(() => {
-    if (!dragging) return;
-    const onMove = (move: PointerEvent) => {
-      const state = dragState.current;
-      if (!state) return;
-      const next = Math.min(
-        WIDTH_MAX,
-        Math.max(WIDTH_MIN, state.startWidth + (move.clientX - state.startX)),
-      );
-      setWidth(next);
-    };
-    const onUp = () => {
-      setDragging(false);
-      dragState.current = null;
-      setWidth((current) => {
-        localStorage.setItem(STORE_WIDTH, String(current));
-        return current;
-      });
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-  }, [dragging]);
 
   return (
     <aside
       data-testid="rail"
+      id="rail-list"
       data-density={density}
       style={{ width: minimal ? 60 : width }}
       className={
@@ -267,27 +217,8 @@ export function WorkflowRail({
 
       {footer(minimal)}
 
-      {/* Drag-resize handle: hairline that lights up on hover/drag */}
-      {!minimal && (
-        <div
-          onPointerDown={beginDrag}
-          onDoubleClick={onCycleDensity}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize navigator"
-          className={
-            "absolute right-0 top-0 z-20 h-full w-1.5 cursor-col-resize " +
-            (dragging ? "" : "transition-colors")
-          }
-        >
-          <div
-            className={
-              "ml-auto h-full w-px " +
-              (dragging ? "bg-accent/70" : "bg-transparent hover:bg-accent/50")
-            }
-          />
-        </div>
-      )}
+      {/* AJ-E2909: the edge, by drag or keys. */}
+      {!minimal && <RailSplitter width={width} onWidth={setWidth} onDragging={setDragging} onCycleDensity={onCycleDensity} controls="rail-list" />}
     </aside>
   );
 }
@@ -904,3 +835,6 @@ function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean
   return group === "project" && filters.chips.length === 0 && filters.provider === null && filters.account === null && filters.project === null && query.trim() === "";
 }
 
+
+/** The rail's stored width (kept here for its callers). */
+export { readWidth } from "./RailSplitter";

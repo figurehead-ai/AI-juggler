@@ -271,7 +271,7 @@
 **Research basis**: audit "Next after these" ("An ended session's own page has no Resume, Archive, Replay or Copy ID"), §5 rows "Archive / Replay / Delete…", "Copy ID", "Resume vs Relaunch"; deep/11 §4.7, §10; `ui/src/pages/session/DrivenPanel.tsx:105-108` (Resume exists only for driven sessions); D-05, D-40, D-45.
 **Handover note**: An ended terminal session is listed under the `session` kind, whose actions (`action-specs.ts`, SESSION) have no Archive or Replay; add History's actions for ended sessions rather than a second list. Delete… is History's too; it isn't in the lock-in's list, so it isn't added here.
 
-### AJ-E2909 A keyboard-operable rail splitter | Status: TODO | Priority P0 | Effort S | Depends: —
+### AJ-E2909 A keyboard-operable rail splitter | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort S | Depends: —
 **Goal**: The rail's width can be changed from the keyboard and read by a screen reader, as the drag does.
 **User story**: As someone who doesn't use a pointer, I Tab to the edge of the list, press → four times to widen it, and End to make it as wide as it goes.
 **Requirements**:
@@ -288,7 +288,7 @@
 **Visual testing**: `ui/tests/visual/rail-narrow.spec.ts` (or `places-gallery.spec.ts`) extended: the handle focused at the default, the minimum and the maximum; dark and light; 1024×700 and 1280×800.
 **Files to touch**: `ui/src/components/WorkflowRail.tsx` (`:269-289`, `beginDrag` at `:155`), `ui/src/components/rail-keyboard.test.tsx`.
 **Research basis**: audit §1.2 row "Splitter is keyboard-operable" (`role=separator` with no tabIndex or keys); deep/11 §2.5, §9; `ui/src/components/WorkflowRail.tsx:269-289`; https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/; https://www.w3.org/TR/WCAG22/#dragging-movements.
-**Handover note**: A focusable separator needs `aria-valuenow`, or screen readers treat it as a static divider. The handle is 6 px wide; don't widen the visible line, but check its pointer target against WCAG 2.5.8 in the a11y gate.
+**Handover note**: built in `ui/src/components/RailSplitter.tsx` (out of `WorkflowRail.tsx`, which shrank from 906 to 840 lines): a focusable separator named "Resize the list", its width heard, ← → 8 px, ⇧ 32, Home/End, kept as a drag's width is (debounced 200 ms), the accent line on focus. Tests: `src/components/rail-splitter.test.tsx`. Left: the gallery captures (the handle focused at the default, the minimum and the maximum) with the release's visual run.
 
 ### AJ-E2910 Home: filter chips, the r / h / s / e keys, and Mark all finished as reviewed | Status: TODO | Priority P1 | Effort M | Depends: AJ-E2801
 **Goal**: On a busy morning, Home's Needs you can be narrowed to one kind, its rows can be handled from the keyboard, and the finished list cleared in one step.

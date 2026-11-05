@@ -22,7 +22,7 @@ ui/src/components/KillSheet.tsx 589
 ui/src/components/RemoteTabs.tsx 467
 ui/src/components/RightInspector.tsx 1146
 ui/src/components/UpdatesCard.tsx 417
-ui/src/components/WorkflowRail.tsx 926
+ui/src/components/WorkflowRail.tsx 840
 ui/src/components/indicator.tsx 490
 ui/src/lib/bridge.ts 4788
 ui/src/screens/FirstRun.tsx 1294
