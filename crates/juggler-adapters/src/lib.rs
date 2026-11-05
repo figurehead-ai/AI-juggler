@@ -42,6 +42,7 @@ pub mod codex_conversations;
 pub mod codex_cut;
 mod codex_endpoint;
 pub mod codex_environment;
+pub mod codex_family;
 pub mod codex_handover;
 pub mod codex_inventory;
 pub mod codex_live;
