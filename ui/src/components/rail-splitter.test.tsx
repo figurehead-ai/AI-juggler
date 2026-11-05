@@ -63,4 +63,11 @@ describe("AJ-E2909 — the rail's splitter", () => {
     act(() => void window.dispatchEvent(new Event("pagehide")));
     expect(localStorage.getItem(STORE_WIDTH)).toBe(String(WIDTH_MAX));
   });
+
+  it("says the edge moves: a tooltip and a grip (design review #41)", () => {
+    const view = render(<RailSplitter width={280} onWidth={() => {}} controls="rail" />);
+    const edge = view.getByTestId("rail-splitter");
+    expect(edge.getAttribute("title")).toBe("Drag, or ← →");
+    expect(view.getByTestId("rail-splitter-grip")).toBeTruthy();
+  });
 });

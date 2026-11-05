@@ -66,7 +66,7 @@ export function placeWords(place: KnownPlaceInfo, now: number = Date.now()): str
   if (place.app_pid !== null) return place.keep_alive ? "Running · kept alive" : "Running";
   if (place.keep_alive) return "Not running · keep alive starts it";
   // AJ-E3203: found by its folder's name, not seen running yet.
-  if (place.found) return "Not running · found with your other profiles";
+  if (place.found) return "Found with your other profiles";
   return `Not running · seen ${ago(place.seen_ms, now)}`;
 }
 

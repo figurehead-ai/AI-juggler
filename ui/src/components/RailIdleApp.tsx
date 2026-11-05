@@ -31,13 +31,14 @@ export function idleAction(app: IdleApp): { words: string; Icon: typeof IconPlus
   return app.appPid !== null ? { words: "Bring forward", Icon: IconUpRight } : { words: "Start", Icon: IconStateRunning };
 }
 
-/** Short enough for the rail's width: "Not running · 20 min ago",
+/** Short enough for the rail's width: "20 min ago" (Inactive apps says
+ * it isn't running: design review #48),
  * "Running · 3 h ago · 2 sessions"; a CLI app "20 h ago · 2 sessions".
  * When: its newest session, else when it was last seen running. */
 export function idleWords(app: IdleApp, now: number): string {
   const count = app.sessions.length;
   return [
-    app.kind === "desktop" ? (app.appPid !== null ? "Running" : "Not running") : null,
+    app.kind === "desktop" && app.appPid !== null ? "Running" : null,
     app.lastMs > 0 ? agoWords(app.lastMs, now) : null,
     count > 0 ? `${count} ${count === 1 ? "session" : "sessions"}` : null,
   ]
@@ -109,7 +110,7 @@ export function RailIdleApp({
         title={openPage ? `Open ${app.name}'s page` : undefined}
         className="relative flex min-h-10 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
-        <span className="sr-only">{`${app.name}, ${idleWords(app, now)}`}</span>
+        <span className="sr-only">{[app.name, idleWords(app, now)].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
           <AppIcon appId={app.appId} appPid={app.appPid} name={app.app} size={16} />
           <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink-2">{app.app}</span>
@@ -120,9 +121,11 @@ export function RailIdleApp({
             </span>
           )}
         </span>
-        <span aria-hidden="true" className="truncate pl-[21px] text-label text-muted" data-testid="rail-idle-when">
-          {idleWords(app, now)}
-        </span>
+        {idleWords(app, now) && (
+          <span aria-hidden="true" className="truncate pl-[21px] text-label text-muted" data-testid="rail-idle-when">
+            {idleWords(app, now)}
+          </span>
+        )}
       </button>
       <button
         type="button"

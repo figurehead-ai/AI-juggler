@@ -98,7 +98,8 @@ function KeptTile({ place }: { place: KnownPlaceInfo }): JSX.Element {
           aria-label={`${verb} ${name}`}
           className="rounded-md border border-hairline px-2.5 py-1 text-meta font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {verb} {app}
+          {/* The tile names the App already: "Start" (design review #48). */}
+          {verb}
         </button>
       </div>
     </li>

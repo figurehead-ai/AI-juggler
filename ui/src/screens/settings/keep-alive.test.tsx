@@ -76,17 +76,20 @@ describe("Settings › Desktop apps: your apps", () => {
     );
     const lab = await screen.findByTestId("desktop-place-claude-app-b-lab");
     expect(within(lab).getByTestId("desktop-place-open").textContent).toContain("Start");
-    expect(within(lab).getByTestId("desktop-place-forget")).toBeTruthy();
+    // Forget is in the row's ⋯ (design review #65).
+    fireEvent.click(within(lab).getByTestId("desktop-place-more"));
+    expect(screen.getByTestId("desktop-place-forget").textContent).toContain("Forget");
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     const chat = screen.getByTestId("desktop-place-codex-app");
     expect(within(chat).getByTestId("desktop-place-open").textContent).toContain("Open");
-    expect(within(chat).queryByTestId("desktop-place-forget")).toBeNull();
+    expect(within(chat).queryByTestId("desktop-place-more")).toBeNull();
     // The switch is named by its words and the App (D-62).
     const keep = within(lab).getByRole("switch", { name: "Keep alive Claude app · b-lab" });
     fireEvent.click(keep);
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.keep_alive).toBe(true));
     await waitFor(() => expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).getByRole("switch").getAttribute("aria-checked")).toBe("true"));
     // Kept alive: no Forget (it would be remembered again at once).
-    expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).queryByTestId("desktop-place-forget")).toBeNull();
+    expect(within(screen.getByTestId("desktop-place-claude-app-b-lab")).queryByTestId("desktop-place-more")).toBeNull();
   });
 
   it("a place that can't be started says why and offers neither Start nor Keep alive", async () => {

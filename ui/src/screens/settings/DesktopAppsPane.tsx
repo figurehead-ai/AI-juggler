@@ -16,6 +16,9 @@ import { appsFound, foundWords, setAppShown, useHiddenApps } from "../../lib/des
 import { setShowLastMessages, showLastMessages } from "../../lib/last-messages";
 import { accessCard, watchAccess } from "../../lib/osAccess";
 import { AppIcon } from "../../components/AppIcon";
+import { MenuItem, RowMenu } from "../../components/RowMenu";
+import { IconMore } from "../../components/icons-canvas";
+import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
@@ -163,6 +166,7 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
   const id = useId();
   const [error, setError] = useState<string | null>(null);
   const running = place.app_pid !== null;
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const open = () => {
     setError(null);
     showToast({ id: "go-to", message: running ? `Bringing ${name} forward…` : `Starting ${name}…` });
@@ -180,13 +184,6 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
       testId={`desktop-place-${place.app_id}${place.instance ? `-${place.instance}` : ""}`}
       control={
         <>
-          {/* A profile found by its folder comes back while finding is on:
-              its folder, or Find profiles, decides. */}
-          {!running && !place.keep_alive && !place.found && (
-            <Button size="sm" variant="ghost" onClick={() => void placesForget(place.id).catch((cause) => setError(errorText(cause)))} aria-label={`Forget ${name}`} data-testid="desktop-place-forget">
-              Forget
-            </Button>
-          )}
           <Button size="sm" variant="secondary" onClick={open} disabled={!running && place.cannot_start !== null} title={running ? undefined : (place.cannot_start ?? undefined)} aria-label={`${running ? "Open" : "Start"} ${name}`} data-testid="desktop-place-open">
             {running ? "Open" : "Start"}
           </Button>
@@ -203,6 +200,36 @@ export function PlaceRow({ place, name: named }: { place: KnownPlaceInfo; name?:
               void placesKeepAlive(place.id, on).catch((cause) => setError(errorText(cause)));
             }}
           />
+          {/* Forget, in its ⋯ (design review #65: a lone Forget broke the
+              column). A profile found by its folder comes back while
+              finding is on: its folder, or Find profiles, decides. */}
+          {!running && !place.keep_alive && !place.found && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  const box = event.currentTarget.getBoundingClientRect();
+                  setMenuAt({ x: box.left, y: box.bottom + 4 });
+                }}
+                aria-label={`More for ${name}`}
+                aria-haspopup="menu"
+                className="flex size-7 items-center justify-center rounded-md text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+                data-testid="desktop-place-more"
+              >
+                <IconMore width={16} height={16} />
+              </button>
+              {menuAt && (
+                <RowMenu heading={name} ariaLabel={`${name} actions`} at={menuAt} onClose={() => setMenuAt(null)}>
+                  <MenuItem danger onClick={() => (setMenuAt(null), void placesForget(place.id).catch((cause) => setError(errorText(cause))))} testId="desktop-place-forget">
+                    <span className="flex items-center gap-2">
+                      <IconRemove width={15} height={15} aria-hidden="true" />
+                      Forget
+                    </span>
+                  </MenuItem>
+                </RowMenu>
+              )}
+            </>
+          )}
         </>
       }
     >

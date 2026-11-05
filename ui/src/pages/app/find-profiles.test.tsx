@@ -56,7 +56,7 @@ describe("AJ-E3203 Claude app profiles found when they aren't running", () => {
     page(DESIGN);
     expect(await screen.findByTestId("page-name")).toHaveProperty("textContent", "Claude app · Design");
     expect(screen.getByTestId("app-go").textContent).toBe("Start");
-    expect(screen.getByTestId("page-facts").textContent).toContain("found with your other profiles");
+    expect(screen.getByTestId("page-facts").textContent).toContain("Found with your other profiles");
     expect(screen.queryByTestId("app-find-profiles")).toBeNull();
   });
 

@@ -149,14 +149,26 @@ export function RailSplitter({
       aria-valuemax={WIDTH_MAX}
       aria-valuetext={`${width} pixels wide`}
       data-testid="rail-splitter"
+      // Says the edge moves (design review #41): a tooltip, and a grip on
+      // hover and focus.
+      title={onCycleDensity ? "Drag, or ← →. Double-click for the list's density" : "Drag, or ← →"}
       className={"group/split absolute right-0 top-0 z-20 h-full w-1.5 cursor-col-resize outline-none " + (dragging ? "" : "transition-colors")}
     >
       <div
         className={
           "ml-auto h-full w-px group-focus-visible/split:w-0.5 group-focus-visible/split:bg-accent " +
-          (dragging ? "bg-accent/70" : "bg-transparent hover:bg-accent/50")
+          (dragging ? "bg-accent/70" : "bg-transparent group-hover/split:bg-accent/50")
         }
       />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[-3px] top-1/2 flex h-8 w-2 -translate-y-1/2 flex-col items-center justify-center gap-[3px] rounded-full border border-hairline bg-surface opacity-0 shadow-card transition-opacity group-hover/split:opacity-100 group-focus-visible/split:opacity-100"
+        data-testid="rail-splitter-grip"
+      >
+        <span className="size-0.5 rounded-full bg-muted" />
+        <span className="size-0.5 rounded-full bg-muted" />
+        <span className="size-0.5 rounded-full bg-muted" />
+      </span>
     </div>
   );
 }

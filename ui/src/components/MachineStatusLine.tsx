@@ -23,7 +23,9 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // Before the first sample: the Mac's name only, a neutral dot.
   const name = THIS_MACHINE;
   const words = status ? `${name} · ${status.words}` : name;
-  const shown = status && short && SHORT_WORDS[status.words] ? `${name} · ${SHORT_WORDS[status.words]}` : words;
+  // The top bar says the state by its dot (design review #24: "This Mac ·
+  // Pl…" at 1280); its title and spoken name keep "This Mac · …".
+  const shown = status && short ? (SHORT_WORDS[status.words] ?? status.words) : words;
   const dot = status ? status.dot : "bg-faint";
   if (minimal) {
     return (
@@ -46,7 +48,7 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why ?? (shown !== words ? words : undefined)} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <button type="button" onClick={onOpen} title={why ?? (shown !== words ? words : undefined)} aria-label={shown !== words ? words : undefined} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
       {line}
     </button>
   ) : (

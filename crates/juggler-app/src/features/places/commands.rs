@@ -14,7 +14,7 @@ use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
 /// One app or profile AI Juggler remembers.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct KnownPlaceInfo {
     /// Its id (what the other commands take).
@@ -182,6 +182,24 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
 ///
 /// # Errors
 ///
+/// Where a remembered app sits in Desktop apps: running first, then the
+/// closed ones by when they were last seen, then the ones only found by
+/// their folder (design review #62: kept-alive first, then by name, buried
+/// the one you used last).
+fn place_order(row: &KnownPlaceInfo) -> SortKey {
+    let group = if row.app_pid.is_some() {
+        0
+    } else if row.found {
+        2
+    } else {
+        1
+    };
+    SortKey::new(
+        vec![group, -row.seen_ms],
+        format!("{}\u{0}{}", row.label, row.id),
+    )
+}
+
 /// A poisoned lock; storage errors; a cursor this app didn't make.
 #[tauri::command]
 pub async fn places_list(
@@ -190,16 +208,7 @@ pub async fn places_list(
 ) -> AppResult<Page<KnownPlaceInfo>> {
     crate::ipc::blocking(state.inner(), "the apps remembered", move |state| {
         let rows = known(state)?;
-        crate::paging::page(
-            rows,
-            |row| {
-                SortKey::new(
-                    vec![i64::from(!row.keep_alive)],
-                    format!("{}\u{0}{}", row.label, row.id),
-                )
-            },
-            &page.unwrap_or_default(),
-        )
+        crate::paging::page(rows, place_order, &page.unwrap_or_default())
     })
     .await
 }
@@ -381,6 +390,29 @@ pub async fn places_forget(state: tauri::State<'_, Arc<AppState>>, id: String) -
 
 #[cfg(test)]
 mod tests {
+    use super::{KnownPlaceInfo, place_order};
+
+    #[test]
+    fn desktop_apps_list_running_then_last_seen_then_found() {
+        let row = |label: &str, pid: Option<u32>, seen_ms: i64, found: bool| KnownPlaceInfo {
+            label: label.into(),
+            id: label.into(),
+            app_pid: pid,
+            seen_ms,
+            found,
+            ..KnownPlaceInfo::default()
+        };
+        let mut rows = [
+            row("Found", None, 0, true),
+            row("Old", None, 10, false),
+            row("Running", Some(7), 1, false),
+            row("Recent", None, 99, false),
+        ];
+        rows.sort_by_key(place_order);
+        let order: Vec<&str> = rows.iter().map(|row| row.label.as_str()).collect();
+        assert_eq!(order, ["Running", "Recent", "Old", "Found"]);
+    }
+
     /// D-64: the window gets an app's sessions newest first, all the book
     /// keeps (the rail picks its last 3 itself).
     #[test]

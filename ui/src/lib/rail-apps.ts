@@ -188,7 +188,9 @@ export const RECENT_INLINE = 3;
 /** How many inactive apps show before "Show N more". */
 export const IDLE_APPS_SHOWN = 6;
 
-/** "Last 3 inactive", or fewer when it has fewer. */
+/** "Last 3 inactive" (D-64), or fewer when it has fewer; one is "Last
+ * inactive", not "Last 1 inactive" (design review #70). */
 export function recentWords(count: number): string {
-  return `Last ${Math.min(count, RECENT_INLINE)} inactive`;
+  const shown = Math.min(count, RECENT_INLINE);
+  return shown === 1 ? "Last inactive" : `Last ${shown} inactive`;
 }

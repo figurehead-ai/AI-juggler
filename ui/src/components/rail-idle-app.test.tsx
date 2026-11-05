@@ -36,10 +36,12 @@ const app = (over: Partial<IdleApp> = {}): IdleApp => ({
 const sessions = (count: number) => Array.from({ length: count }, (_, n) => ({ key: `c:a/${n}` }) as RailItem);
 
 describe("D-64 an inactive app in the rail", () => {
-  it("a desktop app that quit: Start starts it (its menu too), and says it's not running", () => {
+  it("a desktop app that quit: Start starts it (its menu too), and says when it was last used", () => {
     const open = vi.spyOn(places, "placesOpen").mockResolvedValue({ outcome: "Started" } as never);
     render(<RailIdleApp app={app()} open={false} onToggle={vi.fn()} now={NOW} />);
-    expect(screen.getByTestId("rail-idle-when").textContent).toBe("Not running · 3 h ago");
+    // Under "Inactive apps", "Not running" went without saying (design
+    // review #48).
+    expect(screen.getByTestId("rail-idle-when").textContent).toBe("3 h ago");
     const action = screen.getByTestId("rail-idle-action");
     expect(action.getAttribute("aria-label")).toBe("Start: Claude app · Work");
     fireEvent.click(action);
@@ -103,6 +105,6 @@ describe("D-64 an inactive app in the rail", () => {
   });
 
   it("words: never seen, only whether it runs", () => {
-    expect(idleWords(app({ lastMs: 0 }), NOW)).toBe("Not running");
+    expect(idleWords(app({ lastMs: 0 }), NOW)).toBe("");
   });
 });
