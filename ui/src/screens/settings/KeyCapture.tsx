@@ -4,9 +4,13 @@
  * press up (a lone modifier is the caller's to ignore), Esc cancels, and
  * leaving it cancels. `GoToKey` is the go-to key's whole control, drawn
  * in both panes, so its refusals (`hotkeyRefusal`) are the same in each.
+ * In Keyboard (design review 57, 73) the keycap itself is the button that
+ * records new keys, "None" sits where the keys go, and the actions column
+ * keeps only Choose… or Turn off (`GoToKeyCap`, `GoToKeyActions`).
  */
 import { useEffect, useState, type JSX, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { Button } from "../../components/primitives";
+import { Keycap } from "../../components/ShortcutSheet";
 import { appSettingGet, errorText, goToHotkeySet } from "../../lib/bridge";
 import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../../lib/hotkey";
 import { GO_TO_HOTKEY_EVENT } from "../../lib/outside";
@@ -30,6 +34,58 @@ export function KeyCapture({ onKeys, onCancel, label, testId, compact = false }:
       {compact ? "Press keys…" : <>Press the keys… <span className="text-muted">(Esc cancels)</span></>}
       {label && <span className="sr-only"> — {label}</span>}
     </button>
+  );
+}
+
+/** A row's keys as the button that records new ones: click, then press
+ * them (design review 57: no "Change…" on every row). */
+export function KeycapButton({ onClick, label, testId, children }: { onClick: () => void; label: string; testId?: string; children: ReactNode }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title="Click, then press the new keys"
+      className="flex shrink-0 items-center gap-1.5 rounded-md [&_kbd]:transition-colors hover:[&_kbd]:border-accent/60 hover:[&_kbd]:bg-accent-soft"
+      data-testid={testId}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Settings › Keyboard's key column for the go-to key: the capture, the
+ * keycap that records a new key, or "None". */
+export function GoToKeyCap({ hotkey, prefix, label }: { hotkey: ReturnType<typeof useGoToKey>; prefix: string; label: string }): JSX.Element {
+  const { binding, capturing } = hotkey;
+  if (capturing) return <KeyCapture compact onKeys={hotkey.onKeys} onCancel={hotkey.cancel} label={`new keys for ${label}`} testId={`${prefix}-capture`} />;
+  if (!binding) {
+    return (
+      <span className="text-label text-muted" data-testid={`${prefix}-none`}>
+        None
+      </span>
+    );
+  }
+  return (
+    <KeycapButton onClick={hotkey.start} label={`Change the keys for ${label} (${hotkeyWords(binding)})`} testId={`${prefix}-change`}>
+      <span data-testid={`${prefix}-key`} className="contents">
+        <Keycap>{hotkeyWords(binding)}</Keycap>
+      </span>
+    </KeycapButton>
+  );
+}
+
+/** …and its actions column: Choose… while there's none, else Turn off. */
+export function GoToKeyActions({ hotkey, prefix }: { hotkey: ReturnType<typeof useGoToKey>; prefix: string }): JSX.Element | null {
+  if (hotkey.capturing) return null;
+  return hotkey.binding ? (
+    <Button size="sm" variant="ghost" onClick={() => hotkey.save("")} data-testid={`${prefix}-clear`}>
+      Turn off
+    </Button>
+  ) : (
+    <Button size="sm" variant="secondary" onClick={hotkey.start} data-testid={`${prefix}-choose`}>
+      Choose…
+    </Button>
   );
 }
 

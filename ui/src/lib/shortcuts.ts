@@ -191,7 +191,7 @@ export const SHORTCUTS = [
     label: "Previous row",
     match: (event: KeyLike) => plain("k", "ArrowUp")(event),
   },
-  { id: "home-open", owner: "home", area: "Home", keys: ["Enter"], label: "Open the row" },
+  { id: "home-open", owner: "home", area: "Home", keys: ["↩"], label: "Open the row" },
   { id: "home-action", owner: "home", area: "Home", keys: ["A"], label: "Run the row's action", match: plain("a", "A") },
   // AJ-E2910 (deep/11 §4.1): on the focused row only, never while typing.
   { id: "home-reply", owner: "home", area: "Home", keys: ["R"], label: "Open its page, at what it asks", match: plain("r", "R") },

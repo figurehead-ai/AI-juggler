@@ -85,7 +85,6 @@ ui/src/components/FleetPeersEmpty.tsx mac-words 6
 ui/src/components/FleetThisMac.tsx mac-words 1
 ui/src/components/MachineUsage.tsx mac-words 1
 ui/src/components/MarkSheet.tsx mac-words 1
-ui/src/components/NotificationSettings.tsx mac-words 3
 ui/src/components/RailToolbar.tsx mac-words 2
 ui/src/components/RemoteLaunch.tsx mac-words 1
 ui/src/components/RemoteTabs.tsx mac-words 1

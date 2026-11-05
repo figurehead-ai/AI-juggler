@@ -93,7 +93,7 @@ export function SettingsScreen({
           onQuery={setQuery}
           onPick={(hit) => {
             setPane(hit.pane);
-            setAnchor(hit.anchor);
+            setAnchor(hit.rowAnchor);
             setJumps((count) => count + 1);
           }}
         />

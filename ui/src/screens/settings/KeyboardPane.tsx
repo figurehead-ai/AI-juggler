@@ -1,8 +1,9 @@
 /**
  * AJ-E2905: Settings › Keyboard — every shortcut by area, each with its
- * keys. A rebindable one has Change… (the next keys pressed, Esc cancels,
- * refused with the reason when another shortcut, the system or typing has
- * them) and, once changed, Reset; a fixed one says why. The go-to key from
+ * keys. A rebindable one's keycap is its button (click it, then the next
+ * keys pressed, Esc cancels, refused with the reason when another
+ * shortcut, the system or typing has them; design review 57) and, once
+ * changed, Reset; a fixed one says why. The go-to key from
  * any app is the same control as in Desktop apps. A bar at the top counts
  * the changes and has Reset all, with Undo (at the top, not after some 40
  * rows, so it's found). A change applies at once: the ? sheet, ⌘K, the
@@ -12,9 +13,9 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { Keycap } from "../../components/ShortcutSheet";
 import { showToast } from "../../components/Toast";
-import { keysOf, SHORTCUT_AREAS, SHORTCUTS, type Shortcut, type ShortcutId } from "../../lib/shortcuts";
+import { ariaKeysOf, keysOf, SHORTCUT_AREAS, SHORTCUTS, type Shortcut, type ShortcutId } from "../../lib/shortcuts";
 import { bindingOf, DEFAULT_BINDINGS, FIXED_WHY, isChanged, onBindingsChanged, refusal, resetAll, resetBinding, restoreBindings, setBinding } from "../../lib/shortcut-bindings";
-import { GoToKeyControl, GoToKeyError, KeyCapture, useGoToKey } from "./KeyCapture";
+import { GoToKeyActions, GoToKeyCap, GoToKeyError, KeyCapture, KeycapButton, useGoToKey } from "./KeyCapture";
 import { Pane, PaneSection } from "./parts";
 import { keyboardSectionId } from "./settings-index";
 
@@ -33,8 +34,8 @@ function Row({ id, label, keys, actions, note }: { id: string; label: string; ke
       <div className="flex items-center gap-3">
         <span className="min-w-0 flex-1 text-body text-ink">{label}</span>
         {keys}
-        {/* A fixed width, so every row's keys line up. */}
-        <span className="flex w-40 shrink-0 items-center justify-end gap-1">{actions}</span>
+        {/* A fixed width, so every row's keys line up (Reset, Turn off or Choose… fit). */}
+        <span className="flex w-24 shrink-0 items-center justify-end gap-1">{actions}</span>
       </div>
       {note}
     </li>
@@ -44,12 +45,13 @@ function Row({ id, label, keys, actions, note }: { id: string; label: string; ke
 /** The go-to key: the same control as Settings › Desktop apps. */
 function GoToRow(): JSX.Element {
   const hotkey = useGoToKey();
+  const label = "Open AI Juggler from anywhere";
   return (
     <Row
       id="go-to"
-      label="Open AI Juggler from anywhere"
-      keys={<span />}
-      actions={<GoToKeyControl hotkey={hotkey} prefix="keyboard-go-to" />}
+      label={label}
+      keys={<GoToKeyCap hotkey={hotkey} prefix="keyboard-go-to" label={label} />}
+      actions={<GoToKeyActions hotkey={hotkey} prefix="keyboard-go-to" />}
       note={
         <>
           <span className="text-label text-muted">Works from any app. ⌥Space isn't offered, because ChatGPT uses it.</span>
@@ -78,37 +80,31 @@ function ShortcutRow({ entry }: { entry: Shortcut }): JSX.Element {
     setWhy(null);
     void setBinding(id, binding);
   };
+  const caps = keysOf(id).map((keys) => <Keycap key={keys}>{keys}</Keycap>);
+  const start = () => {
+    setCapturing(true);
+    setWhy(null);
+  };
   const keys = (
     <span className="flex shrink-0 items-center gap-1.5">
-      {changed && <span className="text-label text-muted">changed</span>}
-      {keysOf(id).map((keys) => (
-        <Keycap key={keys}>{keys}</Keycap>
-      ))}
+      {changed && !capturing && <span className="text-label text-muted">changed</span>}
+      {!bindable ? (
+        caps
+      ) : capturing ? (
+        <KeyCapture compact onKeys={onKeys} onCancel={() => setCapturing(false)} label={`new keys for ${entry.label}`} testId={`keyboard-capture-${id}`} />
+      ) : (
+        <KeycapButton onClick={start} label={`Change the keys for ${entry.label} (${ariaKeysOf(id) ?? keysOf(id).join(", ")})`} testId={`keyboard-change-${id}`}>
+          {caps}
+        </KeycapButton>
+      )}
     </span>
   );
-  const actions = !bindable ? null : capturing ? (
-    <KeyCapture compact onKeys={onKeys} onCancel={() => setCapturing(false)} label={`new keys for ${entry.label}`} testId={`keyboard-capture-${id}`} />
-  ) : (
-    <>
-      <Button
-        size="sm"
-        variant="secondary"
-        onClick={() => {
-          setCapturing(true);
-          setWhy(null);
-        }}
-        aria-label={`Change the keys for ${entry.label}`}
-        data-testid={`keyboard-change-${id}`}
-      >
-        Change…
+  const actions =
+    changed && !capturing ? (
+      <Button size="sm" variant="ghost" onClick={() => void resetBinding(id)} aria-label={`Reset the keys for ${entry.label}`} data-testid={`keyboard-reset-${id}`}>
+        Reset
       </Button>
-      {changed && (
-        <Button size="sm" variant="ghost" onClick={() => void resetBinding(id)} aria-label={`Reset the keys for ${entry.label}`} data-testid={`keyboard-reset-${id}`}>
-          Reset
-        </Button>
-      )}
-    </>
-  );
+    ) : null;
   const note =
     capturing && why === null ? (
       <span className="text-label text-muted">Press the new keys, or Esc to cancel.</span>
@@ -144,7 +140,7 @@ export function KeyboardPane({ anchor }: { anchor?: string }): JSX.Element {
           key={area}
           id={keyboardSectionId(area, index)}
           title={area}
-          footer={index === 0 ? "In a text field or the terminal, only the ⌘ shortcuts work. Your changes are kept on this computer." : undefined}
+          footer={index === 0 ? "Click a key to change it. In a text field or the terminal, only the ⌘ shortcuts work. Your changes are kept on this computer." : undefined}
         >
           {(SHORTCUTS as readonly Shortcut[])
             .filter((entry) => entry.area === area)

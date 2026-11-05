@@ -10,7 +10,7 @@ import { trustOpen } from "../../lib/ipc/trust";
 
 export function RecreateSheet({ example, onCancel, onConfirm }: { example: string | null; onCancel: () => void; onConfirm: () => void }): JSX.Element {
   return (
-    <Modal title="Re-create the office?" subtitle="Every area gets a new look and desk layout. The order stays, so every area stays where you know it." onClose={onCancel} testId="floor-recreate-sheet">
+    <Modal title="Re-create the office?" subtitle="Every area gets a new look and desk layout." onClose={onCancel} testId="floor-recreate-sheet">
       <dl className="flex flex-col gap-3 text-body" data-modal-body>
         <div className="flex flex-col gap-0.5">
           <dt className="text-meta font-semibold text-ink">Changes</dt>

@@ -8,7 +8,7 @@
 import { useEffect, useId, useRef, useState, type JSX } from "react";
 import { type IndexEntry } from "./settings-index";
 
-export type SearchHit = IndexEntry & { paneLabel: string };
+export type SearchHit = IndexEntry & { paneLabel: string; rowAnchor: string };
 
 export function SettingsSearch({
   query,

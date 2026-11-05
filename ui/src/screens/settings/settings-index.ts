@@ -66,7 +66,7 @@ export const SETTINGS_INDEX: readonly IndexEntry[] = [
 ];
 
 /** The words of `query`, folded. */
-function folded(text: string): string[] {
+export function folded(text: string): string[] {
   return text
     .toLowerCase()
     .normalize("NFKD")
@@ -75,9 +75,51 @@ function folded(text: string): string[] {
     .filter(Boolean);
 }
 
+/** A search hit's anchor: its section and the words that found it
+ * ("notifications?quiet hours"), so its pane lands on the row they name,
+ * not only the section (design review 25). A link's anchor is the section
+ * alone. */
+export function searchAnchor(section: string, query: string): string {
+  const words = folded(query);
+  return words.length === 0 ? section : `${section}?${words.join(" ")}`;
+}
+
+/** An anchor's section, and the searched words it carries (if any). */
+export function splitAnchor(anchor: string): { section: string; words: string[] } {
+  const at = anchor.indexOf("?");
+  return at < 0 ? { section: anchor, words: [] } : { section: anchor.slice(0, at), words: folded(anchor.slice(at + 1)) };
+}
+
+/** What counts as one row in a section: a settings row, a list item, a
+ * group of controls. */
+const ROWS = "[data-settings-row], li, fieldset";
+
+/** The row in `section` that `words` name best: the most of them starting
+ * a word of its text, then the smallest such row. Null when none does
+ * (the words matched only the index's other words): the section it is. */
+export function matchedRow(section: HTMLElement, words: readonly string[]): HTMLElement | null {
+  let best: HTMLElement | null = null;
+  let bestScore = 0;
+  let bestLength = Number.POSITIVE_INFINITY;
+  for (const row of section.querySelectorAll<HTMLElement>(ROWS)) {
+    const raw = row.textContent ?? "";
+    const text = folded(raw);
+    const score = words.filter((word) => text.some((t) => t.startsWith(word))).length;
+    if (score === 0) continue;
+    if (score > bestScore || (score === bestScore && raw.length < bestLength)) {
+      best = row;
+      bestScore = score;
+      bestLength = raw.length;
+    }
+  }
+  return best;
+}
+
 /** The sections `query` finds, best first: every word must start a word
- * of the entry; a match in its title ranks above one in its words. */
-export function searchSettings(query: string, labels: Record<string, string>): (IndexEntry & { paneLabel: string })[] {
+ * of the entry; a match in its title ranks above one in its words. Each
+ * hit's `anchor` is its section (a link to it, ⌘K's); its `rowAnchor`
+ * also carries the query (`searchAnchor`), for a pane to land on the row. */
+export function searchSettings(query: string, labels: Record<string, string>): (IndexEntry & { paneLabel: string; rowAnchor: string })[] {
   const wanted = folded(query);
   if (wanted.length === 0) return [];
   const scored = SETTINGS_INDEX.flatMap((entry) => {
@@ -89,7 +131,7 @@ export function searchSettings(query: string, labels: Record<string, string>): (
       else if (words.some((t) => t.startsWith(word))) score += 1;
       else return [];
     }
-    return [{ ...entry, paneLabel: labels[entry.pane] ?? entry.pane, score }];
+    return [{ ...entry, rowAnchor: searchAnchor(entry.anchor, query), paneLabel: labels[entry.pane] ?? entry.pane, score }];
   });
   return scored.sort((a, b) => b.score - a.score).map(({ score: _, ...entry }) => entry);
 }

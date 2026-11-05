@@ -9,7 +9,8 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SettingsScreen } from "../Settings";
 import { PANES } from "./panes";
-import { searchSettings, SETTINGS_INDEX } from "./settings-index";
+import { matchedRow, searchAnchor, searchSettings, SETTINGS_INDEX, splitAnchor } from "./settings-index";
+import { NotificationsPane } from "./NotificationsPane";
 import { isChanged, resetForTests } from "../../lib/shortcut-bindings";
 
 const w = () => window as unknown as Record<string, unknown>;
@@ -61,7 +62,7 @@ describe("AJ-E2905 Settings search", () => {
   });
 
   it("finds by a setting's words, title matches first", () => {
-    expect(searchSettings("mute", labels)[0]).toMatchObject({ pane: "notifications", anchor: "notification-mutes" });
+    expect(searchSettings("mute", labels)[0]).toMatchObject({ pane: "notifications", anchor: "notification-mutes", rowAnchor: "notification-mutes?mute" });
     expect(searchSettings("quiet hours", labels)[0]?.anchor).toBe("notifications");
     expect(searchSettings("keep alive", labels)[0]?.anchor).toBe("keep-alive");
     expect(searchSettings("inspector", labels).map((hit) => hit.pane)).toContain("keyboard");
@@ -97,6 +98,36 @@ describe("AJ-E2905 Settings search", () => {
   });
 });
 
+describe("design review 25/34 — a result lands on its row", () => {
+  it("an anchor carries the searched words; a link's is the section alone", () => {
+    expect(searchAnchor("notifications", "  Quiet Hours ")).toBe("notifications?quiet hours");
+    expect(searchAnchor("notifications", " ")).toBe("notifications");
+    expect(splitAnchor("notifications?quiet hours")).toEqual({ section: "notifications", words: ["quiet", "hours"] });
+    expect(splitAnchor("keep-alive")).toEqual({ section: "keep-alive", words: [] });
+  });
+
+  it("the row is the one its words name best, then the smallest", () => {
+    const section = document.createElement("section");
+    section.innerHTML = `<ul><li id="a">Quiet mode<fieldset id="b">Quiet hours</fieldset></li><li id="c">Hours used</li></ul>`;
+    expect(matchedRow(section, ["quiet", "hours"])?.id).toBe("b");
+    expect(matchedRow(section, ["mode"])?.id).toBe("a");
+    expect(matchedRow(section, ["zzz"])).toBeNull();
+  });
+
+  it("“quiet hours” lands on Notifications' Quiet hours: unfolded and tinted; the title's ring hugs it", async () => {
+    const hit = searchSettings("quiet hours", labels)[0]!;
+    const { getByTestId, findByTestId } = render(<NotificationsPane anchor={hit.rowAnchor} />);
+    const row = await findByTestId("quiet-hours");
+    await waitFor(() => expect(row.hasAttribute("data-settings-hit")).toBe(true));
+    expect((getByTestId("notifications-more") as HTMLDetailsElement).open).toBe(true);
+    expect(document.activeElement?.id).toBe("settings-notifications-title");
+    const title = document.getElementById("settings-notifications-title")!;
+    expect(title.className).toContain("w-fit");
+    expect(title.className).toContain("rounded-md");
+    expect(title.className).not.toContain("outline-none");
+  });
+});
+
 describe("AJ-E2905 Settings › Keyboard", () => {
   it("changes a key, refuses a taken one with the reason, resets, and Reset all has Undo", async () => {
     const { getByTestId, findByTestId, queryByTestId } = render(<SettingsScreen focusSection="keyboard" />);
@@ -118,7 +149,8 @@ describe("AJ-E2905 Settings › Keyboard", () => {
     // Esc cancels a capture.
     fireEvent.click(getByTestId("keyboard-change-settings"));
     fireEvent.keyDown(getByTestId("keyboard-capture-settings"), { key: "Escape", code: "Escape" });
-    expect(getByTestId("keyboard-change-settings").textContent).toBe("Change…");
+    // The keycap is the button (design review 57): it comes back as the keys.
+    expect(getByTestId("keyboard-change-settings").textContent).toBe("⌘,");
     // Reset all, then Undo.
     fireEvent.click(getByTestId("keyboard-change-settings"));
     fireEvent.keyDown(getByTestId("keyboard-capture-settings"), { key: ";", code: "Semicolon", metaKey: true });
@@ -134,5 +166,28 @@ describe("AJ-E2905 Settings › Keyboard", () => {
     expect(getByTestId("keyboard-go-to-error").textContent).toContain("ChatGPT uses ⌥Space");
     fireEvent.keyDown(getByTestId("keyboard-go-to-capture"), { key: " ", code: "Space", altKey: true, ctrlKey: true });
     await waitFor(() => expect(getByTestId("keyboard-go-to-key").textContent).toBe("⌃⌥Space"));
+    // Set, the keycap records a new key; the actions column keeps Turn off.
+    fireEvent.click(getByTestId("keyboard-go-to-change"));
+    expect(getByTestId("keyboard-go-to-capture")).toBeTruthy();
+  });
+
+  it("design review 57/73: no Change… on any row, one key notation, None in the key column", async () => {
+    const { getByTestId, findByTestId } = render(<SettingsScreen focusSection="keyboard" />);
+    const pane = await findByTestId("settings-pane-keyboard");
+    await findByTestId("keyboard-go-to-none");
+    expect(pane.textContent).not.toContain("Change…");
+    expect(pane.textContent).not.toMatch(/\bEnter\b|Ctrl\+/);
+    expect(pane.querySelector("[data-shortcut='home-open']")!.textContent).toContain("↩");
+    // "None" is in the key column, the Choose… button in the actions column.
+    const goTo = pane.querySelector("[data-shortcut='go-to']")!;
+    const none = getByTestId("keyboard-go-to-none");
+    const choose = getByTestId("keyboard-go-to-choose");
+    expect(none.parentElement).not.toBe(choose.parentElement);
+    expect(goTo.contains(none)).toBe(true);
+    // A rebindable row's keycap is its button, named for screen readers.
+    const cap = getByTestId("keyboard-change-palette");
+    expect(cap.tagName).toBe("BUTTON");
+    expect(cap.getAttribute("aria-label")).toMatch(/^Change the keys for /);
+    expect(cap.querySelector("kbd")!.textContent).toBe("⌘K");
   });
 });

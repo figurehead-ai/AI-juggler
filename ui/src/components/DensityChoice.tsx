@@ -21,7 +21,7 @@ export function DensityChoice(): JSX.Element {
     { id: "minimal", label: "Minimal", what: "Icons only" },
   ];
   return (
-    <ChoiceGroup legend="Session list" hint="Ctrl+D cycles through them from anywhere." testId="settings-density">
+    <ChoiceGroup legend="Session list" hint="⌃D cycles through them from anywhere." testId="settings-density">
       {options.map((option) => (
         <ChoiceOption
           key={option.id}

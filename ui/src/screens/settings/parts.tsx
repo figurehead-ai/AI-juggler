@@ -8,13 +8,47 @@ import { useEffect, useId, useRef, type JSX, type ReactNode } from "react";
 import { InSettingsSection } from "../../components/CardTitle";
 import { IconWarn } from "../../components/icons-menu";
 import type { PaneTone } from "./panes";
+import { matchedRow, splitAnchor } from "./settings-index";
+
+/** What the user does that ends a pane's landing: from then on the
+ * scroll is theirs. */
+const USER_INPUT = ["wheel", "pointerdown", "keydown", "touchstart"] as const;
 
 /** How long a pane waits for its anchored section to appear (a section
- * drawn from data read on open, as Accounts' Tools on this Mac is). */
+ * drawn from data read on open, as Accounts' Tools on this Mac is), and
+ * keeps the landing in view while the sections above it fill in. */
 const ANCHOR_WAIT_MS = 2_000;
+/** How long a searched row stays tinted. */
+const HIT_TINT_MS = 2_400;
+
+/** Opens every fold between `section` and `row`, so a searched setting
+ * folded away (Notifications' quiet hours) is shown. */
+function openFolds(row: HTMLElement, section: HTMLElement): void {
+  for (let at: HTMLElement | null = row; at && at !== section; at = at.parentElement) {
+    if (at instanceof HTMLDetailsElement && !at.open && at !== row) at.open = true;
+  }
+}
+
+/** A brief accent tint on the searched row, with rounded corners (design
+ * review 34: not a square outline the pane's width). */
+function tint(row: HTMLElement): void {
+  row.setAttribute("data-settings-hit", "");
+  window.setTimeout(() => row.removeAttribute("data-settings-hit"), HIT_TINT_MS);
+  if (typeof row.animate !== "function") return;
+  const own = getComputedStyle(row).backgroundColor;
+  row.animate(
+    [
+      { backgroundColor: "var(--color-accent-soft)", borderRadius: "0.5rem" },
+      { backgroundColor: "var(--color-accent-soft)", borderRadius: "0.5rem", offset: 0.6 },
+      { backgroundColor: own, borderRadius: "0.5rem" },
+    ],
+    { duration: HIT_TINT_MS, easing: "ease-out" },
+  );
+}
 
 /** A pane: its title, then its sections. Opens on `anchor`'s section
- * when a link asked for one. */
+ * when a link asked for one; a search's anchor (`searchAnchor`) lands on
+ * the row its words name, unfolds it and tints it (design review 25). */
 export function Pane({
   id,
   title,
@@ -29,35 +63,52 @@ export function Pane({
   const pane = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!anchor) return;
-    const find = () => document.getElementById(`settings-${anchor}`);
+    const { section, words } = splitAnchor(anchor);
+    const find = () => document.getElementById(`settings-${section}`);
     let frame = 0;
+    let landed = false;
+    let lit: HTMLElement | null = null;
     const jump = () => {
-      find()?.scrollIntoView?.({ block: "start" });
-      document.getElementById(`settings-${anchor}-title`)?.focus({ preventScroll: true });
+      const at = find();
+      if (!at) return;
+      const row = words.length > 0 ? matchedRow(at, words) : null;
+      if (row) openFolds(row, at);
+      (row ?? at).scrollIntoView?.({ block: row ? "center" : "start" });
+      if (!landed) document.getElementById(`settings-${section}-title`)?.focus({ preventScroll: true });
+      landed = true;
+      // The best row can change as the section fills in: tint that one.
+      if (row && row !== lit) {
+        lit = row;
+        tint(row);
+      }
     };
     const land = () => {
       jump();
       // Once more after the screen around it has set its own scroll.
+      cancelAnimationFrame(frame);
       frame = requestAnimationFrame(jump);
     };
-    if (find()) {
-      land();
-      return () => cancelAnimationFrame(frame);
-    }
+    if (find()) land();
     // A section drawn once its data is read isn't there yet: jump when it
     // appears, not on whichever frame the read happened to beat (the
-    // visual gate caught the pane opening at its top on some runs).
+    // visual gate caught the pane opening at its top on some runs). Once
+    // there, cards above it that fill in later would push it away (search
+    // "mute" opened Notifications with Muted off screen): land again on
+    // each change, until the wait ends or the user scrolls, clicks or types.
     const root = pane.current;
-    if (!root || typeof MutationObserver === "undefined") return;
+    if (!root || typeof MutationObserver === "undefined") return () => cancelAnimationFrame(frame);
     const watch = new MutationObserver(() => {
-      if (!find()) return;
-      watch.disconnect();
-      land();
+      if (find()) land();
     });
-    watch.observe(root, { childList: true, subtree: true });
-    const timer = window.setTimeout(() => watch.disconnect(), ANCHOR_WAIT_MS);
-    return () => {
+    const stop = () => {
       watch.disconnect();
+      for (const kind of USER_INPUT) window.removeEventListener(kind, stop, true);
+    };
+    watch.observe(root, { childList: true, subtree: true });
+    for (const kind of USER_INPUT) window.addEventListener(kind, stop, true);
+    const timer = window.setTimeout(stop, ANCHOR_WAIT_MS);
+    return () => {
+      stop();
       window.clearTimeout(timer);
       cancelAnimationFrame(frame);
     };
@@ -94,7 +145,9 @@ export function PaneSection({
       className="flex scroll-mt-4 flex-col gap-2"
       data-settings-section={id}
     >
-      <h3 id={`settings-${id}-title`} tabIndex={-1} className="px-1 text-section font-semibold text-ink outline-none">
+      {/* Fits its words, rounded: the focus ring a link or search lands
+          with hugs the title, not the pane's width (design review 34). */}
+      <h3 id={`settings-${id}-title`} tabIndex={-1} className="w-fit rounded-md px-1 text-section font-semibold text-ink">
         {title}
       </h3>
       <InSettingsSection.Provider value>
