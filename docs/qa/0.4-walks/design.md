@@ -554,6 +554,45 @@ The numbers are the "Every no" list's. Each is fixed, explained, or still open o
 - **86** (Fit) Each family's fit, dependencies and change for 0.3 users are in its task's Goal, Depends and UI/UX reasoning; the critiques are the visual record and don't repeat them.
 - **87** (Hand check) Walks by hand in the native window are AJ-E3302–E3306's, waiting on the maintainer's choice of how they're done (a lab-only write bridge, or walked by hand).
 
+**Fixed on release/0.4, second pass (2026-11-05)**
+
+- **8, 15** Already fixed by earlier commits: rail headers put the profile first; AI Juggler's own sessions sit under their CLI App.
+- **10** Fit leaves room for the palette and the zoom bar and refits as the canvas's room changes; a badge's panel opens beside its node; the compact ⋯ has its own slot.
+- **11** The quality gallery's seed is a Codex Account for Codex's case.
+- **14** Nodes show their App's own icon; the App's name opens its page.
+- **16, 52, 72** The palette ranks groups by their best match, lists a session once, puts the hint on the active row only, and uses real Account and App names and icons.
+- **17, 18, 50, 63, 64, 79** Accounts: renewal only on the Account, the newer date chosen with ⌘↩, "Not measured yet" in one line with its why folded, no folder path, "open in …".
+- **19** A tall menu scrolls inside, beside its button.
+- **22, 43, 67, 81** The Floor list: search, a Waiting chip, paged floors, one sticky header per floor, the room once, Show on the Floor once per App, no empty columns, Apps' own icons.
+- **24** The top bar says the state by its dot ("Plenty of room"); This Mac stays the system's noun, in its title and spoken name.
+- **25, 34** A Settings search result lands on its row, opens its fold and tints it; the title's ring hugs it.
+- **26** Relaunch before Resume, each with a one-line hint (labels kept, as AJ-E2908 fixes them).
+- **27, 60** Agent access in plain rows, the projects' pools under one heading, named once.
+- **28, 33, 38, 56** Report a bug: one folding "Goes with it" line, plain rows, the standard field surface.
+- **29, 30, 31, 74** Notifications: a card per part, section-title headings, quiet hours and the digest folded with their values, "the system".
+- **32** A chosen chip is accent-tinted in both themes.
+- **35, 36** The pool screens' headings in the app's styles; an ask in the inspector is a tinted section.
+- **37, 58** Usage: caps on a full row; the stuck sheet in plain rows; the Price column only when a price differs.
+- **39, 42, 49, 69, 82, 83** Home: Pick up moves up beside few needs; no repeated title or sentence; "Limit reached", "Continue in another app…"; unknown room said once or not at all; the Account not repeated as the profile.
+- **41** The rail's edge shows a grip and says it can be dragged.
+- **44, 80** Quality: values only, the source once, rows a tool doesn't record left out and said.
+- **45, 46, 84** Session pages: the count line only when filtered, no repeated state word, "Ended 2:03 PM" once, the tool once, the model by name, no empty Runway card.
+- **47, 78** App page: facts from its state; Last used only once something ended.
+- **48, 62, 65** "Start" on a tile that names its App; no "Not running" under Inactive apps; Desktop apps running first, then by last seen, then found; Forget in a row's ⋯.
+- **51, 71** New session: no option twice, "launch settings" once, "Opus", "Advanced…", the Account's dot.
+- **53, 54, 57, 73** "You can rename it" once; Re-create's one sentence; the keycap is the button; one key notation.
+- **61, 76, 85** A pool says its agents' level once, cards drop "AI Juggler" from the place line, Activity says "Messages: Wait for you" and "Pause after: 5 in a row", a paused edge says the pool's number, and an empty pool says it's empty once.
+- **70** "Last inactive" for one; D-64's "Last 3 inactive" stays.
+
+**Explained, second pass**
+
+- **12** The product says the 0.4 words; the 91-pools gallery captures are retaken by the release preflight.
+- **24** (rest), **73** (rest), **74** (rest) "This Mac" stays: it's the system's own noun (`computer_noun`), "This PC" on Windows.
+- **26** (labels) Resume and Relaunch keep AJ-E2908's labels; the hints say the difference.
+- **65** (name) A profile's name follows AJ-E3203's rule; only Forget moved.
+- **71** (part) "Handover" stays the glossary's word (the guide's heading uses it).
+- **77** The figures can't open a filtered Sessions tab: that tab doesn't exist yet. To 0.5 with the related lists.
+
 **Still open on this branch (before 0.4 ships)**
 
-8, 10, 11, 12, 14, 15, 16, 17, 18, 19, 22, 24–39, 41–54, 56–58, 60–65, 67, 69–72, 73 (rest), 74 (rest), 76 (rest), 77–85.
+None. The walks' own lows are on their sheets (P3, P4, P6, P7, P8, P9, P10, P11).
