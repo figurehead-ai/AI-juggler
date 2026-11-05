@@ -49,8 +49,7 @@ export function defaultPoolIdOf(projectId: string | null | undefined): string {
 }
 
 /** A default pool's name: its project's (as it is now), and what it is. */
-/** The end of a project's own pool's name (backend `storage/pools.rs`). */
-export const ALL_SESSIONS = " · all sessions";
+export const ALL_SESSIONS = " · all sessions"; // a project's own pool's name ends so (backend storage/pools.rs)
 const defaultPoolName = (projectName: string | null) => `${projectName ?? "No project"}${ALL_SESSIONS}`;
 
 /** D-28: the agent actions, in the catalog's order, and what each
