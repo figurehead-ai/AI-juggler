@@ -34,7 +34,7 @@ import { keepRecents, loadRecents, rememberRecent, type Recent } from "../lib/pa
 import { searchSettings } from "../screens/settings/settings-index";
 import { PANES } from "../screens/settings/panes";
 import { buildGroups, recentOf, typedAnything, type AccountRow, type PaletteRow } from "./palette/rows";
-import { RowView } from "./palette/RowView";
+import { RowView, rowTitle } from "./palette/RowView";
 import { canPreview, Preview, type Previewable } from "./palette/Preview";
 export { paletteSelection } from "./PaletteActions";
 
@@ -150,7 +150,15 @@ export function GoToPalette({
   useEffect(() => {
     setActive((at) => Math.min(at, Math.max(rows.length - 1, 0)));
   }, [rows.length]);
-  useEffect(() => setActive(0), [typed]);
+  // A row named by what's typed starts active, so ↩ opens it (typing a
+  // project's name and pressing Enter opens it, the review of 0.1.4), even
+  // when a looser match sits in an earlier group.
+  useEffect(() => {
+    const words = typed.trim().toLowerCase();
+    const named = words ? rows.findIndex((row) => row.where !== "action" && rowTitle(row).toLowerCase().startsWith(words)) : -1;
+    setActive(Math.max(named, 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typed]);
   // The recents whose item is gone are dropped — judged only by lists
   // already read, so one still loading never loses its recents.
   useEffect(() => {

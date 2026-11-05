@@ -108,6 +108,12 @@ describe("AJ-E2901 typing", () => {
     expect(groups().at(-1)).toBe("Search");
   });
 
+  it("a row named by what's typed starts active, even after a looser match in an earlier group", () => {
+    const { input } = openPalette();
+    fireEvent.change(input(), { target: { value: "alt" } });
+    expect(input().getAttribute("aria-activedescendant")).toBe("goto-option-project__p3");
+  });
+
   it("caps a group at 5 and says how many more", () => {
     const { view, input } = openPalette();
     fireEvent.change(input(), { target: { value: "al" } });
