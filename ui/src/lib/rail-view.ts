@@ -9,6 +9,7 @@
  * is:background is:quiet is:archived is:asks app: profile: account:
  * project: mac:`, then free text.
  */
+import { fuzzyMatch } from "./palette-match";
 import { useSyncExternalStore } from "react";
 import type { AccountOf, GroupBy } from "./rail-places";
 import { appName } from "./app-name";
@@ -247,8 +248,11 @@ export function matches(item: RailItem, only: RailView["only"], query: RailQuery
   }
   if (query.is.has("asks") && item.need === null) return false;
   if (query.text === "") return true;
-  const haystack = [item.title, item.project ?? "", item.place.app, item.place.profile ?? "", item.place.host ?? "", item.accountLabel, accountOf?.(item.accountId)?.label ?? "", item.tool, item.session?.git_branch ?? item.conversation?.git_branch ?? "", item.session?.model ?? ""]
-    .join(" ")
-    .toLowerCase();
-  return query.text.split(" ").every((word) => haystack.includes(word));
+  // AJ-E2901: the same loose match as ⌘K ("wrk" finds Work).
+  return fuzzyMatch(query.text, item.title, itemWords(item, accountOf)) !== null;
+}
+
+/** What else a row is found by besides its title (⌘K ranks by these too). */
+export function itemWords(item: RailItem, accountOf?: AccountOf): string[] {
+  return [item.project ?? "", item.place.app, item.place.profile ?? "", item.place.host ?? "", item.accountLabel, accountOf?.(item.accountId)?.label ?? "", item.tool, item.session?.git_branch ?? item.conversation?.git_branch ?? "", item.session?.model ?? ""].filter(Boolean);
 }

@@ -10,6 +10,7 @@
  */
 import { GLOBAL_NAV, type GlobalId } from "./nav";
 import { keysOf as registryKeysOf, type ShortcutId } from "./shortcuts";
+import { fuzzyMatch, rank } from "./palette-match";
 
 export type PaletteCommandIcon = "home" | "pool" | "tasks" | "screen" | "accounts" | "usage" | "history" | "processes" | "computer" | "settings" | "privacy" | "fleet" | "new" | "project" | "bell" | "keyboard" | "list" | "search";
 
@@ -97,13 +98,10 @@ export function appCommands(app: AppDoings): PaletteCommand[] {
   ];
 }
 
-/** Does every word typed match the command's label or its other words? */
+/** Does every word typed match the command's label or its other words
+ * (loosely, AJ-E2901: "nw ses" finds New session…)? */
 export function commandMatches(command: PaletteCommand, needle: string): boolean {
-  const hay = `${command.label} ${command.words ?? ""}`.toLowerCase();
-  return needle
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((word) => hay.includes(word));
+  return fuzzyMatch(needle, command.label, [command.words ?? ""]) !== null;
 }
 
 /** The commands for what's typed: the top ones before any typing, the
@@ -112,7 +110,7 @@ export function commandsFor(all: PaletteCommand[], needle: string, app: Pick<App
   const words = needle.trim();
   if (!words) return all.filter((command) => command.top);
   return [
-    ...all.filter((command) => commandMatches(command, words)),
+    ...rank(all, words, (command) => ({ title: command.label, other: [command.words ?? ""] })).map(({ item }) => item),
     { id: "search-history", label: `Search History for “${words}”`, icon: "search", run: () => app.searchHistory(words) },
   ];
 }

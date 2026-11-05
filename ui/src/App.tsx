@@ -15,7 +15,7 @@ import { useFirstRun } from "./lib/first-run";
 import { singleFlight, useLiveDeltas } from "./lib/live-deltas";
 import { useCleanupCount } from "./lib/cleanup-count";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { prefetchLazy } from "./lib/lazy";
+import { lazyNamed, prefetchLazy } from "./lib/lazy";
 import {
   ConversationPage, PortWarningSheet, ProcessesScreen, ThisMacPage, ShortcutSheet, History,
   AddProviderSheet, FirstRun, UsageScreen, LimitDialog, NewSessionModal, NewProjectSheet, FleetScreen,
@@ -23,7 +23,8 @@ import {
 } from "./lazyParts";
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
-import { GoToPalette, paletteSelection } from "./components/GoToPalette";
+import { paletteSelection } from "./components/PaletteActions";
+const GoToPalette = lazyNamed(() => import("./components/GoToPalette"), "GoToPalette"); // AJ-E2901: out of the first bundle
 import { routeOpen, useOutsideRequests } from "./lib/outside";
 import { useFloorLogos } from "./lib/floor-logos";
 import { GLOBAL_NAV, PRIMARY_NAV, focusPageIfLost, focusPageSoon, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
@@ -968,7 +969,7 @@ export default function App() {
           newSession: () => newSheet.show(), newProject: () => setNewProjectDir((current) => current ?? ""), notifications: () => setCentreOpen(true),
           shortcuts: () => setShortcutsOpen(true), toggleRail, searchHistory: (words) => (setHistoryQuery(words), setGlobal("history")), fleet: pairedCount > 0,
         }}
-        projects={projects}
+        projects={projects} accounts={accounts}
         onChanged={() => void refresh()}
       />
 

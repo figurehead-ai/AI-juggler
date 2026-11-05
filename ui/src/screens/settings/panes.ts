@@ -4,6 +4,7 @@
  * now lands. Apple's System Settings pattern: a sidebar of panes, each
  * with grouped sections.
  */
+import { SETTINGS_INDEX } from "./settings-index";
 
 export type PaneId =
   | "general"
@@ -98,6 +99,9 @@ export function targetOf(section: string | undefined, focusCloud = false): Setti
   if (!section) return null;
   const known = ANCHORS[section];
   if (known) return known;
+  // AJ-E2901: any indexed section (⌘K finds settings too).
+  const indexed = SETTINGS_INDEX.find((entry) => entry.anchor === section);
+  if (indexed) return { pane: indexed.pane, anchor: indexed.anchor };
   const pane = PANES.find((entry) => entry.id === section);
   return pane ? { pane: pane.id } : null;
 }

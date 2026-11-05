@@ -6,6 +6,7 @@
  * cache with its size and what it speeds up. Nothing in it is sent, and
  * all of it is rebuilt from the tools' files.
  */
+import { clearRecents } from "../../lib/palette-recents";
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { Disclosure, Picker, type PickerOption } from "../../components/controls";
@@ -154,6 +155,7 @@ export function LocalCacheSection(): JSX.Element {
           onClear={() => {
             setAsking(false);
             const freed = info.used_bytes;
+            clearRecents(); // AJ-E2901: ⌘K's Recent goes with it
             apply(cacheClear(), () => `Cleared ${cacheSize(freed)}.`);
           }}
         />

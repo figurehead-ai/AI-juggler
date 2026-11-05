@@ -92,7 +92,7 @@ describe("⌘K's own actions", () => {
     const { view, input } = open({ conversation: { accountId: "claude-work", id: "outside-1" }, host });
     return vi.waitFor(() => {
       expect(view.container.querySelector("[data-testid='goto-row-action::go-to']")).not.toBeNull();
-      expect(input.getAttribute("aria-label")).toBe("Actions for Refactor the settings screen, or search and go");
+      expect(input.getAttribute("aria-label")).toBe("Actions for Refactor the settings screen, or search, act or go");
     });
   });
 

@@ -11,7 +11,10 @@ import { ActionHostProvider } from "./ItemMenu";
 import type { ActionHost } from "../lib/actions";
 import type { InstanceInfo, ProjectInfo } from "../lib/bridge";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear(); // ⌘K's Recent
+});
 
 const live = (overrides: Partial<InstanceInfo> = {}): InstanceInfo =>
   ({
@@ -108,7 +111,9 @@ describe("AJ-E2106 ⌘K on a selected session", () => {
     expect(ids).toContain("goto-row-project::p1");
     expect(ids.some((id) => id?.startsWith("goto-row-action::"))).toBe(false);
     fireEvent.change(input, { target: { value: "stop" } });
-    expect(options().map((option) => option.getAttribute("data-testid"))).toEqual(["goto-row-action::stop"]);
+    // The action first; settings about stopping follow it (AJ-E2901).
+    expect(options().map((option) => option.getAttribute("data-testid"))[0]).toBe("goto-row-action::stop");
+    expect(options().filter((option) => option.getAttribute("data-testid")?.startsWith("goto-row-action::"))).toHaveLength(1);
     fireEvent.change(input, { target: { value: "alp" } });
     fireEvent.click(within(view.container).getByText("/w/alpha").closest("li")!);
     expect(host.openProjectById).toHaveBeenCalledWith("p1");
@@ -122,6 +127,6 @@ describe("AJ-E2106 ⌘K on a selected session", () => {
     cleanup();
     const none = open(null, appHost());
     expect(none.options().map((option) => option.getAttribute("data-testid"))).toEqual(["goto-row-s2"]);
-    expect(none.input.getAttribute("placeholder")).toBe("Go to a session or screen, or type what to do…");
+    expect(none.input.getAttribute("placeholder")).toBe("Search sessions, apps, projects and accounts, or type what to do…");
   });
 });

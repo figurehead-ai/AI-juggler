@@ -97,7 +97,7 @@ function cmdDigit(digits: number[], opts: { alt?: boolean } = {}) {
 export const SHORTCUTS = [
   // Anywhere
   { id: "help", owner: "app", area: "Anywhere", keys: ["?"], label: "Show these shortcuts", match: plain("?") },
-  { id: "palette", owner: "app", area: "Anywhere", keys: ["⌘K"], label: "Search and go to a session", match: cmd("k") },
+  { id: "palette", owner: "app", area: "Anywhere", keys: ["⌘K"], label: "Search, act or go", match: cmd("k") },
   // D-50 (the maintainer, 2026-10-28): ⌘N is New session, as deep/11 §3
   // says; New project moved to ⌘⇧N.
   { id: "new-session", owner: "app", area: "Anywhere", keys: ["⌘N"], label: "New session", match: cmd("n") },
