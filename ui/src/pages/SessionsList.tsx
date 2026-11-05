@@ -353,6 +353,9 @@ export function PagedSessions({
                 below={below?.(row)}
                 badge={badge?.(row)}
                 inApp={inApp}
+                // Under a heading that says its state ("Working"), the row
+                // doesn't say it again (the 0.4 review, 45).
+                stateSaid={group !== null && group.toLowerCase() === row.state.toLowerCase()}
               />
             </>
           );

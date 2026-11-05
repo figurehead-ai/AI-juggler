@@ -28,7 +28,7 @@ import type { InstanceInfo, LaunchRecipeInfo, ProjectInfo } from "../lib/bridge"
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { accountOfProfile, useSubscriptions } from "../lib/subscriptions";
 import { GoToButton, SessionChips, SessionMark, SessionWhere } from "./session/SessionHead";
-import { fromInstance } from "./session/model";
+import { fromInstance, sessionAppName } from "./session/model";
 import { Dot, SessionPoolChip, SessionToolChip } from "./session/HeaderDoors";
 import { ProjectChips } from "./project/ProjectChips";
 
@@ -177,6 +177,9 @@ export function InspectorHeader({
     kind === "instance" && instance && ENDED.includes(instance.status)
       ? (profiles.find((recipe) => recipe.id === instance.launch_recipe_id) ?? null)
       : null;
+  const resumable = kind === "instance" && instance !== null && ENDED.includes(instance.status);
+  // The hints only where both stand, and not in a folded header.
+  const hinted = resumable && relaunch !== null && !folded;
   const chips = (
     <>
       {model ? (
@@ -205,7 +208,7 @@ export function InspectorHeader({
         {/* 0.3: its tool and its pool, one click away; where it runs
             after its tool (the polish: it was a chip, beside a profile
             chip that said the account again). */}
-        {model && <SessionToolChip tool={instance.provider} />}
+        {model && <SessionToolChip tool={instance.provider} said={sessionAppName(model)} />}
         {model && (
           <>
             <SessionWhere model={model} now={now} />
@@ -266,30 +269,36 @@ export function InspectorHeader({
           Add app…
         </Button>
       )}
-      {/* AJ-E2908: the same conversation first, a fresh one beside it. */}
-      {kind === "instance" && instance && ENDED.includes(instance.status) && (
-        <ResumeButton
-          session={instance}
-          openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
-          onOpen={host.openSessionById}
-          onContinue={() => focusHandover()}
-        />
-      )}
+      {/* AJ-E2908: a fresh one, then the same conversation: Resume, the
+          primary, ends the row (the 0.4 review, 26). Side by side, each
+          says what it starts in a line under it. */}
       {relaunch && instance && (
-        <Button
-          size="sm"
-          variant="secondary"
-          title="Relaunch — fresh session, same launch settings and folder."
-          data-testid="header-relaunch"
-          onClick={() =>
-            onLaunch(relaunch, {
-              id: project?.id ?? "relaunch", root: instance.cwd ?? project?.root ?? "", name: project?.name ?? "relaunch", last_activity_ms: null,
-              active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false,
-            })
-          }
-        >
-          Relaunch
-        </Button>
+        <Hinted hint={hinted ? "Fresh conversation" : null} testId="header-relaunch-hint">
+          <Button
+            size="sm"
+            variant="secondary"
+            title="Relaunch — fresh session, same launch settings and folder."
+            data-testid="header-relaunch"
+            onClick={() =>
+              onLaunch(relaunch, {
+                id: project?.id ?? "relaunch", root: instance.cwd ?? project?.root ?? "", name: project?.name ?? "relaunch", last_activity_ms: null,
+                active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false,
+              })
+            }
+          >
+            Relaunch
+          </Button>
+        </Hinted>
+      )}
+      {resumable && instance && (
+        <Hinted hint={hinted ? "Same conversation" : null} testId="header-resume-hint">
+          <ResumeButton
+            session={instance}
+            openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
+            onOpen={host.openSessionById}
+            onContinue={() => focusHandover()}
+          />
+        </Hinted>
       )}
       {primaryAction ?? null}
       {menu}
@@ -309,6 +318,20 @@ export function InspectorHeader({
       folded={folded}
       onToggleFold={onToggleFold}
     />
+  );
+}
+
+/** An action with a one-line hint under it, in the hint's style; laid
+ * out of the row's flow, so the buttons beside it keep their line. */
+function Hinted({ hint, testId, children }: { hint: string | null; testId: string; children: ReactNode }) {
+  if (hint === null) return <>{children}</>;
+  return (
+    <span className="relative flex items-center gap-2">
+      {children}
+      <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-label text-muted" data-testid={testId}>
+        {hint}
+      </span>
+    </span>
   );
 }
 

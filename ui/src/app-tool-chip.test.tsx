@@ -1,5 +1,5 @@
 /**
- * AJ-E1025 (#80 review): the header's tool chip opens the tool's page
+ * AJ-E1025 (#80 review): an App page's tool chip opens the tool's page
  * (AJ-E3104) and leaves the header with it, so keyboard focus must follow
  * into the page — never drop to <body>.
  */
@@ -40,6 +40,11 @@ it("Enter on About Claude Code opens the tool's page, with focus on its tabs", a
     return found!;
   });
   await user.click(row);
+  // A session's header names its tool once, in its App chip ("Claude Code
+  // · …", the 0.4 review, 46): the tool's door is on its App's page.
+  await user.click(await view.findByTestId("session-account-menu"));
+  expect(view.queryByRole("button", { name: "About Claude Code" })).toBeNull();
+  await user.click(await view.findByTestId("session-account-open"));
   const chip = await view.findByRole("button", { name: "About Claude Code" });
   chip.focus();
   await user.keyboard("{Enter}");

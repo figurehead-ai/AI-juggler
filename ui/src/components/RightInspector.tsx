@@ -396,16 +396,10 @@ function InstanceOverview(props: PanelProps) {
     // Graph exists (E2) — no fabricated A→B links.
     const fields = (
       <div className={"flex flex-col gap-2 " + (isDesktop ? "" : "border-t border-hairline pt-3")} data-testid="instance-overview-fields">
-        {/* The header already says the state, the account and its low
-            runway (D-25); this row adds only when it ended and the
-            identity check. */}
+        {/* The header already says the state, the account, its low
+            runway (D-25) and when it ended (its chip; the 0.4 review,
+            46): this row adds only the identity check. */}
         <div className="flex flex-wrap items-center gap-1.5 text-label empty:hidden">
-          {["finished", "stopped", "failed", "handed_over"].includes(session.status) && session.last_activity_ms ? (
-            <span className="text-meta text-muted" data-testid="session-ended-stamp">
-              Ended{" "}
-              {new Date(session.last_activity_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
-            </span>
-          ) : null}
           {identityWords(session) && (
             <span data-testid="instance-identity" data-state={identityWords(session)!.state} className="min-w-0">
               {/* A verified sign-in is a chip; the longer sentences wrap as

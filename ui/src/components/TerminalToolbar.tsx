@@ -61,10 +61,15 @@ export function TerminalToolbar({
   const pill = PILL[connection];
   return (
     <div className="flex flex-wrap items-center gap-x-1 gap-y-1 border-b border-hairline bg-surface px-2 py-1" data-testid="terminal-toolbar">
-      <span className={`flex items-center gap-1.5 px-1.5 text-label font-medium ${pill.tone}`} data-testid="terminal-connection" data-connection={connection}>
-        <span aria-hidden="true" className={`size-1.5 rounded-full ${pill.dot}`} />
-        {pill.words}
-      </span>
+      {/* Ended, the page's state chip says so (and when): the pill only
+          in the terminal's own window, where there's no chip (the 0.4
+          review, 46). */}
+      {(connection !== "ended" || ownWindow) && (
+        <span className={`flex items-center gap-1.5 px-1.5 text-label font-medium ${pill.tone}`} data-testid="terminal-connection" data-connection={connection}>
+          <span aria-hidden="true" className={`size-1.5 rounded-full ${pill.dot}`} />
+          {pill.words}
+        </span>
+      )}
       <span className="min-w-0 flex-1 truncate px-1 text-label text-muted" role="status" data-testid="terminal-note">
         {note}
       </span>

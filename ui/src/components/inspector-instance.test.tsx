@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import { isHandoverShortcut, isStopShortcut } from "../lib/shortcuts";
+import { clock } from "../lib/time-words";
 import type {
   AccountInfo,
   InstanceInfo,
@@ -191,6 +192,25 @@ describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () =
     cleanup();
     const ended = shell(mk({ status: "finished" }));
     expect(ended.getByTestId("header-relaunch").textContent).toBe("Relaunch");
+  });
+
+  it("an ended session's header: Relaunch, then Resume last, each with its line under it (the 0.4 review, 26)", () => {
+    const ended = shell(mk({ status: "finished" }));
+    const relaunch = ended.getByTestId("header-relaunch");
+    const resume = ended.getByTestId("header-resume");
+    // The labels stay (AJ-E2908); Resume, the primary, ends the row.
+    expect(resume.textContent).toBe("Resume");
+    expect(relaunch.compareDocumentPosition(resume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ended.getByTestId("header-relaunch-hint").textContent).toBe("Fresh conversation");
+    expect(ended.getByTestId("header-resume-hint").textContent).toBe("Same conversation");
+  });
+
+  it("an ended session says when it ended once, in its state chip (the 0.4 review, 46)", () => {
+    const at = NOW - 5_000;
+    const ended = shell(mk({ status: "finished", last_activity_ms: at }));
+    expect(ended.getByTestId("session-state-chip").textContent).toBe(`Ended ${clock(at)}`);
+    expect(ended.queryByTestId("session-ended-stamp")).toBeNull();
+    expect(ended.container.textContent!.match(/Ended/g)).toHaveLength(1);
   });
 
   it("no tab of the session view shows a task or decision code (D-25)", () => {

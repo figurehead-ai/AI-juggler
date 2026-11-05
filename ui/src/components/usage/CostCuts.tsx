@@ -97,8 +97,10 @@ type SortBy = "cost" | "tokens";
 /** How sure an Account's estimate is. */
 function priceWords(row: UsageAccountCostInfo): string {
   if (row.usd == null) return row.io > 0 ? "No list price" : "—";
-  return row.unpriced ? "list price, but one model has none" : "list price";
+  return row.unpriced ? "list price, but one model has none" : LIST_PRICE;
 }
+
+const LIST_PRICE = "list price";
 
 /** Each Account: tokens, ~cost, its top project, how sure the price is. */
 export function CostByAccount({ data, busy, className = "" }: { data: UsageCostCutsInfo | null; busy: boolean; className?: string }): JSX.Element {
@@ -109,6 +111,9 @@ export function CostByAccount({ data, busy, className = "" }: { data: UsageCostC
     if (sort === "tokens") list.sort((a, b) => b.io - a.io || a.label.localeCompare(b.label));
     return list;
   }, [data, sort]);
+  // "list price" on every row says nothing the subtitle doesn't: the
+  // column only when a row's price differs (the 0.4 review, 58).
+  const priced = rows.some((row) => priceWords(row) !== LIST_PRICE);
   const header = (id: SortBy, label: string) => (
     <th scope="col" aria-sort={sort === id ? "descending" : "none"} className="px-2 py-1.5 text-right font-semibold">
       <button type="button" className="hover:text-ink" onClick={() => setSort(id)} data-testid={`cost-by-account-sort-${id}`}>
@@ -134,9 +139,11 @@ export function CostByAccount({ data, busy, className = "" }: { data: UsageCostC
                 <th scope="col" className="px-2 py-1.5 text-left font-semibold">
                   Mostly on
                 </th>
-                <th scope="col" className="px-2 py-1.5 text-left font-semibold">
-                  Price
-                </th>
+                {priced && (
+                  <th scope="col" className="px-2 py-1.5 text-left font-semibold">
+                    Price
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-hairline/60">
@@ -167,7 +174,7 @@ export function CostByAccount({ data, busy, className = "" }: { data: UsageCostC
                       <span className="text-muted">No project</span>
                     )}
                   </td>
-                  <td className="px-2 py-2 text-meta text-muted">{priceWords(row)}</td>
+                  {priced && <td className="px-2 py-2 text-meta text-muted">{priceWords(row)}</td>}
                 </tr>
               ))}
             </tbody>

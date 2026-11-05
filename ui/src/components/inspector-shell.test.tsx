@@ -194,7 +194,9 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     // The Sessions panel's own list (Overview's Open sessions is a list too).
     const panel = getByTestId("page-panel-sessions");
     expect(panel.querySelectorAll('[data-testid="page-session-row"]')).toHaveLength(1);
-    expect(panel.querySelector('[data-testid="page-sessions-count"]')!.textContent).toBe("1 session · 1 open");
+    // How many is the tab's and the facts line's, not said again over the
+    // list (the 0.4 review, 45).
+    expect(panel.querySelector('[data-testid="page-sessions-count"]')).toBeNull();
   });
 });
 

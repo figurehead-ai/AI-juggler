@@ -49,10 +49,14 @@ export function SessionPoolChip({ sessionId }: { sessionId: string }): JSX.Eleme
   );
 }
 
-export function SessionToolChip({ tool }: { tool: string }): JSX.Element | null {
+/** Its tool, a door to the tool's page; left out where `said` (the
+ * header's App chip, "Claude Code · Work") names the tool already (the
+ * 0.4 review, 46: "Claude Code" three times). */
+export function SessionToolChip({ tool, said = null }: { tool: string; said?: string | null }): JSX.Element | null {
   const host = useActionHost();
   const spec = useTools().find((entry) => entry.id === tool);
   if (!spec || !host.openTool) return null;
+  if (said !== null && said.includes(spec.display_name)) return null;
   return (
     // Its mark and its name: the chips name the app it runs in, never the
     // tool, and a bare mark read as an unlabelled icon (the 0.3

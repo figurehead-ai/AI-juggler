@@ -462,10 +462,11 @@ test("inspector — Session header actions, disabled-with-reason", async ({ page
 test("inspector — Session Overview ended stamp", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  // An ended session (sess-7 stopped): its overview carries the stamp.
+  // An ended session (sess-7 stopped): its state chip says when (design
+  // review #46: "Ended" once, there, not a stamp on the overview too).
   // The rail's row (Home's recent rows carry the session's id too, AJ-E3103).
   await page.getByTestId("rail").locator('[data-instance-id="sess-7"]').click();
-  await expect(page.getByTestId("session-ended-stamp")).toContainText("Ended");
+  await expect(page.getByTestId("session-state-chip")).toContainText("Ended");
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/session-overview.png") });
 });
 

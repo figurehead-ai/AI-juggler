@@ -174,8 +174,15 @@ describe("AJ-E3103 K2 by all pairs: page × size × filter × search", () => {
       expect(shownKeys()).toEqual([]);
       return;
     }
-    // The count equals the list (and the reference).
-    await waitFor(() => expect(screen.getByTestId("page-sessions-count").textContent).toMatch(new RegExp(`^${want.length} sessions?\\b`)));
+    // Narrowed, the count line equals the list (and the reference); the
+    // whole list's count is the page's and its tab's, never said a third
+    // time above it (the 0.4 review, 45).
+    if (filter !== "none" || search) {
+      await waitFor(() => expect(screen.getByTestId("page-sessions-count").textContent).toMatch(new RegExp(`^${want.length} sessions?\\b`)));
+    } else {
+      await waitFor(() => expect(shownKeys().length).toBeGreaterThan(0));
+      expect(screen.queryByTestId("page-sessions-count")).toBeNull();
+    }
     const shown = shownKeys();
     expect(shown.length).toBeGreaterThanOrEqual(Math.min(want.length, 10));
     // The order: needs you, working, open, recent, rest; newest first.
@@ -228,7 +235,12 @@ describe("AJ-E3103 the one list", () => {
     expect(row.querySelector("[data-testid='page-session-title']")!.textContent).toBe("Task 1");
     expect(row.querySelector("[data-testid='page-session-project']")!.textContent).toBe("storefront");
     expect(row.querySelector("[data-testid='page-session-app']")!.textContent).toContain("Claude Code · Side");
-    expect(row.querySelector("[data-testid='page-session-state']")!.textContent).toBe("Working");
+    // Under "Working", it doesn't say "Working" again (the 0.4 review,
+    // 45); under "Needs you", the row says why.
+    expect(row.querySelector("[data-testid='page-session-state']")).toBeNull();
+    expect(row.querySelector(".sr-only")!.textContent).toMatch(/^Working, /);
+    const asks = document.querySelector<HTMLElement>("[data-key='s/s0']")!;
+    expect(asks.querySelector("[data-testid='page-session-state']")!.textContent).toBe("Asks you");
     await act(async () => {
       fireEvent.click(row.querySelector("[data-testid='page-session-row']")!);
     });

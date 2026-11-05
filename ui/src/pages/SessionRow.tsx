@@ -49,6 +49,7 @@ export function ListRow({
   below,
   badge,
   inApp = false,
+  stateSaid = false,
   now = Date.now(),
 }: {
   row: Row;
@@ -56,6 +57,8 @@ export function ListRow({
   below?: ReactNode;
   badge?: ReactNode;
   inApp?: boolean;
+  /** Its section's heading says its state already: no state word. */
+  stateSaid?: boolean;
   now?: number;
 }): JSX.Element {
   const title = useShownTitle(row, project !== null);
@@ -71,6 +74,7 @@ export function ListRow({
       menuKind={row.item.kind}
       within={{ app: inApp, project: project === null }}
       trailing={badge}
+      stateSlot={stateSaid ? null : undefined}
       below={below}
       data={{ "data-key": row.key }}
     />

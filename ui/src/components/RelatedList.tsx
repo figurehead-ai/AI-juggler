@@ -192,6 +192,9 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
           }
         }}
         inApp={props.inApp}
+        // The page's facts and its tab say how many: the count line only
+        // over a search or a filter's rows (the 0.4 review, 45).
+        counted={!narrowed}
         ordered
       />
     </div>

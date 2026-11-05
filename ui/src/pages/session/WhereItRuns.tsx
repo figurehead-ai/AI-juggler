@@ -1,19 +1,17 @@
 /**
- * AJ-E2108 — a session page's "Where it runs": its App (D-62: the app in
- * its profile, or the tool on its folder), the terminal or editor a CLI
- * one runs in, its window, account, model and working folder, only the
- * ones it knows; then whatever the page adds (a session AI Juggler runs:
- * its project and its details).
+ * AJ-E2108 — a session page's "Where it runs": the terminal or editor a
+ * CLI one runs in, its window, account, model and working folder, only
+ * the ones it knows; then whatever the page adds (a session AI Juggler
+ * runs: its project and its details). Its App (D-62) is the header's
+ * App chip, a door to the App's page: said once (the 0.4 review, 46).
  */
-import { appIdOfSession } from "./AccountMenu";
-import { openApp } from "../../lib/apps";
 import { openAccount } from "../../lib/accounts-page";
-import { useKnownPlaces } from "../../lib/places";
+import { modelName } from "../../components/charts/colors";
 import type { JSX, ReactNode } from "react";
 import { Card } from "../../components/primitives";
 import { shortPath } from "../../screens/AccountManage";
 import { CardTitle } from "./CardTitle";
-import { sessionAppName, sessionHost, type SessionModel } from "./model";
+import { sessionHost, type SessionModel } from "./model";
 import { useLastPlace } from "../../lib/places";
 
 export function WhereItRuns({
@@ -43,19 +41,16 @@ export function WhereItRuns({
   // Where its window is: a CLI App's terminal or editor; not open now, the
   // last one known. A desktop App's window is the App itself.
   const runsIn = host ?? (desktop ? null : model.live ? "Not known" : last ? `Not open now · last in ${last.app}` : "Not open now");
-  // D-62 (AJ-E3206, A3): its App and its Account open their pages.
-  const places = useKnownPlaces();
-  const appId = appIdOfSession(model, places);
+  // D-62 (AJ-E3206, A3): its Account opens its page.
   const doors: Record<string, (() => void) | undefined> = {
-    App: appId ? () => openApp(appId) : undefined,
     Account: accountId ? () => openAccount(accountId) : undefined,
   };
   const rows: [string, string, boolean?][] = [
-    ["App", sessionAppName(model)],
     ...(runsIn ? ([["Runs in", runsIn]] as [string, string][]) : []),
     ...(place?.instance ? ([["Window", place.label]] as [string, string][]) : []),
     ...(accountWords ? ([["Account", accountWords]] as [string, string][]) : []),
-    ...(model.model ? ([["Model", model.model, true]] as [string, string, boolean][]) : []),
+    // The model as people say it ("Sonnet"), never its id.
+    ...(model.model ? ([["Model", modelName(model.model)]] as [string, string][]) : []),
     ...(model.cwd ? ([["Folder", shortPath(model.cwd), true]] as [string, string, boolean][]) : []),
   ];
   return (

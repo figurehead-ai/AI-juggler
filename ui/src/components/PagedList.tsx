@@ -36,6 +36,9 @@ export type PagedListProps<T> = {
   /** Scroll in a box of this height instead of with the page (px, or a
    * CSS length such as "min(30rem, 50vh)"). */
   maxHeight?: number | string;
+  /** Plain rows, no box of their own (a list that is a sheet's whole
+   * content, under its columns' headings). */
+  plain?: boolean;
   className?: string;
   testId?: string;
 };
@@ -70,6 +73,7 @@ export function PagedList<T>({
   empty,
   skeletonRows = 6,
   maxHeight,
+  plain = false,
   className = "",
   testId = "paged-list",
 }: PagedListProps<T>): JSX.Element {
@@ -171,7 +175,7 @@ export function PagedList<T>({
 
   if (list.loading) {
     return (
-      <ul aria-label={label} aria-busy="true" className={"overflow-hidden rounded-xl border border-hairline bg-surface " + className} data-testid={`${testId}-skeleton`}>
+      <ul aria-label={label} aria-busy="true" className={(plain ? "overflow-hidden " : "overflow-hidden rounded-xl border border-hairline bg-surface ") + className} data-testid={`${testId}-skeleton`}>
         {Array.from({ length: skeletonRows }, (_, i) => (
           <li key={i} aria-hidden="true" className="flex items-center gap-3 border-t border-hairline/60 px-4 first:border-t-0" style={{ height: rowHeight }}>
             <span className="size-2 shrink-0 animate-pulse rounded-full bg-skeleton" />
@@ -197,7 +201,7 @@ export function PagedList<T>({
   return (
     // A box that scrolls on its own can be reached by keyboard, even when its rows hold nothing focusable (WCAG 2.1.1).
     <div ref={box} className={className} style={maxHeight !== undefined ? { maxHeight, overflowY: "auto" } : undefined} {...(maxHeight !== undefined ? { tabIndex: 0, role: "region", "aria-label": label } : {})} data-testid={testId} data-stale={list.stale ? "true" : undefined}>
-      <ul ref={listRef} aria-label={label} aria-busy={list.stale || loadingMore ? "true" : undefined} className="overflow-hidden rounded-xl border border-hairline bg-surface" onKeyDown={onKeyDown} style={{ paddingTop: offsets[from], paddingBottom: totalHeight - offsets[to]! }}>
+      <ul ref={listRef} aria-label={label} aria-busy={list.stale || loadingMore ? "true" : undefined} className={plain ? "overflow-hidden" : "overflow-hidden rounded-xl border border-hairline bg-surface"} onKeyDown={onKeyDown} style={{ paddingTop: offsets[from], paddingBottom: totalHeight - offsets[to]! }}>
         {shownRows.map((row, i) => {
           const index = from + i;
           const key = keyOf(row);

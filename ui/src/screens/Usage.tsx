@@ -99,7 +99,9 @@ export function UsageScreen({
         </>
       )}
 
-      <div className="grid grid-cols-1 gap-grid xl:grid-cols-2">
+      {/* Each a full line, as every card above (the 0.4 review, 37: a
+          half-width Monthly caps left an empty half beside it). */}
+      <div className="grid grid-cols-1 gap-grid" data-testid="usage-caps-row">
         {profiles > 0 && <BudgetCaps accounts={accounts} projects={projects} />}
         <MachineUsageCard />
       </div>

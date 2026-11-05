@@ -8,10 +8,13 @@ import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CostByAccount, CostCutTiles, perTask, priceListWords } from "./CostCuts";
 import { CostReview } from "./CostReview";
+import { WastedSheet } from "./WastedSheet";
 import { ActionHostProvider } from "../ItemMenu";
 import { firstDayOfWeek, lastFullWeek, weekWords } from "../../lib/usage/week";
 import type { UsageCostCutsInfo, UsageQueryInput } from "../../lib/ipc/usageHistory";
 import * as costs from "../../lib/ipc/costs";
+import * as usage from "../../lib/ipc/usageHistory";
+import { pageOf } from "../../lib/paged";
 
 afterEach(() => {
   cleanup();
@@ -58,6 +61,27 @@ describe("AJ-E2902 the tiles", () => {
   });
 });
 
+describe("the 0.4 review, 37: the crashed-or-stuck sheet", () => {
+  it("plain rows under its headings, what happened in a column of its own", async () => {
+    const session = (id: string) => ({ profile: "acc-x", id, session_id: null, tool: "claude-code", title: `Task ${id}`, project_id: null, io: 1000, cache: 0, usd: 1, first_ms: 0, last_ms: 1, messages: 3 });
+    vi.spyOn(usage, "usageHistoryWasted").mockImplementation(async (_input, page) =>
+      pageOf([{ session: session("a"), why: "crashed" as const }, { session: session("b"), why: "stuck" as const }], page),
+    );
+    const view = render(<WastedSheet input={INPUT} count={2} onClose={() => null} />);
+    const rows = await view.findAllByTestId("usage-wasted-row");
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const state = within(row).getByTestId("usage-wasted-state");
+      expect(state.textContent).toBe(row.dataset.why === "crashed" ? "Crashed" : "Probably stuck");
+      // Its own column: beside the session's, never a line under it.
+      expect(state.parentElement).toBe(row);
+      expect(row.querySelectorAll("p")).toHaveLength(0);
+    }
+    // No box inside the sheet's box.
+    expect(view.getByRole("list", { name: "Sessions that crashed or were probably stuck" }).className).not.toContain("border");
+  });
+});
+
 describe("AJ-E2902 cost by account", () => {
   it("each account with ~cost, its top project and how sure the price is; sorts by tokens", () => {
     const openProjectById = vi.fn();
@@ -76,6 +100,17 @@ describe("AJ-E2902 cost by account", () => {
     expect(openProjectById).toHaveBeenCalledWith("p-aij");
     fireEvent.click(view.getByTestId("cost-by-account-sort-tokens"));
     expect(rows()[0]!.querySelector("th")!.textContent).toBe("PersonalCodex");
+  });
+
+  it("has no Price column while every row is at list price, and shows it when one differs (the 0.4 review, 58)", () => {
+    const listed = cuts({ by_account: cuts().by_account.map((row) => ({ ...row, unpriced: false })) });
+    const plain = render(<CostByAccount data={listed} busy={false} />);
+    expect(plain.queryByRole("columnheader", { name: "Price" })).toBeNull();
+    expect(plain.getByTestId("cost-by-account").textContent).not.toContain("list price");
+    cleanup();
+    const differs = render(<CostByAccount data={cuts()} busy={false} />);
+    expect(differs.getByRole("columnheader", { name: "Price" })).toBeTruthy();
+    expect(differs.getAllByTestId("cost-by-account-row")[0]!.textContent).toContain("list price");
   });
 
   it("names the price list, and says so when some prices are the user's", () => {
