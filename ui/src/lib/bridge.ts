@@ -597,59 +597,8 @@ export async function createAccount(
  * result so the wizard is reviewable in a plain browser.
  */
 export async function environmentScan(): Promise<DiscoveredInfo[]> {
-  if (!hasBackend) {
-    return [
-      {
-        harness: "claude-code",
-        path: "/Users/you/.claude",
-        origin: "vendor-default",
-        login: "logged_in",
-        bytes: 48_000_000,
-        last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
-        managed: false,
-        in_use: [],
-        inference: {
-          purpose: "Main",
-          purpose_confidence: "guessed",
-          login: "signed-in",
-          login_confidence: "found",
-          activity: "active",
-          activity_confidence: "found",
-          activity_words: "Active this week",
-          keychain_bound: false,
-        },
-        signals: ["vendor-default"],
-        notes: [
-          "Claude Code's standard location — what a plain `claude` command uses.",
-          "Signed in — importing keeps your settings and session history.",
-        ],
-      },
-      {
-        harness: "claude-code",
-        path: "/Users/you/.claude-side",
-        origin: "home-pattern",
-        login: "logged_out",
-        bytes: 1_200_000,
-        last_used_secs: Math.floor(Date.now() / 1000) - 2_592_000,
-        managed: false,
-        in_use: [],
-        inference: {
-          purpose: "Personal",
-          purpose_confidence: "likely",
-          login: "not-signed-in",
-          login_confidence: "found",
-          activity: "dormant",
-          activity_confidence: "found",
-          activity_words: "Dormant 30 d",
-          keychain_bound: false,
-        },
-        signals: ["home-pattern"],
-        notes: [
-          "A separate Claude configuration — created manually, by another tool, or by an AI assistant.",
-        ],
-      },
-    ];
-  }
+  // The same two setups as the full scan's preview report.
+  if (!hasBackend) return DEFAULT_SCAN_REPORT.installs;
   return invoke<DiscoveredInfo[]>("environment_scan");
 }
 
@@ -3784,6 +3733,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       harness: "claude-code",
       path: "/Users/you/.claude",
       origin: "vendor-default",
+      set_by: null,
       login: "logged_in",
       bytes: 48_000_000,
       last_used_secs: Math.floor(Date.now() / 1000) - 86_400,
@@ -3792,11 +3742,14 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       notes: ["Claude Code's standard location — what a plain `claude` command uses."],
       inference: {
         purpose: "Main",
-        purpose_confidence: "guessed",
+        purpose_confidence: "found",
+        purpose_rule: "usual-folder",
         login: "signed-in",
         login_confidence: "found",
+        login_rule: "sign-in-present",
         activity: "active",
         activity_confidence: "found",
+        activity_rule: "newest-conversation",
         activity_words: "Active this week",
         keychain_bound: false,
       },
@@ -3806,6 +3759,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       harness: "claude-code",
       path: "/Users/you/.claude-side",
       origin: "home-pattern",
+      set_by: null,
       login: "logged_out",
       bytes: 1_200_000,
       last_used_secs: Math.floor(Date.now() / 1000) - 40 * 86_400,
@@ -3815,10 +3769,13 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       inference: {
         purpose: "Personal",
         purpose_confidence: "likely",
+        purpose_rule: "name-word",
         login: "not-signed-in",
         login_confidence: "found",
+        login_rule: "no-sign-in",
         activity: "dormant",
         activity_confidence: "found",
+        activity_rule: "newest-conversation",
         activity_words: "Dormant 40 d",
         keychain_bound: false,
       },

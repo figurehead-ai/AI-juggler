@@ -5,6 +5,7 @@
 
 pub mod commands;
 pub mod dto;
+pub mod scan_wire;
 
 pub use dto::{SetupGroupInfo, ToolFlowInfo, ToolSpecInfo, ToolSupportsInfo, ToolTermsInfo};
 

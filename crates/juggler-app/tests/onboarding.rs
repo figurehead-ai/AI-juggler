@@ -374,6 +374,7 @@ fn alias_and_pattern_merge_into_one_candidate() {
         harness: "claude-code".to_owned(),
         path: dir.to_string_lossy().into_owned(),
         origin: "home-pattern".to_owned(),
+        set_by: None,
         login: "logged_out".to_owned(),
         bytes: 0,
         last_used_secs: None,

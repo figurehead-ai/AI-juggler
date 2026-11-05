@@ -16,9 +16,15 @@ harness: string,
  */
 path: string, 
 /**
- * `vendor-default` | `env-override` | `home-pattern`.
+ * `vendor-default` | `env-override` | `home-pattern` |
+ * `shell-alias` | `other-manager`.
  */
 origin: string, 
+/**
+ * AJ-E2906: the other app whose settings point at this folder
+ * (`other-manager`), for "named by …".
+ */
+set_by: string | null, 
 /**
  * `logged_in` | `logged_out`.
  */

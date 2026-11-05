@@ -37,4 +37,18 @@ activity_words: string,
  * True when the login lives in the OS keychain (the re-login
  * caveat copy applies after import).
  */
-keychain_bound: boolean, };
+keychain_bound: boolean, 
+/**
+ * AJ-E2906: the rule that decided the purpose: `usual-folder` |
+ * `other-app` | `name-word` | `folder-name` (words in the UI).
+ */
+purpose_rule: string, 
+/**
+ * `sign-in-present` | `system-keychain` | `sign-in-empty` |
+ * `no-sign-in`.
+ */
+login_rule: string, 
+/**
+ * `newest-conversation` | `no-conversations`.
+ */
+activity_rule: string, };
