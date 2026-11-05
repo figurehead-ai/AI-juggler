@@ -449,7 +449,8 @@ fn run(app: &tauri::AppHandle) -> String {
     // must not grow with each (a leak) — the system's allocator may keep
     // some of what was freed for reuse.
     set_motion(app, "full");
-    for _ in 0..3 {
+    let mut cycles = Vec::new();
+    for _ in 0..6 {
         let _ = window::open(app);
         std::thread::sleep(Duration::from_secs(3));
         on_top(app);
@@ -459,6 +460,8 @@ fn run(app: &tauri::AppHandle) -> String {
                 let _ = floor.close();
             }
         });
+        std::thread::sleep(Duration::from_secs(3));
+        cycles.push(footprint_mb(std::process::id()));
     }
     std::thread::sleep(Duration::from_secs(if quick { 5 } else { 20 }));
     let closed_again = read();
@@ -509,6 +512,7 @@ fn run(app: &tauri::AppHandle) -> String {
         "footprint_open_still_mb": r1(still.footprint_mb),
         "footprint_closed_mb": r1(closed.footprint_mb),
         "footprint_closed_after_3_more_mb": r1(closed_again.footprint_mb),
+        "footprint_after_each_more_mb": cycles.iter().map(|mb| r1(*mb)).collect::<Vec<_>>(),
         "memory_closed_after_3_more": top(&memory_closed_again),
         "full_memory_marks": memory.iter().map(|(s, mb)| serde_json::json!({ "at_s": s, "footprint_mb": r1(*mb) })).collect::<Vec<_>>(),
         "news": super::NEWS.lock().map(|n| n.clone()).unwrap_or_default(),

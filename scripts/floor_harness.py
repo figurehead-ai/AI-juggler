@@ -174,7 +174,15 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
          f"{data['footprint_closed_mb'] - before:+.0f} MB (the system's allocator keeps freed blocks for reuse)",
          data["footprint_closed_mb"] - before <= 10),
     ]
-    if "footprint_closed_after_3_more_mb" in data:
+    if data.get("footprint_after_each_more_mb"):
+        each = data["footprint_after_each_more_mb"]
+        # A leak grows every time; the allocator's cache settles. Judged on
+        # the last three of six more opens and closes.
+        late = each[-1] - each[-4] if len(each) >= 4 else each[-1] - each[0]
+        rows.append(("Opened and closed 6 more times", f"the last 3 add ≤ {LEAK_MB} MB (no leak)",
+                     " → ".join(f"{mb:.0f}" for mb in each) + f" MB ({late:+.0f} over the last 3)",
+                     late <= LEAK_MB))
+    elif "footprint_closed_after_3_more_mb" in data:
         grew = data["footprint_closed_after_3_more_mb"] - data["footprint_closed_mb"]
         rows.append(("Opened and closed 3 more times", f"grows ≤ {LEAK_MB} MB (no leak)",
                      f"{grew:+.0f} MB", grew <= LEAK_MB))

@@ -33,8 +33,6 @@ pub const EVENT_CHANGED: &str = "floor://changed";
 pub const SOURCES: &[&str] = &[
     crate::EVENT_SESSIONS_UPDATED,
     crate::EVENT_SESSIONS_QUOTA,
-    crate::EVENT_THIS_MAC,
-    crate::features::processes::EVENT_CHANGED,
     crate::features::tasks::EVENT_CHANGED,
     crate::features::notifications::views::EVENT_CHANGED,
     crate::features::conversations::EVENT_CHANGED,
@@ -42,12 +40,26 @@ pub const SOURCES: &[&str] = &[
     crate::features::places::EVENT_CHANGED,
 ];
 
+/// The events that come every few seconds with readings (the processes'
+/// CPU, This Mac's load): what they change shows in steps over minutes (a
+/// fire after 2 minutes hot, the rack's tenths), so they rebuild the
+/// snapshot at most every [`SLOW_EVERY`] (SPEC §9.7: next to nothing at
+/// rest).
+pub const SLOW_SOURCES: &[&str] = &[
+    crate::EVENT_THIS_MAC,
+    crate::features::processes::EVENT_CHANGED,
+];
+
+/// How often the readings may rebuild the snapshot.
+pub const SLOW_EVERY: std::time::Duration = std::time::Duration::from_secs(10);
+
 /// The Floor's state in [`AppState`].
 #[derive(Default)]
 pub struct Floor {
     app: OnceLock<tauri::AppHandle>,
     started: AtomicBool,
     stale: Arc<AtomicBool>,
+    stale_slow: Arc<AtomicBool>,
     last: RwLock<Option<Arc<FloorSnapshot>>>,
     hot: Mutex<BTreeMap<String, i64>>,
     subscribers: Mutex<Vec<Subscriber>>,
@@ -257,6 +269,11 @@ fn start(state: &Arc<AppState>, app: tauri::AppHandle) {
         let mark = Arc::clone(&state.floor.stale);
         app.listen_any(*name, move |_| mark.store(true, Ordering::Release));
     }
+    for name in SLOW_SOURCES {
+        let mark = Arc::clone(&state.floor.stale_slow);
+        app.listen_any(*name, move |_| mark.store(true, Ordering::Release));
+    }
+    let mut slow_at = std::time::Instant::now();
     let weak = Arc::downgrade(state);
     // poll: drains the stale mark the events set, so a burst of them
     // rebuilds the snapshot once (at most 4 a second); ends with the app.
@@ -267,7 +284,12 @@ fn start(state: &Arc<AppState>, app: tauri::AppHandle) {
             let Some(state) = weak.upgrade() else {
                 return false;
             };
-            if state.floor.stale.swap(false, Ordering::AcqRel) {
+            let slow = slow_at.elapsed() >= SLOW_EVERY
+                && state.floor.stale_slow.swap(false, Ordering::AcqRel);
+            if slow {
+                slow_at = std::time::Instant::now();
+            }
+            if state.floor.stale.swap(false, Ordering::AcqRel) | slow {
                 // The 2 s process tick marks it stale often: only a real
                 // change wakes the Floor and the window.
                 if let Ok(snapshot) = rebuild(&state)
