@@ -260,7 +260,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     session_cost_usd: 0.19,
     priced_model: "opus",
     quota_forecast: "Not using its limit right now",
-    stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 },
+    stuck: { rule: "stuck_no_output", inputs: ["no output 8m", "threshold 5m", "cpu 0.3%", "transcript stale 8m"], since_ms: Date.now() - 8 * 60_000 }, stuck_episodes: 1, end_context: null,
   },
   "sess-2": {
     tokens_bars: [420, 510, 380, 600, 540],
@@ -273,7 +273,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     session_cost_usd: 0.69,
     priced_model: "opus",
     quota_forecast: "Not using its limit right now",
-    stuck: null,
+    stuck: null, stuck_episodes: 0, end_context: null,
   },
   "sess-live-1": {
     tokens_bars: [420, 510, 380, 600, 540],
@@ -286,7 +286,7 @@ const MOCK_QUALITY: Record<string, QualitySignalsInfo> = {
     session_cost_usd: 0.69,
     priced_model: "opus",
     quota_forecast: "Not using its limit right now",
-    stuck: null,
+    stuck: null, stuck_episodes: 0, end_context: null,
   },
 };
 

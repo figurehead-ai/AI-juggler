@@ -59,7 +59,7 @@ pub fn outcomes(storage: &juggler_core::storage::Storage) -> AppResult<HashMap<S
         let id = record.id.to_string();
         let from_stuck = last
             .get(&id)
-            .is_some_and(|(from, _)| from.as_deref() == Some(SessionStatus::Stuck.as_str()));
+            .is_some_and(|(from, _, _)| from.as_deref() == Some(SessionStatus::Stuck.as_str()));
         let outcome = match record.status {
             SessionStatus::Finished => Some(Outcome::Finished),
             SessionStatus::Failed => Some(Outcome::Crashed),

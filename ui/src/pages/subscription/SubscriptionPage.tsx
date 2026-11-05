@@ -21,6 +21,7 @@ import { PageHeader, PageShell, showTab } from "../PageShell";
 import { pageTabs } from "../registry";
 import { RelatedList } from "../../components/RelatedList";
 import { AccountLimits } from "../AccountPage";
+import { AccountQuality } from "../account/Quality";
 import { AppProjects, MoreLink, ProjectRows, RowList, rowOf, type Shown } from "../app/AppOverview";
 import { AccountAppRows } from "./AccountApps";
 import { AccountSettings } from "./AccountSettings";
@@ -235,6 +236,7 @@ function AccountOverview({
   return (
     <div className="@container flex w-full max-w-content flex-col gap-grid" data-testid="account-overview">
       {limits && <AccountLimits account={limits} now={now} tone="colour" />}
+      <AccountQuality folders={sub.profiles.map((profile) => profile.id)} />
       <Section
         title="Its apps"
         icon={<IconProfiles width={16} height={16} />}

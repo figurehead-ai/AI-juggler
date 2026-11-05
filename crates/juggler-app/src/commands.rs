@@ -1062,6 +1062,11 @@ pub struct QualitySignalsInfo {
     pub quota_forecast: String,
     /// The AJ-E405 stuck rule + inputs, when tripped (permanent `?`).
     pub stuck: Option<AttentionInfo>,
+    /// AJ-E2903: times it went probably stuck (AI Juggler's recorded states).
+    pub stuck_episodes: u32,
+    /// AJ-E2903: its context at the end, as kept when it ended.
+    #[ts(type = "[number, number] | null")]
+    pub end_context: Option<(u64, u64)>,
 }
 
 /// I-10: why an Instance needs its user (`null` when it does not).
@@ -2732,6 +2737,7 @@ pub(crate) fn engine_usage_snapshot(
                     .map(juggler_core::model::Timestamp::from_millis),
             }),
             confidence: five_hour.confidence,
+            at_end: None,
         },
         None => juggler_core::model::UsageSnapshot::default(),
     }
@@ -3927,12 +3933,12 @@ fn scan_rollout_line(
 }
 
 /// Aggregated transcript facts feeding the quality signals.
-struct TranscriptScan {
+pub(crate) struct TranscriptScan {
     events: Vec<juggler_core::quality::UsageEvent>,
-    errors: u64,
-    turns: u64,
-    context_used: Option<u64>,
-    context_window: Option<u64>,
+    pub(crate) errors: u64,
+    pub(crate) turns: u64,
+    pub(crate) context_used: Option<u64>,
+    pub(crate) context_window: Option<u64>,
     /// Codex usage rows already counted (thread/turn/response): a forked
     /// or resumed rollout repeats its parent's rows.
     rollout_seen: std::collections::BTreeSet<String>,
@@ -4005,7 +4011,7 @@ mod rollout_scan_tests {
 /// timestamps, error markers and the last reported context pair.
 /// Fixture-compatible shapes; Claude transcripts carry `timestamp` +
 /// `usage` on assistant lines.
-fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
+pub(crate) fn scan_transcript(record: &SessionRecord, now: i64) -> TranscriptScan {
     let mut scan = TranscriptScan {
         events: Vec::new(),
         errors: 0,
@@ -4097,12 +4103,16 @@ pub fn instance_quality_impl(
     state: &Arc<AppState>,
     session_id: &str,
 ) -> AppResult<QualitySignalsInfo> {
-    let (record, provider) = {
+    let (record, provider, stuck_episodes) = {
         let storage = lock_storage_arc(state)?;
         let record = storage
             .sessions()
             .get(&SessionId::new(session_id))
             .map_err(AppError::from)?;
+        let stuck_episodes = storage
+            .sessions()
+            .transitions(&record.id)
+            .map_or(0, |rows| rows.iter().filter(|row| row.1 == "stuck").count());
         let recipe = storage.profiles().get(&record.profile).ok();
         let provider = storage
             .accounts()
@@ -4115,7 +4125,7 @@ pub fn instance_quality_impl(
                     .map(|a| a.harness.to_string())
             })
             .unwrap_or_default();
-        (record, provider)
+        (record, provider, stuck_episodes)
     };
     let now = Timestamp::now().millis();
     let scan = scan_transcript(&record, now);
@@ -4172,6 +4182,11 @@ pub fn instance_quality_impl(
             inputs: reason.inputs.clone(),
             since_ms: reason.since_ms,
         }),
+        stuck_episodes: u32::try_from(stuck_episodes).unwrap_or(u32::MAX),
+        end_context: record
+            .usage
+            .at_end
+            .and_then(|end| end.context_used.zip(end.context_window)),
     })
 }
 
@@ -4184,6 +4199,7 @@ pub fn instance_quality_impl(
 pub fn emit_sessions(app: &tauri::AppHandle, state: &Arc<AppState>) -> AppResult<()> {
     use tauri::Emitter;
     crate::features::relations::changed(state, crate::features::relations::Change::SessionsUpdated);
+    crate::features::quality::settle_soon(state); // AJ-E2903: keep the ended ones' figures
     let _ = app.emit(crate::EVENT_SESSIONS_UPDATED, ());
     Ok(())
 }
@@ -11148,6 +11164,7 @@ mod tests {
                 resets_at: Some(Timestamp::from_millis(1_700_010_000_000)),
             }),
             confidence: Confidence::Computed,
+            at_end: None,
         };
         storage.sessions().insert(&full).expect("seed full");
 

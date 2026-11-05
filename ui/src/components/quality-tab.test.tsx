@@ -28,6 +28,23 @@ const { qualityMock } = vi.hoisted(() => {
       priced_model: "opus",
       quota_forecast: "Not using its limit right now",
       stuck: { rule: "stuck_no_output", inputs: ["no output 6m", "cpu 0.3%"], since_ms: NOW - 6 * 60_000 },
+      stuck_episodes: 1,
+      end_context: null,
+    },
+    ended: {
+      tokens_bars: [0, 0, 0, 0, 0],
+      avg_tokens_per_min: 0,
+      error_label: "2 errors / 41 turns",
+      errors_not_measurable: false,
+      context_used: null,
+      context_window: null,
+      cumulative: { input: 900, output: 300, cache_read: 0, cache_write: 0, reasoning: 0 },
+      session_cost_usd: null,
+      priced_model: null,
+      quota_forecast: "Not using its limit right now",
+      stuck: null,
+      stuck_episodes: 2,
+      end_context: [142_000, 200_000],
     },
     idle: {
       tokens_bars: [0, 0, 0, 0, 0],
@@ -41,6 +58,8 @@ const { qualityMock } = vi.hoisted(() => {
       priced_model: null,
       quota_forecast: "Not using its limit right now",
       stuck: null,
+      stuck_episodes: 0,
+      end_context: null,
     },
   };
   return {
@@ -163,6 +182,17 @@ describe("AJ-E409 Quality tab signals (D-07)", () => {
       "Can't be counted in an interactive session",
     );
     expect(container.querySelector('[data-testid="quality-cost"]')!.textContent).toContain("No price known for this model, so no cost is shown");
+  });
+
+  it("AJ-E2903: an ended session shows its context at finish and how often it got stuck", async () => {
+    const { container } = qualityShell(instance("ended", { status: "finished" }));
+    await waitFor(() => expect(container.querySelector('[data-testid="quality-context-end"]')).not.toBeNull());
+    expect(container.querySelector('[data-testid="quality-context-end"]')!.textContent).toContain("71% (142,000 / 200,000)");
+    expect(container.querySelector('[data-testid="quality-stuck-episodes"]')!.textContent).toContain("2 times, from the states AI Juggler recorded");
+    cleanup();
+    const live = qualityShell(instance("full"));
+    await waitFor(() => expect(live.container.querySelector('[data-testid="quality-errors"]')).not.toBeNull());
+    expect(live.container.querySelector('[data-testid="quality-context-end"]')).toBeNull();
   });
 
   it("no transcript at all renders the `no data` state", async () => {

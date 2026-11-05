@@ -329,6 +329,7 @@ macro_rules! app_commands {
             Read  features::usage_history::commands::usage_history_summary,
             Read  features::usage_history::commands::usage_history_sessions,
             Read  features::usage_history::commands::usage_history_cuts,
+            Read  features::quality::commands::quality_rollup,
             Read  features::usage_history::commands::usage_history_wasted,
             Read  features::usage_history::commands::usage_history_first,
             Read  features::usage_history::commands::usage_history_limits,

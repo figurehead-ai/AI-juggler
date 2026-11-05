@@ -41,6 +41,10 @@ pub struct SessionsRepo<'a> {
 /// ([`SessionsRepo::lifecycle_latest`]); any other event is history only.
 pub const STATE_EVENTS: [&str; 4] = ["reviewed", "unreviewed", "archived", "unarchived"];
 
+/// AJ-E2902: each Instance's last status change, `session id → (from,
+/// to, at_ms)`.
+pub type LastTransitions = std::collections::HashMap<String, (Option<String>, String, i64)>;
+
 impl SessionsRepo<'_> {
     /// Wraps an open connection.
     #[must_use]
@@ -266,24 +270,46 @@ impl SessionsRepo<'_> {
     }
 
     /// AJ-E2902: each Instance's last status change, `session id →
-    /// (from, to)`, in one read (what a session was doing when it ended:
-    /// stopped while stuck reads as probably stuck).
+    /// (from, to, at_ms)`, in one read (what a session was doing when it
+    /// ended: stopped while stuck reads as probably stuck; and when).
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn last_transitions(
-        &self,
-    ) -> Result<std::collections::HashMap<String, (Option<String>, String)>, CoreError> {
+    pub fn last_transitions(&self) -> Result<LastTransitions, CoreError> {
         let mut statement = self.conn.prepare(
-            "SELECT session_id, from_status, to_status FROM instance_transitions
+            "SELECT session_id, from_status, to_status, at_ms FROM instance_transitions
              WHERE rowid IN (SELECT MAX(rowid) FROM instance_transitions GROUP BY session_id)",
         )?;
         let rows = statement.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
-                (row.get::<_, Option<String>>(1)?, row.get::<_, String>(2)?),
+                (
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                ),
             ))
+        })?;
+        rows.collect::<Result<_, _>>().map_err(CoreError::Storage)
+    }
+
+    /// AJ-E2903: how many times each Instance went stuck since `since_ms`
+    /// (its recorded status changes into `stuck`), in one read.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn stuck_episodes_since(
+        &self,
+        since_ms: i64,
+    ) -> Result<std::collections::HashMap<String, u32>, CoreError> {
+        let mut statement = self.conn.prepare(
+            "SELECT session_id, COUNT(*) FROM instance_transitions
+             WHERE to_status = 'stuck' AND at_ms >= ?1 GROUP BY session_id",
+        )?;
+        let rows = statement.query_map(params![since_ms], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)?))
         })?;
         rows.collect::<Result<_, _>>().map_err(CoreError::Storage)
     }

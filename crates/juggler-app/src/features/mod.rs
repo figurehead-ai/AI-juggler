@@ -22,6 +22,7 @@ pub mod pools;
 pub mod processes;
 pub mod project_sync;
 pub mod projects;
+pub mod quality;
 pub mod quota;
 pub mod relations;
 pub mod runtime;

@@ -971,6 +971,22 @@ function QualityTab(props: PanelProps) {
           </span>
         ),
     });
+    // AJ-E2903: an ended session's context at its end and how often it got stuck, as kept when it ended.
+    if (["finished", "failed", "stopped", "handed_over", "quota_blocked"].includes(instance.status)) {
+      const [used, window] = quality.end_context ?? [0, 0];
+      signals.push({
+        testId: "quality-context-end",
+        label: "Context at finish",
+        tier: "Measured",
+        body: window > 0 ? <span className="tabular-nums text-ink">{Math.round((used / window) * 100)}% ({used.toLocaleString()} / {window.toLocaleString()})</span> : <span className="text-muted">Not reported by {providerDisplayName(instance.provider)}</span>,
+      });
+      signals.push({
+        testId: "quality-stuck-episodes",
+        label: "Times probably stuck",
+        tier: "Computed",
+        body: <span className="text-ink">{quality.stuck_episodes === 0 ? "Not once" : `${quality.stuck_episodes} ${quality.stuck_episodes === 1 ? "time" : "times"}, from the states AI Juggler recorded`}</span>,
+      });
+    }
     signals.push({
       testId: "quality-cost",
       label: "Session cost",

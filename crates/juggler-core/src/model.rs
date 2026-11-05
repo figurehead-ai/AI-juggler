@@ -389,6 +389,27 @@ pub struct UsageSnapshot {
     pub window: Option<QuotaWindow>,
     /// Trust level of `window`, if present.
     pub confidence: Confidence,
+    /// AJ-E2903: what its own files said when it ended, stored once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_end: Option<EndQuality>,
+}
+
+/// AJ-E2903: a session's quality figures as its transcript had them when
+/// it ended — stored once, so an Account's page and the session's Usage
+/// tab never read the transcript again for them. Context is only what
+/// the tool reported (never estimated from cumulative tokens).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct EndQuality {
+    /// Failed turns and retry or tool-error events.
+    pub errors: u64,
+    /// Turns (0: the tool keeps no turns, so errors can't be counted).
+    pub turns: u64,
+    /// Context tokens in use at the end, as the tool reported them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_used: Option<u64>,
+    /// The context window's size, as the tool reported it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_window: Option<u64>,
 }
 
 /// Why an Instance needs its user (AJ-E405, SPEC §5.1 heuristics): the

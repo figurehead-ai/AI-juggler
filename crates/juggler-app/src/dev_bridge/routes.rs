@@ -289,6 +289,7 @@ read_routes! {
     // 0.1.5: the usage history's summaries (reads only).
     "usage_history_summary" => async_result features::usage_history::commands::usage_history_summary(state; input: features::usage_history::UsageQueryInput);
     "usage_history_sessions" => async_result features::usage_history::commands::usage_history_sessions(state; input: features::usage_history::UsageQueryInput, page: crate::paging::PageRequest);
+    "quality_rollup" => async_result features::quality::commands::quality_rollup(state; folders: Vec<String>);
     "usage_history_cuts" => async_result features::usage_history::commands::usage_history_cuts(state; input: features::usage_history::UsageQueryInput);
     "usage_history_wasted" => async_result features::usage_history::commands::usage_history_wasted(state; input: features::usage_history::UsageQueryInput, page: crate::paging::PageRequest);
     "usage_history_first" => async_result features::usage_history::commands::usage_history_first(state; profile: Option<String>);
