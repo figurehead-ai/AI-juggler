@@ -30,7 +30,9 @@ function useSave(): [string | null, boolean, (work: () => Promise<AgentBridgeInf
 }
 
 /** The question, asked once; nothing once it's answered. */
-export function AgentToolsQuestion({ className = "" }: { className?: string }): JSX.Element | null {
+/** `quiet` where the page has its own primary (a pool's canvas): the
+ * answer is tinted, not filled (principle 9). */
+export function AgentToolsQuestion({ className = "", quiet = false }: { className?: string; quiet?: boolean }): JSX.Element | null {
   const info = useAgentBridge();
   const [error, busy, run] = useSave();
   if (info === null || info.asked) return null;
@@ -43,7 +45,7 @@ export function AgentToolsQuestion({ className = "" }: { className?: string }): 
         {WHY} You can switch this off for a project or an app in Settings › Agent access.
       </p>
       <div className="flex gap-2">
-        <Button size="sm" variant="primary" disabled={busy} onClick={() => run(() => agentBridgeAnswer(true))} data-testid="agent-tools-yes">
+        <Button size="sm" variant={quiet ? "accent" : "primary"} disabled={busy} onClick={() => run(() => agentBridgeAnswer(true))} data-testid="agent-tools-yes">
           Yes, let them
         </Button>
         <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(() => agentBridgeAnswer(false))} data-testid="agent-tools-no">

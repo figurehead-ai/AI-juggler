@@ -74,6 +74,7 @@ export function PaletteMore({
                 <button
                   type="button"
                   onClick={() => void add(row)}
+                  aria-label={`${row.reach === "watched" ? "Add as watched" : "Add"}: ${row.label}`}
                   className="shrink-0 rounded-md px-1.5 py-0.5 text-label font-medium text-accent-hi outline-none hover:bg-accent-soft focus-visible:ring-1 focus-visible:ring-accent/60"
                   data-testid="canvas-palette-more-add"
                 >

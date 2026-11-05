@@ -16,6 +16,8 @@ import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event";
 import type { Transport } from "./transport";
 
 export const READ_ONLY_MESSAGE = "Read-only test bridge — not available";
+/** What a lab's write mode says of a write off its list (ADR-0027). */
+export const LAB_REFUSED_MESSAGE = "Not on the lab bridge's list — not available";
 
 /** Where a reload in the same tab finds the run's port and token. */
 const SESSION_KEY = "aij.readOnlyBridge";
@@ -90,10 +92,14 @@ export async function connect(page: URL): Promise<Transport> {
 type Endpoint = { base: string; token: string };
 
 function transport(endpoint: Endpoint | null, reads: Set<string>, notice: Notice): Transport {
+  // ADR-0027: a lab's write mode lists its writes; what it refuses is off
+  // its list, not "read-only".
+  const lab = reads.has("launch_session");
+  const message = lab ? LAB_REFUSED_MESSAGE : READ_ONLY_MESSAGE;
   const refuse = (what: string) => {
-    notice.say(`${READ_ONLY_MESSAGE} (${what}).`);
-    console.info(`[read-only test bridge] refused: ${what}`);
-    return { code: "read_only_bridge", retryable: false, user_message: READ_ONLY_MESSAGE };
+    notice.say(`${message} (${what}).`);
+    console.info(`[test bridge] refused: ${what}`);
+    return { code: "read_only_bridge", retryable: false, user_message: message };
   };
   const stream = endpoint ? events(endpoint) : null;
   return {

@@ -113,8 +113,8 @@ describe("read-only test bridge — the transport", () => {
     expect(document.body.textContent).toContain("Lab test bridge — a throwaway lab");
     await expect(transport.invoke("launch_session", { profileId: "p" })).resolves.toEqual({ session_id: "s", pid: 1 });
     expect(fetched.some((url) => url.endsWith("/v1/invoke/launch_session"))).toBe(true);
-    // A write it doesn't list is still refused unsent.
-    await expect(transport.invoke("account_import", {})).rejects.toMatchObject({ code: "read_only_bridge" });
+    // A write it doesn't list is still refused unsent, in the lab's words.
+    await expect(transport.invoke("account_import", {})).rejects.toMatchObject({ code: "read_only_bridge", user_message: "Not on the lab bridge's list — not available" });
   });
 
   it("a 403 from the bridge reads as the same refusal", async () => {

@@ -149,8 +149,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const first = useMemo(arrival, []);
   const [panel, setPanelState] = useState<Panel>(first.panel);
   const [taskKey, setTaskKey] = useState(0);
-  // Under 1100 px a pool starts as rows, unless you chose (kept per pool).
-  const [mode, setMode] = usePoolMode(poolId);
+  // Under 1100 px a pool starts as rows, unless you chose (kept per pool);
+  // an empty one opens on the canvas, which teaches setting it up.
+  const [mode, setMode] = usePoolMode(poolId, pool.members === 0 && !hasRules);
   const [selection, setSelection] = useState<Selection>(first.settings ? { kind: "pool" } : { kind: "none" });
   const inspectorTitle = useRef<HTMLHeadingElement | null>(null);
   const setPanel = useCallback((next: Panel) => {
@@ -236,7 +237,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
       )}
       <PoolHeader pool={pool} facts={facts} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
       {/* D-30: asked once, the first time pools are used. */}
-      <AgentToolsQuestion className="mx-4 mt-3" />
+      <AgentToolsQuestion className="mx-4 mt-3" quiet />
       {unplaced.length > 0 && (
         <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
           {unplaced.length === 1 ? "An agent that isn't on the canvas asks you something" : `${unplaced.length} agents that aren't on the canvas ask you something`}: answer it in Needs you, or in the List view.
@@ -272,7 +273,10 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
               empty={(paletteOpen, openPalette) =>
                 hasRules ? (
                   <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
-                    Its sessions show here as they start. Click a member on the right for its role and level.
+                    Its sessions show here as they start. Click a member for its role and what it may do.{" "}
+                    <button type="button" onClick={() => setTemplate(true)} className="pointer-events-auto font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="canvas-rules-template">
+                      Use a template
+                    </button>
                   </p>
                 ) : (
                 <CanvasTeach

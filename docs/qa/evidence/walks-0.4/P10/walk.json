@@ -1,0 +1,65 @@
+[
+  {
+    "step": "1-open-canvas",
+    "filled": 1,
+    "feedback": [
+      7,
+      19
+    ],
+    "done": [
+      null,
+      61
+    ]
+  },
+  {
+    "step": "2a-add-members",
+    "filled": 1,
+    "feedback": [
+      16
+    ],
+    "done": [
+      null
+    ],
+    "focus": "in the palette"
+  },
+  {
+    "step": "2b-first-member",
+    "filled": 0,
+    "feedback": [
+      16
+    ],
+    "done": [
+      38
+    ]
+  },
+  {
+    "step": "2c-lead",
+    "filled": 0,
+    "feedback": [
+      4,
+      1
+    ],
+    "done": [
+      null,
+      null
+    ]
+  },
+  {
+    "step": "2d-reviewer",
+    "filled": 0,
+    "feedback": [
+      16,
+      4,
+      1
+    ],
+    "done": [
+      null,
+      null,
+      202
+    ]
+  },
+  {
+    "step": "3-template",
+    "template": 1
+  }
+]
