@@ -49,6 +49,61 @@ pub fn disk_space(path: &Path) -> std::io::Result<DiskSpace> {
     Err(crate::unsupported("Reading a disk's free space"))
 }
 
+/// A test's stand-in for a disk's free space.
+pub type FreeSpaceReader = fn(&Path) -> u64;
+
+thread_local! {
+    /// A test's stand-in for the disk's free space, on its own thread.
+    static FREE_SPACE_FOR_TESTS: std::cell::Cell<Option<FreeSpaceReader>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// What this user may still write on the disk `path` is on: the
+/// system's answer ([`disk_space`]), or on a thread where a test set one
+/// ([`set_free_space_on_this_thread`]), the test's.
+///
+/// # Errors
+///
+/// As [`disk_space`].
+pub fn free_space(path: &Path) -> std::io::Result<u64> {
+    if let Some(reader) = FREE_SPACE_FOR_TESTS.with(std::cell::Cell::get) {
+        return Ok(reader(path));
+    }
+    disk_space(path).map(|space| space.free)
+}
+
+/// For tests: [`free_space`] on this thread reads `reader` instead of the
+/// disk (a nearly full disk, or one filling up mid-copy); `None` puts the
+/// disk back.
+pub fn set_free_space_on_this_thread(reader: Option<FreeSpaceReader>) {
+    FREE_SPACE_FOR_TESTS.with(|cell| cell.set(reader));
+}
+
+/// Whether copying `from` into the folder `to_dir` takes no room: the
+/// copy is a clone (macOS, both on one APFS disk, which the startup disk
+/// always is). Anywhere else a copy writes every byte.
+///
+/// # Errors
+///
+/// Either can't be read.
+#[cfg(target_os = "macos")]
+pub fn copy_is_a_clone(from: &Path, to_dir: &Path) -> std::io::Result<bool> {
+    use std::os::unix::fs::MetadataExt as _;
+    Ok(std::fs::metadata(from)?.dev() == std::fs::metadata(to_dir)?.dev())
+}
+
+/// Whether copying `from` into `to_dir` takes no room: never assumed off
+/// macOS.
+///
+/// # Errors
+///
+/// Never.
+#[cfg(not(target_os = "macos"))]
+pub fn copy_is_a_clone(from: &Path, to_dir: &Path) -> std::io::Result<bool> {
+    let _ = (from, to_dir);
+    Ok(false)
+}
+
 /// This computer's memory in bytes, when the system says.
 #[must_use]
 pub fn total_memory() -> Option<u64> {

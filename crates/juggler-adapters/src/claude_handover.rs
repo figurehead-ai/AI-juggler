@@ -16,9 +16,9 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::handover::{
-    ACCOUNT_AREAS, BundleFile, BundleManifest, Fidelity, InstallOutcome, SessionBundle, TurnText,
-    account_area_path, embedded_cwd, fork_session_id, is_safe_bundle_name, mangled_dir,
-    session_files, tail_parses, tree_files,
+    ACCOUNT_AREAS, BundleFile, BundleManifest, Carrier, Fidelity, InstallOutcome, SessionBundle,
+    SwitchRoom, TurnText, account_area_path, embedded_cwd, fork_session_id, is_safe_bundle_name,
+    mangled_dir, session_files, tree_files,
 };
 use juggler_adapter::model::Account;
 use juggler_core::model::{Timestamp, TranscriptRef};
@@ -42,6 +42,42 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             .unwrap_or(beside)
     }
 
+    /// 0.3.9: its carried files, sized; a conversation the target already
+    /// has is forked, so its transcripts are written in full.
+    fn switch_room(
+        &self,
+        reference: &TranscriptRef,
+        target: &Account,
+    ) -> Result<SwitchRoom, AdapterError> {
+        let path = &reference.path;
+        let dir = path.parent().unwrap_or_else(|| Path::new("."));
+        let stem = path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .ok_or_else(|| AdapterError::Unsupported("transcript has no session id".into()))?;
+        let main = BundleFile {
+            name: String::new(),
+            bytes: Vec::new(),
+            on_disk: Some(path.clone()),
+        };
+        let cwd = embedded_cwd(&main.head(juggler_adapter::handover::HEAD_BYTES)?)
+            .unwrap_or_else(|| dir.to_string_lossy().into_owned());
+        let (dir_b, _) = discover_project_dir(&target.state_dir.join("projects"), &cwd);
+        let native = reference.native_id.clone().unwrap_or_else(|| stem.clone());
+        let collision = dir_b.join(format!("{native}.jsonl")).exists();
+        let files: Vec<(PathBuf, bool)> = carried_entries(path, dir, &stem)
+            .into_iter()
+            .map(|(name, file)| {
+                let forked = collision && name.to_ascii_lowercase().ends_with(".jsonl");
+                (file, forked)
+            })
+            .collect();
+        Ok(juggler_adapter::handover::room_of(
+            &files,
+            &target.state_dir,
+        )?)
+    }
+
     fn bundle_session(&self, reference: &TranscriptRef) -> Result<SessionBundle, AdapterError> {
         let path = &reference.path;
         if !path.is_file() {
@@ -60,49 +96,14 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
 
-        // F-H-04: the FULL session, manifest row per file: the files
-        // beside the transcript, its `<id>/` folder (subagents, tool
-        // results; AJ-E1540) and its file history in the account's
-        // `file-history/<id>/`. A partial read or torn tail refuses the
-        // whole bundle.
-        let mut entries = session_files(dir, &stem);
-        // The live lab of 2026-10-28: and its task list, which Claude Code
-        // keeps in the account's `tasks/<id>/`.
-        if let Some(account) = account_of(path) {
-            for (area, folder) in ACCOUNT_AREAS {
-                let own = account.join(folder).join(&stem);
-                if own.is_dir() {
-                    let mut found = Vec::new();
-                    tree_files(&own, &format!("{area}/{stem}"), 4, &mut found);
-                    // A lock file (`tasks/<id>/.lock`) is the tool's, not
-                    // the session's.
-                    found.retain(|(_, file)| {
-                        !file
-                            .file_name()
-                            .is_some_and(|name| name.to_string_lossy().starts_with('.'))
-                    });
-                    entries.extend(found);
-                }
-            }
-        }
+        let entries = carried_entries(path, dir, &stem);
+        // 0.3.9: a large file is frozen as a clone in the bundle's
+        // scratch folder (instant on APFS) and never read into memory; a
+        // long Claude app conversation's transcript passes 800 MB.
         let mut files = Vec::new();
-        for (name, sibling) in entries {
-            // A copy travels in memory: never one too large to hold.
-            if std::fs::metadata(&sibling)?.len() > crate::transcript::SESSION_FILE_MAX {
-                return Err(AdapterError::Unsupported(
-                    "this session's files are too large to carry; start fresh with a summary instead"
-                        .into(),
-                ));
-            }
-            let bytes = std::fs::read(&sibling)?;
-            if name == main_name && !tail_parses(&bytes) {
-                // F-H-02: the source is still writing (or corrupt) —
-                // freeze first, never copy torn bytes.
-                return Err(AdapterError::Unsupported(
-                    "source transcript tail does not parse — stop the session first".into(),
-                ));
-            }
-            files.push(BundleFile { name, bytes });
+        let mut carrier = Carrier::new();
+        for (index, (name, sibling)) in entries.into_iter().enumerate() {
+            files.push(carrier.carry(name, &sibling, index)?);
         }
         let main = files
             .iter()
@@ -110,12 +111,20 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             .ok_or_else(|| {
                 AdapterError::Unsupported("main transcript missing from sibling set".into())
             })?;
-        let cwd = embedded_cwd(&main.bytes).map_or_else(|| dir.to_path_buf(), PathBuf::from);
+        if !main.last_line_whole()? {
+            // F-H-02: the source is still writing (or corrupt) — freeze
+            // first, never copy torn bytes.
+            return Err(AdapterError::Unsupported(
+                "source transcript tail does not parse — stop the session first".into(),
+            ));
+        }
+        let cwd = embedded_cwd(&main.head(juggler_adapter::handover::HEAD_BYTES)?)
+            .map_or_else(|| dir.to_path_buf(), PathBuf::from);
         let native_id = reference.native_id.clone().unwrap_or(stem);
         // §H2.1: a compacted source caps the honest label at F2 (the
         // pre-compaction turns no longer travel). Everything stays
         // "unvalidated-pair" until AJ-E210's live cells graduate it.
-        let compacted = claude_transcript::parse_transcript(&main.bytes).has_compact_boundary();
+        let compacted = compacted(main)?;
         Ok(SessionBundle {
             manifest: BundleManifest {
                 schema: 1,
@@ -135,6 +144,7 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
                 redacted: false,
             },
             files,
+            scratch: carrier.into_scratch(),
         })
     }
 
@@ -199,11 +209,7 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
         // the transcript, or (AJ-E1540) the account's own file history.
         let mut planned: Vec<(PathBuf, PathBuf)> = Vec::new();
         for (index, file) in bundle.files.iter().enumerate() {
-            let bytes = if collision && file.name.to_ascii_lowercase().ends_with(".jsonl") {
-                fork_session_id(&file.bytes, &installed_id)
-            } else {
-                file.bytes.clone()
-            };
+            let fork = collision && file.name.to_ascii_lowercase().ends_with(".jsonl");
             let name = if collision {
                 file.name.replace(&bundle.manifest.native_id, &installed_id)
             } else {
@@ -212,7 +218,14 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             let to =
                 account_area_path(&target.state_dir, &name).unwrap_or_else(|| dir_b.join(&name));
             let staged = staging.join(index.to_string());
-            if let Err(error) = std::fs::write(&staged, &bytes) {
+            // A large file is cloned (or, forked, rewritten line by line),
+            // never held whole in memory.
+            let written = if fork {
+                fork_into(file, &installed_id, &staged)
+            } else {
+                file.write_to(&staged)
+            };
+            if let Err(error) = written {
                 let _ = std::fs::remove_dir_all(&staging);
                 return Err(AdapterError::AccountDir {
                     path: staged,
@@ -394,6 +407,54 @@ pub fn bundle_is_compacted(bundle: &SessionBundle) -> bool {
 
 /// The account folder a transcript at `path` is in
 /// (`<account>/projects/<folder>/<stem>.jsonl`).
+/// Every file a switch of the transcript at `path` carries, as `(name in
+/// the bundle, where it is)`: what [`HandoverSupport::bundle_session`]
+/// copies and [`HandoverSupport::switch_room`] sizes.
+fn carried_entries(path: &Path, dir: &Path, stem: &str) -> Vec<(String, PathBuf)> {
+    // F-H-04: the FULL session, manifest row per file: the files
+    // beside the transcript, its `<id>/` folder (subagents, tool
+    // results; AJ-E1540) and its file history in the account's
+    // `file-history/<id>/`. A partial read or torn tail refuses the
+    // whole bundle.
+    let mut entries = session_files(dir, stem);
+    // The live lab of 2026-10-28: and its task list, which Claude Code
+    // keeps in the account's `tasks/<id>/`.
+    if let Some(account) = account_of(path) {
+        for (area, folder) in ACCOUNT_AREAS {
+            let own = account.join(folder).join(stem);
+            if own.is_dir() {
+                let mut found = Vec::new();
+                tree_files(&own, &format!("{area}/{stem}"), 4, &mut found);
+                // A lock file (`tasks/<id>/.lock`) is the tool's, not
+                // the session's.
+                found.retain(|(_, file)| {
+                    !file
+                        .file_name()
+                        .is_some_and(|name| name.to_string_lossy().starts_with('.'))
+                });
+                entries.extend(found);
+            }
+        }
+    }
+    entries
+}
+
 fn account_of(path: &Path) -> Option<&Path> {
     path.parent().and_then(Path::parent).and_then(Path::parent)
+}
+
+/// Whether a transcript has a compaction marker, streamed for a large one
+/// (only the marker lines are parsed).
+fn compacted(file: &BundleFile) -> std::io::Result<bool> {
+    if file.on_disk.is_none() {
+        return Ok(claude_transcript::parse_transcript(&file.bytes).has_compact_boundary());
+    }
+    let marks = file.lines_with(&["compact_boundary", "\"compacted\""])?;
+    Ok(claude_transcript::parse_transcript(&marks).has_compact_boundary())
+}
+
+/// Writes `file` to `to` with its session id forked to `new_id` (F-H-03),
+/// line by line for a large one.
+fn fork_into(file: &BundleFile, new_id: &str, to: &Path) -> std::io::Result<()> {
+    file.rewrite_lines_to(to, |line| fork_session_id(line, new_id))
 }

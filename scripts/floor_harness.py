@@ -192,7 +192,10 @@ def report(results: Path) -> int:
     if data.get("open_steps"):
         lines += ["Opening, step by step (ms after it was asked for): "
                   + ", ".join(f"{st['step']} {st['at_ms']}" for st in data["open_steps"]) + ".", ""]
-    for key, words in (("memory_before", "before opening"), ("memory_still", "open and still"), ("memory_animating", "animating"), ("memory_closed", "closed")):
+    if "footprint_closed_after_3_more_mb" in data:
+        lines += [f"After three more opens and closes: {data['footprint_closed_after_3_more_mb']:.0f} MB "
+                  f"(after the first close: {data['footprint_closed_mb']:.0f} MB).", ""]
+    for key, words in (("memory_before", "before opening"), ("memory_still", "open and still"), ("memory_animating", "animating"), ("memory_closed", "closed"), ("memory_closed_after_3_more", "closed after three more opens")):
         if data.get(key):
             lines.append(f"Memory {words}, biggest parts: "
                          + ", ".join(f"{m_['category']} {m_['mb']:.0f} MB" for m_ in data[key][:6]) + ".")

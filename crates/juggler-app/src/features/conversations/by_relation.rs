@@ -139,6 +139,7 @@ mod tests {
 
     fn conversation(id: &str, folder: &str, project: Option<&str>) -> ConversationInfo {
         ConversationInfo {
+            started_from: None,
             id: id.into(),
             tool: "claude-code".into(),
             account_id: folder.into(),

@@ -436,6 +436,25 @@ fn run(app: &tauri::AppHandle) -> String {
     let closed = read();
     let memory_closed = footprint_top(std::process::id());
 
+    // Three more opens and closes, animating: what stays after closing
+    // must not grow with each (a leak) — the system's allocator may keep
+    // some of what was freed for reuse.
+    set_motion(app, "full");
+    for _ in 0..3 {
+        let _ = window::open(app);
+        std::thread::sleep(Duration::from_secs(3));
+        on_top(app);
+        std::thread::sleep(Duration::from_secs(5));
+        on_main(app, |app| {
+            if let Some(floor) = app.get_window(LABEL) {
+                let _ = floor.close();
+            }
+        });
+    }
+    std::thread::sleep(Duration::from_secs(if quick { 5 } else { 20 }));
+    let closed_again = read();
+    let memory_closed_again = footprint_top(std::process::id());
+
     if let Ok(storage) = state.storage.lock() {
         let settings = storage.app_settings();
         let _ = settings.set(MOTION_KEY, kept_motion.as_deref().unwrap_or("system"));
@@ -479,7 +498,10 @@ fn run(app: &tauri::AppHandle) -> String {
         "footprint_before_mb": r1(before.footprint_mb),
         "footprint_open_still_mb": r1(still.footprint_mb),
         "footprint_closed_mb": r1(closed.footprint_mb),
+        "footprint_closed_after_3_more_mb": r1(closed_again.footprint_mb),
+        "memory_closed_after_3_more": top(&memory_closed_again),
         "full_memory_marks": memory.iter().map(|(s, mb)| serde_json::json!({ "at_s": s, "footprint_mb": r1(*mb) })).collect::<Vec<_>>(),
+        "news": super::NEWS.lock().map(|n| n.clone()).unwrap_or_default(),
         "memory_before": top(&memory_before),
         "memory_still": top(&memory_still),
         "memory_animating": top(&memory_animating),

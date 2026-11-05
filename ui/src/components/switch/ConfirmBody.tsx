@@ -29,6 +29,8 @@ import { SwitchSetupList } from "../SwitchSetupList";
 import { FidelityBadge } from "../SwitchTargetRows";
 import { finishedByYou } from "../../lib/useSwitchSetup";
 import { CarrySummary } from "./CarrySummary";
+import { DiskSpace } from "./DiskSpace";
+import type { SwitchSpaceInfo } from "../../lib/ipc/switchSpace";
 import { Disclosure } from "../controls";
 import { risky, RoomNote } from "./TargetRoom";
 import { WhereChoice, whereWords, type Destination } from "./WhereChoice";
@@ -55,6 +57,8 @@ export function ConfirmBody({
   onCheckAgain,
   extra,
   pools,
+  space = null,
+  onSpaceAgain,
 }: {
   preflight: PreflightInfoData;
   target: string;
@@ -76,6 +80,9 @@ export function ConfirmBody({
   extra?: ReactNode;
   /** D-62: what the switch does to each of its pools. */
   pools?: ReactNode;
+  /** 0.3.9: the disk space the copy uses. */
+  space?: SwitchSpaceInfo | null;
+  onSpaceAgain?: () => void;
 }): JSX.Element {
   const where = whereWords(destination, preflight);
   const outside = preflight.source_outside ? { app: preflight.source_app ?? null, target, where } : null;
@@ -98,6 +105,7 @@ export function ConfirmBody({
 
       <div className="flex flex-col gap-2" data-testid="switch-summary">
         <CarrySummary items={preflight.carry_items ?? []} target={target} tool={tool} setup={setup} picked={picked} />
+        <DiskSpace space={space} onCheckAgain={onSpaceAgain} />
         <p className="text-body text-ink-2" data-testid={outside ? "switch-outside" : preflight.source_keeps_running ? "switch-keeps-running" : "switch-original"}>
           {originalWords({ live: preflight.source_live, keepsRunning: preflight.source_keeps_running, outside, choice: freeze })}
         </p>

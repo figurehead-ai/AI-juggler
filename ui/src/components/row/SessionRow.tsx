@@ -61,6 +61,10 @@ export interface SessionRowProps {
   tools?: boolean;
   /** "Subagents" is on in the View: the row says how many it runs. */
   subagents?: boolean;
+  /** 0.3.9: how deep it sits under the session it was started from. */
+  depth?: number;
+  /** That session's title, for a screen reader. */
+  parent?: string | null;
   /** Beside its state (History's "Archived"). */
   trailing?: ReactNode;
   /** In place of its state word, where every row of the list shares that
@@ -109,7 +113,8 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   // AI Juggler's own session: the account it runs on too (its place is
   // AI Juggler, which names no profile), so a screen reader hears it.
   const on = item.session && density !== "list" ? `on ${item.accountLabel}` : null;
-  const label = [state.word, title, pinned ? "pinned" : null, line, on, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
+  const from = props.parent ? `started from ${props.parent}` : null;
+  const label = [state.word, title, pinned ? "pinned" : null, from, line, on, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
   const dot = (
     <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + state.dot + (item.state === "working" && !needs ? " animate-breathe" : "")} />
   );
@@ -120,7 +125,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
       {heavy}
     </span>
   ) : null;
-  const shell = { item, selected: props.selected ?? false, onSelect: props.onSelect, label, arrange: props.arrange, tools: props.tools, below: props.below, slim: props.slim, menuKind: props.menuKind, data: props.data, buttonData: props.buttonData };
+  const shell = { item, selected: props.selected ?? false, onSelect: props.onSelect, label, arrange: props.arrange, tools: props.tools, below: props.below, slim: props.slim, menuKind: props.menuKind, data: props.data, buttonData: props.buttonData, depth: props.depth };
 
   if (density === "list") {
     return (

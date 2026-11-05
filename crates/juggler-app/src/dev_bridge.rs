@@ -70,6 +70,10 @@ pub const FORWARDED_EVENTS: &[&str] = &[
 pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
     ("terminal://output", "a terminal's output"),
     (
+        "switch://progress",
+        "a running switch's steps: the bridge runs no switch (a write)",
+    ),
+    (
         "terminal://exit",
         "a terminal's own lifecycle, for its view only",
     ),

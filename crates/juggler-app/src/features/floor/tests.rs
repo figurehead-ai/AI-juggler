@@ -46,6 +46,7 @@ fn own(id: &str, status: &str, started: i64) -> OwnRow {
 
 fn talk(id: &str, state: &str, last: i64) -> ConversationInfo {
     ConversationInfo {
+        started_from: None,
         id: id.into(),
         tool: "tool-a".into(),
         account_id: "f-work".into(),
@@ -265,6 +266,13 @@ fn a_reading_that_wiggles_between_drawn_steps_is_not_news() {
         }
     }
     assert!(super::same(&base, &wiggle), "no new step: nothing to draw");
+    let (mut edge_a, mut edge_b) = (base.clone(), base.clone());
+    edge_a.machine.load = 0.349;
+    edge_b.machine.load = 0.351;
+    assert!(
+        super::same(&edge_a, &edge_b),
+        "a reading on a step's edge doesn't flap"
+    );
     let mut rack = base.clone();
     rack.machine.load = base.machine.load + 0.3;
     assert!(!super::same(&base, &rack), "the rack's lights change");

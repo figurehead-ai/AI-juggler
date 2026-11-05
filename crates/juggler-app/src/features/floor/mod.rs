@@ -131,51 +131,108 @@ pub fn mark_stale(state: &AppState) {
     state.floor.stale.store(true, Ordering::Release);
 }
 
+/// What made the last snapshots news (the harness's record): the first
+/// part that differed, newest last.
+pub static NEWS: std::sync::Mutex<Vec<&'static str>> = std::sync::Mutex::new(Vec::new());
+
 /// The same company as drawn, whenever each was built: figures compared
-/// at the steps the Floor shows them (the rack's tenths, a battery's
-/// whole percent, a fire only while hot, times to the minute), so a
-/// reading that wiggles between two of them wakes nothing (SPEC §9.7:
-/// no frames at rest).
+/// within the steps the Floor shows them at (the rack's tenths, a
+/// battery's whole percent, a fire's 5 % only while hot, times to the
+/// minute) against the last one published, so a reading that wiggles
+/// wakes nothing (SPEC §9.7: no frames at rest).
+#[cfg(test)]
 fn same(a: &FloorSnapshot, b: &FloorSnapshot) -> bool {
-    let (a, b) = (coarse(a), coarse(b));
-    a.apps == b.apps
-        && a.accounts == b.accounts
-        && a.pools == b.pools
-        && a.machine == b.machine
-        && a.notices == b.notices
+    differs(a, b).is_none()
 }
 
-/// `snapshot` at the steps it's drawn at.
-fn coarse(snapshot: &FloorSnapshot) -> FloorSnapshot {
+/// The first part of `b` that differs from `a` as drawn.
+fn differs(a: &FloorSnapshot, b: &FloorSnapshot) -> Option<&'static str> {
     const MINUTE: i64 = 60_000;
-    let minute = |ms: i64| ms - ms.rem_euclid(MINUTE);
-    let mut out = snapshot.clone();
-    out.at_ms = 0;
-    out.machine.load = (out.machine.load * 10.0).round() / 10.0;
-    for app in &mut out.apps {
-        let hot = app.hot_since_ms.is_some();
-        let cpu = |pct: f32| if hot { (pct / 5.0).round() * 5.0 } else { 0.0 };
-        app.cpu_pct = cpu(app.cpu_pct);
-        app.last_active_ms = app.last_active_ms.map(minute);
-        for session in &mut app.sessions {
-            session.cpu_pct = cpu(session.cpu_pct);
-            session.last_ms = minute(session.last_ms);
+    let near = |x: f32, y: f32, step: f32| (x - y).abs() < step;
+    let minute = |x: Option<i64>, y: Option<i64>| match (x, y) {
+        (Some(x), Some(y)) => (x - y).abs() < MINUTE,
+        (x, y) => x == y,
+    };
+    if !near(a.machine.load, b.machine.load, 0.1)
+        || a.machine.alert_since_ms != b.machine.alert_since_ms
+        || a.machine.alert != b.machine.alert
+    {
+        return Some("machine");
+    }
+    if a.apps.len() != b.apps.len() {
+        return Some("apps");
+    }
+    for (x, y) in a.apps.iter().zip(&b.apps) {
+        let hot = x.hot_since_ms.is_some() || y.hot_since_ms.is_some();
+        let cpu = |p: f32, q: f32| !hot || near(p, q, 5.0);
+        let (mut x2, mut y2) = (x.clone(), y.clone());
+        if !cpu(x.cpu_pct, y.cpu_pct) || !minute(x.last_active_ms, y.last_active_ms) {
+            return Some("apps");
+        }
+        x2.cpu_pct = 0.0;
+        y2.cpu_pct = 0.0;
+        x2.last_active_ms = None;
+        y2.last_active_ms = None;
+        if x2.sessions.len() != y2.sessions.len() {
+            return Some("sessions");
+        }
+        for (s, t) in x2.sessions.iter_mut().zip(y2.sessions.iter_mut()) {
+            if !cpu(s.cpu_pct, t.cpu_pct) || !minute(Some(s.last_ms), Some(t.last_ms)) {
+                return Some("sessions");
+            }
+            s.cpu_pct = 0.0;
+            t.cpu_pct = 0.0;
+            s.last_ms = 0;
+            t.last_ms = 0;
+        }
+        if x2 != y2 {
+            return Some(if x2.sessions == y2.sessions {
+                "apps"
+            } else {
+                "sessions"
+            });
         }
     }
-    for account in &mut out.accounts {
-        account.left_pct = account.left_pct.map(f32::round);
-        account.last_used_ms = account.last_used_ms.map(minute);
+    if a.accounts.len() != b.accounts.len() {
+        return Some("accounts");
     }
-    out
+    for (x, y) in a.accounts.iter().zip(&b.accounts) {
+        let pct = match (x.left_pct, y.left_pct) {
+            (Some(p), Some(q)) => near(p, q, 1.0),
+            (p, q) => p == q,
+        };
+        let (mut x2, mut y2) = (x.clone(), y.clone());
+        x2.left_pct = None;
+        y2.left_pct = None;
+        x2.last_used_ms = None;
+        y2.last_used_ms = None;
+        if !pct || !minute(x.last_used_ms, y.last_used_ms) || x2 != y2 {
+            return Some("accounts");
+        }
+    }
+    if a.pools != b.pools {
+        return Some("pools");
+    }
+    if a.notices != b.notices {
+        return Some("notices");
+    }
+    None
 }
 
 /// Whether `snapshot` is news since the last one published (and, if so,
 /// it is now that one).
 fn news(floor: &Floor, snapshot: &Arc<FloorSnapshot>) -> bool {
     floor.published.lock().is_ok_and(|mut published| {
-        let fresh = published
+        let why = published
             .as_ref()
-            .is_none_or(|before| !same(before, snapshot));
+            .map_or(Some("first"), |before| differs(before, snapshot));
+        let fresh = why.is_some();
+        if let (Some(why), Ok(mut news)) = (why, NEWS.lock()) {
+            if news.len() >= 64 {
+                news.remove(0);
+            }
+            news.push(why);
+        }
         if fresh {
             *published = Some(Arc::clone(snapshot));
         }

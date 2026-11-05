@@ -53,6 +53,8 @@ export interface ShellProps {
   arrange?: Arrangeable | null;
   /** The rail's Your order: the handle and the pin on hover and focus. */
   tools?: boolean;
+  /** 0.3.9: a session started from another: one step in per level. */
+  depth?: number;
   layout?: ShellLayout;
   /** What sits under the lines (History's matching words). */
   below?: ReactNode;
@@ -90,6 +92,7 @@ export function RowShell({
   menuKind,
   data,
   buttonData,
+  depth = 0,
 }: ShellProps): JSX.Element {
   const primary = usePrimary(item, onSelect);
   // One hook either way: the session's menu, or the conversation's. A
@@ -109,6 +112,9 @@ export function RowShell({
     <div
       className={"group relative " + (list ? "@container " : "") + (indent ? "ml-3" : "") + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
       data-rail-row={list ? undefined : ""}
+      // A session started from another: one step in per level, under it.
+      style={depth > 0 ? { marginLeft: `${0.75 + depth}rem` } : undefined}
+      data-depth={depth > 0 ? depth : undefined}
       data-order-row={arrange ? item.key : undefined}
       data-order-group={arrange?.group}
       {...data}

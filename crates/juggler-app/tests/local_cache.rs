@@ -69,7 +69,8 @@ fn the_switch_removes_the_files_and_is_kept_with_the_limit_across_a_restart() {
             "Subagent lists",
             "App icons",
             "Search index",
-            "Counts on pages"
+            "Counts on pages",
+            "Floor logos"
         ]
     );
     assert!(

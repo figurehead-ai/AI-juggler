@@ -26,6 +26,7 @@ import { arrangeGroup, arrangeGroups, foldKey, lensOf, type OrderMode } from "./
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
+import { nestRows } from "./rail-tree";
 import { appByConversation, appByFolder, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, RECENT_INLINE, type IdleApp } from "./rail-apps";
 
 export type SectionId = "needs" | "open" | "idle";
@@ -35,7 +36,7 @@ export type Line =
   | { kind: "need"; item: RailItem }
   | { kind: "notice"; notice: NoticeInfo }
   | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null }
-  | { kind: "row"; item: RailItem; group: RailGroup }
+  | { kind: "row"; item: RailItem; group: RailGroup; depth?: number; parent?: string | null }
   | { kind: "more"; group: RailGroup; quiet: number; words: "quiet" | "more" }
   | { kind: "also" }
   | { kind: "label"; id: "ended" | "inactive"; count: number }
@@ -196,7 +197,8 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     // Latest activity re-sorts, so it holds still under the pointer; the
     // other orders never move a row by themselves.
     const drawn = stable ? fold.shown : keep(`group:${group.key}`, fold.shown);
-    for (const item of drawn) lines.push({ kind: "row", item, group });
+    // 0.3.9: a session started from another sits under it.
+    for (const { item, depth, parent } of nestRows(drawn)) lines.push({ kind: "row", item, group, depth, parent: parent?.title ?? null });
     rows += drawn.length;
     if (fold.hidden > 0) lines.push({ kind: "more", group, quiet: fold.hidden, words: fold.words });
     const sessions = idle.get(group.key) ?? [];

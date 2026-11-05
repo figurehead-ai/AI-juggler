@@ -158,9 +158,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
       host.openPool?.(group.poolId);
       return;
     }
-    // A CLI App's sessions may be in AI Juggler and in a terminal: the
-    // first one leads. In AI Juggler it's selected; elsewhere, its window
-    // comes forward.
+    // A CLI App's sessions may be in AI Juggler and in a terminal: the first
+    // leads (selected in AI Juggler; elsewhere, its window comes forward).
     const first = group.items[0];
     if (first?.session && first.place.kind === "own") {
       onSelect(first.session.id);
@@ -323,6 +322,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             subagents={view.show.subagents}
             tools
             arrange={arrangeOf("row", line.group.key, line.item.key)}
+            depth={line.depth} parent={line.parent}
           />
         );
       case "plain":

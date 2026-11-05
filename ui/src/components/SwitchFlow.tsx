@@ -19,9 +19,10 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
 import type { FreezeChoice } from "./SwitchFreezeChoice";
-import { SwitchSetupResults } from "./SwitchSetupList";
+import { FailedStep, failureOf } from "./switch/FailedStep";
 import { takeSwitchOpener } from "../lib/handover-focus";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
+import { tooLittleSpace, useSwitchSpace } from "./switch/DiskSpace";
 import { showToast } from "./Toast";
 import { ConfirmBody, SwitchPoolLines, useSealOwed } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
@@ -47,7 +48,7 @@ type Phase =
   | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData; continuedIn: Destination }
   // A failure keeps what it failed on: Retry runs the switch again from
   // there (or checks it again when the check itself failed).
-  | { kind: "failed"; message: string; preflight: PreflightInfoData | null };
+  | { kind: "failed"; message: string; preflight: PreflightInfoData | null; cause?: unknown };
 
 export function SwitchFlow({
   sessionId,
@@ -77,6 +78,7 @@ export function SwitchFlow({
   const [holding, setHolding] = useState(false);
   // AJ-E1542: what the target lacks, and what the user picked to set up.
   const setupCheck = useSwitchSetup(sessionId, targetProfileId);
+  const { space, recheck: recheckSpace } = useSwitchSpace(sessionId, targetProfileId); // 0.3.9: the disk space it uses
   const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -128,7 +130,7 @@ export function SwitchFlow({
         }
       })
       .catch((cause) => {
-        if (alive) setPhase({ kind: "failed", message: errorText(cause), preflight: null });
+        if (alive) setPhase({ kind: "failed", message: errorText(cause), preflight: null, cause });
       });
     return () => {
       alive = false;
@@ -184,7 +186,7 @@ export function SwitchFlow({
     } catch (cause) {
       started.current = false;
       runningRef.current = false;
-      setPhase({ kind: "failed", message: errorText(cause), preflight });
+      setPhase({ kind: "failed", message: errorText(cause), preflight, cause });
     }
   };
 
@@ -220,6 +222,9 @@ export function SwitchFlow({
       onToggle={togglePicked}
       onCheckAgain={setupCheck.recheck}
       pools={<SwitchPoolLines sessionId={sessionId} targetProfileId={targetProfileId} />}
+      space={space}
+      onSpaceAgain={recheckSpace}
+      // One screen: the keys question (when it applies) is asked here.
       extra={preflight.door === "one-click" && preflight.secrets.asks ? keys(preflight) : undefined}
     />
   );
@@ -228,12 +233,13 @@ export function SwitchFlow({
     <button
       key="switch-now"
       type="button"
-      disabled={keysPending || sealOwed}
-      // Continue and Switch now share a place: a double-click's second click never
-      // starts the switch from an unseen screen (deep/09 H-5).
+      disabled={keysPending || sealOwed || tooLittleSpace(space)}
+      // Continue and Switch now sit in one place: the second click of a
+      // double-click on Continue never starts the switch from a screen
+      // the user hasn't seen (deep/09 H-5).
       onClick={(event) => event.detail < 2 && void execute(preflight)}
       data-testid="switch-confirm"
-      className={keysPending || sealOwed ? PRIMARY_WAITING : PRIMARY}
+      className={keysPending || sealOwed || tooLittleSpace(space) ? PRIMARY_WAITING : PRIMARY}
       aria-keyshortcuts="Enter"
     >
       {/* 0.3.5: the button says where it goes on: Desktop or CLI. */}
@@ -286,20 +292,7 @@ export function SwitchFlow({
       case "done":
         return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} continuedIn={phase.continuedIn} />;
       case "failed":
-        // A short title, then the failure's own words: what happened and
-        // what to do next, each said once (`SwitchFailure::words`; any
-        // other error's words say what to do too). Nothing is added to
-        // them here, so nothing is said twice.
-        return (
-          <div className="flex flex-col gap-4" data-testid="switch-failed">
-            <h3 className="text-title text-warning">The switch didn't complete</h3>
-            <p className="rounded-lg border border-warning/40 px-3 py-2 text-body text-warning" data-testid="switch-failed-words">
-              {phase.message}
-            </p>
-            {/* What was set up before the switch failed stays undoable. */}
-            <SwitchSetupResults target={targetLabel} results={setupCheck.results} />
-          </div>
-        );
+        return <FailedStep target={targetLabel} message={phase.message} cause={phase.cause} results={setupCheck.results} />;
     }
   })();
 
@@ -344,9 +337,12 @@ export function SwitchFlow({
         return (
           <>
             {cancelButton}
-            <button type="button" data-autofocus onClick={() => retry(phase.preflight)} className={PRIMARY} data-testid="switch-retry">
-              Retry
-            </button>
+            {/* 0.3.9: only when trying again can succeed. */}
+            {failureOf(phase.cause).retryable && (
+              <button type="button" data-autofocus onClick={() => retry(phase.preflight)} className={PRIMARY} data-testid="switch-retry">
+                Retry
+              </button>
+            )}
           </>
         );
     }

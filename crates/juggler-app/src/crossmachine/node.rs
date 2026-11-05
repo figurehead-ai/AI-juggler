@@ -197,12 +197,14 @@ fn install_transplant(
     let files = bundle
         .files
         .iter()
-        .map(|file| BundleFile {
-            name: file.name.clone(),
-            bytes: match &source_cwd {
-                Some(from) if from != &target => remap_cwd(&file.content, from, &target),
-                _ => file.content.clone(),
-            },
+        .map(|file| {
+            BundleFile::inline(
+                file.name.clone(),
+                match &source_cwd {
+                    Some(from) if from != &target => remap_cwd(&file.content, from, &target),
+                    _ => file.content.clone(),
+                },
+            )
         })
         .collect();
     let session = SessionBundle {
@@ -220,6 +222,7 @@ fn install_transplant(
             redacted: false,
         },
         files,
+        scratch: None,
     };
     support.install_bundle(&session, account).map_err(|e| {
         crate::error_log::record("install_failed", &e.to_string());

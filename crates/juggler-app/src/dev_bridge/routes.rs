@@ -211,6 +211,7 @@ read_routes! {
     "switch_targets" => async_result commands::switch_targets(state; session_id: String);
     "switch_preflight" => async_result commands::switch_preflight(state; session_id: String, target_profile_id: String);
     "switch_setup_check" => async_result features::switch_setup::switch_setup_check(state; session_id: String, target_profile_id: String);
+    "switch_space_check" => async_result features::switch_space::switch_space_check(state; session_id: String, target_profile_id: String);
     "parked_list" => async_result parked::parked_list(state);
     "overnight_summary" => async_result overnight::overnight_summary(state; since_ms: Option<i64>);
     "dashboard_stats" => async_result commands::dashboard_stats(state);

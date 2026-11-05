@@ -313,6 +313,7 @@ macro_rules! app_commands {
             Read  commands::switch_preflight,
             Write commands::switch_door_count,
             Read  features::switch_setup::switch_setup_check,
+            Read  features::switch_space::switch_space_check,
             Read  features::switch_setup::switch_setup_list,
             Write features::switch_setup::switch_setup_apply,
             Write features::switch_setup::switch_setup_undo,
@@ -908,6 +909,11 @@ pub fn run() {
                 eprintln!("ai-juggler: no hand-over socket: {error}");
             }
             // 0.1.5: Go to it hands activation over on the main thread.
+            // 0.3.9: the switch dialog shows each step as it runs.
+            let steps = app.handle().clone();
+            juggler_handover::pipeline::on_progress(Box::new(move |step| {
+                let _ = tauri::Emitter::emit(&steps, "switch://progress", step.as_str());
+            }));
             let main_handle = app.handle().clone();
             activation::install_main_thread(move |job| main_handle.run_on_main_thread(job).is_ok());
             features::app::hotkey::register_go_to_hotkey(app.handle());

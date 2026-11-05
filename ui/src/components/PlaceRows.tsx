@@ -51,6 +51,10 @@ interface RowProps {
   /** Settings › Appearance › Density is Compact (AJ-E403): fewer lines,
    * the same words in its name. */
   compact?: boolean;
+  /** 0.3.9: how deep it sits under the session it was started from. */
+  depth?: number;
+  /** That session's title, for a screen reader. */
+  parent?: string | null;
 }
 
 /** A Needs you row. */

@@ -70,6 +70,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     };
     // One project lookup per folder: many conversations share one.
     let mut roots: HashMap<std::path::PathBuf, std::path::PathBuf> = HashMap::new();
+    let parents = started_from(state);
     let rows = state
         .conversations
         .all()?
@@ -113,6 +114,9 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 title: summary.title.clone(),
                 git_branch: summary.git_branch.clone(),
                 started_in: summary.started_in.clone(),
+                started_from: parents
+                    .get(&(conversation.tool.clone(), summary.id.clone()))
+                    .cloned(),
                 started_ms: summary.started_ms,
                 last_activity_ms: summary.last_ms,
                 tokens: crate::commands::tokens_info(summary.tokens),
@@ -130,6 +134,19 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
         })
         .collect();
     Ok(rows)
+}
+
+/// 0.3.9: who started whom, as the running apps record it (a Claude app
+/// side session's parent), `(tool, conversation)` → the one it was started
+/// from: read once for every row.
+fn started_from(state: &Arc<AppState>) -> HashMap<(String, String), String> {
+    state
+        .conversations
+        .live_model()
+        .started
+        .into_iter()
+        .map(|link| ((link.tool, link.session_id), link.parent))
+        .collect()
 }
 
 /// AJ-E2101: what the live view says of an open conversation: where it's
@@ -549,6 +566,7 @@ mod tests {
             title: None,
             git_branch: None,
             started_in: None,
+            started_from: None,
             started_ms: Some(last_ms),
             last_activity_ms: Some(last_ms),
             tokens: None,
@@ -595,5 +613,74 @@ mod tests {
         assert!(
             ids.contains(&"week-0") && !ids.contains(&"week-250") && !ids.contains(&"last-month")
         );
+    }
+
+    /// 0.3.9 (the maintainer's walk of 2026-11-04): a Claude app side
+    /// session showed as a sibling of the session that started it. Each
+    /// row says what it was started from, as the app recorded it.
+    #[test]
+    fn a_session_started_from_another_says_which() {
+        use crate::features::conversations::scan::{LiveModel, StartedLink};
+        let work = tempfile::tempdir().unwrap();
+        let root = work.path().canonicalize().unwrap();
+        let repo = root.join("Dev/app");
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+        let config = root.join("setup");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(config.join("settings.json"), "{}").unwrap();
+        let dir = config
+            .join("projects")
+            .join(repo.to_string_lossy().replace(['/', '.'], "-"));
+        std::fs::create_dir_all(&dir).unwrap();
+        for id in ["plan", "ws-a", "alone"] {
+            std::fs::write(
+                dir.join(format!("{id}.jsonl")),
+                format!(
+                    "{{\"type\":\"user\",\"sessionId\":\"{id}\",\"cwd\":\"{}\",\"timestamp\":\"2026-10-21T10:00:00.000Z\",\"message\":{{\"role\":\"user\",\"content\":\"{id}\"}}}}\n",
+                    repo.display()
+                ),
+            )
+            .unwrap();
+        }
+        let mut registry = juggler_adapter::AdapterRegistry::new();
+        registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
+            "/bin/true",
+        )));
+        let state = Arc::new(
+            crate::state::AppState::init_with_registry(root.join("app-data"), registry).unwrap(),
+        );
+        crate::commands::account_import_mode_impl(
+            &state,
+            juggler_adapters::CLAUDE_CODE_ID,
+            config.to_str().unwrap(),
+            "Work",
+            crate::commands::ImportRequest {
+                in_place: true,
+                ..crate::commands::ImportRequest::default()
+            },
+        )
+        .unwrap();
+        state.conversations.set_live_model(LiveModel {
+            started: vec![StartedLink {
+                tool: "claude-code".into(),
+                parent: "plan".into(),
+                session_id: "ws-a".into(),
+                title: None,
+                last_activity_ms: None,
+            }],
+            ..LiveModel::default()
+        });
+        let listed = list_impl(&state).unwrap();
+        let from = |id: &str| {
+            listed
+                .iter()
+                .find(|row| row.id == id)
+                .unwrap()
+                .started_from
+                .clone()
+        };
+        assert_eq!(from("ws-a").as_deref(), Some("plan"));
+        assert_eq!(from("plan"), None);
+        assert_eq!(from("alone"), None);
     }
 }

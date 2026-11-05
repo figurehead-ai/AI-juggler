@@ -82,7 +82,7 @@
 **Research basis**: ADR-0026; the spike's `render.rs` (loop, retry), `input.rs`, `main.rs`; `floor-spike-results.html`.
 **Handover note**: The three crates are in: `juggler-floor` (pure), `juggler-floor-render` (wgpu, safe `create_surface`), `juggler-window-events` (the audited carve-out: four unsafe calls, macOS; Unsupported with why elsewhere). Tauri pinned `=2.12.4` with `unstable`. `features/floor/window.rs` makes the window on first open (surface and monitor on the main thread) and drops it on close; `render.rs` runs the driver (`juggler-floor/src/driver.rs`, headless clock tests: 1 frame in 60 s at rest, none hidden, one per change, a refused frame retried every 100 ms). Entry points: the header's Floor button, Window › The Floor and the tray (⌘⇧M, which brings the main window back from the Floor); open-at-start reads `floor.open_at_start`. Left: the frame-log evidence of a 60 s run at rest, covered and minimised (`docs/qa/evidence/AJ-E3501/`), and the Linux/Windows build check in CI.
 
-### AJ-E3502 Memory settled: the drawables held while animating | Status: TODO | Priority P0 | Effort S | Depends: AJ-E3501
+### AJ-E3502 Memory settled: the drawables held while animating | Status: IN-PROGRESS | Priority P0 | Effort S | Depends: AJ-E3501
 **Goal**: The Floor meets its memory budget while animating, not only at rest.
 **User story**: As someone on a 16 GB Mac, opening the Floor doesn't cost half a gigabyte.
 **Requirements**:
@@ -101,7 +101,7 @@
 **Visual testing**: n/a.
 **Files to touch**: `crates/juggler-floor-render/`.
 **Research basis**: round 2's measurements in `docs/research/floor/README.md`; the spike's `measure/run.py`.
-**Handover note**: —
+**Handover note**: measured, not yet within budget (`docs/qa/floor/budgets-2026-11-04.md`, release build, M5 Ultra 96 GB). The ~550 MB held while frames come is Metal's own per-process working memory ("Owned physical footprint (unmapped) (graphics)"): a bare Metal clear of a 64×64 texture, with no wgpu, holds 273 MB on this Mac; wgpu's bare device 449 MB; the Floor 546 MB. The command queue's size makes no difference (8, 64, 4096 tried). Metal frees it within a second of the last frame, which is why at rest, covered and minimised read 170–246 MB in all. Everything the Floor itself creates on the GPU is about 40 MB (atlas 16, shadow map 16, instances 7.7). So none of the candidates in req. 2 can reach ≤ 250 MB while animating on this GPU; the budget needs a ruling (the Floor's own memory, with Metal's working pool named per Mac). After closing, +78 MB stays (Metal's own residue is ~7 MB): the open-and-close cycles in the harness tell a leak from the allocator's cache.
 
 ### AJ-E3503 The office model: cells, order, sizes, floors and saved choices | Status: IN-PROGRESS | Priority P0 | Effort L | Depends: —
 **Goal**: One pure model places every App on stable cells and every session at a stable desk, and keeps each App's look once chosen.

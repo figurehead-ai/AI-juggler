@@ -32,6 +32,7 @@ pub mod subagents;
 pub mod subscriptions;
 pub mod switch_fidelity;
 pub mod switch_setup;
+pub mod switch_space;
 pub mod tasks;
 pub mod terminal;
 pub mod tool_updates;
