@@ -2549,3 +2549,20 @@ understand, do what you need to, expand the limit."
   for reuse).
 - `scripts/floor_harness.py` judges and reports both this way; SPEC §9.7's
   table says it.
+
+### D-80 The Floor draws in Pixel art or Full resolution, a setting — SETTLED (2026-11-05)
+
+**Ruling.** The maintainer, 2026-11-05: "for the floor, can we make it so
+there are options of pixelated and full resolution, right these are 3d so
+we should be able to controll that as a setting? so two modes?" It ships
+in 0.4: the Floor is new in 0.4 and hasn't shipped.
+
+- One setting in Settings › The Floor, two choices: Pixel art (the
+  default, the approved design: the scene drawn at its pixel size, then
+  scaled up) and Full resolution (the scene at the screen's own pixels,
+  finished: smoothed edges, filtered textures, outline and hover widths,
+  the sky and the alert wash, the overlay, and picking per screen pixel).
+- Switching applies at once, without a restart, and is remembered.
+- Pixel art keeps every SPEC §9.7 budget. Full resolution gets its own
+  measured budget in the record; where it goes past D-79's, the setting's
+  line says so with the number.
