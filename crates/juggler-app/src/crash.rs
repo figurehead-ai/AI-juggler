@@ -644,14 +644,25 @@ mod tests {
 
     #[test]
     fn a_personal_path_outside_home_goes_and_a_system_one_stays() {
+        // The app's folder is a system one on each OS (`system_roots`):
+        // /Applications on a Mac, /opt elsewhere.
+        let app = if cfg!(target_os = "macos") {
+            "/Applications/AI Juggler.app"
+        } else {
+            "/opt/ai-juggler"
+        };
         let said = scrub(
-            "account directory error at /var/folders/s7/T/.tmpX/shop-acme: Permission denied (\"/Volumes/Work/client\") via /usr/bin/claude in /Applications/AI Juggler.app and ~/Dev/x, 3/4 done",
+            &format!(
+                "account directory error at /var/folders/s7/T/.tmpX/shop-acme: Permission denied (\"/Volumes/Work/client\") via /usr/bin/claude in {app} and ~/Dev/x, 3/4 done"
+            ),
             "/Users/someone-q9",
             "someone-q9",
         );
         assert_eq!(
             said,
-            "account directory error at [path]: Permission denied (\"[path]\") via /usr/bin/claude in /Applications/AI Juggler.app and ~/Dev/x, 3/4 done"
+            format!(
+                "account directory error at [path]: Permission denied (\"[path]\") via /usr/bin/claude in {app} and ~/Dev/x, 3/4 done"
+            )
         );
         assert!(!said.contains("shop-acme") && !said.contains("client"));
     }

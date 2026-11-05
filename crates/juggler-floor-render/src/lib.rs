@@ -83,10 +83,20 @@ pub struct Shown {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Refused;
 
+/// The Floor's backends: Metal, Vulkan or DX12. OpenGL can't read the
+/// depth buffer the post pass loads (CI's plain Linux runners offered it
+/// and the pipeline failed); without these, there's no adapter.
+fn primary(mut d: wgpu::InstanceDescriptor) -> wgpu::InstanceDescriptor {
+    d.backends = wgpu::Backends::PRIMARY;
+    d
+}
+
 /// A GPU instance that can draw into the windows of `display`.
 #[must_use]
 pub fn instance_for(display: Box<dyn wgpu::wgt::WgpuHasDisplayHandle>) -> wgpu::Instance {
-    wgpu::Instance::new(wgpu::InstanceDescriptor::new_with_display_handle(display))
+    wgpu::Instance::new(primary(wgpu::InstanceDescriptor::new_with_display_handle(
+        display,
+    )))
 }
 
 /// The surface of `window` (call on the main thread).
@@ -183,7 +193,9 @@ impl Renderer {
     ///
     /// [`Error`] when there's no adapter or device.
     pub fn headless(scene: &Scene) -> Result<Self, Error> {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(primary(
+            wgpu::InstanceDescriptor::new_without_display_handle(),
+        ));
         let (_, device, queue) = device(&instance, None)?;
         Ok(Self {
             gpu: Gpu::new(device, queue, wgpu::TextureFormat::Rgba8Unorm, scene),
