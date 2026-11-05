@@ -291,13 +291,42 @@ pub(crate) fn spawn_process(
     }
     let launched = launched_spec(state, row.account, spec)?;
     let ctx = crate::commands::ledger_ctx(state, row.account, project);
-    match io {
-        Io::Owned => Ok((state.supervisor.spawn(id, &launched, &ctx)?, None)),
-        Io::Driver => {
-            let (spawned, pipes) = state.supervisor.spawn_driven(id, &launched, &ctx)?;
-            Ok((spawned, Some(pipes)))
-        }
+    // AJ-E2912: the launch's steps, for debug mode (no arguments,
+    // environment values or paths: what it is and how it went).
+    let at = std::time::Instant::now();
+    let driven = matches!(io, Io::Driver);
+    let spawned = match io {
+        Io::Owned => state
+            .supervisor
+            .spawn(id, &launched, &ctx)
+            .map(|spawned| (spawned, None)),
+        Io::Driver => state
+            .supervisor
+            .spawn_driven(id, &launched, &ctx)
+            .map(|(spawned, pipes)| (spawned, Some(pipes))),
+    };
+    let ms = u64::try_from(at.elapsed().as_millis()).unwrap_or(u64::MAX);
+    match &spawned {
+        Ok(_) => tracing::info!(
+            target: "aij::flow",
+            flow = "launch",
+            step = "spawned",
+            tool = row.account.harness.as_str(),
+            driven,
+            args = launched.args.len(),
+            ms,
+        ),
+        Err(e) => tracing::info!(
+            target: "aij::flow",
+            flow = "launch",
+            step = "failed",
+            tool = row.account.harness.as_str(),
+            driven,
+            ms,
+            said = %e,
+        ),
     }
+    Ok(spawned?)
 }
 
 /// AJ-E2304: the tool's own terminal UI on a driven session's

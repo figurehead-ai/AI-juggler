@@ -17,8 +17,11 @@ sha2 = "0.11.0"
 # AJ-E1507: the rules sync's line diff (Myers, with a deadline).
 similar = "3.2.0"
 thiserror = "2.0.21"
+# AJ-E2912: the switch's steps for debug mode (target `aij::flow`).
+tracing = "0.1.44"
 
 [dev-dependencies]
+tracing-subscriber = { version = "0.3.20", default-features = false, features = ["registry", "std"] }
 cpu-time = "1"
 tempfile = "3.27.0"
 

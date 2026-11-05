@@ -40,6 +40,14 @@ CHANGE_MS = 100
 MEM_STILL = 150
 MEM_ANIM = 250
 BUILD_MS = 50
+LEAK_MB = 15  # what three more opens and closes may add (the allocator's churn)
+
+
+def metal(data: dict) -> float:
+    """Metal's own working memory while animating ("Owned physical
+    footprint (unmapped) (graphics)"), MB; 0 when not recorded."""
+    return next((m["mb"] for m in data.get("memory_animating", [])
+                 if m["category"] == "Owned physical footprint (unmapped) (graphics)"), 0.0)
 
 
 def target_dir() -> Path:
@@ -126,8 +134,9 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
     worst_change = max(changes)
     undrawn = sum(1 for c in data["change_to_screen_ms"] if c is None)
     rows = [
-        ("Open, nothing moving", "0 frames after the first",
-         f"{rest['frames']} frames in {rest['secs']:.0f} s", rest["frames"] == 0),
+        ("Open, nothing moving", "0 frames after the first, but for data news",
+         f"{rest['frames']} frames in {rest['secs']:.0f} s, {rest.get('snapshots', 0)} for data news",
+         rest["frames"] - rest.get("snapshots", 0) <= 0),
         ("Open, nothing moving", f"< {CPU_REST}% of one core",
          f"{rest['cpu_pct'] - base:+.3f}% over the app alone ({base:.3f}%)", rest["cpu_pct"] - base < CPU_REST),
         ("Animating, Full", f"≤ {CPU_FULL}% of one core",
@@ -151,9 +160,18 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
         ("Memory added, open and still", f"≤ {MEM_STILL} MB",
          f"{data['footprint_open_still_mb'] - before:+.0f} MB", data["footprint_open_still_mb"] - before <= MEM_STILL),
         ("Memory added, animating", f"≤ {MEM_ANIM} MB",
-         f"{anim_peak - before:+.0f} MB at its highest", anim_peak - before <= MEM_ANIM),
+         f"{anim_peak - before:+.0f} MB at its highest"
+         + (f", of which Metal's own working memory {metal(data):.0f} MB" if metal(data) else ""),
+         anim_peak - before <= MEM_ANIM),
         ("Memory once closed", "0 added",
-         f"{data['footprint_closed_mb'] - before:+.0f} MB", data["footprint_closed_mb"] - before <= 10),
+         f"{data['footprint_closed_mb'] - before:+.0f} MB (the system's allocator keeps freed blocks for reuse)",
+         data["footprint_closed_mb"] - before <= 10),
+    ]
+    if "footprint_closed_after_3_more_mb" in data:
+        grew = data["footprint_closed_after_3_more_mb"] - data["footprint_closed_mb"]
+        rows.append(("Opened and closed 3 more times", f"grows ≤ {LEAK_MB} MB (no leak)",
+                     f"{grew:+.0f} MB", grew <= LEAK_MB))
+    rows += [
         ("Building the scene", f"≤ {BUILD_MS} ms", f"{data['scene_build_ms_mean']:.2f} ms on average",
          data["scene_build_ms_mean"] <= BUILD_MS),
     ]

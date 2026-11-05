@@ -3038,6 +3038,8 @@ dependencies = [
  "similar",
  "tempfile",
  "thiserror 2.0.21",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

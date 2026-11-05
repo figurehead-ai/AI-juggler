@@ -688,10 +688,58 @@ pub fn execute(
     mechanism: Mechanism,
     launch: &mut LaunchHook<'_>,
 ) -> Result<(SwitchRecord, u32), SwitchFailure> {
+    // AJ-E2912: the steps, for debug mode and Report a bug (target
+    // `aij::flow`): words and numbers only, never what's in the
+    // conversation.
+    let started = std::time::Instant::now();
+    tracing::info!(
+        target: "aij::flow",
+        flow = "switch",
+        step = "start",
+        mechanism = mechanism.as_wire(),
+        to_tool = target.harness.as_str(),
+    );
+    let result = execute_steps(support, reference, target, freeze, mechanism, launch);
+    let ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    match &result {
+        Ok((record, _)) => tracing::info!(
+            target: "aij::flow",
+            flow = "switch",
+            step = "done",
+            ms,
+            fidelity = record.fidelity_label.as_str(),
+        ),
+        Err(failure) => tracing::info!(
+            target: "aij::flow",
+            flow = "switch",
+            step = "failed",
+            ms,
+            stage = ?failure.stage(),
+            code = failure.code().unwrap_or("-"),
+            said = %failure,
+        ),
+    }
+    result
+}
+
+/// Elapsed milliseconds since `at`.
+fn ms_since(at: std::time::Instant) -> u64 {
+    u64::try_from(at.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
+fn execute_steps(
+    support: &dyn HandoverSupport,
+    reference: &TranscriptRef,
+    target: &Account,
+    freeze: FreezeChoice,
+    mechanism: Mechanism,
+    launch: &mut LaunchHook<'_>,
+) -> Result<(SwitchRecord, u32), SwitchFailure> {
     let _ = freeze; // the choice shaped the source state BEFORE this
     // call (turn boundary or stop ladder); the pack
     // records truncation via the caller's staging.
     report(SwitchStep::Copying);
+    let at = std::time::Instant::now();
     let bundle = support.bundle_session(reference)?;
     let source_hashes: Vec<ManifestRow> = bundle
         .files
@@ -707,9 +755,26 @@ pub fn execute(
         })
         .collect::<std::io::Result<_>>()
         .map_err(juggler_adapter::error::AdapterError::Io)?;
+    tracing::info!(
+        target: "aij::flow",
+        flow = "switch",
+        step = "bundled",
+        files = source_hashes.len(),
+        bytes = source_hashes.iter().map(|r| r.bytes).sum::<u64>(),
+        ms = ms_since(at),
+    );
     // Stage + verify (atomic, fork-aware). An adapter failure here
     // cleaned its own temp (E204); nothing partial remains.
+    let at = std::time::Instant::now();
     let install = support.install_bundle(&bundle, target)?;
+    tracing::info!(
+        target: "aij::flow",
+        flow = "switch",
+        step = "installed",
+        forked = install.forked,
+        fallback = install.target_dir_fallback,
+        ms = ms_since(at),
+    );
     report(SwitchStep::Checking);
     let installed_hashes = verify_installed(&install, &bundle, target);
     let all_present = !installed_hashes.iter().any(|row| row.sha256.is_empty());
@@ -734,7 +799,9 @@ pub fn execute(
     // Launch (the app's hook; never the engine's). S-F5 keeps the
     // verified stage — the caller retries from it.
     report(SwitchStep::Starting);
+    let at = std::time::Instant::now();
     let pid = launch(&install).map_err(SwitchFailure::LaunchFailed)?;
+    tracing::info!(target: "aij::flow", flow = "switch", step = "launched", ms = ms_since(at));
     report(SwitchStep::Confirming);
 
     // Copy-never-move, checked post-launch too: each file where the
