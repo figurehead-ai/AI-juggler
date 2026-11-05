@@ -1,0 +1,67 @@
+id = "P5"
+title = "Rules by account"
+epic = "E30"
+decisions = ["D-62.9", "D-62.11", "D-62.12"]
+layers = ["L1", "L2", "L4"]
+exercises = ["Account member at Read", "a session's own level wins", "sign-in unreadable", "App changes Account"]
+needs = ["lab"]
+
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex-personal"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.apps]]
+id = "codex-personal-2"
+tool = "codex"
+account = "Personal"
+profile = "second"
+
+[[setup.sessions]]
+id = "p1"
+app = "codex-personal"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "p2"
+app = "codex-personal"
+project = "web"
+state = "idle"
+
+[[setup.pools]]
+name = "Careful"
+scope = "web"
+
+[[setup.members]]
+pool = "Careful"
+kind = "account"
+ref = "Personal"
+role = "member"
+level = "read"
+
+[[steps]]
+do = "Start a session on the other App of the Personal account"
+expect = "It joins Careful at Read"
+
+[[steps]]
+do = "Name p2 on its own as Work together"
+expect = "p2's own level wins inside Careful; p1 stays at Read"
+
+[[steps]]
+do = "In the lab, make Personal's sign-in unreadable"
+expect = "The pool shows 'Account unknown'; a session also in by another member stays in"
+
+[[steps]]
+do = "Sign one Personal App in to another Account"
+expect = "It leaves Careful, and the pool says who left"

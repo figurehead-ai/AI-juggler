@@ -1,0 +1,23 @@
+id = "P9"
+title = "Moving from 0.3"
+epic = "E30"
+decisions = ["D-62.16"]
+layers = ["L1", "L2", "L4"]
+exercises = ["migration of every 0.3 pool kind and content"]
+needs = ["lab"]
+
+[setup]
+from = "a copy of a 0.3 data folder with every kind of pool and content"
+backup = true
+
+[[steps]]
+do = "Open AI Juggler 0.4 on the copied 0.3 data folder"
+expect = "A backup is taken first; it says so"
+
+[[steps]]
+do = "Open every pool"
+expect = "Every pool, member, role, rule, message, task, approval and canvas position is still there"
+
+[[steps]]
+do = "Look at project pools and user pools with no project"
+expect = "Project pools look the same; user pools with no project say 'Every project'"

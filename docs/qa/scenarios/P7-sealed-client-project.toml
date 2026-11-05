@@ -1,0 +1,81 @@
+id = "P7"
+title = "Sealed client project"
+epic = "E30"
+decisions = ["D-62.14"]
+layers = ["L1", "L2", "L4"]
+exercises = ["sealed", "switch into a sealed App", "unseal"]
+needs = ["lab"]
+
+[setup]
+projects = ["client", "web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex-personal"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.sessions]]
+id = "c1"
+app = "cc-work"
+project = "client"
+state = "working"
+
+[[setup.sessions]]
+id = "c2"
+app = "codex-personal"
+project = "client"
+state = "idle"
+
+[[setup.pools]]
+name = "Client"
+scope = "client"
+
+[[setup.pools]]
+name = "web"
+template = "project"
+scope = "web"
+
+[[setup.members]]
+pool = "Client"
+kind = "session"
+ref = "c1"
+role = "lead"
+
+[[setup.members]]
+pool = "Client"
+kind = "session"
+ref = "c2"
+role = "member"
+
+[[setup.members]]
+pool = "web"
+kind = "session"
+ref = "c1"
+role = "member"
+
+[[steps]]
+do = "Seal Client"
+expect = "c1 leaves its other pools; elsewhere it shows greyed: 'in Client (sealed)'"
+
+[[steps]]
+do = "c1 sends a message or doc out of Client"
+expect = "Refused, with its reason"
+
+[[steps]]
+do = "Claude's own cross-session message into c1"
+expect = "Refused (as the lab proved in AJ-E3002)"
+
+[[steps]]
+do = "Switch a session into an App Client holds"
+expect = "It warns first, and waits for 'Switch anyway'"
+
+[[steps]]
+do = "Unseal Client"
+expect = "It says what comes back before it does"

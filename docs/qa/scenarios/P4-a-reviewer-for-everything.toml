@@ -1,0 +1,83 @@
+id = "P4"
+title = "A reviewer for everything"
+epic = "E30"
+decisions = ["D-62.8", "D-62.10", "D-62.13"]
+layers = ["L1", "L2", "L4"]
+exercises = ["every-project scope", "two pools", "blocked member to member", "writes name the pool"]
+needs = ["lab", "live-codex"]
+
+[setup]
+projects = ["web", "api"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex-personal"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.sessions]]
+id = "rev"
+app = "codex-personal"
+project = "web"
+state = "idle"
+
+[[setup.sessions]]
+id = "web1"
+app = "cc-work"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "api1"
+app = "cc-work"
+project = "api"
+state = "working"
+
+[[setup.pools]]
+name = "Review"
+template = "reviewer-for-everything"
+scope = "every"
+
+[[setup.pools]]
+name = "web"
+template = "project"
+scope = "web"
+
+[[setup.pools]]
+name = "api"
+template = "project"
+scope = "api"
+
+[[setup.members]]
+pool = "Review"
+kind = "session"
+ref = "rev"
+role = "reviewer"
+
+[[setup.members]]
+pool = "Review"
+kind = "everyone"
+ref = "scope"
+role = "member"
+
+[[steps]]
+do = "web1 messages api1 inside Review"
+expect = "Blocked: member to member is blocked here, said in words"
+
+[[steps]]
+do = "Open web1's page → Pools tab"
+expect = "It is in two pools, and the tab says how it got into each (its project; everyone in scope)"
+
+[[steps]]
+do = "web1 writes a doc naming the web pool"
+expect = "It lands in web, not Review"
+
+[[steps]]
+do = "web1 writes naming a pool it isn't in"
+expect = "Refused, with the pool named"

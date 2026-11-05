@@ -1,0 +1,84 @@
+id = "P1"
+title = "Writer and reviewer"
+epic = "E30"
+decisions = ["D-62.9", "D-62.12", "D-62.15", "D-62.18", "D-44"]
+layers = ["L2", "L3", "L4"]
+exercises = ["App member", "auto-join", "Reviewer", "switching", "watched to full"]
+needs = ["lab", "live-claude", "live-codex"]
+
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex-personal"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.apps]]
+id = "claude-app"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+running = true
+
+[[setup.sessions]]
+id = "writer"
+app = "cc-work"
+project = "web"
+state = "working"
+
+[[setup.sessions]]
+id = "checker"
+app = "codex-personal"
+project = "web"
+state = "idle"
+
+[[setup.sessions]]
+id = "app-chat"
+app = "claude-app"
+project = "web"
+state = "idle"
+
+[[steps]]
+do = "New pool → Writer and reviewer; scope: one project (web)"
+expect = "The wizard opens on Where, with web picked and the template's roles shown"
+measure = "click to wizard ≤ 100 ms"
+
+[[steps]]
+do = "Pick the App Claude Code · Work as Lead and the Codex session as Reviewer"
+expect = "The side panel says which sessions join now and which join later"
+
+[[steps]]
+do = "Make the pool"
+expect = "The canvas shows both; the review step and the canvas say the same members, roles and talk"
+
+[[steps]]
+do = "The writer claims a task and marks it in review"
+expect = "The task shows In review with the writer as holder"
+
+[[steps]]
+do = "The Reviewer sends it back with a note, then approves it"
+expect = "Sent back and approved show as the Reviewer's verdicts; the final Approve stays the person's (D-44)"
+
+[[steps]]
+do = "The writer's account runs out of room; switch it to Codex · Personal"
+expect = "The switch check says it stays in the pool with full tools; its tasks and messages come along"
+
+[[steps]]
+do = "Start a new Claude Code · Work session in web"
+expect = "It joins the pool by itself as a Member, without a click"
+
+[[steps]]
+do = "Open Add on the pool"
+expect = "The Claude app session shows greyed with its reason (watched: can't reply)"
+
+[[steps]]
+do = "Add it as Watched, then Continue in AI Juggler"
+expect = "It is drawn dashed until continued; continued, it gets the agent tools and matches the member as itself"

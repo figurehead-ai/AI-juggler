@@ -1,0 +1,51 @@
+id = "X1"
+title = "A day"
+epic = "E33"
+decisions = ["D-62", "D-31", "D-44"]
+layers = ["L5"]
+exercises = ["held message", "switch with pool", "mute", "cache cleared", "force quit", "usage matches"]
+needs = ["lab", "rc", "live-claude", "live-codex"]
+
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "codex-personal"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.pools]]
+name = "Team"
+template = "feature-team"
+scope = "web"
+
+[[steps]]
+do = "Morning: Needs you leads to a held pool message"
+expect = "Approve it; it delivers"
+
+[[steps]]
+do = "An account runs out; switch the session"
+expect = "Its pool, tasks and messages follow; the notice names its pool"
+
+[[steps]]
+do = "Mute the pool"
+expect = "Its notices stop; Settings lists the mute"
+
+[[steps]]
+do = "Clear the cache mid-walk"
+expect = "The page shows at once; the counts a moment later"
+
+[[steps]]
+do = "Force-quit a session, then AI Juggler, and reopen"
+expect = "Everything is where it was"
+
+[[steps]]
+do = "End of the day: compare usage"
+expect = "The usage lines match the vendor's own"

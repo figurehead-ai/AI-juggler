@@ -1,0 +1,51 @@
+id = "N3"
+title = "The rare options"
+epic = "E32"
+decisions = ["D-62.24", "D-31"]
+layers = ["L3", "L4"]
+exercises = ["New session"]
+needs = ["replica"]
+
+[setup]
+projects = ["web"]
+history = "one usual: Claude Code · Work in web"
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+running = true
+
+[[setup.apps]]
+id = "app-side"
+tool = "claude-desktop"
+account = "Personal"
+profile = "Side"
+running = false
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[steps]]
+do = "Look at the folded options"
+expect = "Folded; the fold's label shows their current values"
+
+[[steps]]
+do = "Change one, start, then open New session again"
+expect = "Remembered only if you said so"

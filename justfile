@@ -32,6 +32,7 @@ verify-static:
     just release-selftest
     python3 scripts/capabilities.py check
     LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
+    just qa-kit
     python3 scripts/ci_parity.py --selftest
     python3 scripts/ci_parity.py
     cargo fmt --all --check
@@ -289,6 +290,19 @@ agent-bridge:
 # Mac, for every walk and journey. It refuses a HOME that isn't a replica.
 replica_home := env_var_or_default("AIJ_REPLICA_HOME", "/tmp/aij-replica")
 target_dir := env_var_or_default("CARGO_TARGET_DIR", "target")
+
+# AJ-E3301: the 0.4 validation kit's own checks — the scenario files, the
+# pools reference model and the all-pairs arrays (current, every pair covered).
+qa-kit:
+    python3 -I scripts/qa/scenario.py --selftest
+    python3 -I scripts/qa/scenario.py check
+    python3 -I scripts/qa/pool_oracle.py --selftest
+    python3 -I scripts/qa/pairwise.py --selftest
+    python3 -I scripts/qa/pairwise.py check
+
+# AJ-E3301: a scenario's lab: setup | open | teardown, e.g. `just lab-scenario setup P3`.
+lab-scenario cmd id:
+    scripts/qa/lab_scenario.sh {{cmd}} {{id}}
 
 # Build the replica HOME (AIJ_REPLICA_HOME, default /tmp/aij-replica).
 replica:

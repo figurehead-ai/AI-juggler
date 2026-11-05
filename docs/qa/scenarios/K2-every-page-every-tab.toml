@@ -1,0 +1,72 @@
+id = "K2"
+title = "Every page, every tab"
+epic = "E31"
+decisions = ["D-62.19", "D-62.20", "D-62.21"]
+layers = ["L2", "L3"]
+exercises = ["count = list = reference", "order", "search at 9", "paging 1 000", "3 new"]
+needs = ["replica"]
+
+[setup]
+projects = ["web", "api"]
+ended_sessions = 1000
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Max"
+running = true
+
+[[setup.apps]]
+id = "app-side"
+tool = "claude-desktop"
+account = "Personal"
+profile = "Side"
+running = false
+
+[[setup.apps]]
+id = "codex"
+tool = "codex"
+account = "Personal"
+profile = "default"
+
+[[setup.pools]]
+name = "web"
+template = "project"
+scope = "web"
+
+[[steps]]
+do = "For each page and tab, compare the tab's count with its list and the reference"
+expect = "All three agree"
+
+[[steps]]
+do = "Check the order"
+expect = "Needs you, working, open, recent, rest"
+
+[[steps]]
+do = "Grow a list from 8 to 9 items"
+expect = "Search appears at 9"
+
+[[steps]]
+do = "Use every filter"
+expect = "Each narrows correctly"
+
+[[steps]]
+do = "Scroll 1 000 ended sessions"
+expect = "They page without a stall"
+
+[[steps]]
+do = "While reading, let 3 sessions start"
+expect = "They wait behind '3 new'; the list never jumps"

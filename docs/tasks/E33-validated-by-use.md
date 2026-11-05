@@ -20,7 +20,7 @@
 > and walks (AJ-E3514) are part of this validation; see the plan's
 > "The Floor" section.
 
-### AJ-E3301 The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | Status: TODO | Priority P0 | Effort L | Depends: —
+### AJ-E3301 The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort L | Depends: —
 **Goal**: One scenario drives the exhaustive tests, the oracle check, the scripted journey and the hand walk, so they can't drift apart.
 **User story**: As the person walking P1, the sheet I fill in has the same steps and expectations the automation checked.
 **Requirements**:
@@ -37,7 +37,8 @@
 **Visual testing**: n/a.
 **Files to touch**: `docs/qa/scenarios/` (new), `scripts/qa/pool_oracle.py`, `scripts/qa/pairwise.py` (new), `crates/juggler-app/tests/qa_real_readonly.rs`, `docs/qa/0.4-walks/` (new).
 **Research basis**: `scripts/qa/real_truth.py`, `replica_fixture.py`, AJ-E1529.
-**Handover note**: —
+**Handover note**: 2026-11-04, built: 32 scenario files (`docs/qa/scenarios/`, P1–P11, A1–A10, K1–K4, N1–N5, X1–X2, 91 steps; `scripts/qa/scenario.py` reads them on Python 3.9 too, checks them, makes each walk sheet and the lab's seed); the all-pairs arrays (`scripts/qa/pairwise.py`, IPOG with no randomness: wizard 70 rows, canvas 42, pages 52, New session 18, each with a coverage report naming the row for every pair; `check` fails when stale or a pair is uncovered); the lab (`scripts/qa/lab_scenario.sh setup|open|teardown`: the replica HOME, the scenario seeded into AI Juggler Dev's data folder there by `tests/qa_scenario_seed.rs`, which refuses any folder that isn't a lab's; teardown stops what has files open under the lab and removes it); step timing (`ui/src/lib/walk-timing.ts`: click to feedback and to done, opt-in, `window.__AIJ_WALK__`); the replica gains two Claude folders on one sign-in and three Claude app profiles on disk (one run by `live`). `just qa-kit` runs in `verify-static`. P3 set up and torn down end to end in about 2 s, the seed checked in its database. Left: the proof run of P1 through all four layers — its live steps need a Claude sign-in in the lab (the parked bookauth-luka sign-in) and Codex.
+
 
 ### AJ-E3302 Account and App validated | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3301, AJ-E3207
 **Goal**: A1–A10 and N1–N5 pass by hand and in their layers.

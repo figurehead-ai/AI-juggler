@@ -11,6 +11,7 @@
 
 mod common;
 #[path = "common/messages_lab.rs"]
+#[allow(dead_code)]
 mod lab;
 
 use juggler_agentbridge::wire::{Args, Call, Refusal};

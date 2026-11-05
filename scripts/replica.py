@@ -71,6 +71,12 @@ CLAUDE_HOMES = [
     ("oss", "pro", False),
 ]
 CODEX_HOMES = [("", "plus"), ("work", "pro")]
+# AJ-E3301: folders signed in to another folder's Account (several Apps on
+# one subscription, D-62): their sign-in names the same person and team.
+SAME_SIGN_IN = {"max-2": "default"}
+# AJ-E3301: Claude app profiles on disk (`~/Library/Application Support/
+# ClaudeProfiles/<name>`); `live` runs the first, the rest stay closed.
+CLAUDE_APP_PROFILES = ["Work Max", "Side", "Client"]
 
 # Projects: (name, kind, icon) — kind "repo" | "clone:<of>" ; icon kinds below.
 PROJECTS = [
@@ -388,15 +394,16 @@ def build(args: argparse.Namespace) -> None:
     for suffix, plan, status_line in CLAUDE_HOMES:
         folder = home / (".claude" if not suffix else f".claude-{suffix}")
         label = suffix or "default"
+        signed_in_as = SAME_SIGN_IN.get(label, label)
         write_json(folder / "settings.json", claude_settings(status_line))
         write_json(folder / ".claude.json", {"oauthAccount": {
-            "emailAddress": f"{label}@{DOMAIN}", "organizationName": f"Replica {label}"},
+            "emailAddress": f"{signed_in_as}@{DOMAIN}", "organizationName": f"Replica {signed_in_as}"},
             "numStartups": rng.randint(3, 400)})
         write_json(folder / ".credentials.json", {"claudeAiOauth": {
             "accessToken": "replica-not-a-real-token", "refreshToken": "replica-not-a-real-token",
             "expiresAt": int((now + dt.timedelta(days=30)).timestamp() * 1000), "subscriptionType": plan}})
         account = {"tool": "claude-code", "folder": str(folder), "label": label, "plan": plan,
-                   "own_status_line": status_line, "conversations": 0}
+                   "own_status_line": status_line, "conversations": 0, "signed_in_as": signed_in_as}
         truth["accounts"].append(account)
         for _ in range(rng.randint(25, 70)):
             project, cwd, branch = cwd_pick()
@@ -431,6 +438,14 @@ def build(args: argparse.Namespace) -> None:
 
     if args.large_rollout_mb:
         pad_newest_rollout(home, truth, args.large_rollout_mb)
+
+    # AJ-E3301: Claude app profiles, the first run by `live`, the rest closed.
+    profiles = home / "Library" / "Application Support" / "ClaudeProfiles"
+    truth["claude_app_profiles"] = []
+    for index, name in enumerate(CLAUDE_APP_PROFILES):
+        (profiles / name).mkdir(parents=True, exist_ok=True)
+        write_json(profiles / name / "config.json", {"replica": True})
+        truth["claude_app_profiles"].append({"name": name, "running_in_live": index == 0})
 
     (home / ".zshrc").write_text("".join(
         f"alias claude-{s}='CLAUDE_CONFIG_DIR=~/.claude-{s} claude'\n" for s, _, _ in CLAUDE_HOMES if s)

@@ -1,0 +1,68 @@
+id = "P11"
+title = "Overlap and deletion"
+epic = "E30"
+decisions = ["D-62.10", "D-62.11"]
+layers = ["L1", "L2", "L4"]
+exercises = ["delete a pool", "two pools at Full wake one session", "Stop all"]
+needs = ["lab"]
+
+[setup]
+projects = ["web"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.sessions]]
+id = "both"
+app = "cc-work"
+project = "web"
+state = "idle"
+
+[[setup.sessions]]
+id = "only-a"
+app = "cc-work"
+project = "web"
+state = "working"
+
+[[setup.pools]]
+name = "A"
+scope = "web"
+level = "full"
+
+[[setup.pools]]
+name = "B"
+scope = "web"
+level = "full"
+
+[[setup.members]]
+pool = "A"
+kind = "session"
+ref = "both"
+role = "member"
+
+[[setup.members]]
+pool = "B"
+kind = "session"
+ref = "both"
+role = "member"
+
+[[setup.members]]
+pool = "A"
+kind = "session"
+ref = "only-a"
+role = "member"
+
+[[steps]]
+do = "Both pools wake the shared session at once"
+expect = "The one call limit and the hop limit hold (one limit per session, not per pool)"
+
+[[steps]]
+do = "Stop all in pool A"
+expect = "Only A's sessions stop"
+
+[[steps]]
+do = "Delete pool A"
+expect = "'both' keeps B; 'only-a' goes back to its project pool; history stays"
