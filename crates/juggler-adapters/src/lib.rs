@@ -13,6 +13,7 @@
 )]
 
 pub mod activity;
+pub mod claude_app_family;
 pub mod claude_asks;
 pub mod claude_bridge;
 pub mod claude_code;

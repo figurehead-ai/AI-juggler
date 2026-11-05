@@ -395,3 +395,48 @@ mod tests {
         }
     }
 }
+
+/// ADR-0028: a session another started, as a desktop app that keeps that
+/// link in its own records says (the Claude app's side sessions).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HostFamilyMember {
+    /// The app's record of it.
+    pub record: PathBuf,
+    /// The record's id in the app.
+    pub local_id: String,
+    /// Its conversation id (its transcript's).
+    pub conversation: String,
+    /// The conversation it was started from.
+    pub parent_conversation: String,
+    /// Its title, when it has one.
+    pub title: Option<String>,
+}
+
+/// ADR-0028: a desktop app that keeps who started which session in its own
+/// records, outside the conversations' files, so a switch has to carry
+/// those records for the family to nest on the target as it did. Its
+/// adapter implements it ([`crate::HarnessAdapter::host_family`]).
+pub trait HostFamily: Send + Sync {
+    /// The sessions started from `conversation` in the app instance at
+    /// `instance_dir`, and theirs: parents first, each once.
+    fn descendants(&self, instance_dir: &Path, conversation: &str) -> Vec<HostFamilyMember>;
+
+    /// The folder holding the target instance's record of
+    /// `conversation`, where the family's records go beside it.
+    fn records_folder_of(&self, instance_dir: &Path, conversation: &str) -> Option<PathBuf>;
+
+    /// Places the records of `members` in `folder`, each pointing at its
+    /// parent there; `renamed` maps a conversation id the move forked to
+    /// its new one. Only while the app isn't running (the caller makes
+    /// sure). All or nothing.
+    ///
+    /// # Errors
+    ///
+    /// A record that can't be carried, in words; the write that failed.
+    fn place(
+        &self,
+        members: &[HostFamilyMember],
+        folder: &Path,
+        renamed: &[(String, String)],
+    ) -> Result<Vec<PathBuf>, crate::AdapterError>;
+}

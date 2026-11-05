@@ -874,6 +874,14 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// ADR-0028: the desktop app of this tool that keeps who started which
+    /// session in its own records, when it has one (the Claude app); a
+    /// switch carries those records so a family nests on the target.
+    #[must_use]
+    fn host_family(&self) -> Option<&dyn crate::live::HostFamily> {
+        None
+    }
+
     /// ADR-0028: this tool's answer for every switching capability
     /// ([`crate::switching::SwitchCapability`]): supported and how, or
     /// not and why. The default leaves them all unanswered, which the

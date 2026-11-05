@@ -154,6 +154,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         crate::claude_handover::switch_answers
     }
 
+    fn host_family(&self) -> Option<&dyn juggler_adapter::live::HostFamily> {
+        Some(&crate::claude_app_family::ClaudeAppFamily)
+    }
+
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::claude_subagents::SUPPORT
     }

@@ -620,6 +620,10 @@ pub struct SwitchRecord {
     pub mechanism: Mechanism,
     /// The fidelity label shown at execution.
     pub fidelity_label: String,
+    /// ADR-0028: the family members the switch moved with it (the host's
+    /// family, such as a Claude app's side sessions), each installed and
+    /// verified like the conversation, in the order given.
+    pub family: Vec<InstallOutcome>,
 }
 
 /// The launch hook: the app spawns under its supervisor AFTER the
@@ -706,6 +710,38 @@ pub fn execute_cut(
     cut: Option<juggler_adapter::handover::Cut>,
     launch: &mut LaunchHook<'_>,
 ) -> Result<(SwitchRecord, u32), SwitchFailure> {
+    execute_family(
+        support,
+        reference,
+        &[],
+        target,
+        freeze,
+        mechanism,
+        cut,
+        launch,
+    )
+}
+
+/// ADR-0028: [`execute_cut`] with `family`, the conversations the host
+/// knows were started from this one (and theirs), moved with it: each is
+/// bundled whole, installed and verified before the launch, and checked
+/// unchanged at its source after; any failure takes back everything the
+/// switch placed. An empty family is [`execute_cut`].
+///
+/// # Errors
+///
+/// As [`execute`]; a member that can't be carried fails the switch.
+#[allow(clippy::too_many_arguments)] // the switch's inputs, each its own fact
+pub fn execute_family(
+    support: &dyn HandoverSupport,
+    reference: &TranscriptRef,
+    family: &[TranscriptRef],
+    target: &Account,
+    freeze: FreezeChoice,
+    mechanism: Mechanism,
+    cut: Option<juggler_adapter::handover::Cut>,
+    launch: &mut LaunchHook<'_>,
+) -> Result<(SwitchRecord, u32), SwitchFailure> {
     // AJ-E2912: the steps, for debug mode and Report a bug (target
     // `aij::flow`): words and numbers only, never what's in the
     // conversation.
@@ -717,8 +753,11 @@ pub fn execute_cut(
         mechanism = mechanism.as_wire(),
         to_tool = target.harness.as_str(),
         cut = ?cut,
+        family = family.len(),
     );
-    let result = execute_steps(support, reference, target, freeze, mechanism, cut, launch);
+    let result = execute_steps(
+        support, reference, family, target, freeze, mechanism, cut, launch,
+    );
     let ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     match &result {
         Ok((record, _)) => tracing::info!(
@@ -802,9 +841,11 @@ fn bundled(
     Ok((bundle, source_hashes, cut_checks))
 }
 
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)] // the switch, step by step
 fn execute_steps(
     support: &dyn HandoverSupport,
     reference: &TranscriptRef,
+    family: &[TranscriptRef],
     target: &Account,
     freeze: FreezeChoice,
     mechanism: Mechanism,
@@ -843,26 +884,44 @@ fn execute_steps(
     if !all_present {
         // S-F4 shape: verification failed after install — remove the
         // staged files (the temp-dir discipline's post-hoc guard).
-        if install.placed.is_empty() {
-            for row in &installed_hashes {
-                let _ = std::fs::remove_file(
-                    install
-                        .reference
-                        .path
-                        .parent()
-                        .unwrap_or_else(|| Path::new("."))
-                        .join(&row.rel_path),
-                );
-            }
-        } else {
-            for (_, path) in &install.placed {
-                let _ = std::fs::remove_file(path);
-            }
-        }
+        take_back(&install, &installed_hashes);
         return Err(SwitchFailure::StagingAborted(
             "installed set did not verify".into(),
         ));
     }
+    // ADR-0028: the family, each member carried whole (never cut),
+    // installed and verified before anything starts; one that fails
+    // takes back all the switch placed.
+    let mut members: Vec<(
+        &TranscriptRef,
+        InstallOutcome,
+        Vec<ManifestRow>,
+        Vec<ManifestRow>,
+    )> = Vec::new();
+    for member in family {
+        let placed = bundled(support, member, None).and_then(|(bundle, sources, _)| {
+            let install = support.install_bundle(&bundle, target)?;
+            let hashes = verify_installed(&install, &bundle, target);
+            if hashes.iter().any(|row| row.sha256.is_empty()) {
+                take_back(&install, &hashes);
+                return Err(SwitchFailure::StagingAborted(
+                    "a session started from this one did not verify".into(),
+                ));
+            }
+            Ok((install, sources, hashes))
+        });
+        match placed {
+            Ok((install, sources, hashes)) => members.push((member, install, sources, hashes)),
+            Err(failure) => {
+                take_back(&install, &installed_hashes);
+                for (_, done, _, hashes) in &members {
+                    take_back(done, hashes);
+                }
+                return Err(failure);
+            }
+        }
+    }
+    tracing::info!(target: "aij::flow", flow = "switch", step = "family", members = members.len());
 
     // Launch (the app's hook; never the engine's). S-F5 keeps the
     // verified stage — the caller retries from it.
@@ -892,6 +951,17 @@ fn execute_steps(
         }
     }
 
+    for (member, _, sources, _) in &members {
+        for row in sources {
+            if !support.source_unchanged(member, &row.rel_path, row.bytes, &row.sha256) {
+                return Err(SwitchFailure::StagingAborted(format!(
+                    "source changed during the switch: {}",
+                    row.rel_path
+                )));
+            }
+        }
+    }
+
     let record = SwitchRecord {
         install,
         source_hashes,
@@ -899,8 +969,31 @@ fn execute_steps(
         freeze,
         mechanism,
         fidelity_label: bundle.manifest.fidelity.level.clone(),
+        family: members
+            .into_iter()
+            .map(|(_, install, _, _)| install)
+            .collect(),
     };
     Ok((record, pid))
+}
+
+/// Removes what an install placed (where it says it put each file, else
+/// beside its transcript): a check that failed after the install.
+fn take_back(install: &InstallOutcome, installed: &[ManifestRow]) {
+    if install.placed.is_empty() {
+        let dir = install
+            .reference
+            .path
+            .parent()
+            .unwrap_or_else(|| Path::new("."));
+        for row in installed {
+            let _ = std::fs::remove_file(dir.join(&row.rel_path));
+        }
+    } else {
+        for (_, path) in &install.placed {
+            let _ = std::fs::remove_file(path);
+        }
+    }
 }
 
 /// Hashes the installed set (fork-rewritten names included); a
