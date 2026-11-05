@@ -13,7 +13,7 @@ import { useMemo, useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
 import { Picker, Segmented } from "../../components/controls";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
-import { nextRole, type Candidate, type Draft, type DraftMember, type Reach } from "../../lib/new-pool";
+import { nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember, type Reach } from "../../lib/new-pool";
 import { MACHINE_WORD, MACHINES_WORD } from "../../lib/machine-words";
 
 /** Past this many rows a list gets a search field. */
@@ -26,13 +26,6 @@ const KIND_WORDS: Record<MemberKind, string> = {
   tool: "Tools",
   mac: MACHINES_WORD,
   everyone: "Everyone",
-};
-
-export const REACH_WORDS: Record<Reach, string> = {
-  full: "full tools",
-  shell: "shell only",
-  watched: "watched",
-  later: "new ones join",
 };
 
 const GROUPS: { id: Candidate["group"]; label: string }[] = [
@@ -214,7 +207,9 @@ function CandidateRow({ row, on, onToggle, onFix }: { row: Candidate; on: boolea
           <span className={"truncate text-body font-medium " + (blocked ? "text-ink-2" : "text-ink")}>{row.label}</span>
           <span className="truncate text-meta text-ink-2">{row.detail}</span>
         </span>
-        <Chip tone={row.reach === "full" ? "success" : row.reach === "watched" ? "warning" : row.reach === "later" ? "accent" : "neutral"}>{REACH_WORDS[row.reach]}</Chip>
+        {/* A row that can't join has no reach to promise (the P6 walk: a
+            paired Mac said "new ones join" beside why it can't). */}
+        {!blocked && <Chip tone={row.reach === "full" ? "success" : row.reach === "watched" ? "warning" : row.reach === "later" ? "accent" : "neutral"}>{REACH_WORDS[row.reach]}</Chip>}
       </button>
       {(row.blocked || (row.fix && row.reach === "watched")) && (
         <span className="flex flex-wrap items-center gap-2 pl-6 text-meta text-warning">

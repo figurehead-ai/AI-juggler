@@ -21,10 +21,18 @@ import { sessionState } from "./rail-items";
 import type { AppModel } from "./apps";
 import type { SubscriptionInfo } from "./subscriptions";
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
-import { MACHINES_WORD } from "./machine-words";
+import { MACHINE_WORD, MACHINES_WORD, THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "./machine-words";
 
 /** What a member can do in the pool. */
 export type Reach = "full" | "shell" | "watched" | "later";
+
+/** Each reach in a word, as the wizard's chip and the palette say it. */
+export const REACH_WORDS: Record<Reach, string> = {
+  full: "full tools",
+  shell: "shell only",
+  watched: "watched",
+  later: "new ones join",
+};
 
 export interface DraftMember {
   ref: string;
@@ -153,6 +161,19 @@ export function sessionCandidates(input: {
   return [...own, ...theirs].sort((a, b) => b.lastMs - a.lastMs);
 }
 
+/** The Mac most of the sessions here run on: this one. */
+export function thisMacOf(sessions: InstanceInfo[]): string {
+  const counts = new Map<string, number>();
+  for (const session of sessions) counts.set(session.machine_id, (counts.get(session.machine_id) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "this-mac";
+}
+
+/** A Mac's name here: This Mac, a paired Mac's own, or "A paired Mac". */
+export function macLabel(id: string, thisMac: string, paired: { machine_id: string; label: string }[]): string {
+  if (id === thisMac) return THIS_MACHINE;
+  return paired.find((mac) => mac.machine_id === id)?.label ?? `A paired ${MACHINE_WORD}`;
+}
+
 /** Apps, Accounts, Tools and Macs: broad members, whose sessions in scope
  * join by themselves, now and later. */
 export function broadCandidates(input: {
@@ -162,14 +183,17 @@ export function broadCandidates(input: {
   tools: ToolSpecInfo[];
   sessions: InstanceInfo[];
   thisMac: string;
-  macName: (id: string) => string;
+  /** The Macs paired with this one (AJ-E1515), by their names here. */
+  paired: { machine_id: string; label: string }[];
 }): Candidate[] {
   const open = (match: (session: InstanceInfo) => boolean) => input.sessions.filter((session) => sessionState(session).state !== "ended" && match(session)).length;
   const row = (ref: string, kind: MemberKind, label: string, count: number, blocked: string | null = null): Candidate => ({
     ref,
     kind,
     label,
-    detail: count > 0 ? `${count} open now · new ones join` : "new ones join",
+    // What's open now; that new ones join is the reach's own word (the
+    // wizard's chip, the palette's line), said once (the P6 walk).
+    detail: count > 0 ? `${count} open now` : "none open now",
     group: count > 0 ? "open" : "all",
     reach: "later",
     blocked,
@@ -185,9 +209,15 @@ export function broadCandidates(input: {
     case "tool":
       return input.tools.map((tool) => row(memberRef("tool", tool.id), "tool", tool.display_name, open((session) => session.provider === tool.id)));
     case "mac": {
-      const macs = [...new Set(input.sessions.map((session) => session.machine_id))];
-      if (!macs.includes(input.thisMac)) macs.unshift(input.thisMac);
-      return macs.map((id) => row(memberRef("mac", id), "mac", input.macName(id), open((session) => session.machine_id === id), id === input.thisMac ? null : `Its sessions join once pools work across ${MACHINES_WORD} (0.5).`));
+      // This Mac, then every paired one (the P6 walk: a paired Mac with no
+      // sessions here was never offered). A paired Mac says it waits for
+      // pools across Macs (AJ-E1705) and has no Add: nothing pretends.
+      const macs = [input.thisMac, ...input.sessions.map((session) => session.machine_id), ...input.paired.map((mac) => mac.machine_id)].filter((id, at, all) => all.indexOf(id) === at);
+      return macs.map((id) => {
+        if (id === input.thisMac) return row(memberRef("mac", id), "mac", THIS_MACHINE, open((session) => session.machine_id === id));
+        const name = macLabel(id, input.thisMac, input.paired);
+        return { ...row(memberRef("mac", id), "mac", name, 0, `Its sessions join once pools work across ${MACHINES_WORD} (0.5).`), detail: `paired with ${THIS_MACHINE_IN_TEXT}`, group: "all" as const };
+      });
     }
   }
 }

@@ -5,6 +5,7 @@
  * preview, `__AIJ_LAUNCH_MACHINES__`, `__AIJ_MACHINE_USAGE__` and
  * `__AIJ_REMOTE_STARTED__` stand in.
  */
+import { useEffect, useState } from "react";
 import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { NOTIFICATION_CLICK_EVENT } from "./notifications";
@@ -49,4 +50,21 @@ export async function fleetLaunchStart(machineId: string, recipeId: string, proj
 export async function fleetUsageByMachine(): Promise<MachineUsageInfo[]> {
   if (!hasLiveBackend()) return seams().__AIJ_MACHINE_USAGE__ ?? [];
   return invoke<MachineUsageInfo[]>("fleet_usage_by_machine");
+}
+
+/** The Macs paired with this one, by their names here (none unpaired, and
+ * none in a browser preview without the seam). Read once per screen. */
+export function usePairedMacs(): LaunchMachineInfo[] {
+  const [macs, setMacs] = useState<LaunchMachineInfo[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void fleetLaunchOptions().then(
+      (found) => alive && setMacs(found),
+      () => alive && setMacs([]),
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return macs;
 }

@@ -18,13 +18,13 @@ import { errorText, type AccountInfo, type InstanceInfo, type ProjectInfo } from
 import { useApps } from "../../lib/apps";
 import { useConversations } from "../../lib/conversations";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
-import { broadCandidates, draftOf, makePool, sessionCandidates, type Candidate, type Draft } from "../../lib/new-pool";
+import { broadCandidates, draftOf, makePool, sessionCandidates, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
+import { usePairedMacs } from "../../lib/ipc/fleet-launch";
 import { templateById } from "../../lib/pool-templates";
 import { refreshPools, usePools } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { useSubscriptions } from "../../lib/subscriptions";
 import { useTools } from "../../lib/tools";
-import { THIS_MACHINE } from "../../lib/machine-words";
 import { nameOf } from "../../pages/pool/actions";
 import { NewPoolReview } from "./NewPoolReview";
 import { NewPoolRoles } from "./NewPoolRoles";
@@ -89,22 +89,19 @@ export function NewPool({
   useEffect(() => primaryRef.current?.focus(), [step]);
 
   const projectName = (id: string | null) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project"));
-  const thisMac = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const session of sessions) counts.set(session.machine_id, (counts.get(session.machine_id) ?? 0) + 1);
-    return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "this-mac";
-  }, [sessions]);
+  const thisMac = useMemo(() => thisMacOf(sessions), [sessions]);
+  const paired = usePairedMacs();
   const candidates = useMemo(() => {
     const now = Date.now();
     const out = {} as Record<MemberKind, Candidate[]>;
     for (const kind of MEMBER_KINDS) {
       if (kind === "session") out[kind] = sessionCandidates({ draft, sessions, conversations, pools, tools, projectName, nameOf, now });
       else if (kind === "everyone") out[kind] = [{ ref: "all", kind, label: draft.every ? "Everyone, in every project" : "Everyone in this pool's projects", detail: "every session in scope, now and later", group: "open", reach: "later", blocked: null, lastMs: 0 }];
-      else out[kind] = broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, macName: (id) => (id === thisMac ? THIS_MACHINE : id) });
+      else out[kind] = broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired });
     }
     return out;
     // projectName reads projects, which is a dependency.
-  }, [draft, sessions, conversations, pools, tools, apps, subscriptions, thisMac, projects]);
+  }, [draft, sessions, conversations, pools, tools, apps, subscriptions, thisMac, paired, projects]);
 
   const choose = (id: string) => {
     const template = templateById(id);

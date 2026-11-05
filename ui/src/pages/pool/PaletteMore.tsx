@@ -12,7 +12,7 @@ import { MACHINES_WORD } from "../../lib/machine-words";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
 import { poolJoin } from "../../lib/ipc/pool-model";
-import type { Candidate } from "../../lib/new-pool";
+import { REACH_WORDS, type Candidate } from "../../lib/new-pool";
 import { setPools } from "../../lib/pools";
 
 export type MoreKind = "watched" | "app" | "account" | "tool" | "mac" | "everyone" | "blocked";
@@ -62,13 +62,13 @@ export function PaletteMore({
         onChange={setKind}
         testId="canvas-palette-kind"
       />
-      <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto" data-canvas-scroll>
+      <ul className="flex flex-col gap-1">
         {rows.slice(0, 30).map((row) => (
           <li key={row.ref} className="flex flex-col gap-0.5 rounded-lg border border-dashed border-hairline bg-surface px-2 py-1.5" data-testid="canvas-palette-more-item">
             <span className="flex items-center gap-2">
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className={"truncate text-meta " + (row.blocked ? "text-ink-2" : "text-ink")}>{row.label}</span>
-                <span className="truncate text-label text-faint">{row.detail}</span>
+                <span className="truncate text-label text-faint">{row.reach === "later" && !row.blocked && row.kind !== "everyone" ? `${row.detail} · ${REACH_WORDS.later}` : row.detail}</span>
               </span>
               {!row.blocked && (
                 <button

@@ -18,12 +18,12 @@ import { useApps } from "../lib/apps";
 import { usePoolRules } from "../lib/pool-rules";
 import { useSubscriptions } from "../lib/subscriptions";
 import { useTools } from "../lib/tools";
-import { MACHINE_WORD, THIS_MACHINE } from "../lib/machine-words";
 import { poolSetScope, type PoolRuleInfo } from "../lib/ipc/pool-model";
 import type { PoolInfo } from "../lib/ipc/pools";
 import { CanvasTeach } from "./pool/CanvasTeach";
 import { PaletteMore, type MoreKind } from "./pool/PaletteMore";
-import { broadCandidates, draftOf, sessionCandidates, type Candidate } from "../lib/new-pool";
+import { broadCandidates, draftOf, macLabel, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
+import { usePairedMacs } from "../lib/ipc/fleet-launch";
 import { templateById } from "../lib/pool-templates";
 import { RuleNodes } from "./pool/RuleNodes";
 import { ScopeSheet, scopeLabel } from "./pool/ScopeSheet";
@@ -91,15 +91,15 @@ function useMoreCandidates(pool: PoolInfo, sessions: InstanceInfo[], projects: P
   const tools = useTools();
   const apps = useApps(accounts);
   const subscriptions = useSubscriptions();
+  const paired = usePairedMacs();
   const { all } = useConversations();
   return useMemo(() => {
     const draft = { ...draftOf(templateById("blank"), null), every: pool.scope_all, projects: pool.scope };
     const projectName = (id: string | null) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project"));
     const named = new Set(members);
     const own = sessionCandidates({ draft, sessions, conversations: all, pools, tools, projectName, nameOf, now: Date.now() }).filter((row) => !named.has(row.ref) && !(pools?.placements ?? []).some((place) => `session:${place.session_id}` === row.ref && place.pool_id === pool.id));
-    const thisMac = sessions[0]?.machine_id ?? "this-mac";
-    const broad = (kind: "app" | "account" | "tool" | "mac") =>
-      broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, macName: (id) => (id === thisMac ? THIS_MACHINE : id) }).filter((row) => !named.has(row.ref));
+    const thisMac = thisMacOf(sessions);
+    const broad = (kind: "app" | "account" | "tool" | "mac") => broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired }).filter((row) => !named.has(row.ref));
     return {
       watched: own.filter((row) => row.reach === "watched" && row.blocked === null),
       app: broad("app"),
@@ -111,7 +111,7 @@ function useMoreCandidates(pool: PoolInfo, sessions: InstanceInfo[], projects: P
       // (the P3 walk: "docs · Ended" offered Add docs, which did nothing).
       blocked: own.filter((row) => row.blocked !== null && row.group === "open"),
     };
-  }, [pool, sessions, projects, members, pools, tools, apps, subscriptions, all]);
+  }, [pool, sessions, projects, members, pools, tools, apps, subscriptions, all, paired]);
 }
 
 /** D-62: a member rule's name, from the same Apps, Accounts and Tools the
@@ -120,6 +120,7 @@ function useRuleLabel(accounts: AccountInfo[], sessions: InstanceInfo[]): (rule:
   const apps = useApps(accounts);
   const subscriptions = useSubscriptions();
   const tools = useTools();
+  const paired = usePairedMacs();
   return useCallback(
     (rule: PoolRuleInfo) => {
       const [kind, ...rest] = rule.member.split(":");
@@ -128,10 +129,10 @@ function useRuleLabel(accounts: AccountInfo[], sessions: InstanceInfo[]): (rule:
       if (kind === "app") return apps?.find((app) => app.id === id)?.name ?? "An App";
       if (kind === "account") return subscriptions?.find((account) => account.key === id)?.display_name ?? "An Account";
       if (kind === "tool") return tools.find((tool) => tool.id === id)?.display_name ?? "A tool";
-      if (kind === "mac") return sessions.some((session) => session.machine_id === id) ? THIS_MACHINE : `A paired ${MACHINE_WORD}`;
+      if (kind === "mac") return macLabel(id, thisMacOf(sessions), paired);
       return "A member";
     },
-    [apps, subscriptions, tools, sessions],
+    [apps, subscriptions, tools, sessions, paired],
   );
 }
 

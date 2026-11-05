@@ -76,8 +76,11 @@ export function Palette({
           <path d={open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} />
         </svg>
       </button>
+      {/* One scroll area under the header (the P6 walk at 1024 × 700: the
+          list and More squeezed over each other and ran under the zoom bar). */}
       {open && (
-        <div className="flex min-h-0 flex-col gap-1.5 px-2 pb-2">
+        <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain" data-canvas-scroll data-testid="canvas-palette-body">
+          <div className="flex flex-col gap-1.5 px-2 pb-2">
           {sessions.length === 0 ? (
             <p className="px-1 pb-1 text-label text-muted" data-testid="canvas-palette-empty">
               Every open session that can join is here already. Start one and it shows up here.
@@ -95,7 +98,7 @@ export function Palette({
                   className="h-8 rounded-lg border border-hairline bg-surface-2 px-2 text-meta text-ink outline-none placeholder:text-faint focus-visible:ring-1 focus-visible:ring-accent/60"
                 />
               )}
-              <ul className="flex min-h-0 flex-col gap-1 overflow-y-auto" data-testid="canvas-palette-list">
+              <ul className="flex flex-col gap-1" data-testid="canvas-palette-list">
                 {shown.map((session) => (
                   <li
                     key={session.id}
@@ -127,9 +130,10 @@ export function Palette({
               </ul>
             </>
           )}
+          </div>
+          {more}
         </div>
       )}
-      {open && more}
     </section>
   );
 }
