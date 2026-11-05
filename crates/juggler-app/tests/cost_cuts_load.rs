@@ -124,7 +124,8 @@ fn usage_cost_cuts_at_two_thousand_sessions() {
     // The account table adds up to Prices and details' total, to the cent.
     let table: f64 = cold.by_account.iter().filter_map(|row| row.usd).sum();
     let total = commands::cost_rollups_impl(&state, None).total_usd.unwrap();
-    eprintln!("[perf] reconciled: accounts ${table:.2}, Prices and details ${total:.2}");
+    // Checked below, never logged: no cost goes to the log.
+    eprintln!("[perf] reconciling the table with Prices and details");
     assert_eq!(
         (table * 100.0).round(),
         (total * 100.0).round(),
