@@ -270,7 +270,7 @@ describe("the bell", () => {
     render(<NotificationBell sessions={[]} />);
     expect((await screen.findByTestId("bell-count")).textContent).toBe("2");
     const bell = screen.getByRole("button", { name: /^Notifications: 2 things need you/ });
-    expect(bell.getAttribute("aria-keyshortcuts")).toBe("Meta+Shift+N");
+    expect(bell.getAttribute("aria-keyshortcuts")).toBe("Meta+Alt+N");
     fireEvent.click(bell);
     expect(await screen.findByTestId("notification-centre")).toBeTruthy();
   });

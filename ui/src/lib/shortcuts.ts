@@ -13,6 +13,7 @@
  * and V (a terminal's copy and paste there).
  */
 import { isTypingTarget } from "./density";
+import { bindingAria, bindingWords, customBinding, DEFAULT_BINDINGS, isChanged, matchBinding } from "./shortcut-bindings";
 
 export interface KeyLike {
   key: string;
@@ -221,7 +222,10 @@ const BY_ID = new Map<string, Shortcut>(SHORTCUTS.map((entry) => [entry.id, entr
  */
 export function matches(id: ShortcutId, event: KeyLike, inApp = false): boolean {
   const entry = BY_ID.get(id);
-  if (!entry?.match || !entry.match(event, inApp)) return false;
+  // AJ-E2905: a key the user changed replaces the shipped one.
+  const changed = customBinding(id);
+  if (changed ? !matchBinding(changed, event) : !entry?.match || !entry.match(event, inApp)) return false;
+  if (!entry) return false;
   if (!isTypingTarget(event.target ?? null)) return true;
   if (entry.fieldOwnsIt) return false;
   if (event.metaKey) return true;
@@ -230,6 +234,22 @@ export function matches(id: ShortcutId, event: KeyLike, inApp = false): boolean 
   // it needs is lost), except Ctrl+Shift+C and V, a terminal's copy and
   // paste there. Linux CI: ⌘⇧H from the session's terminal never fired.
   return !!event.ctrlKey && !!event.shiftKey && !["c", "v"].includes(event.key.toLowerCase());
+}
+
+/** AJ-E2905: how `id`'s keys read now (the user's change, or as shipped);
+ * every place that shows a key reads it here. */
+export function keysOf(id: ShortcutId): readonly string[] {
+  const changed = customBinding(id);
+  return changed ? [bindingWords(changed)] : (BY_ID.get(id)?.keys ?? []);
+}
+
+/** Whether the user changed `id`'s key (the ? sheet says so). */
+export const changedKey = (id: ShortcutId): boolean => isChanged(id);
+
+/** `id`'s keys in `aria-keyshortcuts` form, for a rebindable one. */
+export function ariaKeysOf(id: ShortcutId): string | undefined {
+  const binding = customBinding(id) ?? DEFAULT_BINDINGS[id];
+  return binding ? bindingAria(binding) : undefined;
 }
 
 /** ⌘./Ctrl+. — Stop the selected live Instance (deep 02 SP-04). */

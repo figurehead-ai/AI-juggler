@@ -3,6 +3,7 @@
  * PageShell's PageHeader): its mark and name, its parent as the crumb,
  * its state, two or three facts, and its actions with its ⋯ menu.
  */
+import { keysOf } from "../lib/shortcuts";
 import { focusHandover } from "../lib/handover-focus";
 import type { ReactNode } from "react";
 import { PageHeader, type Crumb } from "./PageShell";
@@ -124,7 +125,7 @@ export function InspectorHeader({
             data-testid="remote-freshness"
             data-freshness={remote.machine.freshness}
           >
-            {freshnessText(remote.machine, now)} <span className="text-muted">(⌘[ back)</span>
+            {freshnessText(remote.machine, now)} <span className="text-muted">({keysOf("remote-back")[0]} back)</span>
           </span>
         }
         folded={folded}

@@ -2,7 +2,8 @@
  * Settings (AJ-E1203; AJ-E2110, Apple's System Settings pattern): a
  * sidebar of panes — General, Desktop apps, Accounts, Sessions,
  * Switching, Agent access (AJ-E1702), Notifications, Privacy, Your Macs
- * (once one is paired) and Advanced — each with grouped sections. ⌘, opens the pane viewed last;
+ * (once one is paired), Keyboard and Advanced — each with grouped
+ * sections; a search atop the sidebar finds any of them (AJ-E2905). ⌘, opens the pane viewed last;
  * a link from elsewhere opens its pane at its section (`panes.ts` maps
  * every older section id). Each pane loads when it's first opened.
  *
@@ -15,6 +16,8 @@ import { fleetPeers } from "../lib/bridge";
 import { lazyNamed } from "../lib/lazy";
 import { PaneIcon } from "./settings/pane-icons";
 import { lastPane, rememberPane, shownPanes, targetOf, type PaneId } from "./settings/panes";
+import { searchSettings } from "./settings/settings-index";
+import { SettingsSearch } from "./settings/SettingsSearch";
 import { PaneTile } from "./settings/parts";
 
 type PaneProps = { anchor?: string };
@@ -29,6 +32,7 @@ const PANE_BODIES: Record<PaneId, (props: PaneProps) => JSX.Element> = {
   notifications: lazyNamed(() => import("./settings/NotificationsPane"), "NotificationsPane"),
   privacy: lazyNamed(() => import("./settings/PrivacyPane"), "PrivacyPane"),
   macs: lazyNamed(() => import("./settings/MacsPane"), "MacsPane"),
+  keyboard: lazyNamed(() => import("./settings/KeyboardPane"), "KeyboardPane"),
   advanced: lazyNamed(() => import("./settings/AdvancedPane"), "AdvancedPane"),
 };
 
@@ -71,11 +75,27 @@ export function SettingsScreen({
     return () => window.removeEventListener("aij:open-settings", open);
   }, []);
   const panes = shownPanes({ pairedMacs }, pane);
+  // AJ-E2905: the search; a pane with nothing that matches dims.
+  const [query, setQuery] = useState("");
+  const labels = Object.fromEntries(panes.map((entry) => [entry.id, entry.label]));
+  const hits = searchSettings(query, labels).filter((hit) => hit.pane in labels);
+  const matched = new Set(hits.map((hit) => hit.pane));
+  const searching = query.trim() !== "";
   const Body = PANE_BODIES[pane];
   return (
     <div className="mx-auto flex w-full max-w-[1040px] gap-8 pb-10" data-testid="settings-screen">
       <nav aria-label="Settings" className="sticky top-0 w-52 shrink-0 self-start pt-1">
         <h2 className="mb-3 px-2 text-title text-ink">Settings</h2>
+        <SettingsSearch
+          query={query}
+          hits={hits}
+          onQuery={setQuery}
+          onPick={(hit) => {
+            setPane(hit.pane);
+            setAnchor(hit.anchor);
+            setJumps((count) => count + 1);
+          }}
+        />
         <ul className="flex flex-col gap-0.5" data-testid="settings-nav">
           {panes.map((entry) => (
             <li key={entry.id}>
@@ -88,7 +108,8 @@ export function SettingsScreen({
                 aria-current={pane === entry.id ? "page" : undefined}
                 className={
                   "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
-                  (pane === entry.id ? "bg-accent-soft font-medium text-ink" : "text-ink hover:bg-surface-2")
+                  (pane === entry.id ? "bg-accent-soft font-medium text-ink" : "text-ink hover:bg-surface-2") +
+                  (searching && !matched.has(entry.id) ? " opacity-45" : "")
                 }
                 data-pane={entry.id}
               >

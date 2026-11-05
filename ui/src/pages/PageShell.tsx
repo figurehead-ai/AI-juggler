@@ -4,6 +4,7 @@
  * toggle `hidden` (a terminal never remounts on a tab switch); the tab
  * a type of page was left on is remembered for that type only.
  */
+import { useKeys } from "../lib/use-keys";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { useScrollMemory } from "../lib/scroll-memory";
 import { HANDOVER_EVENT } from "../lib/handover-focus";
@@ -53,6 +54,7 @@ export function PageHeader({
    * ("Projects › storefront"). */
   here?: string;
 }) {
+  const inspectorKeys = useKeys("inspector");
   const session = layout === "session";
   const title = (
     <h2
@@ -112,7 +114,7 @@ export function PageHeader({
               onClick={onToggleFold}
               aria-expanded={!folded}
               aria-label={folded ? "Unfold the inspector" : "Fold the inspector"}
-              title={folded ? "Unfold the inspector (⌘⇧I)" : "Fold the inspector (⌘⇧I)"}
+              title={folded ? `Unfold the inspector (${inspectorKeys.words})` : `Fold the inspector (${inspectorKeys.words})`}
               data-testid="inspector-fold"
               className="rounded-lg p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
             >

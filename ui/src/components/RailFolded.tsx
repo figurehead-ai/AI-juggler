@@ -32,6 +32,7 @@ import { usePrimary, whereWords } from "./PlaceRows";
 import { ariaSummary } from "./row-details";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useRoving } from "../lib/roving";
+import { useKeys } from "../lib/use-keys";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
 import { useRailOrder } from "../lib/rail-order-store";
@@ -75,6 +76,7 @@ export function FoldedRail({
   /** Shows the list, where its grouping switch and View are. */
   onShowList?: () => void;
 }): JSX.Element {
+  const keys = useKeys("toggle-rail");
   const needs = useBackendNeeds();
   const { conversations } = useShownConversations();
   const seen = useSeen();
@@ -99,8 +101,8 @@ export function FoldedRail({
           data-testid="rail-folded-show-list"
           onClick={onShowList}
           aria-label="Group and View: show the list"
-          aria-keyshortcuts="Meta+B"
-          title="Group and View — show the list (⌘B)"
+          aria-keyshortcuts={keys.aria}
+          title={`Group and View — show the list (${keys.words})`}
           className="mb-1 flex size-8 items-center justify-center rounded-lg border border-hairline bg-surface/70 text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconView width={14} height={14} />

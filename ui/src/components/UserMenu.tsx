@@ -10,6 +10,7 @@
  * channel. The menu rule (AJ-E2106): icons on every line, three groups,
  * getting there first, the one destructive line last.
  */
+import { keysOf } from "../lib/shortcuts";
 import { useEffect, useState, type JSX, type MouseEvent, type SVGProps } from "react";
 import { MenuItem, MenuSeparator, RowMenu } from "./RowMenu";
 import { IconShield } from "./icons";
@@ -151,7 +152,7 @@ export function UserMenu(): JSX.Element {
           )}
           <MenuSeparator />
           <MenuItem onClick={run(() => settings())} testId="user-menu-settings">
-            <Line icon={IconGear} label="Settings" hint="⌘," />
+            <Line icon={IconGear} label="Settings" hint={keysOf("settings")[0]} />
           </MenuItem>
           <MenuItem onClick={run(() => go("thismac"))}>
             <Line icon={IconComputer} label={screenLabel("thismac")} />
@@ -185,7 +186,7 @@ export function UserMenu(): JSX.Element {
             </span>
           </div>
           <MenuItem onClick={run(() => window.dispatchEvent(new Event("aij:open-shortcuts")))}>
-            <Line icon={IconKeyboard} label="Keyboard shortcuts" hint="?" />
+            <Line icon={IconKeyboard} label="Keyboard shortcuts" hint={keysOf("help")[0]} />
           </MenuItem>
           <MenuSeparator />
           <MenuItem onClick={run(() => void appHelpOpen())}>

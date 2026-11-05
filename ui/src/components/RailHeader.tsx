@@ -10,16 +10,18 @@
 import type { JSX } from "react";
 import { IconJuggler } from "./icons";
 import type { AppInfo } from "../lib/bridge";
+import { useKeys } from "../lib/use-keys";
 
 export function RailHeader({ minimal, info, onToggle }: { minimal: boolean; info: AppInfo | null; onToggle: () => void }): JSX.Element {
+  const keys = useKeys("toggle-rail");
   const edition = info && info.edition !== "main" ? (info.edition === "nightly" ? "Nightly" : "Dev") : null;
   return (
     <div className={"flex h-14 shrink-0 items-center overflow-hidden " + (minimal ? "flex-col justify-center gap-0.5 px-1" : "gap-2.5 px-4")} data-testid="rail-header">
       <button
         type="button"
-        title={minimal ? "Show the list (⌘B)" : "Icons only (⌘B)"}
+        title={minimal ? `Show the list (${keys.words})` : `Icons only (${keys.words})`}
         aria-label={minimal ? "Show the list" : "Show icons only"}
-        aria-keyshortcuts="Meta+B"
+        aria-keyshortcuts={keys.aria}
         onClick={onToggle}
         className={"shrink-0 rounded-md text-accent outline-none hover:bg-surface focus-visible:ring-1 focus-visible:ring-accent/60 " + (minimal && edition ? "p-0.5" : "p-1")}
       >

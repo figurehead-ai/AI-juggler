@@ -8,6 +8,7 @@
  * its page; Mark reviewed takes it off. E31 (AJ-E3103): each is the one
  * session row (`row/SessionRow`), as in the rail and on every page.
  */
+import { useKeys } from "../lib/use-keys";
 import type { JSX } from "react";
 import { SectionTitle } from "./SectionTitle";
 import { IconCheck } from "./icons-controls";
@@ -65,6 +66,7 @@ export function HomeRecent({
   /** AJ-E2910: all of them reviewed at once (not only those shown). */
   onReviewAll?: () => void;
 }): JSX.Element | null {
+  const actionKeys = useKeys("home-action");
   const asked = useAskedWords(
     recent.flatMap((session) => (!session.label && !session.title && session.conversation_id ? [{ profileId: session.account_id ?? "", conversationId: session.conversation_id }] : [])),
   );
@@ -99,10 +101,10 @@ export function HomeRecent({
                   <button
                     type="button"
                     data-home-action
-                    aria-keyshortcuts="A"
+                    aria-keyshortcuts={actionKeys.aria}
                     disabled={busy === session.id}
                     onClick={() => onReviewed(session)}
-                    title="Mark reviewed (A)"
+                    title={`Mark reviewed (${actionKeys.words})`}
                     className="pointer-events-auto relative z-10 -my-1 -mr-1.5 flex min-h-6 shrink-0 items-center gap-1 rounded px-1.5 text-meta leading-[18px] text-muted outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
                   >
                     {/* A narrow column (Home's beside Runway) keeps its mark;

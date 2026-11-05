@@ -5,6 +5,7 @@
  * Pool once a pool of yours exists (a project's own pool doesn't count)
  * — one click, kept per Mac with the rest of the View.
  */
+import { useKeys } from "../lib/use-keys";
 import { useMemo, useState, type JSX, type RefObject } from "react";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { ViewPopover } from "./ViewPopover";
@@ -70,6 +71,7 @@ export function RailToolbar({
   projects: ProjectInfo[];
   machines: RemoteMachineInfo[];
 }): JSX.Element {
+  const paletteKeys = useKeys("palette");
   const { all } = useConversations();
   // The Accounts to pick from are read once the View opens (or one is picked).
   const [viewOpen, setViewOpen] = useState(false);
@@ -97,7 +99,7 @@ export function RailToolbar({
                 onQuery("");
               }
             }}
-            placeholder="Search ⌘K"
+            placeholder={`Search ${paletteKeys.words}`}
             aria-label="Search sessions: words, or is:ended, app:, account:, project:, mac:"
             className="h-7 w-full rounded-lg border border-hairline bg-surface/70 pl-6 pr-2 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-1 focus-visible:ring-accent/60"
           />

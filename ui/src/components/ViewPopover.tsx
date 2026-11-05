@@ -14,6 +14,7 @@ import { IconProjects, IconSubtasks } from "./icons";
 import { IconBackground, IconChevronRight, IconEnded, IconInactive, IconQuiet } from "./icons-controls";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, type MenuAt } from "./RowMenu";
 import { ChoiceLine, type ControlIcon } from "./controls";
+import { useKeys } from "../lib/use-keys";
 import { ONLY_KEYS, resetViewParts, setRailView, SHOW_KEYS, SHOW_LABELS, SHOW_NOTES, useRailView, viewChanged, type OnlyKey, type ShowKey } from "../lib/rail-view";
 
 const SHOW_ICONS: Record<ShowKey, ControlIcon> = {
@@ -40,6 +41,7 @@ function Section({ children }: { children: string }): JSX.Element {
 }
 
 export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey, { value: string; label: string }[]>; onOpenChange?: (open: boolean) => void }): JSX.Element {
+  const keys = useKeys("rail-view");
   const view = useRailView();
   const [at, setAt] = useState<MenuAt | null>(null);
   useEffect(() => onOpenChange?.(at !== null), [at, onOpenChange]);
@@ -78,9 +80,9 @@ export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-keyshortcuts="Shift+V"
+        aria-keyshortcuts={keys.aria}
         aria-label={changed ? "View, changed from the defaults" : "View"}
-        title="View (⇧V)"
+        title={`View (${keys.words})`}
         data-testid="rail-view-button"
         onMouseDown={() => {
           closing.current = open;

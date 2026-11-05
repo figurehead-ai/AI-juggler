@@ -10,11 +10,13 @@ import { IconBell } from "./icons-actions";
 import { lazyNamed } from "../lib/lazy";
 import { setCentreOpen, toggleCentre, useCentreOpen, useNoticeSummary } from "../lib/notices-store";
 import { bellLabel } from "../lib/notice-words";
+import { useKeys } from "../lib/use-keys";
 import type { InstanceInfo } from "../lib/bridge";
 
 const NotificationCentre = lazyNamed(() => import("./NotificationCentre"), "NotificationCentre");
 
 export function NotificationBell({ sessions }: { sessions: InstanceInfo[] }): JSX.Element {
+  const keys = useKeys("notifications");
   const summary = useNoticeSummary();
   const open = useCentreOpen();
   const count = summary?.count ?? 0;
@@ -26,8 +28,8 @@ export function NotificationBell({ sessions }: { sessions: InstanceInfo[] }): JS
         aria-label={bellLabel(count, summary?.unread ?? 0)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-keyshortcuts="Meta+Shift+N"
-        title="Notifications (⌥⌘N)"
+        aria-keyshortcuts={keys.aria}
+        title={`Notifications (${keys.words})`}
         data-testid="notification-bell"
         className={"relative flex size-9 items-center justify-center rounded-lg border outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (open ? "border-hairline bg-surface-3 text-ink" : "border-transparent text-muted hover:bg-surface hover:text-ink")}
       >

@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { ShortcutSheet } from "./components/ShortcutSheet";
 import { matches, SHORTCUTS, SHORTCUT_AREAS, type KeyLike, type ShortcutId } from "./lib/shortcuts";
+import { isChanged, resetForTests } from "./lib/shortcut-bindings";
 
 vi.mock("./components/TerminalView", () => ({
   TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} className="xterm" />,
@@ -224,7 +225,23 @@ describe("AJ-E1504 keys in the app", () => {
     expect(view.queryByTestId("notification-centre")).toBeNull();
   });
 
-  it("Esc closes New session even before focus reaches the sheet (#198: an Esc right after ⌘N)", async () => {
+  it("AJ-E2905: a key changed in Settings › Keyboard fires at start, and the old one doesn't", async () => {
+    const seams = window as unknown as { __AIJ_APP_SETTINGS__?: Record<string, string> };
+    seams.__AIJ_APP_SETTINGS__ = { "ui.shortcuts": JSON.stringify({ "new-session": { primary: true, shift: false, alt: true, code: "KeyJ" } }) };
+    try {
+      const view = await openApp();
+      await waitFor(() => expect(isChanged("new-session")).toBe(true));
+      press({ key: "n", code: "KeyN", metaKey: true });
+      expect(view.queryByTestId("new-session-sheet")).toBeNull();
+      press({ key: "∆", code: "KeyJ", altKey: true, metaKey: true });
+      expect(await view.findByTestId("new-session-sheet")).toBeTruthy();
+    } finally {
+      delete seams.__AIJ_APP_SETTINGS__;
+      resetForTests();
+    }
+  });
+
+  it("Esc closes New session and New project even before focus reaches the sheet (#198: an Esc right after ⌘N)", async () => {
     const view = await openApp();
     press({ key: "n", metaKey: true });
     expect(await view.findByTestId("new-session-sheet")).toBeTruthy();
@@ -232,6 +249,11 @@ describe("AJ-E1504 keys in the app", () => {
     (document.activeElement as HTMLElement | null)?.blur();
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(view.queryByTestId("new-session-sheet")).toBeNull());
+    // New project too (0.4's walk: Esc after ⌘⇧N did nothing).
+    press({ key: "N", shiftKey: true, metaKey: true });
+    expect(await view.findByRole("dialog", { name: "New project" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(view.queryByTestId("new-project-drop")).toBeNull());
   });
 
   it("D-50: ⌥⌘N opens the notifications (by the key's place)", async () => {

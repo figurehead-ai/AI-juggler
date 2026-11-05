@@ -25,6 +25,7 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
+import { useKeys } from "../lib/use-keys";
 import { focusHandoverSoon } from "../lib/handover-focus";
 import { instancesMarkReviewed } from "../lib/ipc/review";
 import { ProjectMark } from "../components/ProjectMark";
@@ -36,7 +37,7 @@ import type { ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
-import { matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
+import { keysOf, matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { SectionTitle } from "../components/SectionTitle";
@@ -163,6 +164,7 @@ export function HomeScreen({
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
 }): JSX.Element {
+  const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   // The runways kept from the last read (any screen's) show at once; read
   // again on opening, each half minute, and when an account comes or goes.
@@ -527,7 +529,7 @@ export function HomeScreen({
                         variant={words.due ? "primary" : "secondary"}
                         className="ml-auto"
                         data-home-row
-                        aria-keyshortcuts="A"
+                        aria-keyshortcuts={actionKeys.aria}
                         disabled={busy === session.id}
                         onClick={() => (words.due ? void act(session, "resume") : onOpenSession(session.id))}
                       >
@@ -560,7 +562,7 @@ export function HomeScreen({
             return (
               <span key={id}>
                 {index > 0 && " · "}
-                <kbd className="font-mono">{entry.keys[0]}</kbd> {entry.label.toLowerCase()}
+                <kbd className="font-mono">{keysOf(id)[0]}</kbd> {entry.label.toLowerCase()}
               </span>
             );
           })}

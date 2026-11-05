@@ -9,7 +9,7 @@
  * what's typed and draws them with their keys from the shortcut registry.
  */
 import { GLOBAL_NAV, type GlobalId } from "./nav";
-import { SHORTCUTS, type ShortcutId } from "./shortcuts";
+import { keysOf as registryKeysOf, type ShortcutId } from "./shortcuts";
 
 export type PaletteCommandIcon = "home" | "pool" | "tasks" | "screen" | "accounts" | "usage" | "history" | "processes" | "computer" | "settings" | "privacy" | "fleet" | "new" | "project" | "bell" | "keyboard" | "list" | "search";
 
@@ -73,7 +73,8 @@ const SCREEN_WORDS: Partial<Record<GlobalId | "home", string>> = {
 
 /** The keys a shortcut reads as on the ? sheet. */
 export function keysOf(id: ShortcutId | undefined): string | undefined {
-  return id ? SHORTCUTS.find((entry) => entry.id === id)?.keys[0] : undefined;
+  // AJ-E2905: the key in force (the user may have changed it).
+  return id ? registryKeysOf(id)[0] : undefined;
 }
 
 /** Every one of App's actions for ⌘K, in the order the palette lists them. */

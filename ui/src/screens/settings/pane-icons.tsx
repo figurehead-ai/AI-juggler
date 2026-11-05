@@ -5,6 +5,7 @@
 import type { JSX, SVGProps } from "react";
 import { base, IconProfiles, IconSessions, IconShield } from "../../components/icons";
 import { IconBell, IconComputer, IconKey, IconSliders } from "../../components/icons-actions";
+import { IconKeyboard } from "../../components/icons-menu";
 import type { PaneId } from "./panes";
 
 function IconGear(props: SVGProps<SVGSVGElement>) {
@@ -46,6 +47,7 @@ const PANE_ICONS: Record<PaneId, (props: SVGProps<SVGSVGElement>) => JSX.Element
   notifications: IconBell,
   privacy: IconShield,
   macs: IconComputer,
+  keyboard: IconKeyboard,
   advanced: IconSliders,
 };
 

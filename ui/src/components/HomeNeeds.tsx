@@ -8,6 +8,7 @@
  * (lib/home-needs.ts). Message text is shown only through `bubble`, a
  * session's last message when its page's reader provides one (AJ-E2108).
  */
+import { useKeys } from "../lib/use-keys";
 import { useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { SectionTitle } from "./SectionTitle";
@@ -158,6 +159,7 @@ export function HomeNeeds({
   bubble?: ReactNode;
   children?: ReactNode;
 }): JSX.Element | null {
+  const actionKeys = useKeys("home-action");
   const run = useRun(handlers);
   // AJ-E2910: a chip narrows the list (never remembered: a stale filter
   // would hide a new need); the counts elsewhere never change with it.
@@ -237,7 +239,7 @@ export function HomeNeeds({
                   <span className="truncate text-meta font-medium text-ink">{need.title}</span>
                   <span className="truncate text-label text-muted" title={need.detail}>{need.item ? `${needWord(need.item)} · ${need.detail}` : need.detail}</span>
                 </span>
-                <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts="A" onClick={() => run(need)}>
+                <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts={actionKeys.aria} onClick={() => run(need)}>
                   {primaryWords(need)}
                   <span className="sr-only"> — {need.title}</span>
                 </Button>

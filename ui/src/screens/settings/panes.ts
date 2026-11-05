@@ -15,6 +15,7 @@ export type PaneId =
   | "notifications"
   | "privacy"
   | "macs"
+  | "keyboard"
   | "advanced";
 
 /** The tile's colour: a token from styles.css, never a hex. */
@@ -46,6 +47,8 @@ export const PANES: readonly PaneSpec[] = [
   { id: "notifications", label: "Notifications", tone: "danger" },
   { id: "privacy", label: "Privacy", tone: "live" },
   { id: "macs", label: "Your Macs", tone: "success", shown: ({ pairedMacs }) => (pairedMacs ?? 0) > 0 },
+  // AJ-E2905: every shortcut, to change or reset.
+  { id: "keyboard", label: "Keyboard", tone: "muted" },
   { id: "advanced", label: "Advanced", tone: "faint" },
 ];
 
@@ -77,6 +80,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   diagnostics: { pane: "advanced", anchor: "diagnostics" },
   uninstall: { pane: "advanced", anchor: "uninstall" },
   privacy: { pane: "privacy" },
+  keyboard: { pane: "keyboard" },
+  shortcuts: { pane: "keyboard" },
   "go-to": { pane: "desktop-apps", anchor: "go-to" },
   "last-messages": { pane: "desktop-apps", anchor: "last-messages" },
   // 0.3.3: the apps and profiles, with Start and Keep alive.

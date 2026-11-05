@@ -10,13 +10,11 @@
  */
 import { useEffect, useId, useState, type JSX } from "react";
 import { Button, Chip } from "../../components/primitives";
-import { appSettingGet, appSettingSet, errorText, goToHotkeySet, osAccessList, osAccessOpenSettings, osAccessRequest, type OsAccessInfo } from "../../lib/bridge";
+import { appSettingGet, appSettingSet, errorText, osAccessList, osAccessOpenSettings, osAccessRequest, type OsAccessInfo } from "../../lib/bridge";
 import { useConversations } from "../../lib/conversations";
 import { appsFound, foundWords, setAppShown, useHiddenApps } from "../../lib/desktop-apps";
-import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../../lib/hotkey";
 import { setShowLastMessages, showLastMessages } from "../../lib/last-messages";
 import { accessCard, watchAccess } from "../../lib/osAccess";
-import { GO_TO_HOTKEY_EVENT } from "../../lib/outside";
 import { AppIcon } from "../../components/AppIcon";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
@@ -26,6 +24,7 @@ import { useFindProfiles } from "../../lib/find-profiles";
 import { appName, desktopProfile } from "../../lib/app-name";
 import { knownAppWord } from "../../lib/rail-apps";
 import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
+import { GoToKeyControl, GoToKeyError, useGoToKey } from "./KeyCapture";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
  * off until turned on here. */
@@ -136,83 +135,22 @@ function TerminalTabsRow(): JSX.Element | null {
   );
 }
 
-/** The key that opens AI Juggler from any app. None until chosen. */
+/** The key that opens AI Juggler from any app. None until chosen. The
+ * control is shared with Settings › Keyboard (AJ-E2905). */
 function HotkeyRow(): JSX.Element {
-  const [binding, setBinding] = useState<string | null>(null);
-  const [capturing, setCapturing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    void appSettingGet("go_to_hotkey").then((stored) => setBinding(stored ?? ""), () => setBinding(""));
-  }, []);
-  const save = (next: string) => {
-    setError(null);
-    void goToHotkeySet(next).then(
-      () => {
-        setBinding(next);
-        setCapturing(false);
-        window.dispatchEvent(new CustomEvent(GO_TO_HOTKEY_EVENT, { detail: next }));
-      },
-      (cause) => setError(errorText(cause)),
-    );
-  };
+  const hotkey = useGoToKey();
   return (
     <SettingRow
       title="Open AI Juggler from anywhere"
       description={
-        binding
+        hotkey.binding
           ? "Press it in any app to bring AI Juggler up on Go to."
           : "No key yet: choose one. ⌥Space isn't offered, because ChatGPT uses it."
       }
       testId="desktop-hotkey"
-      control={
-        capturing ? (
-          <button
-            type="button"
-            autoFocus
-            className="rounded-lg border border-accent bg-accent-soft px-2.5 py-1 text-xs text-ink"
-            onKeyDown={(event) => {
-              event.preventDefault();
-              if (event.key === "Escape") {
-                setCapturing(false);
-                return;
-              }
-              const combo = toAccelerator(event.nativeEvent);
-              if (combo === null) return;
-              const refusal = hotkeyRefusal(combo);
-              if (refusal) setError(refusal);
-              else save(combo);
-            }}
-            onBlur={() => setCapturing(false)}
-            data-testid="desktop-hotkey-capture"
-          >
-            Press the keys… <span className="text-muted">(Esc cancels)</span>
-          </button>
-        ) : (
-          <>
-            {binding ? (
-              <kbd className="rounded-md border border-hairline bg-surface-2 px-2 py-0.5 font-mono text-xs text-ink" data-testid="desktop-hotkey-key">
-                {hotkeyWords(binding)}
-              </kbd>
-            ) : (
-              <span className="text-xs text-muted">None</span>
-            )}
-            <Button size="sm" variant="secondary" onClick={() => setCapturing(true)} data-testid="desktop-hotkey-choose">
-              {binding ? "Change…" : "Choose…"}
-            </Button>
-            {binding && (
-              <Button size="sm" variant="ghost" onClick={() => save("")} data-testid="desktop-hotkey-clear">
-                Turn off
-              </Button>
-            )}
-          </>
-        )
-      }
+      control={<GoToKeyControl hotkey={hotkey} prefix="desktop-hotkey" />}
     >
-      {error && (
-        <span className="text-xs text-danger" role="alert" data-testid="desktop-hotkey-error">
-          {error}
-        </span>
-      )}
+      <GoToKeyError hotkey={hotkey} prefix="desktop-hotkey" />
     </SettingRow>
   );
 }
