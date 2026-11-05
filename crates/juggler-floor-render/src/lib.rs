@@ -5,7 +5,7 @@
 //!   as an owned handle (made on the main thread by the app); this crate
 //!   has no unsafe code.
 //! - Each frame builds the scene's moving part and the overlay on the CPU
-//!   (pure, in `juggler-floor`) and draws four passes ([`gpu`]).
+//!   (pure, in `juggler-floor`) and draws four passes (`gpu`).
 //! - Picking reads one pixel of the last frame's id buffer; capture draws
 //!   offscreen for the gallery's golden frames.
 //! - A refused frame (the window covered, or its surface out of date) is

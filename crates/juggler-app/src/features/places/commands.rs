@@ -195,7 +195,7 @@ fn place_order(row: &KnownPlaceInfo) -> SortKey {
     )
 }
 
-/// The places remembered, in [`place_order`] (at most `book::MAX`, so one
+/// The places remembered, in `place_order` (at most `book::MAX`, so one
 /// page).
 ///
 /// # Errors

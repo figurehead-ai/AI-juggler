@@ -2,7 +2,7 @@
 //! task costs, what went on sessions that crashed or were probably stuck
 //! when they ended, each Account's cost with its top project, and the
 //! price list the estimates use. From the same summary as the charts
-//! ([`super::summarize`]): never a sum of what's on screen, never a
+//! (`super::summarize`): never a sum of what's on screen, never a
 //! transcript read.
 //!
 //! A finished task (D-77, the Q1 ruling): a session AI Juggler ran that
