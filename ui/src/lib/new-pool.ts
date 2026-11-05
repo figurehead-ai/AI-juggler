@@ -179,7 +179,9 @@ export function broadCandidates(input: {
     case "app":
       return input.apps.map((app) => row(memberRef("app", app.id), "app", app.name, open((session) => app.folder !== null && session.account_id === app.folder.id)));
     case "account":
-      return input.subscriptions.map((account) => row(memberRef("account", account.key), "account", account.display_name, 0));
+      // A signed-out group of folders has no Account behind it to add (the
+      // P3 walk offered one named "Not signed in").
+      return input.subscriptions.filter((account) => account.state !== "signed_out").map((account) => row(memberRef("account", account.key), "account", account.display_name, 0));
     case "tool":
       return input.tools.map((tool) => row(memberRef("tool", tool.id), "tool", tool.display_name, open((session) => session.provider === tool.id)));
     case "mac": {

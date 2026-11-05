@@ -19,6 +19,7 @@ import type { ContextCard, PoolMemberRow } from "../../lib/ipc/pools";
 import { usePoolMembers } from "../../lib/pools";
 import { showToast } from "../../components/Toast";
 import { layout, type Point } from "./layout";
+import { nameOf } from "./actions";
 
 /** The most members drawn on one canvas (smooth at that many). */
 export const CANVAS_NODES = 60;
@@ -31,19 +32,30 @@ const CARDS_EVERY_MS = 15_000;
 /** How long an edge's pulse shows. */
 export const PULSE_MS = 1_600;
 
-export type MemberNode = { id: string; session: InstanceInfo; card: ContextCard; role: string };
+/** `name`: the session's name, told apart from a member of the same name
+ * by its start ("web · started 03:07"; the P7 and P11 walks). */
+export type MemberNode = { id: string; session: InstanceInfo; card: ContextCard; role: string; name: string };
+
+/** Each name once: where two sessions share one, each says when it started. */
+export function distinctNames<T extends { session: InstanceInfo }>(rows: readonly T[]): (T & { name: string })[] {
+  const plain = rows.map((row) => nameOf(row.session));
+  const twice = new Set(plain.filter((name, at) => plain.indexOf(name) !== at));
+  const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return rows.map((row, at) => ({ ...row, name: twice.has(plain[at]!) ? `${plain[at]} · started ${clock(row.session.started_at_ms)}` : plain[at]! }));
+}
 
 export const edgeKey = (from: string, to: string) => `${from}>${to}`;
 
 /** The members the canvas draws, as they are now (`live`): the open ones
  * and those named on their own, ended or not. */
 export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>): MemberNode[] {
-  return items
+  const drawn = items
     .map((row) => ({ row, session: live.get(row.session.id) ?? row.session }))
     // A session a sealed pool holds out of this one is in the List view only.
     .filter(({ row }) => !row.held_by)
     .filter(({ row, session }) => isActiveStatus(session.status) || row.via === "session" || row.via === "watched")
     .map(({ row, session }) => ({ id: row.session.id, session, card: row.card, role: row.card.role }));
+  return distinctNames(drawn);
 }
 
 export function useCanvas(poolId: string, sessions: InstanceInfo[]) {

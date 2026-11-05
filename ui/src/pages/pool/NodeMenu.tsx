@@ -11,7 +11,7 @@ import { IconPage, IconRemove, IconStop } from "../../components/icons-actions";
 import { IconLead } from "../../components/icons-canvas";
 import { IconRead } from "../../components/icons-menu";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { cannotRemove, makeLead, nameOf, setRole } from "./actions";
+import { cannotRemove, makeLead, setRole } from "./actions";
 import type { MemberNode } from "./useCanvas";
 
 const LIVE = new Set(["starting", "running", "waiting_user", "stuck"]);
@@ -50,7 +50,7 @@ export function NodeMenu({
     void work();
   };
   return (
-    <RowMenu heading={nameOf(member.session)} ariaLabel={`${nameOf(member.session)} actions`} at={at} onClose={onClose}>
+    <RowMenu heading={member.name} ariaLabel={`${member.name} actions`} at={at} onClose={onClose}>
       <MenuItem onClick={run(() => host.openSessionById?.(member.id))} disabled={!host.openSessionById} testId="node-menu-open">
         <Line icon={<IconPage width={15} height={15} />}>Open session</Line>
       </MenuItem>

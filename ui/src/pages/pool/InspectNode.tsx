@@ -22,7 +22,7 @@ import { TaskRow } from "../tasks/TaskRow";
 import { answerAsk, sessionAlert } from "./NodeParts";
 import { edgeWords } from "./CanvasEdges";
 import { Section } from "./InspectPool";
-import { makeLead, nameOf } from "./actions";
+import { makeLead } from "./actions";
 import type { MemberNode } from "./useCanvas";
 import { edgeKey } from "./useCanvas";
 
@@ -91,7 +91,7 @@ export function InspectNode({
   const tasks = useMemberTasks(member.id);
   const state = sessionState(member.session);
   const alert = sessionAlert(member);
-  const name = nameOf(member.session);
+  const name = member.name;
   const mine = edges.filter((edge) => edge.from_session_id === member.id || edge.to_session_id === member.id);
   const tokens = member.session.tokens;
   return (

@@ -25,7 +25,7 @@ import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { ToastHost, resetToasts } from "../../components/Toast";
 import { pick } from "../../test/pick";
-import { rememberTab } from "../registry";
+import { rememberTab, rememberedTabId } from "../registry";
 import { PoolPage } from "../PoolPage";
 import { forgetCanvasViews } from "./Canvas";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
@@ -316,6 +316,17 @@ describe("a pool's page: its canvas", () => {
     expect(view.queryByTestId("pool-panel-messages-open")).toBeNull();
   });
 
+  it("a landing is used once: a panel opened here doesn't open the next pool on it (the P11 walk)", async () => {
+    seedTeam();
+    rememberTab("pool", "tasks");
+    let view = await openPage();
+    expect(view.getByTestId("pool-panel-tasks-open")).toBeTruthy();
+    expect(rememberedTabId("pool")).toBe("members");
+    cleanup();
+    view = await openPage();
+    expect(view.queryByTestId("pool-panel-tasks-open")).toBeNull();
+  });
+
   it("says how a message gets into a session", () => {
     const pool = { id: "p", name: "p", kind: "user", project_id: null, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 0, ...scopeOf("user", null) };
     expect(deliveryWords(pool)).toBe("When you click Deliver");
@@ -412,6 +423,7 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
       session: { ...first, label: "Spike: payment sandbox" },
       card: { account: "Work Max", tool: "Claude Code", task: { value: "None" } } as unknown as ContextCard,
       role: "member",
+      name: "A",
     };
     const node = (scale: number) => {
       const view = render(

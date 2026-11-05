@@ -107,7 +107,9 @@ function useMoreCandidates(pool: PoolInfo, sessions: InstanceInfo[], projects: P
       tool: broad("tool"),
       mac: broad("mac"),
       everyone: named.has("all") ? [] : [{ ref: "all", kind: "everyone", label: "Everyone in this pool's projects", detail: "every session in scope, now and later", group: "open", reach: "later", blocked: null, lastMs: 0 }],
-      blocked: own.filter((row) => row.blocked !== null),
+      // Open sessions waiting to join; an ended one's place is History
+      // (the P3 walk: "docs · Ended" offered Add docs, which did nothing).
+      blocked: own.filter((row) => row.blocked !== null && row.group === "open"),
     };
   }, [pool, sessions, projects, members, pools, tools, apps, subscriptions, all]);
 }
@@ -167,14 +169,13 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const [mode, setMode] = usePoolMode(poolId, pool.members === 0 && !hasRules);
   const [selection, setSelection] = useState<Selection>(first.settings ? { kind: "pool" } : { kind: "none" });
   const inspectorTitle = useRef<HTMLHeadingElement | null>(null);
-  const setPanel = useCallback((next: Panel) => {
-    setPanelState(next);
-    rememberTab("pool", next ?? "members");
-  }, []);
-  // Arrived for Agent access: the settings show; the next visit is the canvas.
+  const setPanel = useCallback((next: Panel) => setPanelState(next), []);
+  // A link's landing (Messages, Tasks, Agent access) is used once: the
+  // next pool opened opens on its canvas, not on the panel this one showed
+  // (the P11 walk).
   useEffect(() => {
-    if (first.settings) rememberTab("pool", "members");
-  }, [first.settings]);
+    rememberTab("pool", "members");
+  }, []);
   // A link while the page is open (a Needs you card for this pool).
   useEffect(() => {
     const thread = () => setPanel("messages");
@@ -197,7 +198,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
     setSelection(next);
     if (focusInspector) requestAnimationFrame(() => inspectorTitle.current?.focus());
   }, []);
-  const names = useMemo(() => new Map(data.members.map((member) => [member.id, nameOf(member.session)])), [data.members]);
+  const names = useMemo(() => new Map(data.members.map((member) => [member.id, member.name])), [data.members]);
   const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
   const candidates = useMemo(
     () => sessions.filter((session) => sessionState(session).state !== "ended" && !poolIdsOf(pools, session).includes(pool.id) && cannotJoin(pool, session) === null),

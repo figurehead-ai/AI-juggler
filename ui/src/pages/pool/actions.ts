@@ -58,7 +58,7 @@ export function cannotRemove(pool: PoolInfo): string | null {
  * back with its role and its place. */
 export async function removeFromPool(pool: PoolInfo, member: MemberNode, at: Point | undefined, place: Place): Promise<void> {
   if (cannotRemove(pool)) return;
-  const name = nameOf(member.session);
+  const name = member.name;
   try {
     setPools(await poolMove(member.id, defaultPoolIdOf(member.session.project_id)));
     showToast({
@@ -87,7 +87,7 @@ export async function makeLead(pool: PoolInfo, member: MemberNode, members: Memb
     for (const lead of before) await poolSetRole(lead.id, "member", pool.id);
     setPools(await poolSetRole(member.id, "lead", pool.id));
     showToast({
-      message: `${nameOf(member.session)} leads now`,
+      message: `${member.name} leads now`,
       detail: before.length > 0 ? `${before.map((lead) => nameOf(lead.session)).join(", ")} ${before.length === 1 ? "is a member" : "are members"} again.` : undefined,
       undo: {
         onUndo: async () => {

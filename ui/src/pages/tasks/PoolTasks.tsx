@@ -142,7 +142,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
             <Skeleton label="Loading the tasks" rows={4} />
           ) : rows.length === 0 ? (
             <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="tasks-empty">
-              {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work."}
+              {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work. You follow them here, and approve or send back what's in review."}
             </p>
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="task-list">
@@ -162,7 +162,9 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
             </p>
           )}
         </aside>
-        <div className="min-w-0 rounded-xl border border-hairline bg-surface p-4">
+        {/* No tasks at all: the list's own line says it all (the P3 walk: two
+            boxes said the same). */}
+        <div className={"min-w-0 rounded-xl border border-hairline bg-surface p-4" + (read && !open && !total && !query ? " hidden" : "")}>
           {open ? (
             <TaskView key={open} taskId={open} sessions={sessions} defaultAccountId={defaultAccount} now={now} onOpenTask={setOpen} />
           ) : read ? (

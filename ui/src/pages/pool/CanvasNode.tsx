@@ -19,7 +19,6 @@ import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
 import { CompactNode } from "./CompactNode";
-import { nameOf } from "./actions";
 import { AskLine, NO_TASK, nodeBorder, sessionAlert, type NodeProps } from "./NodeParts";
 
 /** Its full card from 100 % up, its compact form below (semantic zoom). */
@@ -31,7 +30,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
   const state = sessionState(member.session);
   const alert = sessionAlert(member);
   const lead = member.role === "lead";
-  const name = nameOf(member.session);
+  const name = member.name;
   const waits = asks.length + held + (alert ? 1 : 0);
   // The card says "None" when it holds no task (cards.rs's NO_TASK).
   const task = member.card.task.value === NO_TASK ? null : member.card.task.value;

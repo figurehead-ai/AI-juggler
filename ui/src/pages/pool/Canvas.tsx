@@ -149,7 +149,7 @@ export function Canvas({
   }, [pool.id, shown, setView]);
 
   const byId = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
-  const names = useMemo(() => new Map(members.map((member) => [member.id, nameOf(member.session)])), [members]);
+  const names = useMemo(() => new Map(members.map((member) => [member.id, member.name])), [members]);
   const drawn = useMemo(() => {
     if (drag?.kind !== "node" || !dragAt) return points;
     const next = new Map(points);
