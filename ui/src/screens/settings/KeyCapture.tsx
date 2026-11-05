@@ -11,13 +11,12 @@ import { appSettingGet, errorText, goToHotkeySet } from "../../lib/bridge";
 import { hotkeyRefusal, hotkeyWords, toAccelerator } from "../../lib/hotkey";
 import { GO_TO_HOTKEY_EVENT } from "../../lib/outside";
 
-export function KeyCapture({ onKeys, onCancel, label, testId }: { onKeys: (event: KeyboardEvent) => void; onCancel: () => void; label?: string; testId?: string }): JSX.Element {
+export function KeyCapture({ onKeys, onCancel, label, testId, compact = false }: { onKeys: (event: KeyboardEvent) => void; onCancel: () => void; label?: string; testId?: string; compact?: boolean }): JSX.Element {
   return (
     <button
       type="button"
       autoFocus
-      aria-label={label}
-      className="rounded-lg border border-accent bg-accent-soft px-2.5 py-1 text-xs text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="whitespace-nowrap rounded-lg border border-accent bg-accent-soft px-2.5 py-1 text-xs text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
         event.preventDefault();
         event.stopPropagation();
@@ -27,7 +26,9 @@ export function KeyCapture({ onKeys, onCancel, label, testId }: { onKeys: (event
       onBlur={onCancel}
       data-testid={testId}
     >
-      Press the keys… <span className="text-muted">(Esc cancels)</span>
+      {/* Compact where a row says "Esc cancels" itself (Settings › Keyboard). */}
+      {compact ? "Press keys…" : <>Press the keys… <span className="text-muted">(Esc cancels)</span></>}
+      {label && <span className="sr-only"> — {label}</span>}
     </button>
   );
 }

@@ -87,7 +87,7 @@ function ShortcutRow({ entry }: { entry: Shortcut }): JSX.Element {
     </span>
   );
   const actions = !bindable ? null : capturing ? (
-    <KeyCapture onKeys={onKeys} onCancel={() => setCapturing(false)} label={`Press the new keys for ${entry.label}, or Esc`} testId={`keyboard-capture-${id}`} />
+    <KeyCapture compact onKeys={onKeys} onCancel={() => setCapturing(false)} label={`new keys for ${entry.label}`} testId={`keyboard-capture-${id}`} />
   ) : (
     <>
       <Button
@@ -110,7 +110,9 @@ function ShortcutRow({ entry }: { entry: Shortcut }): JSX.Element {
     </>
   );
   const note =
-    why !== null ? (
+    capturing && why === null ? (
+      <span className="text-label text-muted">Press the new keys, or Esc to cancel.</span>
+    ) : why !== null ? (
       <span className="text-label text-warning" role="alert" data-testid="keyboard-refused">
         {why}
       </span>

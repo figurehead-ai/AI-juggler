@@ -65,8 +65,8 @@ export function SettingsSearch({
           ref={inputRef}
           type="search"
           role="combobox"
-          aria-expanded={searching}
-          aria-controls={listId}
+          aria-expanded={searching && hits.length > 0}
+          aria-controls={searching && hits.length > 0 ? listId : undefined}
           aria-activedescendant={
             searching && hits[active] ? `${listId}-${active}` : undefined
           }
@@ -97,43 +97,30 @@ export function SettingsSearch({
           data-testid="settings-search-field"
         />
       </div>
-      {searching && (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-label="Settings that match"
-          className="flex flex-col gap-0.5 rounded-lg border border-hairline bg-surface p-1"
-          data-testid="settings-search-results"
-        >
-          {hits.length === 0 ? (
+      {searching && hits.length === 0 && (
+        <p role="status" className="rounded-lg border border-hairline bg-surface px-2 py-1.5 text-meta text-muted" data-testid="settings-search-none">
+          No setting matches “{query.trim()}”.
+        </p>
+      )}
+      {searching && hits.length > 0 && (
+        <ul id={listId} role="listbox" aria-label="Settings that match" className="flex flex-col gap-0.5 rounded-lg border border-hairline bg-surface p-1" data-testid="settings-search-results">
+          {hits.map((hit, index) => (
             <li
-              className="px-2 py-1.5 text-meta text-muted"
-              data-testid="settings-search-none"
+              key={`${hit.pane}:${hit.anchor}`}
+              id={`${listId}-${index}`}
+              role="option"
+              aria-selected={index === active}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => pick(hit)}
+              onMouseMove={() => setActive(index)}
+              className={"flex cursor-default flex-col rounded-md px-2 py-1 " + (index === active ? "bg-accent-soft" : "")}
+              data-testid="settings-search-hit"
+              data-anchor={hit.anchor}
             >
-              No setting matches “{query.trim()}”.
+              <span className="text-label text-muted">{hit.paneLabel}</span>
+              <span className="text-meta text-ink">{hit.title}</span>
             </li>
-          ) : (
-            hits.map((hit, index) => (
-              <li
-                key={`${hit.pane}:${hit.anchor}`}
-                id={`${listId}-${index}`}
-                role="option"
-                aria-selected={index === active}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => pick(hit)}
-                onMouseMove={() => setActive(index)}
-                className={
-                  "flex cursor-default flex-col rounded-md px-2 py-1 " +
-                  (index === active ? "bg-accent-soft" : "")
-                }
-                data-testid="settings-search-hit"
-                data-anchor={hit.anchor}
-              >
-                <span className="text-label text-muted">{hit.paneLabel}</span>
-                <span className="text-meta text-ink">{hit.title}</span>
-              </li>
-            ))
-          )}
+          ))}
         </ul>
       )}
     </div>
