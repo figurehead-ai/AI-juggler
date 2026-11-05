@@ -252,7 +252,7 @@
 **Research basis**: audit "Next after these" ("Deleting launch settings is one click with no confirm"), §10 row "Delete launch settings asks first", §4.2 row; deep/11 §4.5, §10; D-10, D-35.
 **Handover note**: Check what happens when the deleted ones are the account's default launch settings (the row offers "default", `ProfileRow.tsx:5`) and say it in the confirm. Open question **Q1**: should deleting launch settings keep their past sessions in History (a schema change: the sessions keep a name instead of the foreign key) rather than delete them? deep/11 §1.1.5 ("source always survives") leans that way; it is a data-retention choice, so it is yours.
 
-### AJ-E2908 An ended session's page: Resume, Archive, Replay and Copy ID | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2908 An ended session's page: Resume, Archive, Replay and Copy ID | Status: DONE-PENDING-EVIDENCE | Priority P1 | Effort M | Depends: —
 **Goal**: The page of a session that ended offers what History's row offers and the spec promised: Resume the same conversation on the same account, Relaunch fresh, Replay, Archive, and copy its id.
 **User story**: As someone who opened yesterday's session from Home, I press Resume and carry on the same conversation on the same account, or Replay it to read what happened, without going back to History.
 **Requirements**:
@@ -269,7 +269,7 @@
 **Visual testing**: `ui/tests/visual/session-pages-gallery.spec.ts` extended: each state above, the ⋯ menu open, 1024×700 and 1280×800, dark and light.
 **Files to touch**: `ui/src/pages/ItemHeader.tsx`, `ui/src/components/InspectorHeaderMenu.tsx`, `ui/src/lib/action-specs.ts`, `ui/src/lib/actions.ts`, `ui/src/components/ManageWork.tsx` (the host's archive and replay), `ui/src/components/ReplayDialog.tsx`; `ui/src/lib/bridge.ts`; `crates/juggler-app/src/commands.rs` (a session resume beside `epoch_resume`), `crates/juggler-app/src/lib.rs`.
 **Research basis**: audit "Next after these" ("An ended session's own page has no Resume, Archive, Replay or Copy ID"), §5 rows "Archive / Replay / Delete…", "Copy ID", "Resume vs Relaunch"; deep/11 §4.7, §10; `ui/src/pages/session/DrivenPanel.tsx:105-108` (Resume exists only for driven sessions); D-05, D-40, D-45.
-**Handover note**: An ended terminal session is listed under the `session` kind, whose actions (`action-specs.ts`, SESSION) have no Archive or Replay; add History's actions for ended sessions rather than a second list. Delete… is History's too; it isn't in the lock-in's list, so it isn't added here.
+**Handover note**: built. Backend: `session_resume` (`commands::session_resume_impl`) over the one resume path it now shares with `epoch_resume_impl` (`resume_conversation`), refused while live or without a conversation (`tests/session_resume.rs`). UI: `pages/session/ResumeButton.tsx` (primary, before Relaunch, each with the §10 tooltip; off with its reason: no conversation, signed out, out of room with Continue on another account… beside it, open in another app now); the ⋯ gains History's Replay and Archive/Unarchive (the same specs, `action-specs.ts`) and Copy the conversation's id, only on an ended session, hosted by `useSessionManage`. Tests: `pages/session/resume.test.tsx`. Left: the live Resume on the real setup in AI Juggler Dev (a spare session) and the gallery captures.
 
 ### AJ-E2909 A keyboard-operable rail splitter | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort S | Depends: —
 **Goal**: The rail's width can be changed from the keyboard and read by a screen reader, as the drag does.

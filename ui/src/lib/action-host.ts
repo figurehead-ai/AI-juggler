@@ -18,6 +18,8 @@ export interface ActionHost {
   renameSession?: (row: InstanceInfo) => void;
   pinSession?: (row: InstanceInfo) => void | Promise<void>;
   copyResumeCommand?: (row: InstanceInfo) => void | Promise<void>;
+  /** AJ-E2908: copies the tool's own id of the conversation. */
+  copyConversationId?: (row: InstanceInfo) => void | Promise<void>;
   revealSessionProject?: (row: InstanceInfo) => void;
   /** AJ-E1702: its pool (the pool sheet's "Move to pool"). */
   moveSessionToPool?: (row: InstanceInfo) => void;

@@ -440,6 +440,8 @@ macro_rules! app_commands {
             Read  commands::switch_targets,
             Read  commands::switch_graph_overview,
             Write commands::epoch_resume,
+            // AJ-E2908: an ended session continued on its own account.
+            Write commands::session_resume,
             Write commands::pack_export,
             Write commands::validation_matrix,
             Write commands::validation_dogfood_record,

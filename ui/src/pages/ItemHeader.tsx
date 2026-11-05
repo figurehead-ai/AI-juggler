@@ -14,6 +14,7 @@ import { conversationWorking, openWords, sessionWorking, type ProjectOpen } from
 import { ProjectMark } from "../components/ProjectMark";
 import { ToolMark } from "../components/ToolMark";
 import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
+import { ResumeButton } from "./session/ResumeButton";
 import { useActionHost } from "../components/ItemMenu";
 import { sessionTitle } from "../components/ManageWork";
 import { freshnessText } from "../components/RemoteTabs";
@@ -264,10 +265,20 @@ export function InspectorHeader({
           Add app…
         </Button>
       )}
+      {/* AJ-E2908: the same conversation first, a fresh one beside it. */}
+      {kind === "instance" && instance && ENDED.includes(instance.status) && (
+        <ResumeButton
+          session={instance}
+          openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
+          onOpen={host.openSessionById}
+          onContinue={() => focusHandover()}
+        />
+      )}
       {relaunch && instance && (
         <Button
           size="sm"
           variant="secondary"
+          title="Relaunch — fresh session, same launch settings and folder."
           data-testid="header-relaunch"
           onClick={() =>
             onLaunch(relaunch, {

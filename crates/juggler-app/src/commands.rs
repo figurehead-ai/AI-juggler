@@ -14131,6 +14131,19 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
             context: "resume epoch",
             message: "That point in the work has no conversation AI Juggler can resume".to_owned(),
         })?;
+    resume_conversation(state, &session_row, &account, native_id, "resume")
+}
+
+/// Resumes `native_id`, `session_row`'s conversation, as a new session on
+/// `account` with the row's launch settings and folder: the one resume
+/// path (an epoch's Resume, an ended session's Resume).
+fn resume_conversation(
+    state: &Arc<AppState>,
+    session_row: &juggler_core::model::InstanceRecord,
+    account: &juggler_core::model::Account,
+    native_id: String,
+    origin: &'static str,
+) -> AppResult<LaunchResult> {
     let profile = {
         let storage = lock_storage_arc(state)?;
         storage
@@ -14146,7 +14159,7 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
     let spec = adapter.launch_spec(
-        &account,
+        account,
         &profile,
         &session_row.cwd,
         &LaunchMode::Resume {
@@ -14160,13 +14173,13 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         state,
         &crate::features::sessions::spawn::NewSession {
             id: &new_session,
-            account: &account,
+            account,
             profile: &profile.id,
             project: session_row.project.clone(),
             cwd: session_row.cwd.clone(),
             conversation: Some(juggler_core::model::ConversationId::new(native_id)),
             transcript_ref: session_row.transcript_ref.clone(),
-            origin: "resume",
+            origin,
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
@@ -14174,6 +14187,72 @@ pub fn epoch_resume_impl(state: &Arc<AppState>, epoch_id: &str) -> AppResult<Lau
         session_id: new_session.to_string(),
         pid: started.spawned.pid,
     })
+}
+
+/// AJ-E2908: Resume on an ended session's page — the same conversation,
+/// on the same account and launch settings, in its folder.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] while it still runs, or when it has no
+/// conversation to resume; as [`epoch_resume_impl`] otherwise.
+pub fn session_resume_impl(state: &Arc<AppState>, session_id: &str) -> AppResult<LaunchResult> {
+    let (row, account) = {
+        let storage = lock_storage_arc(state)?;
+        let row = storage
+            .sessions()
+            .get(&SessionId::new(session_id.to_owned()))
+            .map_err(|error| not_found_or_core(error, "session", session_id))?;
+        let profile = storage
+            .profiles()
+            .get(&row.profile)
+            .map_err(|error| not_found_or_core(error, "profile", &row.profile.to_string()))?;
+        let account = storage
+            .accounts()
+            .get(&profile.account)
+            .map_err(|error| not_found_or_core(error, "account", &profile.account.to_string()))?;
+        (row, account)
+    };
+    {
+        use juggler_core::model::SessionStatus as S;
+        if !matches!(
+            row.status,
+            S::Finished | S::Stopped | S::Failed | S::HandedOver
+        ) {
+            return Err(AppError::Refused(
+                "It's still running. Go to it instead".into(),
+            ));
+        }
+    }
+    let native = row
+        .conversation
+        .as_ref()
+        .map(|id| id.as_str().to_owned())
+        .or_else(|| {
+            row.transcript_ref
+                .as_ref()
+                .and_then(|reference| reference.native_id.clone())
+        })
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| AppError::Refused("It has no conversation to resume yet".into()))?;
+    resume_conversation(state, &row, &account, native, "resume")
+}
+
+/// AJ-E2908: Resume — an ended session's conversation, continued on its
+/// own account and launch settings.
+///
+/// # Errors
+///
+/// As [`session_resume_impl`].
+#[tauri::command]
+pub async fn session_resume(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_id: String,
+) -> AppResult<LaunchResult> {
+    crate::ipc::blocking(state.inner(), "session resume", move |state| {
+        session_resume_impl(state, &session_id)
+    })
+    .await
 }
 
 /// AJ-E209 Req.5: exports an epoch's pack (the graph's Export action)
