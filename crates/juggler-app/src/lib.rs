@@ -515,6 +515,9 @@ macro_rules! app_commands {
             Read  features::tool_updates::commands::tool_updates_status,
             Write features::tool_updates::commands::tool_updates_set_check,
             Write lifecycle::instance_unmark_reviewed,
+            // AJ-E2910: Home's Mark all reviewed, and its Undo.
+            Write lifecycle::instances_mark_reviewed,
+            Write lifecycle::instances_unmark_reviewed,
             Read  manage::editor_choices,
             Write manage::editor_set,
             Write manage::project_rename,

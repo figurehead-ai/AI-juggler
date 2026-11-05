@@ -8,12 +8,13 @@
  * (lib/home-needs.ts). Message text is shown only through `bubble`, a
  * session's last message when its page's reader provides one (AJ-E2108).
  */
-import type { JSX, ReactNode } from "react";
+import { useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { SectionTitle } from "./SectionTitle";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
-import { primaryWords, type HomeNeed } from "../lib/home-needs";
+import { chipOf, homeChips, primaryWords, type HomeChip, type HomeNeed } from "../lib/home-needs";
+import { Segmented } from "./controls";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { focusHandoverSoon } from "../lib/handover-focus";
@@ -99,6 +100,16 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
   };
 }
 
+/** AJ-E2910: what Home's row keys read: its session, and whether it has a
+ * conversation to carry over. */
+function rowData(need: HomeNeed): Record<string, string | undefined> {
+  const session = need.item?.session ?? null;
+  return {
+    "data-session-id": session?.id ?? need.sessionId,
+    "data-has-conversation": session?.conversation_id ? "yes" : undefined,
+  };
+}
+
 type BoxProps = { tag: "div" | "li"; className: string; data: Record<string, string | undefined>; children: (goTo: ReactNode) => ReactNode };
 
 /** A need's box. One that stands for a session carries its menu, ⌘↩ and
@@ -148,20 +159,39 @@ export function HomeNeeds({
   children?: ReactNode;
 }): JSX.Element | null {
   const run = useRun(handlers);
-  const [first, ...rest] = needs;
+  // AJ-E2910: a chip narrows the list (never remembered: a stale filter
+  // would hide a new need); the counts elsewhere never change with it.
+  const [chip, setChip] = useState<HomeChip>("all");
+  const chips = homeChips(needs, { asks: messages.length, review: tasks.needs.length });
+  const shownChip = chips.some((entry) => entry.value === chip) ? chip : "all";
+  const shownNeeds = shownChip === "all" ? needs : needs.filter((need) => chipOf(need) === shownChip);
+  const showMessages = shownChip === "all" || shownChip === "asks";
+  const showTasks = shownChip === "all" || shownChip === "review";
+  const hidden = needs.length + messages.length + tasks.needs.length - shownNeeds.length - (showMessages ? messages.length : 0) - (showTasks ? tasks.needs.length : 0);
+  const [first, ...rest] = shownNeeds;
   // Nothing waits: the heading says so, and the card stays away.
-  const waiting = messages.length + tasks.needs.length;
-  if (!first && !children && waiting === 0) return null;
+  const waiting = (showMessages ? messages.length : 0) + (showTasks ? tasks.needs.length : 0);
+  if (needs.length === 0 && !children && messages.length + tasks.needs.length === 0) return null;
   return (
     <section aria-labelledby="home-needs" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
       <SectionTitle id="home-needs">Needs you</SectionTitle>
       <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
-        <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
+        {chips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2" data-testid="home-chips">
+            <Segmented label="Show what needs you" value={shownChip} segments={chips.map(({ value, label }) => ({ value, label }))} onChange={setChip} testId="home-chip" />
+            {hidden > 0 && (
+              <button type="button" className="text-meta text-muted hover:text-ink hover:underline" onClick={() => setChip("all")} data-testid="home-chips-hidden">
+                {hidden} more under All
+              </button>
+            )}
+          </div>
+        )}
+        {(shownChip === "all" || shownChip === "asks") && <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />}
         {/* E18: agents' messages that wait on you. */}
-        <MessageNeeds needs={messages} />
-        <TaskNeeds needs={tasks.needs} projects={tasks.projects} />
+        {showMessages && <MessageNeeds needs={messages} />}
+        {showTasks && <TaskNeeds needs={tasks.needs} projects={tasks.projects} />}
         {first ? (
-          <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind }}>
+          <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind, ...rowData(first) }}>
             {(goTo) => (
             <>
             <div className="flex min-w-0 items-start gap-3">
@@ -199,7 +229,7 @@ export function HomeNeeds({
         {rest.length > 0 && (
           <ul className="flex flex-col border-t border-hairline/60 pt-1">
             {rest.map((need) => (
-              <NeedBox key={need.key} need={need} tag="li" data={{ "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}` }} className="flex min-w-0 items-center gap-2.5 border-b border-hairline/40 py-2 last:border-b-0">
+              <NeedBox key={need.key} need={need} tag="li" data={{ "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}`, ...rowData(need) }} className="flex min-w-0 items-center gap-2.5 border-b border-hairline/40 py-2 last:border-b-0">
                 {(goTo) => (
                 <>
                 <Mark need={need} size={24} />

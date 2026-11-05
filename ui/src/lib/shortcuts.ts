@@ -192,6 +192,11 @@ export const SHORTCUTS = [
   },
   { id: "home-open", owner: "home", area: "Home", keys: ["Enter"], label: "Open the row" },
   { id: "home-action", owner: "home", area: "Home", keys: ["A"], label: "Run the row's action", match: plain("a", "A") },
+  // AJ-E2910 (deep/11 §4.1): on the focused row only, never while typing.
+  { id: "home-reply", owner: "home", area: "Home", keys: ["R"], label: "Open its page, at what it asks", match: plain("r", "R") },
+  { id: "home-handover", owner: "home", area: "Home", keys: ["H"], label: "Continue it in another app", match: plain("h", "H") },
+  { id: "home-snooze", owner: "home", area: "Home", keys: ["S"], label: "Its snooze choices", match: plain("s", "S") },
+  { id: "home-archive", owner: "home", area: "Home", keys: ["E"], label: "Archive an ended row", match: plain("e", "E") },
   // From any app
   {
     id: "go-to",

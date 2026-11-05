@@ -175,6 +175,27 @@ impl SessionsRepo<'_> {
         Ok(at)
     }
 
+    /// AJ-E2910: [`Self::record_lifecycle`] for many Instances in one
+    /// transaction (all or none), at one instant.
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::NotFound`] for an unknown Instance (nothing is
+    /// recorded), or [`CoreError::Storage`] on SQLite failures.
+    pub fn record_lifecycle_many(&self, ids: &[SessionId], event: &str) -> Result<i64, CoreError> {
+        let at = Timestamp::now().millis();
+        let tx = self.conn.unchecked_transaction()?;
+        for id in ids {
+            self.get(id)?;
+            tx.execute(
+                "INSERT INTO instance_lifecycle (session_id, event, at_ms) VALUES (?1, ?2, ?3)",
+                params![id.as_str(), event, at],
+            )?;
+        }
+        tx.commit()?;
+        Ok(at)
+    }
+
     /// AJ-E1005/AJ-E1007: the latest state event (`STATE_EVENTS`: reviewed
     /// or archived, and their undoing) per Instance, `session id → (event,
     /// at_ms)`; Instances without one are absent. Other lifecycle events (a

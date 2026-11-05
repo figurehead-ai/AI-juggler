@@ -25,6 +25,8 @@
  * J/K or the arrows move between rows, Enter opens, A runs the row's
  * action. The ledger-degraded banner moved here from Overview.
  */
+import { focusHandoverSoon } from "../lib/handover-focus";
+import { instancesMarkReviewed } from "../lib/ipc/review";
 import { ProjectMark } from "../components/ProjectMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../components/primitives";
@@ -60,7 +62,7 @@ import {
   dashboardStats,
   errorText,
   instancePark,
-  instanceMarkReviewed, instanceUnmarkReviewed,
+  instanceArchive, instanceMarkReviewed, instanceUnarchive, instanceUnmarkReviewed,
   parkedResume,
   signedIn,
   terminalSpawnLogin,
@@ -194,6 +196,18 @@ export function HomeScreen({
   // Set when Mark reviewed or Resume starts; the parent's refresh can
   // remove the row a moment later, so it holds for a few seconds.
   const restoreUntil = useRef(0);
+  // AJ-E2910: Mark all reviewed (every one on the list, not only those
+  // shown), one call and one Undo; e archives an ended row, with Undo.
+  const archive = async (session: InstanceInfo) => {
+    const label = sessionLabel(session, projects);
+    try {
+      await instanceArchive(session.id);
+      showToast({ id: `archive:${session.id}`, message: `${label}: archived — nothing deleted.`, undo: { onUndo: async () => { await instanceUnarchive(session.id); onChanged?.(); } } });
+      onChanged?.();
+    } catch (cause) {
+      showToast({ tone: "error", message: `${label}: ${errorText(cause)}` });
+    }
+  };
   const act = useCallback(
     async (session: InstanceInfo, what: "resume" | "reviewed") => {
       restoreUntil.current = Date.now() + 3000;
@@ -257,6 +271,27 @@ export function HomeScreen({
       const action = item?.querySelector<HTMLElement>("[data-home-action]") ?? rows[at]!;
       event.preventDefault();
       action.click();
+    } else if (at >= 0) rowKey(event, rows[at]!);
+  };
+  // AJ-E2910: r, h, s and e on the focused row (a key that doesn't apply
+  // to it does nothing; its ⋯ says why).
+  const rowKey = (event: KeyLike & { preventDefault: () => void }, row: HTMLElement) => {
+    const item = row.closest<HTMLElement>("[data-home-item]");
+    const id = item?.dataset.sessionId;
+    if (matches("home-reply", event)) {
+      event.preventDefault();
+      row.click();
+    } else if (matches("home-handover", event) && id && item?.dataset.hasConversation === "yes") {
+      event.preventDefault();
+      onOpenSession(id);
+      focusHandoverSoon();
+    } else if (matches("home-snooze", event) && item) {
+      event.preventDefault();
+      item.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    } else if (matches("home-archive", event) && id && item?.dataset.ended === "yes") {
+      event.preventDefault();
+      const session = sessions.find((one) => one.id === id);
+      if (session) void archive(session);
     }
   };
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => handleKey(event);
@@ -295,6 +330,16 @@ export function HomeScreen({
   const review = sessions
     .filter((s) => toReview(s, now))
     .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
+  const reviewAll = async () => {
+    const ids = review.map((session) => session.id);
+    try {
+      await instancesMarkReviewed(ids);
+      showToast({ id: "reviewed:all", message: `Marked ${ids.length} reviewed.`, undo: { onUndo: async () => { await instancesMarkReviewed(ids, true); onChanged?.(); }, done: "They're back on the list." } });
+      onChanged?.();
+    } catch (cause) {
+      showToast({ tone: "error", message: `Couldn't mark them reviewed: ${errorText(cause)}` });
+    }
+  };
   // D-25: Sign in opens the Provider's own sign-in straight away (first run's
   // rule); the row then says where to finish it.
   const [signingIn, setSigningIn] = useState<string | null>(null);
@@ -498,7 +543,7 @@ export function HomeScreen({
         </div>
         <div className="flex min-w-0 flex-col gap-6">
           <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} items={items} />
-        <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} />
+        <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />
         </div>
       </div>
 
@@ -510,7 +555,7 @@ export function HomeScreen({
         <p className="text-label text-muted" data-testid="home-keys">
           {/* AJ-E1504: the same words and keys as the ? sheet. */}
           Keyboard:{" "}
-          {(["home-next", "home-prev", "home-open", "home-action", "help"] as const).map((id, index) => {
+          {(["home-next", "home-prev", "home-open", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "help"] as const).map((id, index) => {
             const entry = SHORTCUTS.find((row) => row.id === id)!;
             return (
               <span key={id}>

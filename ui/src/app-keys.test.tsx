@@ -131,6 +131,10 @@ describe("AJ-E1504 the typing rule", () => {
       "home-next": { key: "j" },
       "home-prev": { key: "k" },
       "home-action": { key: "a" },
+      "home-reply": { key: "r" },
+      "home-handover": { key: "h" },
+      "home-snooze": { key: "s" },
+      "home-archive": { key: "e" },
       // AJ-E1506: the terminal's tools, ⌘ or Ctrl+Shift, by the key's place.
       "terminal-find": { key: "F", code: "KeyF", shiftKey: true },
       "terminal-larger": { key: "+", code: "Equal", shiftKey: true },
@@ -140,7 +144,7 @@ describe("AJ-E1504 the typing rule", () => {
       // A session row's ⌘↩: Go to it.
       "row-go-to": { key: "Enter" },
     };
-    const plainKeys = new Set(["help", "home-next", "home-prev", "home-action", "rail-view"]);
+    const plainKeys = new Set(["help", "home-next", "home-prev", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "rail-view"]);
     for (const entry of SHORTCUTS) {
       if (!("match" in entry)) continue;
       const id = entry.id as ShortcutId;

@@ -50,6 +50,7 @@ export function HomeRecent({
   busy,
   onOpen,
   onReviewed,
+  onReviewAll,
 }: {
   recent: InstanceInfo[];
   total: number;
@@ -61,6 +62,8 @@ export function HomeRecent({
   busy: string | null;
   onOpen: (id: string) => void;
   onReviewed: (session: InstanceInfo) => void;
+  /** AJ-E2910: all of them reviewed at once (not only those shown). */
+  onReviewAll?: () => void;
 }): JSX.Element | null {
   const asked = useAskedWords(
     recent.flatMap((session) => (!session.label && !session.title && session.conversation_id ? [{ profileId: session.account_id ?? "", conversationId: session.conversation_id }] : [])),
@@ -68,7 +71,14 @@ export function HomeRecent({
   if (recent.length === 0) return null;
   return (
     <section aria-labelledby="home-recent" className="flex flex-col gap-2.5" data-testid="home-recent">
-      <SectionTitle id="home-recent">Pick up where you left off</SectionTitle>
+      <div className="flex items-center justify-between gap-2">
+        <SectionTitle id="home-recent">Pick up where you left off</SectionTitle>
+        {onReviewAll && total > 1 && (
+          <button type="button" onClick={onReviewAll} disabled={busy !== null} className="text-meta text-muted hover:text-ink hover:underline disabled:opacity-60" data-testid="home-review-all">
+            Mark all {total} reviewed
+          </button>
+        )}
+      </div>
       <ul className="overflow-hidden rounded-card border border-hairline bg-surface shadow-card">
         {recentRows(recent, projects, asked, now).map(({ session, title }) => {
           const project = projects.find((one) => one.id === session.project_id)?.name ?? null;
@@ -81,7 +91,7 @@ export function HomeRecent({
                 onSelect={onOpen}
                 title={title}
                 slim
-                data={{ "data-home-item": "", "data-testid": "home-recent-item" }}
+                data={{ "data-home-item": "", "data-testid": "home-recent-item", "data-session-id": session.id, "data-ended": "yes", "data-has-conversation": session.conversation_id ? "yes" : undefined }}
                 buttonData={{ "data-home-row": "" }}
                 stateSlot={
                   // AJ-E1005 Req.4: it leaves this list only when you say so.
