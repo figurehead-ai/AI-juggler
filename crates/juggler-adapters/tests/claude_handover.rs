@@ -674,6 +674,7 @@ fn a_bundle_name_that_climbs_out_is_refused() {
         name: "~file-history/../../escape.txt".to_owned(),
         bytes: b"x".to_vec(),
         on_disk: None,
+        cut_from: None,
     });
     assert!(
         adapter()
@@ -717,6 +718,7 @@ fn a_bundle_cant_bring_in_another_conversation() {
         name: "9e9e9e9e-0000-4000-8000-000000000000.jsonl".to_owned(),
         bytes: b"{}\n".to_vec(),
         on_disk: None,
+        cut_from: None,
     });
     assert!(
         adapter()

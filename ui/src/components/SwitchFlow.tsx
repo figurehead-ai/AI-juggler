@@ -23,6 +23,7 @@ import { FailedStep, failureOf } from "./switch/FailedStep";
 import { takeSwitchOpener } from "../lib/handover-focus";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { tooLittleSpace, useSwitchSpace } from "./switch/DiskSpace";
+import { CarryChoice, useCarryChoice } from "./switch/CarryChoice";
 import { showToast } from "./Toast";
 import { ConfirmBody, SwitchPoolLines, useSealOwed } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
@@ -79,6 +80,7 @@ export function SwitchFlow({
   // AJ-E1542: what the target lacks, and what the user picked to set up.
   const setupCheck = useSwitchSetup(sessionId, targetProfileId);
   const { space, recheck: recheckSpace } = useSwitchSpace(sessionId, targetProfileId); // 0.3.9: the disk space it uses
+  const carry = useCarryChoice(sessionId, targetProfileId); // D-76: the start left out, when asked
   const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -173,7 +175,7 @@ export function SwitchFlow({
       // AJ-E1542: what the user picked is set up first, so the target
       // starts with it.
       const applied = await setupCheck.applyPicked();
-      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination);
+      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination, carry.args);
       const continuedIn: Destination = result.continued_in === "desktop" ? "desktop" : "cli";
       const opened = (continuedIn === "desktop" && result.conversation_key) || result.session_id; // its page: the Claude app's conversation
       if (oneClick && applied.length === 0 && continuedIn === "cli") {
@@ -224,6 +226,7 @@ export function SwitchFlow({
       pools={<SwitchPoolLines sessionId={sessionId} targetProfileId={targetProfileId} />}
       space={space}
       onSpaceAgain={recheckSpace}
+      carry={<CarryChoice state={carry} />}
       // One screen: the keys question (when it applies) is asked here.
       extra={preflight.door === "one-click" && preflight.secrets.asks ? keys(preflight) : undefined}
     />

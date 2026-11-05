@@ -102,6 +102,46 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
         })
     }
 
+    fn cut_preview(
+        &self,
+        reference: &TranscriptRef,
+        cut: juggler_adapter::handover::Cut,
+    ) -> Result<juggler_adapter::handover::CutPreview, AdapterError> {
+        if crate::transcript::is_compressed(&reference.path) {
+            // An older rollout is compressed: it travels whole.
+            return Err(AdapterError::Unsupported(
+                "a compressed rollout travels whole".into(),
+            ));
+        }
+        crate::codex_cut::preview(&reference.path, cut).map_err(AdapterError::Io)
+    }
+
+    fn bundle_session_cut(
+        &self,
+        reference: &TranscriptRef,
+        cut: juggler_adapter::handover::Cut,
+    ) -> Result<SessionBundle, AdapterError> {
+        if crate::transcript::is_compressed(&reference.path) {
+            return Err(AdapterError::Unsupported(
+                "a compressed rollout travels whole".into(),
+            ));
+        }
+        let mut bundle = self.bundle_session(reference)?;
+        let main_name = bundle
+            .files
+            .first()
+            .map(|file| file.name.clone())
+            .unwrap_or_default();
+        crate::cut::cut_bundle(
+            &mut bundle,
+            &main_name,
+            cut,
+            crate::codex_cut::turn_marks,
+            crate::codex_cut::write_cut,
+        )?;
+        Ok(bundle)
+    }
+
     fn install_bundle(
         &self,
         bundle: &SessionBundle,
@@ -259,6 +299,7 @@ fn decompressed(carrier: &mut Carrier, name: String, path: &Path) -> std::io::Re
             name,
             bytes: Vec::new(),
             on_disk: Some(to),
+            cut_from: None,
         });
     }
     let bytes = std::fs::read(&to)?;

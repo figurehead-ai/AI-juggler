@@ -5878,6 +5878,7 @@ pub async fn switch_execute(
     trigger: Option<String>,
     approved: Option<Vec<String>>,
     destination: Option<String>,
+    cut: Option<crate::features::switch_cut::SwitchCutArgs>,
 ) -> AppResult<SwitchExecutedInfo> {
     // AJ-E1103: why the user switched (a closed word; anything else is
     // a manual switch).
@@ -5899,6 +5900,7 @@ pub async fn switch_execute(
             trigger,
             &approved.unwrap_or_default(),
             destination.as_deref(),
+            cut.and_then(crate::features::switch_cut::SwitchCutArgs::cut),
         )
     })
     .await
@@ -5967,6 +5969,34 @@ pub fn switch_execute_to(
         "manual",
         &[],
         Some(destination),
+        None,
+    )
+}
+
+/// D-76: [`switch_execute_impl`] with the start of the conversation left
+/// out as `cut` says (the lab's and tests' way in).
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`] message on any failure.
+pub fn switch_execute_cut(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    freeze_choice: &str,
+    cut: juggler_adapter::handover::Cut,
+) -> AppResult<SwitchExecutedInfo> {
+    switch_execute_core(
+        state,
+        session_id,
+        target_profile_id,
+        freeze_choice,
+        None,
+        &[],
+        "manual",
+        &[],
+        None,
+        Some(cut),
     )
 }
 
@@ -5994,6 +6024,7 @@ pub fn switch_execute_with(
         redaction_unredact,
         "manual",
         approved,
+        None,
         None,
     )
 }
@@ -6045,6 +6076,7 @@ fn switch_execute_core(
     trigger: &'static str,
     approved: &[String],
     destination: Option<&str>,
+    cut: Option<juggler_adapter::handover::Cut>,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
     let _slot = SwitchSlot::take(state, session_id)?;
@@ -6117,12 +6149,15 @@ fn switch_execute_core(
         &new_session,
         desktop.as_deref(),
     );
-    let outcome = pipeline::execute(
+    // D-76: the start left out, when the user asked (by default all of it
+    // travels).
+    let outcome = pipeline::execute_cut(
         support.as_ref(),
         &reference,
         &account_b,
         freeze,
         Mechanism::Transplant,
+        cut,
         &mut launch_hook,
     );
     let (record, pid) = match outcome {

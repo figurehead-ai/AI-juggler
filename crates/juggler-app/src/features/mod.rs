@@ -30,6 +30,7 @@ pub mod sessions;
 pub mod staging;
 pub mod subagents;
 pub mod subscriptions;
+pub mod switch_cut;
 pub mod switch_fidelity;
 pub mod switch_setup;
 pub mod switch_space;

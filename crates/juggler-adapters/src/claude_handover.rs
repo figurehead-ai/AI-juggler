@@ -59,6 +59,7 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             name: String::new(),
             bytes: Vec::new(),
             on_disk: Some(path.clone()),
+            cut_from: None,
         };
         let cwd = embedded_cwd(&main.head(juggler_adapter::handover::HEAD_BYTES)?)
             .unwrap_or_else(|| dir.to_string_lossy().into_owned());
@@ -279,6 +280,35 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             let _ = writeln!(out, "{}", turn.quoted());
         }
         Ok(out)
+    }
+
+    fn cut_preview(
+        &self,
+        reference: &TranscriptRef,
+        cut: juggler_adapter::handover::Cut,
+    ) -> Result<juggler_adapter::handover::CutPreview, AdapterError> {
+        crate::claude_cut::preview(&reference.path, cut).map_err(AdapterError::Io)
+    }
+
+    fn bundle_session_cut(
+        &self,
+        reference: &TranscriptRef,
+        cut: juggler_adapter::handover::Cut,
+    ) -> Result<SessionBundle, AdapterError> {
+        let mut bundle = self.bundle_session(reference)?;
+        let main_name = reference
+            .path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        crate::cut::cut_bundle(
+            &mut bundle,
+            &main_name,
+            cut,
+            crate::claude_cut::turn_marks,
+            crate::claude_cut::write_cut,
+        )?;
+        Ok(bundle)
     }
 }
 

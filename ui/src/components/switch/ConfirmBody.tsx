@@ -59,6 +59,7 @@ export function ConfirmBody({
   pools,
   space = null,
   onSpaceAgain,
+  carry,
 }: {
   preflight: PreflightInfoData;
   target: string;
@@ -83,6 +84,8 @@ export function ConfirmBody({
   /** 0.3.9: the disk space the copy uses. */
   space?: SwitchSpaceInfo | null;
   onSpaceAgain?: () => void;
+  /** D-76: leaving out the start of a very long conversation. */
+  carry?: ReactNode;
 }): JSX.Element {
   const where = whereWords(destination, preflight);
   const outside = preflight.source_outside ? { app: preflight.source_app ?? null, target, where } : null;
@@ -106,6 +109,7 @@ export function ConfirmBody({
       <div className="flex flex-col gap-2" data-testid="switch-summary">
         <CarrySummary items={preflight.carry_items ?? []} target={target} tool={tool} setup={setup} picked={picked} />
         <DiskSpace space={space} onCheckAgain={onSpaceAgain} />
+        {carry}
         <p className="text-body text-ink-2" data-testid={outside ? "switch-outside" : preflight.source_keeps_running ? "switch-keeps-running" : "switch-original"}>
           {originalWords({ live: preflight.source_live, keepsRunning: preflight.source_keeps_running, outside, choice: freeze })}
         </p>

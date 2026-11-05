@@ -6,6 +6,7 @@
  */
 import { hasLiveBackend, type SwitchExecutedData } from "../bridge";
 import { invoke } from "./transport";
+import type { SwitchCutArgs } from "../../types/generated/SwitchCutArgs";
 
 /** AJ-E1103: why the next switch happens — set when the user picks a
  * target (the suggested one, or another), read once by
@@ -32,6 +33,8 @@ export async function switchExecute(
   redactionUnredact?: number[],
   approved: string[] = [],
   destination: "desktop" | "cli" = "cli",
+  /** D-76: the start left out (null: everything travels). */
+  cut: SwitchCutArgs | null = null,
 ): Promise<SwitchExecutedData> {
   if (!hasLiveBackend()) {
     const seams = window as unknown as {
@@ -43,6 +46,7 @@ export async function switchExecute(
       }[];
       __AIJ_SWITCH_EXECUTE_APPROVED__?: string[][];
       __AIJ_SWITCH_EXECUTE_DESTINATION__?: string[];
+      __AIJ_SWITCH_EXECUTE_CUT__?: (SwitchCutArgs | null)[];
     };
     // The guardrail seam: the redaction payload is observable so
     // tests can prove it fires only from the click.
@@ -55,6 +59,7 @@ export async function switchExecute(
     ];
     seams.__AIJ_SWITCH_EXECUTE_APPROVED__ = [...(seams.__AIJ_SWITCH_EXECUTE_APPROVED__ ?? []), approved];
     seams.__AIJ_SWITCH_EXECUTE_DESTINATION__ = [...(seams.__AIJ_SWITCH_EXECUTE_DESTINATION__ ?? []), destination];
+    seams.__AIJ_SWITCH_EXECUTE_CUT__ = [...(seams.__AIJ_SWITCH_EXECUTE_CUT__ ?? []), cut];
     if (seams.__AIJ_SWITCH_EXECUTE_FAIL__ !== undefined) {
       return Promise.reject(seams.__AIJ_SWITCH_EXECUTE_FAIL__);
     }
@@ -82,5 +87,6 @@ export async function switchExecute(
     trigger,
     approved,
     destination,
+    cut,
   });
 }

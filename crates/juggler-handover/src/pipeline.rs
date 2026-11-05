@@ -688,6 +688,24 @@ pub fn execute(
     mechanism: Mechanism,
     launch: &mut LaunchHook<'_>,
 ) -> Result<(SwitchRecord, u32), SwitchFailure> {
+    execute_cut(support, reference, target, freeze, mechanism, None, launch)
+}
+
+/// [`execute`], with the start of the conversation left out as `cut`
+/// says (D-76; `None` carries everything, byte for byte as `execute`).
+///
+/// # Errors
+///
+/// As [`execute`]; a cut the tool can't make fails at the Stage.
+pub fn execute_cut(
+    support: &dyn HandoverSupport,
+    reference: &TranscriptRef,
+    target: &Account,
+    freeze: FreezeChoice,
+    mechanism: Mechanism,
+    cut: Option<juggler_adapter::handover::Cut>,
+    launch: &mut LaunchHook<'_>,
+) -> Result<(SwitchRecord, u32), SwitchFailure> {
     // AJ-E2912: the steps, for debug mode and Report a bug (target
     // `aij::flow`): words and numbers only, never what's in the
     // conversation.
@@ -698,8 +716,9 @@ pub fn execute(
         step = "start",
         mechanism = mechanism.as_wire(),
         to_tool = target.harness.as_str(),
+        cut = ?cut,
     );
-    let result = execute_steps(support, reference, target, freeze, mechanism, launch);
+    let result = execute_steps(support, reference, target, freeze, mechanism, cut, launch);
     let ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     match &result {
         Ok((record, _)) => tracing::info!(
@@ -733,6 +752,7 @@ fn execute_steps(
     target: &Account,
     freeze: FreezeChoice,
     mechanism: Mechanism,
+    cut: Option<juggler_adapter::handover::Cut>,
     launch: &mut LaunchHook<'_>,
 ) -> Result<(SwitchRecord, u32), SwitchFailure> {
     let _ = freeze; // the choice shaped the source state BEFORE this
@@ -740,7 +760,25 @@ fn execute_steps(
     // records truncation via the caller's staging.
     report(SwitchStep::Copying);
     let at = std::time::Instant::now();
-    let bundle = support.bundle_session(reference)?;
+    let bundle = match cut {
+        Some(cut) => support.bundle_session_cut(reference, cut)?,
+        None => support.bundle_session(reference)?,
+    };
+    // What the copy-never-move check reads: each file as carried, or, for
+    // a cut one, the frozen whole source it was cut from.
+    let cut_checks: Vec<Option<(u64, String)>> = bundle
+        .files
+        .iter()
+        .map(|file| {
+            file.cut_from
+                .as_ref()
+                .map(|whole| {
+                    juggler_adapter::handover::sha256_file(whole, None).map(|(h, n)| (n, h))
+                })
+                .transpose()
+        })
+        .collect::<std::io::Result<_>>()
+        .map_err(juggler_adapter::error::AdapterError::Io)?;
     let source_hashes: Vec<ManifestRow> = bundle
         .files
         .iter()
@@ -812,10 +850,13 @@ fn execute_steps(
     // end, so the check is that the source still starts with exactly what
     // was carried (a transcript only grows): nothing earlier was changed
     // or moved.
-    for row in &source_hashes {
+    for (row, cut) in source_hashes.iter().zip(&cut_checks) {
+        let (bytes, sha256) = cut
+            .as_ref()
+            .map_or((row.bytes, &row.sha256), |(n, h)| (*n, h));
         let path = support.source_file(reference, &row.rel_path);
-        match juggler_adapter::handover::sha256_file(&path, Some(row.bytes)) {
-            Ok((hash, read)) if read == row.bytes && hash == row.sha256 => {}
+        match juggler_adapter::handover::sha256_file(&path, Some(bytes)) {
+            Ok((hash, read)) if read == bytes && &hash == sha256 => {}
             _ => {
                 return Err(SwitchFailure::StagingAborted(format!(
                     "source changed during the switch: {}",

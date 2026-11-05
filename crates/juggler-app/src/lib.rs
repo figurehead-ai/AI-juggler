@@ -314,6 +314,7 @@ macro_rules! app_commands {
             Write commands::switch_door_count,
             Read  features::switch_setup::switch_setup_check,
             Read  features::switch_space::switch_space_check,
+            Read  features::switch_cut::switch_cut_preview,
             Read  features::switch_setup::switch_setup_list,
             Write features::switch_setup::switch_setup_apply,
             Write features::switch_setup::switch_setup_undo,
