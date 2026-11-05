@@ -51,7 +51,7 @@ pub const SLOW_SOURCES: &[&str] = &[
 ];
 
 /// How often the readings may rebuild the snapshot.
-pub const SLOW_EVERY: std::time::Duration = std::time::Duration::from_secs(10);
+pub const SLOW_EVERY: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// The Floor's state in [`AppState`].
 #[derive(Default)]
