@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 
+import { openAndFocus } from "./palette-focus";
 import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { CanvasEdges } from "./CanvasEdges";
@@ -345,14 +346,7 @@ export function Canvas({
         const at = drawn.get(id);
         return at ? { x: shown.x + at.x * shown.scale, y: shown.y + at.y * shown.scale, w: NODE_W * shown.scale, h: NODE_H * shown.scale } : null;
       })}
-      {members.length === 0 &&
-        canvas &&
-        empty &&
-        empty(paletteOpen ?? false, () => {
-          // Opened, or already open: focus it, so the step answers (P10 walk).
-          setPaletteOpen(true);
-          requestAnimationFrame(() => palette.current?.querySelector<HTMLElement>("input, button:not([disabled])")?.focus());
-        })}
+      {members.length === 0 && canvas && empty && empty(paletteOpen ?? false, openAndFocus(setPaletteOpen, palette))}
       {members.length === 0 && canvas && !empty && (
         <div className={"pointer-events-none absolute inset-0 flex items-center justify-center p-8" + (paletteOpen ? " pl-[17rem]" : "")} data-testid="canvas-empty">
           <div className="flex max-w-sm flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hairline bg-surface/80 px-6 py-8 text-center">
