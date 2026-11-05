@@ -10,12 +10,11 @@ import type { ProjectInfo } from "../../lib/bridge";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import type { TaskInfo } from "../../lib/ipc/tasks";
-import { levelLabel } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { lazyNamed } from "../../lib/lazy";
 import { PendingChip, edgeWords } from "./CanvasEdges";
 import { InspectNode } from "./InspectNode";
-import { InspectPool, Section, deliveryWords } from "./InspectPool";
+import { InspectPool, Section, deliveryShort } from "./InspectPool";
 import type { Selection } from "./Canvas";
 import { edgeKey, type MemberNode } from "./useCanvas";
 
@@ -39,48 +38,58 @@ function Fact({ label, children }: { label: string; children: ReactNode }): JSX.
 function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; members: MemberNode[]; now: number; onSelect: (selection: Selection) => void }): JSX.Element {
   const lead = members.find((member) => member.role === "lead");
   const asks = canvas?.asks.length ?? 0;
+  // An empty pool says it's empty once, on its canvas (design review #85):
+  // here only the way to its settings. What agents may do is in the
+  // header's Agents (#61).
+  const empty = pool.members === 0;
   return (
     <div className="flex flex-col" data-testid="inspect-activity">
       <Section title="This pool">
-        <Fact label="Members">
-          {pool.members}
-          {lead ? ` · lead ${lead.card.name}` : ""}
-        </Fact>
-        <Fact label="Agents may">{levelLabel(pool.access.level)}</Fact>
-        <Fact label="Delivery">{`${deliveryWords(pool)}, ${pool.access.hop_limit} in a row`}</Fact>
-        <Fact label="Always allowed">{pool.rules.length === 0 ? "Nothing yet" : `${pool.rules.length} ${pool.rules.length === 1 ? "rule" : "rules"}`}</Fact>
+        {!empty && (
+          <>
+            <Fact label="Members">
+              {pool.members}
+              {lead ? ` · lead ${lead.card.name}` : ""}
+            </Fact>
+            <Fact label="Messages">{deliveryShort(pool)}</Fact>
+            <Fact label="Pause after">{`${pool.access.hop_limit} in a row`}</Fact>
+            {pool.rules.length > 0 && <Fact label="Always allowed">{`${pool.rules.length} ${pool.rules.length === 1 ? "rule" : "rules"}`}</Fact>}
+          </>
+        )}
         {asks > 0 && <Fact label="Waiting on you">{`${asks} ${asks === 1 ? "ask" : "asks"}`}</Fact>}
         <button type="button" onClick={() => onSelect({ kind: "pool" })} className="self-start rounded text-meta text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspect-open-settings">
           Change what agents may do…
         </button>
       </Section>
-      <Section title="Live" testId="inspect-stream">
-        {canvas === null ? (
-          <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
-        ) : canvas.stream.length === 0 ? (
-          <p className="text-label text-muted">Nothing yet. Messages and task changes between its agents show here as they happen.</p>
-        ) : (
-          <ol className="flex flex-col gap-2" aria-live="polite" aria-relevant="additions">
-            {canvas.stream.map((line, index) => (
-              <li key={`${line.at_ms}-${index}`} className="flex gap-2 text-meta">
-                <span className="w-[4.75rem] shrink-0 whitespace-nowrap text-label tabular-nums text-faint">{agoWords(line.at_ms, now)}</span>
-                {line.session_id ? (
-                  <button
-                    type="button"
-                    onClick={() => onSelect(line.other_session_id ? { kind: "edge", key: edgeKey(line.session_id!, line.other_session_id) } : { kind: "node", id: line.session_id! })}
-                    className="min-w-0 rounded text-left text-ink outline-none hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
-                  >
-                    {line.words}
-                  </button>
-                ) : (
-                  <span className="min-w-0 text-ink">{line.words}</span>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
-        <p className="text-label text-faint">Select a member or an edge and this panel shows its tasks, messages, usage and rules.</p>
-      </Section>
+      {!empty && (
+        <Section title="Live" testId="inspect-stream">
+          {canvas === null ? (
+            <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
+          ) : canvas.stream.length === 0 ? (
+            <p className="text-label text-muted">Nothing yet. Messages and task changes between its agents show here as they happen.</p>
+          ) : (
+            <ol className="flex flex-col gap-2" aria-live="polite" aria-relevant="additions">
+              {canvas.stream.map((line, index) => (
+                <li key={`${line.at_ms}-${index}`} className="flex gap-2 text-meta">
+                  <span className="w-[4.75rem] shrink-0 whitespace-nowrap text-label tabular-nums text-faint">{agoWords(line.at_ms, now)}</span>
+                  {line.session_id ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelect(line.other_session_id ? { kind: "edge", key: edgeKey(line.session_id!, line.other_session_id) } : { kind: "node", id: line.session_id! })}
+                      className="min-w-0 rounded text-left text-ink outline-none hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
+                    >
+                      {line.words}
+                    </button>
+                  ) : (
+                    <span className="min-w-0 text-ink">{line.words}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="text-label text-faint">Select a member or an edge and this panel shows its tasks, messages, usage and rules.</p>
+        </Section>
+      )}
     </div>
   );
 }
@@ -163,7 +172,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   return (
     <aside aria-labelledby="pool-inspector-title" className="flex h-full min-h-0 w-[340px] shrink-0 flex-col border-l border-hairline bg-surface" data-testid="pool-inspector">
       <div className="flex h-11 shrink-0 items-center gap-2 px-4">
-        <h3 id="pool-inspector-title" ref={heading} tabIndex={-1} className="flex-1 text-label font-semibold uppercase tracking-[0.08em] text-faint outline-none">
+        <h3 id="pool-inspector-title" ref={heading} tabIndex={-1} className="flex-1 text-section font-semibold text-ink outline-none">
           {title}
         </h3>
         {selection.kind !== "none" && (

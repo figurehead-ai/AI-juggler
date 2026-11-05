@@ -266,10 +266,13 @@ describe("agent access", () => {
     expect(rows.map(said)).toEqual([
       ["Checkout redesign", "false"],
       ["Docs", "false"],
-      ["ai-juggler · all sessions", "false"],
-      ["payments-api · all sessions", "false"],
-      ["No project · all sessions", "false"],
+      ["ai-juggler", "false"],
+      ["payments-api", "false"],
+      ["No project", "false"],
     ]);
+    // The projects' own pools under one heading, named once (design
+    // review #60: "· all sessions" on every row).
+    expect((await findAllByTestId("agent-access-project-pools")).map((row) => row.textContent)).toEqual(["Project pools"]);
     expect(rows.every((row) => within(row).getByTestId("agent-access-level").textContent!.startsWith("Work together"))).toBe(true);
   });
 
@@ -306,7 +309,7 @@ describe("context cards", () => {
   const card = (over: Partial<ContextCard>): ContextCard => ({
     session_id: first.id,
     name: "Split checkout",
-    place: "shop · AI Juggler · Work Max",
+    place: "shop · Work Max",
     tool: "Claude Code",
     account: "Work Max",
     state: "running",
@@ -339,7 +342,7 @@ describe("context cards", () => {
     // Its state beside the name, outside the part that gives way.
     expect(getByTestId("pool-card-name").contains(getByTestId("pool-card-state"))).toBe(false);
     // D-36: the rows' place line; the tool beside it (the line names the profile).
-    expect(getByTestId("pool-card").textContent).toContain("shop · AI Juggler · Work Max");
+    expect(getByTestId("pool-card").textContent).toContain("shop · Work Max");
     expect(getByTestId("pool-card").textContent).toContain("Claude Code");
     // AJ-E2104: the rail's one state vocabulary.
     expect(getByTestId("pool-card-state").textContent).toBe(sessionState(first).word);
@@ -382,5 +385,6 @@ describe("the pool page's count (the 0.2 walk: \"0 sessions\" beside three open 
     const { poolCountWords } = await import("../pages/PoolPage");
     expect(poolCountWords(0, 3)).toBe("0 sessions in AI Juggler · 3 open in other apps");
     expect(poolCountWords(1, 0)).toBe("1 session in AI Juggler");
+    expect(poolCountWords(0, 0)).toBe("");
   });
 });

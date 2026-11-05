@@ -49,7 +49,9 @@ export function defaultPoolIdOf(projectId: string | null | undefined): string {
 }
 
 /** A default pool's name: its project's (as it is now), and what it is. */
-const defaultPoolName = (projectName: string | null) => `${projectName ?? "No project"} · all sessions`;
+/** The end of a project's own pool's name (backend `storage/pools.rs`). */
+export const ALL_SESSIONS = " · all sessions";
+const defaultPoolName = (projectName: string | null) => `${projectName ?? "No project"}${ALL_SESSIONS}`;
 
 /** D-28: the agent actions, in the catalog's order, and what each
  * named level allows (the backend's `AccessLevel::actions`). */
@@ -363,7 +365,7 @@ function previewCard(session: InstanceInfo, role: string): ContextCard {
     session_id: session.id,
     name: session.label ?? session.title ?? session.git_branch ?? folder,
     // D-36: the rows' place line, project · app · profile.
-    place: [project, "AI Juggler", profile].filter(Boolean).join(" · "),
+    place: [project, profile].filter(Boolean).join(" · "),
     tool: providerDisplayName(session.provider),
     account: profile,
     state: session.status,

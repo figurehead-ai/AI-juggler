@@ -22,7 +22,7 @@ const HOPS = Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1
 export function Section({ title, children, testId }: { title: string; children: ReactNode; testId?: string }): JSX.Element {
   return (
     <section className="flex flex-col gap-2.5 border-t border-hairline/70 px-4 py-3.5 first:border-t-0" data-testid={testId}>
-      <h4 className="text-label font-semibold uppercase tracking-[0.08em] text-faint">{title}</h4>
+      <h4 className="text-meta font-semibold text-ink">{title}</h4>
       {children}
     </section>
   );
@@ -55,6 +55,14 @@ export function deliveryWords(pool: PoolInfo): string {
   if (pool.access.delivery_stopped) return "Stopped: nothing goes into a session";
   const own = pool.access.level === "full" || pool.rules.some((rule) => rule.action === "deliver_to_session");
   return own ? "By themselves, between turns" : "When you click Deliver";
+}
+
+/** The same, short, for the canvas's Activity (design review #76: "Delivery
+ * · When you click Deliver, 5 in a row" said how in the settings' words). */
+export function deliveryShort(pool: PoolInfo): string {
+  if (pool.access.delivery_stopped) return "Stopped";
+  const own = pool.access.level === "full" || pool.rules.some((rule) => rule.action === "deliver_to_session");
+  return own ? "Go in by themselves" : "Wait for you";
 }
 
 export function InspectPool({

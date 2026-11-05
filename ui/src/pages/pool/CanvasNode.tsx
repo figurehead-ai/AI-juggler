@@ -14,7 +14,9 @@
 import { memo, type JSX, type MouseEvent } from "react";
 import { appName } from "../../lib/app-name";
 
-import { ToolMark } from "../../components/ToolMark";
+import { AppIcon } from "../../components/AppIcon";
+import { useActionHost } from "../../components/ItemMenu";
+import { appOfSession } from "../../lib/app-of";
 import { ShellOnly } from "../../components/ShellOnly";
 import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
@@ -36,6 +38,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
   // The card says "None" when it holds no task (cards.rs's NO_TASK).
   const task = member.card.task.value === NO_TASK ? null : member.card.task.value;
   const account = member.card.account;
+  const host = useActionHost();
   const ended = state.state === "ended";
   const openMenu = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
@@ -68,9 +71,9 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
         </span>
       )}
       <div className="flex min-w-0 items-center gap-2">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-2">
-          <ToolMark tool={member.session.provider} size={14} />
-        </span>
+        {/* Its App's own icon (design review #14: the tool's letter was "C"
+            for Claude Code and Codex alike). */}
+        <AppIcon {...appOfSession(member.session)} size={24} />
         <button
           type="button"
           tabIndex={tabStop ? 0 : -1}
@@ -105,7 +108,14 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
         )}
         {member.role === "observer" && <span className="shrink-0 rounded-md bg-surface-2 px-1.5">Observer</span>}
         <ShellOnly tool={member.session.provider} />
-        <span className="truncate">{member.card.tool ? appName(member.card.tool, account) : account}</span>
+        {/* Its App's page, one click (design review #14). */}
+        {host.openAccountById && member.session.account_id ? (
+          <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} className="min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-app">
+            {member.card.tool ? appName(member.card.tool, account) : account}
+          </button>
+        ) : (
+          <span className="truncate">{member.card.tool ? appName(member.card.tool, account) : account}</span>
+        )}
       </span>
       <span className="flex min-w-0 items-center gap-1.5 text-label" data-testid="node-state">
         <span aria-hidden="true" className={"size-2 shrink-0 rounded-full " + (alert?.tone === "danger" ? "bg-danger" : STATE_TONE[state.state].dot) + (state.state === "working" ? " shadow-[0_0_0_3px_var(--color-live-soft)]" : "")} />

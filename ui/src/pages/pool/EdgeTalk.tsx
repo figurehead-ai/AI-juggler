@@ -40,7 +40,7 @@ export function EdgeTalk({ poolId, from, to, fromName, toName }: { poolId: strin
   const pair = `${roleLabel(talk.from_role)} → ${roleLabel(talk.to_role)}`;
   return (
     <div className="flex flex-col gap-1.5 px-4" data-testid="edge-talk">
-      <span className="text-label font-semibold uppercase tracking-wide text-muted">
+      <span className="text-meta font-semibold text-ink-2">
         Talk · {fromName} → {toName}
       </span>
       <Segmented

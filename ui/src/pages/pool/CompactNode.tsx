@@ -13,7 +13,8 @@
 import { useEffect, useRef, useState, type JSX, type MouseEvent } from "react";
 import { appName } from "../../lib/app-name";
 
-import { ToolMark } from "../../components/ToolMark";
+import { AppIcon } from "../../components/AppIcon";
+import { appOfSession } from "../../lib/app-of";
 import { ShellOnly } from "../../components/ShellOnly";
 import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
@@ -91,9 +92,9 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       {name}
     </button>
   );
-  // Its ⋯ shows on hover, on focus and when chosen, over the name's end:
-  // at rest the name has the node's width (right-click and Shift+F10
-  // open the same menu).
+  // Its ⋯ has its own slot at the name's end (design review #10: over the
+  // name it hid "Checkout c…"); it shows on hover, on focus and when
+  // chosen (right-click and Shift+F10 open the same menu).
   const more = (
     <button
       type="button"
@@ -101,12 +102,12 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       aria-label={`More for ${name}`}
       aria-haspopup="menu"
       className={
-        "absolute right-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md bg-surface text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover/node:opacity-100 " +
+        "flex size-5 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover/node:opacity-100 " +
         (selected ? "opacity-100" : "opacity-0")
       }
       data-testid="node-more"
     >
-      <IconMore width={16} height={16} />
+      <IconMore width={14} height={14} />
     </button>
   );
   return (
@@ -135,9 +136,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       >
         <div className={"flex min-w-0 gap-1.5 " + (wrap ? "items-start" : "items-center")}>
           {lines === 3 ? (
-            <span className="flex size-5 shrink-0 items-center justify-center rounded bg-surface-2">
-              <ToolMark tool={member.session.provider} size={12} />
-            </span>
+            <AppIcon {...appOfSession(member.session)} size={20} />
           ) : wrap ? (
             // On the first line of a name that wraps.
             <span className="flex h-4 shrink-0 items-center">{dot}</span>
@@ -146,8 +145,8 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
           )}
           {lines === 1 && lead && <IconLead width={12} height={12} aria-hidden="true" className="shrink-0 text-accent-hi" />}
           {nameButton}
+          {more}
         </div>
-        {more}
         {lines === 3 && (
           <span className="flex min-w-0 items-center gap-1.5 truncate text-label text-muted">
             {lead && (
@@ -211,7 +210,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
               setOpen(false);
               badge.current?.focus();
             }}
-            className="absolute left-0 top-full z-40 mt-2 flex w-72 cursor-auto flex-col gap-2 rounded-xl border border-hairline bg-surface p-2.5 text-left shadow-lg"
+            className="absolute left-full top-0 z-40 ml-2 flex w-72 cursor-auto flex-col gap-2 rounded-xl border border-hairline bg-surface p-2.5 text-left shadow-lg"
             data-testid="node-popover"
           >
             {alert && (

@@ -6,7 +6,8 @@
  */
 import { useState, type JSX, type PointerEvent, type ReactNode } from "react";
 
-import { ToolMark } from "../../components/ToolMark";
+import { AppIcon } from "../../components/AppIcon";
+import { appOfSession } from "../../lib/app-of";
 import { IconGrip } from "../../components/icons-places";
 import { IconPlus, IconRemove } from "../../components/icons-actions";
 import type { InstanceInfo, ProjectInfo } from "../../lib/bridge";
@@ -68,7 +69,7 @@ export function Palette({
         type="button"
         aria-expanded={open}
         onClick={() => onOpen(!open)}
-        className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-label font-semibold uppercase tracking-[0.08em] text-faint outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-meta font-semibold text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="flex-1">Add a session</span>
         <span className="font-mono normal-case tracking-normal">{sessions.length}</span>
@@ -111,7 +112,7 @@ export function Palette({
                     data-session={session.id}
                   >
                     <IconGrip width={14} height={14} className="shrink-0 text-faint" aria-hidden="true" />
-                    <ToolMark tool={session.provider} size={14} className="shrink-0" />
+                    <AppIcon {...appOfSession(session)} size={16} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-meta text-ink">{nameOf(session)}</span>
                       <span className="truncate text-label text-faint">{[projectOf(session), session.account_label].filter(Boolean).join(" · ")}</span>

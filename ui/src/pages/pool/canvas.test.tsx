@@ -29,8 +29,8 @@ import { rememberTab, rememberedTabId } from "../registry";
 import { PoolPage } from "../PoolPage";
 import { forgetCanvasViews } from "./canvas-view";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
-import { deliveryWords } from "./InspectPool";
-import { CanvasEdges } from "./CanvasEdges";
+import { deliveryShort, deliveryWords } from "./InspectPool";
+import { CanvasEdges, pendingWords } from "./CanvasEdges";
 import { CompactNode } from "./CompactNode";
 import type { ContextCard } from "../../types/generated/ContextCard";
 import { curvePoint, edgeCurve, fitView, nodeMiddle, layout, neighbour, NODE_H, NODE_W, nodeForm, zoomAt } from "./layout";
@@ -234,6 +234,25 @@ describe("one count of what needs you", () => {
 });
 
 describe("a pool's page: its canvas", () => {
+  it("a member's App opens its page from the node (design review #14)", async () => {
+    seedTeam();
+    const opened: string[] = [];
+    await act(async () => {
+      await refreshPools();
+    });
+    const view = render(
+      <ConversationsProvider want={null}>
+        <ActionHostProvider host={{ openAccountById: (id) => opened.push(id) }}>
+          <PoolPage poolId="pool-team" sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} now={Date.now()} />
+        </ActionHostProvider>
+      </ConversationsProvider>,
+    );
+    await waitFor(() => expect(view.getAllByTestId("canvas-node").length).toBeGreaterThan(0));
+    const node = view.container.querySelector(`[data-node="${first.id}"]`) as HTMLElement;
+    fireEvent.click(within(node).getByTestId("node-app"));
+    expect(opened).toEqual([first.account_id]);
+  });
+
   it("draws its members as nodes, the lead marked, and answers an ask on its node", async () => {
     seedTeam();
     const view = await openPage();
@@ -332,6 +351,25 @@ describe("a pool's page: its canvas", () => {
     expect(deliveryWords(pool)).toBe("When you click Deliver");
     expect(deliveryWords({ ...pool, access: { ...pool.access, level: "full" } })).toBe("By themselves, between turns");
     expect(deliveryWords({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped: nothing goes into a session");
+    // The Activity panel's short form (design review #76).
+    expect(deliveryShort(pool)).toBe("Wait for you");
+    expect(deliveryShort({ ...pool, access: { ...pool.access, level: "full" } })).toBe("Go in by themselves");
+    expect(deliveryShort({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped");
+  });
+
+  it("fits members above the zoom bar, not under it (design review #10)", () => {
+    const points = [{ x: 0, y: 0 }, { x: 0, y: 600 }];
+    const view = fitView(points, 800, 700, 48, 0, 0, 52);
+    // The lowest card's foot (its point plus a card and what waits on it)
+    // ends above the bar.
+    const foot = view.y + (600 + NODE_H * 2) * view.scale;
+    expect(foot).toBeLessThanOrEqual(700 - 52);
+  });
+
+  it("a paused chain says the pool's own number", () => {
+    const edge = { from_session_id: "a", to_session_id: "b", messages: 6, tasks: 0, last_at_ms: 0, thread_id: "t", pending: [{ message_id: "m", thread_id: "t", subject: "s", recipient: "r", kind: "hop_limit", ask_id: "k", at_ms: 0 }] } as never;
+    expect(pendingWords(edge, 5)?.label).toBe("Paused after 5 in a row");
+    expect(pendingWords(edge)?.short).toBe("Paused");
   });
 });
 

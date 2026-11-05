@@ -12,7 +12,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import { onSessionsUpdated, type InstanceInfo, type ProjectInfo } from "./bridge";
-import { NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
+import { ALL_SESSIONS, NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
 import { refreshPaged, usePagedList, type PagedList } from "./paged";
 import type { MessageNeedInfo } from "./ipc/messages";
 import type { TaskNeedInfo } from "./ipc/tasks";
@@ -311,4 +311,10 @@ export function scopeFacts(pool: PoolInfo, projects: readonly ProjectInfo[]): st
   if (pool.scope_all) return "for every project";
   if (pool.scope.length === 0) return null;
   return `for ${scopeLabel(pool, projects)}`;
+}
+
+/** A pool's name where a heading already says it's a project's own pool:
+ * "web", not "web · all sessions" (design review #60). */
+export function shortPoolName(pool: PoolInfo): string {
+  return pool.kind === "default" && pool.name.endsWith(ALL_SESSIONS) ? pool.name.slice(0, -ALL_SESSIONS.length) : pool.name;
 }

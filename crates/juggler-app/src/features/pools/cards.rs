@@ -39,8 +39,6 @@ use crate::error::AppResult;
 use crate::features::sessions::dto::InstanceInfo;
 use crate::state::AppState;
 
-/// The app AI Juggler's own sessions run in, as the rail names it.
-const OWN_APP: &str = "AI Juggler";
 /// Why a card's activity isn't known.
 const NOT_READ: &str = "read only while it runs in AI Juggler";
 /// What a card says when its member holds no task (known: none).
@@ -306,8 +304,10 @@ fn card_of(
     let profile = Some(row.account_label.trim())
         .filter(|label| !label.is_empty() && !label.contains('@'))
         .map(str::to_owned);
-    // D-36: the rows' place line, project · app · profile.
-    let place = [Some(project.as_str()), Some(OWN_APP), profile.as_deref()]
+    // D-36: the rows' place line, project · profile. A pool's cards are
+    // AI Juggler's own sessions, so the app isn't said on every row
+    // (design review #61); a watched one's other app is said where it is.
+    let place = [Some(project.as_str()), profile.as_deref()]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()

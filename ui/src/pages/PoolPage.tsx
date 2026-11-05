@@ -54,6 +54,9 @@ import { isActiveStatus } from "../components/indicator";
  * open in other apps now (the 0.2 walk: "0 sessions" while three were
  * open in the Claude app). */
 export function poolCountWords(members: number, openElsewhere: number): string {
+  // Empty, with nothing open elsewhere: its canvas says so, once (design
+  // review #85).
+  if (members === 0 && openElsewhere === 0) return "";
   const own = `${members} ${members === 1 ? "session" : "sessions"} in AI Juggler`;
   return openElsewhere > 0 ? `${own} · ${openElsewhere} open in other apps` : own;
 }

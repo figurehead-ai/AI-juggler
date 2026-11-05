@@ -9,7 +9,8 @@ import { appName } from "../../lib/app-name";
 
 import { AskCard } from "../../components/AskCard";
 import { Button } from "../../components/primitives";
-import { ToolMark } from "../../components/ToolMark";
+import { AppIcon } from "../../components/AppIcon";
+import { appOfSession } from "../../lib/app-of";
 import { ShellOnly, SHELL_ONLY_WHY, useShellOnly } from "../../components/ShellOnly";
 import { useActionHost } from "../../components/ItemMenu";
 import { formatTokens } from "../../components/indicator";
@@ -100,14 +101,17 @@ export function InspectNode({
     <div className="flex flex-col" data-testid="inspect-node">
       <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
         <div className="flex items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-2">
-            <ToolMark tool={member.session.provider} size={16} />
-          </span>
+          <AppIcon {...appOfSession(member.session)} size={32} />
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-section text-ink" title={name}>
               {name}
             </span>
-            <span className="truncate text-label text-muted">{[member.role === "lead" ? "Lead" : member.role === "observer" ? "Observer" : null, member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account].filter(Boolean).join(" · ")}</span>
+            <span className="flex min-w-0 items-center gap-1 text-label text-muted">
+              {member.role === "lead" ? "Lead · " : member.role === "observer" ? "Observer · " : null}
+              <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} disabled={!host.openAccountById || !member.session.account_id} className="min-w-0 truncate rounded text-left outline-none enabled:hover:text-ink enabled:hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspect-node-app">
+                {member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}
+              </button>
+            </span>
           </span>
         </div>
         <span className="flex flex-wrap items-center gap-2">
@@ -131,10 +135,10 @@ export function InspectNode({
         <Section title="Waiting on you" testId="inspect-node-waiting">
           {alert && !toolAsks.length && <p className={"text-meta " + (alert.tone === "danger" ? "text-danger" : "text-warning")}>{alert.word}</p>}
           {toolAsks.map((ask) => (
-            <AskCard key={ask.id} ask={ask} kindLabel="Its tool asks" />
+            <AskCard key={ask.id} ask={ask} kindLabel="Its tool asks" plain />
           ))}
           {asks.map((ask) => (
-            <AskCard key={ask.id} ask={asCard(ask, member.id)} kindLabel="Its agent asks" answer={(option) => answerAsk(ask, option as "once" | "always" | "deny")} />
+            <AskCard key={ask.id} ask={asCard(ask, member.id)} kindLabel="Its agent asks" answer={(option) => answerAsk(ask, option as "once" | "always" | "deny")} plain />
           ))}
         </Section>
       )}

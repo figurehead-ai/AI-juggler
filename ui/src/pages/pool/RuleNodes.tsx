@@ -80,7 +80,7 @@ export function RuleNodes({
           data-rule-ref={rule.member}
         >
           <span className="flex items-center gap-1.5">
-            <span className="text-label font-semibold uppercase tracking-wide text-muted">{KIND_WORD[rule.kind] ?? rule.kind}</span>
+            <span className="text-label font-medium text-muted">{KIND_WORD[rule.kind] ?? rule.kind}</span>
             <Chip tone={rule.role === "lead" ? "accent" : rule.role === "reviewer" ? "live" : "neutral"}>{roleLabel(rule.role)}</Chip>
           </span>
           <span className="truncate text-body font-semibold text-ink">{labelOf(rule)}</span>

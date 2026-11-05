@@ -39,6 +39,8 @@ type Drag =
   | { kind: "pan"; start: Point; view: View; moved: boolean };
 
 const NUDGE = 16;
+/** The zoom bar's height and its gap at the canvas's foot. */
+const TOOLBAR_H = 52;
 
 function useReducedMotion(): boolean {
   const query = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
@@ -113,7 +115,7 @@ export function Canvas({
   // its folded line).
   const { view, latest, setView, fit, forget, hold } = useCanvasView(
     pool.id,
-    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44),
+    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44, TOOLBAR_H),
     size.w > 0 && members.length > 0 && !!canvas && paletteOpen !== null,
     [size.w, size.h, members.length, paletteOpen, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
   );
@@ -306,6 +308,7 @@ export function Canvas({
           pulses={pulses}
           reducedMotion={reducedMotion}
           scale={shown.scale}
+          hops={pool.access.hop_limit}
           onSelect={(key) => onSelect({ kind: "edge", key })}
         />
         {members.map((member) => {

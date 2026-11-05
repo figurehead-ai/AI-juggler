@@ -36,25 +36,26 @@ export async function settle(pending: PendingInfo, deliver: boolean): Promise<vo
 }
 
 /** What waits on an edge, in words: the panel's line and the compact
- * badge's ("Paused: too many replies in a row" / "Paused"). None when nothing on
+ * badge's ("Paused after 5 in a row" / "Paused"). None when nothing on
  * it is answered here (one above the pool's level is answered on its
  * sender's node). */
-export function pendingWords(edge: CanvasEdgeInfo): { label: string; short: string; hop: boolean } | null {
+export function pendingWords(edge: CanvasEdgeInfo, hops?: number): { label: string; short: string; hop: boolean } | null {
   const actionable = edge.pending.filter((p) => p.kind !== "asked");
   const first = actionable[0];
   if (!first) return null;
   const hop = first.kind === "hop_limit";
-  if (hop) return { label: "Paused: too many replies in a row", short: "Paused", hop };
+  // The pool's own number, where it's known (design review #76).
+  if (hop) return { label: hops ? `Paused after ${hops} in a row` : "Paused: too many replies in a row", short: "Paused", hop };
   return { label: actionable.length === 1 ? "1 message waiting" : `${actionable.length} messages waiting`, short: `${actionable.length} waiting`, hop };
 }
 
 /** The answer an edge carries in place (the first that waits). */
-export function PendingChip({ edge, compact = false }: { edge: CanvasEdgeInfo; compact?: boolean }): JSX.Element | null {
+export function PendingChip({ edge, compact = false, hops }: { edge: CanvasEdgeInfo; compact?: boolean; hops?: number }): JSX.Element | null {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const actionable = edge.pending.filter((p) => p.kind !== "asked");
   const first = actionable[0];
-  const words = pendingWords(edge);
+  const words = pendingWords(edge, hops);
   if (!first || !words) return null;
   const hop = words.hop;
   const run = (deliver: boolean) => {
@@ -136,6 +137,7 @@ export const CanvasEdges = memo(function CanvasEdges({
   pulses,
   reducedMotion,
   scale,
+  hops,
   onSelect,
 }: {
   edges: CanvasEdgeInfo[];
@@ -147,6 +149,8 @@ export const CanvasEdges = memo(function CanvasEdges({
   /** The canvas's zoom: under 100 % labels draw at screen size, and what
    * waits on an edge is a badge that opens its answers (semantic zoom). */
   scale: number;
+  /** The pool's replies in a row before a chain pauses. */
+  hops?: number;
   onSelect: (key: string) => void;
 }): JSX.Element {
   const [hover, setHover] = useState<string | null>(null);
@@ -259,7 +263,7 @@ export const CanvasEdges = memo(function CanvasEdges({
                 {words.count}
               </button>
               )}
-              {answers && (compact ? <EdgeBadge edge={edge} about={words.aria} /> : <PendingChip edge={edge} compact={false} />)}
+              {answers && (compact ? <EdgeBadge edge={edge} about={words.aria} hops={hops} /> : <PendingChip edge={edge} compact={false} hops={hops} />)}
             </div>
           );
         })}
@@ -270,11 +274,11 @@ export const CanvasEdges = memo(function CanvasEdges({
 /** Below 100 %: what waits on an edge as a small badge ("1 waiting",
  * "Paused"), its answers a click away in a small panel under it (the
  * full card's chip, at screen size). Esc or a click elsewhere closes it. */
-function EdgeBadge({ edge, about }: { edge: CanvasEdgeInfo; about: string }): JSX.Element | null {
+function EdgeBadge({ edge, about, hops }: { edge: CanvasEdgeInfo; about: string; hops?: number }): JSX.Element | null {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement | null>(null);
   const button = useRef<HTMLButtonElement | null>(null);
-  const words = pendingWords(edge);
+  const words = pendingWords(edge, hops);
   useEffect(() => {
     if (!open) return;
     box.current?.querySelector<HTMLButtonElement>("[data-testid='edge-pending'] button")?.focus();
@@ -316,7 +320,7 @@ function EdgeBadge({ edge, about }: { edge: CanvasEdgeInfo; about: string }): JS
       </button>
       {open && (
         <span className="absolute top-full z-20 mt-1.5" data-testid="edge-badge-panel">
-          <PendingChip edge={edge} />
+          <PendingChip edge={edge} hops={hops} />
         </span>
       )}
     </span>

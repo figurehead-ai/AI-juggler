@@ -67,7 +67,7 @@ export function InspectRule({
         </Button>
       )}
       <div className="flex flex-col gap-1.5">
-        <span className="text-label font-semibold uppercase tracking-wide text-muted">Role</span>
+        <span className="text-meta font-semibold text-ink-2">Role</span>
         <Segmented
           label="Role"
           value={role}
@@ -79,7 +79,7 @@ export function InspectRule({
       </div>
       {!watched && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-label font-semibold uppercase tracking-wide text-muted">What its sessions may do</span>
+          <span className="text-meta font-semibold text-ink-2">What its sessions may do</span>
           <Picker
             choice
             size="sm"
