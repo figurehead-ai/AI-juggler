@@ -177,11 +177,6 @@ fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
         .collect())
 }
 
-/// The places remembered, kept-alive first, then by name (at most
-/// `book::MAX`, so one page).
-///
-/// # Errors
-///
 /// Where a remembered app sits in Desktop apps: running first, then the
 /// closed ones by when they were last seen, then the ones only found by
 /// their folder (design review #62: kept-alive first, then by name, buried
@@ -200,6 +195,11 @@ fn place_order(row: &KnownPlaceInfo) -> SortKey {
     )
 }
 
+/// The places remembered, in [`place_order`] (at most `book::MAX`, so one
+/// page).
+///
+/// # Errors
+///
 /// A poisoned lock; storage errors; a cursor this app didn't make.
 #[tauri::command]
 pub async fn places_list(

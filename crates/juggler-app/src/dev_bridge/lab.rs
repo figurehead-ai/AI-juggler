@@ -556,6 +556,10 @@ lab_routes! {
     // Opening a thread marks it read: the window's own click (the P9 walk
     // couldn't open a moved 0.3 thread on the read-only bridge).
     "messages_thread" => features::messages::commands::messages_thread(state; thread_id: String, cursor: Option<String>);
+    // The pool page's own question, "Let agents … work together?": a
+    // lab setting in its store (the live steps: without it no agent gets
+    // its tools).
+    "agent_bridge_answer" => features::agent_bridge::commands::agent_bridge_answer(state; on: bool);
     "messages_answer" => features::messages::commands::messages_answer(state; ask_id: String, answer: String);
     // The person's own message into the pool (the live steps start an
     // agent's turn with it, delivered at their click).

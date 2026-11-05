@@ -231,12 +231,7 @@ fn place_of(
         .collect();
     let chosen = match request.pool.as_deref() {
         Some(asked) => resolution.in_pool(asked).ok_or_else(|| {
-            Response::refused(
-                Refusal::Deny,
-                format!(
-                    "This session isn't in the pool {asked:?}. whoami lists the pools it's in."
-                ),
-            )
+            Response::refused(Refusal::Deny, not_in_pool(&storage, &resolution, asked))
         })?,
         None if names_a_pool(request.call) && resolution.placements.len() > 1 => {
             return Err(Response::refused(
@@ -450,4 +445,86 @@ fn cards(state: &Arc<AppState>, pool_id: &str) -> Result<Vec<ContextCard>, Respo
     pools::cards::cards_impl(state, pool_id)
         .map(|cards| cards.cards)
         .map_err(|_| Response::refused(Refusal::Bad, "AI Juggler couldn't read the pool's cards."))
+}
+
+/// Why a session can't act in the pool it named, in words: the pool by
+/// its name, and a sealed pool's hold when that's why (the P7 walk: "isn't
+/// in the pool \"pool-default:proj-…\"" said neither).
+fn not_in_pool(
+    storage: &juggler_core::storage::Storage,
+    resolution: &juggler_core::pools::Resolution,
+    asked: &str,
+) -> String {
+    let shown = pools::shown_pools(storage).unwrap_or_default();
+    let found = shown
+        .iter()
+        .find(|(pool, _)| pool.id == asked)
+        .or_else(|| shown.iter().find(|(_, name)| name == asked));
+    let name = found.map_or(asked, |(_, name)| name.as_str());
+    let held = found.and_then(|(pool, _)| {
+        resolution
+            .skipped
+            .iter()
+            .find_map(|skip| match &skip.reason {
+                juggler_core::pools::SkipReason::SealedElsewhere { sealed_pool }
+                    if skip.pool_id == pool.id =>
+                {
+                    Some(
+                        shown
+                            .iter()
+                            .find(|(other, _)| &other.id == sealed_pool)
+                            .map_or(sealed_pool.as_str(), |(_, name)| name.as_str()),
+                    )
+                }
+                _ => None,
+            })
+    });
+    match held {
+        Some(sealed) => format!(
+            "This session isn't in the pool «{name}»: it's in «{sealed}», which is sealed, and nothing goes out of a sealed pool. whoami lists the pools it's in."
+        ),
+        None => format!("This session isn't in the pool «{name}». whoami lists the pools it's in."),
+    }
+}
+
+#[cfg(test)]
+mod refusal_words {
+    #![allow(clippy::unwrap_used)]
+    use juggler_core::pools::{Resolution, Skip, SkipReason};
+    use juggler_core::storage::{MemberRef, Scope, Storage};
+
+    /// The P7 walk: a sealed pool's session asked to share in a pool it
+    /// had left; the refusal named the pool by its id and not why.
+    #[test]
+    fn a_pool_it_isnt_in_is_named_and_a_seal_said() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        let client = storage
+            .pools()
+            .create_scoped("Client", &Scope::Every)
+            .unwrap();
+        let web = storage.pools().create_scoped("Web", &Scope::Every).unwrap();
+        let held = Resolution {
+            placements: vec![],
+            skipped: vec![Skip {
+                pool_id: web.id.clone(),
+                member: MemberRef::Everyone,
+                reason: SkipReason::SealedElsewhere {
+                    sealed_pool: client.id.clone(),
+                },
+            }],
+            account_unknown: false,
+        };
+        let words = super::not_in_pool(&storage, &held, &web.id);
+        assert!(
+            words.contains("«Web»") && words.contains("«Client», which is sealed"),
+            "{words}"
+        );
+        assert!(!words.contains(&web.id), "{words}");
+        let plain = super::not_in_pool(&storage, &Resolution::default(), "Web");
+        assert!(
+            plain.starts_with("This session isn't in the pool «Web»."),
+            "{plain}"
+        );
+    }
 }

@@ -1,0 +1,54 @@
+[
+  {
+    "step": "1-review-blocked",
+    "error": null,
+    "feedback": [
+      7,
+      10
+    ],
+    "done": [
+      null,
+      376
+    ],
+    "check": "Review Rename 8 sessions in AI Juggler · for every project Canvas List Tasks Messages Agents: Work together Arrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu. 2 waiting web · started 05:23 AM Idle api · started 05:23 AM Idle web · started 05:13 AM Idle api · started 05:22 AM Working web · started 05:11 AM Ended Everyone Member Everyone in this pool's projects 7 sessions now · new ones join Add a session 0 3 more in the List view 69% Tidy up Activity This pool Members 8 Messages Wait for you Pause after 5 in a row Change what agents may do… Live 1 min ago You wrote to web: «A doc for api» 1 min ago web wrote to You: «A doc for web» 1 min ago You wrote to web: «A doc for web» 2 min ago You wrote to web: «A third small test» 2 min ago web wrote to api: «Another small test» 3 min ago You wrote to web: «Another small test» 3 min ago web wrote to api: «A small test» 3 min ago You wrote to web: «A small test» 13 min ago You wrote to web: «A small test» Select a member or an edge and this panel shows its tasks, messages, usage and rules."
+  },
+  {
+    "step": "2-web1-pools-tab",
+    "error": null,
+    "feedback": [
+      0,
+      6
+    ],
+    "done": [
+      null,
+      null
+    ],
+    "check": "web › Session Untitled session · web Working Codex · Personal · default Continue in another app… Stop ⋯ Running in AI Juggler · started 3m ago · CPU 0% · 443 MB · 5 more processes — working your Mac hard · Pool: Review Overview Pools Usage Processes Updated 1s ago · from AI Juggler's pools, kept on this computer"
+  },
+  {
+    "step": "3-doc-in-web",
+    "error": null,
+    "feedback": [
+      11,
+      17,
+      4
+    ],
+    "done": [
+      null,
+      null,
+      314
+    ],
+    "check": "web · all sessions Project pool 3 sessions in AI Juggler · for web Canvas List Tasks Messages Agents: Work together Arrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu. web · started 05:23 AM Codex · Personal · default Idle web · started 05:13 AM Codex · Personal · default Idle Everyone Member Everyone in this pool's projects 3 sessions now · new ones join Add a session 0 1 more in the List view 100% Tidy up Messages Back to the canvas New message No messages yet. When agents here write to each other or to you, their threads show here. Pause this pool's messages New message To Everyone in the pool Note Deliver to their sessions Send ⌘↵ Shared documents notes.md web · 1 min ago · 5 B No secrets found Read notes.md"
+  },
+  {
+    "step": "4-refused-named",
+    "error": null,
+    "feedback": [
+      0
+    ],
+    "done": [
+      2547
+    ],
+    "check": "web › Session Untitled session · web Working Codex · Personal · default Continue in another app… Stop ⋯ Running in AI Juggler · started 4m ago · CPU 0% · 443 MB · 5 more processes — working your Mac hard · Pool: Review Overview Messages Pools Usage Processes History Review Every session of its projects is in it Member web · all sessions Every session of its projects is in it Member LEFT OUT OF No project · all sessions «No project · all sessions» doesn't take its project. Add the project to its scope to let it in. api · all sessions «api · all sessions» doesn't take its project. Add the project to its scope to let it in. Updated 1s ago · from AI Juggler's pools, kept on this computer"
+  }
+]

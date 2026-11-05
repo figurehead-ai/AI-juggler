@@ -47,7 +47,15 @@ export function SessionPools({ session }: { session: InstanceInfo }): JSX.Elemen
       alive = false;
     };
   }, [session.id, pools]);
-  if (info === null) return <div className="h-24" data-testid="session-pools-loading" />;
+  // A skeleton at once, never a blank tab (the P4 walk: blank for 2.5 s
+  // while a busy backend read the pools).
+  if (info === null)
+    return (
+      <div className="flex flex-col gap-2" role="status" aria-label="Reading its pools" data-testid="session-pools-loading">
+        <span className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+        <span className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+      </div>
+    );
   return (
     <div className="flex w-full max-w-content flex-col gap-4" data-testid="session-pools">
       {info.pools.length === 0 ? (

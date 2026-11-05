@@ -9,6 +9,7 @@ import { switchSourceOf, type ConversationInfo, type PlaceInfo } from "../../lib
 import type { InstanceInfo } from "../../lib/bridge";
 import { stateWord } from "../../components/OutsideConversations";
 import { statusTone } from "../ItemHeader";
+import { sessionState } from "../../lib/rail-items";
 import { toolSpec } from "../../lib/tools";
 import { appName, cliAppName, desktopAppWord, desktopProfile } from "../../lib/app-name";
 
@@ -70,6 +71,7 @@ export function fromConversation(c: ConversationInfo): SessionModel {
  * files show it (where it's open, when it was viewed), when found. */
 export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionModel {
   const tone = statusTone(s.status);
+  const rail = sessionState(s);
   const live = ["starting", "running", "waiting_user", "stuck", "quota_blocked"].includes(s.status);
   return {
     tool: s.provider,
@@ -79,7 +81,12 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionM
     sessionId: s.id,
     switchSource: s.id,
     live,
-    state: { words: tone.label, tone: tone.tone, asks: s.status === "waiting_user", working: s.status === "running", since: s.last_activity_ms ?? s.started_at_ms },
+    // The rail's one vocabulary (AJ-E2104): a running session between
+    // turns is Idle, as its row says (the P4 walk: the header said Working
+    // beside an Idle row).
+    state: live
+      ? { words: rail.word, tone: TONE[rail.state] ?? tone.tone, asks: rail.needs, working: rail.state === "working", since: s.last_activity_ms ?? s.started_at_ms }
+      : { words: tone.label, tone: tone.tone, asks: false, working: false, since: s.last_activity_ms ?? s.started_at_ms },
     places: seen?.places ?? [],
     viewedMs: seen?.viewed_ms ?? null,
     cwd: s.cwd,

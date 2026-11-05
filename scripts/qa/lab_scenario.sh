@@ -32,6 +32,9 @@ while [ $# -gt 0 ]; do
 done
 # Cargo and rustup keep their own homes when HOME is the lab's.
 export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
+# The real home, before any command's HOME is set to the lab (ADR-0027
+# condition 7's seeding needs it).
+real_home="$HOME"
 case "$lab" in
   /tmp/*aij-lab*|/private/tmp/*aij-lab*) ;;
   *) echo "lab-scenario: $lab isn't a lab (under /tmp, named aij-lab…) — refusing" >&2; exit 1 ;;
@@ -61,7 +64,7 @@ case "$cmd" in
     else
       # AIJ_LAB_ADOPT=<tool> (ADR-0027 condition 7): that tool's App uses
       # its real default folder where it is; the bridge checks it again.
-      (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" AIJ_QA_REAL_HOME="$HOME" \
+      (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" AIJ_QA_REAL_HOME="$real_home" \
         "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
     fi
     sheet="$root/docs/qa/0.4-walks/$id.md"
