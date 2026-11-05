@@ -8,13 +8,14 @@
  *
  * An edge whose newest activity moved since the last read pulses once.
  */
+import { isActiveStatus } from "../../components/indicator";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { errorText, onSessionsUpdated, type InstanceInfo } from "../../lib/bridge";
 import { onMessagesChanged } from "../../lib/ipc/messages";
 import { onTasksChanged } from "../../lib/ipc/tasks";
 import { poolCanvas, poolCanvasPlace, poolCanvasTidy, type NodePositionInfo, type PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
-import type { ContextCard } from "../../lib/ipc/pools";
+import type { ContextCard, PoolMemberRow } from "../../lib/ipc/pools";
 import { usePoolMembers } from "../../lib/pools";
 import { showToast } from "../../components/Toast";
 import { layout, type Point } from "./layout";
@@ -34,6 +35,15 @@ export type MemberNode = { id: string; session: InstanceInfo; card: ContextCard;
 
 export const edgeKey = (from: string, to: string) => `${from}>${to}`;
 
+/** The members the canvas draws, as they are now (`live`): the open ones
+ * and those named on their own, ended or not. */
+export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>): MemberNode[] {
+  return items
+    .map((row) => ({ row, session: live.get(row.session.id) ?? row.session }))
+    .filter(({ row, session }) => isActiveStatus(session.status) || row.via === "session" || row.via === "watched")
+    .map(({ row, session }) => ({ id: row.session.id, session, card: row.card, role: row.card.role }));
+}
+
 export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
   const list = usePoolMembers(poolId);
   const { items, hasMore, loadingMore, loading, loadMore, refresh: refreshMembers } = list;
@@ -42,16 +52,11 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
     if (hasMore && !loadingMore && !loading && items.length < CANVAS_NODES) loadMore();
   }, [hasMore, loadingMore, loading, items.length, loadMore]);
   const live = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
-  const members: MemberNode[] = useMemo(
-    () =>
-      items.slice(0, CANVAS_NODES).map((row) => ({
-        id: row.session.id,
-        session: live.get(row.session.id) ?? row.session,
-        card: row.card,
-        role: row.card.role,
-      })),
-    [items, live],
-  );
+  // The canvas draws the open work and the sessions named on their own;
+  // an ended session a broad member brought in (an App's pile up as they
+  // end) stays in the pool and the List view, counted on the canvas's
+  // "more in the List view" (the P3 walk).
+  const members: MemberNode[] = useMemo(() => drawnMembers(items, live).slice(0, CANVAS_NODES), [items, live]);
   const ids = useMemo(() => members.map((member) => member.id), [members]);
   const idsKey = ids.join("|");
 

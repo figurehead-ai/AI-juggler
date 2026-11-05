@@ -382,7 +382,7 @@ export function Canvas({
       )}
 
       {data.more > 0 && (
-        <span className="absolute right-3 top-3 rounded-full border border-hairline bg-surface px-2.5 py-1 text-label text-muted" data-testid="canvas-more">
+        <span className="absolute bottom-3 right-3 z-10 rounded-full border border-hairline bg-surface px-2.5 py-1 text-label text-muted" data-testid="canvas-more">
           {data.more} more in the List view
         </span>
       )}

@@ -343,6 +343,11 @@ pub struct PoolMemberRow {
     pub session: InstanceInfo,
     /// What it's working on, and its role.
     pub card: ContextCard,
+    /// How it got into the pool: `session` (named on its own), `watched`,
+    /// or the broad member that brought it in (`app`, `account`, `tool`,
+    /// `mac`, `everyone`). The canvas keeps an ended session only when it
+    /// was named on its own (the P3 walk).
+    pub via: String,
 }
 
 /// A pool's cards, its lead first (what an agent is shown, AJ-E1704).

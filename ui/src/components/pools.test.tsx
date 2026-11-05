@@ -320,7 +320,7 @@ describe("context cards", () => {
   });
   /** A read list of these cards' members, as `usePoolMembers` gives it. */
   const listOf = (cards: ContextCard[]): PagedList<PoolMemberRow> => ({
-    items: cards.map((entry) => ({ session: MOCK_SESSIONS.find((session) => session.id === entry.session_id)!, card: entry })),
+    items: cards.map((entry) => ({ session: MOCK_SESSIONS.find((session) => session.id === entry.session_id)!, card: entry, via: "session" })),
     total: cards.length,
     loading: false,
     stale: false,

@@ -225,6 +225,8 @@ pub(super) fn role_rank(role: PoolRole) -> i64 {
 struct Candidate {
     brief: SessionBrief,
     role: PoolRole,
+    /// How it got in (`session`, `app`, `account`, `tool`, …).
+    via: &'static str,
 }
 
 impl Candidate {
@@ -262,11 +264,15 @@ pub fn members_page(
             .into_iter()
             .filter(|brief| !archived.contains(brief.id.as_str()))
             .filter_map(|brief| {
-                let role = memberships
+                let placement = memberships
                     .resolve(facts.get(&brief.id)?)
                     .in_pool(pool_id)?
-                    .role;
-                Some(Candidate { brief, role })
+                    .clone();
+                Some(Candidate {
+                    brief,
+                    role: placement.role,
+                    via: placement.via().as_str(),
+                })
             })
             .collect();
         let page = crate::paging::page(candidates, Candidate::sort_key, request)?;
@@ -286,7 +292,11 @@ pub fn members_page(
             let session = built.remove(candidate.brief.id.as_str())?;
             let card =
                 super::cards::card_for(state, &session, candidate.role, &projects, &memberships);
-            Some(PoolMemberRow { session, card })
+            Some(PoolMemberRow {
+                session,
+                card,
+                via: candidate.via.to_owned(),
+            })
         })
         .collect();
     Ok(Page {
