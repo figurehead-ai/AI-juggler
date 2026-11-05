@@ -118,6 +118,12 @@ def machine() -> dict:
     }
 
 
+def own(case: dict, base: float) -> float:
+    """The Floor's own time (drawing, building scenes, the feed) as a share
+    of one core; the whole app's change where the run didn't record it."""
+    return case["floor_pct"] if "floor_pct" in case else case["cpu_pct"] - base
+
+
 def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
     """(case, budget, measured, within) for each SPEC §9.7 row."""
     cases = {c["name"]: c for c in data["cases"]}
@@ -138,13 +144,14 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
          f"{rest['frames']} frames in {rest['secs']:.0f} s, {rest.get('snapshots', 0)} for data news",
          rest["frames"] - rest.get("snapshots", 0) <= 0),
         ("Open, nothing moving", f"< {CPU_REST}% of one core",
-         f"{rest['cpu_pct'] - base:+.3f}% over the app alone ({base:.3f}%)", rest["cpu_pct"] - base < CPU_REST),
+         f"{own(rest, base):.3f}% the Floor's own (the whole app {rest['cpu_pct'] - base:+.2f}% over a window alone)",
+         own(rest, base) < CPU_REST),
         ("Animating, Full", f"≤ {CPU_FULL}% of one core",
-         f"{full['cpu_pct'] - base:+.2f}% over the app alone", full["cpu_pct"] - base <= CPU_FULL),
+         f"{own(full, base):.2f}% the Floor's own (the whole app {full['cpu_pct'] - base:+.2f}% over)", own(full, base) <= CPU_FULL),
         ("Animating, Full", f"≤ {DRAW_MS} ms of CPU a frame",
          f"{full['draw_ms_per_frame']:.2f} ms ({full['frames']} frames)", full["draw_ms_per_frame"] <= DRAW_MS),
         ("Animating, Calm", f"≤ {CPU_FULL}% of one core",
-         f"{calm['cpu_pct'] - base:+.2f}% ({calm['frames']} frames)", calm["cpu_pct"] - base <= CPU_FULL),
+         f"{own(calm, base):.2f}% the Floor's own ({calm['frames']} frames)", own(calm, base) <= CPU_FULL),
         ("Covered", "0 frames within 1 s",
          f"{covered['frames'] - covered['first_second_frames']} after the first second "
          f"({covered['first_second_frames']} in it)", covered["frames"] - covered["first_second_frames"] == 0),

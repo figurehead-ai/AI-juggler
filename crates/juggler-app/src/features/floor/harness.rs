@@ -55,6 +55,8 @@ struct Reading {
     snapshots: u64,
     inputs: u64,
     resizes: u64,
+    /// The Floor's own time: drawing, building scenes and the feed.
+    floor_ns: u64,
 }
 
 fn cpu_seconds(pid: u32) -> f64 {
@@ -136,6 +138,9 @@ fn read() -> Reading {
         snapshots: COUNTERS.snapshots.load(Ordering::Relaxed),
         inputs: COUNTERS.inputs.load(Ordering::Relaxed),
         resizes: COUNTERS.resizes.load(Ordering::Relaxed),
+        floor_ns: COUNTERS.draw_ns.load(Ordering::Relaxed)
+            + COUNTERS.build_ns.load(Ordering::Relaxed)
+            + COUNTERS.feed_ns.load(Ordering::Relaxed),
     }
 }
 
@@ -156,6 +161,8 @@ struct Case {
     snapshots: u64,
     /// Inputs, and of those resizes, meanwhile.
     inputs: (u64, u64),
+    /// The Floor's own time as a share of one core, %.
+    floor_pct: f64,
 }
 
 fn measure(
@@ -196,6 +203,8 @@ fn measure(
         window: window_now(app),
         snapshots: b.snapshots - a.snapshots,
         inputs: (b.inputs - a.inputs, b.resizes - a.resizes),
+        #[allow(clippy::cast_precision_loss)] // nanoseconds over minutes: far below 2^52
+        floor_pct: 100.0 * (b.floor_ns - a.floor_ns) as f64 / 1e9 / wall,
     }
 }
 
@@ -489,6 +498,7 @@ fn run(app: &tauri::AppHandle) -> String {
             "snapshots": c.snapshots,
             "inputs": c.inputs.0,
             "resizes": c.inputs.1,
+            "floor_pct": (c.floor_pct * 1000.0).round() / 1000.0,
         })).collect::<Vec<_>>(),
         "apps": apps,
         "sessions": sessions,

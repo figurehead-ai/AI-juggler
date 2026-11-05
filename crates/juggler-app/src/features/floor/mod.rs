@@ -92,6 +92,7 @@ impl Floor {
 ///
 /// Storage errors; a poisoned lock.
 pub fn rebuild(state: &Arc<AppState>) -> AppResult<Arc<FloorSnapshot>> {
+    let at = std::time::Instant::now();
     let now = juggler_core::model::Timestamp::now().millis();
     let inputs = feed::gather(state, now)?;
     let snapshot = {
@@ -105,6 +106,10 @@ pub fn rebuild(state: &Arc<AppState>) -> AppResult<Arc<FloorSnapshot>> {
     if let Ok(mut last) = state.floor.last.write() {
         *last = Some(Arc::clone(&snapshot));
     }
+    render::COUNTERS.feed_ns.fetch_add(
+        render::nanos(at.elapsed()),
+        std::sync::atomic::Ordering::Relaxed,
+    );
     Ok(snapshot)
 }
 

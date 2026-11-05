@@ -46,6 +46,8 @@ pub struct Counters {
     pub inputs: AtomicU64,
     /// Of those, resizes.
     pub resizes: AtomicU64,
+    /// Time spent rebuilding the snapshot (the feed), nanoseconds.
+    pub feed_ns: AtomicU64,
 }
 
 /// The last open's steps: each one's name and when it ended (ms after
@@ -77,9 +79,10 @@ pub static COUNTERS: Counters = Counters {
     snapshots: AtomicU64::new(0),
     inputs: AtomicU64::new(0),
     resizes: AtomicU64::new(0),
+    feed_ns: AtomicU64::new(0),
 };
 
-fn nanos(d: Duration) -> u64 {
+pub(crate) fn nanos(d: Duration) -> u64 {
     u64::try_from(d.as_nanos()).unwrap_or(u64::MAX)
 }
 
