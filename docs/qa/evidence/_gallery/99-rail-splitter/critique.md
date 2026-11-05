@@ -1,4 +1,4 @@
-<!-- captures: 3aecb21ee010 -->
+<!-- captures: 1474b65f7024 -->
 <!-- captures: pending -->
 # 99-rail-splitter: the rail's edge from the keyboard
 
@@ -17,7 +17,7 @@ Design critique (D-57) against the rail (01-rail). New family (AJ-E2909).
 | Plain words | A screen reader hears its width. |
 | Type sizes | n/a. |
 | Both themes | Checked dark and light. |
-| 1280×800 and 1024×700 | 1280 only: at 1024 the rail folds to icons and has no edge to drag. |
+| 1280×800 and 1024×700 | 1280 only: at 1024 the rail folds to icons and has no edge to drag. Also the narrowest (Home, 208 px) and widest (End, 360 px), dark. |
 
 ## Good
 
@@ -29,4 +29,4 @@ Design critique (D-57) against the rail (01-rail). New family (AJ-E2909).
 
 ## Fixed
 
-- Nothing on first render.
+- A width changed and then left inside 200 ms (a quit, a reload) was lost: it was kept only after the pause or when the list went. It's now kept when the window goes too (pagehide); the run reloads at once and finds it.

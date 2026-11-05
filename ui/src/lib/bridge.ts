@@ -769,10 +769,6 @@ export async function createProfile(
   });
 }
 
-export async function deleteProfile(profileId: string): Promise<void> {
-  await invoke("profile_delete", { profileId });
-}
-
 /** AJ-E1001: who a Launch setting's Account is signed in as — checked
  * before anything launches (read-only). */
 export async function identityCheck(recipeId: string): Promise<IdentityCheckInfo> {

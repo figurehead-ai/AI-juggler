@@ -1,4 +1,4 @@
-<!-- captures: aa2c95594582 -->
+<!-- captures: 6173d04caa7c -->
 <!-- captures: pending -->
 # 99-home-chips: Home's chips
 
@@ -17,7 +17,7 @@ Design critique (D-57) against Home (67-home). New family (AJ-E2910).
 | Plain words | "Asks you 1", "Probably stuck 1", "4 more under All". |
 | Type sizes | 12 px chips. |
 | Both themes | Checked dark and light. |
-| 1280×800 and 1024×700 | Both. |
+| 1280×800, 1024×700 and 1440×900 | All three. At 1440 (dark) also Mark all and its toast ("Marked 2 reviewed", with Undo); no chip changes the rail (checked in the run). |
 
 ## Good
 

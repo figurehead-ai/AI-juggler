@@ -6,7 +6,7 @@
  * critical/serious on each.
  */
 import { gate, test, expect } from "./axe-gallery";
-import { at, family, open, shot, SIZES, THEMES } from "./gallery-04";
+import { at, family, open, shot, WIDE_SIZES, THEMES } from "./gallery-04";
 
 const OUT = family("99-palette");
 const RECENTS = JSON.stringify([
@@ -16,7 +16,7 @@ const RECENTS = JSON.stringify([
 ]);
 
 for (const theme of THEMES) {
-  for (const size of SIZES) {
+  for (const size of WIDE_SIZES) {
     const where = `${at(size)}-${theme}`;
 
     test(`Palette — ${where}`, at(size) === "1280x800" ? gate("99-palette") : {}, async ({ page }) => {

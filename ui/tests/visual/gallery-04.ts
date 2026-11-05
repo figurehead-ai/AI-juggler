@@ -15,6 +15,9 @@ export const SIZES: Size[] = [
   { width: 1280, height: 800 },
   { width: 1024, height: 700 },
 ];
+/** The sizes plus 1440×900, for the screens whose tasks ask for it
+ * (the palette, Home). */
+export const WIDE_SIZES: Size[] = [...SIZES, { width: 1440, height: 900 }];
 export const THEMES: Theme[] = ["dark", "light"];
 export const at = (size: Size) => `${size.width}x${size.height}`;
 

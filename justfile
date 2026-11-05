@@ -109,6 +109,8 @@ load-gate:
     cargo test -p juggler-app --test load_budgets -- --nocapture
     cargo test -p juggler-app --test load_budgets -- --ignored --test-threads=1 --nocapture
     cargo test -p juggler-handover --test pack_load -- --nocapture
+    # AJ-E2902: "Usage cost cuts, 2,000 sessions", and the dollars reconciled.
+    cargo test -p juggler-app --test cost_cuts_load -- --ignored --nocapture
 
 # AJ-E805: every sub-second timer or sleep in shipped code says why.
 polling-audit:

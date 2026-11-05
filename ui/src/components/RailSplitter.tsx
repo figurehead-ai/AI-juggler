@@ -83,15 +83,22 @@ export function RailSplitter({
       keep(next);
     }, 200);
   }, []);
-  useEffect(
-    () => () => {
+  // A change still waiting is kept when the list goes and when the window
+  // does (a quit or reload inside the 200 ms would lose it otherwise).
+  useEffect(() => {
+    const flush = () => {
       if (save.current !== null) {
         window.clearTimeout(save.current);
+        save.current = null;
         keep(latest.current);
       }
-    },
-    [],
-  );
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
 
   const begin = (event: PointerEvent) => {
     event.preventDefault();

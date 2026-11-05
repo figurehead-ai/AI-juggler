@@ -1,0 +1,5 @@
+# just load-gate row: cargo test -p juggler-app --test cost_cuts_load -- --ignored --nocapture (debug build, 2026-11-05)
+[perf] Usage cost cuts, 2,000 sessions: median 13.969542ms, first read 29.197291ms (runs [13.620375ms, 13.627875ms, 13.969542ms, 14.062916ms, 14.167708ms])
+[perf] reconciled: accounts $685.70, Prices and details $685.70
+[perf] Usage weekly review, 2,000 sessions: median 1.162209ms (runs [1.119542ms, 1.122958ms, 1.162209ms, 1.235375ms, 1.419041ms])
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s

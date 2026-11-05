@@ -55,4 +55,12 @@ describe("AJ-E2909 — the rail's splitter", () => {
     expect(widthForKey(WIDTH_MAX, "ArrowRight", false)).toBe(WIDTH_MAX);
     expect(widthForKey(300, "a", false)).toBeNull();
   });
+
+  it("keeps a waiting change when the window goes (a quit inside the 200 ms)", () => {
+    const { getByRole } = render(<Host />);
+    fireEvent.keyDown(getByRole("separator"), { key: "End" });
+    expect(localStorage.getItem(STORE_WIDTH)).toBeNull();
+    act(() => void window.dispatchEvent(new Event("pagehide")));
+    expect(localStorage.getItem(STORE_WIDTH)).toBe(String(WIDTH_MAX));
+  });
 });

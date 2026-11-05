@@ -98,7 +98,7 @@
 
 ## Step 1 — the palette
 
-### AJ-E2901 The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort L | Depends: AJ-E2801
+### AJ-E2901 The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E2801
 **Goal**: ⌘K does things, not only goes places: it opens as a proper dialog, shows recents and the top actions before you type, finds sessions, apps, projects and accounts by loose typing, previews a result with →, and hands the full search to History.
 **User story**: As someone with twenty sessions over four accounts, I press ⌘K, type "wrk bil", see the billing session on Work first, press → to check it is the one waiting, and ↩ to open it; with nothing typed I see what I opened last and New session.
 **Requirements**:
@@ -125,7 +125,7 @@
 
 ## Step 2 — cost and quality
 
-### AJ-E2902 Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort L | Depends: AJ-E2801; the ruling in the Handover note (Q1) for Req.1
+### AJ-E2902 Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E2801; the ruling in the Handover note (Q1) for Req.1
 **Goal**: Usage answers "am I getting value from these subscriptions?": what a finished task costs, what went on sessions that crashed or stuck, which project each account went on, a review of last week, and which price list the estimates use.
 **User story**: As someone paying for three subscriptions, I open Usage and see that a finished task costs about $1.90, that $6.30 went on two crashed sessions I can open, that Work went mostly on AIJuggler, and on Monday I read last week's review in one sheet.
 **Requirements**:
@@ -191,7 +191,7 @@
 
 ## Step 4 — Settings
 
-### AJ-E2905 Settings you can search, and shortcuts you can rebind with a conflict check and reset | Status: DONE-PENDING-EVIDENCE | Priority P1 | Effort L | Depends: AJ-E2801
+### AJ-E2905 Settings you can search, and shortcuts you can rebind with a conflict check and reset | Status: DONE-EVIDENCED | Priority P1 | Effort L | Depends: AJ-E2801
 **Goal**: Any setting is a few letters away, and every shortcut can be changed to fit the user's hands, refused with a reason when it would clash, and reset.
 **User story**: As someone who remembers "quiet hours" but not which pane holds it, I press `/` in Settings, type "quiet", and land on it; and as someone whose window manager owns ⌘⇧P, I change Projects to ⌘⇧J and see the new key on the ? sheet and in ⌘K.
 **Requirements**:
@@ -239,7 +239,7 @@
 
 ## Step 6 — safe edges
 
-### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: DONE-PENDING-EVIDENCE (Req.1–3 shipped in 0.3.1 as a bug fix, D-60: the confirm, sessions kept in History instead of the cascade, refused while one is open; Req.4–5 in 0.4: the app's own delete icon and the "Deleted" toast; the gallery captures remain) | Priority P0 | Effort S | Depends: —
+### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
 **Goal**: Deleting launch settings asks first, says what goes with them, and is refused while a session uses them.
 **User story**: As someone tidying an account, I click the bin beside "Deep work" and am told it has 14 past sessions and one running, instead of losing them in one click.
 **Requirements**:
@@ -276,7 +276,7 @@
 **Research basis**: audit "Next after these" ("An ended session's own page has no Resume, Archive, Replay or Copy ID"), §5 rows "Archive / Replay / Delete…", "Copy ID", "Resume vs Relaunch"; deep/11 §4.7, §10; `ui/src/pages/session/DrivenPanel.tsx:105-108` (Resume exists only for driven sessions); D-05, D-40, D-45.
 **Handover note**: built. Backend: `session_resume` (`commands::session_resume_impl`) over the one resume path it now shares with `epoch_resume_impl` (`resume_conversation`), refused while live or without a conversation (`tests/session_resume.rs`). UI: `pages/session/ResumeButton.tsx` (primary, before Relaunch, each with the §10 tooltip; off with its reason: no conversation, signed out, out of room with Continue on another account… beside it, open in another app now); the ⋯ gains History's Replay and Archive/Unarchive (the same specs, `action-specs.ts`) and Copy the conversation's id, only on an ended session, hosted by `useSessionManage`. Tests: `pages/session/resume.test.tsx`. Left: the live Resume on the real setup in AI Juggler Dev (a spare session) and the gallery captures.
 
-### AJ-E2909 A keyboard-operable rail splitter | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort S | Depends: —
+### AJ-E2909 A keyboard-operable rail splitter | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
 **Goal**: The rail's width can be changed from the keyboard and read by a screen reader, as the drag does.
 **User story**: As someone who doesn't use a pointer, I Tab to the edge of the list, press → four times to widen it, and End to make it as wide as it goes.
 **Requirements**:
@@ -295,7 +295,7 @@
 **Research basis**: audit §1.2 row "Splitter is keyboard-operable" (`role=separator` with no tabIndex or keys); deep/11 §2.5, §9; `ui/src/components/WorkflowRail.tsx:269-289`; https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/; https://www.w3.org/TR/WCAG22/#dragging-movements.
 **Handover note**: built in `ui/src/components/RailSplitter.tsx` (out of `WorkflowRail.tsx`, which shrank from 906 to 840 lines): a focusable separator named "Resize the list", its width heard, ← → 8 px, ⇧ 32, Home/End, kept as a drag's width is (debounced 200 ms), the accent line on focus. Tests: `src/components/rail-splitter.test.tsx`. Left: the gallery captures (the handle focused at the default, the minimum and the maximum) with the release's visual run.
 
-### AJ-E2910 Home: filter chips, the r / h / s / e keys, and Mark all finished as reviewed | Status: DONE-PENDING-EVIDENCE | Priority P1 | Effort M | Depends: AJ-E2801
+### AJ-E2910 Home: filter chips, the r / h / s / e keys, and Mark all finished as reviewed | Status: DONE-EVIDENCED | Priority P1 | Effort M | Depends: AJ-E2801
 **Goal**: On a busy morning, Home's Needs you can be narrowed to one kind, its rows can be handled from the keyboard, and the finished list cleared in one step.
 **User story**: As someone with eight things waiting, I pick "Probably stuck · 2", deal with both with the keys, go back to All, and clear the seven finished sessions I've already read with one click.
 **Requirements**:

@@ -18,10 +18,10 @@ import { useAccountsData, useToolCapabilities } from "./accounts/useAccountsData
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { AccountCard } from "./accounts/AccountCard";
 import { AppsSection } from "./accounts/AppsSection";
+import { deleteProfile } from "../lib/ipc/manage";
 import { AccountsViewSwitch, useAccountsView } from "./accounts/AccountsView";
 import {
   createProfile,
-  deleteProfile,
   launchSession,
   pickDirectory,
   type AccountInfo,

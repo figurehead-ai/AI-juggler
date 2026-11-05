@@ -3974,6 +3974,11 @@ for (const theme of THEMES) {
       await page.getByTestId("recipe-delete").first().click();
       await expect(page.getByTestId("delete-launch-settings")).toContainText("stay in History");
       await shot41(page, `accounts-delete-launch-settings-${vp.name}-${theme}`);
+      // AJ-E2907: these launch settings have sessions open, so the delete is
+      // refused, naming them, and nothing is removed.
+      await page.getByTestId("delete-launch-settings-confirm").click();
+      await expect(page.getByTestId("delete-launch-settings-error")).toContainText("first, then delete the launch settings");
+      await shot41(page, `accounts-delete-launch-settings-refused-${vp.name}-${theme}`);
     });
   }
 }

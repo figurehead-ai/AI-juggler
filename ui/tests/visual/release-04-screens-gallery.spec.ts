@@ -115,3 +115,72 @@ for (const theme of THEMES) {
     });
   }
 }
+
+// Home's chips at 1440×900 too (AJ-E2910's visual testing).
+for (const theme of THEMES) {
+  test(`Home's chips — 1440x900-${theme}`, async ({ page }) => {
+    await open(page, theme, { width: 1440, height: 900 }, { __AIJ_FIXTURE__: allStatuses });
+    const chips = page.getByTestId("home-chips");
+    await expect(chips).toBeVisible();
+    await shot(page, CHIPS, `home-1440x900-${theme}`);
+    await chips.getByRole("radio").nth(1).click();
+    await shot(page, CHIPS, `narrowed-1440x900-${theme}`);
+  });
+}
+
+// The behaviours each task's evidence names, run once (1280, dark).
+const ONE = SIZES[0]!;
+const WIDE = { width: 1440, height: 900 };
+
+test("AJ-E2905: a rebound key shows on the ? sheet and in ⌘K", async ({ page }) => {
+  await open(page, "dark", ONE);
+  await goTo(page, "Settings");
+  await settingsPane(page, "Keyboard");
+  await page.getByTestId("keyboard-change-new-project").click();
+  await page.keyboard.press("Meta+Alt+KeyJ");
+  await expect(page.getByTestId("keyboard-changed")).toContainText("You changed 1 shortcut.");
+  await goTo(page, "Home");
+  await page.keyboard.press("Shift+Slash");
+  const sheet = page.getByRole("dialog").filter({ has: page.getByLabel("Shortcuts by area") });
+  await expect(sheet.getByText("New project", { exact: true }).locator("xpath=ancestor::li[1]")).toContainText("⌥⌘J");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Meta+K");
+  await expect(page.getByRole("combobox", { name: "Search, act or go" })).toBeFocused();
+  await page.keyboard.type("new project");
+  await expect(page.getByRole("option", { name: /^New project/ }).first()).toContainText("⌥⌘J");
+});
+
+test("AJ-E2909: the rail's width set by keys, at its ends, kept after a reload", async ({ page }) => {
+  await open(page, "dark", ONE);
+  const edge = page.getByTestId("rail-splitter");
+  await edge.focus();
+  await page.keyboard.press("Home");
+  await expect(edge).toHaveAttribute("aria-valuenow", "208");
+  await shot(page, EDGE, `narrowest-1280x800-dark`);
+  await edge.focus();
+  await page.keyboard.press("End");
+  await expect(edge).toHaveAttribute("aria-valuenow", "360");
+  await shot(page, EDGE, `widest-1280x800-dark`);
+  await edge.focus();
+  await page.keyboard.press("Shift+ArrowLeft");
+  await expect(edge).toHaveAttribute("aria-valuenow", "328");
+  await page.reload();
+  await expect(page.getByTestId("rail-splitter")).toHaveAttribute("aria-valuenow", "328");
+});
+
+test("AJ-E2910: no chip changes the rail; Mark all and its toast; at 1440", async ({ page }) => {
+  await open(page, "dark", WIDE, { __AIJ_FIXTURE__: allStatuses });
+  const rail = page.getByTestId("rail");
+  const before = await rail.innerText();
+  const chips = page.getByTestId("home-chips").getByRole("radio");
+  for (let i = 0; i < (await chips.count()); i++) {
+    await chips.nth(i).click();
+    expect(await rail.innerText(), `the rail after chip ${i + 1}`).toBe(before);
+  }
+  await chips.first().click();
+  const markAll = page.getByRole("button", { name: /^Mark all \d+ reviewed/ });
+  await markAll.scrollIntoViewIfNeeded();
+  await markAll.click();
+  await expect(page.getByRole("status").filter({ hasText: /reviewed/i }).first()).toBeVisible();
+  await shot(page, CHIPS, `marked-all-1440x900-dark`);
+});

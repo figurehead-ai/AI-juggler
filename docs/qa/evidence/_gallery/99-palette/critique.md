@@ -1,4 +1,4 @@
-<!-- captures: 41ee3bdd58ac -->
+<!-- captures: 6a1b2cbb6c3c -->
 <!-- captures: pending -->
 # 99-palette: ⌘K — search, act or go
 
@@ -17,7 +17,7 @@ Design critique (D-57) against the reference screens: the row menus (77-menus), 
 | Plain words | "Processes — 7 left running", "Notifications — 1 unread", "No matches for “qqqzz”.", "AI Juggler's service isn't answering — showing what was open last." |
 | Type sizes | 13 px rows, 12 px labels and footer. |
 | Both themes | Checked; the matched letters are bold (not only coloured) in both. |
-| 1280×800 and 1024×700 | Both; the preview fits beside the list at 1024. |
+| 1280×800, 1024×700 and 1440×900 | All three; the preview fits beside the list at 1024, and at 1440 the dialog keeps its width rather than stretching. |
 
 ## Good
 

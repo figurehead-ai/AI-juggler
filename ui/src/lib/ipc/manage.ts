@@ -4,7 +4,7 @@
  * feature). In preview mode each call changes the preview's own rows.
  */
 import { invoke } from "./transport";
-import { hasLiveBackend, MOCK_PROJECTS, MOCK_SESSIONS, pickDirectory, refused } from "../bridge";
+import { hasLiveBackend, instancesList, launchRecipesList, MOCK_PROJECTS, MOCK_SESSIONS, pickDirectory, refused } from "../bridge";
 import type { EditorChoicesInfo } from "../../types/generated/EditorChoicesInfo";
 
 /** AJ-E1502: name a session (`null` or blank: its own title again). */
@@ -118,4 +118,22 @@ export async function editorSet(editor: string | null): Promise<void> {
     return;
   }
   return invoke<void>("editor_set", { editor });
+}
+
+/** A session counts as open while it could still be working (the
+ * backend's `is_open`). */
+const OPEN = ["starting", "running", "waiting_user", "stuck", "quota_blocked"];
+
+/** Deletes launch settings (D-60): refused while one of their sessions is
+ * open, naming it; the sessions made with them stay in History. The
+ * preview refuses as the backend does, from its own sessions. */
+export async function deleteProfile(profileId: string): Promise<void> {
+  if (!hasLiveBackend()) {
+    const open = (await instancesList()).filter((row) => row.launch_recipe_id === profileId && OPEN.includes(row.status));
+    if (open.length === 0) return;
+    const name = (await launchRecipesList()).find((recipe) => recipe.id === profileId)?.name ?? profileId;
+    const places = [...new Set(open.map((row) => row.git_branch ?? row.cwd.split("/").pop() ?? row.cwd))].sort();
+    throw refused(`«${name}» has ${open.length === 1 ? "a session" : `${open.length} sessions`} open: ${places.join(", ")}. Stop ${open.length === 1 ? "it" : "them"} first, then delete the launch settings`);
+  }
+  await invoke("profile_delete", { profileId });
 }
