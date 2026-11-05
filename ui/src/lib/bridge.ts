@@ -1183,7 +1183,7 @@ const notificationSeams = () =>
 /** Reads Settings › Notifications. */
 export async function notificationPrefsGet(): Promise<NotificationPrefsInfo> {
   if (!hasBackend) {
-    return { quiet_start: 22, quiet_end: 7, digest_muted_accounts: [], ...notificationSeams().__AIJ_NOTIFICATION_PREFS__ };
+    return { quiet_start: 22, quiet_end: 7, digest_muted_accounts: [], wait_after_min: 5, quota_first_pct: 80, quota_last_pct: 95, ...notificationSeams().__AIJ_NOTIFICATION_PREFS__ };
   }
   return invoke<NotificationPrefsInfo>("notification_prefs_get");
 }

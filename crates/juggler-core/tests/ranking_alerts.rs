@@ -14,8 +14,8 @@
 )]
 
 use juggler_core::alerts::{
-    AlertEmission, AlertFsm, AlertPhase, AlertSignal, Digest, WindowObservation, digest_add,
-    digest_flush, signal, step,
+    AlertEmission, AlertFsm, AlertPhase, AlertSignal, Digest, Levels, WindowObservation,
+    digest_add, digest_flush, signal, step,
 };
 use juggler_core::model::Confidence;
 use juggler_core::ranking::{self, Candidate, ESTIMATED_HEADROOM_DISCOUNT};
@@ -224,6 +224,7 @@ fn fixture_day_produces_the_exact_q5_sequence() {
     let mut emissions = Vec::new();
     let now = 1_792_094_400_000_i64;
     let obs = |tte: Option<f64>, pct: Option<f64>, c: Confidence| WindowObservation {
+        levels: Levels::default(),
         tte_min: tte,
         used_pct: pct,
         confidence: c,
@@ -339,8 +340,8 @@ proptest! {
         for obs in sequence {
             now += 60_000;
             let (next, emission) = match obs {
-                Obs::Tte(tte) => step(&fsm, WindowObservation { tte_min: Some(tte), used_pct: None, confidence: Confidence::Estimated, resets_at_ms: None }, now),
-                Obs::Pct(pct) => step(&fsm, WindowObservation { tte_min: None, used_pct: Some(pct), confidence: Confidence::Estimated, resets_at_ms: None }, now),
+                Obs::Tte(tte) => step(&fsm, WindowObservation { levels: Levels::default(), tte_min: Some(tte), used_pct: None, confidence: Confidence::Estimated, resets_at_ms: None }, now),
+                Obs::Pct(pct) => step(&fsm, WindowObservation { levels: Levels::default(), tte_min: None, used_pct: Some(pct), confidence: Confidence::Estimated, resets_at_ms: None }, now),
                 Obs::Exhausted => signal(&fsm, AlertSignal::Exhausted, now),
                 Obs::Reset => signal(&fsm, AlertSignal::Reset, now),
                 Obs::Snooze => signal(&fsm, AlertSignal::Snooze, now),
@@ -380,6 +381,7 @@ fn snooze_holds_the_actionable_thirty_minutes() {
     let (next, emission) = step(
         &fsm,
         WindowObservation {
+            levels: Levels::default(),
             tte_min: Some(5.0),
             used_pct: None,
             confidence: Confidence::Estimated,
@@ -436,6 +438,7 @@ fn ranking_and_alerts_are_pure_no_launch_capability() {
     let (_, emission) = step(
         &AlertFsm::default(),
         WindowObservation {
+            levels: Levels::default(),
             tte_min: Some(10.0),
             used_pct: None,
             confidence: Confidence::Measured,

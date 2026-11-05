@@ -5,7 +5,9 @@
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(clippy::expect_used)]
 
-use juggler_core::alerts::{AlertEmission, AlertFsm, AlertPhase, WindowObservation, rearmed, step};
+use juggler_core::alerts::{
+    AlertEmission, AlertFsm, AlertPhase, Levels, WindowObservation, rearmed, step,
+};
 use juggler_core::model::Confidence;
 
 const HOUR: i64 = 60 * 60 * 1000;
@@ -13,6 +15,7 @@ const T0: i64 = 1_792_094_400_000;
 
 fn obs(tte: Option<f64>, pct: Option<f64>, resets_at_ms: Option<i64>) -> WindowObservation {
     WindowObservation {
+        levels: Levels::default(),
         tte_min: tte,
         used_pct: pct,
         confidence: Confidence::Measured,
@@ -142,4 +145,44 @@ fn a_machine_saved_before_the_reset_instant_existed_still_loads() {
     );
     assert!(matches!(emission, AlertEmission::TrayAmber { .. }));
     assert_eq!(fsm.window_resets_at_ms, Some(T0 + 6 * HOUR));
+}
+
+/// AJ-E2904: the user's two levels, each once per window: the first
+/// warning at the first, the last at the last (no fixed 90 %).
+#[test]
+fn the_first_and_last_warnings_come_at_the_users_levels_once_each() {
+    let at = |pct: f64, levels: Levels| WindowObservation {
+        levels,
+        tte_min: None,
+        used_pct: Some(pct),
+        confidence: Confidence::Measured,
+        resets_at_ms: Some(T0 + 5 * HOUR),
+    };
+    let kinds = |levels: Levels, readings: &[f64]| {
+        let mut fsm = AlertFsm::default();
+        readings
+            .iter()
+            .map(|pct| {
+                let (next, emission) = step(&fsm, at(*pct, levels), T0);
+                fsm = next;
+                match emission {
+                    AlertEmission::TrayAmber { .. } => "first",
+                    AlertEmission::Actionable { .. } => "last",
+                    _ => "-",
+                }
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        kinds(Levels::DEFAULT, &[70.0, 80.0, 85.0, 90.0, 95.0, 99.0]),
+        vec!["-", "first", "-", "-", "last", "-"]
+    );
+    let mine = Levels {
+        first_pct: 50.0,
+        last_pct: 70.0,
+    };
+    assert_eq!(
+        kinds(mine, &[49.0, 50.0, 69.0, 70.0, 80.0]),
+        vec!["-", "first", "-", "last", "-"]
+    );
 }

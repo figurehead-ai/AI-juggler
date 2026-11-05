@@ -32,6 +32,15 @@ fn notification_prefs_default_to_the_anti_fatigue_hours_and_persist() {
     let prefs = settings_policy::notification_prefs_get_impl(&state).unwrap();
     assert_eq!((prefs.quiet_start, prefs.quiet_end), (22, 7));
     assert!(prefs.digest_muted_accounts.is_empty());
+    // AJ-E2904: the defaults.
+    assert_eq!(
+        (
+            prefs.wait_after_min,
+            prefs.quota_first_pct,
+            prefs.quota_last_pct
+        ),
+        (5, 80, 95)
+    );
 
     let saved = settings_policy::notification_prefs_set_impl(
         &state,
@@ -39,11 +48,22 @@ fn notification_prefs_default_to_the_anti_fatigue_hours_and_persist() {
             quiet_start: 23,
             quiet_end: 6,
             digest_muted_accounts: vec!["acc-b".into(), "acc-a".into(), "acc-a".into()],
+            wait_after_min: 0,
+            quota_first_pct: 70,
+            quota_last_pct: 90,
         },
     )
     .unwrap();
     assert_eq!((saved.quiet_start, saved.quiet_end), (23, 6));
     assert_eq!(saved.digest_muted_accounts, ["acc-a", "acc-b"]);
+    assert_eq!(
+        (
+            saved.wait_after_min,
+            saved.quota_first_pct,
+            saved.quota_last_pct
+        ),
+        (0, 70, 90)
+    );
     let storage = state.storage.lock().unwrap();
     let quiet = settings_policy::quiet_hours(&storage);
     assert!(quiet.contains(23) && quiet.contains(5) && !quiet.contains(6) && !quiet.contains(22));
@@ -55,6 +75,9 @@ fn notification_prefs_default_to_the_anti_fatigue_hours_and_persist() {
             quiet_start: 24,
             quiet_end: 6,
             digest_muted_accounts: vec![],
+            wait_after_min: 5,
+            quota_first_pct: 80,
+            quota_last_pct: 95,
         },
     )
     .unwrap_err();
@@ -65,6 +88,23 @@ fn notification_prefs_default_to_the_anti_fatigue_hours_and_persist() {
             .quiet_start,
         23,
         "a refused save changes nothing"
+    );
+    // The last warning comes after the first.
+    let backwards = settings_policy::notification_prefs_set_impl(
+        &state,
+        &NotificationPrefsInfo {
+            quiet_start: 22,
+            quiet_end: 7,
+            digest_muted_accounts: vec![],
+            wait_after_min: 5,
+            quota_first_pct: 95,
+            quota_last_pct: 80,
+        },
+    )
+    .unwrap_err();
+    assert!(
+        backwards.to_string().contains("after the first"),
+        "{backwards}"
     );
 }
 

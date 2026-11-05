@@ -9,12 +9,17 @@ import { Card } from "./primitives";
 import { SettingSwitch } from "./SettingSwitch";
 import { NoAccounts, Status, accountName } from "./SettingsSections";
 import { errorText, notificationPrefsGet, notificationPrefsSet, type AccountInfo, type NotificationPrefsInfo } from "../lib/bridge";
-import { notificationsGet, notificationsSet, type SystemNotificationsInfo } from "../lib/ipc/notifications";
+import { notificationsGet, notificationsSendTest, notificationsSet, type SystemNotificationsInfo } from "../lib/ipc/notifications";
+import { Button } from "./primitives";
 import { CardTitle } from "./CardTitle";
 import { saveOptimistic } from "../lib/optimistic";
 import { Checkbox, Picker } from "./controls";
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+/** AJ-E2904: the choices, as the backend accepts them. */
+const WAITS = [0, 2, 5, 10, 15, 30];
+const LEVELS = [50, 70, 80, 90, 95, 99];
+const waitLabel = (minutes: number) => (minutes === 0 ? "Right away" : `${minutes} minutes`);
 const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
 /** Each kind, as the switch says it, what it means, and the end of
@@ -72,6 +77,85 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
   );
 }
 
+/** AJ-E2904: when a wait becomes news, the two warnings for an account
+ * running out, and Send test. */
+function WhenToTell({
+  prefs,
+  save,
+  onStatus,
+}: {
+  prefs: NotificationPrefsInfo;
+  save: (next: NotificationPrefsInfo, done: string) => void;
+  onStatus: (status: string | null, error: string | null) => void;
+}): JSX.Element {
+  const [sent, setSent] = useState<string | null>(null);
+  const sendTest = () => {
+    setSent(null);
+    notificationsSendTest().then(setSent, (cause: unknown) => onStatus(null, errorText(cause)));
+  };
+  const level = (pct: number) => ({ value: String(pct), label: `${pct} % used` });
+  return (
+    <fieldset className="flex flex-col gap-2 text-xs" data-testid="when-to-tell">
+      <legend className="mb-1 font-medium text-ink">When to tell me</legend>
+      <label className="flex flex-wrap items-center gap-2">
+        <span className="text-ink-2">Tell me when a session waits longer than</span>
+        <Picker choice
+          size="sm"
+          ariaLabel="Tell me when a session waits longer than"
+          value={String(prefs.wait_after_min)}
+          onChange={(value) => {
+            const minutes = Number.parseInt(value, 10);
+            save(
+              { ...prefs, wait_after_min: minutes },
+              minutes === 0 ? "A waiting session is told right away." : `A waiting session is told once it has waited ${minutes} minutes.`,
+            );
+          }}
+          testId="wait-after"
+          options={WAITS.map((minutes) => ({ value: String(minutes), label: waitLabel(minutes) }))}
+        />
+      </label>
+      <span className="text-label text-muted">Needs you and the bell show a wait at once either way.</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-ink-2">Warn when an account has used</span>
+        <Picker choice
+          size="sm"
+          ariaLabel="First warning at"
+          value={String(prefs.quota_first_pct)}
+          onChange={(value) => {
+            const first = Number.parseInt(value, 10);
+            save({ ...prefs, quota_first_pct: first }, `The first warning comes at ${first} % used.`);
+          }}
+          testId="quota-first"
+          options={LEVELS.filter((pct) => pct < prefs.quota_last_pct).map(level)}
+        />
+        <span className="text-ink-2">and again at</span>
+        <Picker choice
+          size="sm"
+          ariaLabel="Last warning at"
+          value={String(prefs.quota_last_pct)}
+          onChange={(value) => {
+            const last = Number.parseInt(value, 10);
+            save({ ...prefs, quota_last_pct: last }, `The last warning comes at ${last} % used.`);
+          }}
+          testId="quota-last"
+          options={LEVELS.filter((pct) => pct > prefs.quota_first_pct).map(level)}
+        />
+      </div>
+      <span className="text-label text-muted">Once each per 5-hour or weekly window. An estimate says "about".</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" onClick={sendTest} data-testid="notify-send-test">
+          Send test
+        </Button>
+        {sent && (
+          <span className="text-label text-ink-2" role="status" data-testid="notify-test-sent">
+            {sent}
+          </span>
+        )}
+      </div>
+    </fieldset>
+  );
+}
+
 export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[] }): JSX.Element {
   const [prefs, setPrefs] = useState<NotificationPrefsInfo | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -101,6 +185,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
         </p>
       </div>
       <SystemNotifications onStatus={onStatus} />
+      {prefs && <WhenToTell prefs={prefs} save={save} onStatus={onStatus} />}
       {prefs && (
         <>
           <fieldset className="flex flex-wrap items-center gap-2 text-xs" data-testid="quiet-hours">

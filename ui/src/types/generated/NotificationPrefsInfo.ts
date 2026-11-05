@@ -16,4 +16,18 @@ quiet_end: number,
 /**
  * Accounts whose lines are left out of the hourly digest.
  */
-digest_muted_accounts: Array<string>, };
+digest_muted_accounts: Array<string>, 
+/**
+ * AJ-E2904: a session's wait becomes a system notification once it
+ * has lasted this many minutes (0: right away). Needs you, the bell
+ * and the count show it at once either way.
+ */
+wait_after_min: number, 
+/**
+ * AJ-E2904: the first warning, % of a window used.
+ */
+quota_first_pct: number, 
+/**
+ * AJ-E2904: the last warning, % of a window used (above the first).
+ */
+quota_last_pct: number, };

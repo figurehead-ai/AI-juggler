@@ -470,6 +470,8 @@ fn step_account_alerts(
     ] {
         let Some(window) = window else { continue };
         let observation = WindowObservation {
+            // AJ-E2904: the user's first and last warnings.
+            levels: crate::settings_policy::quota_levels(storage),
             tte_min: display.forecast.tte_min,
             used_pct: window.percentage,
             confidence,

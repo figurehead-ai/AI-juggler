@@ -58,6 +58,17 @@ export async function notificationsSet(kinds: SystemNotificationsInfo): Promise<
   return invoke<SystemNotificationsInfo>("notifications_set", { kinds });
 }
 
+/** AJ-E2904: Send test — one system notification now; what to check if
+ * none appeared (the preview's seam `__AIJ_NOTIFY_TESTS__` counts them). */
+export async function notificationsSendTest(): Promise<string> {
+  if (!hasLiveBackend()) {
+    const seams = window as unknown as { __AIJ_NOTIFY_TESTS__?: number };
+    seams.__AIJ_NOTIFY_TESTS__ = (seams.__AIJ_NOTIFY_TESTS__ ?? 0) + 1;
+    return "Sent. If nothing appeared, allow AI Juggler in System Settings › Notifications.";
+  }
+  return invoke<string>("notifications_send_test");
+}
+
 /** Called when a notification was clicked: open what it was about. */
 export function onNotificationClick(handler: (open: OpenRequest) => void): () => void {
   if (!hasLiveBackend()) {

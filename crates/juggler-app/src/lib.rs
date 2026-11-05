@@ -626,6 +626,8 @@ macro_rules! app_commands {
             Read  features::notifications::commands::notifications_summary,
             Read  features::notifications::commands::notifications_page,
             Read  features::notifications::commands::notifications_mutes,
+            // AJ-E2904: shows a system notification: never over the bridge.
+            Write features::notifications::commands::notifications_send_test,
             Write features::notifications::commands::notifications_read,
             Write features::notifications::commands::notifications_snooze,
             Read  features::notifications::commands::notifications_snoozes,

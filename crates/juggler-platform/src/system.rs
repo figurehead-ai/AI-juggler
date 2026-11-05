@@ -27,6 +27,19 @@ pub const fn computer_noun() -> (&'static str, &'static str) {
     }
 }
 
+/// AJ-E2904: where the user allows an app's notifications, in this
+/// system's own words (Send test points there when nothing appeared).
+#[must_use]
+pub const fn notification_settings_words() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "System Settings › Notifications"
+    } else if cfg!(target_os = "windows") {
+        "Settings › System › Notifications"
+    } else {
+        "your desktop's notification settings"
+    }
+}
+
 /// How a count shows on the app's icon here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AppBadge {

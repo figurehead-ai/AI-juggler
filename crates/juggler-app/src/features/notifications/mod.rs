@@ -395,6 +395,7 @@ pub fn show_due(state: &Arc<AppState>) {
             quiet,
             in_front: notifier.in_front.load(Ordering::Relaxed),
             muted: &muted,
+            wait_after_ms: crate::settings_policy::wait_after_ms(&storage),
         };
         let Ok(mut engine) = notifier.engine.lock() else {
             return;
@@ -406,6 +407,35 @@ pub fn show_due(state: &Arc<AppState>) {
         let id = notifier.remember(item.target);
         sink(&Outgoing { id, title, body });
     }
+}
+
+/// AJ-E2904: the id a test notification carries (a click brings AI
+/// Juggler forward, as an unknown id does).
+const TEST_ID: i32 = 2_904;
+
+/// Sends one system notification now, through the same way real ones go,
+/// whatever the quiet hours and with AI Juggler in front (the user presses
+/// it there); says what to check if none appeared.
+///
+/// # Errors
+///
+/// [`crate::error::AppError::Refused`] before notifications are connected.
+pub fn send_test(state: &Arc<AppState>) -> crate::error::AppResult<String> {
+    let sink = state.notifier.sink.get().ok_or_else(|| {
+        crate::error::AppError::Refused(
+            "Notifications aren't ready yet. Try again in a moment.".into(),
+        )
+    })?;
+    sink(&Outgoing {
+        id: TEST_ID,
+        title: format!("{} test", crate::edition::current().app_name()),
+        body: "Notifications reach you.".to_owned(),
+    });
+    Ok(format!(
+        "Sent. If nothing appeared, allow {} in {}.",
+        crate::edition::current().app_name(),
+        juggler_platform::system::notification_settings_words()
+    ))
 }
 
 /// The model's kind for a system notification's kind (Mute this kind).
