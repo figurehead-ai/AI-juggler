@@ -727,6 +727,10 @@ impl HarnessAdapter for OpenCodeAdapter {
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        juggler_adapter::switching::fresh_start_only
+    }
+
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::opencode_subagents::SUPPORT
     }

@@ -150,6 +150,10 @@ impl HarnessAdapter for ClaudeCodeAdapter {
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        crate::claude_handover::switch_answers
+    }
+
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         crate::claude_subagents::SUPPORT
     }

@@ -36,6 +36,7 @@ pub mod runtime;
 pub mod siblings;
 pub mod spec;
 pub mod subagents;
+pub mod switching;
 pub mod system_tools;
 pub mod user_path;
 pub mod watcher;

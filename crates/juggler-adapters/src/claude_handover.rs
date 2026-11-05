@@ -536,6 +536,34 @@ fn artifact_ids(path: &Path) -> Result<Vec<String>, AdapterError> {
     Ok(found)
 }
 
+/// ADR-0028: Claude Code's answer for every switching capability.
+pub(crate) fn switch_answers(
+    capability: juggler_adapter::switching::SwitchCapability,
+) -> juggler_adapter::switching::SwitchAnswer {
+    use juggler_adapter::switching::{SwitchAnswer, SwitchCapability};
+    match capability {
+        SwitchCapability::HistoryExact => SwitchAnswer::Supported(
+            "the transcript copied whole (a clone on one disk), checked by hash; a source still being written passes the prefix check",
+        ),
+        SwitchCapability::OwnSubagents => SwitchAnswer::Supported(
+            "the conversation's folder (subagents, tool results) and its file history, copied with it",
+        ),
+        SwitchCapability::Family | SwitchCapability::FamilyLinks => SwitchAnswer::NotSupported(
+            "sessions started from this one stay on its account for now (being built, ADR-0028); the switch names them before anything moves",
+        ),
+        SwitchCapability::Resumable => SwitchAnswer::Supported(
+            "resumes by its own id: `claude --resume`, or the Claude app's resume link",
+        ),
+        SwitchCapability::SourceUntouched => SwitchAnswer::Supported("the source is only read"),
+        SwitchCapability::LeftBehindNamed => SwitchAnswer::Supported(
+            "the claude.ai pages it links to are named before the move (they stay with their account)",
+        ),
+        SwitchCapability::SwitchBackDelta => {
+            SwitchAnswer::Supported("switching back carries only the turns taken away (AJ-E1541)")
+        }
+    }
+}
+
 #[cfg(test)]
 mod artifact_tests {
     use super::artifact_ids;

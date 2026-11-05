@@ -874,6 +874,15 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// ADR-0028: this tool's answer for every switching capability
+    /// ([`crate::switching::SwitchCapability`]): supported and how, or
+    /// not and why. The default leaves them all unanswered, which the
+    /// conformance kit (check 14) refuses.
+    #[must_use]
+    fn switch_capabilities(&self) -> crate::switching::SwitchCapabilities {
+        crate::switching::unanswered
+    }
+
     /// AJ-E1520 (0.2): whether this tool's subagents can be listed, from
     /// which records, or why not. Every adapter answers: the default,
     /// [`crate::subagents::SubagentSupport::Unanswered`], is refused by the

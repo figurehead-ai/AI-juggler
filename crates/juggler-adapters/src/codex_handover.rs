@@ -464,3 +464,31 @@ fn session_meta_field(bytes: &[u8], key: &str) -> Option<String> {
         }
     })
 }
+
+/// ADR-0028: Codex's answer for every switching capability.
+pub(crate) fn switch_answers(
+    capability: juggler_adapter::switching::SwitchCapability,
+) -> juggler_adapter::switching::SwitchAnswer {
+    use juggler_adapter::switching::{SwitchAnswer, SwitchCapability};
+    match capability {
+        SwitchCapability::HistoryExact => SwitchAnswer::Supported(
+            "the rollout copied whole (unpacked when it's compressed), checked by hash; a source still being written passes the prefix check",
+        ),
+        SwitchCapability::OwnSubagents => SwitchAnswer::NotSupported(
+            "Codex runs its subagents as threads of their own, not inside a conversation: they move as its family",
+        ),
+        SwitchCapability::Family | SwitchCapability::FamilyLinks => SwitchAnswer::NotSupported(
+            "threads started from this one stay on its account for now (being built, ADR-0028); the switch names them before anything moves",
+        ),
+        SwitchCapability::Resumable => {
+            SwitchAnswer::Supported("resumes by its own thread id: `codex resume`")
+        }
+        SwitchCapability::SourceUntouched => SwitchAnswer::Supported("the source is only read"),
+        SwitchCapability::LeftBehindNamed => SwitchAnswer::Supported(
+            "a Codex conversation links to nothing that belongs to its account",
+        ),
+        SwitchCapability::SwitchBackDelta => {
+            SwitchAnswer::Supported("switching back carries only the turns taken away (AJ-E1541)")
+        }
+    }
+}

@@ -54,6 +54,10 @@ fn jsonl_files(dir: &Path) -> Vec<PathBuf> {
 struct Claude;
 
 impl Subject for Claude {
+    fn switchable(&self) -> bool {
+        true
+    }
+
     fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
         Box::new(ClaudeCodeAdapter::with_bin(
             sandbox.stub("claude", "2.1.80 (Claude Code)"),
@@ -210,6 +214,10 @@ fn codex_rollout(state_dir: &Path, n: u32, lines: &[serde_json::Value]) -> Strin
 }
 
 impl Subject for Codex {
+    fn switchable(&self) -> bool {
+        true
+    }
+
     fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
         Box::new(
             CodexAdapter::with_bin(sandbox.stub("codex", "codex-cli 0.163.0"))
