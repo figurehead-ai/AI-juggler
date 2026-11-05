@@ -193,7 +193,9 @@ fn seed_scenario() {
         let member_ref = match member["kind"].as_str().unwrap() {
             "session" => MemberRef::Session(SessionId::new(reference)),
             "app" => match recipes.get(reference) {
-                Some((account, _)) => MemberRef::App(account.clone()),
+                // An App member is the App's own id: `cli:<folder>` for
+                // a CLI App (the P3 walk: the bare folder showed "An App").
+                Some((account, _)) => MemberRef::App(format!("cli:{account}")),
                 None => {
                     notes.push(format!(
                         "{reference}: an App member whose App isn't seeded; left out"

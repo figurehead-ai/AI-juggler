@@ -19,7 +19,7 @@ import { usePoolRules } from "../lib/pool-rules";
 import { useSubscriptions } from "../lib/subscriptions";
 import { useTools } from "../lib/tools";
 import { MACHINE_WORD, THIS_MACHINE } from "../lib/machine-words";
-import type { PoolRuleInfo } from "../lib/ipc/pool-model";
+import { poolSetScope, type PoolRuleInfo } from "../lib/ipc/pool-model";
 import type { PoolInfo } from "../lib/ipc/pools";
 import { CanvasTeach } from "./pool/CanvasTeach";
 import { PaletteMore, type MoreKind } from "./pool/PaletteMore";
@@ -30,13 +30,14 @@ import { ScopeSheet, scopeLabel } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
-import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, usePools } from "../lib/pools";
+import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, setPools, usePools } from "../lib/pools";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
 import { lazyNamed } from "../lib/lazy";
 import { globalId } from "../lib/nav";
 import { useActionHost } from "../components/ItemMenu";
 import { showToast } from "../components/Toast";
+import { errorText } from "../lib/bridge";
 import { pageTabs, rememberTab, rememberedTab } from "./registry";
 import { Canvas, type Selection } from "./pool/Canvas";
 import { Inspector } from "./pool/Inspector";
@@ -145,6 +146,18 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const hasRules = (rules.rules?.members ?? []).some((row) => row.member !== "all" || pool.kind !== "default") || rules.watched.length > 0;
   const more = useMoreCandidates(pool, sessions, projects, accounts, rules.rules?.members.map((row) => row.member) ?? []);
   const [scopeOpen, setScopeOpen] = useState(false);
+  // "Add docs": the project joins the scope in one click, and its sessions
+  // with it (the P3 walk); a pool on every project has nothing to add.
+  const addToScope = async (project: string) => {
+    if (pool.scope_all || !project) return setScopeOpen(true);
+    try {
+      setPools(await poolSetScope(pool.id, false, [...pool.scope, project]));
+      void rules.reload();
+      showToast({ message: `${projects.find((one) => one.id === project)?.name ?? "The project"} is now in ${pool.name}`, detail: "Its sessions join by themselves." });
+    } catch (cause) {
+      showToast({ message: "Couldn't change where it works", detail: errorText(cause), tone: "error" });
+    }
+  };
   const [template, setTemplate] = useState(false);
   const first = useMemo(arrival, []);
   const [panel, setPanelState] = useState<Panel>(first.panel);
@@ -260,7 +273,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                   lists={more}
                   onAdded={rules.reload}
                   onFix={(row) => {
-                    if (row.fix?.action === "scope") setScopeOpen(true);
+                    if (row.fix?.action === "scope") void addToScope(row.fix.arg);
                     else if (row.fix?.action === "open-pool") host.openPool?.(row.fix.arg);
                     else if (row.fix?.action === "resume") {
                       const session = sessions.find((one) => one.id === row.fix!.arg);
