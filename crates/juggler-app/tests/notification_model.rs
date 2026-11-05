@@ -186,6 +186,11 @@ fn a_snoozed_need_or_a_muted_kind_doesnt_interrupt() {
             ..Default::default()
         },
     );
+    // Told as soon as it waits: AJ-E2904's threshold (5 min by default)
+    // at 0, so this test is about snoozing and muting only.
+    let mut kept = juggler_app::settings_policy::notification_prefs_get_impl(&state).unwrap();
+    kept.wait_after_min = 0;
+    juggler_app::settings_policy::notification_prefs_set_impl(&state, &kept).unwrap();
     let snoozed = session(
         &state,
         &dir.path().join("payments-api"),

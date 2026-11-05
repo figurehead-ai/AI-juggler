@@ -126,6 +126,9 @@ const SIGNALLING_COMMANDS: &[(&str, &[&str])] = &[
     ("launch_session", &[SESSION]),
     ("epoch_resume", &[SESSION]),
     ("parked_resume", &[SESSION]),
+    // AJ-E2908: Resume on an ended session's page, through the same
+    // resume path as parked_resume and epoch_resume.
+    ("session_resume", &[SESSION]),
     ("packs_open_start", &[SESSION]),
     // E19: "Start a session for it…" goes through the one spawn path.
     ("tasks_start", &[SESSION]),
