@@ -53,8 +53,15 @@ case "$cmd" in
     fi
     mkdir -p "$data"
     python3 -I "$root/scripts/qa/scenario.py" seed "$id" > "$lab/scenario-seed.json"
-    (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" \
-      "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
+    if grep -q '"from"' "$lab/scenario-seed.json"; then
+      # P9: the lab starts as a 0.3 data folder (schema v39), for 0.4 to
+      # move on first open; seeding through 0.4 would move it already.
+      (cd "$root" && AIJ_P9_DB="$data/juggler.sqlite" AIJ_P9_LAB="$lab" \
+        cargo test -q --offline -p juggler-core --test pools_v45 write_the_p9_labs_0_3_data_folder -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
+    else
+      (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" \
+        "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
+    fi
     sheet="$root/docs/qa/0.4-walks/$id.md"
     if [ ! -e "$sheet" ]; then python3 -I "$root/scripts/qa/scenario.py" sheet "$id" --out "$sheet"; echo "lab-scenario: walk sheet $sheet"; fi
     echo "lab-scenario: $id is set up in $lab — open it with: scripts/qa/lab_scenario.sh open $id"

@@ -29,6 +29,7 @@ import { Palette } from "./Palette";
 import { cannotRemove, nameOf, removeFromPool } from "./actions";
 import { fitView, neighbour, NODE_H, NODE_W, toCanvas, zoomAt, type Point, type View } from "./layout";
 import type { CanvasData, MemberNode } from "./useCanvas";
+import { useCanvasView } from "./canvas-view";
 
 export type Selection = { kind: "none" } | { kind: "pool" } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string };
 
@@ -37,10 +38,6 @@ type Drag =
   | { kind: "session"; session: InstanceInfo; start: Point; moved: boolean }
   | { kind: "pan"; start: Point; view: View; moved: boolean };
 
-/** Each pool's view while the app runs (back to a pool: where you left it). */
-const views = new Map<string, View>();
-/** Tests: every pool back to its first view. */
-export const forgetCanvasViews = () => views.clear();
 const NUDGE = 16;
 
 function useReducedMotion(): boolean {
@@ -89,14 +86,6 @@ export function Canvas({
   const viewport = useRef<HTMLDivElement | null>(null);
   const palette = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [view, setViewState] = useState<View | null>(views.get(pool.id) ?? null);
-  const setView = useCallback(
-    (next: View) => {
-      views.set(pool.id, next);
-      setViewState(next);
-    },
-    [pool.id],
-  );
   const [drag, setDrag] = useState<Drag | null>(null);
   const [dragAt, setDragAt] = useState<Point | null>(null);
   const [overPalette, setOverPalette] = useState(false);
@@ -122,14 +111,13 @@ export function Canvas({
   }, [paletteOpen, size.w, canvas, members.length, data.list.loading]);
   // The palette sits over the top left: fit what's beside it (or below
   // its folded line).
-  const fit = useCallback(
-    () => setView(fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44)),
-    [points, size, setView, paletteOpen],
+  const { view, latest, setView, fit, forget, hold } = useCanvasView(
+    pool.id,
+    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44),
+    size.w > 0 && members.length > 0 && !!canvas && paletteOpen !== null,
+    [size.w, size.h, members.length, paletteOpen, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
   );
-  // The first time this pool's nodes are known: everything in view.
-  useEffect(() => {
-    if (view === null && size.w > 0 && members.length > 0 && canvas && paletteOpen !== null) fit();
-  }, [view, size.w, members.length, canvas, fit, paletteOpen]);
+  const placeHeld = (rows: Parameters<typeof place>[0]) => (hold(), place(rows));
   const shown = view ?? { x: size.w / 2 - NODE_W / 2, y: 48, scale: 1 };
 
   // Scroll pans; ⌘/Ctrl-scroll (and a trackpad's pinch) zooms at the pointer.
@@ -140,13 +128,13 @@ export function Canvas({
       if ((event.target as HTMLElement).closest("[data-canvas-palette], [data-canvas-scroll]")) return;
       event.preventDefault();
       const box = element.getBoundingClientRect();
-      const current = views.get(pool.id) ?? shown;
+      const current = latest() ?? shown;
       if (event.ctrlKey || event.metaKey) setView(zoomAt(current, Math.exp(-event.deltaY * 0.01), { x: event.clientX - box.left, y: event.clientY - box.top }));
       else setView({ ...current, x: current.x - event.deltaX, y: current.y - event.deltaY });
     };
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
-  }, [pool.id, shown, setView]);
+  }, [pool.id, shown, setView, latest]);
 
   const byId = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
   const names = useMemo(() => new Map(members.map((member) => [member.id, member.name])), [members]);
@@ -187,7 +175,7 @@ export function Canvas({
           if (!cannotRemove(pool)) remove(member);
         } else {
           const to = { x: drag.origin.x + (at.x - drag.start.x) / shown.scale, y: drag.origin.y + (at.y - drag.start.y) / shown.scale };
-          void place([{ session_id: drag.id, x: to.x, y: to.y }]);
+          void placeHeld([{ session_id: drag.id, x: to.x, y: to.y }]);
         }
       }
       if (drag.kind === "session" && moved && box && inside(box, at) && !onPalette) {
@@ -244,7 +232,7 @@ export function Canvas({
         event.preventDefault();
         const at = points.get(id);
         const [dx, dy] = arrow === "ArrowUp" ? [0, -NUDGE] : arrow === "ArrowDown" ? [0, NUDGE] : arrow === "ArrowLeft" ? [-NUDGE, 0] : [NUDGE, 0];
-        if (at) void place([{ session_id: id, x: at.x + dx, y: at.y + dy }]);
+        if (at) void placeHeld([{ session_id: id, x: at.x + dx, y: at.y + dy }]);
       } else if (arrow.startsWith("Arrow")) {
         event.preventDefault();
         const next = neighbour(points, id, arrow);
@@ -391,7 +379,7 @@ export function Canvas({
         scale={shown.scale}
         onZoom={(factor) => setView(zoomAt(shown, factor, { x: size.w / 2, y: size.h / 2 }))}
         onFit={fit}
-        onTidy={() => void data.tidy().then(() => (views.delete(pool.id), setViewState(null)))}
+        onTidy={() => void data.tidy().then(forget)}
       />
 
       {menu && menuMember && <NodeMenu pool={pool} member={menuMember} members={members} at={menu.at} onClose={() => setMenu(null)} onRemove={remove} />}

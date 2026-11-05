@@ -27,7 +27,7 @@ import { ToastHost, resetToasts } from "../../components/Toast";
 import { pick } from "../../test/pick";
 import { rememberTab, rememberedTabId } from "../registry";
 import { PoolPage } from "../PoolPage";
-import { forgetCanvasViews } from "./Canvas";
+import { forgetCanvasViews } from "./canvas-view";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
 import { deliveryWords } from "./InspectPool";
 import { CanvasEdges } from "./CanvasEdges";

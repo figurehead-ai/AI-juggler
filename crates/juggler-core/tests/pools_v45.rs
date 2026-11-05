@@ -1,8 +1,9 @@
 //! AJ-E3003 (D-62 decision 16, scenario P9): moving 0.3's pools to the
 //! v45 model with nothing lost.
 //!
-//! - A v44 database holding every 0.3 pool kind (a project's default pool,
-//!   the no-project pool, a user pool with a project and one without) and
+//! - A v39 database (0.3's last schema, 0.3.1 to 0.3.9) holding every 0.3
+//!   pool kind (a project's default pool, the no-project pool, a user pool
+//!   with a project and one without) and
 //!   a row of every kind of content each holds (every table keyed by a
 //!   pool: rules, approvals, audit, messages, docs, links, pauses, tasks,
 //!   layout…), plus members of both 0.3 kinds and roles.
@@ -30,8 +31,10 @@ use juggler_core::storage::{MemberRef, PoolRole, Scope, Storage, pre_migration_c
 use rusqlite::Connection;
 use rusqlite::types::Value;
 
-/// 0.3's last schema: the pools as 0.3 left them.
-const SCHEMA_0_3: usize = 44;
+/// 0.3's last schema, as 0.3.1 to 0.3.9 shipped it (v40 to v44 came with
+/// 0.4): the pools as 0.3 left them. The P9 walk found this at 44,
+/// which skipped five of the migrations a 0.3 user's data goes through.
+const SCHEMA_0_3: usize = 39;
 
 fn database_at_0_3(path: &Path) -> Connection {
     let conn = Connection::open(path).unwrap();
@@ -391,5 +394,109 @@ fn the_move_takes_under_a_second_for_100_pools_and_10_000_messages() {
             .filter(|pool| pool.scope == Scope::Every)
             .count(),
         51
+    );
+}
+
+/// The P9 walk's 0.3 data folder (`fixtures/data_0_3.sql`) on the v39
+/// schema, its folders under `lab`.
+fn database_with_0_3_data(path: &Path, lab: &Path) {
+    let conn = Connection::open(path).unwrap();
+    conn.pragma_update(None, "journal_mode", "WAL").unwrap();
+    for (index, sql) in Storage::migrations().iter().enumerate().take(SCHEMA_0_3) {
+        conn.execute_batch(sql).unwrap();
+        conn.pragma_update(None, "user_version", i64::try_from(index).unwrap() + 1)
+            .unwrap();
+    }
+    let lab = lab.to_str().unwrap();
+    assert!(!lab.contains('\''), "a lab path with a quote");
+    conn.execute_batch(&include_str!("fixtures/data_0_3.sql").replace("{LAB}", lab))
+        .unwrap();
+}
+
+fn count(conn: &Connection, sql: &str) -> i64 {
+    conn.query_row(sql, [], |row| row.get(0)).unwrap()
+}
+
+#[test]
+fn the_p9_walks_0_3_data_folder_moves_whole() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    database_with_0_3_data(&db, dir.path());
+
+    let storage = Storage::open(&db).unwrap();
+    assert!(storage.migrated_on_open());
+    assert_eq!(
+        pre_migration_copies(&db)[0].0,
+        i64::try_from(SCHEMA_0_3).unwrap()
+    );
+    let list = storage.pools().list().unwrap();
+    let named = |name: &str| list.iter().find(|pool| pool.name == name).unwrap().clone();
+    assert_eq!(
+        named("Checkout").scope,
+        Scope::one(Some(&ProjectId::new("p-shop")))
+    );
+    assert_eq!(named("Notes").scope, Scope::Every);
+    assert!(list.iter().all(|pool| pool.name != "Old spike"));
+    // Its sessions read back whole (the P9 walk: a fixture's empty usage
+    // broke every list that reads them, which 0.3 never wrote).
+    assert_eq!(storage.sessions().list(None).unwrap().len(), 5);
+    let conn = storage.raw_conn();
+    for (sql, want) in [
+        (
+            "SELECT count(*) FROM pool_members WHERE left_at IS NULL AND member_ref != 'all'",
+            4,
+        ),
+        (
+            "SELECT count(*) FROM pool_members WHERE role = 'lead' AND left_at IS NULL",
+            2,
+        ),
+        (
+            "SELECT count(*) FROM agent_rules WHERE revoked_at IS NULL",
+            1,
+        ),
+        ("SELECT count(*) FROM agent_approvals", 1),
+        ("SELECT count(*) FROM agent_messages", 2),
+        ("SELECT count(*) FROM agent_docs", 1),
+        (
+            "SELECT count(*) FROM agent_asks WHERE answered_at IS NULL",
+            1,
+        ),
+        ("SELECT count(*) FROM tasks", 3),
+        ("SELECT count(*) FROM pool_layout", 2),
+        ("SELECT count(*) FROM pool_pauses", 1),
+    ] {
+        assert_eq!(count(conn, sql), want, "{sql}");
+    }
+}
+
+/// The P9 lab's data folder: `AIJ_P9_DB` (the lab's juggler.sqlite) with
+/// its folders under `AIJ_P9_LAB` (the lab's HOME, under /tmp, an
+/// aij-lab folder). Run by `scripts/qa/lab_scenario.sh setup P9`.
+#[test]
+#[ignore = "writes the P9 lab's data folder"]
+fn write_the_p9_labs_0_3_data_folder() {
+    let db = std::path::PathBuf::from(std::env::var("AIJ_P9_DB").unwrap());
+    let lab = std::path::PathBuf::from(std::env::var("AIJ_P9_LAB").unwrap());
+    let shown = lab.to_str().unwrap();
+    assert!(
+        (shown.starts_with("/tmp/") || shown.starts_with("/private/tmp/"))
+            && shown.contains("aij-lab"),
+        "{shown} isn't a lab"
+    );
+    assert!(!db.exists(), "{} exists: a fresh lab only", db.display());
+    for folder in [
+        "code/shop",
+        "code/blog",
+        "notes",
+        "scratch",
+        "profiles/claude-work",
+        "profiles/codex-personal",
+    ] {
+        std::fs::create_dir_all(lab.join(folder)).unwrap();
+    }
+    database_with_0_3_data(&db, &lab);
+    println!(
+        "seed: a 0.3 data folder (schema v{SCHEMA_0_3}) at {}",
+        db.display()
     );
 }

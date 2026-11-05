@@ -15,14 +15,6 @@ import { poolSetScope } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { setPools } from "../../lib/pools";
 
-/** A pool's scope in words: "Every project", "ai-juggler", "3 projects". */
-export function scopeLabel(pool: PoolInfo, projects: readonly ProjectInfo[]): string {
-  if (pool.scope_all) return "Every project";
-  const names = pool.scope.map((id) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project")));
-  if (names.length === 0) return "Scope: not set";
-  return names.length <= 2 ? names.join(", ") : `${names.length} projects`;
-}
-
 export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; projects: ProjectInfo[]; open: ReadonlySet<string>; onClose: () => void }): JSX.Element {
   const [every, setEvery] = useState(pool.scope_all);
   const [picked, setPicked] = useState<(string | null)[]>(pool.scope_all ? [] : pool.scope);

@@ -1,0 +1,121 @@
+[
+  {
+    "step": "1-backup",
+    "error": null,
+    "feedback": [
+      1
+    ],
+    "done": [
+      1
+    ],
+    "check": "A copy of your data from before the update on Nov 5, 2026, 4:06 AM is kept: 0.3.9 can open it."
+  },
+  {
+    "step": "2a-pools",
+    "error": null,
+    "feedback": [
+      8
+    ],
+    "done": [
+      15
+    ],
+    "check": [
+      "Checkout shop 1 member · 1 task moving",
+      "Notes Every project 1 member · quiet",
+      "blog project pool 1 member · quiet",
+      "shop project pool 1 member · quiet",
+      "No project sessions with no project 1 member · quiet"
+    ]
+  },
+  {
+    "step": "2b-checkout-canvas",
+    "error": null,
+    "feedback": [
+      null,
+      18,
+      null
+    ],
+    "done": [
+      null,
+      null,
+      0
+    ],
+    "check": "Checkout Rename 1 session in AI Juggler · for shop Canvas List Tasks Messages Agents: Full Let agents in your projects see each other and work together? Sessions AI Juggler starts get its agent tools: each agent can see who else is in its pool and what they're doing, and say what it's doing itself. What each pool lets agents do stays yours to set. You can switch this off for a project or an app in Settings › Agent access. Yes, let them Not now Arrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu. 1 Retry banner copy Lead Claude Code · Work Max Ended · Write the retry banner copy (in progress) Make a task: check the banner on a phone Allow once Deny ADD A SESSION 0 100% Tidy up ACTIVITY THIS POOL Members 1 · lead Retry banner copy Agents may Full Delivery By themselves, between turns, 5 in a row Always allowed 1 rule Waiting on you 1 ask Change what agents may do… LIVE 15 d ago You wrote to the pool: «Copy for the retry banner» 15 d ago Retry banner copy took «Write the retry banner copy» 15 d ago Retry banner copy asked the pool: «Copy for the retry banner» 15 d ago You wrote «Write the retry banner copy» Select a member or an edge and this panel shows its tasks, messages, usage and rules."
+  },
+  {
+    "step": "2c-checkout-list",
+    "error": null,
+    "feedback": [
+      5
+    ],
+    "done": [
+      179
+    ],
+    "check": "Checkout Rename 1 session in AI Juggler · for shop Canvas List Tasks Messages Agents: Full Let agents in your projects see each other and work together? Sessions AI Juggler starts get its agent tools: each agent can see who else is in its pool and what they're doing, and say what it's doing itself. What each pool lets agents do stays yours to set. You can switch this off for a project or an app in Settings › Agent access. Yes, let them Not now Members Retry banner copy · Ended shop · AI Juggler · Work Max Claude Code Lead 15 d ago Who talks to whom this week No messages or task hand-offs between the members yet. ACTIVITY THIS POOL Members 1 · lead Retry banner copy Agents may Full Delivery By themselves, between turns, 5 in a row Always allowed 1 rule Waiting on you 1 ask Change what agents may do… LIVE 15 d ago You wrote to the pool: «Copy for the retry banner» 15 d ago Retry banner copy took «Write the retry banner copy» 15 d ago Retry banner copy asked the pool: «Copy for the retry banner» 15 d ago You wrote «Write the retry banner copy» Select a member or an edge and this panel shows its tasks, messages, usage and rules."
+  },
+  {
+    "step": "2d-checkout-messages",
+    "error": null,
+    "feedback": [
+      3
+    ],
+    "done": [
+      null
+    ],
+    "check": "Checkout Rename 1 session in AI Juggler · for shop Canvas List Tasks Messages Agents: Full Let agents in your projects see each other and work together? Sessions AI Juggler starts get its agent tools: each agent can see who else is in its pool and what they're doing, and say what it's doing itself. What each pool lets agents do stays yours to set. You can switch this off for a project or an app in Settings › Agent access. Yes, let them Not now Members Retry banner copy · Ended shop · AI Juggler · Work Max Claude Code Lead 15 d ago Who talks to whom this week No messages or task hand-offs between the members yet. Messages Back to the canvas New message Copy for the retry banner 15 d You: \"Retry payment\" — it says what happens. Pause this pool's messages Copy for the retry banner Retry banner copy, You · in «Checkout» Pause Stop Retry banner copy Question Oct 20 · an agent Should the banner say \"Try again\" or \"Retry payment\"? You Answer Oct 20 \"Retry payment\" — it says what happens. An agent's message is its own words: it can't approve anything or change settings. Deliver to their sessions Send ⌘↵ Shared documents retry-copy.md Retry banner copy · 15 d ago · 412 B No secrets found Read retry-copy.md"
+  },
+  {
+    "step": "2d2-checkout-thread",
+    "error": null,
+    "feedback": [
+      14
+    ],
+    "done": [
+      14
+    ],
+    "check": [
+      "You: \"Retry payment\" — it says what happens.",
+      "Should the banner say \"Try again\" or \"Retry payment\"?",
+      "\"Retry payment\" — it says what happens."
+    ]
+  },
+  {
+    "step": "2e-checkout-tasks",
+    "error": null,
+    "feedback": [
+      3
+    ],
+    "done": [
+      null
+    ],
+    "check": "Checkout Rename 1 session in AI Juggler · for shop Canvas List Tasks Messages Agents: Full Let agents in your projects see each other and work together? Sessions AI Juggler starts get its agent tools: each agent can see who else is in its pool and what they're doing, and say what it's doing itself. What each pool lets agents do stays yours to set. You can switch this off for a project or an app in Settings › Agent access. Yes, let them Not now Members Retry banner copy · Ended shop · AI Juggler · Work Max Claude Code Lead 15 d ago Who talks to whom this week No messages or task hand-offs between the members yet. Tasks Back to the canvas Open1 Ready In progress1 In review Blocked Done List Plan Write the retry banner copy 15 d In progress Retry banner copy TASK in «Checkout v2» Write the retry banner copy In progress Written by You · changed 15 d Start a session for it… Cancel task In progress with Retry banner copy, whose session has ended · free it so another agent can take it Free it HISTORY 15 d Retry banner copy took it 15 d You added it"
+  },
+  {
+    "step": "2f-shop",
+    "error": null,
+    "feedback": [
+      7,
+      12,
+      null
+    ],
+    "done": [
+      null,
+      null,
+      0
+    ],
+    "check": "shop · all sessions Project pool 1 session in AI Juggler · for shop Canvas List Tasks Messages Agents: Work together Let agents in your projects see each other and work together? Sessions AI Juggler starts get its agent tools: each agent can see who else is in its pool and what they're doing, and say what it's doing itself. What each pool lets agents do stays yours to set. You can switch this off for a project or an app in Settings › Agent access. Yes, let them Not now Arrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu. Checkout plan Lead Claude Code · Work Max Ended EVERYONE Member Everyone in this pool's projects 0 sessions now · new ones join ADD A SESSION 0 100% Tidy up ACTIVITY THIS POOL Members 1 · lead Checkout plan Agents may Work together Delivery When you click Deliver, 5 in a row Always allowed Nothing yet Change what agents may do… LIVE Nothing yet. Messages and task changes between its agents show here as they happen. Select a member or an edge and this panel shows its tasks, messages, usage and rules."
+  },
+  {
+    "step": "3-notes-every-project",
+    "error": null,
+    "feedback": [
+      7,
+      12
+    ],
+    "done": [
+      null,
+      159
+    ],
+    "check": "Notes Rename 1 session in AI Juggler · for every project Canvas List Tasks Messages Agents: Read Let agents in your projects see each other and work together? Sessions AI Juggler starts get its agent tools: each agent can see who else is in its pool and what they're doing, and say what it's doing itself. What each pool lets agents do stays yours to set. You can switch this off for a project or an app in Settings › Agent access. Yes, let them Not now Arrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu. Notes tidy-up Observer Codex · Personal Ended ADD A SESSION 0 100% Tidy up ACTIVITY THIS POOL Members 1 Agents may Read Delivery When you click Deliver, 5 in a row Always allowed Nothing yet Change what agents may do… LIVE Nothing yet. Messages and task changes between its agents show here as they happen. Select a member or an edge and this panel shows its tasks, messages, usage and rules."
+  }
+]

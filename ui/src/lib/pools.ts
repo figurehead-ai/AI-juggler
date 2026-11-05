@@ -11,7 +11,7 @@
  */
 import { useEffect, useSyncExternalStore } from "react";
 
-import { onSessionsUpdated, type InstanceInfo } from "./bridge";
+import { onSessionsUpdated, type InstanceInfo, type ProjectInfo } from "./bridge";
 import { NO_PROJECT_POOL_ID, defaultPoolIdOf, poolMembers, poolPlace, poolsList, type PoolInfo, type PoolMemberInfo, type PoolMemberRow, type PoolRole, type PoolsInfo } from "./ipc/pools";
 import { refreshPaged, usePagedList, type PagedList } from "./paged";
 import type { MessageNeedInfo } from "./ipc/messages";
@@ -292,4 +292,23 @@ export function usePoolSheet(): PoolSheetTarget | null {
     },
     () => sheet,
   );
+}
+
+/** A pool's scope in words: "Every project", "ai-juggler", "3 projects". */
+export function scopeLabel(pool: PoolInfo, projects: readonly ProjectInfo[]): string {
+  if (pool.scope_all) return "Every project";
+  const names = pool.scope.map((id) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project")));
+  if (names.length === 0) return "Scope: not set";
+  return names.length <= 2 ? names.join(", ") : `${names.length} projects`;
+}
+
+/** Where a pool you made works, for its header and its card (D-62.16: a
+ * 0.3 pool with no project now says "Every project"; the P9 walk found
+ * the header named only 0.3's one project). A project's own pool says it
+ * in its title instead. */
+export function scopeFacts(pool: PoolInfo, projects: readonly ProjectInfo[]): string | null {
+  if (pool.kind === "default") return null;
+  if (pool.scope_all) return "for every project";
+  if (pool.scope.length === 0) return null;
+  return `for ${scopeLabel(pool, projects)}`;
 }

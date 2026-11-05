@@ -20,7 +20,7 @@ import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolCreate, type PoolInfo } from "../../lib/ipc/pools";
-import { needWords, poolIdsOf, poolNeedCount, roleOf, setPools, usePools } from "../../lib/pools";
+import { needWords, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, usePools } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { editNameOf } from "../../pages/pool/PoolHeader";
 import { NewPool } from "./NewPool";
@@ -186,7 +186,9 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
                   <PoolMini nodes={nodes} placed={placed} />
                   <span className="flex min-w-0 items-baseline gap-2">
                     <span className="truncate text-body font-semibold text-ink">{pool.kind === "default" ? (project?.name ?? "No project") : pool.name}</span>
-                    {pool.kind === "default" && <span className="shrink-0 text-label text-muted">{pool.project_id ? "project pool" : "sessions with no project"}</span>}
+                    <span className="min-w-0 truncate text-label text-muted" data-testid="pool-card-scope">
+                      {pool.kind === "default" ? (pool.project_id ? "project pool" : "sessions with no project") : scopeLabel(pool, projects)}
+                    </span>
                   </span>
                   <span className={"text-meta " + (asks > 0 ? "text-warning" : "text-muted")} data-testid="pool-card-words">
                     {cardWords(pool.members, asks, preview?.moving ?? 0)}

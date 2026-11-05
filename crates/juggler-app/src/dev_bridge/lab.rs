@@ -403,6 +403,9 @@ lab_routes! {
     "session_resume" => commands::session_resume(state; session_id: String);
     "switch_execute" => commands::switch_execute(state; session_id: String, target_profile_id: String, freeze_choice: String, redaction_choice: Option<String>, redaction_unredact: Option<Vec<u32>>, trigger: Option<String>, approved: Option<Vec<String>>, destination: Option<String>, cut: Option<crate::features::switch_cut::SwitchCutArgs>);
     "notifications_send_test" => features::notifications::commands::notifications_send_test(state);
+    // Opening a thread marks it read: the window's own click (the P9 walk
+    // couldn't open a moved 0.3 thread on the read-only bridge).
+    "messages_thread" => features::messages::commands::messages_thread(state; thread_id: String, cursor: Option<String>);
     "messages_answer" => features::messages::commands::messages_answer(state; ask_id: String, answer: String);
     "messages_deliver" => features::messages::commands::messages_deliver(state; message_id: String, recipient: String);
 }
