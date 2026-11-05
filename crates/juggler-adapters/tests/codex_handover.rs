@@ -635,3 +635,85 @@ fn a_member_that_cant_be_placed_leaves_nothing_behind() {
         "the parent placed first was taken back"
     );
 }
+
+/// Through the real switch: copy, verify where each member landed,
+/// launch, then check each source where it truly is (a member in
+/// another day's folder; a packed one decoded), while the parent's
+/// rollout grows after launch.
+#[test]
+fn a_family_across_days_with_a_packed_member_switches_through_the_pipeline() {
+    use juggler_handover::pipeline::{self, FreezeChoice, Mechanism};
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let parent = source_rollout(a.path());
+    child_rollout(a.path(), "2026/10/20", &child_id(1), THREAD);
+    let later = child_rollout(a.path(), "2026/10/21", &child_id(2), &child_id(1));
+    // The grandchild was packed by Codex since.
+    let packed = later.with_extension("jsonl.zst");
+    std::fs::write(
+        &packed,
+        zstd::encode_all(std::fs::read(&later).unwrap().as_slice(), 3).unwrap(),
+    )
+    .unwrap();
+    std::fs::remove_file(&later).unwrap();
+    let adapter = CodexAdapter::new();
+    let (record, _) = pipeline::execute(
+        &adapter,
+        &reference(&parent),
+        &account(b.path()),
+        FreezeChoice::StopNowAndSwitch,
+        Mechanism::Transplant,
+        &mut |_| {
+            use std::io::Write as _;
+            let mut file = std::fs::OpenOptions::new().append(true).open(&parent).unwrap();
+            writeln!(file, "{{\"type\":\"event_msg\",\"payload\":{{\"type\":\"agent_message\",\"message\":\"meanwhile\"}}}}").unwrap();
+            Ok(7)
+        },
+    )
+    .unwrap_or_else(|failure| panic!("the switch failed: {failure} (at {:?})", failure.stage()));
+    assert_eq!(record.installed_hashes.len(), 3);
+    assert!(
+        record
+            .installed_hashes
+            .iter()
+            .all(|row| !row.sha256.is_empty()),
+        "{:#?}",
+        record.installed_hashes
+    );
+    assert!(
+        rollout_for(b.path(), &child_id(2))
+            .is_some_and(|p| p.to_string_lossy().contains("2026/10/21"))
+    );
+}
+
+/// 0.4: an older conversation Codex has packed (`.jsonl.zst`) switches
+/// through the pipeline; its after-launch check decodes the source
+/// instead of looking for an unpacked file beside it.
+#[test]
+fn a_packed_conversation_switches_through_the_pipeline() {
+    use juggler_handover::pipeline::{self, FreezeChoice, Mechanism};
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let plain = source_rollout(a.path());
+    let packed = plain.with_extension("jsonl.zst");
+    std::fs::write(
+        &packed,
+        zstd::encode_all(std::fs::read(&plain).unwrap().as_slice(), 3).unwrap(),
+    )
+    .unwrap();
+    std::fs::remove_file(&plain).unwrap();
+    let adapter = CodexAdapter::new();
+    pipeline::execute(
+        &adapter,
+        &TranscriptRef {
+            path: packed,
+            native_id: Some(THREAD.to_owned()),
+        },
+        &account(b.path()),
+        FreezeChoice::StopNowAndSwitch,
+        Mechanism::Transplant,
+        &mut |_| Ok(7),
+    )
+    .unwrap_or_else(|failure| panic!("the switch failed: {failure} (at {:?})", failure.stage()));
+    assert!(rollout_for(b.path(), THREAD).is_some());
+}

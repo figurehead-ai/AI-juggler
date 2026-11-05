@@ -843,15 +843,21 @@ fn execute_steps(
     if !all_present {
         // S-F4 shape: verification failed after install — remove the
         // staged files (the temp-dir discipline's post-hoc guard).
-        for row in &installed_hashes {
-            let _ = std::fs::remove_file(
-                install
-                    .reference
-                    .path
-                    .parent()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(&row.rel_path),
-            );
+        if install.placed.is_empty() {
+            for row in &installed_hashes {
+                let _ = std::fs::remove_file(
+                    install
+                        .reference
+                        .path
+                        .parent()
+                        .unwrap_or_else(|| Path::new("."))
+                        .join(&row.rel_path),
+                );
+            }
+        } else {
+            for (_, path) in &install.placed {
+                let _ = std::fs::remove_file(path);
+            }
         }
         return Err(SwitchFailure::StagingAborted(
             "installed set did not verify".into(),
@@ -878,15 +884,11 @@ fn execute_steps(
         let (bytes, sha256) = cut
             .as_ref()
             .map_or((row.bytes, &row.sha256), |(n, h)| (*n, h));
-        let path = support.source_file(reference, &row.rel_path);
-        match juggler_adapter::handover::sha256_file(&path, Some(bytes)) {
-            Ok((hash, read)) if read == bytes && &hash == sha256 => {}
-            _ => {
-                return Err(SwitchFailure::StagingAborted(format!(
-                    "source changed during the switch: {}",
-                    row.rel_path
-                )));
-            }
+        if !support.source_unchanged(reference, &row.rel_path, bytes, sha256) {
+            return Err(SwitchFailure::StagingAborted(format!(
+                "source changed during the switch: {}",
+                row.rel_path
+            )));
         }
     }
 
@@ -918,6 +920,20 @@ fn verify_installed(
         .files
         .iter()
         .map(|file| {
+            // ADR-0028: where the install says it placed it, when it says.
+            if let Some((_, placed)) = install.placed.iter().find(|(name, _)| *name == file.name) {
+                let (sha256, bytes) =
+                    juggler_adapter::handover::sha256_file(placed, None).unwrap_or_default();
+                return ManifestRow {
+                    rel_path: placed
+                        .file_name()
+                        .map_or_else(|| file.name.clone(), |n| n.to_string_lossy().into_owned()),
+                    sha256,
+                    bytes,
+                    kind: "transcript".to_owned(),
+                    disposition: if install.forked { "translate" } else { "copy" }.to_owned(),
+                };
+            }
             let name = if install.forked {
                 file.name.replace(
                     &bundle.manifest.native_id,

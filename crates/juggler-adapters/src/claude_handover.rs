@@ -259,6 +259,12 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             return Err(error);
         }
         let _ = std::fs::remove_dir_all(&staging);
+        let placed = bundle
+            .files
+            .iter()
+            .zip(&planned)
+            .map(|(file, (_, to))| (file.name.clone(), to.clone()))
+            .collect();
 
         Ok(InstallOutcome {
             reference: TranscriptRef {
@@ -267,6 +273,7 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             },
             forked: collision,
             target_dir_fallback: fallback,
+            placed,
         })
     }
 

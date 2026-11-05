@@ -207,6 +207,7 @@ impl HandoverSupport for TreeSupport {
             },
             forked: false,
             target_dir_fallback: false,
+            placed: Vec::new(),
         })
     }
 

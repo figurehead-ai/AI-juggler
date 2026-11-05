@@ -42,11 +42,23 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 ///
 /// The file can't be read.
 pub fn sha256_file(path: &Path, limit: Option<u64>) -> std::io::Result<(String, u64)> {
+    sha256_reader(std::fs::File::open(path)?, limit)
+}
+
+/// [`sha256_file`] of any reader (a decoded stream, say): its hash and
+/// how many bytes it read, up to `limit`.
+///
+/// # Errors
+///
+/// The read fails.
+pub fn sha256_reader(
+    reader: impl std::io::Read,
+    limit: Option<u64>,
+) -> std::io::Result<(String, u64)> {
     use std::io::Read as _;
-    let file = std::fs::File::open(path)?;
     let mut reader: Box<dyn std::io::Read> = match limit {
-        Some(limit) => Box::new(file.take(limit)),
-        None => Box::new(file),
+        Some(limit) => Box::new(reader.take(limit)),
+        None => Box::new(reader),
     };
     let mut hasher = Sha256::new();
     let mut buffer = vec![0_u8; 1024 * 1024];
@@ -632,6 +644,11 @@ pub struct InstallOutcome {
     /// The target dir came from the flagged mangle fallback, NOT
     /// discovery — surfaced, never hidden.
     pub target_dir_fallback: bool,
+    /// ADR-0028: where each file of the bundle was placed, by its name
+    /// in the bundle, so the switch checks each where it truly is (a
+    /// family's members can live in other folders, with other ids).
+    /// Empty: beside the transcript, as the tool's own layout has it.
+    pub placed: Vec<(String, PathBuf)>,
 }
 
 /// D-76 (AJ-E211): what a switch leaves out of a very large
@@ -713,6 +730,25 @@ pub trait HandoverSupport: HarnessAdapter {
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join(name)
+    }
+
+    /// Whether the source of the bundle file `name` still starts with
+    /// exactly the `bytes` bytes hashing to `sha256` that were carried
+    /// (copy, never move; a source only grows). Default: the file at
+    /// [`Self::source_file`], read that far. A tool whose source is
+    /// stored otherwise (compressed, elsewhere) checks it its own way.
+    #[must_use]
+    fn source_unchanged(
+        &self,
+        reference: &TranscriptRef,
+        name: &str,
+        bytes: u64,
+        sha256: &str,
+    ) -> bool {
+        matches!(
+            sha256_file(&self.source_file(reference, name), Some(bytes)),
+            Ok((hash, read)) if read == bytes && hash == sha256
+        )
     }
 
     /// What a switch of `reference` to `target` will write, before it

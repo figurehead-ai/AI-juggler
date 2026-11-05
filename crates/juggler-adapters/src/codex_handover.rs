@@ -174,6 +174,59 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
         Ok(bundle)
     }
 
+    /// ADR-0028: a member of the family lives in its own day's folder;
+    /// a packed source (`.jsonl.zst`) is that file, carried unpacked.
+    fn source_file(&self, reference: &TranscriptRef, name: &str) -> PathBuf {
+        let main_thread = reference.native_id.clone().or_else(|| {
+            reference
+                .path
+                .file_name()
+                .and_then(|n| thread_id_from_name(&n.to_string_lossy()))
+        });
+        if thread_id_from_name(name).is_some_and(|thread| Some(&thread) == main_thread.as_ref()) {
+            return reference.path.clone();
+        }
+        let dir = crate::codex_family::sessions_root(&reference.path).map_or_else(
+            || {
+                reference
+                    .path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .to_path_buf()
+            },
+            |root| root.join(dated_folder(name)),
+        );
+        let plain = dir.join(name);
+        let packed = dir.join(format!("{name}.zst"));
+        if plain.exists() || !packed.exists() {
+            plain
+        } else {
+            packed
+        }
+    }
+
+    /// A packed source is decoded to check it; a plain one read as is.
+    fn source_unchanged(
+        &self,
+        reference: &TranscriptRef,
+        name: &str,
+        bytes: u64,
+        sha256: &str,
+    ) -> bool {
+        let path = self.source_file(reference, name);
+        let read = std::fs::File::open(&path).and_then(|file| {
+            if crate::transcript::is_compressed(&path) {
+                juggler_adapter::handover::sha256_reader(
+                    zstd::stream::Decoder::new(file)?,
+                    Some(bytes),
+                )
+            } else {
+                juggler_adapter::handover::sha256_reader(file, Some(bytes))
+            }
+        });
+        matches!(read, Ok((hash, n)) if n == bytes && hash == sha256)
+    }
+
     fn install_bundle(
         &self,
         bundle: &SessionBundle,
@@ -244,7 +297,12 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             .iter()
             .find(|(old, _)| old == old_id)
             .map_or_else(|| old_id.clone(), |(_, new)| new.clone());
-        let final_path = placed.swap_remove(0);
+        let final_path = placed[0].clone();
+        let placed: Vec<(String, PathBuf)> = members
+            .iter()
+            .map(|(member, _)| member.name.clone())
+            .zip(placed)
+            .collect();
         Ok(InstallOutcome {
             reference: TranscriptRef {
                 path: final_path,
@@ -252,6 +310,7 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
             },
             forked: collision,
             target_dir_fallback: false,
+            placed,
         })
     }
 
