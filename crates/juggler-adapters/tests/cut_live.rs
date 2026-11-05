@@ -3,11 +3,18 @@
 //! Ignored, and a no-op unless `AIJ_LAB_PROJECT` (a new, empty folder) and
 //! `AIJ_LAB_CLAUDE` (a lab Claude Code config folder) and/or
 //! `AIJ_LAB_CODEX` (the Codex home) are set. It spends a little usage on
-//! accounts whose owner agreed, and never signs in or reads a credential:
+//! accounts whose owner agreed, and never signs in or reads a credential.
+//!
+//! Run it through `scripts/qa/lab_env.sh`, never straight from a shell:
+//! started inside a Claude Code session, the tools inherit that session's
+//! markers and routing and answer for it, not for the lab account. The
+//! Claude half needs a terminal sign-in in that config folder (the Claude
+//! app's own sign-in is separate; "OAuth session expired" means the folder
+//! has none that works — its owner runs `/login` there once).
 //!
 //! ```sh
-//! env -u CLAUDE_CONFIG_DIR -u CODEX_HOME AIJ_LAB_PROJECT=<new folder> \
-//!   AIJ_LAB_CLAUDE=<lab config folder> AIJ_LAB_CODEX=<codex home> \
+//! AIJ_LAB_PROJECT=<new folder> AIJ_LAB_CLAUDE=<lab config folder> \
+//!   AIJ_LAB_CODEX=<codex home> scripts/qa/lab_env.sh \
 //!   cargo test -p juggler-adapters --test cut_live -- --ignored --nocapture
 //! ```
 //!
