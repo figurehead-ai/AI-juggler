@@ -234,7 +234,7 @@
 
 ## Step 6 — safe edges
 
-### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: IN-PROGRESS (Req.1–3 shipped in 0.3.1 as a bug fix, D-60: the confirm, sessions kept in History instead of the cascade, refused while one is open; Req.4–5, the bin icon and the toast, remain) | Priority P0 | Effort S | Depends: —
+### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: DONE-PENDING-EVIDENCE (Req.1–3 shipped in 0.3.1 as a bug fix, D-60: the confirm, sessions kept in History instead of the cascade, refused while one is open; Req.4–5 in 0.4: the app's own delete icon and the "Deleted" toast; the gallery captures remain) | Priority P0 | Effort S | Depends: —
 **Goal**: Deleting launch settings asks first, says what goes with them, and is refused while a session uses them.
 **User story**: As someone tidying an account, I click the bin beside "Deep work" and am told it has 14 past sessions and one running, instead of losing them in one click.
 **Requirements**:

@@ -11,6 +11,7 @@ import { useState, type JSX } from "react";
 import { CliAppMark } from "../../components/PlaceMarks";
 import { ToolMark } from "../../components/ToolMark";
 import { Button, Chip } from "../../components/primitives";
+import { ActionIcon } from "../../components/ActionIcon";
 import { useItemMenu } from "../../components/ItemMenu";
 import { IconTerminal } from "../../components/icons";
 import { ExpertSetup } from "../../components/ExpertSetup";
@@ -216,9 +217,7 @@ function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnv
             </button>
             <div className="ml-auto flex items-center gap-1">
               <Button size="sm" variant="ghost" title="Delete launch settings" aria-label={`Delete ${launchSettingsName(recipe.name)}`} onClick={() => setDeleting(recipe)} data-testid="recipe-delete">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
-                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
+                <ActionIcon name="delete" size={13} />
               </Button>
               <Button size="sm" variant="primary" disabled={!signedIn(account.login_state)} onClick={() => props.onLaunch(recipe)}>
                 <IconTerminal width={13} height={13} />
