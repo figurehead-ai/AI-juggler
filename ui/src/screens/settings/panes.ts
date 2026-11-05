@@ -9,6 +9,7 @@ import { SETTINGS_INDEX } from "./settings-index";
 export type PaneId =
   | "general"
   | "desktop-apps"
+  | "the-floor"
   | "accounts"
   | "sessions"
   | "switching"
@@ -38,6 +39,8 @@ export interface PaneContext {
 export const PANES: readonly PaneSpec[] = [
   { id: "general", label: "General", tone: "muted" },
   { id: "desktop-apps", label: "Desktop apps", tone: "accent" },
+  // AJ-E3511 (D-78): the Floor's few choices.
+  { id: "the-floor", label: "The Floor", tone: "accent" },
   { id: "accounts", label: "Accounts", tone: "live" },
   { id: "sessions", label: "Sessions", tone: "success" },
   { id: "switching", label: "Switching", tone: "accent" },
@@ -82,6 +85,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   uninstall: { pane: "advanced", anchor: "uninstall" },
   privacy: { pane: "privacy" },
   keyboard: { pane: "keyboard" },
+  floor: { pane: "the-floor" },
+  "the-floor": { pane: "the-floor" },
   shortcuts: { pane: "keyboard" },
   "go-to": { pane: "desktop-apps", anchor: "go-to" },
   "last-messages": { pane: "desktop-apps", anchor: "last-messages" },

@@ -30,7 +30,7 @@ const PEER = {
   connection_detail: null,
 };
 
-const PANES = ["General", "Desktop apps", "Accounts", "Sessions", "Switching", "Agent access", "Notifications", "Privacy", "Keyboard", "Advanced"];
+const PANES = ["General", "Desktop apps", "The Floor", "Accounts", "Sessions", "Switching", "Agent access", "Notifications", "Privacy", "Keyboard", "Advanced"];
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -65,7 +65,7 @@ describe("AJ-E2110 — Settings panes", () => {
     w().__AIJ_FLEET_PEERS__ = [PEER];
     const { getByTestId } = render(<SettingsScreen />);
     await waitFor(() => expect(navNames(getByTestId("settings-nav"))).toContain("Your Macs"));
-    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 8), "Your Macs", "Keyboard", "Advanced"]);
+    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 9), "Your Macs", "Keyboard", "Advanced"]);
   });
 
   it("Agent access (AJ-E1702): always there, every pool's level, and the rules you made", async () => {

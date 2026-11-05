@@ -25,6 +25,8 @@ export const GLOBAL_NAV = [
   { id: "thismac", label: "This Mac" },
   // AJ-E1518: what AI Juggler reads, changes and sends, each line tested.
   { id: "privacy", label: "Privacy" },
+  // AJ-E3512 (D-78): the Floor's facts as an accessible list.
+  { id: "floor", label: "The Floor list" },
 ] as const;
 
 export type GlobalId = (typeof GLOBAL_NAV)[number]["id"];

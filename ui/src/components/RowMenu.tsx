@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type JSX, type MouseEvent, type ReactNode, type SVGProps } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -324,4 +324,18 @@ export function menuPoint(event: MouseEvent<HTMLElement>): MenuAt {
   if (event.type === "click") return { x: box.left, y: box.bottom + 4, above: box.top - 4, right: box.right };
   if (event.detail === 0 || (event.clientX === 0 && event.clientY === 0)) return { x: box.left, y: box.bottom + 4 };
   return { x: event.clientX, y: event.clientY };
+}
+
+/** A menu row's insides: its icon, its words, and a hint at the end (a
+ * count, a time, a shortcut). Menus carry icons; this keeps them alike. */
+export function MenuLine({ icon: Icon, label, hint, danger }: { icon: (props: SVGProps<SVGSVGElement>) => JSX.Element; label: string; hint?: string; danger?: boolean }): JSX.Element {
+  return (
+    <span className="flex items-center gap-2.5">
+      <Icon width={15} height={15} aria-hidden="true" className={"shrink-0 " + (danger ? "text-danger" : "text-muted")} />
+      <span data-label className="min-w-0 flex-1 truncate text-body">
+        {label}
+      </span>
+      {hint && <span className="shrink-0 text-label text-muted">{hint}</span>}
+    </span>
+  );
 }

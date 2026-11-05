@@ -97,6 +97,10 @@ pub enum Msg {
     Reload,
     /// The window closed: stop and let the GPU go.
     Close,
+    /// AJ-E3511: Reset the view (the first floor) — show floor n.
+    ShowFloor(usize),
+    /// AJ-E3512: Show on the Floor — the floor holding this App's area.
+    ShowApp(String),
 }
 
 /// Where a click on `target` leads in the main window (AJ-E3510's door
@@ -418,6 +422,17 @@ impl Running {
         match msg {
             Msg::Close => return false,
             Msg::Reload => self.reload(now),
+            Msg::ShowFloor(floor) => self.driver.show_floor(floor),
+            Msg::ShowApp(app_id) => {
+                let plan = juggler_floor::layout::pack(&self.world.office);
+                if let Some(area) = plan
+                    .areas
+                    .iter()
+                    .find(|area| area.id == app_id && area.annex == 0)
+                {
+                    self.driver.show_floor(area.floor);
+                }
+            }
             Msg::Snapshot(snapshot) => {
                 COUNTERS.snapshots.fetch_add(1, Ordering::Relaxed);
                 self.message_snapshot(snapshot, now);

@@ -25,6 +25,7 @@ type PaneProps = { anchor?: string };
 const PANE_BODIES: Record<PaneId, (props: PaneProps) => JSX.Element> = {
   general: lazyNamed(() => import("./settings/GeneralPane"), "GeneralPane"),
   "desktop-apps": lazyNamed(() => import("./settings/DesktopAppsPane"), "DesktopAppsPane"),
+  "the-floor": lazyNamed(() => import("./settings/FloorPane"), "FloorPane"),
   accounts: lazyNamed(() => import("./settings/AccountsPane"), "AccountsPane"),
   sessions: lazyNamed(() => import("./settings/SessionsPane"), "SessionsPane"),
   switching: lazyNamed(() => import("./settings/SwitchingPane"), "SwitchingPane"),

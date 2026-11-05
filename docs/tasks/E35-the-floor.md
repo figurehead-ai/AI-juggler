@@ -332,7 +332,7 @@
 **Research basis**: the spike's `Target` and click handling.
 **Handover note**: Doors go through the app's own `app://open` (`OpenRequest` gained `app`, `conversation`, `subagents`, `usage` and an `id`); `render::door` is the door table (tested; toys, the cat and floors never navigate); `ui/src/lib/outside.ts` `routeOpen` opens each in the main window (tested). Hover outline, tooltip and a hovered person looking up are in the post pass and the scene. Left: Tab/Shift-Tab between areas, Enter, N; pools' meeting rooms, the whiteboard (tasks) and notice board doors; the recording.
 
-### AJ-E3511 Settings › The Floor, and Re-create | Status: TODO | Priority P0 | Effort S | Depends: AJ-E3503
+### AJ-E3511 Settings › The Floor, and Re-create | Status: DONE | Priority P0 | Effort S | Depends: AJ-E3503
 **Goal**: The Floor's few choices live in one Settings pane, and Re-create says plainly what it will do.
 **User story**: As someone who wants fewer Apps a floor, I set it to 6, and my areas move on in order.
 **Requirements**:
@@ -354,9 +354,9 @@
 **Visual testing**: the pane in both themes, 1024 and 1280.
 **Files to touch**: `ui/src/screens/settings/FloorPane.tsx` (new), `ui/src/screens/settings/panes.ts`, `docs/wireframes/`.
 **Research basis**: SPEC §9.7 Settings.
-**Handover note**: —
+**Handover note**: 2026-11-05. Built to the approved wireframes (D-78). Each choice writes its `floor.*` key through `floor_setting_set` (validated in `features/floor/controls.rs`, then the open Floor reloads); Re-create re-seeds the office in the same order (`floor_recreate`); Reset the view sends the open Floor to floor 1. The Floor button is now a split button whose menu opens the Floor, the list and this pane. Evidence: galleries 99-floor-settings and 99-floor-menu (both themes, 1280 and 1024, axe clean), `docs/qa/evidence/AJ-E3511/timing.json` (opens in 0.5 ms p95 on preview data), vitest `pages/floor/floor-list.test.tsx`.
 
-### AJ-E3512 The Floor list in the main window: the same facts, accessible | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3510, AJ-E3511
+### AJ-E3512 The Floor list in the main window: the same facts, accessible | Status: DONE | Priority P0 | Effort M | Depends: AJ-E3505, AJ-E3510, AJ-E3511
 **Goal**: Everything on the Floor works without seeing the canvas.
 **User story**: As someone using a screen reader or only a keyboard, I get the same facts and the same doors.
 **Requirements**:
@@ -376,7 +376,7 @@
 **Visual testing**: the list, light and dark, 1024 and 1280.
 **Files to touch**: `ui/src/pages/floor/` (new), `ui/src/pages/registry.ts`, `ui/src/lib/ipc/floor.ts`.
 **Research basis**: the round-1 list view in `docs/research/floor/README.md`; SPEC §9.7 Accessible.
-**Handover note**: —
+**Handover note**: 2026-11-05. `ui/src/pages/floor/FloorList.tsx`, reached from the Floor button's menu and the palette ("The Floor list"); grouped by `floor_places` (the Floor's own plan). New waits are said once: sessions AI Juggler runs by the main window's AttentionAnnouncer, desktop apps' conversations by the list's polite region. Req. 3 is the Floor window's title (`Scene::summary`, "Floor 1: 6 Apps, 2 waiting on you"). Evidence: gallery 99-floor-list (axe clean), `docs/qa/evidence/AJ-E3512/timing.json` (150 rows, 10–15 ms p95), `keyboard-walk.md`. Not done: a pass with VoiceOver itself (none is planned before Stable).
 
 ### AJ-E3513 The Floor's gates: a gallery of golden frames, budgets and the other systems | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512
 **Goal**: The canvas has gates as strong as the pages': its frames, its budgets and its builds are checked on every change.

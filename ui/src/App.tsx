@@ -24,7 +24,7 @@ import {
 import { Button, Card } from "./components/primitives";
 import { WorkflowRail, type Freshness } from "./components/WorkflowRail";
 import { paletteSelection } from "./components/PaletteActions";
-const GoToPalette = lazyNamed(() => import("./components/GoToPalette"), "GoToPalette"); // AJ-E2901: out of the first bundle
+const GoToPalette = lazyNamed(() => import("./components/GoToPalette"), "GoToPalette", true); // AJ-E2901: out of the first bundle, fetched first after paint (⌘K is the key used soonest)
 import { routeOpen, useOutsideRequests } from "./lib/outside";
 import { useFloorLogos } from "./lib/floor-logos";
 import { GLOBAL_NAV, PRIMARY_NAV, focusPageIfLost, focusPageSoon, globalId, useSettingsLinks, type GlobalId } from "./lib/nav";
@@ -661,7 +661,7 @@ export default function App() {
         <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 outline-none">
           <OfflineBanner onRetry={() => void refresh()} />
           <div className="min-h-0 flex-1">
-          {global === "projects" || global === "pools" || global === "tasks" ? (
+          {global === "projects" || global === "pools" || global === "tasks" || global === "floor" ? (
             <ScrollingScreen key={global} screen={global} label={GLOBAL_NAV.find((entry) => entry.id === global)!.label}>
               <NavScreen id={global} projects={shownProjects} sessions={sessions} accounts={accounts} loading={!loaded} now={now} onNewProject={() => setNewProjectDir((current) => current ?? "")} />
             </ScrollingScreen>

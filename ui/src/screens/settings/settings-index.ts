@@ -31,6 +31,8 @@ export const SETTINGS_INDEX: readonly IndexEntry[] = [
   { pane: "desktop-apps", anchor: "keep-alive", title: "Your apps", words: "start open keep alive restart profile app relaunch crash" },
   { pane: "desktop-apps", anchor: "last-messages", title: "Last messages", words: "last message preview words read conversations" },
   { pane: "desktop-apps", anchor: "go-to", title: "Going to a session", words: "go to hotkey global key from any app keyboard shortcut bring forward" },
+  { pane: "the-floor", anchor: "floor-opening", title: "Opening", words: "the floor office open when ai juggler starts keep it on top window" },
+  { pane: "the-floor", anchor: "floor-office", title: "The office", words: "the floor apps per floor motion calm full off decay dust reset the view re-create recreate office look layout" },
   { pane: "accounts", anchor: "accounts-page", title: "Accounts and apps", words: "subscription account app profile sign in plan" },
   { pane: "accounts", anchor: "renewal", title: "Renewal dates", words: "renewal billing date renews subscription reminder" },
   { pane: "accounts", anchor: "tools", title: "Tools on this computer", words: "claude code codex cli installed version update tool" },

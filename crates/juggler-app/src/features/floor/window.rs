@@ -207,6 +207,16 @@ pub fn reload(app: &tauri::AppHandle) {
     }
 }
 
+/// Sends an open Floor a message (nothing when it isn't open).
+pub(crate) fn send(app: &tauri::AppHandle, msg: super::render::Msg) {
+    let state = app.state::<Arc<AppState>>();
+    if let Ok(open) = state.floor.window.lock()
+        && let Some(open) = open.as_ref()
+    {
+        let _ = open.tx.send(msg);
+    }
+}
+
 /// ⌘⇧M: from the Floor, back to the main window; otherwise the Floor.
 pub fn toggle(app: &tauri::AppHandle) {
     let floor_in_front = app

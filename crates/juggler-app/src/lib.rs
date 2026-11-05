@@ -564,6 +564,14 @@ macro_rules! app_commands {
             Read  features::floor::commands::floor_snapshot,
             // AJ-E3501: opens the Floor's window (or brings it forward).
             Write features::floor::commands::floor_open,
+            // AJ-E3511, AJ-E3512 (D-78): Settings › The Floor and the Floor list.
+            Read  features::floor::controls::floor_settings,
+            Write features::floor::controls::floor_setting_set,
+            Write features::floor::controls::floor_recreate,
+            Write features::floor::controls::floor_app_hidden_set,
+            Read  features::floor::controls::floor_places,
+            Write features::floor::controls::floor_reset_view,
+            Write features::floor::controls::floor_show_app,
             // AJ-E3508: keeps a floor logo the window drew (a cache entry).
             Write features::floor::commands::floor_logo_put,
             Write features::apps::commands::apps_rename,

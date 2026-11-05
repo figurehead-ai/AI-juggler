@@ -11,8 +11,8 @@
  * getting there first, the one destructive line last.
  */
 import { keysOf } from "../lib/shortcuts";
-import { useEffect, useState, type JSX, type MouseEvent, type SVGProps } from "react";
-import { MenuItem, MenuSeparator, RowMenu } from "./RowMenu";
+import { useEffect, useState, type JSX, type MouseEvent } from "react";
+import { MenuLine as Line, MenuItem, MenuSeparator, RowMenu } from "./RowMenu";
 import { IconShield } from "./icons";
 import { IconBroom, IconComputer } from "./icons-actions";
 import { IconAppearance, IconCloud, IconConnect, IconGear, IconHelp, IconKeyboard, IconLeave, IconUpdate, IconAsk } from "./icons-menu";
@@ -41,18 +41,6 @@ function go(id: string): void {
 
 function settings(section?: string): void {
   window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: section ? { section } : undefined }));
-}
-
-function Line({ icon: Icon, label, hint, danger }: { icon: (props: SVGProps<SVGSVGElement>) => JSX.Element; label: string; hint?: string; danger?: boolean }): JSX.Element {
-  return (
-    <span className="flex items-center gap-2.5">
-      <Icon width={15} height={15} aria-hidden="true" className={"shrink-0 " + (danger ? "text-danger" : "text-muted")} />
-      <span data-label className="min-w-0 flex-1 truncate text-body">
-        {label}
-      </span>
-      {hint && <span className="shrink-0 text-label text-muted">{hint}</span>}
-    </span>
-  );
 }
 
 function Avatar({ initial, size }: { initial: string; size: number }): JSX.Element {

@@ -9,6 +9,7 @@
 //!   (`floor://changed`).
 
 pub mod commands;
+pub mod controls;
 pub mod feed;
 #[cfg(feature = "floor-harness")]
 pub mod harness;
