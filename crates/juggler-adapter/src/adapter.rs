@@ -607,10 +607,13 @@ pub trait HarnessAdapter: Send + Sync {
         false
     }
 
-    /// Whether the tool's own default folder holds its sign-in, so a
-    /// process given that folder signs in with nothing from outside it (a
-    /// file there, not the login Keychain). Default: false. The test
-    /// bridge's lab uses it (ADR-0027 condition 7).
+    /// Whether the tool signs in from its own folder: given that folder
+    /// (its folder variable set to it), it uses that folder's sign-in and
+    /// no other (Codex's `auth.json`, or its Keychain entry for that folder
+    /// when it's set to keep it there), never the default sign-in an unset
+    /// variable would pick (Claude Code's login Keychain item). Default:
+    /// false. The test bridge's lab uses it (ADR-0027 condition 7); a new
+    /// `true` needs its own ruling (a test pins the set).
     fn default_folder_holds_sign_in(&self) -> bool {
         false
     }

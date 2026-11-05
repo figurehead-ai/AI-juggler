@@ -594,6 +594,26 @@ mod tests {
         }
     }
 
+    /// Condition 7 names only the tools a ruling allowed: the adapters that
+    /// say their folder holds their sign-in are exactly these (a new one
+    /// is a reviewed change, not a silent opt-in).
+    #[test]
+    fn only_the_ruled_tools_can_be_adopted() {
+        let registry = crate::state::default_registry();
+        let mut adoptable: Vec<String> = registry
+            .ids()
+            .into_iter()
+            .filter(|id| {
+                registry
+                    .get(id)
+                    .is_some_and(|adapter| adapter.default_folder_holds_sign_in())
+            })
+            .map(|id| id.to_string())
+            .collect();
+        adoptable.sort();
+        assert_eq!(adoptable, ["codex"]);
+    }
+
     /// Condition 7: a lab, and a stand-in for the real home with the
     /// tool's folder in it (both under /tmp, removed after).
     fn adopt_case(tag: &str) -> (Lab, Lab) {
