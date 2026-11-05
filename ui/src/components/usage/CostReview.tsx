@@ -34,7 +34,8 @@ export function CostReview({ onClose, now = Date.now(), firstDay = firstDayOfWee
   const exportWeek = () => void costCsvExport(undefined, { fromMs: week.start, toMs: week.end }).then(setCsv, (cause: unknown) => setCsv(`Couldn't write the CSV: ${errorText(cause)}`));
   return (
     <Modal title="Last week's cost review" subtitle={`${weekWords(week.start, week.end)}, against the week before`} table onClose={onClose} testId="cost-review">
-      <div className="@container flex flex-col gap-grid overflow-y-auto" data-testid="cost-review-body">
+      {/* Opens at its top: focus starts on the body, not on the table's first button. */}
+      <div className="@container flex flex-col gap-grid overflow-y-auto outline-none" tabIndex={-1} data-autofocus data-testid="cost-review-body">
         {empty ? (
           <p className="rounded-xl border border-hairline px-4 py-5 text-center text-body text-ink-2" data-testid="cost-review-empty">
             No usage in that week.

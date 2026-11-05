@@ -195,7 +195,8 @@ export function PagedList<T>({
   const shownRows = items.slice(from, to);
   const total = list.total ?? items.length;
   return (
-    <div ref={box} className={className} style={maxHeight !== undefined ? { maxHeight, overflowY: "auto" } : undefined} data-testid={testId} data-stale={list.stale ? "true" : undefined}>
+    // A box that scrolls on its own can be reached by keyboard, even when its rows hold nothing focusable (WCAG 2.1.1).
+    <div ref={box} className={className} style={maxHeight !== undefined ? { maxHeight, overflowY: "auto" } : undefined} {...(maxHeight !== undefined ? { tabIndex: 0, role: "region", "aria-label": label } : {})} data-testid={testId} data-stale={list.stale ? "true" : undefined}>
       <ul ref={listRef} aria-label={label} aria-busy={list.stale || loadingMore ? "true" : undefined} className="overflow-hidden rounded-xl border border-hairline bg-surface" onKeyDown={onKeyDown} style={{ paddingTop: offsets[from], paddingBottom: totalHeight - offsets[to]! }}>
         {shownRows.map((row, i) => {
           const index = from + i;
