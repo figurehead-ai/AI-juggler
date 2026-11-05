@@ -227,6 +227,7 @@ export function SwitchFlow({
       space={space}
       onSpaceAgain={recheckSpace}
       carry={<CarryChoice state={carry} />}
+      turnsLeftOut={carry.args ? (carry.info?.turns_left_out ?? 0) : 0}
       // One screen: the keys question (when it applies) is asked here.
       extra={preflight.door === "one-click" && preflight.secrets.asks ? keys(preflight) : undefined}
     />

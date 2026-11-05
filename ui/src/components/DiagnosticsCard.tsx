@@ -130,7 +130,7 @@ function ResponseTimes(): JSX.Element {
   const [slow, setSlow] = useState<SlowCall[]>([]);
   const read = () => (setRows(commandTimings().slice(0, 12)), setSlow(slowCalls().slice(0, 8)));
   return (
-    <Disclosure summary="Backend response times" testId="diagnostics-timings" onToggle={(open) => open && read()}>
+    <Disclosure summary="How fast AI Juggler answers" testId="diagnostics-timings" onToggle={(open) => open && read()}>
       <div className="mt-2 flex flex-col gap-2 text-label">
         <p className="text-ink-2">
           Since AI Juggler started: each backend call&apos;s slowest and latest time. Calls over {SLOW_MS} ms are listed below. Names and times only.

@@ -362,7 +362,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
     started_at_ms: Date.now() - 86_400_000,
     last_activity_ms: Date.now() - 80_000_000,
     machine_id: "this-mac",
-    cwd: "/Users/dev/ai-juggler",
+    cwd: "/Users/dev/payments-api",
     kind: "terminal",
     isolation_label: null,
     project_id: "proj-payments",
@@ -393,7 +393,7 @@ export const MOCK_SESSIONS: InstanceInfo[] = seeded.sessions ?? [
     started_at_ms: Date.now() - 43_200_000,
     last_activity_ms: Date.now() - 600_000,
     machine_id: "this-mac",
-    cwd: "/Users/dev/ai-juggler",
+    cwd: "/Users/dev/payments-api",
     kind: "terminal",
     isolation_label: null,
     project_id: "proj-payments",
@@ -924,8 +924,9 @@ export async function launchSession(
     }
   }
   if (!hasBackend) {
-    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[] };
+    const seams = window as unknown as { __AIJ_LAUNCH_CALLS__?: string[]; __AIJ_LAUNCH_CWDS__?: (string | null)[] };
     seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), recipe];
+    seams.__AIJ_LAUNCH_CWDS__ = [...(seams.__AIJ_LAUNCH_CWDS__ ?? []), directory];
     return null; // preview mode: nothing really launches
   }
   return invoke<{ session_id: string; pid: number }>("launch_session", {

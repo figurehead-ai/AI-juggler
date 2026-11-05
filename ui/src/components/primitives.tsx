@@ -9,7 +9,7 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
  * carry a quiet accent glow, live elements breathe.
  */
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md";
 
 /** The primary's fill (0.3.2, D-62 decision 23: one solid colour), for
@@ -18,6 +18,10 @@ export const PRIMARY_FILL = "border border-accent-hi/40 bg-accent-fill text-whit
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary: `${PRIMARY_FILL} active:translate-y-px shadow-glow-accent`,
+  // An app-wide action that's always there (the top bar's New session, as
+  // the rail's): tinted, so a page's own primary is the one filled button
+  // (principle 9).
+  accent: "border border-accent/30 bg-accent-soft text-accent-hi hover:border-accent/50 hover:bg-accent/15 active:translate-y-px",
   secondary:
     "bg-surface-2 text-ink border border-hairline hover:bg-surface-3 \
      hover:border-muted/30 active:translate-y-px",

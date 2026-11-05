@@ -7,7 +7,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { FloorList, GLYPH, groups, summary } from "./FloorList";
+import { FloorList, GLYPH, groups, summary, waitingFirst } from "./FloorList";
 import { FloorPane } from "../../screens/settings/FloorPane";
 import { FloorButton } from "../../components/FloorButton";
 import type { FloorApp, FloorSnapshot } from "../../lib/ipc/floor";
@@ -47,6 +47,7 @@ describe("AJ-E3512 the Floor list", () => {
     expect(list.map((g) => [g.floor, g.apps.map((a) => a.id)])).toEqual([[0, ["a", "b"]], [1, ["c"]]]);
     expect(summary(list)).toBe("2 floors · 3 Apps · 1 waiting on you");
     expect(GLYPH.asks).toBe("!");
+    expect(waitingFirst(SNAPSHOT.apps[1]!.sessions.slice().reverse()).map((s) => s.key)).toEqual(["s1", "s2"]);
   });
 
   it("shows each state as a glyph and a word, and says a new wait once", async () => {

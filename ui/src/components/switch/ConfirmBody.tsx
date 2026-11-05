@@ -60,6 +60,7 @@ export function ConfirmBody({
   space = null,
   onSpaceAgain,
   carry,
+  turnsLeftOut,
 }: {
   preflight: PreflightInfoData;
   target: string;
@@ -86,6 +87,8 @@ export function ConfirmBody({
   onSpaceAgain?: () => void;
   /** D-76: leaving out the start of a very long conversation. */
   carry?: ReactNode;
+  /** Turns the carry choice leaves out (D-76), for the summary's words. */
+  turnsLeftOut?: number;
 }): JSX.Element {
   const where = whereWords(destination, preflight);
   const outside = preflight.source_outside ? { app: preflight.source_app ?? null, target, where } : null;
@@ -107,7 +110,7 @@ export function ConfirmBody({
       <WhereChoice preflight={preflight} value={destination} onChange={onDestination} />
 
       <div className="flex flex-col gap-2" data-testid="switch-summary">
-        <CarrySummary items={preflight.carry_items ?? []} target={target} tool={tool} setup={setup} picked={picked} />
+        <CarrySummary items={preflight.carry_items ?? []} target={target} tool={tool} setup={setup} picked={picked} turnsLeftOut={turnsLeftOut} />
         <DiskSpace space={space} onCheckAgain={onSpaceAgain} />
         {carry}
         <p className="text-body text-ink-2" data-testid={outside ? "switch-outside" : preflight.source_keeps_running ? "switch-keeps-running" : "switch-original"}>

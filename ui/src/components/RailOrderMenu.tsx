@@ -45,11 +45,13 @@ export function RailOrderMenu(): JSX.Element {
         aria-haspopup="menu"
         aria-expanded={at !== null}
         aria-label={`Open now's order: ${label}`}
+        title={`Order: ${label}`}
         data-testid="rail-order-button"
         onClick={(event) => setAt(menuPoint(event))}
         className="flex min-h-6 min-w-0 items-center gap-1 rounded-md px-1.5 text-label font-medium text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
-        <span className="truncate">{label}</span>
+        {/* A narrow rail keeps just the ▾ (its name still says the order). */}
+        <span className="hidden truncate @[15rem]:inline">{label}</span>
         <svg aria-hidden="true" width="8" height="8" viewBox="0 0 10 10" className="shrink-0">
           {/* A filled ▾ (a menu), unlike the fold chevron beside it. */}
           <path d="M2 3.5 H8 L5 7 Z" fill="currentColor" />

@@ -14,7 +14,7 @@ export function RecreateSheet({ example, onCancel, onConfirm }: { example: strin
       <dl className="flex flex-col gap-3 text-body" data-modal-body>
         <div className="flex flex-col gap-0.5">
           <dt className="text-meta font-semibold text-ink">Changes</dt>
-          <dd className="text-ink-2">Each area's floor, walls, desks, nook and layout, chosen again within its tool's style.</dd>
+          <dd className="text-ink-2">Each area's floor, walls, desks, corner and layout, chosen again within its tool's style.</dd>
         </div>
         <div className="flex flex-col gap-0.5">
           <dt className="text-meta font-semibold text-ink">Stays</dt>

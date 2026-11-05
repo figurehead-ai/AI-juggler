@@ -82,7 +82,7 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
           control={<Segmented label="Motion" value={(settings?.motion ?? "system") as Motion} segments={MOTIONS} onChange={(value) => set("floor.motion", value)} testId="floor-motion-choice" />}
         />
         <SwitchRow
-          title="Show unused Apps' decay"
+          title="Unused Apps gather dust"
           description="An App unused for a week gathers dust and boxes; after a month its lights go off. Off: it only dims."
           checked={settings?.decay ?? true}
           disabled={!settings}

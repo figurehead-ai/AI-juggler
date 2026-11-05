@@ -66,7 +66,7 @@ export function AppHeader({
           <MachineStatusLine minimal={false} short onOpen={onOpenThisMac} />
         </span>
         <CleanupPill count={cleanupCount} shown={global !== "cleanup"} onOpen={() => onPick("cleanup")} />
-        <Button size="sm" variant="primary" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1 shrink-0">
+        <Button size="sm" variant="accent" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1 shrink-0">
           <IconTerminal width={14} height={14} />
           New session
         </Button>

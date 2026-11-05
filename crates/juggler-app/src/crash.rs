@@ -144,20 +144,6 @@ pub fn effective(state: &AppState) -> String {
     }
 }
 
-/// Folders outside home that say nothing about the person (the system's
-/// and installed apps'): a path in them is kept, it helps a bug report.
-const SYSTEM_ROOTS: &[&str] = &[
-    "/Applications/",
-    "/System/",
-    "/Library/",
-    "/usr/",
-    "/bin/",
-    "/sbin/",
-    "/opt/",
-    "/etc/",
-    "/dev/",
-];
-
 /// `word` with a personal path outside home (a temporary folder, another
 /// disk, another user's folder) as `[path]`, keeping what's around it
 /// (`"/var/…/shop:` → `"[path]:`). A path with a space in it is cut at the
@@ -182,7 +168,11 @@ fn without_outside_path(word: &str) -> Option<String> {
         .len();
     let (path, rest) = path.split_at(end);
     // A bare "/" or a short fragment ("/s", a fraction) isn't a place.
-    if path.matches('/').count() < 2 || SYSTEM_ROOTS.iter().any(|root| path.starts_with(root)) {
+    if path.matches('/').count() < 2
+        || juggler_platform::system::system_roots()
+            .iter()
+            .any(|root| path.starts_with(root))
+    {
         return None;
     }
     Some(format!("{lead}[path]{rest}"))

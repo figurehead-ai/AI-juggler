@@ -14,6 +14,7 @@ import { floorOpen, floorSnapshot, onFloorChanged, type FloorApp, type FloorSess
 import { floorPlaces, floorShowApp, type FloorPlaceInfo } from "../../lib/ipc/floor-controls";
 import { agoWords } from "../../lib/time-words";
 import { useKeys } from "../../lib/use-keys";
+import { openApp } from "../../lib/apps";
 
 /** Each state's glyph (decoration: the word beside it says the same). */
 export const GLYPH: Record<FloorState, string> = { asks: "!", working: "▸", stuck: "?", limit: "⏸", crashed: "✕", done: "✓", idle: "·", ended: "–" };
@@ -36,6 +37,12 @@ export function groups(snapshot: FloorSnapshot, places: FloorPlaceInfo[]): Floor
     out.set(floor, [...(out.get(floor) ?? []), app]);
   }
   return [...out.entries()].sort((a, b) => a[0] - b[0]).map(([floor, apps]) => ({ floor, apps }));
+}
+
+/** An App's sessions, those waiting on you first, each group in the
+ * Floor's own order (principle 11: what needs you leads). */
+export function waitingFirst(sessions: FloorSession[]): FloorSession[] {
+  return [...sessions.filter((s) => WAITING.includes(s.state)), ...sessions.filter((s) => !WAITING.includes(s.state))];
 }
 
 /** "2 floors · 7 Apps · 3 waiting on you". */
@@ -139,7 +146,11 @@ export function FloorList(): JSX.Element {
                 <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-md bg-accent-soft text-label font-semibold text-accent-hi">
                   {app.initials}
                 </span>
-                <h4 className="text-body font-semibold text-ink">{app.name}</h4>
+                <h4 className="text-body font-semibold text-ink">
+                  <button type="button" onClick={() => openApp(app.id)} className="rounded text-left outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" title={`Open ${app.name}'s page`}>
+                    {app.name}
+                  </button>
+                </h4>
                 <span className="text-meta capitalize text-muted">{app.family}</span>
                 <span className="ml-auto text-meta text-ink-2">{accountWords(app, snapshot!, now)}</span>
               </div>
@@ -177,7 +188,7 @@ export function FloorList(): JSX.Element {
                       </tr>
                     </thead>
                     <tbody>
-                      {app.sessions.map((session) => (
+                      {waitingFirst(app.sessions).map((session) => (
                         <SessionRow key={session.key} session={session} onShow={() => show(app.id)} />
                       ))}
                     </tbody>

@@ -48,11 +48,11 @@ export function DebugModeSection(): JSX.Element {
       footer="On this computer only, readable by you only. It goes with a bug report only when you choose to send it."
     >
       {info === null ? (
-        <SettingRow title="Debug mode" description={error ?? "Reading…"} testId="debug-loading" />
+        <SettingRow title="Keep a detailed log" description={error ?? "Reading…"} testId="debug-loading" />
       ) : (
         <>
           <SwitchRow
-            title="Debug mode"
+            title="Keep a detailed log"
             description={debugWords(info)}
             checked={info.on}
             onChange={(on) => act(() => debugModeSet(on), on ? "On for seven days." : "Off. The log stays until you clear it.")}

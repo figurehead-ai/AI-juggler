@@ -41,7 +41,7 @@ export function RailLink({ onClick, testId, expanded, children }: { onClick: () 
 export function SectionHead({ id, count, open, onToggle, extra }: { id: SectionId; count: number; open: boolean; onToggle: () => void; extra?: ReactNode }): JSX.Element {
   const { label, tone, Icon, testId } = SECTION[id];
   return (
-    <div className="relative flex h-[30px] items-end px-0.5">
+    <div className="@container relative flex h-[30px] items-end px-0.5">
       <h3 className={"flex min-w-0 flex-1 text-meta font-semibold " + tone} data-testid={testId}>
         <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
           <Icon width={13} height={13} aria-hidden="true" />

@@ -14,6 +14,46 @@
 //!   needs an icon drawn per count — not built yet. Linux has no common
 //!   launcher badge — not built yet. Each "not yet" says so plainly.
 
+/// Folders outside the home folder that say nothing about the person
+/// (the system's own and installed apps'): a path in them is kept in a
+/// bug report or log, where a personal one outside home is scrubbed.
+#[must_use]
+pub const fn system_roots() -> &'static [&'static str] {
+    if cfg!(target_os = "macos") {
+        &[
+            "/Applications/",
+            "/System/",
+            "/Library/",
+            "/usr/",
+            "/bin/",
+            "/sbin/",
+            "/opt/",
+            "/etc/",
+            "/dev/",
+        ]
+    } else if cfg!(target_os = "windows") {
+        &[
+            "C:\\Windows\\",
+            "C:\\Program Files\\",
+            "C:\\Program Files (x86)\\",
+            "C:\\ProgramData\\",
+        ]
+    } else {
+        &[
+            "/usr/",
+            "/bin/",
+            "/sbin/",
+            "/opt/",
+            "/etc/",
+            "/dev/",
+            "/lib/",
+            "/lib64/",
+            "/snap/",
+            "/nix/store/",
+        ]
+    }
+}
+
 /// The noun this system's vendor uses for this computer, singular and
 /// plural: what copy says after "this" ("On this Mac", "My Macs").
 #[must_use]

@@ -9,6 +9,7 @@
 import { useEffect, useState, type JSX } from "react";
 
 import { IconFloor } from "./icons-places";
+import { IconChevronDown } from "./icons-controls";
 import { showToast } from "./Toast";
 import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { IconPage } from "./icons-actions";
@@ -41,10 +42,10 @@ export function FloorButton(): JSX.Element {
         aria-haspopup="menu"
         aria-expanded={at !== null}
         onClick={(event) => setAt(at ? null : menuPoint(event))}
-        className={`${PART} w-6 rounded-r-lg text-[10px]`}
+        className={`${PART} w-6 rounded-r-lg border-l-hairline/70`}
         data-testid="floor-menu-button"
       >
-        <span aria-hidden="true">▾</span>
+        <IconChevronDown width={12} height={12} aria-hidden="true" />
       </button>
       {at && (
         <RowMenu heading="" ariaLabel="The Floor" at={at} minWidth={220} testId="floor-menu" onClose={close}>
