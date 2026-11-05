@@ -84,3 +84,18 @@ describe("AJ-E2912 — Debug mode", () => {
     expect(debugWords({ on: true, until_ms: Date.UTC(2026, 10, 11), bytes: 0, lines: 0 })).toMatch(/^On until/);
   });
 });
+
+describe("AJ-E2911 — from an error", () => {
+  it("an error toast with no action of its own offers Report a bug with its words", async () => {
+    const { ToastHost, showToast, resetToasts } = await import("./Toast");
+    const { useReportBug } = await import("../lib/report-bug");
+    const { renderHook } = await import("@testing-library/react");
+    resetToasts();
+    const asked = renderHook(() => useReportBug());
+    const view = render(<ToastHost />);
+    act(() => void showToast({ tone: "error", message: "The session couldn't start.", detail: "claude exited with code 1" }));
+    act(() => fireEvent.click(view.getByRole("button", { name: "Report a bug…" })));
+    expect(asked.result.current).toMatchObject({ from: "error", words: "The session couldn't start.", detail: "claude exited with code 1" });
+    resetToasts();
+  });
+});

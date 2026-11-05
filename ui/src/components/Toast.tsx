@@ -21,6 +21,7 @@
  *   (or rests on the page itself, `<main>`).
  */
 import { errorText } from "../lib/bridge";
+import { openReportBug } from "../lib/report-bug";
 
 export interface ToastUndo {
   /** Puts things back. A rejection keeps the toast up, saying so. */
@@ -151,7 +152,13 @@ async function settle(id: string): Promise<void> {
 }
 
 /** Shows a toast; returns its id. */
-export function showToast(options: ToastOptions): string {
+export function showToast(given: ToastOptions): string {
+  // AJ-E2911: a failure with no action of its own offers Report a bug,
+  // with what it said (shown in full before anything goes).
+  const options: ToastOptions =
+    given.tone === "error" && !given.action && !given.undo
+      ? { ...given, action: { label: "Report a bug…", run: () => openReportBug({ from: "error", words: given.message, detail: given.detail ?? null }) } }
+      : given;
   counter += 1;
   const id = options.id ?? `toast-${counter}`;
   const seconds = options.undo ? (options.undo.seconds ?? 5) : (options.seconds ?? TOAST_SECONDS);
