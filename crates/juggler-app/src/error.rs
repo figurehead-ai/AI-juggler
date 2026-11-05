@@ -127,6 +127,10 @@ pub struct ErrorWire {
     pub retryable: bool,
     /// The human-facing message (curated context, not a raw OS error).
     pub user_message: String,
+    /// 0.3.9: what happened in the program's own words, for "Copy details"
+    /// (a switch that stopped); never shown on its own.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
 }
 
 impl AppError {
@@ -146,15 +150,9 @@ impl AppError {
             Self::AlreadyImported { .. } => ("already_imported".to_owned(), false),
             Self::Refused(_) => ("refused".to_owned(), false),
             Self::IdentityMismatch { .. } => ("identity_mismatch".to_owned(), false),
-            // Every switch failure leaves the original resumable; only a
-            // conversation that's gone can't be tried again.
-            Self::Switch { failure, .. } => (
-                "switch_failed".to_owned(),
-                !matches!(
-                    **failure,
-                    juggler_handover::pipeline::SwitchFailure::OriginalSessionGone
-                ),
-            ),
+            // Every switch failure leaves the original resumable; Retry
+            // only where trying again can work (0.3.9).
+            Self::Switch { failure, .. } => ("switch_failed".to_owned(), failure.retryable()),
         };
         ErrorWire {
             code,
@@ -162,8 +160,30 @@ impl AppError {
             // D-25: plain words, from one place; the program's own text
             // goes to the error log (`serialize`).
             user_message: crate::error_words::user_words(self),
+            detail: match self {
+                Self::Switch { failure, .. } => Some(without_home(&format!(
+                    "{} (at {:?})",
+                    failure,
+                    failure.stage()
+                ))),
+                _ => None,
+            },
         }
     }
+}
+
+/// `text` with the home folder written `~`, as a path and as Claude's
+/// folder name for it (`-Users-you-…`): what Copy details copies may go
+/// into a public bug report, and the user's name shouldn't.
+fn without_home(text: &str) -> String {
+    let Some(home) = dirs::home_dir().map(|home| home.display().to_string()) else {
+        return text.to_owned();
+    };
+    if home.len() < 2 {
+        return text.to_owned();
+    }
+    text.replace(&home, "~")
+        .replace(&home.replace('/', "-"), "~")
 }
 
 /// Commands hand the coded wire to the webview (AJ-E301 Req.4).

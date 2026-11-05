@@ -608,14 +608,22 @@ fn build_bundle(
             provider_id: account.harness.to_string(),
             native_id: bundle.manifest.native_id.clone(),
             harness_version: version,
+            // A large file is held whole to cross to the other Mac, up to
+            // the one-message limit; past it the switch says so.
             files: bundle
                 .files
-                .into_iter()
-                .map(|file| proto::BundleFile {
-                    name: file.name,
-                    content: file.bytes,
+                .iter()
+                .map(|file| {
+                    Ok(proto::BundleFile {
+                        name: file.name.clone(),
+                        content: file.load(juggler_adapters::transcript::SESSION_FILE_MAX)?,
+                    })
                 })
-                .collect(),
+                .collect::<std::io::Result<_>>()
+                .map_err(|error| AppError::Io {
+                    context: "carry the session to the other computer",
+                    message: error.to_string(),
+                })?,
             turns: Vec::new(),
             delta_turn: String::new(),
         })

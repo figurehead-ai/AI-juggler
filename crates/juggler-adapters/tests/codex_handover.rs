@@ -334,3 +334,109 @@ fn a_compressed_rollout_travels_decompressed() {
     assert_eq!(std::fs::read(&outcome.reference.path).unwrap(), original);
     assert!(compressed.is_file(), "the source is untouched");
 }
+
+/// The fixture grown past what a bundle holds in memory, with a
+/// compaction partway: Codex rollouts on the maintainer's Mac reach
+/// 7.6 GB plain and 496 MB compressed.
+fn large_rollout(home: &Path) -> PathBuf {
+    use std::io::Write as _;
+    let path = source_rollout(home);
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .unwrap();
+    let filler = "w".repeat(1000);
+    for n in 0..36_000 {
+        if n == 18_000 {
+            writeln!(file, r#"{{"timestamp":"2026-10-20T09:00:00Z","type":"compacted","payload":{{"message":"summary"}}}}"#).unwrap();
+        }
+        writeln!(file, r#"{{"timestamp":"2026-10-20T09:00:01Z","type":"event_msg","payload":{{"type":"agent_message","message":"{filler} {n} {THREAD}"}}}}"#).unwrap();
+    }
+    assert!(std::fs::metadata(&path).unwrap().len() > juggler_adapter::handover::INLINE_MAX);
+    path
+}
+
+/// 0.3.9: a rollout past the in-memory limit travels as a frozen copy:
+/// its first lines still name its thread, folder and version, its
+/// compaction still caps the label, it lands byte-identical, forks line by
+/// line, and its frozen copy goes with the bundle.
+#[test]
+fn a_rollout_too_large_for_memory_travels_whole() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let small = CodexAdapter::new()
+        .bundle_session(&reference(&source_rollout(&a.path().join("small"))))
+        .unwrap();
+    let source = large_rollout(&a.path().join("large"));
+    let (hash, _) = juggler_adapter::handover::sha256_file(&source, None).unwrap();
+    let bundle = CodexAdapter::new()
+        .bundle_session(&reference(&source))
+        .unwrap();
+    assert!(bundle.files[0].on_disk.is_some(), "it travels on disk");
+    assert_eq!(bundle.manifest.cwd, small.manifest.cwd);
+    assert_eq!(
+        bundle.manifest.harness_version,
+        small.manifest.harness_version
+    );
+    assert_eq!(
+        bundle.manifest.fidelity.level, "F2",
+        "its compaction is seen"
+    );
+    let scratch = bundle.scratch.as_ref().unwrap().path().to_path_buf();
+
+    let target = account(b.path());
+    let first = CodexAdapter::new()
+        .install_bundle(&bundle, &target)
+        .unwrap();
+    assert_eq!(
+        juggler_adapter::handover::sha256_file(&first.reference.path, None)
+            .unwrap()
+            .0,
+        hash
+    );
+    let second = CodexAdapter::new()
+        .install_bundle(&bundle, &target)
+        .unwrap();
+    assert!(second.forked);
+    let new_id = second.reference.native_id.clone().unwrap();
+    let forked = std::fs::read_to_string(&second.reference.path).unwrap();
+    assert!(!forked.contains(THREAD));
+    assert!(forked.matches(new_id.as_str()).count() >= 36_000);
+    drop(bundle);
+    assert!(!scratch.exists(), "the frozen copy goes with the bundle");
+}
+
+/// 0.3.9: a large compressed rollout is decompressed as a stream onto
+/// disk, never into memory, and lands as the plain rollout.
+#[test]
+fn a_large_compressed_rollout_travels_decompressed_on_disk() {
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let plain = large_rollout(a.path());
+    let (hash, _) = juggler_adapter::handover::sha256_file(&plain, None).unwrap();
+    let compressed = plain.with_file_name(format!(
+        "{}.zst",
+        plain.file_name().unwrap().to_string_lossy()
+    ));
+    let mut encoder =
+        zstd::stream::Encoder::new(std::fs::File::create(&compressed).unwrap(), 3).unwrap();
+    std::io::copy(&mut std::fs::File::open(&plain).unwrap(), &mut encoder).unwrap();
+    encoder.finish().unwrap();
+    std::fs::remove_file(&plain).unwrap();
+
+    let bundle = CodexAdapter::new()
+        .bundle_session(&reference(&compressed))
+        .unwrap();
+    assert!(bundle.files[0].name.ends_with(".jsonl"));
+    assert!(bundle.files[0].on_disk.is_some());
+    let outcome = CodexAdapter::new()
+        .install_bundle(&bundle, &account(b.path()))
+        .unwrap();
+    assert_eq!(
+        juggler_adapter::handover::sha256_file(&outcome.reference.path, None)
+            .unwrap()
+            .0,
+        hash
+    );
+    assert!(compressed.is_file(), "the source is untouched");
+}

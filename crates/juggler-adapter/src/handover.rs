@@ -13,6 +13,7 @@
 //! target directory from `cwd`.
 
 use std::collections::BTreeSet;
+use std::io::{BufRead as _, Read as _, Seek as _, SeekFrom, Write as _};
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
@@ -28,7 +29,40 @@ use juggler_core::model::{Timestamp, TranscriptRef};
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    let digest = hasher.finalize();
+    hex(&hasher.finalize())
+}
+
+/// sha256 hex of `path`'s first `limit` bytes (all of it with `None`),
+/// streamed, and how many bytes it hashed. A transcript only grows at its
+/// end, so "the source still starts with what was carried" is this over
+/// the carried length (0.3.9: a conversation still open in its app keeps
+/// writing while it is switched).
+///
+/// # Errors
+///
+/// The file can't be read.
+pub fn sha256_file(path: &Path, limit: Option<u64>) -> std::io::Result<(String, u64)> {
+    use std::io::Read as _;
+    let file = std::fs::File::open(path)?;
+    let mut reader: Box<dyn std::io::Read> = match limit {
+        Some(limit) => Box::new(file.take(limit)),
+        None => Box::new(file),
+    };
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0_u8; 1024 * 1024];
+    let mut total = 0_u64;
+    loop {
+        let read = reader.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        total += read as u64;
+        hasher.update(&buffer[..read]);
+    }
+    Ok((hex(&hasher.finalize()), total))
+}
+
+fn hex(digest: &[u8]) -> String {
     let mut out = String::with_capacity(64);
     for byte in digest {
         use std::fmt::Write as _;
@@ -37,15 +71,470 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     out
 }
 
-/// One file inside a [`SessionBundle`] (bytes in memory; bundles are
-/// bounded by the session set, streamed by callers when huge).
+/// Above this many bytes a file travels as a frozen copy on disk, never
+/// in memory (0.3.9: a long Claude app conversation's transcript passed
+/// 800 MB, and a cap that refused it made the switch fail every time).
+pub const INLINE_MAX: u64 = 32 * 1024 * 1024;
+
+/// How much of a large transcript's start is read for what its first
+/// lines say (its `cwd`, a rollout's `session_meta`).
+pub const HEAD_BYTES: usize = 8 * 1024 * 1024;
+
+/// What a switch leaves free on any disk it writes to: it stops before it
+/// would fill one (a full startup disk can stop the whole computer).
+pub const DISK_RESERVE: u64 = 4_000_000_000;
+
+/// [`DISK_RESERVE`] in words, as disks count it (decimal, as Finder).
+pub const DISK_RESERVE_WORDS: &str = "4 GB";
+
+/// Refuses a write of `bytes` into `dir` that would leave its disk with
+/// less than [`DISK_RESERVE`] free.
+///
+/// # Errors
+///
+/// [`std::io::ErrorKind::StorageFull`], saying how much room it needs.
+pub fn ensure_room(dir: &Path, bytes: u64) -> std::io::Result<()> {
+    // A system that can't say (not yet on Windows): the guarded writer's
+    // own checks are all there is.
+    let Ok(free) = juggler_platform::room::free_space(dir) else {
+        return Ok(());
+    };
+    let needed = bytes.saturating_add(DISK_RESERVE);
+    if free >= needed {
+        return Ok(());
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::StorageFull,
+        format!(
+            "not enough free space: needs {} MB more",
+            (needed - free).div_ceil(1_000_000)
+        ),
+    ))
+}
+
+/// A writer that stops while [`DISK_RESERVE`] is still free on its disk,
+/// checking as it goes (every 64 MB): something else may be filling the
+/// disk at the same time.
+pub struct RoomWriter<W> {
+    inner: W,
+    dir: PathBuf,
+    since_check: u64,
+}
+
+impl<W: std::io::Write> RoomWriter<W> {
+    /// `inner`, writing into the folder `dir`.
+    pub fn new(inner: W, dir: &Path) -> Self {
+        Self {
+            inner,
+            dir: dir.to_path_buf(),
+            since_check: 0,
+        }
+    }
+}
+
+impl<W: std::io::Write> std::io::Write for RoomWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        const EVERY: u64 = 64 * 1024 * 1024;
+        if self.since_check >= EVERY {
+            ensure_room(&self.dir, EVERY)?;
+            self.since_check = 0;
+        }
+        let wrote = self.inner.write(buf)?;
+        self.since_check += wrote as u64;
+        Ok(wrote)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+/// Copies `from` to the new file `to`: a clone where the disk can (no
+/// time, no room), else every byte through a [`RoomWriter`], after
+/// checking there's room for it.
+///
+/// # Errors
+///
+/// No room, `to` exists, or the copy fails.
+pub fn copy_file(from: &Path, to: &Path) -> std::io::Result<()> {
+    let dir = to.parent().unwrap_or_else(|| Path::new("."));
+    if juggler_platform::room::copy_is_a_clone(from, dir).unwrap_or(false) {
+        std::fs::copy(from, to)?;
+        return Ok(());
+    }
+    let mut source = std::fs::File::open(from)?;
+    ensure_room(dir, source.metadata()?.len())?;
+    let mut out = RoomWriter::new(
+        std::io::BufWriter::with_capacity(
+            1 << 20,
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(to)?,
+        ),
+        dir,
+    );
+    std::io::copy(&mut source, &mut out)?;
+    out.flush()
+}
+
+/// One file inside a [`SessionBundle`]: its bytes in memory, or (a large
+/// one) a frozen copy on disk taken when the bundle was made.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BundleFile {
     /// File name (not a deep path — the sibling set is flat).
     pub name: String,
-    /// The file's bytes.
+    /// The file's bytes; empty when it is [`Self::on_disk`].
     pub bytes: Vec<u8>,
+    /// A large file's frozen copy (a clone in the bundle's scratch
+    /// folder, made at bundle time so a source still being written can't
+    /// change under the switch).
+    pub on_disk: Option<PathBuf>,
 }
+
+impl BundleFile {
+    /// A file that travels in memory.
+    #[must_use]
+    pub fn inline(name: String, bytes: Vec<u8>) -> Self {
+        Self {
+            name,
+            bytes,
+            on_disk: None,
+        }
+    }
+
+    /// Its size in bytes.
+    ///
+    /// # Errors
+    ///
+    /// The frozen copy can't be read.
+    pub fn len(&self) -> std::io::Result<u64> {
+        match &self.on_disk {
+            Some(path) => Ok(std::fs::metadata(path)?.len()),
+            None => Ok(self.bytes.len() as u64),
+        }
+    }
+
+    /// Whether it holds nothing.
+    ///
+    /// # Errors
+    ///
+    /// The frozen copy can't be read.
+    pub fn is_empty(&self) -> std::io::Result<bool> {
+        Ok(self.len()? == 0)
+    }
+
+    /// sha256 hex of its content, streamed for a large one.
+    ///
+    /// # Errors
+    ///
+    /// The frozen copy can't be read.
+    pub fn sha256(&self) -> std::io::Result<String> {
+        match &self.on_disk {
+            Some(path) => sha256_file(path, None).map(|(hash, _)| hash),
+            None => Ok(sha256_hex(&self.bytes)),
+        }
+    }
+
+    /// Its first `limit` bytes (what the embedded `cwd` is read from).
+    ///
+    /// # Errors
+    ///
+    /// The frozen copy can't be read.
+    pub fn head(&self, limit: usize) -> std::io::Result<Vec<u8>> {
+        let Some(path) = &self.on_disk else {
+            return Ok(self.bytes[..self.bytes.len().min(limit)].to_vec());
+        };
+        let mut out = Vec::with_capacity(limit);
+        std::fs::File::open(path)?
+            .take(limit as u64)
+            .read_to_end(&mut out)?;
+        Ok(out)
+    }
+
+    /// Its last `limit` bytes (what the torn-tail check reads).
+    ///
+    /// # Errors
+    ///
+    /// The frozen copy can't be read.
+    pub fn tail(&self, limit: usize) -> std::io::Result<Vec<u8>> {
+        let Some(path) = &self.on_disk else {
+            return Ok(self.bytes[self.bytes.len().saturating_sub(limit)..].to_vec());
+        };
+        let mut file = std::fs::File::open(path)?;
+        let len = file.metadata()?.len();
+        file.seek(SeekFrom::Start(len.saturating_sub(limit as u64)))?;
+        let mut out = Vec::with_capacity(limit);
+        file.read_to_end(&mut out)?;
+        Ok(out)
+    }
+
+    /// Its whole content in memory: for a caller that must hold it (a
+    /// bundle sent to another Mac); `max` refuses one larger than that.
+    ///
+    /// # Errors
+    ///
+    /// Larger than `max`, or the frozen copy can't be read.
+    pub fn load(&self, max: u64) -> std::io::Result<Vec<u8>> {
+        let Some(path) = &self.on_disk else {
+            return Ok(self.bytes.clone());
+        };
+        if std::fs::metadata(path)?.len() > max {
+            return Err(std::io::Error::other("too large to send in one piece"));
+        }
+        std::fs::read(path)
+    }
+
+    /// Whether its last non-empty line is whole JSON (F-H-02: a source
+    /// still writing, or torn), read from its end: a window that grows
+    /// until it holds that line, so a very long last line (a big tool
+    /// output) is read whole, never cut.
+    ///
+    /// # Errors
+    ///
+    /// The frozen copy can't be read.
+    pub fn last_line_whole(&self) -> std::io::Result<bool> {
+        let len = usize::try_from(self.len()?).unwrap_or(usize::MAX);
+        let mut window = 1024 * 1024;
+        loop {
+            let tail = self.tail(window)?;
+            let end = tail
+                .iter()
+                .rposition(|byte| !byte.is_ascii_whitespace())
+                .map_or(0, |at| at + 1);
+            let body = &tail[..end];
+            let start = body.iter().rposition(|byte| *byte == b'\n');
+            if start.is_some() || window >= len {
+                return Ok(tail_parses(&body[start.map_or(0, |at| at + 1)..]));
+            }
+            window = window.saturating_mul(2);
+        }
+    }
+
+    /// Its lines that hold any of `needles`, one after another (what a
+    /// marker check parses instead of the whole file; streamed for a
+    /// large one).
+    ///
+    /// # Errors
+    ///
+    /// The frozen copy can't be read.
+    pub fn lines_with(&self, needles: &[&str]) -> std::io::Result<Vec<u8>> {
+        let finders: Vec<_> = needles
+            .iter()
+            .map(|needle| memchr::memmem::Finder::new(needle.as_bytes()))
+            .collect();
+        let mut out = Vec::new();
+        self.each_line(|line| {
+            if finders.iter().any(|finder| finder.find(line).is_some()) {
+                out.extend_from_slice(line);
+                if !line.ends_with(b"\n") {
+                    out.push(b'\n');
+                }
+            }
+            Ok(())
+        })?;
+        Ok(out)
+    }
+
+    /// Writes it to `to` a line at a time, each line through `rewrite`
+    /// (a forked session id; streamed for a large one). `to` must not
+    /// exist yet.
+    ///
+    /// # Errors
+    ///
+    /// `to` exists, or a read or write fails.
+    pub fn rewrite_lines_to(
+        &self,
+        to: &Path,
+        mut rewrite: impl FnMut(&[u8]) -> Vec<u8>,
+    ) -> std::io::Result<()> {
+        // A rewrite writes every byte again: room for it first.
+        let dir = to.parent().unwrap_or_else(|| Path::new("."));
+        ensure_room(dir, self.len()?)?;
+        let mut writer = RoomWriter::new(
+            std::io::BufWriter::with_capacity(
+                1 << 20,
+                std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(to)?,
+            ),
+            dir,
+        );
+        self.each_line(|line| writer.write_all(&rewrite(line)))?;
+        writer.flush()
+    }
+
+    /// Each line, its newline kept (the last one may have none).
+    fn each_line(&self, mut each: impl FnMut(&[u8]) -> std::io::Result<()>) -> std::io::Result<()> {
+        let Some(path) = &self.on_disk else {
+            for line in self.bytes.split_inclusive(|byte| *byte == b'\n') {
+                each(line)?;
+            }
+            return Ok(());
+        };
+        let mut reader = std::io::BufReader::with_capacity(1 << 20, std::fs::File::open(path)?);
+        let mut line = Vec::new();
+        loop {
+            line.clear();
+            if reader.read_until(b'\n', &mut line)? == 0 {
+                return Ok(());
+            }
+            each(&line)?;
+        }
+    }
+
+    /// Writes its content to `to` (a clone where the file system can, so
+    /// even a very large one takes no time or extra space).
+    ///
+    /// # Errors
+    ///
+    /// The copy or the write fails.
+    pub fn write_to(&self, to: &Path) -> std::io::Result<()> {
+        match &self.on_disk {
+            Some(path) => copy_file(path, to),
+            None => std::fs::write(to, &self.bytes),
+        }
+    }
+}
+
+/// A bundle's scratch folder for its large files' frozen copies, removed
+/// with the last bundle that holds it.
+#[derive(Debug)]
+pub struct BundleScratch(PathBuf);
+
+impl BundleScratch {
+    /// A new, empty, owner-only scratch folder under the system's temp
+    /// folder (on the same disk as the user's files, so copies clone).
+    ///
+    /// # Errors
+    ///
+    /// It can't be made.
+    pub fn new() -> std::io::Result<Self> {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "ai-juggler-bundle-{}-{}-{}",
+            std::process::id(),
+            Timestamp::now().millis(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        juggler_platform::private_fs::create_private_dir(&dir)?;
+        Ok(Self(dir))
+    }
+
+    /// Freezes `source` as entry `index` (a clone where it can).
+    ///
+    /// # Errors
+    ///
+    /// The copy fails.
+    pub fn freeze(&self, source: &Path, index: usize) -> std::io::Result<PathBuf> {
+        let to = self.entry(index);
+        copy_file(source, &to)?;
+        Ok(to)
+    }
+
+    /// Where entry `index` goes (for a copy made another way: a
+    /// decompressed one).
+    #[must_use]
+    pub fn entry(&self, index: usize) -> PathBuf {
+        self.0.join(index.to_string())
+    }
+
+    /// The folder.
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+/// Carries a bundle's files: each read into memory while the bundle's
+/// total stays within [`INLINE_MAX`], the rest frozen on disk (0.3.9: a
+/// conversation's folder of 1,719 small files held 460 MB at once).
+#[derive(Debug, Default)]
+pub struct Carrier {
+    scratch: Option<std::sync::Arc<BundleScratch>>,
+    in_memory: u64,
+}
+
+impl Carrier {
+    /// Nothing carried yet.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Carries `source` as `name`, entry `index` of the bundle.
+    ///
+    /// # Errors
+    ///
+    /// The read, the scratch folder or the copy fails.
+    pub fn carry(
+        &mut self,
+        name: String,
+        source: &Path,
+        index: usize,
+    ) -> std::io::Result<BundleFile> {
+        if self.fits(std::fs::metadata(source)?.len()) {
+            return Ok(BundleFile::inline(name, std::fs::read(source)?));
+        }
+        let frozen = self.held()?.freeze(source, index)?;
+        Ok(BundleFile {
+            name,
+            bytes: Vec::new(),
+            on_disk: Some(frozen),
+        })
+    }
+
+    /// Whether `len` more bytes fit in memory (counted when they do).
+    pub fn fits(&mut self, len: u64) -> bool {
+        let total = self.in_memory.saturating_add(len);
+        if total > INLINE_MAX {
+            return false;
+        }
+        self.in_memory = total;
+        true
+    }
+
+    /// Where entry `index` goes on disk (for a copy made another way: a
+    /// decompressed one), the scratch folder made on first need.
+    ///
+    /// # Errors
+    ///
+    /// The folder can't be made.
+    pub fn entry(&mut self, index: usize) -> std::io::Result<PathBuf> {
+        Ok(self.held()?.entry(index))
+    }
+
+    /// The scratch folder the bundle keeps, if any file needed it.
+    #[must_use]
+    pub fn into_scratch(self) -> Option<std::sync::Arc<BundleScratch>> {
+        self.scratch
+    }
+
+    fn held(&mut self) -> std::io::Result<std::sync::Arc<BundleScratch>> {
+        if let Some(held) = &self.scratch {
+            return Ok(held.clone());
+        }
+        let made = std::sync::Arc::new(BundleScratch::new()?);
+        self.scratch = Some(made.clone());
+        Ok(made)
+    }
+}
+
+impl Drop for BundleScratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+impl PartialEq for BundleScratch {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Eq for BundleScratch {}
 
 /// The bundle manifest: identity + fidelity evidence for what was
 /// copied (deep/09 §H1 shape).
@@ -88,6 +577,8 @@ pub struct SessionBundle {
     pub manifest: BundleManifest,
     /// The `<session>*` sibling set (main file included).
     pub files: Vec<BundleFile>,
+    /// Where its large files' frozen copies are kept, while it lives.
+    pub scratch: Option<std::sync::Arc<BundleScratch>>,
 }
 
 /// The prime-prompt input: distilled turns (T3 replay).
@@ -186,6 +677,67 @@ pub trait HandoverSupport: HarnessAdapter {
             .unwrap_or_else(|| Path::new("."))
             .join(name)
     }
+
+    /// What a switch of `reference` to `target` will write, before it
+    /// starts (0.3.9: the switch screen says how much disk space it uses).
+    /// Reads sizes only. Default: the transcript alone, copied as
+    /// [`room_of`] would.
+    ///
+    /// # Errors
+    ///
+    /// The transcript can't be read.
+    fn switch_room(
+        &self,
+        reference: &TranscriptRef,
+        target: &Account,
+    ) -> Result<SwitchRoom, AdapterError> {
+        Ok(room_of(
+            &[(reference.path.clone(), false)],
+            &target.state_dir,
+        )?)
+    }
+}
+
+/// What a switch will write, worked out before it starts.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SwitchRoom {
+    /// The conversation's size: every file it carries.
+    pub carried: u64,
+    /// What it writes in full on disk (a clone writes nothing).
+    pub writes: u64,
+    /// Part of it unpacks as it's copied, to a size not known before:
+    /// `writes` counts it at its packed size.
+    pub unpacks: bool,
+}
+
+/// What carrying `files` to `target_dir` writes, as a bundle carries them
+/// ([`Carrier`]): small ones read into memory and written (up to
+/// [`INLINE_MAX`] in all), large ones cloned where the disks allow; a
+/// file marked `true` is rewritten (a fork) and written in full.
+///
+/// # Errors
+///
+/// A file's size can't be read.
+pub fn room_of(files: &[(PathBuf, bool)], target_dir: &Path) -> std::io::Result<SwitchRoom> {
+    let scratch = std::env::temp_dir();
+    let mut room = SwitchRoom::default();
+    let mut carrier = Carrier::new();
+    let existing = target_dir
+        .ancestors()
+        .find(|dir| dir.is_dir())
+        .unwrap_or(target_dir);
+    for (path, rewritten) in files {
+        let len = std::fs::metadata(path)?.len();
+        room.carried += len;
+        let cloned = || {
+            juggler_platform::room::copy_is_a_clone(path, &scratch).unwrap_or(false)
+                && juggler_platform::room::copy_is_a_clone(path, existing).unwrap_or(false)
+        };
+        if *rewritten || carrier.fits(len) || !cloned() {
+            room.writes += len;
+        }
+    }
+    Ok(room)
 }
 
 /// AJ-E1540: the leading folder of a bundle file name that belongs in the

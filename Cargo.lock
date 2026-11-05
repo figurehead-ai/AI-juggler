@@ -2752,6 +2752,7 @@ dependencies = [
  "bitflags 2.13.2",
  "juggler-core",
  "juggler-platform",
+ "memchr",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -2765,6 +2766,7 @@ version = "0.3.0"
 dependencies = [
  "juggler-adapter",
  "juggler-core",
+ "juggler-handover",
  "memchr",
  "notify",
  "rusqlite",

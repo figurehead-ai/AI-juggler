@@ -20,7 +20,7 @@ use juggler_adapter::handover::{HandoverSupport, InstallOutcome};
 use juggler_core::model::{Account, FailureStage, TranscriptRef};
 
 use crate::fidelity::{FidelityInput, PairFidelity, score_pair};
-use crate::manifest::{ManifestRow, sha256_hex};
+use crate::manifest::ManifestRow;
 
 /// The §7.1 copy table (verbatim — pass2/02 lines 419-437). Generic
 /// "some context may be lost" is banned; each string names what does
@@ -312,11 +312,107 @@ impl SwitchFailure {
             Self::Preflight(PreflightStop::VersionDrift) => format!(
                 "{target}'s version of its tool hasn't been checked with this kind of switch yet, so nothing moved. Pick another account."
             ),
-            Self::Adapter(_) => {
-                format!("Something went wrong on the way to {target}, so nothing moved. Try again.")
-            }
+            Self::Adapter(error) => adapter_words(error, source, target),
         }
     }
+
+    /// Whether trying the same switch again can succeed (0.3.9: a refusal
+    /// that would refuse again offered Retry, and every Retry failed).
+    #[must_use]
+    pub fn retryable(&self) -> bool {
+        match self {
+            // The same switch would stop the same way: another account,
+            // or the user's own choice, is the way on.
+            Self::OriginalSessionGone
+            | Self::CollisionForked(_)
+            | Self::UnresolvedSource
+            | Self::PrimeQuotaDeath(_)
+            | Self::MergeConflictOpen
+            | Self::HopCost(..)
+            | Self::Preflight(_) => false,
+            // Trying again helps once the reply finishes, the disk has
+            // room or the folder can be written; never for a conversation
+            // too large, gone, or already there.
+            Self::Adapter(AdapterError::Unsupported(message)) => message.contains("does not parse"),
+            Self::Adapter(AdapterError::AccountDir { message, .. }) => {
+                !message.contains("already has this file")
+            }
+            Self::Adapter(AdapterError::Io(error)) => !error.to_string().contains("too large"),
+            _ => true,
+        }
+    }
+}
+
+/// A tool-level failure in words: what happened and what to do, never
+/// "something went wrong" when the reason is known (0.3.9).
+fn adapter_words(error: &AdapterError, source: &str, target: &str) -> String {
+    let too_large = format!(
+        "This conversation is too large to carry to {target} in one piece, so nothing moved. Continue it with a summary on {target} instead."
+    );
+    match error {
+        AdapterError::Io(io) if io.kind() == std::io::ErrorKind::StorageFull => {
+            disk_full(target, &io.to_string())
+        }
+        AdapterError::Io(io) if io.kind() == std::io::ErrorKind::PermissionDenied => {
+            not_allowed(target)
+        }
+        AdapterError::Io(io) if io.to_string().contains("too large") => too_large,
+        // An installer names the folder it was writing; the system's
+        // reason is in its message.
+        AdapterError::AccountDir { message, .. }
+            if message.contains("(os error 28)") || message.contains("not enough free space") =>
+        {
+            disk_full(target, message)
+        }
+        AdapterError::AccountDir { message, .. }
+            if message.contains("(os error 13)") || message.contains("(os error 1)") =>
+        {
+            not_allowed(target)
+        }
+        AdapterError::AccountDir { message, .. } if message.contains("already has this file") => {
+            format!(
+                "{target} already has this conversation's files, so nothing was replaced and nothing moved. Open it on {target} instead."
+            )
+        }
+        AdapterError::Unsupported(message) if message.contains("does not parse") => format!(
+            "The original on {source} is still writing its reply, so nothing moved. Let it finish, or stop it, and try again."
+        ),
+        AdapterError::Unsupported(message) if message.contains("too large") => too_large,
+        AdapterError::Unsupported(message) if message.contains("not found") => format!(
+            "This conversation's file on {source} isn't there any more, so nothing moved. Resume it on {source} where you left it."
+        ),
+        _ => format!(
+            "The switch to {target} stopped before anything moved. Try again, or resume it on {source} meanwhile; copy the details below for a bug report."
+        ),
+    }
+}
+
+/// Out of room: how much more it needs, when the check said.
+fn disk_full(target: &str, message: &str) -> String {
+    // The check says how much more, in decimal MB (as disks count it).
+    let more = message
+        .split("needs ")
+        .nth(1)
+        .and_then(|rest| rest.split(" MB").next())
+        .and_then(|mb| mb.parse::<u64>().ok())
+        .map(|mb| {
+            if mb >= 1000 {
+                format!(" It needs about {}.{} GB more.", mb / 1000, mb % 1000 / 100)
+            } else {
+                format!(" It needs about {mb} MB more.")
+            }
+        })
+        .unwrap_or_default();
+    format!(
+        "There isn't enough free disk space to copy this conversation to {target}, so nothing moved; AI Juggler always leaves {} free.{more} Free some space, then try again.",
+        juggler_adapter::handover::DISK_RESERVE_WORDS
+    )
+}
+
+fn not_allowed(target: &str) -> String {
+    format!(
+        "AI Juggler wasn't allowed to write to {target}'s folder, so nothing moved. Check its folder's permissions, then try again."
+    )
 }
 
 /// `12345` as `12,345`: every count the switch says (its failures here,
@@ -533,6 +629,49 @@ pub struct SwitchRecord {
 /// artifacts retained for retry).
 pub type LaunchHook<'a> = dyn FnMut(&InstallOutcome) -> Result<u32, String> + 'a;
 
+/// Where a running switch is (0.3.9: the dialog showed a still list for
+/// as long as a large copy took, and people couldn't tell it was working).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SwitchStep {
+    /// Copying the conversation's files.
+    Copying,
+    /// Checking the copy against what was carried.
+    Checking,
+    /// Starting it on the target.
+    Starting,
+    /// Checking the original is as it was, and recording the switch.
+    Confirming,
+}
+
+impl SwitchStep {
+    /// The wire word.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Copying => "copying",
+            Self::Checking => "checking",
+            Self::Starting => "starting",
+            Self::Confirming => "confirming",
+        }
+    }
+}
+
+/// Who hears a switch's steps: the app, which tells the window. One
+/// listener for the process; set once at start-up.
+static PROGRESS: std::sync::OnceLock<Box<dyn Fn(SwitchStep) + Send + Sync>> =
+    std::sync::OnceLock::new();
+
+/// Sets who hears every switch's steps (the app, once).
+pub fn on_progress(listener: Box<dyn Fn(SwitchStep) + Send + Sync>) {
+    let _ = PROGRESS.set(listener);
+}
+
+fn report(step: SwitchStep) {
+    if let Some(listener) = PROGRESS.get() {
+        listener(step);
+    }
+}
+
 /// Executes one switch end-to-end: snapshot → stage/verify (via the
 /// adapter's atomic install) → launch (caller hook) → confirm. The
 /// source is resolved by `reference` (S-F1); a torn tail refuses at
@@ -554,21 +693,26 @@ pub fn execute(
     let _ = freeze; // the choice shaped the source state BEFORE this
     // call (turn boundary or stop ladder); the pack
     // records truncation via the caller's staging.
+    report(SwitchStep::Copying);
     let bundle = support.bundle_session(reference)?;
     let source_hashes: Vec<ManifestRow> = bundle
         .files
         .iter()
-        .map(|file| ManifestRow {
-            rel_path: file.name.clone(),
-            sha256: sha256_hex(&file.bytes),
-            bytes: file.bytes.len() as u64,
-            kind: "transcript".to_owned(),
-            disposition: "copy".to_owned(),
+        .map(|file| {
+            Ok(ManifestRow {
+                rel_path: file.name.clone(),
+                sha256: file.sha256()?,
+                bytes: file.len()?,
+                kind: "transcript".to_owned(),
+                disposition: "copy".to_owned(),
+            })
         })
-        .collect();
+        .collect::<std::io::Result<_>>()
+        .map_err(juggler_adapter::error::AdapterError::Io)?;
     // Stage + verify (atomic, fork-aware). An adapter failure here
     // cleaned its own temp (E204); nothing partial remains.
     let install = support.install_bundle(&bundle, target)?;
+    report(SwitchStep::Checking);
     let installed_hashes = verify_installed(&install, &bundle, target);
     let all_present = !installed_hashes.iter().any(|row| row.sha256.is_empty());
     if !all_present {
@@ -591,16 +735,22 @@ pub fn execute(
 
     // Launch (the app's hook; never the engine's). S-F5 keeps the
     // verified stage — the caller retries from it.
+    report(SwitchStep::Starting);
     let pid = launch(&install).map_err(SwitchFailure::LaunchFailed)?;
+    report(SwitchStep::Confirming);
 
     // Copy-never-move, checked post-launch too: each file where the
     // adapter read it (a session's file history isn't beside the
     // transcript: found by the live lab of 2026-10-28, every such switch
     // failed here as "the source changed").
+    // 0.3.9: a conversation still open in its app keeps writing at its
+    // end, so the check is that the source still starts with exactly what
+    // was carried (a transcript only grows): nothing earlier was changed
+    // or moved.
     for row in &source_hashes {
         let path = support.source_file(reference, &row.rel_path);
-        match std::fs::read(&path) {
-            Ok(bytes) if sha256_hex(&bytes) == row.sha256 => {}
+        match juggler_adapter::handover::sha256_file(&path, Some(row.bytes)) {
+            Ok((hash, read)) if read == row.bytes && hash == row.sha256 => {}
             _ => {
                 return Err(SwitchFailure::StagingAborted(format!(
                     "source changed during the switch: {}",
@@ -650,11 +800,13 @@ fn verify_installed(
             // `file-history/`, not beside the transcript.
             let path = juggler_adapter::handover::account_area_path(&target.state_dir, &name)
                 .unwrap_or_else(|| dir.join(&name));
-            let bytes = std::fs::read(path).unwrap_or_default();
+            // Streamed: an installed transcript can be very large.
+            let (sha256, bytes) =
+                juggler_adapter::handover::sha256_file(&path, None).unwrap_or_default();
             ManifestRow {
                 rel_path: name,
-                sha256: sha256_hex(&bytes),
-                bytes: bytes.len() as u64,
+                sha256,
+                bytes,
                 kind: "transcript".to_owned(),
                 disposition: if install.forked { "translate" } else { "copy" }.to_owned(),
             }

@@ -146,6 +146,10 @@ interface RowProps {
   /** Settings › Appearance › Density is Compact (AJ-E403): fewer lines,
    * the same words in its name. */
   compact?: boolean;
+  /** 0.3.9: how deep it sits under the session it was started from. */
+  depth?: number;
+  /** That session's title, for a screen reader. */
+  parent?: string | null;
 }
 
 
@@ -166,6 +170,7 @@ function RowShell({
   indent = false,
   arrange = null,
   tools = false,
+  depth = 0,
 }: Omit<RowProps, "compact"> & { label: string; children: ReactNode; className: string; shape: string; style?: React.CSSProperties; indent?: boolean; arrange?: Arrangeable | null; tools?: boolean }): JSX.Element {
   const primary = usePrimary(item, onSelect);
   // One hook either way: the session's menu, or the conversation's. A
@@ -182,6 +187,9 @@ function RowShell({
   return (
     <div
       className={"group relative " + (indent ? "ml-3" : "") + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
+      // A session started from another: one step in per level, under it.
+      style={depth > 0 ? { marginLeft: `${0.75 + depth}rem` } : undefined}
+      data-depth={depth > 0 ? depth : undefined}
       data-rail-row
       data-order-row={arrange ? item.key : undefined}
       data-order-group={arrange?.group}
@@ -310,7 +318,8 @@ export function PlaceRow({ compact = false, ...props }: RowProps & { edge: strin
   // AI Juggler's own session: the account it runs on too (its place is
   // AI Juggler, which names no profile), so a screen reader hears it.
   const on = item.session ? `on ${item.accountLabel}` : null;
-  const label = [word, item.title, pinned ? "pinned" : null, line, on, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
+  const from = props.parent ? `started from ${props.parent}` : null;
+  const label = [word, item.title, pinned ? "pinned" : null, from, line, on, also, low, heavyNote ? `working your Mac hard: ${heavyNote}` : null, helpers].filter(Boolean).join(", ");
   if (compact) {
     // One line: the state's dot, the title, then an exception (low
     // runway, heavy load) or when, and the state word (AJ-E403: the

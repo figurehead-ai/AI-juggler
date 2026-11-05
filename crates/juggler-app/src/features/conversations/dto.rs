@@ -27,6 +27,11 @@ pub struct ConversationInfo {
     /// tool's record), so one the app ran is that app's when it isn't open.
     #[ts(optional = nullable)]
     pub started_in: Option<String>,
+    /// 0.3.9: the conversation it was started from, when its app records
+    /// one (a Claude app side session): the rail draws it under that one,
+    /// as the app's sidebar does.
+    #[ts(optional = nullable)]
+    pub started_from: Option<String>,
     /// First activity, epoch ms.
     #[ts(type = "number | null")]
     pub started_ms: Option<i64>,

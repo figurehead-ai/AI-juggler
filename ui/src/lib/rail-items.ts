@@ -101,6 +101,9 @@ export interface RailItem {
   pinned: boolean;
   /** When it started: the order it was first seen in (Your order, D-47). */
   startMs: number;
+  /** 0.3.9: the row it was started from, when its app records one (a
+   * Claude app side session): drawn under it (`rail-tree`). */
+  parentKey: string | null;
 }
 
 const WORDS: Record<RailState, string> = {
@@ -192,6 +195,7 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
     subagents: row.subtask_count ?? 0,
     pinned: row.pinned === true,
     startMs: row.started_at_ms,
+    parentKey: null,
   };
 }
 
@@ -260,6 +264,7 @@ export function conversationItem(c: ConversationInfo, projectName: (id: string |
     subagents: c.subtask_count ?? 0,
     pinned,
     startMs: c.started_ms ?? last,
+    parentKey: c.started_from ? `c:${c.account_id}/${c.started_from}` : null,
   };
 }
 

@@ -26,6 +26,8 @@ toml_edit = "0.25.17"
 zstd = "0.14"
 
 [dev-dependencies]
+# The real-size switch run drives the real pipeline (tests/switch_real_size.rs).
+juggler-handover = { version = "0.3.0", path = "../juggler-handover" }
 tempfile = "3.27.0"
 
 [[bin]]

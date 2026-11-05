@@ -14,7 +14,7 @@
 use juggler_adapter::handover::{HandoverSupport, InstallOutcome};
 use juggler_core::model::{Account, TranscriptRef};
 
-use crate::manifest::{ManifestRow, sha256_hex};
+use crate::manifest::ManifestRow;
 
 /// The transplant outcome: what the caller (commands → switch edge)
 /// records.
@@ -68,14 +68,17 @@ pub fn hand_over(
     let source_hashes: Vec<ManifestRow> = bundle
         .files
         .iter()
-        .map(|file| ManifestRow {
-            rel_path: file.name.clone(),
-            sha256: sha256_hex(&file.bytes),
-            bytes: file.bytes.len() as u64,
-            kind: "transcript".to_owned(),
-            disposition: "copy".to_owned(),
+        .map(|file| {
+            Ok(ManifestRow {
+                rel_path: file.name.clone(),
+                sha256: file.sha256()?,
+                bytes: file.len()?,
+                kind: "transcript".to_owned(),
+                disposition: "copy".to_owned(),
+            })
         })
-        .collect();
+        .collect::<std::io::Result<_>>()
+        .map_err(juggler_adapter::error::AdapterError::Io)?;
     let install = support.install_bundle(&bundle, target)?;
     // Verify the "after" side: the installed set hashes match the
     // bundle (fork-rewritten ids excluded from byte-equality — they
@@ -98,11 +101,13 @@ pub fn hand_over(
                 .parent()
                 .map(std::path::Path::to_path_buf)
                 .unwrap_or_default();
-            let bytes = std::fs::read(dir.join(&installed_name)).unwrap_or_default();
+            let (sha256, bytes) =
+                juggler_adapter::handover::sha256_file(&dir.join(&installed_name), None)
+                    .unwrap_or_default();
             ManifestRow {
                 rel_path: installed_name,
-                sha256: sha256_hex(&bytes),
-                bytes: bytes.len() as u64,
+                sha256,
+                bytes,
                 kind: "transcript".to_owned(),
                 disposition: if install.forked { "translate" } else { "copy" }.to_owned(),
             }

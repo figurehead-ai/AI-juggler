@@ -174,10 +174,10 @@ impl HandoverSupport for TreeSupport {
             {
                 bytes.extend_from_slice(b"{\"torn");
             }
-            files.push(BundleFile {
-                name: sibling.file_name().unwrap().to_string_lossy().into_owned(),
+            files.push(BundleFile::inline(
+                sibling.file_name().unwrap().to_string_lossy().into_owned(),
                 bytes,
-            });
+            ));
         }
         let cwd = juggler_adapter::handover::embedded_cwd(&main).unwrap_or_default();
         Ok(SessionBundle {
@@ -195,6 +195,7 @@ impl HandoverSupport for TreeSupport {
                 redacted: false,
             },
             files,
+            scratch: None,
         })
     }
 
@@ -624,4 +625,55 @@ fn freeze_has_exactly_two_choices() {
         FreezeChoice::StopNowAndSwitch
     );
     // Two variants — compile-time exhaustive; nothing else to call.
+}
+
+/// 0.3.9 (the maintainer's switch of 2026-11-04): a conversation still
+/// open in its app keeps writing at its end while it's switched. The
+/// after-launch check is that the source still starts with what was
+/// carried: a turn written meanwhile passes, an earlier line changed
+/// does not.
+#[test]
+fn a_source_that_grows_during_the_switch_passes_and_one_rewritten_does_not() {
+    use std::io::Write as _;
+    let support = TreeSupport {
+        harness: HarnessId::new("claude-code"),
+        partial_install: false,
+        torn_tail: false,
+    };
+    for rewrite in [false, true] {
+        let work = tempfile::tempdir().unwrap();
+        let main = seed_tree(&work.path().join("a"), "/w/proj", "sess-1");
+        let result = pipeline::execute(
+            &support,
+            &TranscriptRef {
+                path: main.clone(),
+                native_id: Some("sess-1".into()),
+            },
+            &target(&work.path().join("b")),
+            FreezeChoice::StopNowAndSwitch,
+            Mechanism::Transplant,
+            &mut |_| {
+                if rewrite {
+                    let mut bytes = std::fs::read(&main).unwrap();
+                    bytes[2] ^= 0x20;
+                    std::fs::write(&main, bytes).unwrap();
+                } else {
+                    let mut file = std::fs::OpenOptions::new()
+                        .append(true)
+                        .open(&main)
+                        .unwrap();
+                    writeln!(file, "{}", line("u9", Some("u2"), "sess-1", "/w/proj")).unwrap();
+                }
+                Ok(4242)
+            },
+        );
+        if rewrite {
+            assert!(
+                matches!(result, Err(SwitchFailure::StagingAborted(ref why)) if why.contains("source changed")),
+                "a rewritten source is caught: {result:?}"
+            );
+        } else {
+            assert!(result.is_ok(), "a grown source passes: {result:?}");
+        }
+    }
 }

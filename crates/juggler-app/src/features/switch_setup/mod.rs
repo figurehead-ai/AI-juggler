@@ -207,7 +207,11 @@ pub(crate) struct Sides {
     pub(crate) transcript: Option<PathBuf>,
 }
 
-fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> AppResult<Sides> {
+pub(crate) fn sides(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+) -> AppResult<Sides> {
     let (_, target) = crate::commands::find_profile_with_account_arc(state, target_profile_id)?;
     // AJ-E2108: a session another app runs is read from the index, as the
     // switch reads it; a session AI Juggler runs from its row.
