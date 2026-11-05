@@ -746,20 +746,20 @@ fn ms_since(at: std::time::Instant) -> u64 {
     u64::try_from(at.elapsed().as_millis()).unwrap_or(u64::MAX)
 }
 
-fn execute_steps(
+/// The bundle (cut when asked), each file's manifest row, and, for a cut
+/// file, the frozen whole source's size and hash the copy-never-move
+/// check compares the source with.
+type Bundled = (
+    juggler_adapter::handover::SessionBundle,
+    Vec<ManifestRow>,
+    Vec<Option<(u64, String)>>,
+);
+
+fn bundled(
     support: &dyn HandoverSupport,
     reference: &TranscriptRef,
-    target: &Account,
-    freeze: FreezeChoice,
-    mechanism: Mechanism,
     cut: Option<juggler_adapter::handover::Cut>,
-    launch: &mut LaunchHook<'_>,
-) -> Result<(SwitchRecord, u32), SwitchFailure> {
-    let _ = freeze; // the choice shaped the source state BEFORE this
-    // call (turn boundary or stop ladder); the pack
-    // records truncation via the caller's staging.
-    report(SwitchStep::Copying);
-    let at = std::time::Instant::now();
+) -> Result<Bundled, SwitchFailure> {
     let bundle = match cut {
         Some(cut) => support.bundle_session_cut(reference, cut)?,
         None => support.bundle_session(reference)?,
@@ -788,11 +788,35 @@ fn execute_steps(
                 sha256: file.sha256()?,
                 bytes: file.len()?,
                 kind: "transcript".to_owned(),
-                disposition: "copy".to_owned(),
+                // D-76: its start left out (the manifest says so).
+                disposition: if file.cut_from.is_some() {
+                    "cut"
+                } else {
+                    "copy"
+                }
+                .to_owned(),
             })
         })
         .collect::<std::io::Result<_>>()
         .map_err(juggler_adapter::error::AdapterError::Io)?;
+    Ok((bundle, source_hashes, cut_checks))
+}
+
+fn execute_steps(
+    support: &dyn HandoverSupport,
+    reference: &TranscriptRef,
+    target: &Account,
+    freeze: FreezeChoice,
+    mechanism: Mechanism,
+    cut: Option<juggler_adapter::handover::Cut>,
+    launch: &mut LaunchHook<'_>,
+) -> Result<(SwitchRecord, u32), SwitchFailure> {
+    let _ = freeze; // the choice shaped the source state BEFORE this
+    // call (turn boundary or stop ladder); the pack
+    // records truncation via the caller's staging.
+    report(SwitchStep::Copying);
+    let at = std::time::Instant::now();
+    let (bundle, source_hashes, cut_checks) = bundled(support, reference, cut)?;
     tracing::info!(
         target: "aij::flow",
         flow = "switch",

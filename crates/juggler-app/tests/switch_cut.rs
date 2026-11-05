@@ -118,7 +118,7 @@ fn the_last_three_turns_switch_and_the_rest_stays_behind() {
     );
     assert!(shown.loses.is_some());
 
-    commands::switch_execute_cut(
+    let switched = commands::switch_execute_cut(
         &state,
         &launched.session_id,
         &profile_b.id,
@@ -155,5 +155,20 @@ fn the_last_three_turns_switch_and_the_rest_stays_behind() {
         sha256_file(&main, None).unwrap(),
         source_before,
         "the source keeps every byte"
+    );
+    // The switch's record says what it reached and what it carried.
+    let storage = state.storage.lock().unwrap();
+    let graph = storage.switch_graph();
+    let edge_id = juggler_core::model::SwitchEdgeId::new(switched.edge_id.clone());
+    let edge = graph.edge(&edge_id).unwrap();
+    assert_eq!(
+        edge.fidelity_shown.as_deref(),
+        Some("F2"),
+        "lowered, as a compaction lowers it"
+    );
+    let manifest = graph.manifest_for(&edge_id).unwrap();
+    assert!(
+        manifest.iter().any(|row| row.disposition == "cut"),
+        "{manifest:?}"
     );
 }

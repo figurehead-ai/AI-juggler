@@ -7590,6 +7590,8 @@ fn record_edge_succeeded(
     })?;
     graph.mark_launched(&ctx.edge, &to_epoch)?;
     graph.mark_confirmed(&ctx.edge)?;
+    // D-76: a compacted source or a left-out start lowers what it reached.
+    graph.set_fidelity_reached(&ctx.edge, &record.fidelity_label)?;
     graph.append_manifest(
         &ctx.edge,
         &record
