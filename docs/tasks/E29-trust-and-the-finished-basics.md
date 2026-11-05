@@ -314,7 +314,7 @@
 **Research basis**: deep/11 §4.1; wf02 (`docs/wireframes/index.html:232-245`: "Mark all finished as reviewed"); audit §1.3 rows (chips "No decision drops them", keys r/h/s/e, Mark all); `ui/src/lib/shortcuts.ts:173-191` (Home's keys today: J/K/↑↓, Enter, A); D-25, D-36, D-44, D-49.
 **Handover note**: built. Chips: `home-needs.ts` (`chipOf`, `homeChips`: agents' messages count as Asks you, tasks waiting on your review as To review; failed, the Mac, heavy work and leftovers under All only; none below two kinds), `HomeNeeds.tsx` (the shared Segmented, not remembered, "N more under All"). Keys r / h / s / e in the registry (area Home, on the ? sheet and Home's key line), read from each row's `data-session-id` / `data-has-conversation` / `data-ended`; s opens the row's own menu (its snooze choices), A stays as AJ-E1005 made it. Mark all: `instances_mark_reviewed` / `instances_unmark_reviewed` (one transaction, `record_lifecycle_many`; a live session refuses the lot) and one Undo toast. Tests: `triage_lifecycle.rs`, `home-chips.test.tsx`, `app-keys.test.tsx`. Left: the gallery family `home` with the chips and Mark all.
 
-### AJ-E2911 Report a bug: what goes, shown first, from Help, Settings and every failure | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E1517
+### AJ-E2911 Report a bug: what goes, shown first, from Help, Settings and every failure | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1517
 **Goal**: When something goes wrong, telling the maintainer takes one click and carries what's needed to fix it, and nothing the user didn't see (D-75).
 **User story**: As someone whose switch just failed, I choose Report a bug, read exactly what the report says, and open a GitHub issue with it filled in, attaching the diagnostics zip if I want.
 **Requirements**:
@@ -330,9 +330,9 @@
 **Visual testing**: the sheet from Help and from a failed switch, light and dark, 1024 and 1280.
 **Files to touch**: `crates/juggler-app/src/features/app/diagnostics/` (a `report` module), `crates/juggler-app/src/quit.rs` (Help menu), `ui/src/components/ReportBugSheet.tsx` (new), `ui/src/components/switch/FailedStep.tsx`, `ui/src/screens/settings/GeneralPane.tsx`.
 **Research basis**: the maintainer, 2026-11-04 (D-75); 0.3.9's Copy details; AJ-E1517; SPEC §8 Data.
-**Handover note**: built: `features/app/diagnostics/report.rs` (preview, compose, open; names scrubbed from Accounts, their folders and subscriptions, never a tool's own name), `ui/src/components/ReportBugSheet.tsx` with `lib/report-bug.ts` (one sheet, opened from anywhere), Help › Report a bug… (`quit.rs`), your menu and Settings › Advanced. It fills the repository's bug form's own fields (`.github/ISSUE_TEMPLATE/bug_report.yml` ids). The failure screens: the failed switch's step (beside 0.3.9's Copy details) and every error toast without an action of its own (a launch that fails reports through one), each opening the sheet with its words and detail. Left: the replica evidence and the gallery captures.
+**Handover note**: built: `features/app/diagnostics/report.rs` (preview, compose, open; names scrubbed from Accounts, their folders and subscriptions, never a tool's own name), `ui/src/components/ReportBugSheet.tsx` with `lib/report-bug.ts` (one sheet, opened from anywhere), Help › Report a bug… (`quit.rs`), your menu and Settings › Advanced. It fills the repository's bug form's own fields (`.github/ISSUE_TEMPLATE/bug_report.yml` ids). The failure screens: the failed switch's step (beside 0.3.9's Copy details) and every error toast without an action of its own (a launch that fails reports through one), each opening the sheet with its words and detail. Evidence: `docs/qa/evidence/AJ-E2911/manifest.md` (2026-11-05).
 
-### AJ-E2912 Debug mode: a detailed local log of switches and launches | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E2911
+### AJ-E2912 Debug mode: a detailed local log of switches and launches | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E2911
 **Goal**: A hard bug can be caught the second time it happens: with debug mode on, every step of a switch or launch is written down locally, never its contents (D-75).
 **User story**: As someone whose switch fails now and then, I turn on debug mode, carry on, and when it fails again the report has every step, size and timing.
 **Requirements**:
@@ -348,7 +348,7 @@
 **Visual testing**: the Diagnostics section on and off, light and dark.
 **Files to touch**: `crates/juggler-app/src/features/app/diagnostics/` (a `debug_log` module), the switch and launch paths, `ui/src/screens/settings/AdvancedPane.tsx`.
 **Research basis**: the maintainer, 2026-11-04 (D-75); AJ-E2013 (tracing with redaction) is the long-term home of the log's writer.
-**Handover note**: built: `features/app/diagnostics/debug_log.rs` (a `tracing` layer on target `aij::flow`: the last 400 steps in memory always, `logs/debug.log` while on, two 8 MB files, off after 7 days, keys stripped) and `ui/src/screens/settings/DebugModeSection.tsx`; Export diagnostics carries the log. Left: the steps themselves, emitted from the switch and launch paths (after release/0.3.9 merges, since it rewrites the switch's streaming), and the no-contents test over a marked fixture.
+**Handover note**: built: `features/app/diagnostics/debug_log.rs` (a `tracing` layer on target `aij::flow`: the last 400 steps in memory always, `logs/debug.log` while on, two 8 MB files, off after 7 days, keys stripped) and `ui/src/screens/settings/DebugModeSection.tsx`; Export diagnostics carries the log. The steps are emitted from the switch pipeline and the launch (`spawn.rs`); the no-contents tests are `juggler-handover/tests/debug_steps.rs` and `juggler-app/tests/bug_report_replica.rs`. Evidence: `docs/qa/evidence/AJ-E2912/manifest.md` (2026-11-05).
 
 ## Rulings (2026-10-30)
 

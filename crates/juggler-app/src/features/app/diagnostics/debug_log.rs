@@ -12,9 +12,10 @@
 //!   `logs/debug.log` only while debug mode is on.
 //! - Bounded: past [`MAX_BYTES`] the file becomes `debug.1.log` (the older
 //!   one dropped), so at most twice that is kept. Debug mode turns itself
-//!   off [`DAYS_ON`] days after it was turned on. Every line is stripped of
-//!   keys before it's written, the file is the owner's alone, and it's
-//!   scrubbed again (home folder, names) whenever it's shown.
+//!   off [`DAYS_ON`] days after it was turned on. Every line is scrubbed
+//!   (home folder, user name, paths outside home, links, keys) before it's
+//!   kept, the file is the owner's alone, and it's scrubbed again (names)
+//!   whenever it's shown.
 
 use std::collections::VecDeque;
 use std::fmt::Write as _;
@@ -137,7 +138,10 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for Layer {
 }
 
 fn keep(at_ms: i64, fields: &Fields) {
-    let text = crate::error_log::without_keys(&format!(
+    // Scrubbed before it's kept: a tool's own error names its paths (the
+    // home folder as `~`, a path outside it as `[path]`), keys stripped.
+    let scrub = super::Scrub::here();
+    let text = scrub.text(&crate::error_log::without_keys(&format!(
         "{at_ms} {} {}{}",
         if fields.flow.is_empty() {
             "-"
@@ -150,7 +154,7 @@ fn keep(at_ms: i64, fields: &Fields) {
             &fields.step
         },
         fields.rest
-    ));
+    )));
     let line = Line {
         at_ms,
         flow: fields.flow.clone(),

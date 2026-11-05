@@ -144,8 +144,53 @@ pub fn effective(state: &AppState) -> String {
     }
 }
 
-/// Scrubs one string: the home directory becomes `~`, the user name and
-/// URLs (with any query string) go, secret-shaped strings are masked.
+/// Folders outside home that say nothing about the person (the system's
+/// and installed apps'): a path in them is kept, it helps a bug report.
+const SYSTEM_ROOTS: &[&str] = &[
+    "/Applications/",
+    "/System/",
+    "/Library/",
+    "/usr/",
+    "/bin/",
+    "/sbin/",
+    "/opt/",
+    "/etc/",
+    "/dev/",
+];
+
+/// `word` with a personal path outside home (a temporary folder, another
+/// disk, another user's folder) as `[path]`, keeping what's around it
+/// (`"/var/…/shop:` → `"[path]:`). A path with a space in it is cut at the
+/// space: its first part goes, the rest stays as words.
+fn without_outside_path(word: &str) -> Option<String> {
+    let start = word.find('/')?;
+    let lead = &word[..start];
+    if !lead
+        .chars()
+        .all(|c| matches!(c, '"' | '\'' | '(' | '[' | '<' | '`'))
+    {
+        return None;
+    }
+    let path = &word[start..];
+    let end = path
+        .trim_end_matches(|c: char| {
+            matches!(
+                c,
+                '"' | '\'' | ')' | ']' | '>' | '`' | ',' | ';' | ':' | '.'
+            )
+        })
+        .len();
+    let (path, rest) = path.split_at(end);
+    // A bare "/" or a short fragment ("/s", a fraction) isn't a place.
+    if path.matches('/').count() < 2 || SYSTEM_ROOTS.iter().any(|root| path.starts_with(root)) {
+        return None;
+    }
+    Some(format!("{lead}[path]{rest}"))
+}
+
+/// Scrubs one string: the home directory becomes `~`, a personal path
+/// outside it becomes `[path]`, the user name and URLs (with any query
+/// string) go, secret-shaped strings are masked.
 #[must_use]
 pub fn scrub(text: &str, home: &str, user: &str) -> String {
     let mut out = text.to_owned();
@@ -179,6 +224,8 @@ pub fn scrub(text: &str, home: &str, user: &str) -> String {
                 .filter(|at| *at > 0 && trimmed[..*at].contains('/'))
             {
                 format!("{}{}", &trimmed[..at], &word[trimmed.len()..])
+            } else if let Some(scrubbed) = without_outside_path(trimmed) {
+                format!("{scrubbed}{}", &word[trimmed.len()..])
             } else {
                 word.to_owned()
             }
@@ -604,6 +651,20 @@ pub async fn crash_answer(
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
     use super::*;
+
+    #[test]
+    fn a_personal_path_outside_home_goes_and_a_system_one_stays() {
+        let said = scrub(
+            "account directory error at /var/folders/s7/T/.tmpX/shop-acme: Permission denied (\"/Volumes/Work/client\") via /usr/bin/claude in /Applications/AI Juggler.app and ~/Dev/x, 3/4 done",
+            "/Users/someone-q9",
+            "someone-q9",
+        );
+        assert_eq!(
+            said,
+            "account directory error at [path]: Permission denied (\"[path]\") via /usr/bin/claude in /Applications/AI Juggler.app and ~/Dev/x, 3/4 done"
+        );
+        assert!(!said.contains("shop-acme") && !said.contains("client"));
+    }
 
     #[test]
     fn a_seeded_crash_is_scrubbed_before_it_is_kept() {
