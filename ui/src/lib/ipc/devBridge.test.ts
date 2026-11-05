@@ -98,6 +98,25 @@ describe("read-only test bridge — the transport", () => {
     expect(document.querySelector("[role=status]")?.textContent).toContain(READ_ONLY_MESSAGE);
   });
 
+  it("a lab's write mode says so, and sends the writes it lists (ADR-0027)", async () => {
+    const fetched: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        fetched.push(url);
+        if (url.endsWith("/v1/commands")) return Response.json(["app_info", "launch_session"]);
+        if (url.endsWith("/v1/events")) return new Response(new ReadableStream());
+        return Response.json({ session_id: "s", pid: 1 });
+      }),
+    );
+    const transport = await connect(page(`devBridge=4321&token=${TOKEN}`));
+    expect(document.body.textContent).toContain("Lab test bridge — a throwaway lab");
+    await expect(transport.invoke("launch_session", { profileId: "p" })).resolves.toEqual({ session_id: "s", pid: 1 });
+    expect(fetched.some((url) => url.endsWith("/v1/invoke/launch_session"))).toBe(true);
+    // A write it doesn't list is still refused unsent.
+    await expect(transport.invoke("account_import", {})).rejects.toMatchObject({ code: "read_only_bridge" });
+  });
+
   it("a 403 from the bridge reads as the same refusal", async () => {
     vi.stubGlobal(
       "fetch",

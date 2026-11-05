@@ -9,6 +9,7 @@
 #   scripts/qa/lab_scenario.sh setup P1 [--home /tmp/aij-lab-p1] [--import]
 #   scripts/qa/lab_scenario.sh open  P1 [--home …]   # AI Juggler Dev on the lab
 #   scripts/qa/lab_scenario.sh bridge P1 [--home …]  # its backend + the read-only bridge
+#   scripts/qa/lab_scenario.sh lab-bridge P1 [--home …]  # the same, with the lab write mode (ADR-0027)
 #   scripts/qa/lab_scenario.sh teardown P1 [--home …]
 #
 # --import brings the replica's setups in where they are first (as
@@ -18,7 +19,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cmd="${1:-}"; id="${2:-}"
-[ -n "$cmd" ] && [ -n "$id" ] || { sed -n '2,13p' "$0"; exit 2; }
+[ -n "$cmd" ] && [ -n "$id" ] || { sed -n '2,14p' "$0"; exit 2; }
 shift 2
 lab="/tmp/aij-lab-$(echo "$id" | tr '[:upper:]' '[:lower:]')"
 import=0
@@ -42,13 +43,18 @@ case "$cmd" in
     [ -e "$lab" ] && { echo "lab-scenario: $lab exists — tear it down first" >&2; exit 1; }
     python3 -I "$root/scripts/qa/scenario.py" seed "$id" > /dev/null # the scenario exists
     python3 -I "$root/scripts/replica.py" build --home "$lab"
+    # The lab is this user's alone (ADR-0027: the write mode refuses a lab
+    # others can write in).
+    chmod 700 "$lab"
+    # Every program the lab runs gets only the lab's environment
+    # (lab_env.sh): never this shell's tool folders (CLAUDE_CONFIG_DIR…).
     if [ "$import" = 1 ]; then
-      (cd "$root" && HOME="$lab" cargo run -q --offline -p juggler-app --features dev-bridge --example dev_walk_data)
+      (cd "$root" && HOME="$lab" "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app --features dev-bridge --example dev_walk_data)
     fi
     mkdir -p "$data"
     python3 -I "$root/scripts/qa/scenario.py" seed "$id" > "$lab/scenario-seed.json"
-    (cd "$root" && AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" \
-      cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
+    (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" \
+      "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
     sheet="$root/docs/qa/0.4-walks/$id.md"
     if [ ! -e "$sheet" ]; then python3 -I "$root/scripts/qa/scenario.py" sheet "$id" --out "$sheet"; echo "lab-scenario: walk sheet $sheet"; fi
     echo "lab-scenario: $id is set up in $lab — open it with: scripts/qa/lab_scenario.sh open $id"
@@ -66,8 +72,16 @@ case "$cmd" in
     [ -d "$data" ] || { echo "lab-scenario: $lab isn't set up" >&2; exit 1; }
     # The Dev backend (a debug build is always Dev) on the lab's HOME, with
     # the read-only bridge; its page needs the UI on localhost:5173.
-    (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 cargo run -q --offline -p juggler-app --features dev-bridge) &
+    (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app --features dev-bridge) &
     echo "lab-scenario: the lab's backend is starting (pid $!); its page: HOME=$lab python3 scripts/dev_bridge_url.py"
+    ;;
+  lab-bridge)
+    [ -d "$data" ] || { echo "lab-scenario: $lab isn't set up" >&2; exit 1; }
+    # ADR-0027: the same, with the lab write mode — the walk makes pools,
+    # starts, switches and stops sessions from the browser. The app checks
+    # the HOME itself and refuses to start the bridge on anything but a lab.
+    (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 AIJ_LAB_BRIDGE=1 "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app --features lab-bridge) &
+    echo "lab-scenario: the lab's backend (LAB WRITE MODE) is starting (pid $!); its page: HOME=$lab python3 scripts/dev_bridge_url.py"
     ;;
   teardown)
     [ -d "$lab" ] || { echo "lab-scenario: nothing at $lab"; exit 0; }
@@ -82,5 +96,5 @@ case "$cmd" in
     rm -rf "$lab"
     echo "lab-scenario: $lab removed; nothing of it runs"
     ;;
-  *) sed -n '2,13p' "$0"; exit 2 ;;
+  *) sed -n '2,14p' "$0"; exit 2 ;;
 esac

@@ -74,7 +74,12 @@ export async function connect(page: URL): Promise<Transport> {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const reads = new Set((await response.json()) as string[]);
-    notice.say("Read-only test bridge — real data; nothing here can change it.");
+    // ADR-0027: a lab's write mode lists its writes (never listed otherwise).
+    notice.say(
+      reads.has("launch_session")
+        ? "Lab test bridge — a throwaway lab; the writes it lists change only the lab."
+        : "Read-only test bridge — real data; nothing here can change it.",
+    );
     return transport({ base, token: session.token }, reads, notice);
   } catch {
     notice.say("Read-only test bridge: can't reach the Dev build. Is it running with AIJ_DEV_BRIDGE=1?");

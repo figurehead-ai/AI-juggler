@@ -42,7 +42,7 @@ pub(super) struct Reply {
 }
 
 impl Reply {
-    fn value<T: serde::Serialize>(value: &T) -> Self {
+    pub(super) fn value<T: serde::Serialize>(value: &T) -> Self {
         match serde_json::to_vec(value) {
             Ok(body) => Self {
                 status: StatusCode::OK,
@@ -53,14 +53,14 @@ impl Reply {
     }
 
     /// A command's own error, in its wire form.
-    fn failed(error: &crate::error::AppError) -> Self {
+    pub(super) fn failed(error: &crate::error::AppError) -> Self {
         Self {
             status: StatusCode::UNPROCESSABLE_ENTITY,
             body: serde_json::to_vec(error).unwrap_or_default(),
         }
     }
 
-    fn bad_arguments(error: &serde_json::Error) -> Self {
+    pub(super) fn bad_arguments(error: &serde_json::Error) -> Self {
         // serde's message names the field, never its value.
         let body = serde_json::json!({
             "code": "bad_arguments",

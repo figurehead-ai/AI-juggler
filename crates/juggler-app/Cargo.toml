@@ -30,6 +30,11 @@ dev-bridge = [
     "dep:subtle",
     "dep:zeroize",
 ]
+# The bridge's lab-only write mode (ADR-0027): a short allowlist of the
+# window's own write commands, served only when HOME is a throwaway
+# /tmp/aij-lab… folder and AIJ_LAB_BRIDGE=1. On top of dev-bridge, so
+# debug builds only; in no release workflow (scripts/dev_bridge_check.sh).
+lab-bridge = ["dev-bridge"]
 
 [lints]
 workspace = true

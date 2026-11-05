@@ -38,7 +38,7 @@ verify-static:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-    cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
+    cargo clippy -p juggler-app --all-targets --features lab-bridge -- -D warnings
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
     just stats-events
     cargo deny check
@@ -53,9 +53,11 @@ verify-tests:
     ./scripts/leaked_fixtures.sh
     just dev-bridge-check
 
-# The read-only test bridge's own tests (docs/qa/DEV-BRIDGE.md).
+# The test bridge's own tests (docs/qa/DEV-BRIDGE.md), read-only and with
+# the lab write mode (ADR-0027).
 dev-bridge-tests:
     cargo test -p juggler-app --features dev-bridge --lib dev_bridge
+    cargo test -p juggler-app --features lab-bridge --lib dev_bridge
 
 # Preflight's fast mode passes the packages scripts/affected_crates.py names.
 # The tests (and doctests) of some packages only.

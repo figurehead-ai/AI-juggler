@@ -1002,6 +1002,8 @@ pub fn run() {
             usage_stats::start(stats_state, launched.elapsed());
             // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
             // build with the feature (docs/qa/DEV-BRIDGE.md).
+            #[cfg(all(debug_assertions, feature = "lab-bridge"))]
+            dev_bridge::lab::arm(app.handle());
             #[cfg(all(debug_assertions, feature = "dev-bridge"))]
             dev_bridge::start_if_enabled(app.handle());
             Ok(())

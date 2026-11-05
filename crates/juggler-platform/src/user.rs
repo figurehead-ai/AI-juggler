@@ -63,6 +63,25 @@ pub fn current() -> std::io::Result<UserId> {
     ))
 }
 
+/// This user's home folder as the system's user record keeps it — not
+/// `$HOME`, which a test lab points elsewhere. `None` where it can't be
+/// read (or on Windows, not read yet).
+#[cfg(unix)]
+#[must_use]
+pub fn record_home() -> Option<std::path::PathBuf> {
+    nix::unistd::User::from_uid(nix::unistd::geteuid())
+        .ok()
+        .flatten()
+        .map(|user| user.dir)
+}
+
+/// This user's home folder as the system's user record keeps it.
+#[cfg(not(unix))]
+#[must_use]
+pub fn record_home() -> Option<std::path::PathBuf> {
+    None
+}
+
 /// Whether a connection from `peer` may be answered: only when the system
 /// named the peer, and it is `me`.
 #[must_use]

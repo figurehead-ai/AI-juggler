@@ -226,8 +226,8 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Clippy (no default features)
         run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-      - name: Clippy (the read-only test bridge; docs/qa/DEV-BRIDGE.md)
-        run: cargo clippy -p juggler-app --all-targets --features dev-bridge -- -D warnings
+      - name: Clippy (the test bridge with its lab write mode; docs/qa/DEV-BRIDGE.md, ADR-0027)
+        run: cargo clippy -p juggler-app --all-targets --features lab-bridge -- -D warnings
       - name: Docs
         env:
           RUSTDOCFLAGS: -D warnings
@@ -439,8 +439,10 @@ jobs:
           restore-keys: ${{ runner.os }}-tests-cargo-d0-
       - name: Doctests
         run: cargo test --workspace --doc
-      - name: Read-only test bridge's tests (Dev builds only)
-        run: cargo test -p juggler-app --features dev-bridge --lib dev_bridge
+      - name: Test bridge's tests, read-only and with the lab write mode (Dev builds only)
+        run: |
+          cargo test -p juggler-app --features dev-bridge --lib dev_bridge
+          cargo test -p juggler-app --features lab-bridge --lib dev_bridge
       - name: The bridge never ships
         run: ./scripts/dev_bridge_check.sh
 

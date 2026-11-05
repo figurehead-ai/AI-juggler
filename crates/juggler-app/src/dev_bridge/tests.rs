@@ -155,6 +155,7 @@ fn config(port: u16) -> Config {
         port,
         origin: "http://localhost:5173".into(),
         token: Token::generate().unwrap(),
+        lab: false,
     }
 }
 
@@ -399,6 +400,7 @@ fn running() -> Running {
         port: listener.local_addr().unwrap().port(),
         origin: "http://localhost:5173".into(),
         token: Token::generate().unwrap(),
+        lab: false,
     });
     super::write_token_file(data_dir.path(), &config).unwrap();
     super::server::spawn(app.handle().clone(), listener, Arc::clone(&config)).unwrap();
@@ -740,4 +742,81 @@ fn the_switch_checks_secret_previews_never_leave() {
         },
     );
     assert_eq!(other.body, b"{\"preview\":\"kept\"}".to_vec());
+}
+
+/// ADR-0027: the lab write mode is never on unless asked (and then the
+/// check isn't even made); asked, it takes the lab check's answer, and in
+/// a build without the feature it's refused whatever the check says.
+#[test]
+fn the_lab_write_mode_is_off_unless_asked_and_refused_without_the_feature() {
+    let checked = std::cell::Cell::new(false);
+    let never = || -> Result<std::path::PathBuf, String> {
+        checked.set(true);
+        Ok("/tmp/aij-lab-x".into())
+    };
+    assert_eq!(super::lab_mode_for(false, never), Ok(false));
+    assert!(!checked.get(), "checked though not asked");
+    let refused = super::lab_mode_for(true, || {
+        Err("HOME /x isn't a lab folder (/tmp/aij-lab…)".into())
+    });
+    let passes = super::lab_mode_for(true, || Ok("/tmp/aij-lab-x".into()));
+    if cfg!(feature = "lab-bridge") {
+        assert_eq!(
+            refused.unwrap_err(),
+            "the lab write mode is refused: HOME /x isn't a lab folder (/tmp/aij-lab…)"
+        );
+        assert_eq!(passes, Ok(true));
+    } else {
+        assert!(
+            refused
+                .unwrap_err()
+                .contains("hasn't the lab-bridge feature")
+        );
+        assert!(
+            passes
+                .unwrap_err()
+                .contains("hasn't the lab-bridge feature")
+        );
+    }
+}
+
+/// ADR-0027: a lab route is served only by a bridge in lab mode; the
+/// read-only bridge refuses it as any write.
+#[cfg(feature = "lab-bridge")]
+#[test]
+fn a_lab_write_is_admitted_only_in_lab_mode() {
+    let read_only = config(4321);
+    let rate = RateLimit::new();
+    let path = "/v1/invoke/pools_create";
+    let auth = bearer(&read_only);
+    let refused = admit(
+        &Method::POST,
+        path,
+        &headers(&read_only, &[(header::AUTHORIZATION, auth.as_str())]),
+        &read_only,
+        &rate,
+    );
+    assert_eq!(refused.unwrap_err().code, "read_only_bridge");
+    let lab = Config {
+        lab: true,
+        ..config(4321)
+    };
+    let auth = bearer(&lab);
+    let admitted = admit(
+        &Method::POST,
+        path,
+        &headers(&lab, &[(header::AUTHORIZATION, auth.as_str())]),
+        &lab,
+        &rate,
+    );
+    assert!(matches!(admitted, Ok(Route::LabInvoke(route)) if route.ipc == "pools_create"));
+    // A write not on the lab's list stays refused, even in lab mode.
+    let other = admit(
+        &Method::POST,
+        "/v1/invoke/account_import",
+        &headers(&lab, &[(header::AUTHORIZATION, auth.as_str())]),
+        &lab,
+        &rate,
+    );
+    assert_eq!(other.unwrap_err().code, "read_only_bridge");
 }
