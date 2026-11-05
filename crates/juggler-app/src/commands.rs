@@ -5237,12 +5237,11 @@ pub struct PreflightInfo {
     pub diff_snapshotted: bool,
     /// Whether the source instance is live (freeze dialog needed).
     pub source_live: bool,
-    /// 0.4: the conversation that moves, by the title it shows under
-    /// (None when the tool's files give it none): the confirm step names
-    /// it, so the switch never moves one the user didn't mean.
-    pub source_title: Option<String>,
-    /// The account the conversation is on now.
-    pub source_account: String,
+    /// 0.4: the conversation that moves, by its title and account, and
+    /// (ADR-0028) the family that moves with it: the confirm step names
+    /// them (flattened: `source_title`, `source_account`, `source_family`).
+    #[serde(flatten)]
+    pub moving: crate::features::handover::stays_behind::Moving,
     /// AJ-E1540: live, but not a session AI Juggler can stop (started
     /// outside it): the switch leaves it running and the copy is a
     /// separate continuation.
@@ -5441,8 +5440,7 @@ pub(crate) fn preflight_with(
         zombies: report.zombie_children.clone(),
         diff_snapshotted: report.diff_snapshotted,
         source_live,
-        source_title: named.title,
-        source_account: account_a.label.clone(),
+        moving: named.moving(&account_a),
         source_keeps_running: stays.keeps_running,
         source_outside: stays.outside,
         source_app: stays.app,
@@ -5828,6 +5826,14 @@ pub struct SwitchExecutedInfo {
     /// 0.3.5: in Desktop, the key of the conversation the app took
     /// (`conversation:<account>:<id>`): the page to open.
     pub conversation_key: Option<String>,
+    /// ADR-0028: how many sessions started from it moved with it.
+    pub family_moved: u32,
+    /// ADR-0028: where they nest in the target app: `now`, `restart` (at
+    /// the app's next start; [`Self::family_place`] restarts it), or empty
+    /// (no app to nest them in: a terminal switch).
+    pub family_nests: String,
+    /// ADR-0028: the target app profile the family waits for.
+    pub family_place: Option<String>,
 }
 
 /// AJ-E205: executes a switch with the user's freeze choice — the
@@ -6125,11 +6131,14 @@ fn switch_execute_core(
         &new_session,
         desktop.as_deref(),
     );
+    // ADR-0028: the sessions started from it move with it.
+    let family = crate::features::handover::family::find(state, &account_a, &reference);
     // D-76: the start left out, when the user asked (by default all of it
     // travels).
-    let outcome = pipeline::execute_cut(
+    let outcome = pipeline::execute_family(
         support.as_ref(),
         &reference,
+        &family.refs,
         &account_b,
         freeze,
         Mechanism::Transplant,
@@ -6177,6 +6186,14 @@ fn switch_execute_core(
     }
     switch.succeeded();
     tasks_after_switch(state, &new_session, &account_a, &account_b);
+    let (family_nests, family_place) = family_after(
+        state,
+        &account_b,
+        &reference,
+        &record,
+        &family,
+        desktop.as_deref(),
+    );
 
     // AJ-E208: the switch's redaction decision rides the edge.
     record_redaction_decision(
@@ -6194,7 +6211,62 @@ fn switch_execute_core(
         source_session_id: source.id.to_string(),
         continued_in: if desktop.is_some() { "desktop" } else { "cli" }.to_owned(),
         conversation_key,
+        family_moved: u32::try_from(record.family.len()).unwrap_or(u32::MAX),
+        family_nests,
+        family_place,
     })
+}
+
+/// ADR-0028: after a switch into a desktop app profile, its family's
+/// records go there beside the conversation's: at once when the app isn't
+/// running, else at its next start. Returns where they nest (`now`,
+/// `restart`, or empty) and the profile.
+fn family_after(
+    state: &Arc<AppState>,
+    account_b: &Account,
+    reference: &juggler_core::model::TranscriptRef,
+    record: &juggler_handover::pipeline::SwitchRecord,
+    family: &crate::features::handover::family::Family,
+    place: Option<&str>,
+) -> (String, Option<String>) {
+    use crate::features::handover::family;
+    let (Some(place), false) = (place, record.family.is_empty()) else {
+        return (String::new(), None);
+    };
+    let mut renamed: Vec<(String, String)> = Vec::new();
+    let installed = |install: &juggler_adapter::handover::InstallOutcome| {
+        install.reference.native_id.clone().unwrap_or_default()
+    };
+    if let Some(old) = reference.native_id.clone()
+        && installed(&record.install) != old
+    {
+        renamed.push((old, installed(&record.install)));
+    }
+    for (member, install) in family.refs.iter().zip(&record.family) {
+        if let Some(old) = member.native_id.clone()
+            && installed(install) != old
+        {
+            renamed.push((old, installed(install)));
+        }
+    }
+    let pending = family::Pending {
+        place: place.to_owned(),
+        tool: account_b.harness.to_string(),
+        parent: installed(&record.install),
+        members: family.members.iter().map(Into::into).collect(),
+        renamed,
+    };
+    if let Err(error) = family::wait(state, &pending) {
+        tracing::warn!(target: "aij::flow", flow = "family", step = "wait", %error);
+        return (String::new(), None);
+    }
+    if crate::features::places::running_now(state, place).is_none()
+        && let Some(dir) = crate::features::places::instance_dir_of(state, place)
+    {
+        family::place_waiting(state, place, &dir);
+        return ("now".to_owned(), Some(place.to_owned()));
+    }
+    ("restart".to_owned(), Some(place.to_owned()))
 }
 
 /// The preflight's warnings in the screen's words (§7.1).
@@ -6580,6 +6652,11 @@ fn switch_replay(
         source_session_id: sides.source.id.to_string(),
         continued_in: "cli".to_owned(),
         conversation_key: None,
+        // Across tools a conversation replays into a new one: its family
+        // can't follow (the preflight says so).
+        family_moved: 0,
+        family_nests: String::new(),
+        family_place: None,
     })
 }
 

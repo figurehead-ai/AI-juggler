@@ -555,8 +555,11 @@ pub(crate) fn switch_answers(
         SwitchCapability::OwnSubagents => SwitchAnswer::Supported(
             "the conversation's folder (subagents, tool results) and its file history, copied with it",
         ),
-        SwitchCapability::Family | SwitchCapability::FamilyLinks => SwitchAnswer::NotSupported(
-            "sessions started from this one stay on its account for now (being built, ADR-0028); the switch names them before anything moves",
+        SwitchCapability::Family => SwitchAnswer::Supported(
+            "the Claude app's side sessions (its records' spawnedFrom), and theirs, move with it through the same switch, each whole with its own subagents, placed and checked together",
+        ),
+        SwitchCapability::FamilyLinks => SwitchAnswer::Supported(
+            "each child's own app record is carried to the target profile beside its parent's, its parent link pointed there; the app reads records when it starts, so an open target shows the nesting after its restart",
         ),
         SwitchCapability::Resumable => SwitchAnswer::Supported(
             "resumes by its own id: `claude --resume`, or the Claude app's resume link",

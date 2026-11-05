@@ -174,6 +174,23 @@ impl juggler_adapter::handover::HandoverSupport for CodexAdapter {
         Ok(bundle)
     }
 
+    /// ADR-0028: its subagent threads, and theirs (what its bundle carries).
+    fn own_family(&self, reference: &TranscriptRef) -> Vec<String> {
+        let thread = reference.native_id.clone().or_else(|| {
+            reference
+                .path
+                .file_name()
+                .and_then(|n| thread_id_from_name(&n.to_string_lossy()))
+        });
+        thread
+            .zip(crate::codex_family::sessions_root(&reference.path))
+            .map(|(thread, root)| crate::codex_family::descendants(&root, &thread))
+            .unwrap_or_default()
+            .into_iter()
+            .map(|child| child.thread)
+            .collect()
+    }
+
     /// ADR-0028: a member of the family lives in its own day's folder;
     /// a packed source (`.jsonl.zst`) is that file, carried unpacked.
     fn source_file(&self, reference: &TranscriptRef, name: &str) -> PathBuf {

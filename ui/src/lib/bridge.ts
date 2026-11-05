@@ -1986,7 +1986,7 @@ export interface PreflightInfoData {
   zombies: string[];
   diff_snapshotted: boolean;
   source_live: boolean;
-  /** 0.4: what moves (its title) and the account it's on: the confirm step names both. */ source_title?: string | null; source_account?: string;
+  /** 0.4: what moves (its title) and the account it's on: the confirm step names both. */ source_title?: string | null; source_account?: string; source_family?: number;
   /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
   source_keeps_running: boolean;
   /** AJ-E2108: a session another app runs: only read, left as it is, and
@@ -2072,6 +2072,7 @@ export interface SwitchExecutedData {
    * Claude app (`conversation:<account>:<id>`), whose page opens after. */
   continued_in?: string;
   conversation_key?: string | null;
+  /** ADR-0028: the sessions started from it that moved with it, and where they nest ("now" | "restart" | ""). */ family_moved?: number; family_nests?: string; family_place?: string | null;
 }
 
 /** The no-backend preflight default (fixtures merge over it —

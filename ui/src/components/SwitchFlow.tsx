@@ -27,7 +27,7 @@ import { CarryChoice, useCarryChoice } from "./switch/CarryChoice";
 import { showToast } from "./Toast";
 import { ConfirmBody, SwitchPoolLines, useSealOwed } from "./switch/ConfirmBody";
 import { CarryList } from "./switch/CarryList";
-import { DoneStep } from "./switch/DoneStep";
+import { DoneStep, familyOf, type FamilyMoved } from "./switch/DoneStep";
 import { Executing, OtherStep, risky, TargetStep, useTargetRoom } from "./switch/StepBodies";
 import { keysChoice, KeysQuestion, keysRequired, type KeysAnswer } from "./switch/KeysQuestion";
 import { defaultDestination, destinationsOf, switchLabel, type Destination } from "./switch/WhereChoice";
@@ -46,7 +46,7 @@ type Phase =
   | { kind: "preflight" }
   | { kind: "confirm"; preflight: PreflightInfoData }
   | { kind: "executing"; startedAt: number; app: string | null }
-  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData; continuedIn: Destination }
+  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData; continuedIn: Destination; family?: FamilyMoved }
   // A failure keeps what it failed on: Retry runs the switch again from
   // there (or checks it again when the check itself failed).
   | { kind: "failed"; message: string; preflight: PreflightInfoData | null; cause?: unknown };
@@ -184,7 +184,7 @@ export function SwitchFlow({
         onSwitched(opened, { edgeId: result.edge_id });
         return;
       }
-      setPhase({ kind: "done", sessionId: opened, edgeId: result.edge_id, preflight, continuedIn });
+      setPhase({ kind: "done", sessionId: opened, edgeId: result.edge_id, preflight, continuedIn, family: familyOf(result) });
     } catch (cause) {
       started.current = false;
       runningRef.current = false;
@@ -294,7 +294,7 @@ export function SwitchFlow({
       case "executing":
         return <Executing target={targetLabel} holding={holding} app={phase.app} />;
       case "done":
-        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} continuedIn={phase.continuedIn} />;
+        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} continuedIn={phase.continuedIn} family={phase.family} />;
       case "failed":
         return <FailedStep target={targetLabel} message={phase.message} cause={phase.cause} results={setupCheck.results} />;
     }

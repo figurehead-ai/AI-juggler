@@ -219,6 +219,17 @@ fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
 
 /// 0.3.5: the tool folder `place`'s sessions use: its account's folder,
 /// started with it so the profile stays on that account.
+/// ADR-0028: the instance folder of the app profile `id`, when known.
+pub(crate) fn instance_dir_of(state: &Arc<AppState>, id: &str) -> Option<std::path::PathBuf> {
+    with_book(state, |book| {
+        book.places
+            .get(id)
+            .and_then(|place| place.instance_dir.clone())
+    })
+    .ok()
+    .flatten()
+}
+
 pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<std::path::PathBuf> {
     let id = place.account_id.as_deref()?;
     state
@@ -576,7 +587,7 @@ fn host_of(
 
 /// The process `id` runs as now: the watch's, when it's still that one,
 /// else looked for in the whole list.
-fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
+pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
     let known = state
         .places
         .watch
@@ -725,6 +736,12 @@ pub fn restart(
         None => {}
     }
     mark_restarting(state, id, now);
+    // ADR-0028: the app is down: a switched family waiting for it nests
+    // now, before it reads its records again.
+    let nested = place
+        .instance_dir
+        .as_deref()
+        .and_then(|dir| crate::features::handover::family::place_waiting(state, id, dir));
     let launched = start::start(
         &place,
         &hosts,
@@ -733,7 +750,12 @@ pub fn restart(
         background,
     );
     changed(state);
-    launched.map(|()| format!("Restarting {label}"))
+    launched.map(|()| {
+        nested.map_or_else(
+            || format!("Restarting {label}"),
+            |said| format!("Restarting {label}: {said}"),
+        )
+    })
 }
 
 /// One restart of a place at a time: held while it runs.
@@ -850,6 +872,11 @@ pub fn open(
                 said.place_id = Some(id.clone());
             }
             return said;
+        }
+        // ADR-0028: a switched family waiting for this profile's start
+        // nests now, before the app reads its records.
+        if let Some(dir) = place.instance_dir.as_deref() {
+            crate::features::handover::family::place_waiting(&state, &id, dir);
         }
         match start::start(&place, &hosts, folder.as_deref(), starter.as_ref(), false) {
             Ok(()) => outcome(format!("Starting {label}{pick}"), "started"),

@@ -107,6 +107,7 @@ export function ConfirmBody({
         <p className="text-body text-ink" data-testid="switch-source">
           Moves <span className="font-semibold">{preflight.source_title ? `“${preflight.source_title}”` : "this conversation"}</span>
           {preflight.source_account ? <span className="text-muted"> from {preflight.source_account}</span> : null}
+          {preflight.source_family ? <span>, with the {preflight.source_family === 1 ? "session" : `${preflight.source_family} sessions`} started from it</span> : null}
         </p>
         <p className="text-meta" data-testid="switch-cost">
           <FidelityBadge badge={moveBadge(preflight)} validated={preflight.validated === true} />

@@ -770,6 +770,16 @@ pub trait HandoverSupport: HarnessAdapter {
         )?)
     }
 
+    /// ADR-0028: the conversations the tool itself records as started
+    /// from `reference`'s (and theirs), by id: the family its own bundle
+    /// carries (Codex's subagent threads). A family kept by a desktop app
+    /// is the host's ([`crate::live::HostFamily`]). Default: none.
+    #[must_use]
+    fn own_family(&self, reference: &TranscriptRef) -> Vec<String> {
+        let _ = reference;
+        Vec::new()
+    }
+
     /// 0.4: the pages on the tool's own website the conversation links to
     /// (published or opened in it), by id, deduplicated. They belong to
     /// the account that made them, so on another account they may not
