@@ -57,11 +57,12 @@ fn link_approve_account_rename_unlink() {
         started.elapsed()
     );
     let account = client.account(&token).unwrap();
+    // Counts only: an Account's plan and features never go to the log.
     eprintln!(
-        "[e2e] account: plan={:?} fallback={} features={:?}",
-        account.plan_name(),
+        "[e2e] account: a plan read={} fallback={} features={}",
+        account.plan_name().is_some(),
         account.fallback,
-        account.entitlements.keys().collect::<Vec<_>>()
+        account.entitlements.len()
     );
     client
         .rename(&token, "AIJ e2e Mac (renamed)", "0.0.1")

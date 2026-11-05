@@ -149,8 +149,7 @@ fn agreed_terms_move_and_a_disagreement_is_chosen_once() {
         let display = commands::quota_display_inner(&storage, &row, 0);
         assert!(
             display.renewal.label.contains("2027-04-03"),
-            "{:?}",
-            display.renewal
+            "the renewal names the stored date (not printed)"
         );
     }
 

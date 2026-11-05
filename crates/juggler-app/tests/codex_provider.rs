@@ -96,7 +96,9 @@ fn a_codex_account_gets_its_own_home_and_real_sign_in_state() {
     );
     assert!(
         rows.iter().all(|row| row.pass),
-        "a fresh codex account: {rows:#?}"
+        "a fresh codex account: {} of {} checks pass (rows not printed)",
+        rows.iter().filter(|row| row.pass).count(),
+        rows.len()
     );
 
     // The Expert-setup snippet points the CLI at this home only.
