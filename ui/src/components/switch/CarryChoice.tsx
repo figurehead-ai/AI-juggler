@@ -63,7 +63,7 @@ export function CarryChoice({ state }: { state: CarryChoiceState }): JSX.Element
   if (!info?.supported || info.turns < WORTH_IT_TURNS) return null;
   const first = info.first_ms !== null ? day(info.first_ms) : null;
   return (
-    <Disclosure tone="quiet" summary="Very long conversation? Leave out its start" testId="switch-carry">
+    <Disclosure tone="quiet" summary="Very long conversation? Leave out its start" testId="switch-carry-choice">
       <fieldset className="mt-2 flex flex-col gap-2">
         <legend className="sr-only">What the switch carries</legend>
         <label className="flex items-center gap-2 text-body text-ink">
