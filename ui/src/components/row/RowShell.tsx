@@ -72,6 +72,9 @@ export interface ShellProps {
 /** Shown under the pointer, or when the keyboard is in the row: never
  * left up by the focus a click leaves on the row (the maintainer's
  * report, 2026-11-03: the selected row kept its tools). */
+/** Room for 0–3 rail tools (24 px each, 2 px apart, 4 px from the edge),
+ * taken only while they show. */
+const TOOL_ROOM = ["", "group-hover:pr-9 group-has-[:focus-visible]:pr-9 ", "group-hover:pr-16 group-has-[:focus-visible]:pr-16 ", "group-hover:pr-[5.5rem] group-has-[:focus-visible]:pr-[5.5rem] "];
 const ON_HOVER = "opacity-0 transition-opacity group-has-[:focus-visible]:opacity-100 group-hover:opacity-100 motion-reduce:transition-none";
 
 export function RowShell({
@@ -106,6 +109,10 @@ export function RowShell({
   const goTo = where === null ? null : menu.goTo({ where, shown, className: tools || list ? "" : "absolute right-1 top-1/2 -translate-y-1/2" });
   // AJ-E1502: the pin, on hover and focus, runs the menu's own Pin.
   const pin = tools ? menu.actions.find((action) => action.id === "pin" && !action.reason) : undefined;
+  // The rail's tools sit over the row's end; while they show, the row's
+  // words end before them instead of running under them (0.4 review).
+  const toolCount = tools ? (arrange?.enabled ? 1 : 0) + (pin ? 1 : 0) + (goTo ? 1 : 0) : 0;
+  const toolRoom = TOOL_ROOM[toolCount] ?? "";
   // A page's row is named as its lists always named it.
   const menuLabel = list ? `Actions for ${item.title}` : `${item.session ? "Session" : "Conversation"} actions for ${item.title}`;
   return (
@@ -138,7 +145,7 @@ export function RowShell({
       >
         <span className="sr-only">{label}</span>
       </button>
-      <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center " + (list ? (slim || !goTo ? "pr-10 " : "pr-[4.25rem] ") : goTo && shown ? "pr-9 " : "pr-2 ") + shape + " " + className}>
+      <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center " + (list ? (slim || !goTo ? "pr-10 " : "pr-[4.25rem] ") : goTo && shown ? "pr-9 " : "pr-2 " + toolRoom) + shape + " " + className}>
         {children}
       </div>
       {below}

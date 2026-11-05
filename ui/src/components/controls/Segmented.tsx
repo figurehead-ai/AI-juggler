@@ -20,6 +20,7 @@ export function Segmented<T extends string>({
   onChange,
   testId,
   className = "",
+  wrap = false,
 }: {
   /** The group's name for screen readers ("Group sessions by"). */
   label: string;
@@ -28,6 +29,9 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
   testId?: string;
   className?: string;
+  /** Filter chips with counts: whole words on more lines when narrow,
+   * never cut ("Limit reache…" off the card at 390 px). */
+  wrap?: boolean;
 }): JSX.Element {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const at = Math.max(
@@ -57,7 +61,7 @@ export function Segmented<T extends string>({
       aria-label={label}
       data-testid={testId}
       onKeyDown={onKey}
-      className={"flex gap-0.5 rounded-[10px] border border-hairline bg-surface/70 p-[2px] " + className}
+      className={(wrap ? "flex min-w-0 max-w-full flex-wrap " : "flex ") + "gap-0.5 rounded-[10px] border border-hairline bg-surface/70 p-[2px] " + className}
     >
       {segments.map((segment, index) => {
         const on = index === at;
@@ -78,7 +82,7 @@ export function Segmented<T extends string>({
             // quarters cut "Account" to "Accou…" beside a short "App"
             // and "Pool" (the 0.3 re-render).
             className={
-              "min-h-6 min-w-0 flex-auto truncate rounded-[7px] px-1 py-0.5 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
+              (wrap ? "min-h-6 flex-none whitespace-nowrap " : "min-h-6 min-w-0 flex-auto truncate ") + "rounded-[7px] px-1 py-0.5 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
               // The chosen one in the accent's tint and ink, in both themes: a
               // lighter grey in dark couldn't be told without reading (the 0.4
               // design review, 32).

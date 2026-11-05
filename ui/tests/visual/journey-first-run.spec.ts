@@ -90,6 +90,9 @@ test("first run on a Mac with Claude Code already set up", gate("66-first-run"),
   await expect(page.getByTestId("first-run-bring-in")).toHaveText("Bring in 6 apps");
   const looked = page.getByRole("button", { name: "Where we looked" });
   if (await looked.count()) await looked.click();
+  // The page scrolls inside the window, so bring the list into view (the
+  // footer stays pinned since the 0.4 review; the capture showed the top).
+  await page.getByTestId("first-run-looked").scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${OUT}/where-we-looked-1280x800-dark.png`, fullPage: true });
   await page.getByTestId("first-run-bring-in").click();
   primaryClicks += 1;

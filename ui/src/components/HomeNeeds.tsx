@@ -180,7 +180,7 @@ export function HomeNeeds({
       <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-2" data-testid="home-chips">
-            <Segmented label="Show what needs you" value={shownChip} segments={chips.map(({ value, label }) => ({ value, label }))} onChange={setChip} testId="home-chip" />
+            <Segmented label="Show what needs you" value={shownChip} segments={chips.map(({ value, label }) => ({ value, label }))} onChange={setChip} testId="home-chip" wrap />
             {hidden > 0 && (
               <button type="button" className="text-meta text-muted hover:text-ink hover:underline" onClick={() => setChip("all")} data-testid="home-chips-hidden">
                 {hidden} more under All

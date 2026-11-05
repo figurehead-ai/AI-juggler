@@ -325,11 +325,15 @@ export function InspectorHeader({
  * out of the row's flow, so the buttons beside it keep their line. */
 function Hinted({ hint, testId, children }: { hint: string | null; testId: string; children: ReactNode }) {
   if (hint === null) return <>{children}</>;
+  // The line is wider than its button: it takes no height but sets the
+  // column's width, so two side by side never print over each other.
   return (
-    <span className="relative flex items-center gap-2">
+    <span className="flex flex-col items-center">
       {children}
-      <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-label text-muted" data-testid={testId}>
-        {hint}
+      <span className="pointer-events-none h-0 whitespace-nowrap">
+        <span className="relative top-1 block text-label text-muted" data-testid={testId}>
+          {hint}
+        </span>
       </span>
     </span>
   );

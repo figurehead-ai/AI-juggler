@@ -73,3 +73,18 @@ describe("AJ-E2910 — Home's chips", () => {
     expect(onReviewAll).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Segmented, wrapped (the 0.4 re-render: 'Limit reache' off the card at 390 px)", () => {
+  it("keeps every chip's words whole and lets the row wrap", async () => {
+    const { Segmented } = await import("./controls/Segmented");
+    render(
+      <Segmented label="Show what needs you" value="all" wrap testId="chip" onChange={() => undefined}
+        segments={[{ value: "all", label: "All 5" }, { value: "limit", label: "Limit reached 1" }]} />,
+    );
+    expect(screen.getByRole("radiogroup").className).toContain("flex-wrap");
+    for (const radio of screen.getAllByRole("radio")) {
+      expect(radio.className).not.toContain("truncate");
+      expect(radio.className).toContain("whitespace-nowrap");
+    }
+  });
+});
