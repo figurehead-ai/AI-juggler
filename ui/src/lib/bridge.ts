@@ -1986,10 +1986,7 @@ export interface PreflightInfoData {
   zombies: string[];
   diff_snapshotted: boolean;
   source_live: boolean;
-  /** 0.4: the conversation that moves, by its title (null when it has
-   * none), and the account it is on now: the confirm step names both. */
-  source_title?: string | null;
-  source_account?: string;
+  /** 0.4: what moves (its title) and the account it's on: the confirm step names both. */ source_title?: string | null; source_account?: string;
   /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
   source_keeps_running: boolean;
   /** AJ-E2108: a session another app runs: only read, left as it is, and
@@ -2088,8 +2085,7 @@ const DEFAULT_PREFLIGHT: PreflightInfoData = {
   zombies: [],
   diff_snapshotted: false,
   source_live: true,
-  source_title: "Fix the checkout flow",
-  source_account: "Work",
+  source_title: "Fix the checkout flow", source_account: "Work",
   source_keeps_running: false,
   experimental_copy:
     "Beta, not proven yet: the whole session is carried over, with its subagents and file history. The source stays resumable.",
