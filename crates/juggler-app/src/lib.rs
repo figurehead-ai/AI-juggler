@@ -41,6 +41,7 @@ pub mod history;
 pub mod identity;
 pub mod in_place;
 pub mod ipc;
+pub mod lab_scope;
 pub mod launch_alert;
 pub mod lifecycle;
 pub mod link;

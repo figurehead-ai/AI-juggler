@@ -36,6 +36,8 @@ The bridge has a lab-only write mode. Each condition below is part of the decisi
    An Account on a tool's own default folder (`vendor_default_dir`) is refused too: with its folder override unset, Claude Code signs in through the login Keychain, which a lab HOME doesn't move. A switch to a desktop app is refused, since desktop apps run outside the lab.
 5. **Reviewed before any walk uses it.** The threat model is updated (DEV-BRIDGE.md, SECURITY-GUIDELINES.md), and the diff gets a security review. Tests cover: refusal on the real home, on a symlinked `/tmp` folder, on an overlap with the real home, on a data folder outside the lab, on another owner, and without the feature. Any security finding blocks the mode.
 
+6. **A lab sees only its own processes.** With the mode on, the process table the app discovers apps and sessions from keeps a process only if its program or an argument names a path in the lab, or if this app started it (`lab_scope`). This Mac's own apps, and their profile names, never show on a lab's screens or in its walk captures. A process's environment is never read for this.
+
 ## Alternatives considered
 
 - **The maintainer walks by hand.** That's eleven scenarios, and the standing rule is that the agent walks them.

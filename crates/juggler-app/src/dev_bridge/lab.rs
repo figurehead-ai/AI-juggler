@@ -151,6 +151,7 @@ pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
         me,
     )?;
     let _ = LAB_HOME.set(lab.clone());
+    crate::lab_scope::set(&lab);
     // The app's own background work (the limits probe, the watchers) runs
     // every Account it holds: in a lab, each must be the lab's own.
     let accounts = state
