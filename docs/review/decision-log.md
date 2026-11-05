@@ -2566,3 +2566,17 @@ in 0.4: the Floor is new in 0.4 and hasn't shipped.
 - Pixel art keeps every SPEC §9.7 budget. Full resolution gets its own
   measured budget in the record; where it goes past D-79's, the setting's
   line says so with the number.
+
+### D-81 Ship 0.4: approved for push, merge, nightly and beta — SETTLED (2026-11-05)
+
+**Ruling.** The maintainer, 2026-11-05: "Ok keep going let's wrap up 0.4,
+you have my full permission to approve and deploy to beta". It covers the
+whole path for 0.4.0 without stopping to ask at each step: push the last
+rounds to `release/0.4`, get CI fully green, merge PR #210 as a merge
+commit, dispatch the nightly from `main` (0.4.0 under strict SemVer,
+checked with `scripts/release_version.py next` first) and promote that
+build to the beta channel through the project's beta workflow.
+
+- What's left open when it ships is said in the release notes' "Still
+  open", not held for.
+- Stable stays a deliberate, separate step (the release channel policy).
