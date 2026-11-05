@@ -180,7 +180,7 @@ export function ContinueOn({
   // on another account…" (F8, 0.3.2): the list opens in a dialog over the
   // page, its Suggested account holding the keyboard.
   const [dialog, setDialog] = useState(false);
-  useHandoverFocus(() => setDialog(true));
+  useHandoverFocus(() => setDialog(true), source);
   const pick = onPick && ((recipeId: string, label: string) => (setDialog(false), onPick(recipeId, label)));
   // Where the original stays, for a session another app runs.
   const app = appWords(model.places[0], model.tool);

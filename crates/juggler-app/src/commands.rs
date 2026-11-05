@@ -5236,6 +5236,12 @@ pub struct PreflightInfo {
     pub diff_snapshotted: bool,
     /// Whether the source instance is live (freeze dialog needed).
     pub source_live: bool,
+    /// 0.4: the conversation that moves, by the title it shows under
+    /// (None when the tool's files give it none): the confirm step names
+    /// it, so the switch never moves one the user didn't mean.
+    pub source_title: Option<String>,
+    /// The account the conversation is on now.
+    pub source_account: String,
     /// AJ-E1540: live, but not a session AI Juggler can stop (started
     /// outside it): the switch leaves it running and the copy is a
     /// separate continuation.
@@ -5423,6 +5429,8 @@ pub(crate) fn preflight_with(
         &input.fidelity,
         messages,
     );
+    let named =
+        crate::features::handover::stays_behind::of(state, &reference, &account_a, &account_b);
     Ok(PreflightInfo {
         mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
@@ -5433,6 +5441,8 @@ pub(crate) fn preflight_with(
         zombies: report.zombie_children.clone(),
         diff_snapshotted: report.diff_snapshotted,
         source_live,
+        source_title: named.title,
+        source_account: account_a.label.clone(),
         source_keeps_running: stays.keeps_running,
         source_outside: stays.outside,
         source_app: stays.app,
@@ -5451,7 +5461,7 @@ pub(crate) fn preflight_with(
         redaction,
         redaction_items,
         validated,
-        carry_items: words.carry_items,
+        carry_items: [words.carry_items, named.stays].concat(),
         move_line: words.move_line,
         secrets: words.secrets,
         target_tool: account_b.harness.to_string(),

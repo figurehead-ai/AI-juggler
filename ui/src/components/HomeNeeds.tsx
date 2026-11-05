@@ -18,6 +18,7 @@ import { Segmented } from "./controls";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { focusHandoverSoon } from "../lib/handover-focus";
+import { switchSourceOf } from "../lib/ipc/conversations";
 import { AskBatch } from "./AskCard";
 import { MessageNeeds } from "./MessageNeeds";
 import { TaskNeeds } from "./TaskNeeds";
@@ -67,7 +68,7 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
           host.openConversation?.(conversation);
         } else if (session) {
           handlers.onOpenSession(session.id);
-          if (second) focusHandoverSoon();
+          if (second) focusHandoverSoon(session.id);
         } else openUnloaded(need);
         return;
       case "limit":
@@ -88,10 +89,10 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
         // app's), else its account.
         if (need.sessionId) {
           handlers.onOpenSession(need.sessionId);
-          focusHandoverSoon();
+          focusHandoverSoon(need.sessionId);
         } else if (need.conversation) {
           host.openConversation?.(need.conversation);
-          focusHandoverSoon();
+          focusHandoverSoon(switchSourceOf(need.conversation));
         } else if (need.account) host.openAccount?.(need.account);
         return;
       case "leftovers":

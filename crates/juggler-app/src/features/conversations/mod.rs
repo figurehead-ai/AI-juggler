@@ -959,6 +959,15 @@ fn forget_unseen(state: &Arc<AppState>, seen: Vec<PathBuf>) -> AppResult<bool> {
     Ok(forgot)
 }
 
+/// The title the conversation `id` on `account_id` shows under, when the
+/// index has it: what a switch names before anything moves.
+pub(crate) fn title_of(state: &Arc<AppState>, account_id: &str, id: &str) -> Option<String> {
+    find(state, account_id, id)
+        .ok()
+        .and_then(|conversation| conversation.summary.title)
+        .filter(|title| !title.trim().is_empty())
+}
+
 /// The conversation `id` on `account_id`, from the index.
 fn find(state: &Arc<AppState>, account_id: &str, id: &str) -> AppResult<Conversation> {
     state

@@ -139,7 +139,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
 /// 0.3.9: who started whom, as the running apps record it (a Claude app
 /// side session's parent), `(tool, conversation)` → the one it was started
 /// from: read once for every row.
-fn started_from(state: &Arc<AppState>) -> HashMap<(String, String), String> {
+pub(crate) fn started_from(state: &Arc<AppState>) -> HashMap<(String, String), String> {
     state
         .conversations
         .live_model()

@@ -237,6 +237,10 @@ export function NotificationRegion({
       const key = `notice-${notice.id}`;
       if (hidden.has(key)) continue;
       const second = secondOf(notice);
+      // 0.4: the banner names the session it continues, so over another
+      // session's page it never reads as that page's.
+      const subject = actions.handOverSubject(notice);
+      const short = subject && subject.length > 40 ? `${subject.slice(0, 39)}…` : subject;
       items.push({
         key,
         node: (
@@ -244,11 +248,11 @@ export function NotificationRegion({
             key={key}
             tone="warning"
             title={notice.title}
-            detail={quotaDetail(notice, now)}
+            detail={subject ? `${quotaDetail(notice, now)} · Its open session: ${subject}` : quotaDetail(notice, now)}
             meter={notice.meter !== null ? { used: 100 - notice.meter, label: `${100 - notice.meter}% used` } : undefined}
             actions={[
               // F16: the switch for its open session, else (named so) its account.
-              { label: actions.canHandOver(notice) ? "Continue in another app…" : "Open its app", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
+              { label: short ? `Continue “${short}” in another app…` : actions.canHandOver(notice) ? "Continue in another app…" : "Open its app", primary: true, onClick: () => actions.primary(notice), testId: "quota-banner-hand-over" },
               ...(second?.id === "remind-reset" ? [{ label: second.label, onClick: () => actions.second(notice, "remind-reset"), testId: "quota-banner-remind" }] : []),
               { label: "Snooze 1 h", quiet: true, testId: "quota-banner-snooze", onClick: () => hideWhile(key, () => actions.snooze(notice, "hour")) },
             ]}

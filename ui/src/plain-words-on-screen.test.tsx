@@ -58,7 +58,7 @@ vi.mock("./lib/bridge", async (original) => {
 
 afterEach(cleanup);
 
-const LIVE = { id: "s-1", account_id: "acc-mia", status: "running", started_at_ms: 1, last_activity_ms: 2 } as unknown as InstanceInfo;
+const LIVE = { id: "s-1", account_id: "acc-mia", status: "running", started_at_ms: 1, last_activity_ms: 2, cwd: "/Users/someone/Dev/shop", git_branch: null } as unknown as InstanceInfo;
 
 describe("nothing internal on screen (D-25)", () => {
   it("a quota banner: the account, what's left, the window and when it resets", async () => {
@@ -80,7 +80,10 @@ describe("nothing internal on screen (D-25)", () => {
     expect(text).toContain("Mia is almost out of room");
     expect(text).toMatch(/7% of its 5-hour window left · resets at .+ · 1 session uses it/);
     // F16: its session is open, so the button continues it elsewhere.
-    expect(view.getByTestId("quota-banner-hand-over").textContent).toBe("Continue in another app…");
+    // 0.4: named, so over another session's page it never reads as that
+    // page's (the maintainer took it for the page's own and switched it).
+    expect(view.getByTestId("quota-banner-hand-over").textContent).toBe("Continue “shop” in another app…");
+    expect(text).toContain("Its open session: shop");
     // 0.3.2: the reminder names its time ("Queue for the reset" said nothing).
     expect(view.getByTestId("quota-banner-remind").textContent).toMatch(/^Remind me at .+$/);
     delete seams.__AIJ_NOTICES__;

@@ -167,6 +167,7 @@ function ConversationView({
       <PageShell
         kind="conversation"
         subject={`${conversation.account_id}:${conversation.id}`}
+        switchKey={model.switchSource}
         tabs={tabs}
         header={
           <PageHeader

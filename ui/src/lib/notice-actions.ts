@@ -16,6 +16,8 @@ import { focusThread } from "./ipc/messages";
 import { notificationsMute, notificationsRead, notificationsSnooze, type NoticeInfo } from "./ipc/notices";
 import { acted } from "./notices-store";
 import { focusHandoverSoon, openOnAccount } from "./handover-focus";
+import { switchSourceOf } from "./ipc/conversations";
+import { conversationTitle } from "./conversations";
 import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { whenWords } from "./time-words";
 import { openOnTab, type PageTabId } from "../pages/registry";
@@ -42,6 +44,10 @@ export interface NoticeActions {
   primary: (notice: NoticeInfo) => void;
   /** A hand-over has a session to continue (else it opens the account). */
   canHandOver: (notice: NoticeInfo) => boolean;
+  /** 0.4: the session a hand-over continues, by name ("Fix the checkout
+   * flow"), else null: the banner names it, so it never reads as being
+   * about the page under it. */
+  handOverSubject: (notice: NoticeInfo) => string | null;
   /** Its second action beside the primary. */
   second: (notice: NoticeInfo, which: Second) => void;
   /** True once it took (the banner hides it at once, and puts it back
@@ -106,9 +112,13 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
         // with its switch list; the account only when none is open.
         const found = openOnAccount(notice.target.account_id, sessions, conversations);
         if (!found) return open(notice);
-        if ("session" in found) host.openSessionById?.(found.session.id);
-        else host.openConversation?.(found.conversation);
-        focusHandoverSoon();
+        if ("session" in found) {
+          host.openSessionById?.(found.session.id);
+          focusHandoverSoon(found.session.id);
+        } else {
+          host.openConversation?.(found.conversation);
+          focusHandoverSoon(switchSourceOf(found.conversation));
+        }
         return;
       }
       case "limit":
@@ -186,5 +196,12 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     }
   };
   const canHandOver = (notice: NoticeInfo) => openOnAccount(notice.target.account_id, sessions, conversations) !== null;
-  return { primary, canHandOver, second, snooze, wake, mute };
+  const handOverSubject = (notice: NoticeInfo) => {
+    const found = openOnAccount(notice.target.account_id, sessions, conversations);
+    if (!found) return null;
+    if ("conversation" in found) return conversationTitle(found.conversation);
+    const seen = conversations.find((c) => c.session_id === found.session.id);
+    return seen ? conversationTitle(seen) : (found.session.git_branch ?? (found.session.cwd ?? "").split("/").filter(Boolean).pop() ?? null);
+  };
+  return { primary, canHandOver, handOverSubject, second, snooze, wake, mute };
 }

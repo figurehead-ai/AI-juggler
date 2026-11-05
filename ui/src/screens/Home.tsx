@@ -286,7 +286,7 @@ export function HomeScreen({
     } else if (matches("home-handover", event) && id && item?.dataset.hasConversation === "yes") {
       event.preventDefault();
       onOpenSession(id);
-      focusHandoverSoon();
+      focusHandoverSoon(id);
     } else if (matches("home-snooze", event) && item) {
       event.preventDefault();
       item.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));

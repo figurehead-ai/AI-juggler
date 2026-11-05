@@ -734,6 +734,20 @@ pub trait HandoverSupport: HarnessAdapter {
         )?)
     }
 
+    /// 0.4: the pages on the tool's own website the conversation links to
+    /// (published or opened in it), by id, deduplicated. They belong to
+    /// the account that made them, so on another account they may not
+    /// open; the switch says so before anything moves. Reads the
+    /// transcript as a stream. Default: this tool has none.
+    ///
+    /// # Errors
+    ///
+    /// The transcript can't be read.
+    fn account_pages(&self, reference: &TranscriptRef) -> Result<Vec<String>, AdapterError> {
+        let _ = reference;
+        Ok(Vec::new())
+    }
+
     /// D-76: what `cut` would leave out of `reference`'s conversation
     /// (reads it once; a tool caches what it read). Default: this tool
     /// can't leave part of a conversation out.

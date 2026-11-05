@@ -239,7 +239,7 @@ export function InspectorHeader({
       {/* D-25: the session's one-step-away move, beside its Stop. */}
       {/* Only with a conversation to carry over: the menu's own rule. */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
-        <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover()}>
+        <Button size="sm" variant="secondary" data-testid="header-switch" onClick={() => focusHandover(instance.id)}>
           Continue in another app…
         </Button>
       )}
@@ -296,7 +296,7 @@ export function InspectorHeader({
             session={instance}
             openIn={conversations.some((c) => c.id === instance.conversation_id && c.live) ? "another app" : null}
             onOpen={host.openSessionById}
-            onContinue={() => focusHandover()}
+            onContinue={() => focusHandover(instance.id)}
           />
         </Hinted>
       )}

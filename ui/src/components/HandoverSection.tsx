@@ -73,7 +73,7 @@ export function HandoverSection({
   // in another app…" (0.3.2): the list opens in a dialog over the
   // page, its Suggested account holding the keyboard.
   const [dialog, setDialog] = useState(false);
-  useHandoverFocus(() => setDialog(true));
+  useHandoverFocus(() => setDialog(true), session.id);
   // Refetched when the session or its live state changes: the ranker's
   // inputs (quota, sessions) move with them.
   const [rows, setRows] = useState<SwitchTargetData[] | null>(null);

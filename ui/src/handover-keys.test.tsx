@@ -38,8 +38,8 @@ describe("F8 the row menu of another app's session", () => {
   });
 });
 
-function List({ took }: { took: () => void }) {
-  useHandoverFocus(took);
+function List({ took, id = "s-1" }: { took: () => void; id?: string }) {
+  useHandoverFocus(took, id);
   return <p>list</p>;
 }
 
@@ -74,13 +74,81 @@ describe("F8 ⌘⇧H", () => {
 
   it("a page that opens just after the ask takes it as it mounts (the row menu opens the page first)", async () => {
     vi.useFakeTimers();
-    focusHandoverSoon();
+    focusHandoverSoon("s-1");
     const took = vi.fn();
     render(<List took={took} />);
     await act(async () => {
       vi.runAllTimers();
     });
     expect(took).toHaveBeenCalled();
+  });
+});
+
+// 0.3.9, the maintainer: "Continue on another account…" on one
+// conversation's row, while another conversation's page was still on
+// screen, switched the page's conversation. A request names its session,
+// and no other session's list may take it.
+describe("a switch request goes to the session it names, never the page on screen", () => {
+  it("the page still on screen doesn't take a request for another session", async () => {
+    vi.useFakeTimers();
+    const shown = vi.fn();
+    const picked = vi.fn();
+    const { rerender } = render(<List took={shown} id="conversation:olivia:coordinator" />);
+    focusHandoverSoon("conversation:olivia:manuscript");
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    expect(shown).not.toHaveBeenCalled();
+    // The picked conversation's page mounts a moment later and takes it.
+    rerender(<List took={picked} id="conversation:olivia:manuscript" />);
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    expect(picked).toHaveBeenCalledTimes(1);
+    expect(shown).not.toHaveBeenCalled();
+  });
+
+  it("with two lists mounted, only the named one takes it", () => {
+    const a = vi.fn();
+    const b = vi.fn();
+    render(
+      <>
+        <List took={a} id="a" />
+        <List took={b} id="b" />
+      </>,
+    );
+    act(() => void focusHandover("a"));
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).not.toHaveBeenCalled();
+  });
+
+  it("a request for a session whose page never opens is dropped, not handed to the next page", async () => {
+    vi.useFakeTimers();
+    focusHandoverSoon("gone");
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    vi.advanceTimersByTime(4_000);
+    const later = vi.fn();
+    render(<List took={later} id="other" />);
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    expect(later).not.toHaveBeenCalled();
+  });
+
+  it("⌘⇧H (no name) goes to the page showing now: the last one mounted", () => {
+    const older = vi.fn();
+    const newer = vi.fn();
+    render(
+      <>
+        <List took={older} id="old" />
+        <List took={newer} id="new" />
+      </>,
+    );
+    act(() => void focusHandover());
+    expect(newer).toHaveBeenCalledTimes(1);
+    expect(older).not.toHaveBeenCalled();
   });
 });
 

@@ -42,6 +42,13 @@ impl juggler_adapter::handover::HandoverSupport for ClaudeCodeAdapter {
             .unwrap_or(beside)
     }
 
+    /// 0.4: claude.ai artifacts the conversation links to (publishing one
+    /// prints its link), by id. They belong to the account that published
+    /// them, so the other account sees "This artifact is private".
+    fn account_pages(&self, reference: &TranscriptRef) -> Result<Vec<String>, AdapterError> {
+        artifact_ids(&reference.path)
+    }
+
     /// 0.3.9: its carried files, sized; a conversation the target already
     /// has is forked, so its transcripts are written in full.
     fn switch_room(
@@ -487,4 +494,77 @@ fn compacted(file: &BundleFile) -> std::io::Result<bool> {
 /// line by line for a large one.
 fn fork_into(file: &BundleFile, new_id: &str, to: &Path) -> std::io::Result<()> {
     file.rewrite_lines_to(to, |line| fork_session_id(line, new_id))
+}
+
+/// The claude.ai artifact ids `path` links to, in first-seen order, read
+/// as a stream in bounded chunks (a transcript can be gigabytes).
+fn artifact_ids(path: &Path) -> Result<Vec<String>, AdapterError> {
+    use std::io::Read;
+    const PREFIXES: [&[u8]; 2] = [b"claude.ai/code/artifact/", b"claude.ai/artifact/"];
+    const CHUNK: usize = 4 << 20;
+    // Long enough for a prefix plus a whole id across a chunk's edge.
+    const CARRY: usize = 96;
+    let mut file = std::fs::File::open(path)?;
+    let mut buf = vec![0_u8; CHUNK + CARRY];
+    let mut kept = 0;
+    let mut found: Vec<String> = Vec::new();
+    loop {
+        let read = file.read(&mut buf[kept..])?;
+        let end = kept + read;
+        let window = &buf[..end];
+        for prefix in PREFIXES {
+            for at in memchr::memmem::find_iter(window, prefix) {
+                let id: String = window[at + prefix.len()..]
+                    .iter()
+                    .take_while(|byte| byte.is_ascii_alphanumeric() || **byte == b'-')
+                    .take(64)
+                    .map(|byte| char::from(*byte))
+                    .collect();
+                // An id cut by the window's edge is read whole next time.
+                let cut = at + prefix.len() + id.len() >= end && read > 0;
+                if id.len() >= 8 && !cut && !found.contains(&id) {
+                    found.push(id);
+                }
+            }
+        }
+        if read == 0 {
+            break;
+        }
+        kept = end.min(CARRY);
+        buf.copy_within(end - kept..end, 0);
+    }
+    Ok(found)
+}
+
+#[cfg(test)]
+mod artifact_tests {
+    use super::artifact_ids;
+
+    #[test]
+    fn finds_each_page_once_even_across_a_chunk_edge() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("t.jsonl");
+        let mut body =
+            String::from("{\"a\":\"see https://claude.ai/code/artifact/11111111-aaaa\"}\n");
+        // Pad so the second link straddles the 4 MiB read boundary.
+        // (The first read fills 4 MiB plus the 96-byte carry.)
+        let pad = (4 << 20) + 96 - body.len() - 20;
+        body.push_str(&"x".repeat(pad));
+        body.push_str("https://claude.ai/artifact/22222222-bbbb-cccc and again ");
+        body.push_str("https://claude.ai/code/artifact/11111111-aaaa\n");
+        std::fs::write(&path, body).expect("write");
+        let ids = artifact_ids(&path).expect("read");
+        assert_eq!(
+            ids,
+            vec!["11111111-aaaa".to_owned(), "22222222-bbbb-cccc".to_owned()]
+        );
+    }
+
+    #[test]
+    fn a_conversation_without_pages_has_none() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("t.jsonl");
+        std::fs::write(&path, "{\"text\":\"claude.ai is a website\"}\n").expect("write");
+        assert!(artifact_ids(&path).expect("read").is_empty());
+    }
 }

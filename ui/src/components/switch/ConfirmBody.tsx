@@ -102,6 +102,12 @@ export function ConfirmBody({
     <div className="flex flex-col gap-5" data-testid="switch-step-confirm">
       <div className="flex flex-col gap-1.5">
         <h3 className="text-title text-ink">Ready to switch to {target}</h3>
+        {/* 0.4: what moves, named before anything does (0.3.9 moved a
+            conversation the user didn't pick). */}
+        <p className="text-body text-ink" data-testid="switch-source">
+          Moves <span className="font-semibold">{preflight.source_title ? `“${preflight.source_title}”` : "this conversation"}</span>
+          {preflight.source_account ? <span className="text-muted"> from {preflight.source_account}</span> : null}
+        </p>
         <p className="text-meta" data-testid="switch-cost">
           <FidelityBadge badge={moveBadge(preflight)} validated={preflight.validated === true} />
         </p>

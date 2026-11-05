@@ -1,3 +1,4 @@
+import { focusHandover } from "../lib/handover-focus";
 import { ToolChip } from "./ToolMark";
 import { matches } from "../lib/shortcuts";
 import { PageShell } from "../pages/PageShell";
@@ -210,7 +211,7 @@ export function RightInspector({
     onHandover,
     switchBackSuggestions,
     onSwitchBack,
-    onFocusTerminal: () => window.dispatchEvent(new Event("aij:focus-handover")),
+    onFocusTerminal: () => void focusHandover(selection.id),
     focusBridge,
   };
   return (
@@ -219,6 +220,7 @@ export function RightInspector({
       key={page}
       kind={page}
       subject={selection.id}
+      switchKey={page === "session" ? selection.id : undefined}
       tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
       tabs={tabs}
       testId="right-inspector"

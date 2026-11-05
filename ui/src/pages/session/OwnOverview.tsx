@@ -38,7 +38,7 @@ export function OwnSessionOverview({
   const desktop = session.kind === "desktop";
   const goTo = useCallback(() => {
     if (desktop) void host.focusSession?.(session);
-    else focusHandover();
+    else focusHandover(session.id);
   }, [desktop, host, session]);
   return (
     <SessionOverview

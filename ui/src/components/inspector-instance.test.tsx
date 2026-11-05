@@ -1,3 +1,4 @@
+import { focusHandover } from "../lib/handover-focus";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
@@ -247,11 +248,11 @@ describe("AJ-E407 shortcuts (real predicates, mocked bridge)", () => {
     open(container, "usage");
     expect(isHandoverShortcut({ key: "h", metaKey: true, ctrlKey: false, shiftKey: true, altKey: false })).toBe(true);
     expect(isHandoverShortcut({ key: "h", metaKey: true, ctrlKey: false, shiftKey: false, altKey: false })).toBe(false);
-    // App's translation, verbatim: predicate → the inspector event.
+    // App's translation, verbatim: predicate → the page showing now.
     const onKey = (event: KeyboardEvent) => {
       if (isHandoverShortcut(event)) {
         event.preventDefault();
-        window.dispatchEvent(new Event("aij:focus-handover"));
+        focusHandover();
       }
     };
     window.addEventListener("keydown", onKey);

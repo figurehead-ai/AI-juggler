@@ -7,7 +7,7 @@
 import { useKeys } from "../lib/use-keys";
 import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { useScrollMemory } from "../lib/scroll-memory";
-import { HANDOVER_EVENT } from "../lib/handover-focus";
+import { useHandoverPage } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/bridge";
 import { PAGE_LABELS, PAGE_TAB_OF, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
@@ -149,7 +149,11 @@ export function PageShell({
   testId = "page",
   subject,
   tabsKnown = true,
+  switchKey,
 }: {
+  /** A session's page: the key its switch list answers to
+   * (`switchSourceOf`, or AI Juggler's session id). */
+  switchKey?: string;
   kind: PageKind;
   /** 0.3.4: the item shown (its id): the page and each of its tabs open
    * where they were left for it; another item starts at the top. */
@@ -195,16 +199,9 @@ export function PageShell({
   };
 
   // ⌘⇧H: a session's switch list lives on its body; from another tab
-  // the body opens and the list takes the keyboard as it mounts.
-  useEffect(() => {
-    const toBody = (event: Event) => {
-      if (kind !== "session" && kind !== "conversation") return;
-      if (tab !== tabs[0]!.id) event.preventDefault();
-      setPicked(tabs[0]!.id);
-    };
-    window.addEventListener(HANDOVER_EVENT, toBody);
-    return () => window.removeEventListener(HANDOVER_EVENT, toBody);
-  });
+  // the body opens and the list takes the keyboard as it mounts. Only
+  // for this page's own session (`switchKey`).
+  useHandoverPage(() => setPicked(tabs[0]!.id), kind === "session" || kind === "conversation" ? switchKey : undefined);
 
   // E19: a tab's link asks for another of this page's tabs (a task's
   // thread opens in Messages).

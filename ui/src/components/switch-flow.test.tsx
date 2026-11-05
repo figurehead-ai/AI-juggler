@@ -175,6 +175,8 @@ describe("AJ-E206 door", () => {
     fireEvent.click(view.getByTestId("switch-continue"));
     await waitFor(() => expect(view.getByTestId("switch-step-confirm")).toBeTruthy());
     expect(view.getByTestId("switch-confirm")).toBeTruthy();
+    // 0.4: the conversation that moves is named before anything does.
+    expect(view.getByTestId("switch-source").textContent).toBe("Moves “Fix the checkout flow” from Work");
   });
 
   it("wizard done navigates without an undo window (modal keeps the graph path)", async () => {

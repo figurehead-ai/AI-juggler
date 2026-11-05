@@ -11,7 +11,7 @@ import { showGoTo } from "../lib/go-to";
 import type { ActionHost } from "../lib/actions";
 import { desktopFocus, errorText, type InstanceInfo, type ProjectInfo } from "../lib/bridge";
 import { sessionsResumeCommand } from "../lib/ipc/sessions";
-import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, type ConversationInfo } from "../lib/ipc/conversations";
+import { conversationsContinue, conversationsGoTo, conversationsResumeCommand, switchSourceOf, type ConversationInfo } from "../lib/ipc/conversations";
 import { useConversations } from "../lib/conversations";
 import { openPoolSheet } from "../lib/pools";
 import { markSeen } from "../lib/seen";
@@ -63,7 +63,7 @@ export function AppActions({
     // The same as ⌘⇧H on the session: its switch list.
     const carry = (row: InstanceInfo) => {
       selectSession(row.id);
-      focusHandoverSoon();
+      focusHandoverSoon(row.id);
     };
     return {
       openSession: (row) => selectSession(row.id),
@@ -105,7 +105,7 @@ export function AppActions({
       continueConversationElsewhere: (c) => {
         markSeen(c.account_id, c.id);
         selectConversation(c);
-        focusHandoverSoon();
+        focusHandoverSoon(switchSourceOf(c));
       },
       copyConversationResume: (c) => copy(conversationsResumeCommand(c.account_id, c.id), "Copied the resume command. Paste it into a terminal."),
       continueConversation: async (c) => {
