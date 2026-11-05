@@ -218,6 +218,8 @@ fn keep_size(app: &tauri::AppHandle) {
             let _ = w.set_size(tauri::LogicalSize::new(1278.0, 798.0));
         }
     });
+    // poll: one wait, the harness only, for the resize to reach the
+    // surface before anything is measured (twice a record).
     std::thread::sleep(Duration::from_millis(500));
 }
 
