@@ -208,7 +208,7 @@ export async function poolMembers(poolId: string, page: PageRequest): Promise<Pa
       .filter((row): row is { session: InstanceInfo; role: string } => row.session !== undefined && row.session.lifecycle !== "archived")
       .sort((a, b) => rank(a.role) - rank(b.role) || (b.session.last_activity_ms ?? 0) - (a.session.last_activity_ms ?? 0) || a.session.id.localeCompare(b.session.id))
       // The preview places sessions one by one: each named on its own.
-      .map(({ session, role }) => ({ session, card: previewCard(session, role), via: "session" }));
+      .map(({ session, role }) => ({ session, card: previewCard(session, role), via: "session", held_by: null }));
     return pageOf(rows, page);
   }
   return invoke<Page<PoolMemberRow>>("pools_members", { poolId, page });

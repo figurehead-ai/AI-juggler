@@ -1330,3 +1330,50 @@ fn a_switch_says_what_happens_to_each_pool_d62() {
             .any(|line| line.pool_id == client && line.kind == "joins")
     );
 }
+
+/// D-62 (the P7 walk): sealing a pool takes its sessions out of their other
+/// pools, but those pools still list them, held by the sealed one, so the
+/// screen can show them greyed ("in Client (sealed)") instead of dropping
+/// them without a trace.
+#[test]
+fn a_sealed_pools_session_stays_listed_in_its_other_pools_as_held_by_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    account(&state, "work");
+    let c1 = session(&state, "s-c1", "work", None, dir.path());
+    let info = pools::pool_create_impl(&state, "Client", None).unwrap();
+    let client = pool_id(&info, "Client");
+    let info = pools::pool_create_impl(&state, "Web", None).unwrap();
+    let web = pool_id(&info, "Web");
+    for pool in [&client, &web] {
+        pools::model::join_impl(
+            &state,
+            pool,
+            &format!("session:{}", c1.as_str()),
+            "member",
+            None,
+            &[],
+        )
+        .unwrap();
+    }
+    pools::model::set_sealed_impl(&state, &client, true).unwrap();
+
+    let page = PageRequest {
+        cursor: None,
+        limit: Some(50),
+    };
+    let in_web = pools::members::members_page(&state, &web, &page).unwrap();
+    let row = in_web
+        .items
+        .iter()
+        .find(|row| row.session.id == c1.as_str())
+        .expect("still listed in Web");
+    assert_eq!(row.held_by.as_deref(), Some("Client"));
+    let in_client = pools::members::members_page(&state, &client, &page).unwrap();
+    let row = in_client
+        .items
+        .iter()
+        .find(|row| row.session.id == c1.as_str())
+        .expect("a member of Client");
+    assert_eq!(row.held_by, None);
+}

@@ -40,6 +40,8 @@ export const edgeKey = (from: string, to: string) => `${from}>${to}`;
 export function drawnMembers(items: readonly PoolMemberRow[], live: ReadonlyMap<string, InstanceInfo>): MemberNode[] {
   return items
     .map((row) => ({ row, session: live.get(row.session.id) ?? row.session }))
+    // A session a sealed pool holds out of this one is in the List view only.
+    .filter(({ row }) => !row.held_by)
     .filter(({ row, session }) => isActiveStatus(session.status) || row.via === "session" || row.via === "watched")
     .map(({ row, session }) => ({ id: row.session.id, session, card: row.card, role: row.card.role }));
 }

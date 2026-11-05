@@ -3,16 +3,16 @@
     "step": "1a-seal-asks",
     "error": null,
     "feedback": [
+      37,
+      20,
       7,
-      24,
-      9,
       1
     ],
     "done": [
-      308,
+      338,
       null,
       null,
-      238
+      18
     ],
     "check": "Seal «Client»?client leaves web.Seal itKeep it open"
   },
@@ -23,42 +23,42 @@
       1
     ],
     "done": [
-      32
+      22
     ],
     "check": "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler. A switch into or out of it asks first.Unseal…"
+  },
+  {
+    "step": "1c-held-in-web",
+    "error": null,
+    "feedback": [
+      6,
+      23,
+      5
+    ],
+    "done": [
+      305,
+      null,
+      5
+    ],
+    "check": [
+      "in Client (sealed)"
+    ]
   },
   {
     "step": "5-unseal-asks",
     "error": null,
     "feedback": [
+      6,
+      13,
+      6,
       1
     ],
     "done": [
-      103
+      null,
+      null,
+      null,
+      18
     ],
     "check": "Unseal «Client»?client goes back into web, client · all sessions.client goes back into client · all sessions.UnsealKeep it sealed"
-  },
-  {
-    "step": "1c-elsewhere-greyed",
-    "error": null,
-    "feedback": [
-      6,
-      24,
-      7,
-      1,
-      1,
-      3,
-      5
-    ],
-    "done": [
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      19
-    ],
-    "check": "web\nRename\n0 sessions in AI Juggler · for web\nCanvas\nList\nTasks\nMessages\nAgents:\nWork together\nLet agents in your projects see each other and work together?\n\nSessions AI Juggler starts get its agent tools: each agent can see who else is in its pool and what they're doing, and say what it's doing itself. What each pool lets agents do stays yours to set. You can switch this off for a project or an app in Settings › Agent access.\n\nYes, let them\nNot now\n\nArrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu.\n\nThree steps to a working pool\n\nEach step opens the control it needs. Nothing starts a session.\n\n✓\nChoose where it works\nEvery project, or the ones you pick. Agents see only these. Now: web.\nChange\n2\nAdd who's in it\nSessions, or whole Apps, Accounts, Tools or Macs, so new sessions join by themselves.\nAdd members\n3\nPick a lead and how they talk\nClick a member for its role, or a line between two for their talk.\nLater\n\nPrefer a head start? Use a template\n\nADD A SESSION\n0\n\nEvery open session that can join is here already. Start one and it shows up here.\n\nMore:\nApps 2\nClaude Code · Work · work\nnew ones join\nAdd\nCodex · Personal · default\nnew ones join\nAdd\n100%\nTidy up\nACTIVITY\nTHIS POOL\nMembers\n0\nAgents may\nWork together\nDelivery\nWhen you click Deliver, 5 in a row\nAlways allowed\nNothing yet\nChange what agents may do…\nLIVE\n\nNothing yet. Messages and task changes between its agents show here as they happen.\n\nSelect a member or an edge and this panel shows its tasks, messages, usage and rules."
   }
 ]

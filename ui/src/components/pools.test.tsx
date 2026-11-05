@@ -320,7 +320,7 @@ describe("context cards", () => {
   });
   /** A read list of these cards' members, as `usePoolMembers` gives it. */
   const listOf = (cards: ContextCard[]): PagedList<PoolMemberRow> => ({
-    items: cards.map((entry) => ({ session: MOCK_SESSIONS.find((session) => session.id === entry.session_id)!, card: entry, via: "session" })),
+    items: cards.map((entry) => ({ session: MOCK_SESSIONS.find((session) => session.id === entry.session_id)!, card: entry, via: "session", held_by: null })),
     total: cards.length,
     loading: false,
     stale: false,
@@ -366,6 +366,14 @@ describe("context cards", () => {
   it("says so when a pool is empty", () => {
     const { getByTestId } = render(<PoolCardRows list={listOf([])} sessions={[]} now={Date.now()} />);
     expect(getByTestId("pool-cards-empty")).toBeTruthy();
+  });
+
+  it("shows a session a sealed pool holds out of this one, greyed, saying where it is (the P7 walk)", () => {
+    const list = listOf([card({})]);
+    const held = { ...list, items: list.items.map((row) => ({ ...row, held_by: "Client" })) };
+    const { getByTestId } = render(<PoolCardRows list={held} sessions={MOCK_SESSIONS} now={Date.now()} />);
+    expect(getByTestId("pool-card-held").textContent).toBe("in Client (sealed)");
+    expect(getByTestId("pool-card").hasAttribute("data-held")).toBe(true);
   });
 });
 

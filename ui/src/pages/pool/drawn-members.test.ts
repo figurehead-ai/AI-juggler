@@ -9,12 +9,16 @@ import { MOCK_SESSIONS, type InstanceInfo } from "../../lib/bridge";
 import type { PoolMemberRow } from "../../lib/ipc/pools";
 
 const base = MOCK_SESSIONS[0] as InstanceInfo;
-const row = (id: string, status: string, via: string): PoolMemberRow => ({ session: { ...base, id, status }, card: { session_id: id, role: "member" } as PoolMemberRow["card"], via });
+const row = (id: string, status: string, via: string, held_by: string | null = null): PoolMemberRow => ({ session: { ...base, id, status }, card: { session_id: id, role: "member" } as PoolMemberRow["card"], via, held_by });
 
 describe("the canvas's members", () => {
   it("draws open sessions and named ones, never an ended one a broad member brought", () => {
     const items = [row("open-by-app", "running", "app"), row("ended-by-app", "finished", "app"), row("ended-named", "stopped", "session"), row("ended-watched", "finished", "watched")];
     expect(drawnMembers(items, new Map()).map((m) => m.id)).toEqual(["open-by-app", "ended-named", "ended-watched"]);
+  });
+
+  it("leaves a session a sealed pool holds out of this one to the List view", () => {
+    expect(drawnMembers([row("held", "running", "session", "Client"), row("own", "running", "session")], new Map()).map((m) => m.id)).toEqual(["own"]);
   });
 
   it("judges by the session as it is now", () => {

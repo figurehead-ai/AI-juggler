@@ -17,7 +17,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use juggler_core::model::{ProjectId, SessionId};
-use juggler_core::pools::{Memberships, Resolution, SessionFacts};
+use juggler_core::pools::{Memberships, Resolution, SessionFacts, SkipReason};
 use juggler_core::storage::{PoolRole, SessionBrief, Storage};
 
 use super::dto::{PoolMemberInfo, PoolMemberRow};
@@ -227,6 +227,8 @@ struct Candidate {
     role: PoolRole,
     /// How it got in (`session`, `app`, `account`, `tool`, …).
     via: &'static str,
+    /// A sealed pool holds it out of this one (that pool's id).
+    held_by: Option<String>,
 }
 
 impl Candidate {
@@ -252,7 +254,7 @@ pub fn members_page(
     pool_id: &str,
     request: &PageRequest,
 ) -> AppResult<Page<PoolMemberRow>> {
-    let (page, records, memberships, projects) = {
+    let (page, records, memberships, projects, pool_names) = {
         let storage = lock_storage_arc(state)?;
         super::live_pool(&storage, pool_id)?;
         let memberships = memberships(&storage)?;
@@ -264,21 +266,43 @@ pub fn members_page(
             .into_iter()
             .filter(|brief| !archived.contains(brief.id.as_str()))
             .filter_map(|brief| {
-                let placement = memberships
-                    .resolve(facts.get(&brief.id)?)
-                    .in_pool(pool_id)?
-                    .clone();
-                Some(Candidate {
-                    brief,
-                    role: placement.role,
-                    via: placement.via().as_str(),
-                })
+                let resolution = memberships.resolve(facts.get(&brief.id)?);
+                if let Some(placement) = resolution.in_pool(pool_id) {
+                    return Some(Candidate {
+                        brief,
+                        role: placement.role,
+                        via: placement.via().as_str(),
+                        held_by: None,
+                    });
+                }
+                // D-62 (the P7 walk): a session a sealed pool holds out of
+                // this one stays listed here, greyed, saying where it is.
+                resolution
+                    .skipped
+                    .iter()
+                    .find_map(|skip| match &skip.reason {
+                        SkipReason::SealedElsewhere { sealed_pool } if skip.pool_id == pool_id => {
+                            Some(Candidate {
+                                brief: brief.clone(),
+                                role: PoolRole::Member,
+                                via: skip.member.kind().as_str(),
+                                held_by: Some(sealed_pool.clone()),
+                            })
+                        }
+                        _ => None,
+                    })
             })
             .collect();
         let page = crate::paging::page(candidates, Candidate::sort_key, request)?;
         let ids: Vec<SessionId> = page.items.iter().map(|c| c.brief.id.clone()).collect();
         let records = storage.sessions().get_many(&ids)?;
-        (page, records, memberships, super::project_names(&storage)?)
+        (
+            page,
+            records,
+            memberships,
+            super::project_names(&storage)?,
+            super::pool_names(&storage)?,
+        )
     };
     // Only this page's sessions are built in full.
     let mut built: HashMap<String, _> = crate::commands::instances_of(state, records)?
@@ -296,6 +320,12 @@ pub fn members_page(
                 session,
                 card,
                 via: candidate.via.to_owned(),
+                held_by: candidate.held_by.as_ref().map(|id| {
+                    pool_names
+                        .get(id)
+                        .cloned()
+                        .unwrap_or_else(|| "a sealed pool".to_owned())
+                }),
             })
         })
         .collect();

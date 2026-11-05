@@ -348,6 +348,9 @@ pub struct PoolMemberRow {
     /// `mac`, `everyone`). The canvas keeps an ended session only when it
     /// was named on its own (the P3 walk).
     pub via: String,
+    /// A sealed pool holds it out of this one: that pool's name (D-62, the
+    /// P7 walk: shown greyed, "in Client (sealed)"); `None` for a member.
+    pub held_by: Option<String>,
 }
 
 /// A pool's cards, its lead first (what an agent is shown, AJ-E1704).
