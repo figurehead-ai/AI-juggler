@@ -11,6 +11,7 @@ import { errorText, type ProjectInfo } from "../../lib/bridge";
 import { AGENT_ACTIONS, agentRuleRevoke, poolDelete, poolSetAccess, poolSetDelivery, poolSetSpansMacs, type PoolInfo, type PoolsInfo } from "../../lib/ipc/pools";
 import { notificationsMute, notificationsMutes, notificationsUnmute, onNoticesChanged } from "../../lib/ipc/notices";
 import { PoolUsage } from "./PoolUsage";
+import { SealSetting } from "./SealSetting";
 import { ACTION_WORDS, LEVELS, setPools } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { PoolLinks } from "../messages/PoolLinks";
@@ -221,6 +222,12 @@ export function InspectPool({
           data-testid="pool-spans-macs"
         />
       </Section>
+
+      {pool.kind === "user" && (
+        <Section title="Kept apart" testId="pool-seal-section">
+          <SealSetting pool={pool} members={members} />
+        </Section>
+      )}
 
       <Section title="Pools its agents may write to">
         <PoolLinks poolId={pool.id} />
