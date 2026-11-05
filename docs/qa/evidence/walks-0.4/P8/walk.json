@@ -1,0 +1,32 @@
+[
+  {
+    "step": "1a-scouts-talk",
+    "error": null,
+    "feedback": [
+      6,
+      28,
+      8
+    ],
+    "done": [
+      462,
+      null,
+      18
+    ],
+    "check": "Scouts Rename 3 sessions in AI Juggler · for research Canvas List Tasks Messages Agents: Work together Let agents in your projects see each other and work together? Sessions AI Juggler starts get its agent tools: each agent can see who else is in its pool and what they're doing, and say what it's doing itself. What each pool lets agents do stays yours to set. You can switch this off for a project or an app in Settings › Agent access. Yes, let them Not now Arrow keys move between members, Option and the arrows move one, Enter opens it, Delete takes it out of the pool, Shift F10 opens its menu. EVERYONE Member Everyone in this pool's projects 3 sessions now · new ones join Its sessions show here as they start. Click a member for its role and what it may do. Use a template ADD A SESSION 0 Every open session that can join is here already. Start one and it shows up here. More: Apps 3 Claude Code · Work · work none open now · new ones join Add Codex · Personal · default none open now · new ones join Add OpenCode · default none open now · new ones join Add 3 more in the List view 100% Tidy up POOL SETTINGS Activity WHAT AGENTS MAY DO Work together Read, and post messages, share documents, work on tasks and get a new session ready for you to start. A message for a session that's waiting goes in when you click. ALWAYS ALLOWED HERE None yet. When you allow the same thing twice, the ask offers to remember it here. MESSAGES INTO SESSIONS Delivered When you click Deliver Pause and ask after agent messages in a row without you 5 Stop all of them Messages still reach the inboxes; none goe"
+  },
+  {
+    "step": "3-list-shell-only",
+    "error": null,
+    "feedback": [
+      7
+    ],
+    "done": [
+      7
+    ],
+    "check": [
+      "Untitled session · research · Ended research · AI Juggler · Work · work Claude Code just now",
+      "Untitled session · research · Ended research · AI Juggler · Personal · default Codex just now",
+      "Untitled session · research · Ended research · AI Juggler · default OpenCode Shell only just now"
+    ]
+  }
+]

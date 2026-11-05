@@ -10,6 +10,7 @@ import { appName } from "../../lib/app-name";
 import { AskCard } from "../../components/AskCard";
 import { Button } from "../../components/primitives";
 import { ToolMark } from "../../components/ToolMark";
+import { ShellOnly, SHELL_ONLY_WHY, useShellOnly } from "../../components/ShellOnly";
 import { useActionHost } from "../../components/ItemMenu";
 import { formatTokens } from "../../components/indicator";
 import { bytesWords } from "../../lib/machine";
@@ -94,6 +95,7 @@ export function InspectNode({
   const name = member.name;
   const mine = edges.filter((edge) => edge.from_session_id === member.id || edge.to_session_id === member.id);
   const tokens = member.session.tokens;
+  const shell = useShellOnly(member.session.provider);
   return (
     <div className="flex flex-col" data-testid="inspect-node">
       <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
@@ -108,7 +110,11 @@ export function InspectNode({
             <span className="truncate text-label text-muted">{[member.role === "lead" ? "Lead" : member.role === "observer" ? "Observer" : null, member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account].filter(Boolean).join(" · ")}</span>
           </span>
         </div>
-        <span className={"text-meta " + state.tone}>{state.word}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className={"text-meta " + state.tone}>{state.word}</span>
+          <ShellOnly tool={member.session.provider} />
+        </span>
+        {shell && <p className="text-label text-muted">{SHELL_ONLY_WHY}</p>}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => host.openSessionById?.(member.id)} disabled={!host.openSessionById} data-testid="inspect-node-open">
             Open session

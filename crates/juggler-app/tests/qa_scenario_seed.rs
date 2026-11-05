@@ -100,11 +100,13 @@ fn seed_scenario() {
             ));
             continue;
         }
-        let label = format!(
-            "{} · {}",
-            app["account"].as_str().unwrap_or(""),
-            app["profile"].as_str().unwrap_or(id)
-        );
+        // A tool with no Account (OpenCode in P8) is named by its profile
+        // alone, not " · default".
+        let profile = app["profile"].as_str().unwrap_or(id);
+        let label = match app["account"].as_str().unwrap_or("") {
+            "" => profile.to_owned(),
+            account => format!("{account} · {profile}"),
+        };
         let Ok(account) = commands::create_account(&state, tool, &label, None) else {
             notes.push(format!(
                 "{id}: {tool} isn't a tool this build knows; left out"

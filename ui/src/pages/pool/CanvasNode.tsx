@@ -15,6 +15,7 @@ import { memo, type JSX, type MouseEvent } from "react";
 import { appName } from "../../lib/app-name";
 
 import { ToolMark } from "../../components/ToolMark";
+import { ShellOnly } from "../../components/ShellOnly";
 import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
@@ -103,6 +104,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
           </span>
         )}
         {member.role === "observer" && <span className="shrink-0 rounded-md bg-surface-2 px-1.5">Observer</span>}
+        <ShellOnly tool={member.session.provider} />
         <span className="truncate">{member.card.tool ? appName(member.card.tool, account) : account}</span>
       </span>
       <span className="flex min-w-0 items-center gap-1.5 text-label" data-testid="node-state">
