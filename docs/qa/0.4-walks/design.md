@@ -538,6 +538,9 @@ The numbers are the "Every no" list's. Each is fixed, explained, or still open o
 - **55** Debug mode's row reads "Keep a detailed log" under the "Debug mode" heading.
 - **68** "Unused Apps gather dust"; "corner" for "nook".
 - **75** "How fast AI Juggler answers".
+- **9** First run's actions (Bring in, Add a fresh app, Look again) stay at the foot of the window, so the way on is never below the fold at 1024.
+- **73** (part) "Light, dark or match the system", not "the Mac".
+- **76** (part) The approval card says "A chain of replies paused for you", and the pool's inspector "these replies went back and forth as many times as the pool allows"; the pool's own control already reads "Pause and ask after N replies in a row".
 
 **Explained, not changed**
 
@@ -545,9 +548,12 @@ The numbers are the "Every no" list's. Each is fixed, explained, or still open o
 - **20** A desktop App's Account isn't named because AI Juggler never reads a desktop app's sign-in (the credentials rule); where it is known (every CLI App), the facts line links it.
 - **21** (rest) "Show on the Floor" stays visible: shown only on hover, it would be hidden from touch and from people who scan before they tab.
 - **13** (rest) A session's name doesn't open its page from the Floor list yet: there's no app-wide "open this session" door outside the rail and Home. It's the row's "Show on the Floor" for now.
+- **6** The chip set is AJ-E2910's (deep/11 §4.1): stopped sessions show under All, and a chosen chip says what it hides ("3 more under All").
+- **66** "Setups" are the folders found on disk; once brought in they're Apps. Two things, two words.
+- **59, 74** (part) "This Mac" is the system's own noun for this computer (`computer_noun`), so it reads "This PC" on Windows; "digest" is the notification centre's one word for the hourly summary, used the same everywhere.
 - **86** (Fit) Each family's fit, dependencies and change for 0.3 users are in its task's Goal, Depends and UI/UX reasoning; the critiques are the visual record and don't repeat them.
 - **87** (Hand check) Walks by hand in the native window are AJ-E3302–E3306's, waiting on the maintainer's choice of how they're done (a lab-only write bridge, or walked by hand).
 
 **Still open on this branch (before 0.4 ships)**
 
-6, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 22, 24–39, 41–54, 56–67, 69–74, 76–85.
+8, 10, 11, 12, 14, 15, 16, 17, 18, 19, 22, 24–39, 41–54, 56–58, 60–65, 67, 69–72, 73 (rest), 74 (rest), 76 (rest), 77–85.

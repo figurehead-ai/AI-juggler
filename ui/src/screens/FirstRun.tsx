@@ -542,7 +542,8 @@ function FoundStep({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Always in view, so Bring in is never below the fold (0.4 design review). */}
+      <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center justify-between gap-4 border-t border-hairline bg-canvas/95 px-2 py-3 backdrop-blur" data-testid="first-run-actions">
         <div className="flex flex-wrap items-center gap-5 text-sm">
           <button type="button" className="text-accent-hi hover:underline" onClick={onAddFresh}>
             {installs.length === 0 ? "Add an app" : "Add a fresh app instead"}

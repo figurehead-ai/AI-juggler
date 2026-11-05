@@ -89,7 +89,7 @@ export function MessageNeeds({ needs }: { needs: MessageNeedInfo[] }): JSX.Eleme
         <AskCard
           key={need.key}
           ask={asAsk(need)}
-          kindLabel={need.kind === "deliver" ? "A chain reached the hop limit" : "An agent asks to send"}
+          kindLabel={need.kind === "deliver" ? "A chain of replies paused for you" : "An agent asks to send"}
           title={need.pool_name}
           answer={(option) => messagesAnswer(need.ask_id ?? "", option as "once" | "always" | "deny")}
         />

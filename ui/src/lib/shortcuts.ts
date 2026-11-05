@@ -119,7 +119,7 @@ export const SHORTCUTS = [
     match: (event: KeyLike, inApp: boolean) =>
       event.key.toLowerCase() === "d" && !event.shiftKey && !event.altKey && (event.ctrlKey || (event.metaKey && inApp)),
   },
-  { id: "theme", owner: "app", area: "Anywhere", keys: ["⌘⇧L"], label: "Light, dark or match the Mac", match: cmd("l", { shift: true }) },
+  { id: "theme", owner: "app", area: "Anywhere", keys: ["⌘⇧L"], label: "Light, dark or match the system", match: cmd("l", { shift: true }) },
   { id: "undo", owner: "app", area: "Anywhere", keys: ["⌘Z"], label: "Undo what a toast offers", match: cmd("z"), fieldOwnsIt: true },
   { id: "close", owner: "sheets", area: "Anywhere", keys: ["Esc"], label: "Close a sheet, menu or search" },
   // AJ-E1537: a focused row's menu, the same one a right-click opens.
