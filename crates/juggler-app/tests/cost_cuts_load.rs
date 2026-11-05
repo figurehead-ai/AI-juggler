@@ -114,7 +114,12 @@ fn usage_cost_cuts_at_two_thousand_sessions() {
     eprintln!(
         "[perf] Usage cost cuts, 2,000 sessions: median {mid:?}, first read {first:?} (runs {runs:?})"
     );
-    assert_eq!(cold.by_account.len(), ACCOUNTS, "{:?}", cold.by_account);
+    // The count only: an Account row is never printed, even in a test.
+    assert_eq!(
+        cold.by_account.len(),
+        ACCOUNTS,
+        "one row per Account (no rows printed)"
+    );
 
     // The account table adds up to Prices and details' total, to the cent.
     let table: f64 = cold.by_account.iter().filter_map(|row| row.usd).sum();

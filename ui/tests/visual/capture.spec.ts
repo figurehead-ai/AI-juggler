@@ -930,7 +930,7 @@ test("focus — Go to instance… palette (dark 1280x800)", async ({ page }) => 
   await expect(palette.locator('[data-testid="goto-row-sess-desktop-3"]')).toHaveCount(0);
   await expect(palette.locator('[data-testid="goto-row-sess-6"]')).toHaveCount(0);
   // AJ-E2110: no key by default; the footer offers to choose one.
-  await expect(palette).toContainText("Choose a key to open from anywhere");
+  await expect(palette).toContainText("Choose a key to open this from any app");
   await page.screenshot({ path: resolve(GALLERY, "14-focus/palette-1280x800.png") });
 });
 
@@ -2033,9 +2033,11 @@ for (const theme of THEMES) {
         // The matrix is Usage's Prices and details (0.1.5: its rows paged).
         await goTo(page, "Usage");
         await page.getByTestId("usage-prices-open").click();
-        await expect(
-          page.getByText("Every cost here is an estimate. What the API would charge, not your bill."),
-        ).toBeVisible();
+        // The sentence names the price list's date when it has one
+        // (AJ-E2902): its start and its end are the same in every state.
+        const list = page.getByTestId("cost-price-list");
+        await expect(list).toContainText("Every cost here is an estimate");
+        await expect(list).toContainText("What the API would charge, not your bill.");
         await page.screenshot({
           path: resolve(GALLERY, `25-costs/${state}-${vp.name}-${theme}.png`),
         });
@@ -3858,8 +3860,8 @@ for (const theme of THEMES) {
   }
 }
 
-// AJ-E1025 — 72-tool-view: the tool's own page (AJ-E3104), opened from a
-// session's tool chip in the header ("About Claude Code"). It reads what
+// AJ-E1025 — 72-tool-view: the tool's own page (AJ-E3104), opened from
+// the tool chip on a session's App page ("About Claude Code"). It reads what
 // is installed in plain words and shows no task or decision code on any tab
 // (D-25) — 1280×800 + 1024×680 (the Tauri minimum) × light+dark.
 const TOOL_VIEW_VP = [
@@ -3885,6 +3887,10 @@ for (const theme of THEMES) {
       await page.goto("/");
       await expectRail(page);
       await openWorkMaxSession(page);
+      // A session's header names its tool once, in its App chip (the 0.4
+      // review, 46): the tool's door is on its App's page.
+      await page.getByTestId("session-account-menu").click();
+      await page.getByTestId("session-account-open").click();
       const chip = page.getByRole("button", { name: "About Claude Code" });
       await expect(chip).toBeVisible();
       await chip.click();
