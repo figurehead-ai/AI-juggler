@@ -173,6 +173,9 @@ fn rank_candidates_for(
     project: Option<&str>,
     switch: Option<&SwitchRankContext>,
 ) -> AppResult<Vec<RankedRowInfo>> {
+    // 0.4: the folders a desktop app profile signs in for, read before
+    // storage is locked (the book loads from storage).
+    let through_app = crate::features::places::handoff::folders_signed_in_through_apps(state);
     let storage = lock_storage_arc(state)?;
     let accounts = storage.accounts().list()?;
     let now = juggler_core::model::Timestamp::now().millis();
@@ -322,8 +325,11 @@ fn rank_candidates_for(
             account: account.id.as_str().to_owned(),
             logged_out: ready.map_or_else(
                 || {
+                    // 0.4: a Claude app profile used in its Code tab signs
+                    // in through the app; a switch continues there.
                     login_state_of(&state.registry, account)
                         == juggler_adapters::LoginState::LoggedOut
+                        && !through_app.contains(account.id.as_str())
                 },
                 |ready| !ready,
             ),
@@ -6206,6 +6212,7 @@ fn switch_destinations(
             desktop_why_not: Some(
                 "Desktop takes a switch between two accounts of the same tool for now".to_owned(),
             ),
+            cli_why_not: None,
         };
     }
     let ran_in_desktop = reference.native_id.as_deref().is_some_and(|native| {
@@ -6219,7 +6226,14 @@ fn switch_destinations(
         account_b.id.as_str(),
         &account_b.label,
         ran_in_desktop,
+        terminal_signed_in(state, account_b),
     )
+}
+
+/// 0.4: whether `account`'s tool in a terminal is signed in (an unknown
+/// answer isn't held against it).
+fn terminal_signed_in(state: &Arc<AppState>, account: &Account) -> bool {
+    login_state_of(&state.registry, account) != juggler_adapters::LoginState::LoggedOut
 }
 
 /// 0.3.5: the key of the conversation a Desktop switch handed over (the
@@ -6244,6 +6258,27 @@ fn desktop_place(
     sides: &SwitchSides,
     destination: Option<&str>,
 ) -> AppResult<Option<String>> {
+    if destination == Some("cli")
+        && sides.account_a.harness == sides.account_b.harness
+        && !terminal_signed_in(state, &sides.account_b)
+        && crate::features::places::handoff::signs_in_through_app(
+            state,
+            sides.account_b.id.as_str(),
+        )
+    {
+        // 0.4: never a terminal that opens on a sign-in for an app that's
+        // signed in through its desktop profile.
+        let offered = crate::features::places::handoff::destinations(
+            state,
+            sides.account_b.id.as_str(),
+            &sides.account_b.label,
+            true,
+            false,
+        );
+        return Err(AppError::Refused(offered.cli_why_not.unwrap_or_else(
+            || "It signs in through its desktop app: continue there".to_owned(),
+        )));
+    }
     if destination != Some("desktop") {
         return Ok(None);
     }
@@ -6257,6 +6292,7 @@ fn desktop_place(
         state,
         sides.account_b.id.as_str(),
         &sides.account_b.label,
+        true,
         true,
     );
     match offered.desktop {

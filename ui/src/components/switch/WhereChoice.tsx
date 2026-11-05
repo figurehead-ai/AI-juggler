@@ -21,12 +21,17 @@ export type Destination = "desktop" | "cli";
 
 /** What the preflight says; a backend that predates 0.3.5 offers CLI. */
 export function destinationsOf(preflight: PreflightInfoData): DestinationsInfo {
-  return preflight.destinations ?? { suggested: "cli", desktop: null, desktop_why_not: null };
+  const info = preflight.destinations;
+  if (!info) return { suggested: "cli", desktop: null, desktop_why_not: null, cli_why_not: null };
+  // A backend before 0.4 sends no cli_why_not.
+  return { ...info, cli_why_not: info.cli_why_not ?? null };
 }
 
-/** Where it ran, when that can be picked; else CLI. */
+/** Where it ran, when that can be picked; else CLI (Desktop when CLI
+ * can't be picked: a Claude app profile signed in through the app). */
 export function defaultDestination(info: DestinationsInfo): Destination {
-  return info.suggested === "desktop" && info.desktop !== null ? "desktop" : "cli";
+  if (info.desktop !== null && (info.suggested === "desktop" || info.cli_why_not)) return "desktop";
+  return "cli";
 }
 
 /** The user-facing name of a destination. */
@@ -93,6 +98,8 @@ export function WhereChoice({
           icon={IconTerminal}
           label={<>CLI{same("cli")}</>}
           hint={`${spec.display_name} in a terminal`}
+          reason={info.cli_why_not ?? undefined}
+          disabled={info.cli_why_not !== null}
           checked={value === "cli"}
           onChange={() => onChange("cli")}
           data-testid="switch-where-cli"

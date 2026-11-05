@@ -18,4 +18,11 @@ desktop: DesktopDestinationInfo | null,
 /**
  * Why Desktop can't be picked, in words, when there's none.
  */
-desktop_why_not: string | null, };
+desktop_why_not: string | null, 
+/**
+ * Why CLI can't be picked, in words: the target signs in through its
+ * desktop app (a Claude app profile used in its Code tab), and the
+ * tool in a terminal there isn't signed in (0.4: never ask for a
+ * terminal sign-in to switch into an app that's signed in).
+ */
+cli_why_not: string | null, };
