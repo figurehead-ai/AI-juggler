@@ -921,7 +921,9 @@ fn execute_steps(
             }
         }
     }
-    tracing::info!(target: "aij::flow", flow = "switch", step = "family", members = members.len());
+    if !members.is_empty() {
+        tracing::info!(target: "aij::flow", flow = "switch", step = "family", members = members.len());
+    }
 
     // Launch (the app's hook; never the engine's). S-F5 keeps the
     // verified stage — the caller retries from it.
