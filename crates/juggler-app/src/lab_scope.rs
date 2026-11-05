@@ -15,6 +15,39 @@ use crate::features::conversations::procs::Table;
 
 static LAB: OnceLock<PathBuf> = OnceLock::new();
 
+/// ADR-0027 condition 7: the real tool folder the lab uses where it is.
+static ADOPTED: OnceLock<PathBuf> = OnceLock::new();
+
+/// The lab uses `folder` (a real tool folder) where it is: of its
+/// conversations, only those in the lab's folders are indexed ([`hides`]).
+pub fn adopt(folder: &Path) {
+    let _ = ADOPTED.set(folder.to_path_buf());
+}
+
+/// Whether a conversation of the Account on `account_dir`, in `cwd`, stays
+/// out of a lab's index: one of the adopted real folder's that isn't in
+/// the lab's folders (the review of condition 7: the real history would
+/// show on the lab's screens and in its captures). Off — never hides —
+/// outside a lab.
+#[must_use]
+pub fn hides(account_dir: &Path, cwd: Option<&Path>) -> bool {
+    let (Some(lab), Some(adopted)) = (LAB.get(), ADOPTED.get()) else {
+        return false;
+    };
+    hides_in(lab, adopted, account_dir, cwd)
+}
+
+/// [`hides`] for `lab` and `adopted` (pure, testable).
+#[must_use]
+pub fn hides_in(lab: &Path, adopted: &Path, account_dir: &Path, cwd: Option<&Path>) -> bool {
+    let canonical =
+        |path: &Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    if canonical(account_dir) != canonical(adopted) {
+        return false;
+    }
+    !cwd.is_some_and(|cwd| canonical(cwd).starts_with(canonical(lab)))
+}
+
 /// Scopes the process table to `lab` from now on (the lab mode's start).
 pub fn set(lab: &Path) {
     let _ = LAB.set(lab.to_path_buf());
@@ -78,6 +111,25 @@ fn spellings(lab: &Path) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::features::conversations::procs::Proc;
+
+    #[test]
+    fn the_adopted_folders_conversations_outside_the_lab_stay_out_of_its_index() {
+        let lab = Path::new("/tmp/aij-lab-x");
+        let real = Path::new("/Users/someone/.codex");
+        // Its own conversation in the lab's folders: indexed.
+        assert!(!hides_in(lab, real, real, Some(&lab.join("repos/web"))));
+        // The real history elsewhere, or with no folder: kept out.
+        assert!(hides_in(
+            lab,
+            real,
+            real,
+            Some(Path::new("/Users/someone/work/shop"))
+        ));
+        assert!(hides_in(lab, real, real, None));
+        // Another Account (the lab's own folders): never hidden.
+        let own = lab.join("profiles/codex-a");
+        assert!(!hides_in(lab, real, &own, Some(Path::new("/elsewhere"))));
+    }
 
     fn proc(pid: u32, ppid: u32, exe: &str, args: &[&str]) -> (u32, Proc) {
         (

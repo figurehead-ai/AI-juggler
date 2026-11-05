@@ -149,6 +149,14 @@ fn store(
     let written = modified
         .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
         .and_then(|since| i64::try_from(since.as_millis()).ok());
+    // A lab using a real tool folder where it is (ADR-0027 condition 7)
+    // indexes only its own conversations there: the rest is known, never
+    // listed (and never read again until it changes).
+    let hidden = summary
+        .as_ref()
+        .is_some_and(|summary| crate::lab_scope::hides(&account.state_dir, summary.cwd.as_deref()));
+    let complete = complete || hidden;
+    let summary = summary.filter(|_| !hidden);
     let conversation = summary.map(|mut summary| {
         summary.last_ms = summary.last_ms.or(written);
         Conversation {
@@ -237,6 +245,15 @@ pub struct ConversationIndex {
 }
 
 impl ConversationIndex {
+    /// Forgets every file indexed under `folder`, so the next pass reads
+    /// them again (a lab adopting a real folder, ADR-0027 condition 7:
+    /// whatever was indexed before its scope held is read again with it).
+    pub fn forget_under(&self, folder: &std::path::Path) {
+        if let Ok(mut files) = self.files.lock() {
+            files.retain(|path, _| !path.starts_with(folder));
+        }
+    }
+
     /// A pass is reading the tools' files now (AJ-E1538's builder waits).
     #[must_use]
     pub fn is_reading(&self) -> bool {
@@ -1205,6 +1222,31 @@ pub fn continue_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// ADR-0027 condition 7's review: what was indexed from the adopted
+    /// folder before the lab's scope held is read again, with it.
+    #[test]
+    fn forgetting_a_folder_drops_only_its_files() {
+        let index = ConversationIndex::default();
+        let entry = || Entry {
+            len: 1,
+            modified: None,
+            conversation: None,
+            complete: true,
+            counted_at: None,
+        };
+        {
+            let mut files = index.files.lock().unwrap();
+            files.insert(PathBuf::from("/real/.codex/sessions/a.jsonl"), entry());
+            files.insert(PathBuf::from("/tmp/aij-lab-x/.codex/b.jsonl"), entry());
+        }
+        index.forget_under(std::path::Path::new("/real/.codex"));
+        let files = index.files.lock().unwrap();
+        assert_eq!(
+            files.keys().collect::<Vec<_>>(),
+            [&PathBuf::from("/tmp/aij-lab-x/.codex/b.jsonl")]
+        );
+    }
 
     /// 0.3.5: storage busy at launch (its first migrations, a refresh)
     /// no longer gives the first scan an empty list: it waits that once.

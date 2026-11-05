@@ -92,6 +92,8 @@ fn seed_scenario() {
 
     // Apps: a managed folder per CLI App, with its launch settings.
     let mut recipes: HashMap<String, (String, String)> = HashMap::new();
+    let adopt = std::env::var("AIJ_LAB_ADOPT").ok();
+    let mut adopted_once = false;
     for app in seed["apps"].as_array().cloned().unwrap_or_default() {
         let (id, tool) = (app["id"].as_str().unwrap(), app["tool"].as_str().unwrap());
         if tool == "claude-desktop" {
@@ -107,11 +109,46 @@ fn seed_scenario() {
             "" => profile.to_owned(),
             account => format!("{account} · {profile}"),
         };
-        let Ok(account) = commands::create_account(&state, tool, &label, None) else {
-            notes.push(format!(
-                "{id}: {tool} isn't a tool this build knows; left out"
-            ));
-            continue;
+        // ADR-0027 condition 7 (AIJ_LAB_ADOPT): the tool's real default
+        // folder, used where it is, for that tool's Apps (its real sign-in
+        // runs small tasks in the lab's folders). Its other Apps of that
+        // tool can't have another sign-in: one App only.
+        let account = if adopt.as_deref() == Some(tool) {
+            if adopted_once {
+                notes.push(format!(
+                    "{id}: one {tool} App uses the real folder; a second would need another sign-in, left out"
+                ));
+                continue;
+            }
+            adopted_once = true;
+            let real = real_default(&state, tool, &home);
+            let request = commands::ImportRequest {
+                in_place: true,
+                ..Default::default()
+            };
+            match commands::account_import_mode_impl(
+                &state,
+                tool,
+                &real.to_string_lossy(),
+                &label,
+                request,
+            ) {
+                Ok(result) => result.account,
+                Err(error) => {
+                    notes.push(format!(
+                        "{id}: the real {tool} folder can't be used: {error}"
+                    ));
+                    continue;
+                }
+            }
+        } else {
+            let Ok(account) = commands::create_account(&state, tool, &label, None) else {
+                notes.push(format!(
+                    "{id}: {tool} isn't a tool this build knows; left out"
+                ));
+                continue;
+            };
+            account
         };
         let profile = commands::create_profile(&state, &account.id, "Main", None, None).unwrap();
         recipes.insert(id.to_owned(), (account.id, profile.id));
@@ -233,4 +270,22 @@ fn seed_scenario() {
         recipes.len(),
         pools.len()
     );
+}
+
+/// A tool's default folder in the real home: the adapter's (under the
+/// lab's HOME) moved to `AIJ_QA_REAL_HOME`. The lab bridge checks it
+/// again, from the user record, before anything runs on it.
+fn real_default(state: &Arc<AppState>, tool: &str, lab: &std::path::Path) -> std::path::PathBuf {
+    let real_home =
+        std::path::PathBuf::from(std::env::var("AIJ_QA_REAL_HOME").expect("AIJ_QA_REAL_HOME"));
+    let default = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new(tool))
+        .and_then(|adapter| adapter.vendor_default_dir())
+        .expect("a tool with a default folder");
+    real_home.join(
+        default
+            .strip_prefix(lab)
+            .expect("the default folder is under the lab's HOME"),
+    )
 }

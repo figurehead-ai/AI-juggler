@@ -59,7 +59,9 @@ case "$cmd" in
       (cd "$root" && AIJ_P9_DB="$data/juggler.sqlite" AIJ_P9_LAB="$lab" \
         cargo test -q --offline -p juggler-core --test pools_v45 write_the_p9_labs_0_3_data_folder -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
     else
-      (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" \
+      # AIJ_LAB_ADOPT=<tool> (ADR-0027 condition 7): that tool's App uses
+      # its real default folder where it is; the bridge checks it again.
+      (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" AIJ_QA_REAL_HOME="$HOME" \
         "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
     fi
     sheet="$root/docs/qa/0.4-walks/$id.md"

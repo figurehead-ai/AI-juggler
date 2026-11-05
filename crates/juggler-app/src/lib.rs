@@ -976,6 +976,15 @@ pub fn run() {
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
+            // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
+            // build with the feature (docs/qa/DEV-BRIDGE.md). Before the
+            // read model's first pass: a lab's scope (ADR-0027 conditions
+            // 6 and 7) holds from that pass on (its review found the first
+            // pass indexed the adopted folder unscoped).
+            #[cfg(all(debug_assertions, feature = "lab-bridge"))]
+            dev_bridge::lab::arm(app.handle());
+            #[cfg(all(debug_assertions, feature = "dev-bridge"))]
+            dev_bridge::start_if_enabled(app.handle());
             spawn_read_model_ticks(
                 app.handle().clone(),
                 resource_tick_state,
@@ -1001,12 +1010,6 @@ pub fn run() {
             // AJ-E1102: usage stats start only if the user opted in (and
             // no override says off); off creates nothing.
             usage_stats::start(stats_state, launched.elapsed());
-            // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
-            // build with the feature (docs/qa/DEV-BRIDGE.md).
-            #[cfg(all(debug_assertions, feature = "lab-bridge"))]
-            dev_bridge::lab::arm(app.handle());
-            #[cfg(all(debug_assertions, feature = "dev-bridge"))]
-            dev_bridge::start_if_enabled(app.handle());
             Ok(())
         })
         .build(context)

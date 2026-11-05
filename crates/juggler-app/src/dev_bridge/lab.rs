@@ -24,6 +24,15 @@
 //!    live outside the folder, in the login Keychain) ([`guard`]). A
 //!    launch with no folder starts in the lab's; a switch never goes to a
 //!    desktop app, which runs outside the lab.
+//! 5. (ADR-0027 condition 7.) One exception, named when the lab starts
+//!    (2026-11-05, the Codex live steps): `AIJ_LAB_ADOPT=<tool>` lets the
+//!    lab use that tool's own default folder in the real home where it
+//!    is, so its real sign-in runs small tasks in the lab's folders. Only
+//!    a tool that can use a folder in place (ADR-0018: checked, never
+//!    written by AI Juggler); only that one folder, resolved from the user
+//!    record, a real folder of this user's; only for an Account of that
+//!    tool used in place ([`adopted_folder`]). Said loudly at start;
+//!    refused if anything doesn't hold.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -119,6 +128,74 @@ pub fn checked_home(
 /// The lab, once the check passed: every write's folders must be in it.
 static LAB_HOME: OnceLock<PathBuf> = OnceLock::new();
 
+/// The variable naming the one tool whose real default folder the lab may
+/// use where it is (ADR-0027 condition 7).
+pub const ENV_ADOPT: &str = "AIJ_LAB_ADOPT";
+
+/// The tools condition 7 may name: the coordinating session's ruling was
+/// for Codex alone (2026-11-05). Another needs its own ruling and review.
+pub const ADOPTABLE: &[&str] = &["codex"];
+
+/// Condition 7's tool and its real default folder, once checked.
+static ADOPTED: OnceLock<(String, PathBuf)> = OnceLock::new();
+
+/// The real home's counterpart of a tool's default folder in the lab:
+/// `lab_default` (the adapter's default folder, under the lab's HOME)
+/// moved from `lab` to `record_home`. It must exist as a folder of this
+/// user's, inside the real home.
+///
+/// # Errors
+///
+/// What makes it not that tool's real default folder, in words.
+pub fn adopted_folder(
+    lab_default: &Path,
+    lab: &Path,
+    lab_spelled: &Path,
+    record_home: &Path,
+    me: u32,
+) -> Result<PathBuf, String> {
+    let inside_lab = lab_default
+        .strip_prefix(lab_spelled)
+        .or_else(|_| lab_default.strip_prefix(lab))
+        .map_err(|_| format!("{} isn't under the lab's HOME", lab_default.display()))?;
+    if inside_lab
+        .components()
+        .any(|part| !matches!(part, std::path::Component::Normal(_)))
+    {
+        return Err(format!(
+            "{} isn't a plain folder name",
+            inside_lab.display()
+        ));
+    }
+    let real_home = record_home
+        .canonicalize()
+        .map_err(|e| format!("the real home: {e}"))?;
+    let real = real_home
+        .join(inside_lab)
+        .canonicalize()
+        .map_err(|e| format!("the real {}: {e}", inside_lab.display()))?;
+    if !real.starts_with(&real_home) || real == real_home {
+        return Err(format!("{} isn't inside the real home", real.display()));
+    }
+    if !real.is_dir()
+        || juggler_platform::file_trust::owner_of(&real)
+            != Some(juggler_platform::user::UserId::from_uid(me))
+    {
+        return Err(format!("{} isn't a folder of this user's", real.display()));
+    }
+    Ok(real)
+}
+
+/// Whether `account` is condition 7's: of the adopted tool, used in place,
+/// on its real default folder.
+fn adopted(account: &juggler_core::model::Account) -> bool {
+    ADOPTED.get().is_some_and(|(tool, real)| {
+        account.harness.as_str() == tool
+            && account.in_place
+            && resolved(&account.state_dir).as_ref() == Some(real)
+    })
+}
+
 /// The lab check for this process: `$HOME`, the user record, the app's
 /// data folder, and no tool's folder override inherited (a shell inside
 /// a tool's session carries one, pointing at a real folder).
@@ -152,6 +229,44 @@ pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
     )?;
     let _ = LAB_HOME.set(lab.clone());
     crate::lab_scope::set(&lab);
+    if let Some(tool) = std::env::var_os(ENV_ADOPT) {
+        let tool = tool.to_string_lossy().into_owned();
+        if !ADOPTABLE.contains(&tool.as_str()) {
+            return Err(format!(
+                "{ENV_ADOPT}={tool}: only {ADOPTABLE:?} may be used where it is"
+            ));
+        }
+        let adapter = state
+            .registry
+            .get(&juggler_core::model::HarnessId::new(tool.as_str()))
+            .ok_or_else(|| format!("{ENV_ADOPT}={tool}: no such tool"))?;
+        if !adapter.can_use_in_place() {
+            return Err(format!(
+                "{ENV_ADOPT}={tool}: it can't use a folder where it is"
+            ));
+        }
+        let default = adapter
+            .vendor_default_dir()
+            .ok_or_else(|| format!("{ENV_ADOPT}={tool}: it has no default folder"))?;
+        let real = adopted_folder(
+            &default,
+            &lab,
+            &home,
+            juggler_platform::user::record_home()
+                .as_deref()
+                .ok_or("the real home can't be read from the user record")?,
+            me,
+        )
+        .map_err(|why| format!("{ENV_ADOPT}={tool}: {why}"))?;
+        eprintln!(
+            "ai-juggler: LAB WRITE MODE also uses the real {tool} folder {} where it is ({ENV_ADOPT}): its sign-in runs in the lab's folders",
+            real.display()
+        );
+        crate::lab_scope::adopt(&real);
+        // Anything indexed from it before the scope held is read again.
+        state.conversations.forget_under(&real);
+        let _ = ADOPTED.set((tool, real));
+    }
     // The app's own background work (the limits probe, the watchers) runs
     // every Account it holds: in a lab, each must be the lab's own.
     let accounts = state
@@ -162,8 +277,12 @@ pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
         .list()
         .map_err(|error| error.to_string())?;
     for account in &accounts {
-        account_in_lab(state, &account.id)
+        account_in_lab(state, &account.id, true)
             .map_err(|why| format!("the lab holds an Account it can't own: {why}"))?;
+        // The index keys files by the folder as stored: read again too.
+        if adopted(account) {
+            state.conversations.forget_under(&account.state_dir);
+        }
     }
     Ok(lab)
 }
@@ -200,7 +319,13 @@ fn inside(path: &Path) -> bool {
 
 /// An Account a lab write may use: its folder (and where it came from)
 /// inside the lab, and not its tool's own default folder.
-fn account_in_lab(state: &AppState, id: &juggler_core::model::AccountId) -> Result<(), String> {
+/// `may_adopt`: condition 7's Account is admitted too (a launch, a stop, a
+/// message; never a switch, which would write into its folder).
+fn account_in_lab(
+    state: &AppState,
+    id: &juggler_core::model::AccountId,
+    may_adopt: bool,
+) -> Result<(), String> {
     let account = state
         .storage
         .lock()
@@ -208,6 +333,16 @@ fn account_in_lab(state: &AppState, id: &juggler_core::model::AccountId) -> Resu
         .accounts()
         .get(id)
         .map_err(|_| "no such Account".to_owned())?;
+    if adopted(&account) {
+        return if may_adopt {
+            Ok(())
+        } else {
+            Err(format!(
+                "{} is the real folder the lab uses where it is: nothing is written there",
+                account.label
+            ))
+        };
+    }
     if !inside(&account.state_dir) {
         return Err(format!("{}'s folder is outside the lab", account.label));
     }
@@ -234,7 +369,7 @@ fn account_in_lab(state: &AppState, id: &juggler_core::model::AccountId) -> Resu
 
 /// Launch settings a lab write may use: their Account, and their own
 /// folder if they name one.
-fn profile_in_lab(state: &AppState, id: &str) -> Result<(), String> {
+fn profile_in_lab(state: &AppState, id: &str, may_adopt: bool) -> Result<(), String> {
     let profile = state
         .storage
         .lock()
@@ -247,11 +382,11 @@ fn profile_in_lab(state: &AppState, id: &str) -> Result<(), String> {
     {
         return Err("their folder is outside the lab".to_owned());
     }
-    account_in_lab(state, &profile.account)
+    account_in_lab(state, &profile.account, may_adopt)
 }
 
 /// A session a lab write may act on: its folder and its launch settings.
-fn session_in_lab(state: &AppState, id: &str) -> Result<(), String> {
+fn session_in_lab(state: &AppState, id: &str, may_adopt: bool) -> Result<(), String> {
     let record = state
         .storage
         .lock()
@@ -262,7 +397,7 @@ fn session_in_lab(state: &AppState, id: &str) -> Result<(), String> {
     if !inside(&record.cwd) {
         return Err("its folder is outside the lab".to_owned());
     }
-    profile_in_lab(state, record.profile.as_str())
+    profile_in_lab(state, record.profile.as_str(), may_adopt)
 }
 
 /// Checks a write's arguments against the lab before it's made, and
@@ -282,7 +417,7 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
     };
     match ipc {
         "launch_session" => {
-            profile_in_lab(state, &text(args, "profileId")?)?;
+            profile_in_lab(state, &text(args, "profileId")?, true)?;
             match args.get("cwd") {
                 None | Some(serde_json::Value::Null) => {
                     let lab = LAB_HOME.get().ok_or("the lab isn't checked")?;
@@ -298,12 +433,33 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
             }
             Ok(())
         }
+        // The person's message into the pool or to one member: a member
+        // named on its own must be the lab's.
+        "messages_send" => match args
+            .pointer("/input/to")
+            .and_then(serde_json::Value::as_str)
+        {
+            // A message to the whole pool is delivered member by member
+            // (Deliver), each held to the lab's sessions (the review: a
+            // pool could hold others).
+            Some("pool")
+                if args.pointer("/input/deliver") == Some(&serde_json::Value::Bool(true)) =>
+            {
+                Err("a message to the whole pool is delivered member by member here".to_owned())
+            }
+            Some("pool") => Ok(()),
+            Some(to) => session_in_lab(state, to, true),
+            None => Err("input.to is missing".to_owned()),
+        },
+        "messages_deliver" => session_in_lab(state, &text(args, "recipient")?, true),
         "stop_session" | "session_resume" | "pools_move" | "pools_set_role" => {
-            session_in_lab(state, &text(args, "sessionId")?)
+            session_in_lab(state, &text(args, "sessionId")?, true)
         }
         "switch_execute" => {
-            session_in_lab(state, &text(args, "sessionId")?)?;
-            profile_in_lab(state, &text(args, "targetProfileId")?)?;
+            // Neither side may be condition 7's folder: a switch writes the
+            // carried conversation into the target's folder (the review).
+            session_in_lab(state, &text(args, "sessionId")?, false)?;
+            profile_in_lab(state, &text(args, "targetProfileId")?, false)?;
             if args.get("destination").and_then(serde_json::Value::as_str) == Some("desktop") {
                 return Err("a desktop app runs outside the lab".to_owned());
             }
@@ -407,6 +563,9 @@ lab_routes! {
     // couldn't open a moved 0.3 thread on the read-only bridge).
     "messages_thread" => features::messages::commands::messages_thread(state; thread_id: String, cursor: Option<String>);
     "messages_answer" => features::messages::commands::messages_answer(state; ask_id: String, answer: String);
+    // The person's own message into the pool (the live steps start an
+    // agent's turn with it, delivered at their click).
+    "messages_send" => features::messages::commands::messages_send(state; input: crate::features::messages::dto::ComposeInput);
     "messages_deliver" => features::messages::commands::messages_deliver(state; message_id: String, recipient: String);
 }
 
@@ -435,6 +594,57 @@ mod tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.0);
         }
+    }
+
+    /// Condition 7: a lab, and a stand-in for the real home with the
+    /// tool's folder in it (both under /tmp, removed after).
+    fn adopt_case(tag: &str) -> (Lab, Lab) {
+        let lab = Lab::new(&format!("adopt-{tag}"));
+        let real = Lab::new(&format!("realhome-{tag}"));
+        std::fs::create_dir_all(real.0.join(".tool")).unwrap();
+        (lab, real)
+    }
+
+    #[test]
+    fn the_adopted_folder_is_the_tools_own_in_the_real_home_and_nothing_else() {
+        let (lab, real) = adopt_case("ok");
+        let resolved = lab.0.canonicalize().unwrap();
+        let found = adopted_folder(&lab.0.join(".tool"), &resolved, &lab.0, &real.0, me()).unwrap();
+        assert_eq!(found, real.0.join(".tool").canonicalize().unwrap());
+        // Not there in the real home: refused, nothing made.
+        let missing = adopted_folder(&lab.0.join(".other"), &resolved, &lab.0, &real.0, me());
+        assert!(missing.unwrap_err().contains("the real .other"));
+        assert!(!real.0.join(".other").exists());
+    }
+
+    #[test]
+    fn an_adopted_folder_that_leaves_the_real_home_or_is_it_is_refused() {
+        let (lab, real) = adopt_case("out");
+        let resolved = lab.0.canonicalize().unwrap();
+        // A link in the real home that points elsewhere.
+        std::os::unix::fs::symlink("/tmp", real.0.join(".linked")).unwrap();
+        let away = adopted_folder(&lab.0.join(".linked"), &resolved, &lab.0, &real.0, me());
+        assert!(away.unwrap_err().contains("isn't inside the real home"));
+        // The lab's HOME itself (no folder name): the real home, refused.
+        let home = adopted_folder(&lab.0, &resolved, &lab.0, &real.0, me());
+        assert!(home.unwrap_err().contains("isn't inside the real home"));
+        // A default folder that isn't under the lab, or climbs out of it.
+        let elsewhere = adopted_folder(Path::new("/etc"), &resolved, &lab.0, &real.0, me());
+        assert!(
+            elsewhere
+                .unwrap_err()
+                .contains("isn't under the lab's HOME")
+        );
+        let climbs = adopted_folder(&lab.0.join("../x"), &resolved, &lab.0, &real.0, me());
+        assert!(climbs.unwrap_err().contains("isn't a plain folder name"));
+    }
+
+    #[test]
+    fn an_adopted_folder_of_another_owner_is_refused() {
+        let (lab, real) = adopt_case("owner");
+        let resolved = lab.0.canonicalize().unwrap();
+        let error = adopted_folder(&lab.0.join(".tool"), &resolved, &lab.0, &real.0, me() + 1);
+        assert!(error.unwrap_err().contains("isn't a folder of this user's"));
     }
 
     #[test]
