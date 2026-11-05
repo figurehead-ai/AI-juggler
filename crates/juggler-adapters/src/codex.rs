@@ -772,6 +772,11 @@ impl HarnessAdapter for CodexAdapter {
         crate::codex_environment::import_codex_settings_only(source, dest, &scan_probe)
     }
 
+    /// Its sign-in is `auth.json` in its own folder (`CODEX_HOME`).
+    fn default_folder_holds_sign_in(&self) -> bool {
+        true
+    }
+
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         &[ENV_CODEX_HOME, ENV_SQLITE_HOME, ENV_BIN_OVERRIDE]
     }

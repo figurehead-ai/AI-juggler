@@ -132,10 +132,6 @@ static LAB_HOME: OnceLock<PathBuf> = OnceLock::new();
 /// use where it is (ADR-0027 condition 7).
 pub const ENV_ADOPT: &str = "AIJ_LAB_ADOPT";
 
-/// The tools condition 7 may name: the coordinating session's ruling was
-/// for Codex alone (2026-11-05). Another needs its own ruling and review.
-pub const ADOPTABLE: &[&str] = &["codex"];
-
 /// Condition 7's tool and its real default folder, once checked.
 static ADOPTED: OnceLock<(String, PathBuf)> = OnceLock::new();
 
@@ -231,18 +227,16 @@ pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
     crate::lab_scope::set(&lab);
     if let Some(tool) = std::env::var_os(ENV_ADOPT) {
         let tool = tool.to_string_lossy().into_owned();
-        if !ADOPTABLE.contains(&tool.as_str()) {
-            return Err(format!(
-                "{ENV_ADOPT}={tool}: only {ADOPTABLE:?} may be used where it is"
-            ));
-        }
         let adapter = state
             .registry
             .get(&juggler_core::model::HarnessId::new(tool.as_str()))
             .ok_or_else(|| format!("{ENV_ADOPT}={tool}: no such tool"))?;
-        if !adapter.can_use_in_place() {
+        // Only a tool whose default folder holds its own sign-in (Codex's
+        // auth.json, not Claude Code's login Keychain), used where it is
+        // and never written (its review: any in-place tool was accepted).
+        if !adapter.can_use_in_place() || !adapter.default_folder_holds_sign_in() {
             return Err(format!(
-                "{ENV_ADOPT}={tool}: it can't use a folder where it is"
+                "{ENV_ADOPT}={tool}: only a tool whose own folder holds its sign-in, used where it is, may be named"
             ));
         }
         let default = adapter

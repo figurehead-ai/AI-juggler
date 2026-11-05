@@ -607,6 +607,14 @@ pub trait HarnessAdapter: Send + Sync {
         false
     }
 
+    /// Whether the tool's own default folder holds its sign-in, so a
+    /// process given that folder signs in with nothing from outside it (a
+    /// file there, not the login Keychain). Default: false. The test
+    /// bridge's lab uses it (ADR-0027 condition 7).
+    fn default_folder_holds_sign_in(&self) -> bool {
+        false
+    }
+
     /// The vendor's own default folder (`~/.claude`, `~/.codex`), which
     /// launches with its isolation variable unset — the one home lookup
     /// the app and the adapter's launch rule share. Default: none.
