@@ -47,6 +47,7 @@ The app today:
      - It runs on every OS and in Linux CI.
    - **`juggler-floor-render`: the wgpu renderer.**
      - The passes: sun shadow; the scene at the pixel size with a pick id per pixel; glass; post (outlines, hover, sky, alert wash); the screen-space overlay.
+     - Two looks (D-80, Settings › The Floor › Look): Pixel art draws the scene at the pixel size and scales it up; Full resolution draws it at device pixels with the same passes, its textures sharp-bilinear (crisp texels, seams smoothed, within each texture's tile), edges smoothed in the post pass (an FXAA-like blend: the id buffer can't be multisampled and resolved), outlines and the hover ring as wide on screen as Pixel art's, four more shadow taps, and one pick id per device pixel. The switch applies from the next frame; the targets follow the size it asks for and the old ones are dropped.
      - The orbit camera, picking, and offscreen capture for tests.
      - Its surface comes from wgpu's safe `create_surface` with the Tauri window as an owned handle. There is no unsafe code here.
    - **`juggler-window-events`: an audited shim, the fourth carve-out from the lint baseline (after D-17, D-26, D-27).**

@@ -21,6 +21,10 @@ apps_per_floor: number,
  */
 motion: string, 
 /**
+ * D-80: `pixel` (Pixel art) | `full` (Full resolution).
+ */
+detail: string, 
+/**
  * Show unused Apps' decay.
  */
 decay: boolean, 

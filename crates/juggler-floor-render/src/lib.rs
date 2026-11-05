@@ -227,6 +227,11 @@ impl Renderer {
         self.gpu.pick(x, y, scale)
     }
 
+    /// D-80: Full resolution (`true`) or Pixel art, from the next frame.
+    pub fn set_full(&mut self, full: bool) {
+        self.gpu.full = full;
+    }
+
     fn frame_into(
         &mut self,
         scene: &Scene,

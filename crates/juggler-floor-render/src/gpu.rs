@@ -87,6 +87,53 @@ pub fn pixel_size(scale: f32) -> f32 {
     juggler_floor::overlay::unit(scale)
 }
 
+/// The scene's pixel in device pixels for a mode (D-80): Pixel art's
+/// `pixel_size`, or one in Full resolution.
+fn scene_px(full: bool, scale: f32) -> f32 {
+    if full { 1.0 } else { pixel_size(scale) }
+}
+
+/// The outlines' width in the scene's pixels: one in Pixel art (one big
+/// pixel); in Full resolution about half Pixel art's unit, so they read
+/// at the same weight (D-80).
+fn outline_width(full: bool, scale: f32) -> f32 {
+    if full {
+        (pixel_size(scale) * 0.5).round().max(1.0)
+    } else {
+        1.0
+    }
+}
+
+/// The hovered thing's ring, in the scene's pixels: as wide on screen in
+/// both modes (one big pixel in Pixel art), so it reads as plainly.
+fn hover_width(full: bool, scale: f32) -> f32 {
+    if full {
+        pixel_size(scale).round().max(1.0)
+    } else {
+        1.0
+    }
+}
+
+/// The post pass's uniforms: the targets' size and pixel, the clock and
+/// the alert, the window, the mode's outline and hover widths (D-80).
+fn post_uniform(full: bool, frame: &Frame<'_>, scene_px: (u32, u32, f32), alert: f32) -> PostU {
+    let (w, h, sf) = frame.size;
+    let (lw, lh, px) = scene_px;
+    PostU {
+        a: [lw as f32, lh as f32, px, outline_width(full, sf)],
+        b: [frame.t, alert, NEAR, FAR],
+        c: [
+            w as f32,
+            h as f32,
+            if full { 1.0 } else { 0.0 },
+            hover_width(full, sf),
+        ],
+        top: [0.13, 0.11, 0.24, 1.0],
+        bot: [0.62, 0.36, 0.42, 1.0],
+        hov: [frame.hover, 0, 0, 0],
+    }
+}
+
 /// Everything the GPU holds.
 pub struct Gpu {
     pub(crate) device: wgpu::Device,
@@ -120,6 +167,9 @@ pub struct Gpu {
     quads: wgpu::Buffer,
     pick_buf: wgpu::Buffer,
     tg: Option<Targets>,
+    /// D-80: Full resolution (the scene at device pixels, smoothed)
+    /// instead of Pixel art (at `pixel_size`, scaled up).
+    pub(crate) full: bool,
 }
 
 fn upload(device: &wgpu::Device, queue: &wgpu::Queue, img: &Img) -> wgpu::TextureView {
@@ -589,6 +639,7 @@ impl Gpu {
             quads,
             pick_buf,
             tg: None,
+            full: false,
         };
         gpu.load(scene);
         gpu
@@ -696,7 +747,8 @@ impl Gpu {
     /// The pick id under a device-pixel position, from the last frame.
     pub(crate) fn pick(&self, x: f32, y: f32, scale: f32) -> u32 {
         let Some(tg) = &self.tg else { return 0 };
-        let px = pixel_size(scale);
+        // One id per scene pixel: a device pixel in Full resolution.
+        let px = scene_px(self.full, scale);
         if x < 0.0 || y < 0.0 {
             return 0;
         }
@@ -759,7 +811,7 @@ impl Gpu {
     /// the uniforms and the overlay.
     fn write_frame(&mut self, scene: &Scene, frame: &Frame<'_>) -> Written {
         let (w, h, sf) = frame.size;
-        let px = pixel_size(sf);
+        let px = scene_px(self.full, sf);
         let (lw, lh) = (
             ((w as f32 / px).ceil() as u32).max(1),
             ((h as f32 / px).ceil() as u32).max(1),
@@ -819,18 +871,16 @@ impl Gpu {
             sun: [sun[0], sun[1], sun[2], 0.62],
             sky: [0.66, 0.64, 0.76, 1.0],
             ground: [0.34, 0.3, 0.38, 1.0],
-            params: [frame.t, alert, gl.len() as f32, 0.0],
+            params: [
+                frame.t,
+                alert,
+                gl.len() as f32,
+                if self.full { 1.0 } else { 0.0 },
+            ],
         };
         self.queue
             .write_buffer(&self.globals, 0, bytemuck::bytes_of(&g));
-        let post = PostU {
-            a: [lw as f32, lh as f32, px, 0.0],
-            b: [frame.t, alert, NEAR, FAR],
-            c: [w as f32, h as f32, 0.0, 0.0],
-            top: [0.13, 0.11, 0.24, 1.0],
-            bot: [0.62, 0.36, 0.42, 1.0],
-            hov: [frame.hover, 0, 0, 0],
-        };
+        let post = post_uniform(self.full, frame, (lw, lh, px), alert);
         self.queue
             .write_buffer(&self.post_u, 0, bytemuck::bytes_of(&post));
         let n_quads = frame.quads.len().min(MAX_QUADS);

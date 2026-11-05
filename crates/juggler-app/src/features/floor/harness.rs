@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 use tauri::Manager;
 
 use super::render::COUNTERS;
-use super::store::{MOTION_KEY, ON_TOP_KEY};
+use super::store::{DETAIL_KEY, MOTION_KEY, ON_TOP_KEY};
 use super::window::{self, LABEL};
 use crate::state::AppState;
 
@@ -28,6 +28,8 @@ use crate::state::AppState;
 pub const VAR: &str = "AIJ_FLOOR_HARNESS";
 /// Set: every case shorter (a check while fixing, not the record).
 pub const QUICK: &str = "AIJ_FLOOR_HARNESS_QUICK";
+/// D-80: `full` measures Full resolution (Pixel art otherwise).
+pub const DETAIL: &str = "AIJ_FLOOR_HARNESS_DETAIL";
 
 /// Starts the harness when [`VAR`] is set.
 pub fn start(app: &tauri::AppHandle) {
@@ -208,6 +210,30 @@ fn measure(
     }
 }
 
+/// Sets the Floor window to the size it opens at (1278 × 798 points).
+fn keep_size(app: &tauri::AppHandle) {
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Some(w) = handle.get_window(LABEL) {
+            let _ = w.set_size(tauri::LogicalSize::new(1278.0, 798.0));
+        }
+    });
+    std::thread::sleep(Duration::from_millis(500));
+}
+
+/// The Floor window's size in device pixels and its scale, when it's open.
+fn window_size(app: &tauri::AppHandle) -> Option<(u32, u32, f64)> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        let size = handle
+            .get_window(LABEL)
+            .and_then(|w| Some((w.inner_size().ok()?, w.scale_factor().ok()?)));
+        let _ = tx.send(size.map(|(s, f)| (s.width, s.height, f)));
+    });
+    rx.recv_timeout(Duration::from_secs(2)).ok().flatten()
+}
+
 /// The Floor window's own answers now (on the main thread).
 fn window_now(app: &tauri::AppHandle) -> (Option<bool>, Option<bool>) {
     let (tx, rx) = std::sync::mpsc::channel();
@@ -322,6 +348,13 @@ fn run(app: &tauri::AppHandle) -> String {
             .and_then(|s| s.app_settings().get(key).ok().flatten())
     };
     let (kept_motion, kept_on_top) = (kept(MOTION_KEY), kept(ON_TOP_KEY));
+    let kept_detail = kept(DETAIL_KEY);
+    let full = std::env::var(DETAIL).as_deref() == Ok("full");
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage
+            .app_settings()
+            .set(DETAIL_KEY, if full { "full" } else { "pixel" });
+    }
     // The desktop is shared: the Floor stays above other apps' windows
     // while it's measured (as Settings' Keep it on top does), so only the
     // harness's own cover hides it.
@@ -345,6 +378,11 @@ fn run(app: &tauri::AppHandle) -> String {
     set_motion(app, "off");
     let _ = window::open(app);
     std::thread::sleep(Duration::from_secs(3));
+    // One size for every record, so the two looks compare: a window
+    // manager or a zoom on the Mac running it mustn't change the pixels
+    // drawn (the first D-80 record drew Full into 3440 × 1410, Pixel art
+    // into 1278 × 798).
+    keep_size(app);
     on_top(app);
     let first_ms = COUNTERS.first_ms.load(Ordering::Relaxed);
     let open_steps: Vec<serde_json::Value> = super::render::OPEN_STEPS
@@ -377,7 +415,10 @@ fn run(app: &tauri::AppHandle) -> String {
     ));
 
     set_motion(app, "full");
+    keep_size(app);
     std::thread::sleep(Duration::from_secs(3));
+    // The window drawn into, read while it's open (D-80's record names it).
+    let window = window_size(app);
     let marks: &[u64] = if quick {
         &[10, 30, 55]
     } else {
@@ -385,7 +426,8 @@ fn run(app: &tauri::AppHandle) -> String {
     };
     cases.push(measure(
         app,
-        "Animating, Full (5 minutes)",
+        // Motion Full, not D-80's Full resolution.
+        "Animating, Motion Full (5 minutes)",
         secs(300, quick),
         marks,
         &mut memory,
@@ -471,6 +513,7 @@ fn run(app: &tauri::AppHandle) -> String {
         let settings = storage.app_settings();
         let _ = settings.set(MOTION_KEY, kept_motion.as_deref().unwrap_or("system"));
         let _ = settings.set(ON_TOP_KEY, kept_on_top.as_deref().unwrap_or("off"));
+        let _ = settings.set(DETAIL_KEY, kept_detail.as_deref().unwrap_or("pixel"));
     }
 
     let (apps, sessions) = super::current(&state).map_or((0, 0), |s| {
@@ -486,6 +529,11 @@ fn run(app: &tauri::AppHandle) -> String {
     };
     let r1 = |x: f64| (x * 10.0).round() / 10.0;
     let report = serde_json::json!({
+        "detail": if full { "full" } else { "pixel" },
+        // The window drawn into, device pixels, and its scale (D-80's
+        // Full resolution draws at these; Pixel art at a fraction).
+        "window_px": window.map(|(w, h, _)| [w, h]),
+        "scale": window.map(|(_, _, s)| s),
         "quick": quick,
         "cases": cases.iter().map(|c| serde_json::json!({
             "name": c.name,

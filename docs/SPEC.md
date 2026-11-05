@@ -797,7 +797,11 @@ with what hangs on them.
 **Settings › The Floor** (keys `floor.*`): open the Floor when AI
 Juggler starts (off); keep it on top (off); Apps per floor (10);
 Motion: Follow the system, Full (8 fps), Calm (4 fps, no walkers) or
-Off; show unused Apps' decay (on); Reset the view; Re-create the
+Off; Look (D-80): Pixel art (the default: the scene at its pixel size,
+scaled up) or Full resolution (the scene at the screen's own pixels:
+smoothed edges, sharp-filtered textures, outlines and the hover ring at
+Pixel art's weight, softer shadows, picking per screen pixel), applied at
+once and remembered; show unused Apps' decay (on); Reset the view; Re-create the
 office…; under More, Apps hidden from the Floor. Re-create explains
 what it changes and what it doesn't before it acts.
 
@@ -817,11 +821,20 @@ Enter opens, N jumps to the next one waiting on you.
 | Case | Budget |
 |---|---|
 | Open, nothing moving | 0 frames after the first; < 0.1% of one core |
-| Animating, Full | ≤ 2% of one core; ≤ 1.5 ms of CPU a frame |
+| Animating, Motion Full | ≤ 2% of one core; ≤ 1.5 ms of CPU a frame |
 | Covered, minimised or closed | 0 frames within 1 s |
 | Opening | First frame ≤ 400 ms; a data change on screen ≤ 100 ms |
 | Memory added | ≤ 150 MB open and still; ≤ 250 MB animating, the Floor's own (Metal's working memory reported beside it, per Mac); once closed, no growth across repeated opens and closes, the raw figure shown (D-79) |
 | Building the scene | ≤ 50 ms for 20 Apps and 150 sessions; a reflow ≤ 20 ms |
+
+**Both looks (D-80).** Pixel art keeps every budget above. Full
+resolution was measured beside it on the same window (1278 × 798 device
+pixels at scale 1): within every budget but memory open and still
+(+154 MB, 4 MB over). Its cost grows with the pixels drawn: on a
+3440 × 1410 window, animating took 2.69% of one core (0.69 over) and
+1.78 ms of CPU a frame (0.28 over), and the setting's line says so with
+the number. The records sit side by side in `docs/qa/floor/`
+(`budgets-2026-11-05.md`, `-full.md`, `-full-large.md`).
 
 **Platforms.** macOS in 0.4 (D-68). The window, input and visibility live
 behind `juggler-window-events`; Windows (0.6) and Linux (0.7)

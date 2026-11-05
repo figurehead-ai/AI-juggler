@@ -64,7 +64,7 @@ def build() -> int:
     return subprocess.call(["nice", "-n", "10", *cmd], cwd=ROOT)
 
 
-def run(home: Path, quick: bool = False, out: Path | None = None) -> int:
+def run(home: Path, quick: bool = False, out: Path | None = None, detail: str = "pixel") -> int:
     binary = target_dir() / "release" / "juggler-app"
     if not binary.exists():
         print(f"floor-harness: no release build at {binary}; run `build` first", file=sys.stderr)
@@ -82,6 +82,8 @@ def run(home: Path, quick: bool = False, out: Path | None = None) -> int:
         }
         if quick:
             env["AIJ_FLOOR_HARNESS_QUICK"] = "1"
+        # D-80: Pixel art (the default) or Full resolution.
+        env["AIJ_FLOOR_HARNESS_DETAIL"] = detail
         print(f"floor-harness: running (about {4 if quick else 12} minutes) on the replica in {home}")
         try:
             log = (out or Path(tmp)) / "harness-app.log" if quick else Path(os.devnull)
@@ -98,7 +100,7 @@ def run(home: Path, quick: bool = False, out: Path | None = None) -> int:
             return 1
         data = json.loads(results.read_text())
     where = out if (quick and out) else OUT_DIR
-    keep = where / f"budgets-{dt.date.today().isoformat()}{'-quick' if quick else ''}.json"
+    keep = where / f"budgets-{dt.date.today().isoformat()}{'-full' if detail == 'full' else ''}{'-quick' if quick else ''}.json"
     where.mkdir(parents=True, exist_ok=True)
     data["machine"] = machine()
     keep.write_text(json.dumps(data, indent=2) + "\n")
@@ -129,7 +131,8 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
     cases = {c["name"]: c for c in data["cases"]}
     base = cases["Never opened (the app alone)"]["cpu_pct"]
     rest = cases["Open, at rest (Motion Off)"]
-    full = cases["Animating, Full (5 minutes)"]
+    # Motion Full (D-80's Full resolution is the record's look, not a case).
+    full = cases.get("Animating, Motion Full (5 minutes)") or cases["Animating, Full (5 minutes)"]
     calm = cases["Animating, Calm"]
     covered = cases["Covered by another window"]
     mini = cases["Minimised"]
@@ -146,9 +149,9 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
         ("Open, nothing moving", f"< {CPU_REST}% of one core",
          f"{own(rest, base):.3f}% the Floor's own (the whole app {rest['cpu_pct'] - base:+.2f}% over a window alone)",
          own(rest, base) < CPU_REST),
-        ("Animating, Full", f"≤ {CPU_FULL}% of one core",
+        ("Animating, Motion Full", f"≤ {CPU_FULL}% of one core",
          f"{own(full, base):.2f}% the Floor's own (the whole app {full['cpu_pct'] - base:+.2f}% over)", own(full, base) <= CPU_FULL),
-        ("Animating, Full", f"≤ {DRAW_MS} ms of CPU a frame",
+        ("Animating, Motion Full", f"≤ {DRAW_MS} ms of CPU a frame",
          f"{full['draw_ms_per_frame']:.2f} ms ({full['frames']} frames)", full["draw_ms_per_frame"] <= DRAW_MS),
         ("Animating, Calm", f"≤ {CPU_FULL}% of one core",
          f"{own(calm, base):.2f}% the Floor's own ({calm['frames']} frames)", own(calm, base) <= CPU_FULL),
@@ -209,15 +212,20 @@ def report(results: Path) -> int:
     data = json.loads(results.read_text())
     rows = verdicts(data)
     m = data.get("machine", {})
-    date = results.stem.removeprefix("budgets-")
+    date = results.stem.removeprefix("budgets-").removesuffix("-full")
+    look = " in Full resolution (D-80)" if data.get("detail") == "full" else ""
     lines = [
-        f"# The Floor's budgets, {date}",
+        f"# The Floor's budgets{look}, {date}",
         "",
         "Read by `scripts/floor_harness.py` on the release build with the harness",
         "(AJ-E3513 req. 3), on the replica company: "
         f"{data['apps']} Apps, {data['sessions']} sessions. Budgets: SPEC §9.7.",
         "",
         f"Machine: {m.get('model', '?')}, {m.get('chip', '?')}, {m.get('memory_gb', '?')} GB, macOS {m.get('macos', '?')}.",
+        (f"Window: {data['window_px'][0]} × {data['window_px'][1]} device pixels at scale {data['scale']:g}"
+         + ("; drawn at those pixels, edges smoothed by a post-pass (no MSAA)." if data.get("detail") == "full"
+            else "; the scene drawn at its pixel size and scaled up (no MSAA).")) if data.get("window_px") else
+        "Window: not recorded.",
         "CPU is the whole app's, less the app alone; memory is its footprint (the GPU's",
         "surfaces included) less before the Floor opened.",
         "",
@@ -232,7 +240,7 @@ def report(results: Path) -> int:
         lines.append(f"| {c['name']} | {c['secs']:.0f} | {c['cpu_pct']:.3f} | {c['frames']} | "
                      f"{c['first_second_frames']} | {c['draw_ms_per_frame']:.2f} ms | {c['footprint_mb']:.0f} MB |")
     marks = ", ".join(f"{m_['at_s']} s: {m_['footprint_mb']:.0f} MB" for m_ in data["full_memory_marks"])
-    lines += ["", f"Memory while animating Full: {marks} (before opening: {data['footprint_before_mb']:.0f} MB).",
+    lines += ["", f"Memory while animating (Motion Full): {marks} (before opening: {data['footprint_before_mb']:.0f} MB).",
               f"A data change on screen, 10 tries: {', '.join(str(x) for x in data['change_to_screen_ms'])} ms.", ""]
     if data.get("open_steps"):
         lines += ["Opening, step by step (ms after it was asked for): "
@@ -303,13 +311,14 @@ def main() -> int:
     r.add_argument("--home", type=Path, required=True)
     r.add_argument("--quick", action="store_true")
     r.add_argument("--out", type=Path)
+    r.add_argument("--detail", choices=["pixel", "full"], default="pixel")
     p = sub.add_parser("report")
     p.add_argument("results", type=Path)
     args = parser.parse_args()
     if args.cmd == "build":
         return build()
     if args.cmd == "run":
-        return run(args.home, args.quick, args.out)
+        return run(args.home, args.quick, args.out, args.detail)
     return report(args.results)
 
 

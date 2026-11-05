@@ -146,6 +146,16 @@ describe("AJ-E3511 Settings › The Floor", () => {
     expect(view.getByTestId("floor-hidden").textContent).toContain("Apps hidden from the Floor (1)");
   });
 
+  it("D-80: the Floor's look, Pixel art by default, Full resolution kept as chosen", async () => {
+    w().__AIJ_FLOOR_SETTINGS__ = { open_at_start: false, on_top: false, apps_per_floor: 10, motion: "system", detail: "pixel", decay: true, hidden: [] };
+    const view = render(<FloorPane />);
+    const look = await view.findByTestId("floor-detail");
+    await waitFor(() => expect(within(look).getByRole("radio", { name: "Pixel art" }).getAttribute("aria-checked")).toBe("true"));
+    expect(look.textContent).toContain("Full resolution:");
+    fireEvent.click(within(look).getByRole("radio", { name: "Full resolution" }));
+    await waitFor(() => expect((w().__AIJ_FLOOR_SETTINGS__ as { detail: string }).detail).toBe("full"));
+  });
+
   it("Re-create asks first, saying what changes and what stays", async () => {
     const view = render(<FloorPane />);
     fireEvent.click(await view.findByTestId("floor-recreate-open"));

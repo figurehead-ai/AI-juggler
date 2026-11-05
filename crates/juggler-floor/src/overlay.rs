@@ -7,9 +7,10 @@
 
 use crate::camera::View;
 use crate::driver::Chip;
+use crate::layout::{DEPTH, WALL_H};
 use crate::math::{M4, V3};
 use crate::models::rgba;
-use crate::scene::{Mark, Scene};
+use crate::scene::{Mark, Scene, floor_y};
 use crate::state::FloorState;
 
 /// One textured rectangle: where (device pixels), what part of the UI
@@ -55,7 +56,28 @@ const DARK: [f32; 4] = [0.12, 0.1, 0.16, 1.0];
 struct Out<'a> {
     scene: &'a Scene,
     q: Vec<Quad>,
+    placed: Placed,
 }
+
+/// Where the overlay put the area chips, for the tests: every chip's
+/// rectangle, what they kept clear of, and how many found no place.
+#[derive(Clone, Debug, Default)]
+pub struct Placed {
+    /// Each drawn chip, `(x, y, w, h)` in device pixels.
+    pub chips: Vec<[f32; 4]>,
+    /// The switcher, hint line and balloons the chips keep clear of.
+    pub kept_clear: Vec<[f32; 4]>,
+    /// Chips left out for want of a free place.
+    pub left_out: usize,
+    /// In the building view, each drawn chip's floor, beside `chips`.
+    pub floors: Vec<usize>,
+    /// In the building view, each floor's outline on screen (slab to wall
+    /// tops), by floor; a chip never touches another floor's.
+    pub outlines: Vec<Poly>,
+}
+
+/// A convex outline on screen, device pixels.
+pub type Poly = Vec<(f32, f32)>;
 
 impl Out<'_> {
     fn rect(&mut self, x: f32, y: f32, w: f32, h: f32, c: [f32; 4]) {
@@ -109,9 +131,17 @@ pub fn unit(scale: f32) -> f32 {
 /// Builds the overlay; the floor switcher's chips, for clicks.
 #[must_use]
 pub fn build(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>) {
+    let (q, chips, _) = build_placed(scene, i);
+    (q, chips)
+}
+
+/// [`build`], also saying where the area chips went.
+#[must_use]
+pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Placed) {
     let mut o = Out {
         scene,
         q: Vec::new(),
+        placed: Placed::default(),
     };
     let (w, h) = (i.size.0 as f32, i.size.1 as f32);
     let u = unit(i.scale);
@@ -120,9 +150,16 @@ pub fn build(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>) {
         (c[3] > 0.01).then(|| ((c[0] / c[3] * 0.5 + 0.5) * w, (0.5 - c[1] / c[3] * 0.5) * h))
     };
     let far = i.view.focus.is_none() || i.view.cam.dist > 52.0;
-    if far {
-        area_chips(&mut o, i, u, &project);
-    }
+    // What the area chips must keep clear of: the floor switcher, the
+    // hint line and the balloons over desks (D-80 review: labels printed
+    // over each other and under the balloons).
+    let chips = switcher(&mut o, i.view, u);
+    let mut taken: Vec<[f32; 4]> = chips
+        .iter()
+        .map(|(r, _)| [r[0], r[1], r[2], r[3] + u])
+        .collect();
+    let hk = (u - 1.0).max(1.0);
+    taken.push([0.0, h - 16.0 * hk, w, 16.0 * hk]);
     if !far || i.view.cam.dist < 70.0 {
         for m in i.marks {
             match m {
@@ -133,8 +170,10 @@ pub fn build(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>) {
                         continue;
                     };
                     let (bw, bh) = (*iw as f32 * u, *ih as f32 * u);
+                    let dst = [(sx - bw / 2.0).round(), (sy - bh).round(), bw, bh];
+                    taken.push(dst);
                     o.q.push(Quad {
-                        dst: [(sx - bw / 2.0).round(), (sy - bh).round(), bw, bh],
+                        dst,
                         src: *r,
                         tint: [1.0; 4],
                     });
@@ -146,20 +185,22 @@ pub fn build(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>) {
                     let s = format!("+{n}");
                     let k = u - 1.0;
                     let tw = o.text_w(&s, k);
-                    o.rect(
+                    let r = [
                         (sx - tw / 2.0 - 3.0 * k).round(),
                         (sy - 11.0 * k).round(),
                         tw + 6.0 * k,
                         11.0 * k,
-                        [0.98, 0.95, 0.88, 0.95],
-                    );
+                    ];
+                    taken.push(r);
+                    o.rect(r[0], r[1], r[2], r[3], [0.98, 0.95, 0.88, 0.95]);
                     o.text((sx - tw / 2.0).round(), (sy - 9.0 * k).round(), &s, k, DARK);
                 }
             }
         }
     }
-    let chips = switcher(&mut o, i.view, u);
-    let hk = (u - 1.0).max(1.0);
+    if far {
+        area_chips(&mut o, i, u, &project, &taken);
+    }
     o.text(
         16.0 * u,
         h - 14.0 * hk,
@@ -192,17 +233,33 @@ pub fn build(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>) {
         );
         o.text(x0 + 6.0 * u, 32.5 * u, &s, u, [1.0, 0.9, 0.88, 1.0]);
     }
-    (o.q, chips)
+    (o.q, chips, o.placed)
 }
 
 /// Each area's chip: its name and what needs you, in words and colours.
+/// Chips never cover each other or what's in `taken`: each takes the
+/// first free place near its area (its own, then a row up or down, then
+/// half a chip aside), stays on screen, and a moved one keeps a thin
+/// stick to its area. A name longer than [`NAME_MAX`] is shortened.
 fn area_chips(
     o: &mut Out<'_>,
     i: &Inputs<'_>,
     u: f32,
     project: &impl Fn(V3) -> Option<(f32, f32)>,
+    taken: &[[f32; 4]],
 ) {
     let scene = o.scene;
+    let k = (u - 1.0).max(1.0);
+    let building = i.view.focus.is_none();
+    // The building view: each floor's outline, so a chip stays over its
+    // own floor (one moved up onto the next floor's slab read as that
+    // floor's).
+    let outlines = if building {
+        floor_outlines(scene, project)
+    } else {
+        Vec::new()
+    };
+    let mut wants = Vec::new();
     for l in &scene.labels {
         if i.view.focus.is_some_and(|f| f != l.floor) {
             continue;
@@ -210,53 +267,332 @@ fn area_chips(
         let (Some((sx, sy)), Some(app)) = (project(l.at), scene.app(&l.app)) else {
             continue;
         };
-        let k = (u - 1.0).max(1.0);
-        let name = app.name.to_uppercase();
-        let count = |state: FloorState| app.sessions.iter().filter(|s| s.state == state).count();
-        let mut tags: Vec<(String, [f32; 4])> = Vec::new();
-        for (state, mark, c) in [
-            (FloorState::Asks, '!', [1.0, 0.83, 0.3, 1.0]),
-            (FloorState::Stuck, '?', [0.94, 0.65, 0.25, 1.0]),
-            (FloorState::Crashed, 'X', [0.94, 0.33, 0.31, 1.0]),
-        ] {
-            let n = count(state);
-            if n > 0 {
-                tags.push((format!("{mark}{n}"), c));
-            }
-        }
-        if let Some(account) = scene.account(app.account_id.as_deref()) {
-            if account.out {
-                tags.push(("OUT".into(), [0.94, 0.33, 0.31, 1.0]));
-            } else if let Some(left) = account.left_pct.filter(|l| *l < 20.0) {
-                tags.push((format!("{}%", left.round()), [0.94, 0.65, 0.25, 1.0]));
-            }
-        }
-        if app.hot_since_ms.is_some() {
-            tags.push(("HOT".into(), [1.0, 0.55, 0.2, 1.0]));
-        }
-        if scene.unused_level(&app.id) > 0 {
-            tags.push(("UNUSED".into(), [0.7, 0.7, 0.75, 1.0]));
-        }
+        let name = short_name(&app.name.to_uppercase());
+        let tags = tags_of(scene, app);
         let tw = o.text_w(&name, k)
             + tags
                 .iter()
                 .map(|(s, _)| o.text_w(s, k) + 5.0 * k)
                 .sum::<f32>();
-        let (cw, ch) = (tw + 10.0 * k, 11.0 * k);
-        let (x0, y0) = ((sx - cw / 2.0).round(), (sy - ch).round());
-        o.rect(x0, y0, cw, ch, INK);
         let accent = scene
             .kits
             .get(&app.id)
             .map_or([1.0; 4], |kit| rgba(kit.accent));
-        o.rect(x0, y0, 2.0 * k, ch, accent);
-        o.text(x0 + 5.0 * k, y0 + 2.0 * k, &name, k, [0.96, 0.94, 0.9, 1.0]);
-        let mut tx = x0 + 5.0 * k + o.text_w(&name, k) + 5.0 * k;
-        for (s, c) in &tags {
+        wants.push(Want {
+            ask: Ask {
+                at: (sx, sy),
+                size: (tw + 10.0 * k, 11.0 * k),
+                urgent: !tags.is_empty(),
+                keep_out: outlines
+                    .iter()
+                    .enumerate()
+                    .filter(|(f, _)| *f != l.floor)
+                    .map(|(_, p)| p.clone())
+                    .collect(),
+                down_first: building,
+            },
+            floor: l.floor,
+            body: (name, tags, accent),
+        });
+    }
+    let screen = (i.size.0 as f32, i.size.1 as f32);
+    let spots = place(
+        &wants.iter().map(|w| w.ask.clone()).collect::<Vec<_>>(),
+        taken,
+        screen,
+        2.0 * k,
+    );
+    o.placed = Placed {
+        chips: spots.iter().flatten().copied().collect(),
+        floors: if building {
+            wants
+                .iter()
+                .zip(&spots)
+                .filter(|(_, s)| s.is_some())
+                .map(|(w, _)| w.floor)
+                .collect()
+        } else {
+            Vec::new()
+        },
+        outlines: outlines.clone(),
+        kept_clear: taken.to_vec(),
+        left_out: spots.iter().filter(|s| s.is_none()).count(),
+    };
+    // Sticks first, so no chip is crossed by another's.
+    for (w, spot) in wants.iter().zip(&spots) {
+        if let Some(r) = spot {
+            stick(o, w.ask.at, r, k, w.body.2);
+        }
+    }
+    for (w, spot) in wants.iter().zip(&spots) {
+        let Some(r) = spot else { continue };
+        let (name, tags, accent) = &w.body;
+        let (x0, y0) = (r[0], r[1]);
+        o.rect(x0, y0, r[2], r[3], INK);
+        o.rect(x0, y0, 2.0 * k, r[3], *accent);
+        o.text(x0 + 5.0 * k, y0 + 2.0 * k, name, k, [0.96, 0.94, 0.9, 1.0]);
+        let mut tx = x0 + 5.0 * k + o.text_w(name, k) + 5.0 * k;
+        for (s, c) in tags {
             o.text(tx, y0 + 2.0 * k, s, k, *c);
             tx += o.text_w(s, k) + 5.0 * k;
         }
     }
+}
+
+/// A moved chip's stick to its area (none when its area is just under
+/// it): the area's colour, whole, one device pixel wide, down (or up) from
+/// the chip, then along to the area when the chip moved aside.
+fn stick(o: &mut Out<'_>, (sx, sy): (f32, f32), r: &[f32; 4], k: f32, colour: [f32; 4]) {
+    let (top, below) = (r[1], r[1] + r[3]);
+    let aside = sx < r[0] || sx > r[0] + r[2];
+    if !(aside || sy > below + k || sy < top - k) {
+        return;
+    }
+    let x = sx.clamp(r[0] + 2.0 * k, r[0] + r[2] - 2.0 * k).round();
+    let (y0, y1) = if sy > below {
+        (below, sy)
+    } else if sy < top {
+        (sy, top)
+    } else {
+        (sy, sy)
+    };
+    if y1 > y0 {
+        o.rect(x, y0.round(), 1.0, (y1 - y0).round().max(1.0), colour);
+    }
+    if aside {
+        let (x0, x1) = if sx < x { (sx, x) } else { (x, sx) };
+        o.rect(
+            x0.round(),
+            sy.round(),
+            (x1 - x0).round().max(1.0),
+            1.0,
+            colour,
+        );
+    }
+}
+
+/// Each floor's outline on screen, slab to wall tops, by floor.
+fn floor_outlines(scene: &Scene, project: &impl Fn(V3) -> Option<(f32, f32)>) -> Vec<Poly> {
+    let w = scene.frame_size().width;
+    (0..scene.floors)
+        .map(|f| {
+            let fy = floor_y(f);
+            let mut corners = Vec::new();
+            for x in [0.0, w] {
+                for y in [fy - 0.6, fy + WALL_H] {
+                    for z in [0.0, DEPTH] {
+                        corners.extend(project([x, y, z]));
+                    }
+                }
+            }
+            hull(&corners)
+        })
+        .collect()
+}
+
+/// What a chip says needs you, in words and colours.
+fn tags_of(scene: &Scene, app: &crate::snapshot::FloorApp) -> Vec<Tag> {
+    let count = |state: FloorState| app.sessions.iter().filter(|s| s.state == state).count();
+    let mut tags: Vec<Tag> = Vec::new();
+    for (state, mark, c) in [
+        (FloorState::Asks, '!', [1.0, 0.83, 0.3, 1.0]),
+        (FloorState::Stuck, '?', [0.94, 0.65, 0.25, 1.0]),
+        (FloorState::Crashed, 'X', [0.94, 0.33, 0.31, 1.0]),
+    ] {
+        let n = count(state);
+        if n > 0 {
+            tags.push((format!("{mark}{n}"), c));
+        }
+    }
+    if let Some(account) = scene.account(app.account_id.as_deref()) {
+        if account.out {
+            tags.push(("OUT".into(), [0.94, 0.33, 0.31, 1.0]));
+        } else if let Some(left) = account.left_pct.filter(|l| *l < 20.0) {
+            tags.push((format!("{}%", left.round()), [0.94, 0.65, 0.25, 1.0]));
+        }
+    }
+    if app.hot_since_ms.is_some() {
+        tags.push(("HOT".into(), [1.0, 0.55, 0.2, 1.0]));
+    }
+    if scene.unused_level(&app.id) > 0 {
+        tags.push(("UNUSED".into(), [0.7, 0.7, 0.75, 1.0]));
+    }
+    tags
+}
+
+/// The longest App name a chip shows whole; longer ones end in "..".
+/// Most App names ("Claude Code · Work Max") fit.
+pub const NAME_MAX: usize = 24;
+
+fn short_name(name: &str) -> String {
+    if name.chars().count() <= NAME_MAX {
+        return name.to_string();
+    }
+    let cut: String = name.chars().take(NAME_MAX - 2).collect();
+    // Never end on the separator: "INDUSTRIAL TOOL ·.." says nothing.
+    format!("{}..", cut.trim_end_matches([' ', '·', '.']))
+}
+
+/// A chip that wants a place: its area on screen, its size, whether it
+/// says something needs you (those are placed first), and what it shows.
+struct Want {
+    ask: Ask,
+    floor: usize,
+    body: (String, Vec<Tag>, [f32; 4]),
+}
+
+/// A chip's tag: its words and colour.
+type Tag = (String, [f32; 4]);
+
+/// A chip asking for a place.
+#[derive(Clone, Debug, Default)]
+pub struct Ask {
+    /// Its area on screen; the chip sits centred just above it.
+    pub at: (f32, f32),
+    /// Its size, device pixels.
+    pub size: (f32, f32),
+    /// It says something needs you: placed first.
+    pub urgent: bool,
+    /// Outlines it never touches (in the building view, the other floors).
+    pub keep_out: Vec<Poly>,
+    /// Try down and aside before up (the building view, where up is the
+    /// next floor).
+    pub down_first: bool,
+}
+
+/// Where each chip goes (`None`: no free place near its area; it's left
+/// out rather than drawn over another). Chips keep `gap` from each other,
+/// from `taken` and from their `keep_out` outlines, and stay inside
+/// `screen`; each takes the nearest free place by [`moves`]. Pure, for
+/// the tests.
+#[must_use]
+pub fn place(
+    wants: &[Ask],
+    taken: &[[f32; 4]],
+    screen: (f32, f32),
+    gap: f32,
+) -> Vec<Option<[f32; 4]>> {
+    let down = wants.iter().any(|w| w.down_first);
+    let mut order: Vec<usize> = (0..wants.len()).collect();
+    // Urgent first; then the crowd stacks away from where it may move:
+    // from the bottom up, or (down first) from the top down.
+    order.sort_by(|&a, &b| {
+        let by_y = wants[b].at.1.total_cmp(&wants[a].at.1);
+        wants[b]
+            .urgent
+            .cmp(&wants[a].urgent)
+            .then(if down { by_y.reverse() } else { by_y })
+    });
+    let mut placed: Vec<[f32; 4]> = Vec::new();
+    let mut out = vec![None; wants.len()];
+    let clear = |r: &[f32; 4], others: &[[f32; 4]]| {
+        others.iter().all(|o| {
+            r[0] + r[2] + gap <= o[0]
+                || o[0] + o[2] + gap <= r[0]
+                || r[1] + r[3] + gap <= o[1]
+                || o[1] + o[3] + gap <= r[1]
+        })
+    };
+    for n in order {
+        let w = &wants[n];
+        let ((sx, sy), (cw, ch)) = (w.at, w.size);
+        let step = ch + gap;
+        let found = moves(w.down_first).into_iter().find_map(|(dx, dy)| {
+            let x = (sx - cw / 2.0 + dx * (cw + gap))
+                .clamp(gap, (screen.0 - cw - gap).max(gap))
+                .round();
+            let y = (sy - ch + dy * step)
+                .clamp(gap, (screen.1 - ch - gap).max(gap))
+                .round();
+            let r = [x, y, cw, ch];
+            let grown = [x - gap, y - gap, cw + 2.0 * gap, ch + 2.0 * gap];
+            (clear(&r, taken) && clear(&r, &placed) && !w.keep_out.iter().any(|p| meets(&grown, p)))
+                .then_some(r)
+        });
+        if let Some(r) = found {
+            placed.push(r);
+        }
+        out[n] = found;
+    }
+    out
+}
+
+/// The moves a chip tries, nearest first: `(chip widths aside, rows down)`.
+/// Up costs a little more than down in a floor's view; in the building
+/// view up costs three times as much, so a chip moves down and aside first.
+#[must_use]
+pub fn moves(down_first: bool) -> Vec<(f32, f32)> {
+    let mut all: Vec<(f32, f32, f32)> = Vec::new();
+    for dx in [0.0f32, -0.5, 0.5, -1.0, 1.0, -1.5, 1.5, -2.0, 2.0] {
+        for dy in -10..=10 {
+            let dy = dy as f32;
+            let up = if down_first { 3.0 } else { 1.0 };
+            let cost = dx.abs() * 1.5 + if dy < 0.0 { -dy * up - 0.1 } else { dy };
+            all.push((cost, dx, dy));
+        }
+    }
+    all.sort_by(|a, b| a.0.total_cmp(&b.0));
+    all.into_iter().map(|(_, dx, dy)| (dx, dy)).collect()
+}
+
+/// The convex hull of points on screen (none for fewer than three).
+#[must_use]
+pub fn hull(points: &[(f32, f32)]) -> Poly {
+    let mut p = points.to_vec();
+    if p.len() < 3 {
+        return Vec::new();
+    }
+    p.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
+    let cross = |o: (f32, f32), a: (f32, f32), b: (f32, f32)| {
+        (a.0 - o.0) * (b.1 - o.1) - (a.1 - o.1) * (b.0 - o.0)
+    };
+    let mut h: Vec<(f32, f32)> = Vec::new();
+    for pass in 0..2 {
+        let start = h.len();
+        let iter: Box<dyn Iterator<Item = &(f32, f32)>> = if pass == 0 {
+            Box::new(p.iter())
+        } else {
+            Box::new(p.iter().rev())
+        };
+        for &q in iter {
+            while h.len() >= start + 2 && cross(h[h.len() - 2], h[h.len() - 1], q) <= 0.0 {
+                h.pop();
+            }
+            h.push(q);
+        }
+        h.pop();
+    }
+    h
+}
+
+/// Whether a rectangle `(x, y, w, h)` and a convex outline meet
+/// (separating axes: the rectangle's two and each edge's normal).
+#[must_use]
+pub fn meets(r: &[f32; 4], poly: &[(f32, f32)]) -> bool {
+    if poly.len() < 3 {
+        return false;
+    }
+    let corners = [
+        (r[0], r[1]),
+        (r[0] + r[2], r[1]),
+        (r[0] + r[2], r[1] + r[3]),
+        (r[0], r[1] + r[3]),
+    ];
+    let span = |pts: &[(f32, f32)], ax: (f32, f32)| {
+        pts.iter().fold((f32::MAX, f32::MIN), |(lo, hi), p| {
+            let d = p.0 * ax.0 + p.1 * ax.1;
+            (lo.min(d), hi.max(d))
+        })
+    };
+    let mut axes = vec![(1.0, 0.0), (0.0, 1.0)];
+    for n in 0..poly.len() {
+        let (a, b) = (poly[n], poly[(n + 1) % poly.len()]);
+        axes.push((b.1 - a.1, a.0 - b.0));
+    }
+    axes.into_iter().all(|ax| {
+        let (a, b) = (span(&corners, ax), span(poly, ax));
+        a.1 > b.0 && b.1 > a.0
+    })
 }
 
 /// The floor switcher: Building, then each floor from the top.
@@ -301,4 +637,77 @@ fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
         x += r[2] + 4.0 * u;
     }
     chips
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::{Ask, NAME_MAX, hull, meets, place, short_name};
+
+    #[test]
+    fn long_names_end_cleanly() {
+        assert_eq!(
+            short_name("CLAUDE CODE · WORK MAX"),
+            "CLAUDE CODE · WORK MAX"
+        );
+        let long = short_name("A RATHER LONG APP NAME NUMBER 12");
+        assert!(
+            long.ends_with("..") && long.chars().count() <= NAME_MAX,
+            "{long}"
+        );
+        assert_eq!(
+            short_name("INDUSTRIAL TOOL · HOME OFFICE PLUS"),
+            "INDUSTRIAL TOOL · HOME.."
+        );
+        assert!(!short_name("ABCDEFGHIJKLMNOPQRSTUV · LONGER").contains("·.."));
+    }
+
+    #[test]
+    fn a_crowd_stacks_instead_of_overlapping() {
+        // Five chips wanting the same spot, one urgent.
+        let wants: Vec<_> = (0..5)
+            .map(|n| Ask {
+                at: (300.0, 200.0),
+                size: (120.0, 11.0),
+                urgent: n == 3,
+                ..Ask::default()
+            })
+            .collect();
+        let spots = place(&wants, &[[0.0, 0.0, 640.0, 20.0]], (640.0, 400.0), 2.0);
+        let rects: Vec<_> = spots.iter().map(|s| s.unwrap()).collect();
+        for (i, a) in rects.iter().enumerate() {
+            assert!(a[1] >= 22.0, "keeps clear of what's taken: {a:?}");
+            for b in &rects[i + 1..] {
+                let apart = a[0] + a[2] + 2.0 <= b[0]
+                    || b[0] + b[2] + 2.0 <= a[0]
+                    || a[1] + a[3] + 2.0 <= b[1]
+                    || b[1] + b[3] + 2.0 <= a[1];
+                assert!(apart, "{a:?} and {b:?}");
+            }
+        }
+        // The urgent one keeps its own place.
+        assert_eq!(rects[3], [240.0, 189.0, 120.0, 11.0]);
+    }
+
+    #[test]
+    fn down_first_keeps_clear_of_another_floor() {
+        // The next floor's outline sits just above the area: a crowd of
+        // three moves down and aside, never into it.
+        let above = hull(&[(0.0, 100.0), (640.0, 100.0), (640.0, 185.0), (0.0, 185.0)]);
+        let wants: Vec<_> = (0..3)
+            .map(|_| Ask {
+                at: (320.0, 200.0),
+                size: (150.0, 11.0),
+                keep_out: vec![above.clone()],
+                down_first: true,
+                ..Ask::default()
+            })
+            .collect();
+        for r in place(&wants, &[], (640.0, 400.0), 2.0) {
+            let r = r.unwrap();
+            assert!(!meets(&r, &above), "{r:?} touches the floor above");
+        }
+        assert!(meets(&[10.0, 150.0, 20.0, 20.0], &above));
+        assert!(!meets(&[10.0, 190.0, 20.0, 20.0], &above));
+    }
 }

@@ -479,6 +479,92 @@ fn the_gallery_of_golden_frames() {
                 .unwrap(),
         ));
     }
+    // D-80: Full resolution, the same scene at device pixels: the
+    // building, a floor, its first area up close, a hover and the alert.
+    renderer.set_full(true);
+    for shot in shots(&scene).into_iter().filter(|shot| {
+        ["building", "floor-1", "area-00", "hover", "red-alert"].contains(&shot.name.as_str())
+    }) {
+        let extras = Extras {
+            hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
+            alert: shot.alert,
+            mouse: shot.mouse,
+        };
+        frames.push((
+            format!("full-{}", shot.name),
+            renderer
+                .capture(&scene, &shot.view, &shot.live, SIZE, &extras)
+                .unwrap(),
+        ));
+    }
+    // Picking per mode (D-80): under the hover shot's pointer both modes
+    // find the same thing, one id per scene pixel (a device pixel in Full
+    // resolution), after switching back and forth with no restart.
+    let hover = shots(&scene)
+        .into_iter()
+        .find(|shot| shot.name == "hover")
+        .unwrap();
+    let (mx, my) = hover.mouse.unwrap();
+    let extras = Extras {
+        hint: "",
+        alert: None,
+        mouse: hover.mouse,
+    };
+    let mut picked = Vec::new();
+    for full in [true, false, true, false] {
+        renderer.set_full(full);
+        renderer
+            .capture(&scene, &hover.view, &hover.live, SIZE, &extras)
+            .unwrap();
+        picked.push(renderer.pick(mx, my, SIZE.2));
+    }
+    assert!(picked[0] != 0, "something is under the pointer");
+    assert!(
+        picked.iter().all(|id| *id == picked[0]),
+        "both modes pick the same: {picked:?}"
+    );
+    // D-80's captures (opt-in, `AJ_D80_CAPTURE=<folder>`): both looks at
+    // 1280 × 800 on a Retina-scaled window, for the gallery's notes.
+    if let Some(dir) = std::env::var_os("AJ_D80_CAPTURE").map(PathBuf::from) {
+        std::fs::create_dir_all(&dir).unwrap();
+        let big = (1280, 800, 2.0);
+        let aspect = big.0 as f32 / big.1 as f32;
+        let frame = scene.frame_size();
+        let views = [
+            (
+                "building",
+                View {
+                    focus: None,
+                    cam: frame.home(None, aspect),
+                },
+            ),
+            (
+                "floor-1",
+                View {
+                    focus: Some(0),
+                    cam: frame.home(Some(0), aspect),
+                },
+            ),
+        ];
+        let extras = Extras {
+            hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
+            alert: None,
+            mouse: None,
+        };
+        for full in [false, true] {
+            renderer.set_full(full);
+            for (name, view) in &views {
+                let live = Live {
+                    t: 2.0,
+                    ..Live::default()
+                };
+                let img = renderer.capture(&scene, view, &live, big, &extras).unwrap();
+                let look = if full { "full-resolution" } else { "pixel-art" };
+                write_png(&dir.join(format!("{look}-{name}-1280x800.png")), &img);
+            }
+        }
+        renderer.set_full(false);
+    }
     // A reflow: the first App grows from M to L; the areas after it move on.
     let grown = scene_of(&company(true), &mut office, &mut seating);
     renderer.load(&grown);
@@ -556,4 +642,127 @@ fn the_gallery_of_golden_frames() {
         "the gallery changed:\n{}",
         failures.join("\n")
     );
+}
+
+/// The area chips never print over each other, the floor switcher, the
+/// hint line or a balloon, and never leave the window: in the usual
+/// office and in a crowded one with long names, in the building view and
+/// on each floor, at three window sizes (the D-80 review: the building's
+/// App labels printed over each other and floor 1's balloons hid them).
+#[test]
+fn area_chips_never_overlap() {
+    use juggler_floor::overlay;
+    let mut crowded = company(false);
+    let base = crowded.apps.clone();
+    for n in 0..16 {
+        let mut a = base[n % base.len()].clone();
+        a.id = format!("{}-{n}", a.id);
+        a.name = format!("A Rather Long App Name Number {n}");
+        a.sessions = a
+            .sessions
+            .iter()
+            .map(|s| FloorSession {
+                key: format!("{}-{n}", s.key),
+                ..s.clone()
+            })
+            .collect();
+        crowded.apps.push(a);
+    }
+    for (label, snap) in [("usual", company(false)), ("crowded", crowded)] {
+        let (mut office, mut seating) = (Office::new(42, 10), Seating::default());
+        let scene = scene_of(&snap, &mut office, &mut seating);
+        let frame = scene.frame_size();
+        for size in [(1280u32, 800u32, 2.0f32), (1024, 700, 1.0), (640, 400, 1.0)] {
+            let aspect = size.0 as f32 / size.1 as f32;
+            let views = std::iter::once(None)
+                .chain((0..scene.floors).map(Some))
+                .map(|focus| View {
+                    focus,
+                    cam: frame.home(focus, aspect),
+                });
+            for view in views {
+                let live = Live {
+                    t: 2.0,
+                    eye: view.cam.eye(),
+                    ..Live::default()
+                };
+                let mut moving = Vec::new();
+                let drawn = scene.frame(&live, &view.floors(&frame), &mut moving);
+                let vp = view.cam.vp(aspect);
+                let (quads, _, placed) = overlay::build_placed(
+                    &scene,
+                    &overlay::Inputs {
+                        view: &view,
+                        vp: &vp,
+                        size: (size.0, size.1),
+                        scale: size.2,
+                        marks: &drawn.marks,
+                        hover: 0,
+                        mouse: None,
+                        alert: None,
+                        hint: "Drag: pan",
+                    },
+                );
+                let at = format!("{label}, {size:?}, floor {:?}", view.focus);
+                let meets = |a: &[f32; 4], b: &[f32; 4]| {
+                    a[0] < b[0] + b[2]
+                        && b[0] < a[0] + a[2]
+                        && a[1] < b[1] + b[3]
+                        && b[1] < a[1] + a[3]
+                };
+                for (n, a) in placed.chips.iter().enumerate() {
+                    assert!(
+                        a[0] >= 0.0
+                            && a[1] >= 0.0
+                            && a[0] + a[2] <= size.0 as f32
+                            && a[1] + a[3] <= size.1 as f32,
+                        "{at}: chip {a:?} leaves the window"
+                    );
+                    for b in &placed.chips[n + 1..] {
+                        assert!(!meets(a, b), "{at}: chips {a:?} and {b:?} overlap");
+                    }
+                    for b in &placed.kept_clear {
+                        assert!(!meets(a, b), "{at}: chip {a:?} covers {b:?}");
+                    }
+                }
+                // A label stays over its own floor in the building view:
+                // never on another floor's outline (moved up onto floor 2's
+                // slab, floor 1's read as floor 2's).
+                for (a, f) in placed.chips.iter().zip(&placed.floors) {
+                    for (g, outline) in placed.outlines.iter().enumerate() {
+                        assert!(
+                            g == *f || !overlay::meets(a, outline),
+                            "{at}: floor {f}'s chip {a:?} sits on floor {g}"
+                        );
+                    }
+                }
+                if view.focus.is_none() {
+                    assert_eq!(
+                        placed.floors.len(),
+                        placed.chips.len(),
+                        "{at}: every chip's floor"
+                    );
+                    assert_eq!(
+                        placed.outlines.len(),
+                        scene.floors,
+                        "{at}: every floor's outline"
+                    );
+                }
+                // A crowd moves chips, and each moved chip keeps its stick
+                // (one device pixel wide).
+                if label == "crowded" && view.focus.is_none() {
+                    let sticks = quads
+                        .iter()
+                        .filter(|q| (q.dst[2] - 1.0).abs() < 0.01 || (q.dst[3] - 1.0).abs() < 0.01)
+                        .count();
+                    assert!(sticks > 0, "{at}: moved chips draw their sticks");
+                }
+                // Room for every App's chip, except the crowded office in
+                // the smallest window, where a few may wait for a zoom.
+                if !(label == "crowded" && size.0 == 640) {
+                    assert_eq!(placed.left_out, 0, "{at}: chips left out");
+                }
+            }
+        }
+    }
 }

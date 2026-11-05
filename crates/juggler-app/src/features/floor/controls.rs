@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use super::render::Msg;
 use super::store::{
-    self, AT_START_KEY, DECAY_KEY, MOTION_KEY, ON_TOP_KEY, PER_FLOOR_KEY, Settings,
+    self, AT_START_KEY, DECAY_KEY, DETAIL_KEY, MOTION_KEY, ON_TOP_KEY, PER_FLOOR_KEY, Settings,
 };
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
@@ -31,6 +31,8 @@ pub struct FloorSettingsInfo {
     pub apps_per_floor: u32,
     /// `system` | `full` | `calm` | `off`.
     pub motion: String,
+    /// D-80: `pixel` (Pixel art) | `full` (Full resolution).
+    pub detail: String,
     /// Show unused Apps' decay.
     pub decay: bool,
     /// The Apps left off the Floor, by id.
@@ -67,6 +69,12 @@ fn settings_info(storage: &juggler_core::storage::Storage) -> AppResult<FloorSet
         on_top: settings.on_top,
         apps_per_floor: u32::try_from(settings.per_floor).unwrap_or(10),
         motion: motion.unwrap_or_else(|| "system".to_owned()),
+        detail: if settings.detail.full() {
+            "full"
+        } else {
+            "pixel"
+        }
+        .to_owned(),
         decay: settings.decay,
         hidden,
     })
@@ -88,6 +96,10 @@ fn checked(key: &str, value: &str) -> AppResult<String> {
             .ok_or_else(bad),
         MOTION_KEY => match value {
             "system" | "full" | "calm" | "off" => Ok(value.to_owned()),
+            _ => Err(bad()),
+        },
+        DETAIL_KEY => match value {
+            "pixel" | "full" => Ok(value.to_owned()),
             _ => Err(bad()),
         },
         _ => Err(bad()),
@@ -253,11 +265,14 @@ mod tests {
         assert_eq!(checked("floor.on_top", "on").unwrap(), "on");
         assert_eq!(checked("floor.apps_per_floor", "6").unwrap(), "6");
         assert_eq!(checked("floor.motion", "system").unwrap(), "system");
+        assert_eq!(checked("floor.detail", "pixel").unwrap(), "pixel");
+        assert_eq!(checked("floor.detail", "full").unwrap(), "full");
         for (key, value) in [
             ("floor.apps_per_floor", "3"),
             ("floor.apps_per_floor", "17"),
             ("floor.apps_per_floor", "ten"),
             ("floor.motion", "fast"),
+            ("floor.detail", "4k"),
             ("floor.decay", "yes"),
             ("floor.seed", "1"),
             ("ui.theme", "dark"),

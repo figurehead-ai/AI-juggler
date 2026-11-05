@@ -14,7 +14,7 @@ export type { FloorPlaceInfo, FloorSettingsInfo };
 type Places = FloorPlaceInfo[];
 
 const preview: { settings: FloorSettingsInfo } = {
-  settings: { open_at_start: false, on_top: false, apps_per_floor: 10, motion: "system", decay: true, hidden: [] },
+  settings: { open_at_start: false, on_top: false, apps_per_floor: 10, motion: "system", detail: "pixel", decay: true, hidden: [] },
 };
 const seam = () => (window as unknown as { __AIJ_FLOOR_SETTINGS__?: FloorSettingsInfo; __AIJ_FLOOR_PLACES__?: Places });
 
@@ -28,6 +28,7 @@ const WORDS: Record<string, keyof FloorSettingsInfo> = {
   "floor.on_top": "on_top",
   "floor.apps_per_floor": "apps_per_floor",
   "floor.motion": "motion",
+  "floor.detail": "detail",
   "floor.decay": "decay",
 };
 
@@ -37,7 +38,7 @@ export async function floorSettingSet(key: string, value: string): Promise<Floor
     const field = WORDS[key];
     if (!field) throw new Error(`The Floor has no setting ${key}.`);
     const current = { ...(seam().__AIJ_FLOOR_SETTINGS__ ?? preview.settings) } as Record<string, unknown>;
-    current[field] = field === "apps_per_floor" ? Number(value) : field === "motion" ? value : value === "on";
+    current[field] = field === "apps_per_floor" ? Number(value) : field === "motion" || field === "detail" ? value : value === "on";
     preview.settings = current as FloorSettingsInfo;
     seam().__AIJ_FLOOR_SETTINGS__ = preview.settings;
     return { ...preview.settings };

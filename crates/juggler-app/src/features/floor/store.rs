@@ -22,6 +22,28 @@ pub const DECAY_KEY: &str = "floor.decay";
 pub const AT_START_KEY: &str = "floor.open_at_start";
 /// Keep the Floor on top: `on` or `off`.
 pub const ON_TOP_KEY: &str = "floor.on_top";
+/// D-80: how it's drawn: `pixel` (Pixel art, the default) or `full`
+/// (Full resolution).
+pub const DETAIL_KEY: &str = "floor.detail";
+
+/// D-80: how the Floor is drawn.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Detail {
+    /// Pixel art: the scene at its pixel size, scaled up (the approved
+    /// design).
+    #[default]
+    Pixel,
+    /// Full resolution: the scene at the screen's own pixels, smoothed.
+    Full,
+}
+
+impl Detail {
+    /// Full resolution.
+    #[must_use]
+    pub const fn full(self) -> bool {
+        matches!(self, Self::Full)
+    }
+}
 
 /// How much moves, as chosen.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -58,6 +80,8 @@ pub struct Settings {
     pub at_start: bool,
     /// Keep on top.
     pub on_top: bool,
+    /// D-80: Pixel art or Full resolution.
+    pub detail: Detail,
 }
 
 impl Default for Settings {
@@ -68,6 +92,7 @@ impl Default for Settings {
             decay: true,
             at_start: false,
             on_top: false,
+            detail: Detail::Pixel,
         }
     }
 }
@@ -92,6 +117,11 @@ impl Settings {
             decay: on(DECAY_KEY, d.decay),
             at_start: on(AT_START_KEY, d.at_start),
             on_top: on(ON_TOP_KEY, d.on_top),
+            detail: if get(DETAIL_KEY).as_deref() == Some("full") {
+                Detail::Full
+            } else {
+                Detail::Pixel
+            },
         }
     }
 
@@ -116,6 +146,7 @@ impl Settings {
             DECAY_KEY,
             AT_START_KEY,
             ON_TOP_KEY,
+            DETAIL_KEY,
         ] {
             if let Some(v) = settings.get(key)? {
                 words.insert(key, v);
@@ -222,7 +253,8 @@ mod tests {
     use juggler_floor::family::Family;
 
     use super::{
-        DECAY_KEY, MOTION_KEY, MotionChoice, PER_FLOOR_KEY, Settings, office_from, rows_of,
+        DECAY_KEY, DETAIL_KEY, Detail, MOTION_KEY, MotionChoice, PER_FLOOR_KEY, Settings,
+        office_from, rows_of,
     };
     use juggler_floor::layout::Office;
 
@@ -239,6 +271,16 @@ mod tests {
             (s.per_floor, s.motion, s.decay),
             (16, MotionChoice::Fixed(Motion::Calm), false)
         );
+    }
+
+    #[test]
+    fn pixel_art_is_the_default_and_full_resolution_is_kept_as_chosen() {
+        assert_eq!(Settings::default().detail, Detail::Pixel);
+        let full = Settings::from_words(|k| (k == DETAIL_KEY).then(|| "full".to_owned()));
+        assert_eq!(full.detail, Detail::Full);
+        assert!(full.detail.full());
+        let odd = Settings::from_words(|k| (k == DETAIL_KEY).then(|| "huge".to_owned()));
+        assert_eq!(odd.detail, Detail::Pixel, "an unknown word is Pixel art");
     }
 
     #[test]

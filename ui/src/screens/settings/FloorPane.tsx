@@ -16,11 +16,20 @@ import { Pane, PaneSection, SettingRow, SwitchRow } from "./parts";
 import { RecreateSheet } from "./RecreateSheet";
 
 type Motion = "system" | "full" | "calm" | "off";
+/** What each look costs, measured on the release build (D-80). */
+const DETAIL_WORDS = "Pixel art: the Floor's own look, drawn in big pixels. Full resolution: smooth edges at your screen's own pixels; on a large window it takes about 2.7% of a core while animating, more than the Floor's 2% budget.";
 const MOTIONS: { value: Motion; label: string }[] = [
   { value: "system", label: "Follow the system" },
   { value: "full", label: "Full" },
   { value: "calm", label: "Calm" },
   { value: "off", label: "Off" },
+];
+
+// D-80: how the Floor is drawn.
+type Detail = "pixel" | "full";
+const DETAILS: { value: Detail; label: string }[] = [
+  { value: "pixel", label: "Pixel art" },
+  { value: "full", label: "Full resolution" },
 ];
 
 export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
@@ -80,6 +89,12 @@ export function FloorPane({ anchor }: { anchor?: string }): JSX.Element {
           description="Full: people type and walk (8 frames a second, about 2% of one core). Calm: half as often, no one walks. Off: nothing moves; it draws only when something changes."
           testId="floor-motion"
           control={<Segmented label="Motion" value={(settings?.motion ?? "system") as Motion} segments={MOTIONS} onChange={(value) => set("floor.motion", value)} testId="floor-motion-choice" />}
+        />
+        <SettingRow
+          title="Look"
+          description={DETAIL_WORDS}
+          testId="floor-detail"
+          control={<Segmented label="Look" value={(settings?.detail ?? "pixel") as Detail} segments={DETAILS} onChange={(value) => set("floor.detail", value)} testId="floor-detail-choice" />}
         />
         <SwitchRow
           title="Unused Apps gather dust"

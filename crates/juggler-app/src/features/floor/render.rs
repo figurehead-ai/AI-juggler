@@ -394,7 +394,9 @@ impl Running {
             snapshot,
         };
         open_step("scene", opened);
-        let renderer = Renderer::new(&instance, surface, (size.0, size.1), &world.scene).ok()?;
+        let mut renderer =
+            Renderer::new(&instance, surface, (size.0, size.1), &world.scene).ok()?;
+        renderer.set_full(settings.detail.full());
         open_step("renderer", opened);
         let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion_now());
         driver.alert = world.snapshot.machine.alert_since_ms.is_some();
@@ -516,6 +518,9 @@ impl Running {
         drop(storage);
         self.settings = settings;
         self.driver.motion = settings.motion_now();
+        // D-80: Pixel art or Full resolution, from the next frame; the
+        // targets follow the size it asks for, the old ones dropped.
+        self.renderer.set_full(settings.detail.full());
         let snapshot = Arc::clone(&self.world.snapshot);
         self.message_snapshot(snapshot, now);
     }
