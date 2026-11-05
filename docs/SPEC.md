@@ -820,7 +820,7 @@ Enter opens, N jumps to the next one waiting on you.
 | Animating, Full | ≤ 2% of one core; ≤ 1.5 ms of CPU a frame |
 | Covered, minimised or closed | 0 frames within 1 s |
 | Opening | First frame ≤ 400 ms; a data change on screen ≤ 100 ms |
-| Memory added | ≤ 150 MB open and still; ≤ 250 MB animating; 0 once closed |
+| Memory added | ≤ 150 MB open and still; ≤ 250 MB animating, the Floor's own (Metal's working memory reported beside it, per Mac); once closed, no growth across repeated opens and closes, the raw figure shown (D-79) |
 | Building the scene | ≤ 50 ms for 20 Apps and 150 sessions; a reflow ≤ 20 ms |
 
 **Platforms.** macOS in 0.4 (D-68). The window, input and visibility live

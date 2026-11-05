@@ -2526,3 +2526,26 @@ calls are mine, reported, not asked), answering AJ-E2902's Q1.
 - Q2 (where Update would fetch prices) stays open: no Update is shown;
   prices change with an app update. Q3: the weekly review opens on demand
   only.
+
+### D-78 The Floor's wireframes are approved: Settings › The Floor, Re-create and the Floor list as drawn — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "Wireframe is good, approved."
+
+- Settings › The Floor, the split button, the Re-create confirmation and
+  the accessible Floor list are built as drawn (AJ-E3511, AJ-E3512).
+
+### D-79 The Floor's memory budgets: its own memory while animating, and no growth once closed — SETTLED (2026-11-04)
+
+**Ruling.** The maintainer, 2026-11-04: "yes both 2 and 3, that is fine, I
+understand, do what you need to, expand the limit."
+
+- While animating, the 250 MB budget counts the Floor's own memory.
+  Metal's working memory (a bare Metal view holds about 273 MB while
+  drawing on this Mac, freed within 1 s of idle; 449 MB through wgpu) is
+  reported beside it, separately, for each Mac.
+- Once closed, the Floor is judged by no growth across repeated opens and
+  closes (the six-cycle leak check: the last three add at most 15 MB),
+  with the raw figure shown (the system's allocator keeps freed blocks
+  for reuse).
+- `scripts/floor_harness.py` judges and reports both this way; SPEC §9.7's
+  table says it.

@@ -9,19 +9,19 @@ surfaces included) less before the Floor opened.
 
 | Case | Budget | Measured | |
 |---|---|---|---|
-| Open, nothing moving | 0 frames after the first | 12 frames in 60 s | **over** |
-| Open, nothing moving | < 0.1% of one core | -1.682% over the app alone (3.480%) | within |
-| Animating, Full | ≤ 2.0% of one core | +0.44% over the app alone | within |
+| Open, nothing moving | 0 frames after the first, but for data news | 12 frames in 60 s, 0 for data news | **over** |
+| Open, nothing moving | < 0.1% of one core | -1.682% the Floor's own (the whole app -1.68% over a window alone) | within |
+| Animating, Full | ≤ 2.0% of one core | 0.44% the Floor's own (the whole app +0.44% over) | within |
 | Animating, Full | ≤ 1.5 ms of CPU a frame | 0.94 ms (2460 frames) | within |
-| Animating, Calm | ≤ 2.0% of one core | +0.74% (252 frames) | within |
+| Animating, Calm | ≤ 2.0% of one core | 0.74% the Floor's own (252 frames) | within |
 | Covered | 0 frames within 1 s | 239 after the first second (8 in it) | **over** |
 | Minimised | 0 frames within 1 s | 0 after the first second (0 in it) | within |
 | Closed | 0 frames | 0 | within |
 | Opening | first frame ≤ 400 ms | 717 ms | **over** |
 | A data change | on screen ≤ 100 ms | worst 30749.0 ms of 10 | **over** |
 | Memory added, open and still | ≤ 150 MB | +148 MB | within |
-| Memory added, animating | ≤ 250 MB | +675 MB at its highest | **over** |
-| Memory once closed | 0 added | +93 MB | **over** |
+| Memory added, animating (the Floor's own) | ≤ 250 MB | +675 MB at its highest; Metal's working memory on this Mac not recorded (the whole app +675 MB) | **over** |
+| Memory once closed | no growth across repeated opens and closes | raw +93 MB once closed; no repeated cycles recorded | **over** |
 | Building the scene | ≤ 50 ms | 5.41 ms on average | within |
 
 ## Every case

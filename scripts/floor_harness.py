@@ -166,16 +166,28 @@ def verdicts(data: dict) -> list[tuple[str, str, str, bool]]:
          worst_change <= CHANGE_MS),
         ("Memory added, open and still", f"≤ {MEM_STILL} MB",
          f"{data['footprint_open_still_mb'] - before:+.0f} MB", data["footprint_open_still_mb"] - before <= MEM_STILL),
-        ("Memory added, animating", f"≤ {MEM_ANIM} MB",
-         f"{anim_peak - before:+.0f} MB at its highest"
-         + (f", of which Metal's own working memory {metal(data):.0f} MB" if metal(data) else ""),
-         anim_peak - before <= MEM_ANIM),
-        ("Memory once closed", "0 added",
-         f"{data['footprint_closed_mb'] - before:+.0f} MB (the system's allocator keeps freed blocks for reuse)",
-         data["footprint_closed_mb"] - before <= 10),
+        # D-79 (the maintainer, 2026-11-04): animating counts the Floor's
+        # own memory; Metal's working memory is reported beside it, per Mac
+        # (a bare Metal view holds about 273 MB while drawing, freed in 1 s).
+        ("Memory added, animating (the Floor's own)", f"≤ {MEM_ANIM} MB",
+         f"{anim_peak - before - metal(data):+.0f} MB at its highest; Metal's working memory on this Mac "
+         + (f"{metal(data):.0f} MB beside it" if metal(data) else "not recorded")
+         + f" (the whole app {anim_peak - before:+.0f} MB)",
+         anim_peak - before - metal(data) <= MEM_ANIM),
     ]
-    if data.get("footprint_after_each_more_mb"):
-        each = data["footprint_after_each_more_mb"]
+    # D-79: closed is judged by no growth across repeated opens and closes
+    # (the six-cycle leak check below); the raw figure is shown with it.
+    raw_closed = data["footprint_closed_mb"] - before
+    each = data.get("footprint_after_each_more_mb") or []
+    if each:
+        late = each[-1] - each[-4] if len(each) >= 4 else each[-1] - each[0]
+        rows.append(("Memory once closed", "no growth across repeated opens and closes",
+                     f"{late:+.0f} MB over the last 3 of {len(each)} more cycles; raw {raw_closed:+.0f} MB once closed "
+                     "(the system's allocator keeps freed blocks for reuse)", late <= LEAK_MB))
+    else:
+        rows.append(("Memory once closed", "no growth across repeated opens and closes",
+                     f"raw {raw_closed:+.0f} MB once closed; no repeated cycles recorded", raw_closed <= 10))
+    if each:
         # A leak grows every time; the allocator's cache settles. Judged on
         # the last three of six more opens and closes.
         late = each[-1] - each[-4] if len(each) >= 4 else each[-1] - each[0]
@@ -264,6 +276,15 @@ def selftest() -> int:
     }
     rows = verdicts(sample)
     assert all(ok for *_, ok in rows), [r for r in rows if not r[3]]
+    # D-79: Metal's working memory is reported beside, not counted; a big
+    # raw closed figure passes when repeated cycles don't grow, fails when they do.
+    heavy = {**sample, "full_memory_marks": [{"at_s": 30, "footprint_mb": 700}],
+             "memory_animating": [{"category": "Owned physical footprint (unmapped) (graphics)", "mb": 400.0}],
+             "footprint_closed_mb": 450, "footprint_after_each_more_mb": [450, 455, 452, 456, 451, 455, 453]}
+    by_case = {case: ok for case, _, _, ok in verdicts(heavy)}
+    assert by_case["Memory added, animating (the Floor's own)"] and by_case["Memory once closed"], by_case
+    leaking = {**heavy, "footprint_after_each_more_mb": [450, 480, 510, 540, 570, 600, 630]}
+    assert not {case: ok for case, _, _, ok in verdicts(leaking)}["Memory once closed"]
     sample["cases"][4]["frames"] = 5
     assert not verdicts(sample)[5][3], "frames after the first second while covered are over"
     sample["change_to_screen_ms"] = [12.0, None]
