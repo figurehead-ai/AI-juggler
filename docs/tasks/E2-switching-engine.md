@@ -590,7 +590,7 @@ must cost the same as the first.
 **Research basis**: decision-log D-04 (`decision-log.md:39-48`); pass2/02 §10 (lines 512-540); deep/09 §H8-H9 (lines 281-315), D4; `docs/SPEC.md:434-442` testing strategy.
 **Handover note**: D-04 means do not block the beta on this gate — block only the *label graduation*. Trap: pass 2 ran no live dogfood and proved no Codex/ZCode binary behaviour (pass2/00 §6); every such claim here starts unproven. If a vendor format changes weekly, add a version-tagged fixture — never loosen an assertion to make CI green.
 
-### AJ-E211 Leave out part of a very large conversation when switching (advanced) | Status: TODO | Priority P1 | Effort L | Depends: AJ-E210
+### AJ-E211 Leave out part of a very large conversation when switching (advanced) | Status: IN-PROGRESS | Priority P1 | Effort L | Depends: AJ-E210
 **Goal**: A very large conversation can be switched without carrying all of it, when the user asks; by default everything still travels (D-76).
 **User story**: As someone with a months-long session of several GB, I open the switch's advanced options, keep only the last 400 turns, see it will carry 180 MB instead of 7.8 GB and what the new session won't know, and switch.
 **Requirements**:
@@ -608,7 +608,7 @@ must cost the same as the first.
 **Visual testing**: the advanced options with each choice, the size line, the warning; light and dark, 1024 and 1280.
 **Files to touch**: `crates/juggler-handover/` (the cut plan), `crates/juggler-adapters/src/claude_transcript.rs`, the Codex rollout reader, `crates/juggler-adapter/src/handover.rs` (sizes), `ui/src/components/switch/`.
 **Research basis**: the maintainer, 2026-11-04 (D-76); 0.3.9's any-size switch and size line (`ensure_room`, `DISK_RESERVE`); D-04 (fidelity labels).
-**Handover note**: builds on 0.3.9's size line, which is on release/0.3.9 until it merges into release/0.4.
+**Handover note**: built (`juggler-adapters`: `cut.rs` shared, `claude_cut.rs`, `codex_cut.rs`; `juggler-handover::pipeline::execute_cut`; `features/switch_cut`; `ui/src/components/switch/CarryChoice.tsx`), with 0.3.9's size line merged in. Evidence: `docs/qa/evidence/AJ-E211/manifest.md`. Codex's live cut-and-resume passes; Claude Code's waits on the lab profile's sign-in (expired). Left: Claude's live run, the handover notes recording the cut (req. 6, the edge's notes), and the gallery captures of the options.
 
 ---
 ---
