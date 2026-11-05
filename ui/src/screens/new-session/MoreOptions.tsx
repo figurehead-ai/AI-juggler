@@ -1,7 +1,7 @@
 /**
  * AJ-E3207 — the rare options behind one fold, its label saying what
- * they're set to now ("More options · Deep work · opus · runs as its
- * launch settings say"), so nothing hides silently: the App's launch
+ * they're set to now ("More options · Deep work · Opus · runs in its
+ * terminal"), so nothing hides silently: the App's launch
  * settings when it has more than one, how it runs, which Mac (only with
  * paired Macs), a saved handover to start from, this Mac's room when it's
  * fine, and the expert setup. Nothing here is remembered for next time.
@@ -16,17 +16,21 @@ import type { RuntimeChoice } from "../../components/RuntimePick";
 import type { AccountInfo, LaunchRecipeInfo } from "../../lib/bridge";
 import type { MachineAdviceInfo } from "../../lib/machine";
 import { useSuggested } from "../../lib/suggested";
+import { modelName } from "../../components/charts/colors";
 
-/** How it runs, as the fold's label says it. */
-export function runtimeWords(runtime: RuntimeChoice): string {
+/** How it runs, as the fold's label says it: only when it differs from
+ * the launch settings (inside, How it runs already says "As its launch
+ * settings say"; the 0.4 design review, 51). */
+export function runtimeWords(runtime: RuntimeChoice): string | null {
   if (runtime === "terminal") return "runs in its terminal";
   if (runtime === "driven") return "runs without a terminal";
-  return "runs as its launch settings say";
+  return null;
 }
 
 /** The fold's label: its current values, the ones worth saying. */
 export function moreOptionsWords({ recipe, settingsCount, runtime, machine }: { recipe: LaunchRecipeInfo | null; settingsCount: number; runtime: RuntimeChoice; machine: string | null }): string {
-  const parts = [settingsCount > 1 ? recipe?.name : null, recipe?.model, runtimeWords(runtime), machine];
+  // The model as people say it ("Opus", not "opus"; the review, 71).
+  const parts = [settingsCount > 1 ? recipe?.name : null, recipe?.model ? modelName(recipe.model) : null, runtimeWords(runtime), machine];
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -81,7 +85,7 @@ export function MoreOptions({
               size="sm"
               value={recipe.id}
               onChange={onSettings}
-              options={settings.map((row) => ({ value: row.id, label: row.name, hint: row.model ?? undefined }))}
+              options={settings.map((row) => ({ value: row.id, label: row.name, hint: row.model ? modelName(row.model) : undefined }))}
             />
           </div>
         )}

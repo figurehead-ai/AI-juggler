@@ -11,6 +11,7 @@ import { agoWords } from "../../lib/time-words";
 import { conversationItem, sessionItem, stateWord } from "../../lib/rail-items";
 import { homeRelative } from "../../lib/project-words";
 import { placeLine, rowTitle } from "./RowView";
+import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 import type { PaletteRow } from "./rows";
 
 export type Previewable = Extract<PaletteRow, { where: "local" | "outside" | "app" | "project" | "account" }>;
@@ -22,18 +23,20 @@ export interface PreviewDoings {
   open: (entry: Previewable) => void;
   /** ⌘↩'s: its app, or New session on an account. */
   goTo: (entry: Previewable) => void;
-  /** Continue on another account… (a session). */
+  /** Continue in another app… (a session). */
   continueElsewhere?: (entry: Previewable) => void;
 }
 
-function facts(entry: Previewable, now: number): [string, string][] {
+/** D-62: a session's Account by its real name, never its App's (the 0.4
+ * design review, 72); a folder in no Account keeps its own. */
+function facts(entry: Previewable, now: number, accounts: readonly SubscriptionInfo[] | null): [string, string][] {
   switch (entry.where) {
     case "local": {
       const item = sessionItem(entry.row, () => null, false);
       return [
         ["Now", stateWord(item.state, item.probably)],
         ["Where", placeLine(entry) || "AI Juggler's terminal"],
-        ["Account", entry.row.account_label],
+        ["Account", accountNameOf(accounts, entry.row.account_id, entry.row.account_label)],
         ["Last active", entry.row.last_activity_ms ? agoWords(entry.row.last_activity_ms, now) : "not yet"],
       ];
     }
@@ -42,7 +45,7 @@ function facts(entry: Previewable, now: number): [string, string][] {
       return [
         ["Now", stateWord(item.state, item.probably)],
         ["Where", placeLine(entry)],
-        ["Account", item.accountLabel],
+        ["Account", accountNameOf(accounts, item.accountId, item.accountLabel)],
         ["Last active", entry.conversation.last_activity_ms ? agoWords(entry.conversation.last_activity_ms, now) : "not known"],
       ];
     }
@@ -70,9 +73,9 @@ function facts(entry: Previewable, now: number): [string, string][] {
 function actionWords(entry: Previewable): { open: string; goTo: string | null; continue: string | null } {
   switch (entry.where) {
     case "local":
-      return { open: "Open", goTo: entry.desktop ? "Go to its app" : null, continue: "Continue on another account…" };
+      return { open: "Open", goTo: entry.desktop ? "Go to its app" : null, continue: "Continue in another app…" };
     case "outside":
-      return { open: "Open", goTo: "Go to its app", continue: "Continue on another account…" };
+      return { open: "Open", goTo: "Go to its app", continue: "Continue in another app…" };
     case "app":
       return { open: "Open its page", goTo: entry.app.place ? (entry.open ? "Bring it forward" : "Start it") : null, continue: null };
     case "project":
@@ -84,11 +87,12 @@ function actionWords(entry: Previewable): { open: string; goTo: string | null; c
 
 export function Preview({ entry, id, doings, now = Date.now() }: { entry: Previewable; id: string; doings: PreviewDoings; now?: number }): JSX.Element {
   const words = actionWords(entry);
+  const accounts = useSubscriptions();
   return (
     <aside id={id} aria-label={`Preview of ${rowTitle(entry)}`} className="flex w-72 shrink-0 flex-col gap-3 border-l border-hairline p-4" data-testid="goto-preview">
       <h3 className="text-section font-semibold leading-snug text-ink">{rowTitle(entry)}</h3>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-meta">
-        {facts(entry, now).map(([label, value]) => (
+        {facts(entry, now, accounts).map(([label, value]) => (
           <div key={label} className="contents">
             <dt className="text-muted">{label}</dt>
             <dd className="min-w-0 truncate text-ink" title={value}>

@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Checkbox, ChoiceOption, Disclosure, Picker, Radio, Segmented } from ".";
 import { Modal } from "../form";
-import { anchoredEdge, menuEdge, menuPoint, type MenuAt } from "../RowMenu";
+import { anchoredEdge, anchoredSpan, menuEdge, menuPoint, type MenuAt } from "../RowMenu";
 
 afterEach(cleanup);
 
@@ -176,6 +176,18 @@ describe("a menu from a button", () => {
     expect(menuEdge(700, 200, 800)).toBe(500);
   });
 
+  it("too tall for either side: stays by its button on the roomier side, capped to scroll inside (0.4 design review, 19)", () => {
+    // Fits below or above: no cap, as before.
+    expect(anchoredSpan(100, 60, 200, 800)).toEqual({ start: 100, max: null });
+    expect(anchoredSpan(700, 660, 200, 800)).toEqual({ start: 460, max: null });
+    // A button low in the window, a 700 px list: above it, ending at its top.
+    expect(anchoredSpan(600, 560, 700, 800)).toEqual({ start: 8, max: 552 });
+    // A button high in the window: below it, from under it.
+    expect(anchoredSpan(150, 110, 700, 800)).toEqual({ start: 150, max: 642 });
+    // Never pinned to the window's top across the button.
+    expect(anchoredSpan(600, 560, 700, 800).start + anchoredSpan(600, 560, 700, 800).max!).toBeLessThanOrEqual(560);
+  });
+
   it("a click on a button gives the button's edges, a right-click the pointer", () => {
     let at: MenuAt | null = null;
     render(
@@ -248,5 +260,16 @@ describe("Segmented, sized by its words (the 0.3 re-render)", () => {
       expect(radio.className).toContain("flex-auto");
       expect(radio.className).not.toContain("flex-1");
     }
+  });
+
+  it("marks the chosen one with the accent's tint and ink, never a grey that dark can't tell apart (0.4 design review, 32)", () => {
+    const view = render(
+      <Segmented label="Group sessions by" value="project" onChange={() => {}} segments={[{ value: "place", label: "App" }, { value: "project", label: "Project" }]} />,
+    );
+    const [app, project] = view.getAllByRole("radio");
+    expect(project!.className).toContain("bg-accent-soft");
+    expect(project!.className).toContain("text-accent-hi");
+    expect(project!.className).not.toContain("bg-surface-3");
+    expect(app!.className).not.toContain("bg-accent-soft");
   });
 });

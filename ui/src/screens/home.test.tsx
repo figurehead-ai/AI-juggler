@@ -79,7 +79,7 @@ describe("D-25 Home — the rules", () => {
   it("each need is one sentence and one action", () => {
     expect(needWords("waiting_user", mk("a"))).toEqual({ what: "Waiting for your reply", action: "Open" });
     expect(needWords("quota_blocked", mk("a")).what).toBe("Work Max hit its limit");
-    expect(needWords("quota_blocked", mk("a")).action).toBe("Continue elsewhere");
+    expect(needWords("quota_blocked", mk("a")).action).toBe("Continue in another app…");
   });
 
   it("D-62: a limit is named by the Account its folder is signed in to; a folder in none keeps its own name", () => {

@@ -127,13 +127,15 @@ export function RowMenu({
   // keeps a corner at the pointer: below and to the right when there's
   // room, else above it (or to its left). Pushed up against the window's
   // edge instead, a menu opened low put the pointer over its middle lines.
-  const [style, setStyle] = useState({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
+  const [style, setStyle] = useState<{ left: number; top: number; maxHeight?: number }>({ left: Math.max(4, Math.min(at.x, window.innerWidth - 260)), top: Math.max(4, at.y) });
   useLayoutEffect(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
+    const span = anchoredSpan(at.y, at.above, box.height, window.innerHeight);
     setStyle({
       left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
-      top: anchoredEdge(at.y, at.above, box.height, window.innerHeight),
+      top: span.start,
+      ...(span.max !== null ? { maxHeight: span.max } : {}),
     });
   }, [at.x, at.y, at.right, at.above]);
   // On the page itself: a blurred rail is the containing block of
@@ -185,6 +187,18 @@ export function anchoredEdge(at: number, end: number | undefined, size: number, 
   if (at + size <= room - inset) return at;
   if (end - size >= inset) return end - size;
   return Math.max(inset, Math.min(at, room - size - inset));
+}
+
+/** The menu's top, and its height cap when it must scroll. From a button
+ * (`end` set), a menu that fits neither below nor above stays on the side
+ * with more room, capped to it and scrolling inside, so it never leaves
+ * its trigger for the window's top (the 0.4 design review, 19). */
+export function anchoredSpan(at: number, end: number | undefined, size: number, room: number): { start: number; max: number | null } {
+  const inset = 8;
+  if (end === undefined || at + size <= room - inset || end - size >= inset) return { start: anchoredEdge(at, end, size, room), max: null };
+  const below = room - inset - at;
+  const above = end - inset;
+  return below >= above ? { start: at, max: below } : { start: inset, max: above };
 }
 
 /** Where a menu of `size` opened at `at` starts along one axis of a

@@ -1,7 +1,7 @@
 /**
  * AJ-E2105 — Home's Needs you: every kind of thing that waits on the user,
  * in one list, each with its own primary. A session asking (its page), a
- * limit reached (Continue elsewhere, or Wait), a sign-in, a Mac working
+ * limit reached (Continue in another app…, or Wait), a sign-in, a Mac working
  * hard, processes left behind. (On 0.2: agent messages, agent requests,
  * prepared launches and paused chains join as kinds here.)
  */
@@ -98,8 +98,10 @@ export function primaryWords(need: HomeNeed): string {
   switch (need.kind) {
     case "session":
       return "Open its page";
+    // One word for one action (the 0.4 design review, 69): the asking
+    // session's second choice says the same.
     case "limit":
-      return "Continue elsewhere";
+      return "Continue in another app…";
     case "failed":
       return "See what happened";
     case "signin":
@@ -123,7 +125,8 @@ export type HomeChip = "all" | "asks" | "stuck" | "limits" | "review" | "signin"
 const CHIP_LABEL: Record<Exclude<HomeChip, "all">, string> = {
   asks: "Asks you",
   stuck: "Probably stuck",
-  limits: "Limits",
+  // The row's own words (the 0.4 design review, 69).
+  limits: "Limit reached",
   review: "To review",
   signin: "Sign-in",
 };

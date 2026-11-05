@@ -11,7 +11,6 @@
 import { useKeys } from "../lib/use-keys";
 import { useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
-import { SectionTitle } from "./SectionTitle";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
 import { chipOf, homeChips, primaryWords, type HomeChip, type HomeNeed } from "../lib/home-needs";
@@ -175,8 +174,9 @@ export function HomeNeeds({
   const waiting = (showMessages ? messages.length : 0) + (showTasks ? tasks.needs.length : 0);
   if (needs.length === 0 && !children && messages.length + tasks.needs.length === 0) return null;
   return (
-    <section aria-labelledby="home-needs" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
-      <SectionTitle id="home-needs">Needs you</SectionTitle>
+    // No area title: the page's heading already says what needs you (the
+    // 0.4 design review, 42); the name stays for screen readers.
+    <section aria-label="Needs you" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
       <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-2" data-testid="home-chips">

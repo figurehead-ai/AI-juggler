@@ -1,17 +1,19 @@
 /**
  * AJ-E2901: what one ⌘K option shows — its mark, its title with the
  * matched letters bold, a line of where or what, and at the end what
- * choosing it does. The option itself is the target (the combobox moves
- * through them), so nothing inside is a button.
+ * ↩ does, on the active row only ("open" on every row was noise, and read
+ * beside "open now"; the 0.4 design review, 52 and 72). The option itself
+ * is the target (the combobox moves through them), so nothing inside is a
+ * button.
  */
 import type { JSX } from "react";
 import { highlight, type Range } from "../../lib/palette-match";
 import { homeRelative } from "../../lib/project-words";
 import { appOfConversation, appOfSession, type AppRef } from "../../lib/app-of";
-import { OWN_APP, conversationItem, placeWords, sessionItem } from "../../lib/rail-items";
+import { conversationItem, placeWords, sessionItem } from "../../lib/rail-items";
 import { conversationTitle } from "../../lib/conversations";
 import { providerDisplayName } from "../../lib/providers";
-import { AppIcon, OWN_APP_ID } from "../AppIcon";
+import { AppIcon } from "../AppIcon";
 import { ProjectMark } from "../ProjectMark";
 import { PlaceMark } from "../PlaceMarks";
 import { ToolMark } from "../ToolMark";
@@ -38,10 +40,10 @@ export function Highlighted({ text, ranges }: { text: string; ranges: readonly R
   );
 }
 
-/** D-38: the app a session row shows. */
+/** D-38: the app a session row shows: its own App's, never AI Juggler's
+ * mark (the 0.4 design review, 72). */
 export function rowApp(entry: Extract<PaletteRow, { where: "local" | "outside" | "remote" }>): AppRef {
   if (entry.where === "outside") return appOfConversation(entry.conversation);
-  if (entry.where === "local" && !entry.desktop) return { appId: OWN_APP_ID, appPid: null, name: OWN_APP };
   return appOfSession(entry.row);
 }
 
@@ -80,7 +82,12 @@ const Muted = ({ children, testId }: { children: string; testId?: string }) => (
     {children}
   </span>
 );
-const End = ({ children }: { children: string }) => <span className="ml-auto shrink-0 pl-2 text-muted">{children}</span>;
+/** What ↩ does, shown on the active row only (`aria-selected`). */
+const End = ({ children }: { children: string }) => (
+  <span className="ml-auto hidden shrink-0 pl-2 text-muted in-aria-selected:inline" data-testid="goto-row-hint">
+    ↩ {children}
+  </span>
+);
 
 export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
   switch (entry.where) {
@@ -94,7 +101,7 @@ export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
           <IconGear width={14} height={14} aria-hidden="true" focusable="false" className="shrink-0 text-muted" />
           <span className="min-w-0 shrink truncate">{entry.hit.title}</span>
           <Muted>{entry.hit.paneLabel}</Muted>
-          <End>open</End>
+          <End>Open</End>
         </>
       );
     case "project":
@@ -105,7 +112,7 @@ export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
             <Highlighted text={entry.project.name} ranges={entry.ranges} />
           </span>
           <Muted>{homeRelative(entry.project.root)}</Muted>
-          <End>open</End>
+          <End>Open</End>
         </>
       );
     case "app": {
@@ -117,7 +124,7 @@ export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
             <Highlighted text={app.name} ranges={entry.ranges} />
           </span>
           <Muted testId="goto-app-state">{entry.open ? "open now" : "not running"}</Muted>
-          <End>open</End>
+          <End>Open</End>
         </>
       );
     }
@@ -129,7 +136,7 @@ export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
             <Highlighted text={entry.account.name} ranges={entry.ranges} />
           </span>
           <Muted testId="goto-account-room">{`${entry.account.tool} · ${entry.account.room}`}</Muted>
-          <End>open</End>
+          <End>Open</End>
         </>
       );
     default:
@@ -152,7 +159,7 @@ export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
               <Muted>{placeLine(entry)}</Muted>
             </>
           )}
-          <End>{entry.where === "remote" ? "inspect" : "open"}</End>
+          <End>{entry.where === "remote" ? "Inspect" : "Open"}</End>
         </>
       );
   }

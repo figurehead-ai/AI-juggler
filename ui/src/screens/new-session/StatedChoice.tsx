@@ -9,7 +9,8 @@
  */
 import type { JSX, ReactNode } from "react";
 import { Button } from "../../components/primitives";
-import { IconProjects, IconTerminal } from "../../components/icons";
+import { IconProjects } from "../../components/icons";
+import { AccountAvatar } from "../../components/Avatar";
 import { runwayOf } from "../../components/AccountRunway";
 import { MachineAdviceLine } from "../../components/MachineAdvice";
 import type { ProjectInfo } from "../../lib/bridge";
@@ -81,8 +82,10 @@ export function StatedChoice({
             <span className="text-ink-2">None yet: it starts in a temporary folder</span>
           )}
         </Line>
+        {/* The Account's own dot on its line, not a terminal's mark (the
+            0.4 design review, 71); no Account yet is a neutral ring. */}
         <Line
-          icon={<IconTerminal width={13} height={13} />}
+          icon={<AccountAvatar account={{ folder: app?.recipe.account_id ?? null }} label={(app && data.accountNameOf(app.recipe.account_id)) ?? "No account yet"} size={13} tone={app && data.accountNameOf(app.recipe.account_id) ? "colour" : "neutral"} />}
           change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} project={folder?.project ?? null} onPick={onApp} now={now} /> : null}
         >
           {app ? <AccountWords app={app} data={data} /> : <NoApp loading={data.recipes === null} onAddApp={onAddApp} />}

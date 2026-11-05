@@ -8,7 +8,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeNeeds } from "./HomeNeeds";
 import { HomeRecent } from "./HomeRecent";
-import { chipOf, homeChips, type HomeNeed } from "../lib/home-needs";
+import { chipOf, homeChips, primaryWords, type HomeNeed } from "../lib/home-needs";
 import type { InstanceInfo } from "../lib/bridge";
 import type { RailItem } from "../lib/rail-items";
 
@@ -38,6 +38,18 @@ describe("AJ-E2910 — Home's chips", () => {
     expect(homeChips([asks("a"), asks("b")])).toEqual([]);
     expect(homeChips([asks("a"), signin, mac]).map((chip) => chip.label)).toEqual(["All 3", "Asks you 1", "Sign-in 1"]);
     expect(homeChips([asks("a")], { asks: 0, review: 2 }).map((chip) => chip.label)).toEqual(["All 3", "Asks you 1", "To review 2"]);
+  });
+
+  it("says a limit as its rows do, and Continue one way (0.4 design review, 69)", () => {
+    const limit: HomeNeed = { key: "lim", kind: "limit", title: "Work hit its limit", detail: "", severe: true };
+    expect(homeChips([asks("a"), limit]).map((chip) => chip.label)).toEqual(["All 2", "Asks you 1", "Limit reached 1"]);
+    expect(primaryWords(limit)).toBe("Continue in another app…");
+  });
+
+  it("has no area title over it: the page's heading says what needs you (0.4 design review, 42)", () => {
+    render(<HomeNeeds needs={[signin, mac]} handlers={{ onOpenSession: vi.fn() }} />);
+    expect(screen.getByRole("region", { name: "Needs you" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Needs you" })).toBeNull();
   });
 
   it("narrows the list and says what it hides, never remembered", () => {

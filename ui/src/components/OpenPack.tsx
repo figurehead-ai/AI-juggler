@@ -1,5 +1,6 @@
 /**
- * AJ-E1511 — "Start from a saved handover…" in New session. The pack is read
+ * AJ-E1511 — "Start from a saved handover…" in New session ("handover"
+ * is the glossary's word, as the guide says it). The pack is read
  * and checked first, then shown as the switch screen shows a switch: where
  * it came from, its fidelity, what it carries and what it doesn't, and
  * what redaction withheld when it was made (the rows a switch's handover

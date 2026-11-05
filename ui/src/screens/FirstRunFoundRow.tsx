@@ -59,7 +59,7 @@ export function FoundRow({
               >
                 {confidenceWord(confidence)}
               </span>
-              {confidence === "guessed" && <span className="hidden shrink-0 text-label text-muted sm:inline">You can rename it after</span>}
+              {/* That it can be renamed is said once, in the footer (the 0.4 design review, 53). */}
             </span>
             <span className="truncate text-label text-muted" title={`${found.path} · ${source}`}>
               <span className="font-mono">{found.path.replace(/^\/Users\/[^/]+/, "~")}</span>

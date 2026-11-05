@@ -92,8 +92,8 @@ describe("AJ-E2906 the found step", () => {
   const renderIt = () => render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
   const rowOf = (step: HTMLElement, folder: string) => within(step).getAllByTestId("first-run-row").find((row) => row.textContent?.includes(folder))!;
 
-  it("each row says its word and where it came from; Guessed says it can be renamed; an empty sign-in may have expired", async () => {
-    const { findByTestId } = renderIt();
+  it("each row says its word and where it came from; renaming is said once, in the footer; an empty sign-in may have expired", async () => {
+    const { findByTestId, container } = renderIt();
     const step = await findByTestId("first-run-found");
     const usual = rowOf(step, "~/.claude ");
     expect(within(usual).getByTestId("first-run-confidence").textContent).toBe("Found");
@@ -101,7 +101,9 @@ describe("AJ-E2906 the found step", () => {
     expect(within(rowOf(step, ".claude-work")).getByTestId("first-run-confidence").textContent).toBe("Likely");
     const odd = rowOf(step, ".claude-x");
     expect(within(odd).getByTestId("first-run-confidence").textContent).toBe("Guessed");
-    expect(odd.textContent).toContain("You can rename it after");
+    // The 0.4 design review, 53: not on the row as well as the footer.
+    expect(odd.textContent).not.toContain("rename");
+    expect(container.textContent).toContain("Names and plans can be changed later.");
     expect(rowOf(step, ".claude-old").textContent).toContain("May have expired");
     for (const id of ["vendor-default", "home-pattern", "env-override", "other-manager", "usual-folder", "sign-in-empty"]) expect(step.textContent).not.toContain(id);
   });

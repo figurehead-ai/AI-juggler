@@ -79,7 +79,10 @@ export function Segmented<T extends string>({
             // and "Pool" (the 0.3 re-render).
             className={
               "min-h-6 min-w-0 flex-auto truncate rounded-[7px] px-1 py-0.5 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
-              (on ? "bg-surface-3 font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-hairline)]" : "text-muted hover:bg-surface-2 hover:text-ink")
+              // The chosen one in the accent's tint and ink, in both themes: a
+              // lighter grey in dark couldn't be told without reading (the 0.4
+              // design review, 32).
+              (on ? "bg-accent-soft font-semibold text-accent-hi" : "text-muted hover:bg-surface-2 hover:text-ink")
             }
           >
             {segment.label}

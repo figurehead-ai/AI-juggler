@@ -251,7 +251,9 @@ interface Section<T extends string> {
 }
 
 /** What the menu lists: the groups (not while searching), then All with
- * the empty ones last; a search keeps what matches its words. */
+ * the empty ones last; a search keeps what matches its words. Each option
+ * once: a later group and All leave out what a group above lists (the 0.4
+ * design review, 51: Recent projects listed again under All). */
 export function sections<T extends string>(options: readonly PickerOption<T>[], groups: readonly PickerGroup<T>[], query: string, allHeading = "All"): Section<T>[] {
   const words = query.trim().toLowerCase();
   const matches = (option: PickerOption<T>) => words === "" || `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(words);
@@ -260,13 +262,18 @@ export function sections<T extends string>(options: readonly PickerOption<T>[], 
   const pinned = options.filter((option) => option.pinned);
   if (pinned.length > 0 && words === "") out.push({ label: null, options: pinned, more: 0 });
   const rest = options.filter((option) => !option.pinned);
+  const listed = new Set<T>();
   if (words === "" && rest.length >= GROUPS_FROM)
     for (const group of groups) {
-      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined && !option.pinned);
+      const shown = group.values.map((value) => byValue.get(value)).filter((option): option is PickerOption<T> => option !== undefined && !option.pinned && !listed.has(option.value));
+      for (const option of shown) listed.add(option.value);
       if (shown.length > 0) out.push({ label: group.label, options: shown, more: 0 });
     }
   const grouped = out.some((section) => section.label !== null);
-  const all = [...rest.filter((option) => !option.empty), ...rest.filter((option) => option.empty)].filter(matches);
+  const unlisted = rest.filter((option) => !listed.has(option.value));
+  const all = [...unlisted.filter((option) => !option.empty), ...unlisted.filter((option) => option.empty)].filter(matches);
+  // Everything already above: no All left to show.
+  if (grouped && all.length === 0) return out;
   out.push({ label: grouped ? allHeading : null, options: all.slice(0, DRAWN), more: Math.max(0, all.length - DRAWN) });
   return out;
 }

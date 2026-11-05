@@ -8,7 +8,7 @@
  * 2. **Your apps**: one tile per running app and profile (a place): its
  *    sessions, a needs-you badge, its account's runway, Open.
  * 3. **Needs you** holds every kind of item, each with its own primary:
- *    a session asking (its page; ↗ to its app), a limit reached (Continue elsewhere, or
+ *    a session asking (its page; ↗ to its app), a limit reached (Continue in another app…, or
  *    Wait), a sign-in, a Mac working hard, processes left behind.
  * 4. **Runway by account**: each account's room left and its profiles,
  *    or the way to measure it. Unmeasured says so, never a guess.
@@ -108,7 +108,7 @@ export function needWords(need: Need, session: InstanceInfo, accounts?: readonly
     case "stuck":
       return { what: "Looks stuck — no progress for a while", action: "Take a look" };
     case "quota_blocked":
-      return { what: `${accountNameOf(accounts, session.account_id, session.account_label)} hit its limit`, action: "Continue elsewhere" };
+      return { what: `${accountNameOf(accounts, session.account_id, session.account_label)} hit its limit`, action: "Continue in another app…" };
     case "failed":
       return { what: "Stopped with an error", action: "See what happened" };
   }
@@ -424,10 +424,17 @@ export function HomeScreen({
   ].filter((part) => !part.words.startsWith("0 "));
   const runwayFor = (accountId: string | null) => {
     const row = runway.find((r) => r.account.id === accountId);
-    // D-62: room is the Account's, so a tile says whose (its App is the tile's own name).
-    const whose = row ? accountNameOf(subscriptions, row.account.id, row.account.label) : "";
-    return row ? { left: row.left, words: row.credits ? `${whose} · ${row.words}` : row.left !== null ? `${whose} · ${row.left}% left` : `${whose} · not measured yet` } : null;
+    // Unknown room says nothing (the 0.4 design review, 83). D-62: room is the Account's, so a tile says
+    // whose, unless the tile shows that name already as its profile's (no Account name of its own; 49).
+    if (!row || (!row.credits && row.left === null)) return null;
+    const whose = accountNameOf(subscriptions, row.account.id, row.account.label);
+    const shown = items.some((item) => item.accountId === accountId && item.place.profile === whose);
+    const what = row.credits ? row.words : `${row.left}% left`;
+    return { left: row.left, words: shown ? what : `${whose} · ${what}` };
   };
+  // Few needs: Pick up where you left off moves up into the left column (the 0.4 design review, 39).
+  const fewNeeds = allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length <= 2;
+  const recentArea = <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
 
   return (
     <div
@@ -542,10 +549,11 @@ export function HomeScreen({
               </ul>
             </section>
           )}
+          {fewNeeds && recentArea}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
           <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} items={items} />
-        <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />
+          {!fewNeeds && recentArea}
         </div>
       </div>
 

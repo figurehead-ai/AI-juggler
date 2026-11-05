@@ -6,6 +6,8 @@
  * Accounts are subscriptions (D-35): profiles grouped by their sign-in
  * (AJ-E2109's `subscriptions_list`), one runway for all of an account's
  * profiles. Before that list answers, each profile stands for itself.
+ * No summary sentence under the rows: it only repeated them (the 0.4
+ * design review, 42); unknown room is one line, never also a "—".
  */
 import type { JSX } from "react";
 import { AccountAvatar } from "./Avatar";
@@ -92,7 +94,6 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, items
   const subscriptions = useSubscriptions();
   const apps = useApps(accounts);
   const lineOf = (group: AccountGroup): RunwayLine => groupRunway(group, quota, sessions);
-  const advice = accountAdvice(accounts, subscriptions, quota, sessions);
   return (
     <section aria-labelledby="home-runway" className="flex min-w-0 flex-col gap-2.5" data-testid="home-runway">
       <SectionTitle id="home-runway">Runway by account</SectionTitle>
@@ -121,9 +122,13 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, items
                     {group.detail && <span className="truncate text-label text-muted">{group.detail}</span>}
                   </span>
                 </span>
-                <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : row.left !== null ? "text-ink" : "text-muted")}>
-                  {credits ? "On credits" : row.left !== null ? `${row.left}% left` : "—"}
-                </span>
+                {/* Unknown room is said once, on its own line below (the 0.4
+                    design review, 82): no "—" figure here. */}
+                {(credits || row.left !== null) && (
+                  <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : "text-ink")}>
+                    {credits ? "On credits" : `${row.left}% left`}
+                  </span>
+                )}
               </div>
               {/* Before the first reading its meter's track holds the row's
                   height, so the reading doesn't push what's below. */}
@@ -156,11 +161,6 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions, items
             </div>
           );
         })}
-        {advice.words && advice.count > 1 && (
-          <p className="text-pretty border-t border-hairline/60 py-3 text-xs text-ink-2" data-testid="new-work-advice">
-            {advice.words}
-          </p>
-        )}
       </div>
     </section>
   );

@@ -10,7 +10,7 @@
  * fabricated %; Sign in first keeps the sheet open (Req.8); "Profile"
  * never names a thing here (D-02/D-10).
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NewSessionModal } from "../screens/NewSession";
 import * as bridgeModule from "../lib/bridge";
@@ -142,20 +142,24 @@ describe("N3 the rare options, folded", () => {
     mountSheet();
     const fold = screen.getByTestId("new-session-more") as HTMLDetailsElement;
     expect(fold.open).toBe(false);
-    expect(screen.getByTestId("new-session-more-values").textContent).toBe("· opus · runs as its launch settings say");
+    // The 0.4 design review, 51 and 71: the model as people say it, and How
+    // it runs only once it differs from the launch settings (inside, it
+    // says "As its launch settings say").
+    expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Opus");
     expect(fold.textContent).toContain("How it runs");
     expect(fold.textContent).toContain("Start from a saved handover…");
+    expect(fold.textContent).toContain("Advanced…");
   });
 
   it("an App with several launch settings lets you pick one there, and its name joins the label", async () => {
     const quick = { ...RECIPES[0]!, id: "p-4", name: "Quick fixes", model: "sonnet" };
     w().__AIJ_RECIPES__ = [...RECIPES, quick];
     const { launchSpy } = mountSheet({ kept: [...RECIPES, quick] });
-    await waitFor(() => expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Main · opus · runs as its launch settings say"));
+    await waitFor(() => expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Main · Opus"));
     (screen.getByTestId("new-session-more") as HTMLDetailsElement).open = true;
     fireEvent.click(screen.getByTestId("new-session-settings").querySelector("button")!);
     fireEvent.click(await screen.findByText("Quick fixes"));
-    await waitFor(() => expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Quick fixes · sonnet · runs as its launch settings say"));
+    await waitFor(() => expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Quick fixes · Sonnet"));
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-4", "/Users/dev/api", undefined));
   });
@@ -208,5 +212,7 @@ describe("words", () => {
     const { container } = mountSheet();
     await waitFor(() => expect(screen.getByTestId("launch-preselected").textContent).toMatch(/Account\s*Work/));
     expect(container.textContent).not.toMatch(/\bprofile\b/i);
+    // The 0.4 design review, 71: the Account's own dot on its line, in its colour.
+    await waitFor(() => expect(within(screen.getByTestId("launch-preselected")).getByTestId("account-avatar").dataset.tone).toBe("colour"));
   });
 });

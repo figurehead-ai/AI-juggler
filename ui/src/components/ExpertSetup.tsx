@@ -17,7 +17,8 @@ import { IconChevronDown, IconChevronRight } from "./icons-controls";
 import { useSuggested } from "../lib/suggested";
 
 /**
- * AJ-E309 Req.5: the [Expert setup…] hatch every flow exposes —
+ * AJ-E309 Req.5: the [Expert setup…] hatch every flow exposes, labelled
+ * "Advanced…" on screen (the 0.4 design review, 71) —
  * collapsed by default so the guided path stays simple, and complete
  * when opened: the raw state folder (read-only + Reveal in Finder),
  * the copyable shell line that reproduces the setup, the environment
@@ -144,7 +145,8 @@ export function ExpertSetup({
         data-testid="expert-hatch"
       >
         {open ? <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" /> : <IconChevronRight width={12} height={12} strokeWidth={2} aria-hidden="true" />}
-        Expert setup…
+        {/* Plain words, not "Expert setup…" (the 0.4 design review, 71). */}
+        Advanced…
       </button>
       {open && (
         <div
