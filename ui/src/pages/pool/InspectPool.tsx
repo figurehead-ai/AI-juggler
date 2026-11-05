@@ -232,7 +232,12 @@ export function InspectPool({
             <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger-soft p-2.5" role="group" aria-label="Delete this pool?">
               <span className="text-meta text-ink">Delete «{pool.name}»? Its sessions go back to their projects' own pools; its messages and tasks stay in its history.</span>
               <span className="flex gap-2">
-                <button type="button" onClick={() => void run(async () => (await poolDelete(pool.id), onDeleted()))} className="rounded-lg bg-danger px-2.5 py-1 text-meta font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-danger/60" data-testid="pool-delete-confirm">
+                <button type="button" onClick={() => void run(async () => {
+                  // The pools after it go to the list, so it leaves the screen (the P11 walk).
+                  const after = await poolDelete(pool.id);
+                  onDeleted();
+                  return after;
+                })} className="rounded-lg bg-danger px-2.5 py-1 text-meta font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-danger/60" data-testid="pool-delete-confirm">
                   Delete pool
                 </button>
                 <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg px-2.5 py-1 text-meta text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">

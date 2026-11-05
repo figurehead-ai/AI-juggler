@@ -233,7 +233,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
             )}
             {held > 0 && (
               <span className="text-label text-muted">
-                {held === 1 ? "A message to it is" : `${held} messages to it are`} paused at the hop limit: answer on its edge.
+                {held === 1 ? "A message to it is" : `${held} messages to it are`} paused after too many replies in a row: answer on its edge.
               </span>
             )}
           </div>

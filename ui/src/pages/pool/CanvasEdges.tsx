@@ -36,7 +36,7 @@ export async function settle(pending: PendingInfo, deliver: boolean): Promise<vo
 }
 
 /** What waits on an edge, in words: the panel's line and the compact
- * badge's ("Paused at the hop limit" / "Paused"). None when nothing on
+ * badge's ("Paused: too many replies in a row" / "Paused"). None when nothing on
  * it is answered here (one above the pool's level is answered on its
  * sender's node). */
 export function pendingWords(edge: CanvasEdgeInfo): { label: string; short: string; hop: boolean } | null {
@@ -44,7 +44,7 @@ export function pendingWords(edge: CanvasEdgeInfo): { label: string; short: stri
   const first = actionable[0];
   if (!first) return null;
   const hop = first.kind === "hop_limit";
-  if (hop) return { label: "Paused at the hop limit", short: "Paused", hop };
+  if (hop) return { label: "Paused: too many replies in a row", short: "Paused", hop };
   return { label: actionable.length === 1 ? "1 message waiting" : `${actionable.length} messages waiting`, short: `${actionable.length} waiting`, hop };
 }
 

@@ -37,7 +37,7 @@ export const LEVELS: { id: string; label: string; words: string }[] = [
     words:
       "Read, and post messages, share documents, work on tasks and get a new session ready for you to start. A message for a session that's waiting goes in when you click.",
   },
-  { id: "full", label: "Full", words: "Work together, and put messages straight into each other's sessions, up to the hop limit." },
+  { id: "full", label: "Full", words: "Work together, and put messages straight into each other's sessions, until a chain of replies is long enough to pause and ask you." },
   { id: "custom", label: "Custom", words: "You pick each action." },
 ];
 

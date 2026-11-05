@@ -13,14 +13,14 @@
  *   deep links into Messages, Tasks and Agent access.
  */
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS, type InstanceInfo } from "../../lib/bridge";
 import { resetPreviewPools, scopeOf } from "../../lib/ipc/pools";
 import { resetPreviewMessages } from "../../lib/ipc/messages";
 import { resetPreviewCanvas } from "../../lib/ipc/pool-canvas";
 import { forgetPaged } from "../../lib/paged";
-import { refreshPools, resetPools, defaultPoolIdOf } from "../../lib/pools";
+import { onPoolsChanged, refreshPools, resetPools, defaultPoolIdOf } from "../../lib/pools";
 import { ConversationsProvider } from "../../lib/conversations";
 import { ActionHostProvider } from "../../components/ItemMenu";
 import { ToastHost, resetToasts } from "../../components/Toast";
@@ -285,6 +285,19 @@ describe("a pool's page: its canvas", () => {
     fireEvent.click(view.getByTestId("pool-delete"));
     expect(view.getByRole("group", { name: "Delete this pool?" }).textContent).toContain("Its sessions go back to their projects' own pools");
     expect(seams().__AIJ_POOL_CALLS__).not.toContain("delete:pool-team");
+  });
+
+  it("deleting a pool updates the pools everywhere, so it leaves the list (the P11 walk)", async () => {
+    seedTeam();
+    const view = await openPage();
+    const changed = vi.fn();
+    const stop = onPoolsChanged(changed);
+    fireEvent.click(view.getByTestId("inspect-open-settings"));
+    fireEvent.click(view.getByTestId("pool-delete"));
+    fireEvent.click(view.getByTestId("pool-delete-confirm"));
+    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain("delete:pool-team"));
+    await waitFor(() => expect(changed).toHaveBeenCalled());
+    stop();
   });
 
   it("lands where a link meant: Messages, Tasks, Agent access", async () => {

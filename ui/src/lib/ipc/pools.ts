@@ -314,7 +314,7 @@ export async function poolSetAccess(poolId: string, level: string, actions: stri
 export async function poolSetDelivery(poolId: string, hopLimit: number, stopped: boolean): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     const pool = livePool(poolId);
-    if (!Number.isInteger(hopLimit) || hopLimit < 1 || hopLimit > 20) throw refused("A hop limit is 1 to 20");
+    if (!Number.isInteger(hopLimit) || hopLimit < 1 || hopLimit > 20) throw refused("Pause after 1 to 20 replies in a row");
     record(`delivery:${poolId}:${hopLimit}:${stopped}`);
     pool.access = { ...pool.access, hop_limit: hopLimit, delivery_stopped: stopped };
     return preview();
