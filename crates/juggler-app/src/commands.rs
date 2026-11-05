@@ -5,6 +5,7 @@
 //! Commands take `tauri::State` by value per the framework's convention.
 #![allow(clippy::needless_pass_by_value)]
 
+use crate::features::handover::stays_behind;
 pub use crate::features::tools::scan_wire::{DiscoveredInfo, InferenceInfo};
 use crate::features::tools::scan_wire::{discovered_info_of, inference_info_of};
 use std::path::PathBuf;
@@ -5429,8 +5430,7 @@ pub(crate) fn preflight_with(
         &input.fidelity,
         messages,
     );
-    let named =
-        crate::features::handover::stays_behind::of(state, &reference, &account_a, &account_b);
+    let named = stays_behind::of(state, &reference, &account_a, &account_b);
     Ok(PreflightInfo {
         mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
