@@ -129,7 +129,7 @@ export function sessionName(row: UsageSessionInfo, projects: Map<string, string>
   return project ? `Untitled session · ${project}` : "Untitled session";
 }
 
-function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; projects: Map<string, string>; labels: Map<string, string>; total: number }): JSX.Element {
+export function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; projects: Map<string, string>; labels: Map<string, string>; total: number }): JSX.Element {
   const host = useActionHost();
   const { all } = useConversations();
   const conversation = row.session_id ? null : all.find((entry) => entry.account_id === row.profile && entry.id === row.id);
@@ -174,7 +174,7 @@ function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; p
   );
 }
 
-function Header(): JSX.Element {
+export function SessionsHeader(): JSX.Element {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,11.5rem)_5rem_4.5rem] gap-3 border-b border-hairline px-2.5 pb-2 text-meta font-semibold text-muted" aria-hidden="true">
       <span>Session</span>
@@ -205,7 +205,7 @@ export function TopSessions({ data, busy, range, scope, className = "" }: { data
         <p className="py-6 text-center text-meta text-ink-2">{data ? "No session used anything in this range." : "Reading usage…"}</p>
       ) : (
         <div>
-          <Header />
+          <SessionsHeader />
           <ul aria-label="Top sessions" className="divide-y divide-hairline/60">
             {rows.slice(0, TOP).map((row) => (
               <li key={`${row.profile}:${row.id}`}>
@@ -228,7 +228,7 @@ function AllSessions({ data, range, scope, projects, labels, total, onClose }: {
   const spoken = RANGES.find((entry) => entry.id === range)?.spoken ?? "";
   return (
     <Modal title="Every session, by usage" subtitle={`${data.session_count} sessions in ${spoken}`} wide onClose={onClose} testId="all-sessions">
-      <Header />
+      <SessionsHeader />
       <PagedList
         list={list}
         keyOf={(row) => `${row.profile}:${row.id}`}

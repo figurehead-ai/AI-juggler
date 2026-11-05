@@ -68,6 +68,7 @@ export function UsageDashboard({
   range,
   accounts,
   runway,
+  priceNote,
   testId = "usage-dashboard",
 }: {
   kind: DashboardKind;
@@ -76,6 +77,8 @@ export function UsageDashboard({
   accounts: AccountInfo[];
   /** Cards placed after the first row (Usage's runway). */
   runway?: ReactNode;
+  /** AJ-E2902: the price list the estimates use ("List prices of 3 Nov 2026"). */
+  priceNote?: string;
   testId?: string;
 }): JSX.Element {
   const splits = SPLITS[kind];
@@ -166,7 +169,7 @@ export function UsageDashboard({
           trend={usdTrend}
           // §4.11: every cost says it is the API's price, not the bill.
           // Before the first figures, the line it usually says holds its place.
-          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : `${API_PRICE}. Some models have no list price, so they aren't counted`) : data?.totals.usd != null || data === null ? API_PRICE : undefined}
+          note={data?.totals.unpriced ? (data.totals.usd == null ? "None of these models has a list price" : `${API_PRICE}. Some models have no list price, so they aren't counted`) : data?.totals.usd != null || data === null ? (priceNote ? `${API_PRICE} · ${priceNote}` : API_PRICE) : undefined}
           holdSpace={data === null}
           testId="tile-cost"
         />

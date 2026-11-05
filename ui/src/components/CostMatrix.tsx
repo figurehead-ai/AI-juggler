@@ -232,7 +232,7 @@ export function CostMatrix(): JSX.Element {
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* The permanent disclaimer — a label, never a tooltip (deep/10 §6). */}
-        <p className="min-w-0 flex-1 text-meta text-ink-2">{`Every cost here is an estimate. ${API_PRICE}.`}</p>
+        <p className="min-w-0 flex-1 text-meta text-ink-2" data-testid="cost-price-list">{`Every cost here is an estimate${data?.pricing_last_synced_ms ? ` at list prices of ${new Date(data.pricing_last_synced_ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}. ${API_PRICE}.`}</p>
         <Button size="sm" variant="secondary" disabled={none} onClick={() => void costCsvExport().then(setCsvPath)}>
           Export CSV
         </Button>

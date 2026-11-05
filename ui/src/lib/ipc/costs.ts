@@ -71,12 +71,13 @@ export async function costRollups(account?: string): Promise<CostRollupsData> {
   return invoke<CostRollupsData>("cost_rollups", { account });
 }
 
-/** AJ-E609: stream the CSV export; resolves to the written file path. */
-export async function costCsvExport(account?: string): Promise<string> {
+/** AJ-E609: stream the CSV export; resolves to the written file path.
+ * AJ-E2902: `span` (epoch ms, from and to) exports just those days. */
+export async function costCsvExport(account?: string, span?: { fromMs: number; toMs: number }): Promise<string> {
   if (!hasLiveBackend()) {
     return (window as unknown as { __AIJ_COST_CSV__?: string }).__AIJ_COST_CSV__ ?? "";
   }
-  return invoke<string>("cost_csv_export", { account });
+  return invoke<string>("cost_csv_export", { account, fromMs: span?.fromMs ?? null, toMs: span?.toMs ?? null });
 }
 
 /** One row of the cost table: a session's UTC day. */

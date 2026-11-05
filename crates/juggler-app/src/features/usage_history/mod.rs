@@ -9,6 +9,7 @@
 //! measured, never guessed.
 
 pub mod commands;
+pub mod cuts;
 pub mod dto;
 pub mod fold;
 mod limits;

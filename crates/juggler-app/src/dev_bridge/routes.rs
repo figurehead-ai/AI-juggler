@@ -289,6 +289,8 @@ read_routes! {
     // 0.1.5: the usage history's summaries (reads only).
     "usage_history_summary" => async_result features::usage_history::commands::usage_history_summary(state; input: features::usage_history::UsageQueryInput);
     "usage_history_sessions" => async_result features::usage_history::commands::usage_history_sessions(state; input: features::usage_history::UsageQueryInput, page: crate::paging::PageRequest);
+    "usage_history_cuts" => async_result features::usage_history::commands::usage_history_cuts(state; input: features::usage_history::UsageQueryInput);
+    "usage_history_wasted" => async_result features::usage_history::commands::usage_history_wasted(state; input: features::usage_history::UsageQueryInput, page: crate::paging::PageRequest);
     "usage_history_first" => async_result features::usage_history::commands::usage_history_first(state; profile: Option<String>);
     "usage_history_limits" => async_result features::usage_history::commands::usage_history_limits(state; profile: String, start_ms: i64, end_ms: i64);
     "usage_history_session" => async_result features::usage_history::commands::usage_history_session(state; profile: String, conversation: String);

@@ -2507,3 +2507,22 @@ helpful for very large sessions".
   a compaction drops it, and switch back never re-adds what was left out.
 - Evidence: this entry; E2's AJ-E211.
 
+
+### D-77 A "finished task" is a session AI Juggler ran that ended on its own as finished — SETTLED (2026-11-04)
+
+**Ruling.** Taken by the goal (the maintainer's standing rule that design
+calls are mine, reported, not asked), answering AJ-E2902's Q1.
+
+- A finished task is a session AI Juggler ran whose status ended as
+  finished: not stopped, crashed, quota-blocked or handed over. It works
+  for every user; pool tasks reaching Done (D-44) are optional and would
+  count only for people who use pools.
+- Sessions other apps run carry no ending, so they count in neither the
+  finished nor the wasted cut, and the figure says how many it can't
+  judge ("18 other apps' not counted").
+- Wasted spend uses the same endings: crashed (failed), or stopped while
+  its last state was stuck ("probably stuck", D-36). AJ-E2903's tokens
+  per finished task uses this definition too.
+- Q2 (where Update would fetch prices) stays open: no Update is shown;
+  prices change with an app update. Q3: the weekly review opens on demand
+  only.

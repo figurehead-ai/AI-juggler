@@ -328,6 +328,8 @@ macro_rules! app_commands {
             Read  features::budgets::commands::budgets_list,
             Read  features::usage_history::commands::usage_history_summary,
             Read  features::usage_history::commands::usage_history_sessions,
+            Read  features::usage_history::commands::usage_history_cuts,
+            Read  features::usage_history::commands::usage_history_wasted,
             Read  features::usage_history::commands::usage_history_first,
             Read  features::usage_history::commands::usage_history_limits,
             Read  features::usage_history::commands::usage_history_session,
