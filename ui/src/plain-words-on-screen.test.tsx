@@ -50,7 +50,7 @@ vi.mock("./lib/ipc/park", async (original) => {
       leftovers: 0,
       counts: { finished: 1 },
       rows: [
-        { session_id: "s-1", account_label: "Mia", provider: "claude-code", project: "app", group: "finished", status: "finished", words: "Finished", transitions: [], tokens: 12, leftovers: 0 },
+        { session_id: "s-1", account_label: "Mia", provider: "claude-code", kind: "terminal", project: "app", group: "finished", status: "finished", words: "Finished", transitions: [], tokens: 12, leftovers: 0 },
       ],
     }),
     overnightSummarySeen: async () => undefined,

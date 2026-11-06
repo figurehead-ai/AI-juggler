@@ -91,14 +91,83 @@ fn seed_scenario() {
 
     // Apps: a managed folder per CLI App, with its launch settings.
     let mut recipes: HashMap<String, (String, String)> = HashMap::new();
+    // The desktop Apps by the scenario's id: their sessions run in them.
+    let mut desktop_apps: HashMap<String, String> = HashMap::new();
     let adopt = std::env::var("AIJ_LAB_ADOPT").ok();
     let mut adopted_once = false;
     for app in seed["apps"].as_array().cloned().unwrap_or_default() {
         let (id, tool) = (app["id"].as_str().unwrap(), app["tool"].as_str().unwrap());
         if tool == "claude-desktop" {
-            notes.push(format!(
-                "{id}: a desktop app's profile comes from the running app — start it in the lab"
-            ));
+            // D-84: an App because the user added it. A Claude app profile:
+            // its folder under the lab's ClaudeProfiles, the Claude Code
+            // folder its Code sessions run on (its Account), and the
+            // desktop App linking them, closed, with how Open starts it.
+            let profile = app["profile"].as_str().unwrap_or(id);
+            let label = match app["account"].as_str().unwrap_or("") {
+                "" => profile.to_owned(),
+                account => format!("{account} · {profile}"),
+            };
+            let Ok(account) =
+                juggler_app::features::account::create_account(&state, "claude-code", &label, None)
+            else {
+                notes.push(format!(
+                    "{id}: its Claude Code folder can't be made; left out"
+                ));
+                continue;
+            };
+            let dir = home
+                .join("Library/Application Support/ClaudeProfiles")
+                .join(profile);
+            std::fs::create_dir_all(&dir).unwrap();
+            let app_id = juggler_app::features::places::book::place_id("claude-app", Some(&dir));
+            let bundle = PathBuf::from("/Applications/Claude.app");
+            let launch = serde_json::json!({
+                "name": "Claude app",
+                "instance": profile,
+                "bundle": bundle,
+                "exe": bundle.join("Contents/MacOS/Claude"),
+                "given": dir,
+            });
+            let now = Timestamp::now().millis();
+            {
+                let storage = state.storage.lock().unwrap();
+                storage
+                    .apps()
+                    .put_desktop(&juggler_core::storage::App {
+                        id: app_id.clone(),
+                        kind: "desktop".to_owned(),
+                        tool: "claude-code".to_owned(),
+                        host_app_id: Some("claude-app".to_owned()),
+                        instance_dir: Some(dir.to_string_lossy().into_owned()),
+                        folder_id: Some(account.id.clone()),
+                        label: None,
+                        hidden: false,
+                        keep_alive: false,
+                        paused_json: None,
+                        launch_json: Some(launch.to_string()),
+                        sessions_json: None,
+                        first_seen: now,
+                        last_seen: now,
+                        added: true,
+                    })
+                    .unwrap();
+                storage.apps().add(&app_id).unwrap();
+            }
+            if app["running"].as_bool() == Some(true) {
+                notes.push(format!(
+                    "{id}: seeded closed; the walk opens it (Open starts the Claude app on its lab folder)"
+                ));
+            }
+            let recipe = juggler_app::features::profile::create_profile(
+                &state,
+                &account.id,
+                "Main",
+                None,
+                None,
+            )
+            .unwrap();
+            desktop_apps.insert(id.to_owned(), app_id);
+            recipes.insert(id.to_owned(), (account.id, recipe.id));
             continue;
         }
         // A tool with no Account (OpenCode in P8) is named by its profile
@@ -181,7 +250,12 @@ fn seed_scenario() {
                 conversation: None,
                 profile: ProfileId::new(recipe.as_str()),
                 machine: MachineId::new("this-mac"),
-                kind: InstanceKind::Terminal,
+                // A session AI Juggler started in a desktop App runs there.
+                kind: if desktop_apps.contains_key(session["app"].as_str().unwrap()) {
+                    InstanceKind::Desktop
+                } else {
+                    InstanceKind::Terminal
+                },
                 project,
                 cwd,
                 status: status_of(session["state"].as_str().unwrap_or("idle")),
@@ -194,6 +268,15 @@ fn seed_scenario() {
                 window: None,
             })
             .unwrap();
+        if let Some(app_id) = desktop_apps.get(session["app"].as_str().unwrap()) {
+            state
+                .storage
+                .lock()
+                .unwrap()
+                .apps()
+                .set_session(id, app_id)
+                .unwrap();
+        }
     }
 
     // Pools, their scope, level and seal; then their members.

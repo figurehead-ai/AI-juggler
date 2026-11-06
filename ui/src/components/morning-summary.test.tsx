@@ -14,6 +14,7 @@ const row = (id: string, group: string, words: string, over: Partial<SummaryRowI
   session_id: id,
   account_label: "Work Max",
   provider: "claude-code",
+  kind: "terminal",
   project: "storefront",
   group,
   status: group === "crashed" ? "failed" : "running",
@@ -67,5 +68,22 @@ describe("AJ-E1004 morning summary", () => {
     const { container } = render(<MorningSummary onOpenSession={() => {}} />);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(container.querySelector("[data-testid='morning-summary']")).toBeNull();
+  });
+
+  it("names a session that ran in a desktop profile by its App (walk A1)", async () => {
+    w().__AIJ_SUMMARY__ = {
+      since_ms: 1_800_000_000_000 - 8 * 3_600_000,
+      generated_ms: 1_800_000_000_000,
+      rows: [
+        row("s1", "ended", "Ended", { kind: "desktop", account_label: "Work · Work Max" }),
+        row("s2", "ended", "Ended", { account_label: "Work · work" }),
+      ],
+      counts: { ended: 2 },
+      leftovers: 0,
+    };
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(2));
+    const names = [...container.querySelectorAll("[data-testid='summary-row']")].map((el) => el.firstElementChild!.textContent);
+    expect(names).toEqual(["Claude app · Work · Work Max", "Claude Code · Work · work"]);
   });
 });

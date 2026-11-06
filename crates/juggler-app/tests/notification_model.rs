@@ -730,7 +730,21 @@ fn every_source(state: &Arc<AppState>, dir: &Path) -> needs::NeedSources {
         }],
         sign_in_words: HashMap::from([("claude-code".to_owned(), "claude /login".to_owned())]),
         computer: "Mac",
+        ..needs::NeedSources::default()
     }
+}
+
+/// 0.4 (walk A1): a folder a Claude app profile signs in for (its Code
+/// tab) isn't told to sign in "in a terminal here": you sign in inside
+/// that app, and its terminal tool is never set up.
+#[test]
+fn a_folder_signed_in_through_a_desktop_profile_needs_no_terminal_sign_in() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let mut sources = every_source(&state, dir.path());
+    sources.through_app.insert("acct-out".to_owned());
+    let (needs, _) = needs::work_out(&sources, &HashSet::<String>::new());
+    assert!(needs.iter().all(|need| need.kind != "signin"), "{needs:?}");
 }
 
 /// AJ-E2501 R3 (D-49): Needs you over every source: AI Juggler's sessions

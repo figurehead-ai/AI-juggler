@@ -75,6 +75,11 @@ pub struct NeedSources {
     pub tasks: Vec<TaskNeedInfo>,
     /// The words a tool uses for its own sign-in, by tool id.
     pub sign_in_words: HashMap<String, String>,
+    /// 0.4: the folders a desktop app profile signs in for (a Claude app
+    /// profile used in its Code tab). You sign in inside that app, never
+    /// in a terminal, so their terminal tool not being signed in isn't a
+    /// need (`handoff::folders_signed_in_through_apps`).
+    pub through_app: std::collections::BTreeSet<String>,
     /// This system's name for the computer ("Mac").
     pub computer: &'static str,
 }
@@ -409,6 +414,7 @@ pub fn work_out<S: std::hash::BuildHasher>(
         .accounts
         .iter()
         .filter(|account| !matches!(account.login_state.as_str(), "signed_in" | "logged_in"))
+        .filter(|account| !sources.through_app.contains(&account.id))
     {
         let own = sources
             .sign_in_words
@@ -599,7 +605,10 @@ fn month_start(now: i64, offset_hours: i64) -> i64 {
 /// Reads the sources now (the storage lock is held only to read).
 fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
     let clock = state.notifier.clock();
+    // Read before storage is locked (the book loads from storage).
+    let through_app = crate::features::places::handoff::folders_signed_in_through_apps(state);
     let mut sources = NeedSources {
+        through_app,
         sessions: crate::features::sessions::list::instances_shared_snapshot(state)
             .unwrap_or_default(),
         conversations: crate::features::conversations::commands::list_impl(state)

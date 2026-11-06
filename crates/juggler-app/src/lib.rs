@@ -730,10 +730,19 @@ pub fn run() {
     // D-23: the edition comes from the identifier this build carries, and
     // decides everything that must never be shared between editions.
     let mut context = tauri::generate_context!();
-    edition::set_current(edition::Edition::from_identifier(
-        &context.config().identifier,
-        cfg!(debug_assertions),
-    ));
+    let current =
+        edition::Edition::from_identifier(&context.config().identifier, cfg!(debug_assertions));
+    edition::set_current(current);
+    // 0.4.1: a build that is the Dev edition (any debug build) carries the
+    // Dev identifier too. A plain `cargo build`/`cargo run` reads the main
+    // tauri.conf.json, and its single-instance check then found the
+    // installed AI Juggler running, brought that window forward and quit:
+    // a lab or test run never started, and nudged the user's own app.
+    if current == edition::Edition::Dev {
+        edition::Edition::Dev
+            .identifier()
+            .clone_into(&mut context.config_mut().identifier);
+    }
     // AJ-E2005: this Mac's Fleet identity lives in the edition's keychain
     // (set before anything can load it).
     fleet::keep_in_keychain();

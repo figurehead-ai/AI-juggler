@@ -46,6 +46,10 @@ pub struct SummaryRowInfo {
     pub account_label: String,
     /// Its Provider.
     pub provider: String,
+    /// `terminal` | `desktop`: where it ran, so its App is named as the
+    /// rest of the window names it ("Claude app · Work Max", not the
+    /// tool's CLI on that folder).
+    pub kind: String,
     /// Its project folder's name, when tracked.
     pub project: Option<String>,
     /// `crashed` | `needs_you` | `running` | `finished` | `ended`.
@@ -166,6 +170,7 @@ pub fn overnight_summary_impl(
                 session_id: row.id.clone(),
                 account_label: row.account_label.clone(),
                 provider: row.provider.clone(),
+                kind: row.kind.clone(),
                 project: row
                     .project_id
                     .as_ref()

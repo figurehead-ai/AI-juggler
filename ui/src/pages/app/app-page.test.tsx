@@ -26,13 +26,13 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function page(id: string) {
+function page(id: string, accounts: AccountInfo[] = folders) {
   seams().__AIJ_FIXTURE__ = { conversations: placesConversations(NOW) };
   seams().__AIJ_PLACES__ = knownPlacesPreview(NOW);
   return render(
     <ConversationsProvider>
       <ActionHostProvider host={{}}>
-        <AppPage id={id} sessions={[]} projects={[]} accounts={folders} now={NOW} onOpenSession={() => {}} onOpenProject={() => {}} />
+        <AppPage id={id} sessions={[]} projects={[]} accounts={accounts} now={NOW} onOpenSession={() => {}} onOpenProject={() => {}} />
       </ActionHostProvider>
     </ConversationsProvider>,
   );
@@ -118,6 +118,14 @@ describe("D-62 the App page", () => {
     fireEvent.click(screen.getAllByRole("tab").find((tab) => tab.textContent === "Settings")!);
     expect(await screen.findByTestId("renewal-editor")).toBeTruthy();
     expect(screen.queryByTestId("app-terms-account")).toBeNull();
+  });
+
+  it("a Claude app profile whose folder's terminal isn't signed in isn't called signed out (walk A1)", async () => {
+    page(WORK, folders.map((folder) => (folder.id === "claude-work" ? { ...folder, login_state: "logged_out" } : folder)));
+    expect(await screen.findByTestId("page-name")).toHaveProperty("textContent", "Claude app · Work Max");
+    await screen.findByTestId("app-overview");
+    expect(screen.queryByTestId("app-signed-out")).toBeNull();
+    expect(screen.queryByTestId("account-limits")).toBeNull();
   });
 
   it("one AI Juggler doesn't know now says so", async () => {

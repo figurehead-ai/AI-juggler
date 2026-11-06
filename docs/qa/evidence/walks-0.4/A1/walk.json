@@ -1,0 +1,12 @@
+[
+  {
+    "step": "1-open-work-max",
+    "by_hand": { "door": "rail, Inactive apps", "feedback_ms": 0, "done_ms": 140 },
+    "captured": [
+      { "size": "1024x700", "theme": "light", "signed_out_card": 0, "own_sessions": 1 },
+      { "size": "1024x700", "theme": "dark", "signed_out_card": 0, "own_sessions": 1 },
+      { "size": "1280x800", "theme": "light", "signed_out_card": 0, "own_sessions": 1 },
+      { "size": "1280x800", "theme": "dark", "signed_out_card": 0, "own_sessions": 1 }
+    ]
+  }
+]

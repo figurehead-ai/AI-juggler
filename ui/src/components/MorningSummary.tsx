@@ -10,7 +10,7 @@ import { useEffect, useState, type JSX } from "react";
 import { overnightSummary, overnightSummarySeen } from "../lib/ipc/park";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
-import { cliAppName } from "../lib/app-name";
+import { sessionAppName } from "../lib/app-name";
 
 const GROUPS: Array<{ id: string; title: string; icon: string }> = [
   { id: "crashed", title: "Crashed", icon: "✕" },
@@ -36,7 +36,7 @@ function Row({ row, onOpen }: { row: SummaryRowInfo; onOpen: (id: string) => voi
         data-group={row.group}
       >
         {/* Its App by its full name (the 0.4 review). */}
-        <span className="font-medium text-ink">{cliAppName(row.provider, row.account_label)}</span>
+        <span className="font-medium text-ink">{sessionAppName(row)}</span>
         {row.project && <span className="text-muted">· {row.project}</span>}
         <span className="text-ink">· {row.words}</span>
         <span className="flex-1" />

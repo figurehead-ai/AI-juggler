@@ -18,6 +18,12 @@ account_label: string,
  */
 provider: string, 
 /**
+ * `terminal` | `desktop`: where it ran, so its App is named as the
+ * rest of the window names it ("Claude app · Work Max", not the
+ * tool's CLI on that folder).
+ */
+kind: string, 
+/**
  * Its project folder's name, when tracked.
  */
 project: string | null, 
