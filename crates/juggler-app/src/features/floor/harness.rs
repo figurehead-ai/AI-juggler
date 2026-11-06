@@ -12,7 +12,6 @@
 //! does), frames and drawing time the render thread's own counters. Then
 //! it puts the settings back and quits.
 
-use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
