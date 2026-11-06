@@ -38,7 +38,9 @@ asks the adapter contract, never a tool's files or names directly.
 
 - `crates/juggler-core` — the domain model (Account, App, Project,
   Session, pools, tasks), SQLite storage and its migrations, usage
-  accounting. Pure: no process, no network, no UI.
+  accounting. Pure: no process, no network, no UI (its `ts` feature, on
+  only in the app's build, gives the few domain types a command returns
+  their TypeScript).
 - `crates/juggler-platform` — the operating-system seams: who we are,
   owner-only files, local sockets, program trust, starting apps, helper
   processes. The one place macOS, Windows and Linux differ.
@@ -85,12 +87,14 @@ asks the adapter contract, never a tool's files or names directly.
   an item's page, `Overlays.tsx` the sheets and dialogs), `screens` and
   `pages` (the views themselves; the inspector's tabs, Settings' panes and
   Home's cards are registries too), `components` (shared pieces),
-  `lib/ipc/<feature>.ts` (every `invoke` and `listen`, one module per
-  feature; `lib/bridge.ts` keeps only what they share: `EVENTS`,
+  `lib/ipc/<feature>.ts` (every backend call and `listen`, one module per
+  feature, each call through `transport.ts`'s typed `call`; `lib/bridge.ts`
+  keeps only what they share: `EVENTS`,
   `hasLiveBackend`, `errorText`), `lib/use-resource.ts` (how a screen reads
   backend state), `preview` (the design preview's data, loaded lazily
   through `lib/preview-hooks.ts` only without a live backend; never in the
-  app), `types/generated` (from Rust, by ts-rs; never edited).
+  app), `types/generated` (from Rust, by ts-rs, and `commands.ts`, the
+  command map; never edited).
 - `docs/` — the specification, ADRs, the roadmap and tasks, QA evidence.
 - `scripts/` — the gates `just verify` and CI run.
 
@@ -123,9 +127,18 @@ asks the adapter contract, never a tool's files or names directly.
 
 ## Boundaries
 
-- **Page ↔ backend:** `invoke` with ids; events back, each an `AppEvent`
-  emitted through `EmitEvent::emit_event` (no event by a bare name). The
-  UI calls the backend only through `lib/ipc`.
+- **Page ↔ backend:** a command called with ids; events back, each an
+  `AppEvent` emitted through `EmitEvent::emit_event` (no event by a bare
+  name). The UI calls the backend only through `lib/ipc`, and `lib/ipc`
+  only through `call` (ADR-0029, AJ-E2019): `types/generated/commands.ts`
+  maps every registered command to its arguments and result, generated
+  from the `app_commands!` registry and each command's signature by
+  `crates/juggler-app/src/command_types.rs` when `cargo test` runs, so a
+  renamed command or argument, or a changed result, fails `tsc`.
+  `scripts/ts_types_fresh.sh` fails when the committed map is stale; a raw
+  `invoke` is `transport.ts`'s own (`ui/.oxlintrc.json`). The same test
+  checks the dev bridge's routes (`dev_bridge/routes.rs`) against the
+  commands' argument lists.
 - **App ↔ tools:** the adapter contract. A new tool is a new adapter
   module family; nothing else changes.
 - **This Mac ↔ other Macs:** `juggler-link` only, mutual TLS with pinned

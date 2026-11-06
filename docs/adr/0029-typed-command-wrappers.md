@@ -38,3 +38,11 @@ An in-repo generator.
 - The dev bridge's route table (`dev_bridge/routes.rs`) can be checked against the same signatures (a follow-up), which closes the gap 0.4.1 hit.
 - The generator is ours to keep: about the size of `build.rs`'s registry reader. It is tested by its own snapshot test.
 - Implementation follows AJ-E2018's split of `lib/bridge.ts` into `lib/ipc/<feature>.ts`, so the wrappers land in their final modules (AJ-E2019 depends on AJ-E2018).
+
+## Implementation notes (2026-11-06, AJ-E2019)
+
+- A Tauri `Channel<T>` is an argument the page sends (`lib/ipc/transport.ts`'s `channel`), so the map lists it, typed as `@tauri-apps/api`'s `Channel<T>`. On the read-only bridge, which carries no stream, a streaming command goes through `withoutStream` and the bridge refuses it, as before.
+- A command that answers nothing (`()`, sent as `null`) has the result `void`, as a TypeScript function that returns nothing does; `()` elsewhere is `null`.
+- An `Option` argument is optional (`name?: T | null`): Tauri reads a missing one as `None`.
+- Wire types without a ts-rs export got one (65 types), including a few of `juggler-core`'s, behind its `ts` feature, which only the app turns on.
+- The dev bridge check landed with the generator (`bridge_routes_match_the_commands`).

@@ -330,7 +330,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide (TypeScript and React).
 **Handover note**: The same release branch as AJ-E2017.
 
-### AJ-E2019 Typed command wrappers | Status: TODO | Priority P2 | Effort M | Depends: AJ-E2018
+### AJ-E2019 Typed command wrappers | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P2 | Effort M | Depends: AJ-E2018
 **Goal**: Command names and arguments are checked by the compiler on both sides.
 **User story**: As a contributor, a renamed command can't break the UI silently.
 **Requirements**: An ADR choosing tauri-specta (when 2.0 is stable) or an in-repo generator, then generate the wrappers.
