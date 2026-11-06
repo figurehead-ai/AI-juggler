@@ -229,6 +229,9 @@ fn an_unused_app_dims_by_how_long_and_decay_can_be_switched_off() {
         assert_eq!(unused(&idle, NOW, true), level, "{ago} ms ago");
         assert_eq!(unused(&idle, NOW, false), 1, "decay off: only closed");
     }
+    // running again: lit at once, whatever its age
+    idle.open = true;
+    assert_eq!(unused(&idle, NOW, true), 0);
     // the light falls with it, the logo and sign still readable at 25%
     let light: Vec<f32> = (0..=5).map(super::dimming).collect();
     assert!(light.windows(2).all(|w| w[1] < w[0]), "{light:?}");

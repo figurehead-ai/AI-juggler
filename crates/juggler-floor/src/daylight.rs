@@ -104,14 +104,14 @@ impl Sky {
 
     fn golden(elevation: f32, azimuth: f32) -> Self {
         Self {
-            sun_dir: sun_vector(elevation.max(3.0) + 9.0, azimuth),
-            sun_col: [1.0, 0.66, 0.4],
-            sun_k: 0.6,
+            sun_dir: sun_vector(elevation.max(3.0) + 14.0, azimuth),
+            sun_col: [1.0, 0.64, 0.36],
+            sun_k: 0.95,
             top: [0.3, 0.32, 0.6],
             bottom: [0.98, 0.62, 0.42],
-            hemi_sky: [0.56, 0.5, 0.62],
-            hemi_ground: [0.4, 0.28, 0.26],
-            night: 0.1,
+            hemi_sky: [0.8, 0.62, 0.5],
+            hemi_ground: [0.5, 0.34, 0.26],
+            night: 0.05,
         }
     }
 

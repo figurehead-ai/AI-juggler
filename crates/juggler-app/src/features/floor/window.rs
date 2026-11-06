@@ -31,7 +31,11 @@ pub const VIEW_PREFIX: &str = "floorview:";
 
 /// A View menu section: its title, its setting's key, and its choices
 /// (stored word, words shown).
-type ViewSection = (&'static str, &'static str, &'static [(&'static str, &'static str)]);
+type ViewSection = (
+    &'static str,
+    &'static str,
+    &'static [(&'static str, &'static str)],
+);
 
 /// AJ-E3519: the View menu's sections.
 const VIEW: &[ViewSection] = &[
@@ -43,17 +47,28 @@ const VIEW: &[ViewSection] = &[
     (
         "Arrange",
         super::store::ARRANGE_KEY,
-        &[("kept", "Kept places"), ("packed", "Active Apps packed together")],
+        &[
+            ("kept", "Kept places"),
+            ("packed", "Active Apps packed together"),
+        ],
     ),
     (
         "Labels",
         super::store::LABELS_KEY,
-        &[("smart", "Smart"), ("attention", "Attention only"), ("names", "All names")],
+        &[
+            ("smart", "Smart"),
+            ("attention", "Attention only"),
+            ("names", "All names"),
+        ],
     ),
     (
         "Light",
         super::store::LIGHT_KEY,
-        &[("clock", "Follow my clock"), ("day", "Always day"), ("night", "Always night")],
+        &[
+            ("clock", "Follow my clock"),
+            ("day", "Always day"),
+            ("night", "Always night"),
+        ],
     ),
     (
         "Look",
@@ -92,7 +107,11 @@ pub fn view_choice(id: &str) -> Option<(&'static str, &'static str)> {
 
 /// Builds the View menu (checked as `settings` stand) and shows it at
 /// `at`, points from the window's top left. On the main thread.
-fn show_view_menu(window: &tauri::Window, at: (f32, f32), settings: &Settings) -> tauri::Result<()> {
+fn show_view_menu(
+    window: &tauri::Window,
+    at: (f32, f32),
+    settings: &Settings,
+) -> tauri::Result<()> {
     use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
     let app = window.app_handle();
     let menu = Menu::new(app)?;
@@ -127,7 +146,10 @@ fn show_view_menu(window: &tauri::Window, at: (f32, f32), settings: &Settings) -
         true,
         None::<&str>,
     )?)?;
-    window.popup_menu_at(&menu, tauri::LogicalPosition::new(f64::from(at.0), f64::from(at.1)))
+    window.popup_menu_at(
+        &menu,
+        tauri::LogicalPosition::new(f64::from(at.0), f64::from(at.1)),
+    )
 }
 
 /// A View menu item chosen: its setting stored and the Floor reading it
@@ -540,7 +562,10 @@ mod tests {
                 let id = format!("{VIEW_PREFIX}{}:{word}", title.to_lowercase());
                 assert_eq!(view_choice(&id), Some((*key, *word)), "{id}");
                 // and the Floor takes that word
-                assert!(super::super::controls::checked_for_tests(key, word), "{key} = {word}");
+                assert!(
+                    super::super::controls::checked_for_tests(key, word),
+                    "{key} = {word}"
+                );
             }
         }
         assert_eq!(view_choice("floorview:settings"), None);

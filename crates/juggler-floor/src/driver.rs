@@ -970,6 +970,43 @@ mod tests {
         assert_eq!(d.view.focus, Some(1));
     }
 
+    /// AJ-E3516, AJ-E3519: a lift button rides to its floor; Page Up
+    /// and Page Down stop at the top and the bottom, and Page Down from
+    /// the building enters the top floor; the View button asks for its
+    /// menu under itself.
+    #[test]
+    fn lift_buttons_page_keys_and_the_view_button() {
+        let mut d = driver(Motion::Off);
+        let t = Duration::from_secs(1);
+        // chips and buttons in device pixels; clicks in points (scale 2)
+        d.chips = vec![([1500.0, 400.0, 40.0, 40.0], Some(1))];
+        assert_eq!(
+            d.input(Input::Click { x: 755.0, y: 205.0 }, t, &mut Office),
+            None
+        );
+        assert_eq!(d.view.focus, Some(1), "the up button rides to floor 2");
+        d.input(Input::Key(Key::PageUp), t, &mut Office);
+        assert_eq!(d.view.focus, Some(1), "no floor above the top");
+        d.input(Input::Key(Key::PageDown), t, &mut Office);
+        assert_eq!(d.view.focus, Some(0));
+        d.input(Input::Key(Key::PageDown), t, &mut Office);
+        assert_eq!(d.view.focus, Some(0), "no floor below the bottom");
+        d.input(Input::Key(Key::Char('0')), t, &mut Office);
+        assert_eq!(d.view.focus, None);
+        d.input(Input::Key(Key::PageDown), t, &mut Office);
+        assert_eq!(
+            d.view.focus,
+            Some(1),
+            "down from the building: the top floor"
+        );
+        d.chips.clear();
+        d.view_button = Some([1500.0, 10.0, 80.0, 28.0]);
+        assert_eq!(
+            d.input(Input::Click { x: 760.0, y: 10.0 }, t, &mut Office),
+            Some(Effect::ViewMenu((1500.0, 38.0)))
+        );
+    }
+
     #[test]
     fn clicks_open_doors_and_play_with_toys() {
         let mut d = driver(Motion::Full);

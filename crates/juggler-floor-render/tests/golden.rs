@@ -1625,8 +1625,10 @@ fn hover_cards_stay_on_screen_with_their_buttons() {
             ahead[0] * 0.9 + across[0] * 0.7,
             ahead[2] * 0.9 + across[2] * 0.7,
         ];
+        // their own floor in view
+        let floor = (at[1] / juggler_floor::layout::STOREY).floor().max(0.0) as usize;
         let view = View {
-            focus: Some(0),
+            focus: Some(floor),
             cam: Cam {
                 t: [at[0], at[1] - 0.6, at[2]],
                 yaw: e[0].atan2(e[1]),
@@ -1678,6 +1680,109 @@ fn hover_cards_stay_on_screen_with_their_buttons() {
                 &dir.join(format!("card-{state:?}-{mode}.png").to_lowercase()),
                 &img,
             );
+        }
+    }
+}
+
+/// AJ-E3518 and AJ-E3520's evidence (`AJ_FLOOR_EVIDENCE`): an unused App
+/// at each level (closed under an hour, to a day, a week, a month,
+/// longer), by day and by night; and the floor at the four times of day
+/// in both looks.
+#[test]
+#[ignore = "writes the decay and daylight evidence; opt-in"]
+fn the_decay_and_daylight_captures() {
+    const HOUR: i64 = 60 * 60 * 1000;
+    use juggler_floor::daylight::Sky;
+    use juggler_floor_render::Look;
+    let Some(dir) = std::env::var_os("AJ_FLOOR_EVIDENCE").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    let size = (1280, 800, 2.0);
+    let aspect = size.0 as f32 / size.1 as f32;
+    let extras = Extras {
+        hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
+        alert: None,
+        mouse: None,
+        card: None,
+    };
+    let live = Live {
+        t: 2.0,
+        ..Live::default()
+    };
+    let mut renderer: Option<Renderer> = None;
+    for (level, ago) in [
+        (1, HOUR / 2),
+        (2, 6 * HOUR),
+        (3, 3 * DAY),
+        (4, 12 * DAY),
+        (5, 40 * DAY),
+    ] {
+        let mut snap = company(false);
+        for a in &mut snap.apps {
+            if a.id == "cli:n" {
+                a.open = false;
+                a.last_active_ms = Some(NOW - ago);
+            }
+        }
+        let (mut office, mut seating) = (Office::new(42, 10), Seating::default());
+        let scene = scene_of(&snap, &mut office, &mut seating);
+        let r = renderer.get_or_insert_with(|| Renderer::headless(&scene).unwrap());
+        r.load(&scene);
+        let area = scene
+            .plan
+            .areas
+            .iter()
+            .find(|a| a.id == "cli:n" && a.annex == 0)
+            .unwrap();
+        let view = View {
+            focus: Some(area.floor),
+            cam: Cam {
+                t: [
+                    area.rect.cx() + 2.5,
+                    juggler_floor::scene::floor_y(area.floor),
+                    area.rect.cz() + 1.0,
+                ],
+                yaw: 0.3,
+                pitch: 0.95,
+                dist: 22.0,
+            },
+        };
+        for (sky_name, sky) in [("day", Sky::always_day()), ("night", Sky::always_night())] {
+            r.set_look(Look {
+                sky,
+                ..Look::default()
+            });
+            let img = r.capture(&scene, &view, &live, size, &extras).unwrap();
+            write_png(
+                &dir.join(format!("decay-level{level}-{sky_name}.png")),
+                &img,
+            );
+        }
+    }
+    let mut office = Office::new(42, 10);
+    let mut seating = Seating::default();
+    let scene = scene_of(&company(false), &mut office, &mut seating);
+    let r = renderer.as_mut().unwrap();
+    r.load(&scene);
+    let view = View {
+        focus: Some(0),
+        cam: scene.frame_size().home(Some(0), aspect),
+    };
+    for (name, sky) in [
+        ("day", Sky::at(40.0, 180.0)),
+        ("golden", Sky::at(3.0, 250.0)),
+        ("dusk", Sky::at(-4.0, 262.0)),
+        ("night", Sky::always_night()),
+    ] {
+        for (mode, full) in [("pixel", false), ("full", true)] {
+            r.set_full(full);
+            r.set_look(Look {
+                sky,
+                ..Look::default()
+            });
+            let img = r.capture(&scene, &view, &live, size, &extras).unwrap();
+            write_png(&dir.join(format!("light-{name}-{mode}.png")), &img);
         }
     }
 }

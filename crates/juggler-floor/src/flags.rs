@@ -365,6 +365,94 @@ mod tests {
         }
     }
 
+    /// AJ-E3515's gate: over many random crowds, placed flags never
+    /// overlap or cover what's taken, every count is shown somewhere, a
+    /// flag stands straight over its place, and a flag joins only one as
+    /// urgent or more.
+    #[test]
+    fn placement_holds_over_random_crowds() {
+        let needs = [
+            Need::Crashed,
+            Need::Asks,
+            Need::Stuck,
+            Need::Hot,
+            Need::Done,
+            Need::Out,
+        ];
+        for seed in 0..400 {
+            let mut r = crate::rng::Rng(seed);
+            let n = 1 + r.int(24);
+            let asks: Vec<FlagAsk> = (0..n)
+                .map(|_| {
+                    let need = (!r.chance(0.2)).then(|| needs[r.int(needs.len())]);
+                    let mut a = ask(
+                        r.range(20.0, 620.0),
+                        r.range(60.0, 390.0),
+                        need,
+                        if need.is_some() {
+                            1 + r.int(4) as u32
+                        } else {
+                            0
+                        },
+                    );
+                    a.size = (r.range(40.0, 140.0), 14.0);
+                    a
+                })
+                .collect();
+            let taken = [[0.0, 0.0, 640.0, 30.0]];
+            let slots = place_flags(&asks, &taken, (640.0, 400.0), 2.0, 12.0);
+            let placed: Vec<(usize, [f32; 4])> = slots
+                .iter()
+                .enumerate()
+                .filter_map(|(i, s)| match s {
+                    Slot::Placed { rect, .. } => Some((i, *rect)),
+                    _ => None,
+                })
+                .collect();
+            for (k, (i, a)) in placed.iter().enumerate() {
+                assert!(a[1] >= 30.0, "seed {seed}: {a:?} under what's taken");
+                let anchor = asks[*i].anchor;
+                assert!(
+                    (a[0] + a[2] / 2.0 - anchor.0).abs() <= 1.0
+                        || a[0] <= 2.5
+                        || a[0] + a[2] >= 637.5,
+                    "seed {seed}: aside"
+                );
+                for (_, b) in &placed[k + 1..] {
+                    let apart = a[0] + a[2] <= b[0]
+                        || b[0] + b[2] <= a[0]
+                        || a[1] + a[3] <= b[1]
+                        || b[1] + b[3] <= a[1];
+                    assert!(apart, "seed {seed}: {a:?} and {b:?} overlap");
+                }
+            }
+            let asked: u32 = asks
+                .iter()
+                .filter(|a| a.need.is_some())
+                .map(|a| a.count)
+                .sum();
+            let shown: u32 = slots
+                .iter()
+                .zip(&asks)
+                .filter_map(|(s, a)| match s {
+                    Slot::Placed { total, .. } if a.need.is_some() => Some(*total),
+                    _ => None,
+                })
+                .sum();
+            assert_eq!(asked, shown, "seed {seed}: a count lost");
+            for (i, s) in slots.iter().enumerate() {
+                if let Slot::Joined(to) = s {
+                    assert!(
+                        asks[*to].need.is_some() && asks[*to].need <= asks[i].need,
+                        "seed {seed}: {:?} joined a less urgent {:?}",
+                        asks[i].need,
+                        asks[*to].need
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn the_most_urgent_flag_keeps_its_place() {
         // four flags on one spot with room for one: the crash stands, the
