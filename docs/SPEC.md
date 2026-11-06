@@ -125,15 +125,15 @@ it is never a rail noun and never means Account (D-02/D-10).
 > its own until then); an App's Settings show them and point there.
 
 > **Amended by D-84 (only the user adds an App, 2026-11-06; replaces
-> D-63's "remember what ran" and D-62's "every profile is an App"):** an
+> D-63's "remember what ran" and D-62's "every instance is an App"):** an
 > App exists only because the user said so: they imported its folder
 > (Add account / import), or they pressed **Add** on an offer. A desktop
-> app or profile AI Juggler sees running that the user never added is at
+> app, in any of its instances, that AI Juggler sees running and the user never added is at
 > most **offered**, once, as "Found on this Mac: Claude app · aij-test —
 > Add / Not now" (Settings › Desktop apps, and a quiet notice). An offer
 > is never an App: it is not in the rail, Open now, Inactive apps, any
 > count, the Floor, a picker or Home, and Open, Restart and Keep alive
-> act only on added Apps. A profile under the system's temporary folder
+> act only on added Apps. An app instance under the system's temporary folder
 > is never recorded, and an offer whose folder is gone is forgotten. An
 > App is "running" only while its recorded process is alive as the same
 > program with the same start time (a reused pid is not the app). Every

@@ -312,7 +312,10 @@ const INSTANCE_TABS: Partial<Record<PageTabId, (props: PanelProps & { tab: PageT
   terminal: (props) => <InstanceOverview {...props} />,
   window: (props) => <InstanceOverview {...props} />,
   // AJ-E2108: where it runs and its last messages.
-  overview: (props) => (props.data.instance ? <OwnSessionOverview {...props} session={props.data.instance} /> : null),
+  overview: (props) => {
+    const own = props.data.instance;
+    return own ? <OwnSessionOverview {...props} session={own} /> : null;
+  },
   // 0.1.5: the same Usage tab as any session's (its charts and its
   // account's window), then how it's going (AJ-E1533: Quality joins Usage).
   usage: (props) =>
@@ -342,7 +345,10 @@ const INSPECTOR_TABS: Record<InspectorKind, (props: PanelProps & { tab: PageTabI
   // 0.3: its seven tabs (pages/project/ProjectTabs).
   project: (props) => (props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null),
   // AJ-E3104: its tabs (pages/tool/ToolTabs).
-  provider: (props) => (props.data.provider ? <ToolTab {...props} tool={props.data.provider} tab={props.tab} /> : null),
+  provider: (props) => {
+    const tool = props.data.provider;
+    return tool ? <ToolTab {...props} tool={tool} tab={props.tab} /> : null;
+  },
   machine: () => null,
 };
 

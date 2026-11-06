@@ -98,7 +98,7 @@
 
 ## Step 1 — the palette
 
-### AJ-E2901 The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E2801
+### AJ-E2901 The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | Status: IN-PROGRESS (built; the 2026-11-06 per-requirement evidence found gaps, listed in docs/qa/evidence/AJ-E2901/manifest.md) | Priority P0 | Effort L | Depends: AJ-E2801
 **Goal**: ⌘K does things, not only goes places: it opens as a proper dialog, shows recents and the top actions before you type, finds sessions, apps, projects and accounts by loose typing, previews a result with →, and hands the full search to History.
 **User story**: As someone with twenty sessions over four accounts, I press ⌘K, type "wrk bil", see the billing session on Work first, press → to check it is the one waiting, and ↩ to open it; with nothing typed I see what I opened last and New session.
 **Requirements**:
@@ -125,7 +125,7 @@
 
 ## Step 2 — cost and quality
 
-### AJ-E2902 Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | Status: DONE-EVIDENCED | Priority P0 | Effort L | Depends: AJ-E2801; the ruling in the Handover note (Q1) for Req.1
+### AJ-E2902 Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | Status: IN-PROGRESS (built; the 2026-11-06 per-requirement evidence found gaps, listed in docs/qa/evidence/AJ-E2902/manifest.md) | Priority P0 | Effort L | Depends: AJ-E2801; the ruling in the Handover note (Q1) for Req.1
 **Goal**: Usage answers "am I getting value from these subscriptions?": what a finished task costs, what went on sessions that crashed or stuck, which project each account went on, a review of last week, and which price list the estimates use.
 **User story**: As someone paying for three subscriptions, I open Usage and see that a finished task costs about $1.90, that $6.30 went on two crashed sessions I can open, that Work went mostly on AIJuggler, and on Monday I read last week's review in one sheet.
 **Requirements**:
@@ -191,7 +191,7 @@
 
 ## Step 4 — Settings
 
-### AJ-E2905 Settings you can search, and shortcuts you can rebind with a conflict check and reset | Status: DONE-EVIDENCED | Priority P1 | Effort L | Depends: AJ-E2801
+### AJ-E2905 Settings you can search, and shortcuts you can rebind with a conflict check and reset | Status: IN-PROGRESS (built; the 2026-11-06 per-requirement evidence found gaps, listed in docs/qa/evidence/AJ-E2905/manifest.md) | Priority P1 | Effort L | Depends: AJ-E2801
 **Goal**: Any setting is a few letters away, and every shortcut can be changed to fit the user's hands, refused with a reason when it would clash, and reset.
 **User story**: As someone who remembers "quiet hours" but not which pane holds it, I press `/` in Settings, type "quiet", and land on it; and as someone whose window manager owns ⌘⇧P, I change Projects to ⌘⇧J and see the new key on the ? sheet and in ⌘K.
 **Requirements**:
@@ -239,7 +239,7 @@
 
 ## Step 6 — safe edges
 
-### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
+### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: IN-PROGRESS (built; the 2026-11-06 per-requirement evidence found gaps, listed in docs/qa/evidence/AJ-E2907/manifest.md) | Priority P0 | Effort S | Depends: —
 **Goal**: Deleting launch settings asks first, says what goes with them, and is refused while a session uses them.
 **User story**: As someone tidying an account, I click the bin beside "Deep work" and am told it has 14 past sessions and one running, instead of losing them in one click.
 **Requirements**:
