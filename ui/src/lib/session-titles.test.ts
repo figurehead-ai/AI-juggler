@@ -77,4 +77,12 @@ describe("handoverTeaser", () => {
     expect(handoverTeaser([])).toBe("Add another app to juggle between them.");
     expect(handoverTeaser(null)).toBe("Ranking the other apps…");
   });
+  it("says room it hasn't measured is unmeasured, not short (walk A7)", () => {
+    const target = { recipe_id: "r", account_id: "a", account_label: "Personal", badge: "", validated: false, cross_provider: false, drops: [], score: 1, filtered_reason: null, top_factors: [], factors: [], confidence: "", tte_min: null, suggested: false };
+    const unknown = { left: null, kind: "unknown" as const, words: "Not measured yet", resets: null, resetsAtMs: null, credits: null };
+    expect(handoverTeaser([target, { ...target, account_label: "Work" }])).toBe("2 apps can take it over; their room isn't measured yet.");
+    expect(handoverTeaser([{ ...target, room: unknown }])).toBe("1 app can take it over; their room isn't measured yet.");
+    expect(handoverTeaser([{ ...target, room: unknown }, { ...target, room: { ...unknown, kind: "blocked" as const } }])).toBe("2 apps can take it over; their room isn't measured yet.");
+    expect(handoverTeaser([{ ...target, room: { ...unknown, left: 3, kind: "low" as const, words: "3% left" } }])).toBe("1 app can take it over, but none of their accounts has much room left now.");
+  });
 });

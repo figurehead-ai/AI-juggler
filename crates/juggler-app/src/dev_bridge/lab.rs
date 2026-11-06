@@ -418,6 +418,15 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
             .ok_or_else(|| format!("{key} is missing"))
     };
     match ipc {
+        "identity_check" => profile_in_lab(state, &text(args, "recipeId")?, true),
+        // Walk A7: the start's worktree offer looks at the folder it starts in.
+        "isolation_offer" => {
+            if inside(Path::new(&text(args, "cwd")?)) {
+                Ok(())
+            } else {
+                Err("the folder is outside the lab".to_owned())
+            }
+        }
         "launch_session" => {
             profile_in_lab(state, &text(args, "profileId")?, true)?;
             match args.get("cwd") {
@@ -548,7 +557,7 @@ pub(super) fn find(ipc: &str) -> Option<&'static ReadRoute> {
     LAB_ROUTES.iter().find(|route| route.ipc == ipc)
 }
 
-use crate::features;
+use crate::{features, identity, worktree};
 
 lab_routes! {
     "pools_create" => features::pools::commands::pools_create(state; name: String, project_id: Option<String>);
@@ -567,6 +576,11 @@ lab_routes! {
     "pools_set_talk" => features::pools::commands::pools_set_talk(state; pool_id: String, from: String, to: String, rule: Option<String>);
     "pools_canvas_place" => features::pools::commands::pools_canvas_place(state; pool_id: String, nodes: Vec<crate::features::pools::NodePositionInfo>);
     "pools_canvas_tidy" => features::pools::commands::pools_canvas_tidy(state; pool_id: String);
+    // Walk A7: New session's Start checks the folder's sign-in just
+    // before it launches. A read the read-only bridge leaves out (no
+    // launches there), served where launches are.
+    "identity_check" => identity::identity_check(state; recipe_id: String);
+    "isolation_offer" => worktree::isolation_offer(state; cwd: String);
     "launch_session" => features::launch::commands::launch_session(app, state; profile_id: String, cwd: Option<String>, runtime: Option<String>);
     "stop_session" => features::sessions::commands::stop_session(app, state; session_id: String);
     "session_resume" => features::switch::commands::session_resume(state; session_id: String);
@@ -790,7 +804,18 @@ mod tests {
                 .iter()
                 .find(|(path, _)| *path == route.path)
                 .map(|(_, access)| *access);
-            assert_eq!(class, Some(crate::CommandAccess::Write), "{}", route.ipc);
+            // A write, or a read the read-only bridge leaves out because
+            // only a lab does what it goes with (its reason says so).
+            let lab_read = class == Some(crate::CommandAccess::Read)
+                && super::super::routes::NOT_SERVED.iter().any(|(path, why)| {
+                    *path == route.path.replace(' ', "").trim_start_matches("crate::")
+                        && why.contains("a lab")
+                });
+            assert!(
+                class == Some(crate::CommandAccess::Write) || lab_read,
+                "{}: {class:?}",
+                route.ipc
+            );
             assert!(
                 super::super::routes::find(route.ipc).is_none(),
                 "{} is also a read route",

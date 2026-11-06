@@ -407,7 +407,7 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
     ),
     (
         "identity::identity_check",
-        "a Launch setting's check, made just before a launch",
+        "a Launch setting's check, made just before a launch (a lab, where launches are, serves it)",
     ),
     (
         "crossmachine::switch_back::fleet_divergences",
