@@ -20,10 +20,20 @@ pub async fn blocking<T: Send + 'static>(
     body: impl FnOnce(&Arc<AppState>) -> AppResult<T> + Send + 'static,
 ) -> AppResult<T> {
     let state = Arc::clone(state);
-    tauri::async_runtime::spawn_blocking(move || body(&state))
-        .await
-        .map_err(|error| AppError::Io {
-            context,
-            message: error.to_string(),
-        })?
+    // AJ-E2013: what a command logs carries its span (`command>…`), and a
+    // command that fails says so in the app log.
+    let span = tracing::info_span!("command", what = context);
+    tauri::async_runtime::spawn_blocking(move || {
+        let _entered = span.enter();
+        let result = body(&state);
+        if let Err(error) = &result {
+            tracing::warn!("{context}: {error}");
+        }
+        result
+    })
+    .await
+    .map_err(|error| AppError::Io {
+        context,
+        message: error.to_string(),
+    })?
 }

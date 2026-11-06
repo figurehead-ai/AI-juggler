@@ -582,7 +582,7 @@ fn log_first_frame(took: Duration) {
         u64::try_from(took.as_millis()).unwrap_or(u64::MAX),
         Ordering::Relaxed,
     );
-    eprintln!("floor: first frame in {} ms", took.as_millis());
+    tracing::info!("floor: first frame in {} ms", took.as_millis());
 }
 
 #[cfg(test)]

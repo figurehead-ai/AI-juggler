@@ -10,6 +10,10 @@
 //! STAYS in the group (ledger PGID == root PGID), while a helper
 //! that itself `setsid`s is detected at reconcile time and flagged
 //! `escaped_group=true` — containment honestly revoked.
+#![allow(
+    clippy::print_stdout,
+    reason = "a test's helper prints the rows it read"
+)]
 // Unix only: its fixtures are /bin/sh scripts, Unix sockets, modes or signals.
 #![cfg(unix)]
 // Test crates are pragmatic by policy (QUALITY.md §2).

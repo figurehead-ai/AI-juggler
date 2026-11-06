@@ -122,14 +122,6 @@ fn one_line(value: &str) -> String {
 pub struct Layer;
 
 impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for Layer {
-    fn enabled(
-        &self,
-        metadata: &tracing::Metadata<'_>,
-        _: tracing_subscriber::layer::Context<'_, S>,
-    ) -> bool {
-        metadata.target() == TARGET
-    }
-
     fn on_event(&self, event: &tracing::Event<'_>, _: tracing_subscriber::layer::Context<'_, S>) {
         let mut fields = Fields::default();
         event.record(&mut fields);
@@ -193,12 +185,26 @@ fn older_of(path: &Path) -> PathBuf {
     path.with_file_name("debug.1.log")
 }
 
+/// What this layer keeps: the switch and launch steps only.
+#[must_use]
+pub fn steps() -> tracing_subscriber::filter::FilterFn<impl Fn(&tracing::Metadata<'_>) -> bool> {
+    tracing_subscriber::filter::filter_fn(|metadata| metadata.target() == TARGET)
+}
+
 /// Starts the layer and reads whether debug mode is on (at start; turns
 /// it off when its days are up).
 pub fn install(data_dir: &Path, storage: &Storage) {
+    use tracing_subscriber::Layer as _;
     use tracing_subscriber::layer::SubscriberExt as _;
     let _ = PATH.set(data_dir.join(RELATIVE));
-    let _ = tracing::subscriber::set_global_default(tracing_subscriber::registry().with(Layer));
+    super::app_log::set_folder(data_dir);
+    // Each layer filters for itself (a layer's own `enabled` would filter
+    // for every layer): the steps here, the rest in the app log.
+    let _ = tracing::subscriber::set_global_default(
+        tracing_subscriber::registry()
+            .with(Layer.with_filter(steps()))
+            .with(super::app_log::Layer.with_filter(super::app_log::filter())),
+    );
     let now = juggler_core::model::Timestamp::now().millis();
     match since(storage) {
         Some(since) if now < since + DAYS_ON * DAY_MS => arm(since),

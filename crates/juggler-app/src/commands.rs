@@ -3308,8 +3308,8 @@ fn stop_preview_session(state: &Arc<AppState>) {
             .recv_timeout(Duration::from_millis(900))
             .is_err()
         {
-            eprintln!(
-                "ai-juggler: preview thread for {} outlived the stop budget",
+            tracing::warn!(
+                "preview thread for {} outlived the stop budget",
                 session.session_id
             );
         }

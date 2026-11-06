@@ -3,7 +3,11 @@
 //! Projects): the backend share of cold start (opening the store and
 //! reading what the first paint needs) and local terminal input echo
 //! through a real PTY. Each prints a `[perf]` line the evidence quotes.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 // Test crates are pragmatic by policy (QUALITY.md §2: tests excepted).
 #![allow(
     clippy::unwrap_used,

@@ -10,7 +10,11 @@
 //!   a `[perf]` line);
 //! - the pools' answer holds counts and the working set's places, never
 //!   a row per session; a pool's members come a page at a time.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 // Test crates are pragmatic by policy (QUALITY.md §2: tests excepted).
 #![allow(
     clippy::unwrap_used,

@@ -248,6 +248,7 @@ fn start_first_read(state: &Arc<AppState>, ingest: &mut IngestState) -> bool {
 
 /// One ingest pass (public for tests): accounts → sources → store.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
+    let _span = tracing::info_span!("usage ingest", tick).entered();
     if switch_in_progress(state) {
         return;
     }
@@ -970,7 +971,7 @@ fn record_health(
     if !note.is_empty() {
         // The note is diagnostic only (eprintln): health stays the
         // typed observable, never a stringly blob.
-        eprintln!("ai-juggler: ingest {account}/{source}: {note}");
+        tracing::warn!("ingest {account}/{source}: {note}");
     }
 }
 

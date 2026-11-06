@@ -197,9 +197,9 @@ fn piped_command(session: &SessionId, spec: &LaunchSpec, driver: bool) -> std::p
     // Where groups do not exist, spawn proceeds groupless (the
     // honest `None`, never a pretended group).
     if let Err(group::GroupError::UnsupportedPlatform) = group::make_group_leader(&mut command) {
-        eprintln!(
-            "ai-juggler: process groups unsupported; tracking pid-only for {}",
-            session.as_str()
+        tracing::warn!(
+            session = session.as_str(),
+            "process groups unsupported; tracking the pid only"
         );
     }
     command

@@ -6,6 +6,11 @@
 //! What it records goes to `AIJ_LAB_OUT/report-<suite>.json` and holds
 //! real paths and ids: it stays out of the repository (the evidence is
 //! written from it by hand, redacted).
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 
 pub mod messaging;
 pub mod tasks;

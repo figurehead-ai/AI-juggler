@@ -6,7 +6,11 @@
 //! `python3 -m http.server :8000` reads `Not managed` with ZERO kill
 //! affordances. API JSON dumps are the evidence (run with
 //! `--nocapture`).
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
     clippy::unwrap_used,

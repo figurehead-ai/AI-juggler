@@ -15,7 +15,11 @@
 //!
 //! Each prints a `[perf]` line: the work's own time (what used to block
 //! the main thread) and the polling thread's time now.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 // Test crates are pragmatic by policy (QUALITY.md §2: tests excepted).
 #![allow(
     clippy::unwrap_used,

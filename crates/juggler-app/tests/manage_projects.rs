@@ -10,7 +10,11 @@
 //! - Relocate repoints a moved folder; a missing or taken folder is
 //!   refused in words.
 //! - Labels and pins survive a restart and a backup.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

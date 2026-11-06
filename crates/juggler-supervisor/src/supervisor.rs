@@ -268,7 +268,7 @@ impl Supervisor {
         {
             self.ledger_degraded
                 .store(true, std::sync::atomic::Ordering::SeqCst);
-            eprintln!("ai-juggler: process ledger degraded: {error}");
+            tracing::warn!("process ledger degraded: {error}");
         }
     }
 
@@ -1515,7 +1515,7 @@ fn emit_exit(
             .mark_exited(pid, &ledger.boot_id(), &exit_kind, true)
             .is_err()
         {
-            eprintln!("ai-juggler: process ledger degraded at exit patch (pid {pid})");
+            tracing::warn!(pid, "process ledger degraded at exit patch");
         }
     }
     if let Some(drained) = drained {

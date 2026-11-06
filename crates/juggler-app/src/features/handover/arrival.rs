@@ -105,7 +105,7 @@ pub fn watch(
             }
             std::thread::sleep(Duration::from_millis(STEP_MS));
         }
-        eprintln!("ai-juggler: switch {session} arrival: {seen:?}");
+        tracing::warn!("switch {session} arrival: {seen:?}");
         if matches!(seen, Arrival::Elsewhere | Arrival::Ended) {
             tell(&state, &target.label, &session, &seen);
         }

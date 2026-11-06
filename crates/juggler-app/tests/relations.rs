@@ -16,7 +16,11 @@
 //! - the budgets: 10 000 sessions rebuilt cold in ≤ 1 s, any count read
 //!   from the cache in ≤ 5 ms (each read prints a `[perf]` line). This
 //!   binary runs alone (`.config/nextest.toml`, "Wall-clock budgets").
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

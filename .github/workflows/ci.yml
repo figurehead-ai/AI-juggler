@@ -320,6 +320,10 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Build every test binary once
         run: cargo nextest archive --workspace --archive-file "$RUNNER_TEMP/nextest.tar.zst"
+      - name: The generated TypeScript types match the Rust (AJ-E2011)
+        run: |
+          cargo nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . -E 'test(/export_bindings/)' --no-tests=warn
+          ./scripts/ts_types_fresh.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: nextest-archive

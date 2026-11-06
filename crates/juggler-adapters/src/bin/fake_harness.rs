@@ -40,6 +40,11 @@
 //! it an MCP client of the servers in FILE (AJ-E1704, `support/mcp_client.rs`):
 //! it logs each reply to `.fake-mcp.jsonl` in its working folder. `write` is the
 //! replica's live session (AJ-E1531, `support/replica_write.rs`).
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a command-line tool: its output is what it prints"
+)]
 
 use std::env;
 use std::fs::{File, OpenOptions};

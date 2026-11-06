@@ -158,6 +158,58 @@ fn scan_sk(text: &str, out: &mut Vec<Detection>) {
     }
 }
 
+/// Well-known token shapes by prefix (AJ-E2013: the log's redaction test
+/// found a GitHub token passing): the prefix, the shortest body after it,
+/// and whether the body is upper-case letters and digits only.
+const TOKEN_PREFIXES: &[(&str, usize, bool)] = &[
+    ("ghp_", 30, false),
+    ("gho_", 30, false),
+    ("ghu_", 30, false),
+    ("ghs_", 30, false),
+    ("ghr_", 30, false),
+    ("github_pat_", 40, false),
+    ("glpat-", 20, false),
+    ("xoxb-", 20, false),
+    ("xoxp-", 20, false),
+    ("xoxa-", 20, false),
+    ("xoxs-", 20, false),
+    ("AKIA", 16, true),
+    ("ASIA", 16, true),
+    ("AIza", 35, false),
+];
+
+fn scan_vendor_tokens(text: &str, out: &mut Vec<Detection>) {
+    let bytes = text.as_bytes();
+    for &(prefix, shortest, upper) in TOKEN_PREFIXES {
+        let mut at = 0;
+        while let Some(found) = text[at..].find(prefix) {
+            let start = at + found;
+            at = start + prefix.len();
+            // A token starts a word.
+            if start > 0 && (bytes[start - 1].is_ascii_alphanumeric() || bytes[start - 1] == b'_') {
+                continue;
+            }
+            let mut end = at;
+            while end < bytes.len()
+                && (if upper {
+                    bytes[end].is_ascii_uppercase() || bytes[end].is_ascii_digit()
+                } else {
+                    bytes[end].is_ascii_alphanumeric() || matches!(bytes[end], b'_' | b'-')
+                })
+            {
+                end += 1;
+            }
+            if end - at >= shortest {
+                out.push(Detection {
+                    kind: "token",
+                    start: at,
+                    end,
+                });
+            }
+        }
+    }
+}
+
 fn scan_bearer(text: &str, out: &mut Vec<Detection>) {
     let bytes = text.as_bytes();
     let lower = text.to_ascii_lowercase();
@@ -341,6 +393,7 @@ fn scan_segment(text: &str) -> Vec<Detection> {
     let mut found = Vec::new();
     scan_sk(text, &mut found);
     scan_bearer(text, &mut found);
+    scan_vendor_tokens(text, &mut found);
     scan_env_value(text, &mut found);
     scan_private_key(text, &mut found);
     scan_zcode_rollout(text, &mut found);
@@ -562,6 +615,32 @@ pub fn redacted_pack(
 mod tests {
     /// "sk-" inside a word is no key (a project "…-task-…" stopped every
     /// update, 2026-10-25); one that starts a word, a quote or a value is.
+    #[test]
+    fn well_known_tokens_are_found_where_a_word_starts() {
+        for text in [
+            "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+            "token github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK",
+            "GITLAB=glpat-abcdefghij0123456789",
+            "slack xoxb-1234567890-abcdefghijklmnop",
+            "aws AKIAIOSFODNN7EXAMPLE",
+            "google AIzaSyA-abcdefghijklmnopqrstuvwxyz012345",
+        ] {
+            let mut out = Vec::new();
+            scan_vendor_tokens(text, &mut out);
+            assert_eq!(out.len(), 1, "a token in: {text}");
+        }
+        for text in [
+            "myghp_abcdefghijklmnopqrstuvwxyz0123456789",
+            "ghp_short",
+            "AKIA_not_a_key_at_all",
+            "xoxb-short",
+        ] {
+            let mut out = Vec::new();
+            scan_vendor_tokens(text, &mut out);
+            assert!(out.is_empty(), "not a token: {text}");
+        }
+    }
+
     #[test]
     fn sk_counts_only_where_a_word_starts() {
         for word in [

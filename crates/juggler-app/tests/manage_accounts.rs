@@ -9,7 +9,11 @@
 //!   chooses that (never deleted). Open sessions refuse it, by name. Its
 //!   history stays, marked "removed app".
 //! - The global and per-project defaults; every change is an audit row.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

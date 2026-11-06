@@ -7,7 +7,11 @@
 //! The times are printed (`--nocapture`) and held to generous bounds,
 //! so a slow machine never fails it but a regression to re-reading
 //! everything does.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::path::{Path, PathBuf};

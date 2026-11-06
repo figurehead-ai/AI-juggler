@@ -374,8 +374,8 @@ pub async fn going_back_prepare(
             schema,
             juggler_core::model::Timestamp::now().millis(),
             &mut |kept| {
-                eprintln!(
-                    "ai-juggler: ready to go back (schema {schema}); the data as it was is kept at {}",
+                tracing::warn!(
+                    "ready to go back (schema {schema}); the data as it was is kept at {}",
                     kept.display()
                 );
                 // Quit with the storage lock still held: nothing goes through
@@ -565,10 +565,10 @@ pub fn try_again_or_quit(reason: &str) -> bool {
 /// files can't pull them from under another instance.
 #[must_use]
 pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
-    eprintln!(
-        "ai-juggler: the data in {} is schema {found}; this build reads up to {supported}",
+    crate::early_note(&format!(
+        "the data in {} is schema {found}; this build reads up to {supported}",
         data_dir.display()
-    );
+    ));
     let app_name = crate::edition::current().app_name();
     let offer = newest_restorable(data_dir);
     let (title, text, go_back_label) =
@@ -578,11 +578,11 @@ pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
         (Choice::GoBack, Some(offer)) => {
             match go_back(data_dir, &offer, &|dir| AppState::init(dir)) {
                 Ok(went) => {
-                    eprintln!(
-                        "ai-juggler: went back to {}; newer data kept at {}",
+                    crate::early_note(&format!(
+                        "went back to {}; newer data kept at {}",
                         offer.source.display(),
                         went.kept.display()
-                    );
+                    ));
                     if !went.next_steps.is_empty() {
                         tell(
                             &format!(

@@ -123,9 +123,9 @@ fn watch(pid: u32, data_dir: &Path) {
     let now = crate::commands::now_millis();
     let earlier = relaunches(data_dir);
     if !may_relaunch(&earlier, now) {
-        eprintln!(
-            "ai-juggler: quit unexpectedly {RELAUNCHES} times in 10 minutes; not starting it again"
-        );
+        crate::early_note(&format!(
+            "quit unexpectedly {RELAUNCHES} times in 10 minutes; not starting it again"
+        ));
         return;
     }
     let mut log: Vec<i64> = earlier

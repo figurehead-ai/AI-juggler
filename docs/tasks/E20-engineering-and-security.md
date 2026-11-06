@@ -240,7 +240,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide, TypeScript and React.
 **Handover note**: —
 
-### AJ-E2013 Tracing with redaction | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2013 Tracing with redaction | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: One structured, redacted log instead of scattered prints.
 **User story**: As a maintainer reading a bug report, I see what happened, and never a secret.
 **Requirements**: Library crates use `tracing` only. The app installs one subscriber (a rolling file in the data folder, plus a redaction layer). `eprintln!` is replaced, spans are added around commands and long jobs, and the print lints are on.

@@ -544,7 +544,7 @@ pub fn crash_ui_error_impl(
         .find(|known| **known == screen)
         .copied()
         .unwrap_or("app");
-    eprintln!("ai-juggler: the {screen} screen hit a problem (shown its error panel)");
+    tracing::warn!("the {screen} screen hit a problem (shown its error panel)");
     let setting = effective(state);
     if setting == "never" {
         return Ok(false);

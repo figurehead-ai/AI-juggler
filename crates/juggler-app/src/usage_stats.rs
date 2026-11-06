@@ -1252,7 +1252,7 @@ pub mod enabled {
                     let now = juggler_core::model::Timestamp::now().millis();
                     own.sample();
                     if let Err(e) = tick(&state, &env, &envelope, &transport, now) {
-                        eprintln!("ai-juggler: {e}");
+                        tracing::warn!("{e}");
                     }
                     std::thread::sleep(std::time::Duration::from_secs(3_600));
                 }
@@ -1665,7 +1665,7 @@ pub fn start(state: Arc<AppState>, cold_start: std::time::Duration) {
     #[cfg(feature = "stats")]
     {
         if let Err(e) = enabled::apply(&state, &juggler_stats::Environment::from_process()) {
-            eprintln!("ai-juggler: {e}");
+            tracing::warn!("{e}");
         }
         // AJ-E1103: what happened while this launch opened, counted now
         // that the recorder runs (nothing, in off).

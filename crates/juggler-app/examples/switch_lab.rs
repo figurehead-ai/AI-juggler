@@ -11,6 +11,11 @@
 //!
 //! `cargo run -p juggler-app --example switch_lab -- <source key> <target account label> [desktop|cli]`
 //! (no third word: the targets and the preflight only, nothing switched)
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "an example's output is what it prints"
+)]
 
 use std::process::ExitCode;
 use std::sync::Arc;

@@ -696,6 +696,18 @@ macro_rules! command_table {
 /// Every registered command and its access class (see [`CommandAccess`]).
 pub const COMMANDS: &[(&str, CommandAccess)] = app_commands!(command_table);
 
+/// Says `text` on stderr, for what happens before the app log exists
+/// (resolving the data folder, the single-instance hand-over, a start that
+/// can't go on) or in a process of AI Juggler's own that has no log (the
+/// watchdog, the alert). Everything else goes through `tracing` (AJ-E2013).
+#[allow(
+    clippy::print_stderr,
+    reason = "before the app log exists, stderr is the only place to say it"
+)]
+pub(crate) fn early_note(text: &str) {
+    eprintln!("ai-juggler: {text}");
+}
+
 /// Builds and runs the desktop application.
 #[allow(clippy::too_many_lines)] // the command registry is one flat list by design
 pub fn run() {
@@ -743,7 +755,7 @@ pub fn run() {
             answer @ (Some(handover::Answer::NoneListening | handover::Answer::Untrusted)
             | None) => {
                 if answer == Some(handover::Answer::Untrusted) {
-                    eprintln!("ai-juggler: the hand-over socket isn't ours; not asking it");
+                    crate::early_note("the hand-over socket isn't ours; not asking it");
                 }
                 if wait_for_an_answer(&data_dir, handover.as_ref(), &context.config().identifier)
                     == Waited::OlderApp
@@ -765,7 +777,7 @@ pub fn run() {
             newer_data::at_launch(&data_dir, found, supported)
         }
         Err(error) => {
-            eprintln!("ai-juggler: fatal: {error}");
+            crate::early_note(&format!("fatal: {error}"));
             newer_data::cannot_start(&error.to_string());
             std::process::exit(1);
         }
@@ -945,7 +957,7 @@ pub fn run() {
             });
             if let Some(Err(error)) = served {
                 // Without it a second launch uses the plugin's hand-over.
-                eprintln!("ai-juggler: no hand-over socket: {error}");
+                tracing::warn!("no hand-over socket: {error}");
             }
             // 0.1.5: Go to it hands activation over on the main thread.
             // 0.3.9: the switch dialog shows each step as it runs.
@@ -1033,7 +1045,7 @@ pub fn run() {
         })
         .build(context)
         .unwrap_or_else(|error| {
-            eprintln!("ai-juggler: fatal: {error}");
+            tracing::error!("fatal: {error}");
             std::process::exit(1);
         })
         .run(move |app, event| {
@@ -1145,8 +1157,8 @@ fn wait_for_an_answer(
             _ => {}
         }
         if older_app_listening(identifier) {
-            eprintln!(
-                "ai-juggler: an older AI Juggler answers on the single-instance socket; handing over"
+            crate::early_note(
+                "an older AI Juggler answers on the single-instance socket; handing over",
             );
             return Waited::OlderApp;
         }
@@ -1202,7 +1214,7 @@ fn not_answering(data_dir: &std::path::Path, handover: Option<&handover::Handove
 
 /// Starts this app again, as it was started, and quits this launch.
 fn relaunch() -> ! {
-    eprintln!("ai-juggler: starting again");
+    tracing::warn!("starting again");
     let started = std::env::current_exe().and_then(|exe| {
         std::process::Command::new(exe)
             .args(std::env::args_os().skip(1))
@@ -1241,14 +1253,11 @@ fn not_answering_words(then: &str) -> String {
 /// message on failure (the shell entry point's first duty).
 fn bootstrap_data_dir() -> std::path::PathBuf {
     let data_dir = state::resolve_data_dir().unwrap_or_else(|message| {
-        eprintln!("ai-juggler: cannot resolve data dir: {message}");
+        crate::early_note(&format!("cannot resolve data dir: {message}"));
         std::process::exit(1);
     });
     if let Err(message) = std::fs::create_dir_all(&data_dir) {
-        eprintln!(
-            "ai-juggler: cannot create {}: {message}",
-            data_dir.display()
-        );
+        crate::early_note(&format!("cannot create {}: {message}", data_dir.display()));
         std::process::exit(1);
     }
     data_dir

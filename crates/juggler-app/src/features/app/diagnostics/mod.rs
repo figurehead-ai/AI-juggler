@@ -6,6 +6,7 @@
 //! secret. Never in it: transcripts, terminal output, credentials, the
 //! Account folders, or settings that hold tokens, addresses or paths.
 
+pub mod app_log;
 pub mod debug_log;
 pub mod report;
 pub mod zip;
@@ -106,6 +107,12 @@ const LOGS: &[(&str, &str, &str)] = &[
         crate::error_log::RELATIVE,
         "logs/errors.log",
         "What went wrong behind the messages you saw",
+    ),
+    (app_log::OLDER, "logs/app.1.log", "The app's older log"),
+    (
+        app_log::RELATIVE,
+        "logs/app.log",
+        "The app's log: what it did and what went wrong",
     ),
     (
         debug_log::OLDER,

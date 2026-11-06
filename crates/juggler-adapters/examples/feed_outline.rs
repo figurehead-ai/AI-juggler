@@ -3,6 +3,11 @@
 //! each text's length, each fold's title), never the words.
 //!
 //! `cargo run -q -p juggler-adapters --example feed_outline -- <transcript.jsonl> [turns]`
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "an example's output is what it prints"
+)]
 
 use std::io::BufRead as _;
 

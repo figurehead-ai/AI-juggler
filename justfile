@@ -53,6 +53,7 @@ verify-static:
 # Every test: nextest, the doctests, the dev-bridge tests, no fixture left running.
 verify-tests:
     cargo nextest run --workspace --no-fail-fast
+    ./scripts/ts_types_fresh.sh
     cargo test --workspace --doc
     just dev-bridge-tests
     ./scripts/leaked_fixtures.sh

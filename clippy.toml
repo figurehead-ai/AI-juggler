@@ -1,3 +1,7 @@
 # Product names doc comments may write as prose (`..` keeps clippy's
 # defaults, such as GitHub and macOS).
 doc-valid-idents = ["OpenCode", ".."]
+
+# Tests may print what they measured (AJ-E2011).
+allow-print-in-tests = true
+allow-dbg-in-tests = true

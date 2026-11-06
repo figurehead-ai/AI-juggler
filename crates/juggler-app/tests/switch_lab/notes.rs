@@ -18,6 +18,11 @@
 //! row) into `<out>.fidelity.md`. At the end the planted note is removed
 //! from A. Nothing outside the lab project's notes folders is written by
 //! the lab itself; every stop matches the lab's own session ids.
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 
 use super::*;
 use juggler_adapters::claude_memory::{INDEX, folder_names, memory_folder};

@@ -1,5 +1,10 @@
 //! A walk's check of `apps::send_link` on a real app: sends one link to
 //! one process. `cargo run -p juggler-platform --example send_link -- <pid> <link>`
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "an example's output is what it prints"
+)]
 
 fn main() {
     let mut args = std::env::args().skip(1);

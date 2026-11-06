@@ -171,7 +171,7 @@ fn run(store: &Store, rx: &Receiver<Message>, dropped: &AtomicU64) {
             });
         }
         if let Err(e) = pending.write(store) {
-            eprintln!("{e}");
+            tracing::warn!("usage statistics: {e}");
         }
         next = Instant::now() + FLUSH_EVERY;
         if let Some(ack) = ack {

@@ -93,7 +93,7 @@ pub fn refresh<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
     let _ = app.run_on_main_thread(move || {
         let _ = show_badge(&handle, count);
         if let Err(error) = tray::apply(&handle, &menu) {
-            eprintln!("ai-juggler: the menu-bar item couldn't be drawn: {error}");
+            tracing::warn!("the menu-bar item couldn't be drawn: {error}");
         }
     });
 }

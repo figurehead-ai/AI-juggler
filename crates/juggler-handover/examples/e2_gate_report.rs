@@ -10,6 +10,11 @@
 //! open beta debt — never as passed (Req.6). Live dogfood cells are
 //! recorded per pair by the maintainer (before/after sha256 +
 //! continuity verdict); rows without one read PENDING.
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "an example's output is what it prints"
+)]
 use juggler_handover::validation::{DogfoodVerdict, validation_matrix};
 
 fn main() {

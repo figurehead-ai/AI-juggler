@@ -1,6 +1,11 @@
 //! `juggler-agent` (AJ-E1704): AI Juggler's pool tools for the agent in
 //! a session. See the library's docs; this only wires stdin, stdout and
 //! the exit code.
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "the agent bridge's command line: its answers are what it prints"
+)]
 
 use std::io::{Read, Write};
 use std::process::ExitCode;

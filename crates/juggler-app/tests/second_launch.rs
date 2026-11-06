@@ -14,7 +14,11 @@
 //! A plain `cargo build` carries AI Juggler's own identifier, so its
 //! single-instance socket is the installed app's: with AI Juggler open,
 //! the test is skipped rather than bring it forward.
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helpers print what they measured"
+)]
 #![cfg(unix)]
 #![allow(
     clippy::unwrap_used,

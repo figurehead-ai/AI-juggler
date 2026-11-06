@@ -2,7 +2,11 @@
 //! time budget on a large store (a million messages over a year on seven
 //! profiles): under 50 ms a query for up to 90 days (a year is read once
 //! and kept: the app's settled-hours memory).
-
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "a test's helper prints what it measured"
+)]
 // Test crates are pragmatic by policy (QUALITY.md §2).
 #![allow(
     clippy::unwrap_used,

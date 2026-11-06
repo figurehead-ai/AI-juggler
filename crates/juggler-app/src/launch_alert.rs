@@ -54,7 +54,7 @@ mod seams {
 pub fn quiet(title: &str, text: &str) -> bool {
     let quiet = seams::quiet();
     if quiet {
-        eprintln!("ai-juggler: {title}\n{text}");
+        crate::early_note(&format!("{title}\n{text}"));
     }
     quiet
 }
@@ -66,7 +66,7 @@ pub fn quiet(title: &str, text: &str) -> bool {
 pub fn show(level: Level, title: &str, text: &str, buttons: &[&str]) -> usize {
     let last = buttons.len().saturating_sub(1);
     if let Some(label) = seams::answer() {
-        eprintln!("ai-juggler: {title}\n{text}\n(answered: {label})");
+        crate::early_note(&format!("{title}\n{text}\n(answered: {label})"));
         return buttons
             .iter()
             .position(|button| *button == label)

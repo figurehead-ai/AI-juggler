@@ -5,6 +5,8 @@
 //! `cargo run --release -p juggler-adapters --example subagents_cost -- [subagents] [KiB per transcript]`
 
 #![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
     clippy::unwrap_used,
     reason = "a measuring tool on its own synthetic files: a failure ends the run"
 )]
