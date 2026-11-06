@@ -59,6 +59,25 @@ fn a_real_family_moves_into_the_test_profile() {
 
     let root = claude_app_family::root(&source_instance, &parent).expect("the parent's own record");
     let children = claude_app_family::descendants(&source_instance, &parent);
+    // The conversations are already there (an earlier run): only the app's
+    // records are carried, beside the parent's record the app made when it
+    // imported it, as a switch does.
+    if std::env::var("AIJ_FAMILY_RECORDS_ONLY").is_ok() {
+        let (children, absent): (Vec<_>, Vec<_>) = children
+            .into_iter()
+            .partition(|child| transcript(&target_config, &child.conversation).is_some());
+        println!(
+            "{} without their conversation there, left out",
+            absent.len()
+        );
+        let placed =
+            claude_app_family::place(&children, &target_records, &[]).expect("records placed");
+        let lines: Vec<String> = placed.iter().map(|p| p.display().to_string()).collect();
+        std::fs::write(&manifest, lines.join("\n") + "\n").expect("manifest");
+        println!("placed {} records beside the imported parent", placed.len());
+        assert_eq!(placed.len(), children.len());
+        return;
+    }
     println!(
         "family: the conversation and {} sessions started from it",
         children.len()
@@ -140,4 +159,39 @@ fn a_real_family_moves_into_the_test_profile() {
         renamed.is_empty(),
         "nothing collided on a fresh profile: {renamed:?}"
     );
+}
+
+/// ADR-0028 (`automation_handover`), live: the new quieting and waking of
+/// conversations in the `aij-test` profile only, with the app quit:
+/// `AIJ_AUTOMATION_INSTANCE=…/ClaudeProfiles/aij-test AIJ_AUTOMATION_OP=quiet|wake
+/// AIJ_AUTOMATION_CONVERSATIONS=<id,id> AIJ_AUTOMATION_RESTORE=<file>`.
+#[test]
+#[ignore = "live: quiet or wake records in the aij-test profile, run by hand"]
+fn quiet_and_wake_in_the_test_profile() {
+    use juggler_adapters::claude_app_automation as automation;
+    let instance = var("AIJ_AUTOMATION_INSTANCE");
+    assert!(
+        instance.to_string_lossy().contains("aij-test"),
+        "only the aij-test profile"
+    );
+    let restore_file = var("AIJ_AUTOMATION_RESTORE");
+    match std::env::var("AIJ_AUTOMATION_OP").as_deref() {
+        Ok("quiet") => {
+            let conversations: Vec<String> = std::env::var("AIJ_AUTOMATION_CONVERSATIONS")
+                .expect("set AIJ_AUTOMATION_CONVERSATIONS")
+                .split(',')
+                .map(str::to_owned)
+                .collect();
+            let restore = automation::quiet(&instance, &conversations).expect("quiet");
+            std::fs::write(&restore_file, serde_json::to_vec_pretty(&restore).unwrap()).unwrap();
+            println!("quieted: {restore}");
+        }
+        Ok("wake") => {
+            let restore: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&restore_file).unwrap()).unwrap();
+            automation::wake(&instance, &restore).expect("wake");
+            println!("woken");
+        }
+        other => panic!("AIJ_AUTOMATION_OP must be quiet or wake, not {other:?}"),
+    }
 }

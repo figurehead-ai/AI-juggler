@@ -121,7 +121,8 @@ pub fn records_of(instance_dir: &Path, conversation: &str) -> Vec<PathBuf> {
 
 /// The sessions started from conversation `conversation` in the app
 /// instance at `instance_dir`, and theirs: parents before children, each
-/// once. Archived ones are left out, as the app's sidebar does.
+/// once. Archived ones too: they move with the family and keep their
+/// state ([`place`]), so nothing is lost.
 #[must_use]
 pub fn descendants(instance_dir: &Path, conversation: &str) -> Vec<Member> {
     let all = records(instance_dir);
@@ -131,9 +132,6 @@ pub fn descendants(instance_dir: &Path, conversation: &str) -> Vec<Member> {
     };
     let mut children_of: HashMap<String, Vec<Member>> = HashMap::new();
     for (id, (path, shape)) in &all {
-        if shape.is_archived == Some(true) {
-            continue;
-        }
         let (Some(parent), Some(own)) = (
             shape
                 .spawned_from
@@ -293,6 +291,11 @@ fn carried(
     if root {
         object.remove("spawnedFrom");
         object.remove("forkedFromSessionId");
+    } else if parent_archived(member) {
+        // Archiving a session archives the ones it started; the parent
+        // arrives active (the app imports it so), and so do they. One
+        // archived on its own, under an active parent, stays archived.
+        object.insert("isArchived".to_owned(), serde_json::Value::Bool(false));
     }
     // Its parent on the target: a carried sibling keeps its record id;
     // the conversation the switch moved was imported as `local_<id>`.
@@ -339,6 +342,28 @@ fn carried(
     Ok(value)
 }
 
+/// Whether the source record `member` was started from is archived.
+fn parent_archived(member: &Member) -> bool {
+    let Some(folder) = member.record.parent() else {
+        return false;
+    };
+    read(&member.record)
+        .and_then(|record| {
+            record
+                .get("spawnedFrom")?
+                .get("sessionId")?
+                .as_str()
+                .map(str::to_owned)
+        })
+        .and_then(|parent| read(&folder.join(format!("{parent}.json"))))
+        .is_some_and(|parent| {
+            parent
+                .get("isArchived")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
+        })
+}
+
 /// Writes `value` to `to`, never over an existing file, readable by the
 /// user alone.
 fn write_new(to: &Path, value: &serde_json::Value) -> std::io::Result<()> {
@@ -381,7 +406,7 @@ mod tests {
     }
 
     #[test]
-    fn a_family_is_its_children_and_theirs_parents_first_archived_left_out() {
+    fn a_family_is_its_children_and_theirs_parents_first_archived_ones_too() {
         let (tmp, folder) = app();
         record(&folder, "local_p", "P", None, false);
         for n in 1..=20 {
@@ -397,15 +422,12 @@ mod tests {
         record(&folder, "local_old", "OLD", Some("local_p"), true);
         record(&folder, "local_other", "O", None, false);
         let family = descendants(tmp.path(), "P");
-        assert_eq!(family.len(), 21);
+        assert_eq!(family.len(), 22);
         let at = |c: &str| family.iter().position(|m| m.conversation == c).unwrap();
         assert!(at("C3") < at("G"));
         assert_eq!(family[at("G")].parent_conversation, "C3");
-        assert!(
-            family
-                .iter()
-                .all(|m| m.conversation != "OLD" && m.conversation != "O")
-        );
+        assert!(family.iter().any(|m| m.conversation == "OLD"));
+        assert!(family.iter().all(|m| m.conversation != "O"));
     }
 
     #[test]
@@ -466,6 +488,27 @@ mod tests {
             "at the top"
         );
         assert_eq!(read("local_c.json")["spawnedFrom"]["sessionId"], "local_p");
+    }
+
+    #[test]
+    fn an_archived_child_stays_archived_unless_its_parent_was_archived_with_it() {
+        let read = |path: &Path| -> serde_json::Value {
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+        };
+        // Archived on its own, under an active parent: stays archived.
+        let (source, from) = app();
+        record(&from, "local_p", "P", None, false);
+        record(&from, "local_c", "C", Some("local_p"), true);
+        let (_target, to) = app();
+        place(&descendants(source.path(), "P"), &to, &[]).unwrap();
+        assert_eq!(read(&to.join("local_c.json"))["isArchived"], true);
+        // Archived with its parent (the app archives the family): active.
+        let (source, from) = app();
+        record(&from, "local_p", "P", None, true);
+        record(&from, "local_c", "C", Some("local_p"), true);
+        let (_target, to) = app();
+        place(&descendants(source.path(), "P"), &to, &[]).unwrap();
+        assert_eq!(read(&to.join("local_c.json"))["isArchived"], false);
     }
 
     #[test]
