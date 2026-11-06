@@ -1026,7 +1026,7 @@ fn stop_away_instance(state: &Arc<AppState>, session: &SessionId) -> AppResult<(
 /// path (copy-back has no code path).
 #[allow(
     clippy::too_many_arguments,
-    reason = "the switch-back's inputs, each its own"
+    reason = "the inputs of switching back, each its own"
 )]
 fn resume_original_with_delta(
     state: &Arc<AppState>,

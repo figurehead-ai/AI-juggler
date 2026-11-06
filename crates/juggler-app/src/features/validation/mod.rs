@@ -115,7 +115,7 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
 /// Returns the typed [`AppError`] per the command docs.
 #[allow(
     clippy::too_many_arguments,
-    reason = "the dogfood record's columns, each its own"
+    reason = "the recorded live test's columns, each its own"
 )]
 pub fn validation_dogfood_record_impl(
     state: &Arc<AppState>,
