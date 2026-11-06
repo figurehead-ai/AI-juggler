@@ -3,6 +3,7 @@
 //! profiles): under 50 ms a query for up to 90 days (a year is read once
 //! and kept: the app's settled-hours memory).
 #![allow(
+    clippy::disallowed_methods,
     clippy::print_stdout,
     clippy::print_stderr,
     reason = "a test's helper prints what it measured"

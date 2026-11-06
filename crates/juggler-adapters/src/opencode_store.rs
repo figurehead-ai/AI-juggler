@@ -83,9 +83,9 @@ pub fn open_read_only(db: &Path) -> Result<Connection, String> {
     wal.push("-wal");
     let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
     let conn = if Path::new(&wal).exists() {
-        Connection::open_with_flags(db, flags)
+        juggler_core::storage::open_hardened_with(db, flags)
     } else {
-        Connection::open_with_flags(
+        juggler_core::storage::open_hardened_with(
             format!("file:{}?immutable=1", uri_path(db)),
             flags | OpenFlags::SQLITE_OPEN_URI,
         )

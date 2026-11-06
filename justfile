@@ -183,6 +183,8 @@ structure:
     python3 scripts/ipc_audit.py
     python3 scripts/size_budget.py --selftest
     python3 scripts/size_budget.py
+    python3 scripts/allow_reasons.py --selftest
+    python3 scripts/allow_reasons.py
     python3 scripts/machine_state_lint.py --selftest
     python3 scripts/machine_state_lint.py
 
@@ -430,6 +432,7 @@ visual-sweep base="origin/main" head="HEAD":
 # AJ-E2007: cargo-vet with an exemption list that only shrinks, the SBOM script.
 # (cargo deny check runs in verify-static itself.)
 supply-chain:
+    cargo machete
     cargo vet --locked
     python3 scripts/vet_exemptions.py --selftest
     python3 scripts/vet_exemptions.py

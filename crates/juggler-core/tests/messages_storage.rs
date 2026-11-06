@@ -8,6 +8,7 @@
 //!   still return to 0.1.0.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

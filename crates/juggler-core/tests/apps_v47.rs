@@ -9,6 +9,7 @@
 //!   time, and the folder's own creation bounds it.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

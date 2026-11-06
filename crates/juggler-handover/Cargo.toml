@@ -11,19 +11,18 @@ repository.workspace = true
 juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
 juggler-core = { version = "0.4.0", path = "../juggler-core" }
 juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
-sha2 = "0.11.0"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 # AJ-E1507: the rules sync's line diff (Myers, with a deadline).
 similar = "3.2.0"
-thiserror = "2.0.21"
+thiserror = { workspace = true }
 # AJ-E2912: the switch's steps for debug mode (target `aij::flow`).
-tracing = "0.1.44"
+tracing = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.20", default-features = false, features = ["registry", "std"] }
-cpu-time = "1"
-tempfile = "3.27.0"
+cpu-time = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

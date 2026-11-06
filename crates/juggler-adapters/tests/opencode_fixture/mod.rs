@@ -6,7 +6,7 @@
 //! the adapter reads plus the sign-in tables a copy must empty. No real
 //! database was copied; every value is made up.
 
-#![allow(dead_code)]
+#![allow(clippy::disallowed_methods, dead_code)]
 
 use std::path::Path;
 

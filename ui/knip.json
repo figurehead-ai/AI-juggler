@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "playwright": {
+    "config": ["playwright.config.ts", "playwright.regression.config.ts"]
+  },
+  "ignoreDependencies": [
+    "oxlint",
+    "oxlint-tsgolint",
+    "jscpd"
+  ],
+  "ignore": ["src/types/generated/**"]
+}

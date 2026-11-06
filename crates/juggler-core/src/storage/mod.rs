@@ -726,7 +726,7 @@ fn keep_pre_migration_copy(conn: &Connection, db: &Path, current: i64) -> Result
     let _ = std::fs::remove_file(&partial);
     let written = (|| -> Result<(), CopyFailure> {
         {
-            let mut copy = Connection::open(&partial)?;
+            let mut copy = open_hardened(&partial)?;
             let backup = rusqlite::backup::Backup::new(conn, &mut copy)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
@@ -871,7 +871,7 @@ impl Storage {
     /// - [`CoreError::SchemaTooNew`] if the database needs a newer build.
     /// - [`CoreError::Storage`] for other SQLite failures.
     pub fn open(path: &Path) -> Result<Self, CoreError> {
-        let conn = Connection::open(path).map_err(|e| CoreError::NotADatabase {
+        let conn = open_hardened(path).map_err(|e| CoreError::NotADatabase {
             path: path.to_path_buf(),
             source: e,
         })?;
@@ -1211,6 +1211,36 @@ impl Storage {
     pub fn migrations() -> &'static [&'static str] {
         MIGRATIONS
     }
+}
+
+/// AJ-E2006/AJ-E2011: the one way AI Juggler opens a SQLite file, its own
+/// or another tool's: hardened ([`harden`]) before anything reads it.
+/// `clippy.toml` refuses `Connection::open` and `open_with_flags`
+/// everywhere else, so no connection can skip it.
+///
+/// # Errors
+///
+/// Returns the SQLite error when the file can't be opened or hardened.
+pub fn open_hardened(path: impl AsRef<std::path::Path>) -> rusqlite::Result<Connection> {
+    open_hardened_with(path, rusqlite::OpenFlags::default())
+}
+
+/// [`open_hardened`] with `flags` (read-only, a `file:` URI…).
+///
+/// # Errors
+///
+/// Returns the SQLite error when the file can't be opened or hardened.
+pub fn open_hardened_with(
+    path: impl AsRef<std::path::Path>,
+    flags: rusqlite::OpenFlags,
+) -> rusqlite::Result<Connection> {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the one place a SQLite file is opened; hardened before it's returned"
+    )]
+    let conn = Connection::open_with_flags(path, flags)?;
+    harden(&conn)?;
+    Ok(conn)
 }
 
 /// AJ-E2006: every connection in SQLite's defensive mode (no writable

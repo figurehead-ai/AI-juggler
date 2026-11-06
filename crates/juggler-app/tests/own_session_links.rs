@@ -10,6 +10,7 @@
 //! conformance kit's synthetic records for each tool, read-only.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

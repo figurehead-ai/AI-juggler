@@ -4,6 +4,7 @@
 //! first; 30 days are kept, never an open need; mutes come and go.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

@@ -15,6 +15,7 @@
 //! - The move takes under a second for 100 pools and 10 000 messages.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

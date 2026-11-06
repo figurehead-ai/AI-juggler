@@ -201,7 +201,7 @@ fn vibe_kanban_worktrees(home: &Path) -> Vec<ManagedWorktree> {
 /// repository it works on.
 fn vibe_kanban_rows(db: &Path) -> Vec<ManagedWorktree> {
     let uri = format!("file:{}?mode=ro&immutable=1", uri_path(db));
-    let Ok(connection) = rusqlite::Connection::open_with_flags(
+    let Ok(connection) = juggler_core::storage::open_hardened_with(
         &uri,
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
             | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX

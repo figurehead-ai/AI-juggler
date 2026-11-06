@@ -55,7 +55,18 @@ impl Store {
         for sub in ["pending", "sent", "skipped"] {
             private_dir(&dir.join(sub))?;
         }
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "juggler-stats is a leaf crate (layering.toml) and can't use juggler-core's opener; it hardens its own database the same way below"
+        )]
         let conn = Connection::open(dir.join("counters.sqlite"))?;
+        // AJ-E2006: defensive mode, `trusted_schema` off (as
+        // `juggler_core::storage::open_hardened` does).
+        conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
+        conn.set_db_config(
+            rusqlite::config::DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA,
+            false,
+        )?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         // WAL keeps the store consistent at NORMAL; counters don't need an
         // fsync per flush.

@@ -32,6 +32,38 @@ repository = "https://github.com/figurehead-ai/AI-juggler"
 
 # Workspace-wide lint baseline — every member inherits these via `[lints] workspace = true`.
 # CI promotes warnings to errors with `-D warnings` (see docs/plan/QUALITY.md §3).
+# AJ-E2011: one version of each dependency two or more crates share.
+[workspace.dependencies]
+base64 = "0.23"
+block2 = "0.6"
+bytemuck = "1.25.2"
+cpu-time = "1"
+ed25519-dalek = "3"
+flate2 = "1.1"
+getrandom = "0.4"
+hyper-util = "0.1"
+memchr = "2.8.3"
+nix = "0.31.3"
+objc2 = "0.6"
+png = "0.18"
+proptest = "1.12.0"
+prost = "0.14"
+rusqlite = "0.40.2"
+screencapturekit = "11.0.0"
+serde = "1.0.229"
+serde_json = "1.0.154"
+sha2 = "0.11.0"
+subtle = "2.6"
+sysinfo = "0.39.6"
+tempfile = "3.27.0"
+thiserror = "2.0.21"
+tokio = "1"
+toml = "1"
+tracing = "0.1.44"
+ts-rs = "12.0.1"
+zeroize = "1.8"
+zstd = "0.14"
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_docs = "deny"

@@ -11,18 +11,18 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-tracing = "0.1.44"
-flate2 = "1.1"
-getrandom = "0.4"
-rusqlite = { version = "0.40.2", features = ["bundled"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.11"
-thiserror = "2"
+tracing = { workspace = true }
+flate2 = { workspace = true }
+getrandom = { workspace = true }
+rusqlite = { workspace = true, features = ["bundled"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 # The flush budget is measured as thread CPU time.
-cpu-time = "1"
+cpu-time = { workspace = true }
 # The parity test compares in schema order.
-serde_json = { version = "1", features = ["preserve_order"] }
-tempfile = "3.27.0"
+serde_json = { workspace = true, features = ["preserve_order"] }
+tempfile = { workspace = true }

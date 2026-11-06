@@ -6,6 +6,7 @@
 //! unconfirmed restores are refused with the file and the reason.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

@@ -1126,7 +1126,7 @@ pub fn zcode_credits(
 /// missing (never a partial/invented read).
 pub fn zcode_events(account: &str, db_path: &Path) -> Result<Vec<UsageEvent>, String> {
     use rusqlite::OpenFlags;
-    let conn = rusqlite::Connection::open_with_flags(
+    let conn = juggler_core::storage::open_hardened_with(
         db_path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )

@@ -58,7 +58,7 @@ fn goals(home: &Path, threads: &[String]) -> Vec<(String, String, String, Option
     if !path.is_file() || threads.is_empty() {
         return Vec::new();
     }
-    let Ok(db) = rusqlite::Connection::open_with_flags(
+    let Ok(db) = juggler_core::storage::open_hardened_with(
         &path,
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
     ) else {
@@ -368,6 +368,10 @@ impl HostAutomation for CodexAdapter {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "test fixtures build databases raw (other tools' files, old schemas)"
+)]
 mod tests {
     use super::{heartbeats, read};
 

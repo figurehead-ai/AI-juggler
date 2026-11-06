@@ -150,7 +150,7 @@ impl StampReader {
     ///
     /// Returns [`CoreError::Storage`] when SQLite can't open it.
     pub fn open(path: &Path) -> Result<Self, CoreError> {
-        let conn = Connection::open(path)?;
+        let conn = super::open_hardened(path)?;
         conn.busy_timeout(READER_WAIT)?;
         conn.pragma_update(None, "query_only", "ON")?;
         Ok(Self { conn })

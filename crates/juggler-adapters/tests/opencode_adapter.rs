@@ -4,6 +4,7 @@
 //! home here is synthetic (`opencode_fixture`); no OpenCode was run.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

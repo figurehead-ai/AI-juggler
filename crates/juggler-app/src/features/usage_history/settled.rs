@@ -184,6 +184,10 @@ pub fn hourly(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "test fixtures build databases raw (other tools' files, old schemas)"
+)]
 mod tests {
     use super::*;
     use juggler_core::model::{Confidence, TokenCounts};

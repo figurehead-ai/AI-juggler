@@ -3177,7 +3177,7 @@ for (const theme of THEMES) {
  * wizard — across 1280×800 + 800×600 × light+dark. The table is the
  * same one the switch badges derive from (one source, no drift).
  */
-const MATRIX_FAILED: import("../src/lib/bridge").ValidationCellData[] = [
+const MATRIX_FAILED: import("../../src/lib/bridge").ValidationCellData[] = [
   {
     from: "claude-code", to: "claude-code", mechanism: "transplant",
     researched_ceiling: "F1", advertised: "F0", badge: "Handover notes · Beta",
@@ -3191,7 +3191,7 @@ const MATRIX_FAILED: import("../src/lib/bridge").ValidationCellData[] = [
   },
 ];
 
-const MATRIX_MIXED: import("../src/lib/bridge").ValidationCellData[] = [
+const MATRIX_MIXED: import("../../src/lib/bridge").ValidationCellData[] = [
   {
     from: "claude-code", to: "claude-code", mechanism: "transplant",
     researched_ceiling: "F1", advertised: "F1", badge: "Full story, fresh start · Proven",

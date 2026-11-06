@@ -173,14 +173,14 @@ pub fn start_if_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         return;
     }
     if crate::edition::current() != crate::edition::Edition::Dev {
-        eprintln!("ai-juggler: dev bridge: Dev edition only; not started");
+        crate::early_note("dev bridge: Dev edition only; not started");
         return;
     }
     // ADR-0027: asked for and refused, nothing of the bridge starts.
     let lab = match lab_mode(app) {
         Ok(lab) => lab,
         Err(message) => {
-            eprintln!("ai-juggler: dev bridge NOT started — {message}");
+            crate::early_note(&format!("dev bridge NOT started — {message}"));
             return;
         }
     };
@@ -199,7 +199,7 @@ pub fn start_if_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         Err(_) => DEFAULT_ORIGIN.to_string(),
     };
     if let Err(message) = start(app, &origin, lab) {
-        eprintln!("ai-juggler: dev bridge not started: {message}");
+        crate::early_note(&format!("dev bridge not started: {message}"));
     }
 }
 
@@ -239,10 +239,10 @@ pub(crate) fn lab_mode_for(
     #[cfg(feature = "lab-bridge")]
     {
         let home = check().map_err(|why| format!("the lab write mode is refused: {why}"))?;
-        eprintln!(
-            "ai-juggler: dev bridge: LAB WRITE MODE on {} — writes on its allowlist are served",
+        crate::early_note(&format!(
+            "dev bridge: LAB WRITE MODE on {} — writes on its allowlist are served",
             home.display()
-        );
+        ));
         Ok(true)
     }
     #[cfg(not(feature = "lab-bridge"))]
@@ -277,12 +277,12 @@ fn start<R: tauri::Runtime>(
     let file = write_token_file(&data_dir, &config)?;
     server::spawn(app.clone(), listener, Arc::clone(&config))?;
     // Never the token itself: where to read it.
-    eprintln!(
-        "ai-juggler: {} dev bridge on 127.0.0.1:{port} for {}; token in {}",
+    crate::early_note(&format!(
+        "{} dev bridge on 127.0.0.1:{port} for {}; token in {}",
         if lab { "LAB WRITE MODE" } else { "read-only" },
         config.origin,
         file.display()
-    );
+    ));
     Ok(())
 }
 

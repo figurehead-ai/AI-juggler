@@ -2,7 +2,12 @@
 //! Account is one row per vendor sign-in however often it's seen; an App
 //! is one row however often it runs; Forget leaves its sessions' rows.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(
+    clippy::disallowed_methods,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::pedantic
+)]
 
 use juggler_core::model::{Account, AccountId, HarnessId};
 use juggler_core::storage::{

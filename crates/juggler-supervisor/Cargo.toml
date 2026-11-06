@@ -11,23 +11,23 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-tracing = "0.1.44"
+tracing = { workspace = true }
 juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
 juggler-core = { version = "0.4.0", path = "../juggler-core" }
 portable-pty = "0.9.0"
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
-sysinfo = "0.39.6"
-thiserror = "2.0.21"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sysinfo = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 # This thread's CPU time for the hot path's budget (as juggler-app's tests).
-cpu-time = "1"
+cpu-time = { workspace = true }
 juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
-tempfile = "3.27.0"
+tempfile = { workspace = true }
 
 [target."cfg(unix)".dependencies]
-nix = { version = "0.31.3", features = ["signal", "process"] }
+nix = { workspace = true, features = ["signal", "process"] }
 # AJ-E505: the listener table via the low-level OS APIs (libproc /
 # netlink) — lsof/netstat shell-outs are banned (pass2 §7).
 netstat2 = "0.11"

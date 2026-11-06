@@ -14,6 +14,7 @@
 //!   allow-once offering a rule, revoking, the audit.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,

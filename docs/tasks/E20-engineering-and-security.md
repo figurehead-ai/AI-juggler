@@ -196,7 +196,7 @@
 
 ## Engineering
 
-### AJ-E2011 The cheap checks: stop the debt growing | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E2011 The cheap checks: stop the debt growing | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: —
 **Goal**: Each rule that can be checked is checked, so new code can't add to the debt.
 **User story**: As a contributor, CI tells me when I break a rule, before review does.
 **Requirements**:

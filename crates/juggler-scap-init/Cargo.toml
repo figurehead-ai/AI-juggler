@@ -15,4 +15,4 @@ description = "Vendored, audited ScreenCaptureKit init shim (D-17) — the one u
 # macOS-only: the binding does not build elsewhere; the crate itself
 # is an empty lib on non-macOS (see lib.rs cfg).
 [target.'cfg(target_os = "macos")'.dependencies]
-screencapturekit = { version = "11.0.0", features = ["macos_14_0"] }
+screencapturekit = { workspace = true, features = ["macos_14_0"] }

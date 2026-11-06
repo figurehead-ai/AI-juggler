@@ -44,7 +44,7 @@ impl CleanupSettingsRepo {
     /// [`CoreError::Storage`] when the file cannot be opened or the
     /// table cannot be created.
     pub fn open(path: &std::path::Path) -> Result<Self, CoreError> {
-        let conn = Connection::open(path).map_err(CoreError::Storage)?;
+        let conn = super::open_hardened(path).map_err(CoreError::Storage)?;
         Self::init(conn)
     }
 

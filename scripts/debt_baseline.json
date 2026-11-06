@@ -1,0 +1,1423 @@
+{
+ "crates/components/AccountMacsCard.tsx": {
+  "jscpd:lines": 22
+ },
+ "crates/components/AccountSettingsSheet.tsx": {
+  "jscpd:lines": 21
+ },
+ "crates/components/BudgetCaps.tsx": {
+  "jscpd:lines": 31
+ },
+ "crates/components/CrossMachineSwitchBack.tsx": {
+  "jscpd:lines": 89
+ },
+ "crates/components/DeleteInstanceDialog.tsx": {
+  "jscpd:lines": 21
+ },
+ "crates/components/FigureheadCloudParts.tsx": {
+  "jscpd:lines": 49
+ },
+ "crates/components/IdentityMismatchDialog.tsx": {
+  "jscpd:lines": 33
+ },
+ "crates/components/IsolationOfferDialog.tsx": {
+  "jscpd:lines": 36
+ },
+ "crates/components/LimitDialog.tsx": {
+  "jscpd:lines": 7
+ },
+ "crates/components/ManageWork.tsx": {
+  "jscpd:lines": 36
+ },
+ "crates/components/OutsideConversations.tsx": {
+  "jscpd:lines": 8
+ },
+ "crates/components/PlaceHeader.tsx": {
+  "jscpd:lines": 25
+ },
+ "crates/components/PoolAccess.tsx": {
+  "jscpd:lines": 22
+ },
+ "crates/components/PoolSheet.tsx": {
+  "jscpd:lines": 16
+ },
+ "crates/components/RailIdleApp.tsx": {
+  "jscpd:lines": 34
+ },
+ "crates/components/RailProjectRows.tsx": {
+  "jscpd:lines": 20
+ },
+ "crates/components/RailSections.tsx": {
+  "jscpd:lines": 8
+ },
+ "crates/components/RecoveryCodeSheet.tsx": {
+  "jscpd:lines": 15
+ },
+ "crates/components/RemoteCleanup.tsx": {
+  "jscpd:lines": 6
+ },
+ "crates/components/RemoteTabs.tsx": {
+  "jscpd:lines": 24
+ },
+ "crates/components/ReplayDialog.tsx": {
+  "jscpd:lines": 16
+ },
+ "crates/components/RestartApp.tsx": {
+  "jscpd:lines": 9
+ },
+ "crates/components/RightInspector.tsx": {
+  "jscpd:lines": 19
+ },
+ "crates/components/SessionCard.tsx": {
+  "jscpd:lines": 20
+ },
+ "crates/components/SessionCards.tsx": {
+  "jscpd:lines": 20
+ },
+ "crates/components/SettingsSections.tsx": {
+  "jscpd:lines": 10
+ },
+ "crates/components/StartWithSettings.tsx": {
+  "jscpd:lines": 20
+ },
+ "crates/components/SwitchBackFlow.tsx": {
+  "jscpd:lines": 17
+ },
+ "crates/components/SwitchGraph.tsx": {
+  "jscpd:lines": 7
+ },
+ "crates/components/SwitchTargetRows.tsx": {
+  "jscpd:lines": 7
+ },
+ "crates/components/WorkflowRail.tsx": {
+  "jscpd:lines": 6
+ },
+ "crates/components/WorktreeGit.tsx": {
+  "jscpd:lines": 7
+ },
+ "crates/components/charts/LimitHistory.tsx": {
+  "jscpd:lines": 10
+ },
+ "crates/components/charts/Timeline.tsx": {
+  "jscpd:lines": 10
+ },
+ "crates/components/row-details.tsx": {
+  "jscpd:lines": 20
+ },
+ "crates/components/switch/SwitchDialogFrame.tsx": {
+  "jscpd:lines": 16
+ },
+ "crates/juggler-account/src/secrets.rs": {
+  "jscpd:lines": 25
+ },
+ "crates/juggler-account/src/vault.rs": {
+  "jscpd:lines": 58
+ },
+ "crates/juggler-adapter/src/handover.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-adapter/src/inventory.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-adapter/src/memory.rs": {
+  "jscpd:lines": 37
+ },
+ "crates/juggler-adapters/src/activity.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-adapters/src/bin/fake_desktop.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-adapters/src/bin/support/drive.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-adapters/src/bin/support/replica_write.rs": {
+  "jscpd:lines": 30
+ },
+ "crates/juggler-adapters/src/bin/support/stream.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-adapters/src/claude_app_automation.rs": {
+  "jscpd:lines": 25
+ },
+ "crates/juggler-adapters/src/claude_app_family.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-adapters/src/claude_bridge.rs": {
+  "jscpd:lines": 25
+ },
+ "crates/juggler-adapters/src/claude_code.rs": {
+  "jscpd:lines": 179
+ },
+ "crates/juggler-adapters/src/claude_cut.rs": {
+  "jscpd:lines": 71
+ },
+ "crates/juggler-adapters/src/claude_endpoint.rs": {
+  "jscpd:lines": 37
+ },
+ "crates/juggler-adapters/src/claude_handover.rs": {
+  "jscpd:lines": 32
+ },
+ "crates/juggler-adapters/src/claude_hooks.rs": {
+  "jscpd:lines": 32
+ },
+ "crates/juggler-adapters/src/claude_inventory.rs": {
+  "jscpd:lines": 41
+ },
+ "crates/juggler-adapters/src/claude_limits/tests.rs": {
+  "jscpd:lines": 11
+ },
+ "crates/juggler-adapters/src/claude_live.rs": {
+  "jscpd:lines": 16
+ },
+ "crates/juggler-adapters/src/claude_stream/codec.rs": {
+  "jscpd:lines": 22
+ },
+ "crates/juggler-adapters/src/claude_stream/mod.rs": {
+  "jscpd:lines": 63
+ },
+ "crates/juggler-adapters/src/claude_stream/session.rs": {
+  "jscpd:lines": 93
+ },
+ "crates/juggler-adapters/src/claude_subagents/mod.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-adapters/src/claude_subagents/tests.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-adapters/src/claude_tool_words/table.rs": {
+  "jscpd:lines": 16
+ },
+ "crates/juggler-adapters/src/claude_transcript.rs": {
+  "jscpd:lines": 10
+ },
+ "crates/juggler-adapters/src/claude_used.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-adapters/src/codex.rs": {
+  "jscpd:lines": 108
+ },
+ "crates/juggler-adapters/src/codex_appserver/asks.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-adapters/src/codex_appserver/codec.rs": {
+  "jscpd:lines": 22
+ },
+ "crates/juggler-adapters/src/codex_appserver/mod.rs": {
+  "jscpd:lines": 40
+ },
+ "crates/juggler-adapters/src/codex_appserver/session.rs": {
+  "jscpd:lines": 75
+ },
+ "crates/juggler-adapters/src/codex_bridge.rs": {
+  "jscpd:lines": 16
+ },
+ "crates/juggler-adapters/src/codex_cut.rs": {
+  "jscpd:lines": 48
+ },
+ "crates/juggler-adapters/src/codex_endpoint.rs": {
+  "jscpd:lines": 37
+ },
+ "crates/juggler-adapters/src/codex_environment.rs": {
+  "jscpd:lines": 43
+ },
+ "crates/juggler-adapters/src/codex_family.rs": {
+  "jscpd:lines": 10
+ },
+ "crates/juggler-adapters/src/codex_goals.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-adapters/src/codex_handover.rs": {
+  "jscpd:lines": 31
+ },
+ "crates/juggler-adapters/src/codex_inventory.rs": {
+  "jscpd:lines": 101
+ },
+ "crates/juggler-adapters/src/codex_subagents.rs": {
+  "jscpd:lines": 41
+ },
+ "crates/juggler-adapters/src/codex_transcript.rs": {
+  "jscpd:lines": 10
+ },
+ "crates/juggler-adapters/src/codex_used.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-adapters/src/config_edit.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-adapters/src/conversation_feed_tests.rs": {
+  "jscpd:lines": 19
+ },
+ "crates/juggler-adapters/src/conversation_lines.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-adapters/src/fake.rs": {
+  "jscpd:lines": 31
+ },
+ "crates/juggler-adapters/src/fake_desktop.rs": {
+  "jscpd:lines": 24
+ },
+ "crates/juggler-adapters/src/fake_driven.rs": {
+  "jscpd:lines": 41
+ },
+ "crates/juggler-adapters/src/grok_build.rs": {
+  "jscpd:lines": 471
+ },
+ "crates/juggler-adapters/src/grok_environment.rs": {
+  "jscpd:lines": 51
+ },
+ "crates/juggler-adapters/src/grok_inventory.rs": {
+  "jscpd:lines": 119
+ },
+ "crates/juggler-adapters/src/grok_sessions.rs": {
+  "jscpd:lines": 47
+ },
+ "crates/juggler-adapters/src/grok_subagents.rs": {
+  "jscpd:lines": 36
+ },
+ "crates/juggler-adapters/src/inventory_files.rs": {
+  "jscpd:lines": 18
+ },
+ "crates/juggler-adapters/src/kimi_code.rs": {
+  "jscpd:lines": 360
+ },
+ "crates/juggler-adapters/src/kimi_environment.rs": {
+  "jscpd:lines": 44
+ },
+ "crates/juggler-adapters/src/kimi_inventory.rs": {
+  "jscpd:lines": 109
+ },
+ "crates/juggler-adapters/src/kimi_sessions.rs": {
+  "jscpd:lines": 46
+ },
+ "crates/juggler-adapters/src/kimi_subagents.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-adapters/src/last_turns.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-adapters/src/last_turns_tests.rs": {
+  "jscpd:lines": 30
+ },
+ "crates/juggler-adapters/src/opencode.rs": {
+  "jscpd:lines": 225
+ },
+ "crates/juggler-adapters/src/opencode_inventory.rs": {
+  "jscpd:lines": 118
+ },
+ "crates/juggler-adapters/src/opencode_store.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-adapters/src/opencode_subagents.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-adapters/src/quota_ingest.rs": {
+  "jscpd:lines": 81
+ },
+ "crates/juggler-adapters/src/subtasks.rs": {
+  "jscpd:lines": 38
+ },
+ "crates/juggler-agentbridge/src/hook.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-agentbridge/src/wire.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/backup.rs": {
+  "jscpd:lines": 10
+ },
+ "crates/juggler-app/src/cloud_backup.rs": {
+  "jscpd:lines": 10
+ },
+ "crates/juggler-app/src/commands.rs": {
+  "jscpd:lines": 384
+ },
+ "crates/juggler-app/src/commands/costs.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/crash.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-app/src/crash_native.rs": {
+  "jscpd:lines": 38
+ },
+ "crates/juggler-app/src/crossmachine/failure.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-app/src/crossmachine/node.rs": {
+  "jscpd:lines": 16
+ },
+ "crates/juggler-app/src/crossmachine/switch_back.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-app/src/dev_bridge.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-app/src/dev_bridge/lab.rs": {
+  "jscpd:lines": 1
+ },
+ "crates/juggler-app/src/dev_bridge/server.rs": {
+  "jscpd:lines": 18
+ },
+ "crates/juggler-app/src/dev_bridge/tests.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-app/src/error_log.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-app/src/error_words.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-app/src/features/agent_bridge/mod.rs": {
+  "jscpd:lines": 40
+ },
+ "crates/juggler-app/src/features/app/crash.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/app/diagnostics/app_log.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-app/src/features/app/diagnostics/debug_log.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/app/diagnostics/zip.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-app/src/features/apps/mod.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/cache/tests.rs": {
+  "jscpd:lines": 54
+ },
+ "crates/juggler-app/src/features/conversations/asks.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/conversations/commands.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/features/conversations/goto.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/conversations/last_messages.rs": {
+  "jscpd:lines": 10
+ },
+ "crates/juggler-app/src/features/conversations/mod.rs": {
+  "jscpd:lines": 31
+ },
+ "crates/juggler-app/src/features/conversations/places.rs": {
+  "jscpd:lines": 69
+ },
+ "crates/juggler-app/src/features/conversations/scan.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-app/src/features/conversations/scan/tests.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-app/src/features/conversations/switch_source.rs": {
+  "jscpd:lines": 15
+ },
+ "crates/juggler-app/src/features/floor/harness.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-app/src/features/floor/window.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/handover/arrival.rs": {
+  "jscpd:lines": 15
+ },
+ "crates/juggler-app/src/features/handover/automation.rs": {
+  "jscpd:lines": 57
+ },
+ "crates/juggler-app/src/features/handover/family.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-app/src/features/handover/mod.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-app/src/features/messages/agent.rs": {
+  "jscpd:lines": 30
+ },
+ "crates/juggler-app/src/features/messages/mod.rs": {
+  "jscpd:lines": 38
+ },
+ "crates/juggler-app/src/features/messages/needs.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/notifications/mod.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-app/src/features/notifications/needs.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/features/notifications/sources.rs": {
+  "jscpd:lines": 129
+ },
+ "crates/juggler-app/src/features/notifications/tray.rs": {
+  "jscpd:lines": 26
+ },
+ "crates/juggler-app/src/features/outside_search/cache.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/packs/mod.rs": {
+  "jscpd:lines": 17
+ },
+ "crates/juggler-app/src/features/places/book.rs": {
+  "jscpd:lines": 41
+ },
+ "crates/juggler-app/src/features/places/d84_tests.rs": {
+  "jscpd:lines": 52
+ },
+ "crates/juggler-app/src/features/places/handoff_tests.rs": {
+  "jscpd:lines": 38
+ },
+ "crates/juggler-app/src/features/places/mod.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-app/src/features/places/profiles_tests.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-app/src/features/places/start.rs": {
+  "jscpd:lines": 33
+ },
+ "crates/juggler-app/src/features/places/tests.rs": {
+  "jscpd:lines": 78
+ },
+ "crates/juggler-app/src/features/pools/access.rs": {
+  "jscpd:lines": 16
+ },
+ "crates/juggler-app/src/features/pools/canvas.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/pools/mod.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/processes/model.rs": {
+  "jscpd:lines": 124
+ },
+ "crates/juggler-app/src/features/processes/sightings.rs": {
+  "jscpd:lines": 18
+ },
+ "crates/juggler-app/src/features/quota/mod.rs": {
+  "jscpd:lines": 22
+ },
+ "crates/juggler-app/src/features/runtime/commands.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/features/runtime/driver.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/runtime/launch.rs": {
+  "jscpd:lines": 15
+ },
+ "crates/juggler-app/src/features/runtime/reports.rs": {
+  "jscpd:lines": 19
+ },
+ "crates/juggler-app/src/features/runtime/trust.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/sessions/limits.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/sessions/linking.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/staging/mod.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-app/src/features/subagents/detail.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-app/src/features/subagents/mod.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-app/src/features/subagents/tests.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-app/src/features/switch_cut/mod.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/features/switch_fidelity/tests.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/switch_setup/mod.rs": {
+  "jscpd:lines": 52
+ },
+ "crates/juggler-app/src/features/switch_space/mod.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/features/tasks/across.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/features/tasks/agent.rs": {
+  "jscpd:lines": 28
+ },
+ "crates/juggler-app/src/features/tasks/apply.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/tasks/issues.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/features/tasks/mod.rs": {
+  "jscpd:lines": 38
+ },
+ "crates/juggler-app/src/features/tasks/needs.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/tasks/oversight.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-app/src/features/tasks/views.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-app/src/features/tasks/words.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-app/src/features/usage_history/settled.rs": {
+  "jscpd:lines": 16
+ },
+ "crates/juggler-app/src/figurehead.rs": {
+  "jscpd:lines": 10
+ },
+ "crates/juggler-app/src/focus.rs": {
+  "jscpd:lines": 24
+ },
+ "crates/juggler-app/src/history.rs": {
+  "jscpd:lines": 49
+ },
+ "crates/juggler-app/src/in_place.rs": {
+  "jscpd:lines": 10
+ },
+ "crates/juggler-app/src/lab_scope.rs": {
+  "jscpd:lines": 11
+ },
+ "crates/juggler-app/src/lifecycle.rs": {
+  "jscpd:lines": 24
+ },
+ "crates/juggler-app/src/link.rs": {
+  "jscpd:lines": 136
+ },
+ "crates/juggler-app/src/link/here.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-app/src/link/pairing.rs": {
+  "jscpd:lines": 18
+ },
+ "crates/juggler-app/src/machine_alerts.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-app/src/machine_health.rs": {
+  "jscpd:lines": 49
+ },
+ "crates/juggler-app/src/machine_tools.rs": {
+  "jscpd:lines": 35
+ },
+ "crates/juggler-app/src/manage.rs": {
+  "jscpd:lines": 44
+ },
+ "crates/juggler-app/src/overnight.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-app/src/preview.rs": {
+  "jscpd:lines": 33
+ },
+ "crates/juggler-app/src/running_setups.rs": {
+  "jscpd:lines": 52
+ },
+ "crates/juggler-app/src/ticks.rs": {
+  "jscpd:lines": 18
+ },
+ "crates/juggler-app/src/updates.rs": {
+  "jscpd:lines": 14
+ },
+ "crates/juggler-app/src/usage_stats.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-core/src/cost_ledger.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-core/src/messaging.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-core/src/renewal.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-core/src/storage/accounts.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-core/src/storage/agent_access.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-core/src/storage/cleanup_audit.rs": {
+  "jscpd:lines": 39
+ },
+ "crates/juggler-core/src/storage/messages.rs": {
+  "jscpd:lines": 71
+ },
+ "crates/juggler-core/src/storage/mod.rs": {
+  "jscpd:lines": 50
+ },
+ "crates/juggler-core/src/storage/pool_canvas.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-core/src/storage/pools.rs": {
+  "jscpd:lines": 34
+ },
+ "crates/juggler-core/src/storage/process_ledger.rs": {
+  "jscpd:lines": 103
+ },
+ "crates/juggler-core/src/storage/projects.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-core/src/storage/sessions.rs": {
+  "jscpd:lines": 48
+ },
+ "crates/juggler-core/src/storage/switch_graph.rs": {
+  "jscpd:lines": 11
+ },
+ "crates/juggler-core/src/storage/tasks.rs": {
+  "jscpd:lines": 41
+ },
+ "crates/juggler-core/src/storage/tasks/across.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-core/src/storage/tasks/review.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-core/src/storage/transcript_index.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-core/src/storage/usage.rs": {
+  "jscpd:lines": 67
+ },
+ "crates/juggler-core/src/storage/usage_history.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-core/src/storage/usage_history/rollup.rs": {
+  "jscpd:lines": 26
+ },
+ "crates/juggler-floor-render/src/gpu.rs": {
+  "jscpd:lines": 18
+ },
+ "crates/juggler-floor/src/models.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-handover/src/fidelity.rs": {
+  "jscpd:lines": 11
+ },
+ "crates/juggler-handover/src/pipeline.rs": {
+  "jscpd:lines": 39
+ },
+ "crates/juggler-handover/src/register.rs": {
+  "jscpd:lines": 8
+ },
+ "crates/juggler-handover/src/transplant.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-handover/src/validation.rs": {
+  "jscpd:lines": 19
+ },
+ "crates/juggler-link/src/client.rs": {
+  "jscpd:lines": 42
+ },
+ "crates/juggler-link/src/discovery.rs": {
+  "jscpd:lines": 9
+ },
+ "crates/juggler-link/src/identity.rs": {
+  "jscpd:lines": 6
+ },
+ "crates/juggler-link/src/node.rs": {
+  "jscpd:lines": 15
+ },
+ "crates/juggler-link/src/registry.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-link/src/verify.rs": {
+  "jscpd:lines": 48
+ },
+ "crates/juggler-platform/src/private_fs.rs": {
+  "jscpd:lines": 12
+ },
+ "crates/juggler-stats/src/cycle.rs": {
+  "jscpd:lines": 30
+ },
+ "crates/juggler-stats/src/cycle_tests.rs": {
+  "jscpd:lines": 34
+ },
+ "crates/juggler-stats/src/generated.rs": {
+  "jscpd:lines": 384
+ },
+ "crates/juggler-stats/src/lib.rs": {
+  "jscpd:lines": 7
+ },
+ "crates/juggler-stats/src/store.rs": {
+  "jscpd:lines": 13
+ },
+ "crates/juggler-supervisor/src/live_stats.rs": {
+  "jscpd:lines": 87
+ },
+ "crates/juggler-supervisor/src/machine.rs": {
+  "jscpd:lines": 20
+ },
+ "crates/juggler-supervisor/src/piped.rs": {
+  "jscpd:lines": 39
+ },
+ "crates/juggler-supervisor/src/supervisor.rs": {
+  "jscpd:lines": 167
+ },
+ "crates/juggler-supervisor/src/tree.rs": {
+  "jscpd:lines": 38
+ },
+ "crates/juggler-supervisor/src/zombies.rs": {
+  "jscpd:lines": 15
+ },
+ "crates/lib/bridge.ts": {
+  "jscpd:lines": 375
+ },
+ "crates/lib/ipc/floor.ts": {
+  "jscpd:lines": 38
+ },
+ "crates/lib/ipc/messages.ts": {
+  "jscpd:lines": 20
+ },
+ "crates/lib/ipc/processes.ts": {
+  "jscpd:lines": 13
+ },
+ "crates/lib/ipc/subagents-preview.ts": {
+  "jscpd:lines": 7
+ },
+ "crates/lib/ipc/subagents.ts": {
+  "jscpd:lines": 7
+ },
+ "crates/lib/ipc/switchSetup.ts": {
+  "jscpd:lines": 14
+ },
+ "crates/lib/ipc/tasks.ts": {
+  "jscpd:lines": 20
+ },
+ "crates/lib/live-deltas.ts": {
+  "jscpd:lines": 29
+ },
+ "crates/lib/oklch.ts": {
+  "jscpd:lines": 12
+ },
+ "crates/pages/EntityPage.tsx": {
+  "jscpd:lines": 10
+ },
+ "crates/pages/app/AppPage.tsx": {
+  "jscpd:lines": 38
+ },
+ "crates/pages/machine/ThisMacPage.tsx": {
+  "jscpd:lines": 15
+ },
+ "crates/pages/messages/Compose.tsx": {
+  "jscpd:lines": 9
+ },
+ "crates/pages/messages/useSessionMessages.ts": {
+  "jscpd:lines": 9
+ },
+ "crates/pages/pool/CanvasEdges.tsx": {
+  "jscpd:lines": 7
+ },
+ "crates/pages/pool/CanvasNode.tsx": {
+  "jscpd:lines": 18
+ },
+ "crates/pages/pool/CompactNode.tsx": {
+  "jscpd:lines": 24
+ },
+ "crates/pages/pool/InspectPool.tsx": {
+  "jscpd:lines": 6
+ },
+ "crates/pages/session/OwnOverview.tsx": {
+  "jscpd:lines": 18
+ },
+ "crates/pages/session/OwnTerminalOverview.tsx": {
+  "jscpd:lines": 18
+ },
+ "crates/pages/session/OwnUsage.tsx": {
+  "jscpd:lines": 12
+ },
+ "crates/pages/session/SessionOverview.tsx": {
+  "jscpd:lines": 8
+ },
+ "crates/pages/session/TurnStretches.tsx": {
+  "jscpd:lines": 6
+ },
+ "crates/pages/session/TurnWork.tsx": {
+  "jscpd:lines": 6
+ },
+ "crates/pages/subagents/SubagentTree.tsx": {
+  "jscpd:lines": 28
+ },
+ "crates/pages/subscription/SubscriptionPage.tsx": {
+  "jscpd:lines": 17
+ },
+ "crates/pages/tasks/PoolTasks.tsx": {
+  "jscpd:lines": 6
+ },
+ "crates/pages/tasks/TaskView.tsx": {
+  "jscpd:lines": 9
+ },
+ "crates/pages/tasks/useSessionTasks.ts": {
+  "jscpd:lines": 8
+ },
+ "crates/screens/AccountManage.tsx": {
+  "jscpd:lines": 19
+ },
+ "crates/screens/FleetScreen.tsx": {
+  "jscpd:lines": 43
+ },
+ "crates/screens/NewProjectSheet.tsx": {
+  "jscpd:lines": 29
+ },
+ "crates/screens/NewSession.tsx": {
+  "jscpd:lines": 23
+ },
+ "crates/screens/WorkPanels.tsx": {
+  "jscpd:lines": 12
+ },
+ "crates/screens/accounts/AppsSection.tsx": {
+  "jscpd:lines": 15
+ },
+ "crates/screens/processes/ProcessTree.tsx": {
+  "jscpd:lines": 30
+ },
+ "crates/screens/settings/AccountRenewalRow.tsx": {
+  "jscpd:lines": 10
+ },
+ "crates/screens/settings/AgentAccessPane.tsx": {
+  "jscpd:lines": 15
+ },
+ "crates/screens/tasks/TasksScreen.tsx": {
+  "jscpd:lines": 6
+ },
+ "ui/src/components/AppIcon.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/Avatar.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/BudgetCaps.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/HomeApps.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/HomeRunway.tsx": {
+  "knip:exports": 3
+ },
+ "ui/src/components/ItemMenu.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/KillSheet.tsx": {
+  "knip:exports": 2,
+  "knip:types": 2
+ },
+ "ui/src/components/ManageWork.tsx": {
+  "knip:exports": 3
+ },
+ "ui/src/components/OutsideConversations.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/Page.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/PlaceRows.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/ProjectSyncSheet.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/RailControls.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/RailIdleApp.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/RailSplitter.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/RelatedList.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/RemoteBoard.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/RemoteSwitchTargets.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/ReportBugSheet.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/RowMenu.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/RuntimeSettings.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/SwitchFreezeChoice.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/SwitchSetupTurnOn.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/TerminalSearch.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/UsageStatsChooser.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/Welcome.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/charts/ChartCard.tsx": {
+  "knip:exports": 2,
+  "knip:types": 1
+ },
+ "ui/src/components/charts/Gauge.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/charts/Heatmap.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/charts/StatTile.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/charts/TimeChart.tsx": {
+  "knip:types": 1
+ },
+ "ui/src/components/charts/colors.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/components/charts/scale.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/components/controls/Picker.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/controls/index.ts": {
+  "knip:types": 1
+ },
+ "ui/src/components/icons-places.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/indicator.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/palette/RowView.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/palette/rows.ts": {
+  "knip:exports": 3
+ },
+ "ui/src/components/primitives.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/rail-arrange.ts": {
+  "knip:exports": 1,
+  "knip:types": 1
+ },
+ "ui/src/components/related/useFacets.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/components/row-details.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/row/RowShell.tsx": {
+  "knip:types": 1
+ },
+ "ui/src/components/row/SessionRow.tsx": {
+  "knip:exports": 1,
+  "knip:types": 1
+ },
+ "ui/src/components/switch/ConfirmBody.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/switch/CrossSteps.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/switch/FailedStep.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/switch/NotesRow.tsx": {
+  "knip:exports": 4
+ },
+ "ui/src/components/switch/StepBodies.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/switch/SwitchDialogFrame.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/switch/WhereChoice.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/this-mac-memory.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/this-mac-parts.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/usage/Runway.tsx": {
+  "knip:exports": 3
+ },
+ "ui/src/components/usage/RunwayCards.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/components/usage/TopLists.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/components/usage/useUsage.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/account-terms.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/action-specs.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/action-types.ts": {
+  "knip:exports": 1,
+  "knip:types": 1
+ },
+ "ui/src/lib/actions.ts": {
+  "knip:exports": 3,
+  "knip:types": 2
+ },
+ "ui/src/lib/app-keys.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/bridge.ts": {
+  "knip:duplicates": 3
+ },
+ "ui/src/lib/conversation-feed-state.ts": {
+  "knip:types": 1
+ },
+ "ui/src/lib/conversation-store.ts": {
+  "knip:exports": 3
+ },
+ "ui/src/lib/credits.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/density.ts": {
+  "knip:exports": 4
+ },
+ "ui/src/lib/desktop-apps.ts": {
+  "knip:exports": 3,
+  "knip:types": 1
+ },
+ "ui/src/lib/floor-logos.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/funnel.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/go-to.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/ipc/agent-bridge.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/ipc/conversations.ts": {
+  "knip:exports": 1,
+  "knip:types": 1
+ },
+ "ui/src/lib/ipc/devBridge.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/ipc/floor.ts": {
+  "knip:exports": 2,
+  "knip:types": 4
+ },
+ "ui/src/lib/ipc/notices.ts": {
+  "knip:exports": 3
+ },
+ "ui/src/lib/ipc/notifications.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/ipc/pool-canvas.ts": {
+  "knip:exports": 3,
+  "knip:types": 2
+ },
+ "ui/src/lib/ipc/pools.ts": {
+  "knip:types": 2
+ },
+ "ui/src/lib/ipc/processes.ts": {
+  "knip:exports": 1,
+  "knip:types": 2
+ },
+ "ui/src/lib/ipc/report.ts": {
+  "knip:exports": 1,
+  "knip:types": 1
+ },
+ "ui/src/lib/ipc/subagents-preview.ts": {
+  "knip:types": 1
+ },
+ "ui/src/lib/ipc/subagents.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/ipc/switchCut.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/ipc/switchSpace.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/ipc/timing.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/kept-reads.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/launch-pick.ts": {
+  "knip:types": 1
+ },
+ "ui/src/lib/machine-memory.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/machine.ts": {
+  "knip:exports": 3,
+  "knip:types": 4
+ },
+ "ui/src/lib/marks.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/nav.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/needs-you.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/new-pool.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/new-session-choice.ts": {
+  "knip:exports": 1,
+  "knip:types": 1
+ },
+ "ui/src/lib/notice-words.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/notices-store.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/oklch.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/paged.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/palette-recents.ts": {
+  "knip:types": 1
+ },
+ "ui/src/lib/palette.ts": {
+  "knip:exports": 3
+ },
+ "ui/src/lib/pickers.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/pools.ts": {
+  "knip:exports": 4
+ },
+ "ui/src/lib/providers.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/quotaWindow.ts": {
+  "knip:exports": 1,
+  "knip:types": 1
+ },
+ "ui/src/lib/rail-items.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/rail-order-store.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/rail-places.ts": {
+  "knip:exports": 3
+ },
+ "ui/src/lib/railview.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/renewal.ts": {
+  "knip:types": 1
+ },
+ "ui/src/lib/roving.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/scroll-memory.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/session-titles.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/shortcut-bindings.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/shortcuts.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/shown-apps.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/subscriptions.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/switch-words.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/usage/cached.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/lib/use-twin-toggle.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/lib/useToolsWithoutLimits.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/ItemHeader.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/SessionRow.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/SessionsList.tsx": {
+  "knip:exports": 5,
+  "knip:types": 1
+ },
+ "ui/src/pages/account/Quality.tsx": {
+  "knip:exports": 1,
+  "knip:types": 1
+ },
+ "ui/src/pages/messages/SharedDocs.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/messages/words.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/pool/CanvasEdges.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/pool/layout.ts": {
+  "knip:exports": 6
+ },
+ "ui/src/pages/pool/useCanvas.ts": {
+  "knip:exports": 2
+ },
+ "ui/src/pages/project/AgentsCard.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/session-usage/SessionUsage.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/session/AccountMenu.tsx": {
+  "knip:exports": 3
+ },
+ "ui/src/pages/session/ConversationSwitcher.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/pages/session/Markdown.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/session/ResumeButton.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/session/SessionHead.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/pages/session/TurnStretches.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/session/TurnWork.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/pages/session/model.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/session/useStickToBottom.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/session/useSubagents.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/subagents/SubagentTree.tsx": {
+  "knip:exports": 3
+ },
+ "ui/src/pages/subagents/SubagentsView.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/subagents/useSubagentRows.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/subscription/TermChoice.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/pages/tasks/words.ts": {
+  "knip:exports": 3
+ },
+ "ui/src/preview/conversation-feed.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/preview/machine.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/preview/usage-fold.ts": {
+  "knip:types": 1
+ },
+ "ui/src/screens/AccountManage.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/screens/accounts/AccountCard.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/accounts/ProfileRow.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/new-session/MoreOptions.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/screens/pools/NewPool.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/pools/NewPoolReview.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/pools/PoolsScreen.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/processes/ProcessTree.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/processes/cells.tsx": {
+  "knip:exports": 2
+ },
+ "ui/src/screens/processes/useProcessRows.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/settings/LocalCacheSection.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/settings/pane-icons.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/settings/settings-index.ts": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/tasks/TaskBoard.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/screens/tasks/TaskCard.tsx": {
+  "knip:exports": 1
+ },
+ "ui/src/theme.ts": {
+  "knip:exports": 1
+ },
+ "ui/tests/visual/fixtures/pool-canvas.ts": {
+  "knip:exports": 3
+ },
+ "ui/tests/visual/fixtures/session-chat.ts": {
+  "knip:exports": 1
+ },
+ "ui/tests/visual/fixtures/usage-world.ts": {
+  "knip:exports": 5
+ },
+ "ui/tests/visual/gallery-04.ts": {
+  "knip:exports": 1
+ }
+}

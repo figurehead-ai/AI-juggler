@@ -105,8 +105,7 @@ fn first_difference(theirs: &Shape, ours: &Shape) -> Option<String> {
 /// [`CoreError::Storage`] when SQLite can't read it.
 pub fn vet(path: &Path, version: i64) -> Result<(), CoreError> {
     {
-        let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-        super::harden(&conn)?;
+        let conn = super::open_hardened_with(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         let check: String = conn.query_row("PRAGMA integrity_check(1)", [], |row| row.get(0))?;
         if check != "ok" {
             return Err(refused("its database is damaged"));
@@ -140,6 +139,10 @@ pub fn vet(path: &Path, version: i64) -> Result<(), CoreError> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "test fixtures build databases raw (other tools' files, old schemas)"
+)]
 mod tests {
     use super::*;
 

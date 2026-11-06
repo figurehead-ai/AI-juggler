@@ -257,7 +257,8 @@ fn snapshot_without_sign_ins(db: &Path, to: &Path) -> Result<u64, String> {
         .execute("VACUUM INTO ?1", [to.to_string_lossy().as_ref()])
         .map_err(|error| format!("snapshot: {error}"))?;
     drop(source);
-    let copy = rusqlite::Connection::open(to).map_err(|error| format!("open copy: {error}"))?;
+    let copy =
+        juggler_core::storage::open_hardened(to).map_err(|error| format!("open copy: {error}"))?;
     copy.pragma_update(None, "secure_delete", "ON")
         .map_err(|error| format!("secure delete: {error}"))?;
     for table in PRIVATE_TABLES {

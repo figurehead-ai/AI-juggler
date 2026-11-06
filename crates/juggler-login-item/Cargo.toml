@@ -15,6 +15,6 @@ description = "Audited SMAppService shim (D-26): open AI Juggler at login, the f
 # register, unregister), each with its SAFETY note, behind a safe API.
 # macOS-only: elsewhere the crate is a safe stub that says "unavailable".
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6"
+objc2 = { workspace = true }
 objc2-service-management = { version = "0.3.2", default-features = false, features = ["std", "SMAppService", "objc2", "objc2-foundation"] }
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSError", "NSString"] }

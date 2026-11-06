@@ -236,7 +236,7 @@ async fn serve<R: tauri::Runtime>(listener: std::net::TcpListener, shared: Arc<S
     let listener = match tokio::net::TcpListener::from_std(listener) {
         Ok(listener) => listener,
         Err(error) => {
-            eprintln!("ai-juggler: dev bridge stopped: {error}");
+            crate::early_note(&format!("dev bridge stopped: {error}"));
             return;
         }
     };
@@ -314,11 +314,11 @@ async fn handle<R: tauri::Runtime>(
         #[cfg(feature = "lab-bridge")]
         Ok(Route::LabInvoke(route)) => lab_invoke(route, &parts.headers, body).await,
     };
-    eprintln!(
-        "ai-juggler: dev bridge {} {what} -> {}",
+    crate::early_note(&format!(
+        "dev bridge {} {what} -> {}",
         parts.method,
         response.status().as_u16()
-    );
+    ));
     finish(response, &parts.headers, &shared.config)
 }
 

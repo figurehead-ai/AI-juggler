@@ -224,7 +224,7 @@ impl SearchIndexFile {
     /// Returns [`CoreError::Storage`] when the file can't be opened or
     /// its tables made.
     pub fn open(path: &std::path::Path) -> Result<Self, CoreError> {
-        let conn = Connection::open(path)?;
+        let conn = super::open_hardened(path)?;
         Self::set_up(conn, Some(path))
     }
 

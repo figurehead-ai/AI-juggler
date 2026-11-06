@@ -252,10 +252,10 @@ pub fn check_this(state: &AppState) -> Result<PathBuf, String> {
             me,
         )
         .map_err(|why| format!("{ENV_ADOPT}={tool}: {why}"))?;
-        eprintln!(
-            "ai-juggler: LAB WRITE MODE also uses the real {tool} folder {} where it is ({ENV_ADOPT}): its sign-in runs in the lab's folders",
+        crate::early_note(&format!(
+            "LAB WRITE MODE also uses the real {tool} folder {} where it is ({ENV_ADOPT}): its sign-in runs in the lab's folders",
             real.display()
-        );
+        ));
         crate::lab_scope::adopt(&real);
         // Anything indexed from it before the scope held is read again.
         state.conversations.forget_under(&real);

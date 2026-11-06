@@ -132,7 +132,7 @@ pub fn scan_cc_switch(home: &Path) -> ManagerHint {
         };
     }
     let uri = format!("file:{}?mode=ro&immutable=1", db.to_string_lossy());
-    let Ok(connection) = rusqlite::Connection::open_with_flags(
+    let Ok(connection) = juggler_core::storage::open_hardened_with(
         &uri,
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
     ) else {

@@ -176,6 +176,8 @@ jobs:
           python3 scripts/ipc_audit.py
           python3 scripts/size_budget.py --selftest
           python3 scripts/size_budget.py
+          python3 scripts/allow_reasons.py --selftest
+          python3 scripts/allow_reasons.py
           python3 scripts/machine_state_lint.py --selftest
           python3 scripts/machine_state_lint.py
       - name: Task counts and ranges in the docs match the epic files
@@ -256,8 +258,12 @@ jobs:
           ./scripts/stats_feature_check.sh
       - name: Dependency policy (cargo-deny)
         run: cargo deny check
-      - name: cargo-vet (pinned, digest-checked)
-        run: ./scripts/install_release_tool.sh cargo-vet "$HOME/.local/bin" >/dev/null
+      - name: cargo-vet and cargo-machete (pinned, digest-checked)
+        run: |
+          ./scripts/install_release_tool.sh cargo-vet "$HOME/.local/bin" >/dev/null
+          ./scripts/install_release_tool.sh cargo-machete "$HOME/.local/bin" >/dev/null
+      - name: No unused Rust dependency (cargo-machete, AJ-E2011 R7)
+        run: cargo machete
       - name: Every dependency audited or exempted; exemptions only shrink (cargo-vet, AJ-E2007 R1)
         env:
           BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
@@ -631,6 +637,10 @@ jobs:
       - name: Lint (AJ-E2012; today's findings baselined, only shrinking)
         working-directory: ui
         run: pnpm lint
+      - name: Dead and copied code only shrink (knip, jscpd; AJ-E2011 R7)
+        run: |
+          python3 scripts/debt_baseline.py --selftest
+          python3 scripts/debt_baseline.py
       - name: Build (typecheck + bundle)
         working-directory: ui
         run: pnpm build

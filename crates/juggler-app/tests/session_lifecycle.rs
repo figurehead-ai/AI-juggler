@@ -6,6 +6,7 @@
 //! run's token and only lists what is past the cutoff.
 
 #![allow(
+    clippy::disallowed_methods,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
