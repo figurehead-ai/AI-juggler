@@ -20,7 +20,7 @@
 > and walks (AJ-E3514) are part of this validation; see the plan's
 > "The Floor" section.
 
-### AJ-E3301 The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort L | Depends: —
+### AJ-E3301 The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: —
 **Goal**: One scenario drives the exhaustive tests, the oracle check, the scripted journey and the hand walk, so they can't drift apart.
 **User story**: As the person walking P1, the sheet I fill in has the same steps and expectations the automation checked.
 **Requirements**:
