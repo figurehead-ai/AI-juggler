@@ -14,6 +14,11 @@ Fails when
   main window's set grants (the registry in src/lib.rs, with each
   `#[tauri::command(rename = …)]` applied, as build.rs generates it), or
   the terminal window's set names a command that doesn't exist;
+- a registered command takes a path-like argument (a string named path,
+  dest, cwd, folder, file, root, source…) and its body never asks
+  `picked::vouch` (R6: the page passes ids, or a path the user picked,
+  dropped or AI Juggler already knows), unless scripts/path_params.allow
+  names it with the reason;
 - a web view window is built (`WebviewWindowBuilder::new` /
   `from_config`) without going through `webview_guard`.
 
@@ -84,6 +89,38 @@ def registered() -> set[str]:
     return {renames.get(name, name) for name in names}
 
 
+PATHLIKE = re.compile(r"(^|_)(path|paths|dest|cwd|folder|folders|file|dir|root|source)$")
+
+
+def unvouched() -> list[str]:
+    """Registered commands with a path-like string argument whose body
+    never calls vouch (directly or through a `*_vouched` helper)."""
+    src = (APP / "src/lib.rs").read_text()
+    body = src[src.index("macro_rules! app_commands"):]
+    body = body[: body.index("\n}\n")]
+    names = {
+        words[1][:-1].split("::")[-1]
+        for words in (line.split() for line in body.splitlines())
+        if len(words) == 2 and words[0] in ("Read", "Write") and words[1].endswith(",")
+    }
+    found = []
+    for path in sorted((APP / "src").rglob("*.rs")):
+        text = path.read_text()
+        for m in re.finditer(r"#\[tauri::command[^\]]*\][^{]*?\bfn (\w+)\s*(?:<[^>]*>)?\((.*?)\)\s*(?:->[^{]*)?\{", text, re.S):
+            if m.group(1) not in names:
+                continue
+            args = [
+                (n, t) for n, t in re.findall(r"(\w+)\s*:\s*([^,]+)", m.group(2))
+                if PATHLIKE.search(n) and re.search(r"String|PathBuf|&str", t)
+            ]
+            if not args:
+                continue
+            end = text.find("\n}\n", m.end())
+            if "vouch" not in text[m.end(): end]:
+                found.append(f"{m.group(1)}({', '.join(n for n, _ in args)})")
+    return found
+
+
 def invoked() -> dict[str, str]:
     """Every command name the page invokes literally → the first file."""
     found: dict[str, str] = {}
@@ -146,6 +183,14 @@ def main() -> int:
     for ident in re.findall(r'"allow-([a-z0-9-]+)"', terminal):
         if ident.replace("-", "_") not in granted:
             problems.append(f"permissions/terminal-window.toml: allow-{ident} names no registered command")
+    reasons = {
+        line.split("#")[0].strip()
+        for line in (ROOT / "scripts/path_params.allow").read_text().splitlines()
+        if line.split("#")[0].strip()
+    }
+    for command in unvouched():
+        if command.split("(")[0] not in reasons:
+            problems.append(f"command {command} takes a path the page could make up: vouch for it (picked.rs)")
     for problem in problems:
         print(f"webview_lint: {problem}")
     return 1 if problems else 0
