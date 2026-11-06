@@ -128,7 +128,8 @@ pub struct Switched {
 }
 
 /// What the confirm screen says about it.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+// Flattened into `Moving`'s TypeScript (AJ-E2019), so not exported itself.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, ts_rs::TS)]
 pub struct Preview {
     /// What moves to the copy and is turned off on the original.
     pub automation: Vec<String>,

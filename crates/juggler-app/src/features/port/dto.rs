@@ -2,7 +2,8 @@
 
 /// One port-inventory row (the API DTO; `NotManaged` rows carry
 /// `killable: false` and NO stop/kill command ids — the F3 guard).
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct PortRowInfo {
     /// The listening port (the headline).
     pub port: u16,
@@ -20,6 +21,7 @@ pub struct PortRowInfo {
     /// Project id, when managed.
     pub project: Option<String>,
     /// Listener age from the kernel process start, ms.
+    #[ts(type = "number | null")]
     pub listener_age_ms: Option<i64>,
     /// Process display name, when managed.
     pub name: Option<String>,
@@ -30,7 +32,8 @@ pub struct PortRowInfo {
 }
 
 /// One sustained-breach hog fact (Req.5 — the Cleanup Centre's input).
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct HogFactInfo {
     /// The hog pid (helper for RSS rules, the root for tree rules).
     pub pid: u32,
@@ -39,6 +42,7 @@ pub struct HogFactInfo {
     /// Provider id.
     pub provider: String,
     /// Live (or last-seen) RSS, bytes.
+    #[ts(type = "number")]
     pub rss_bytes: u64,
     /// Live CPU%, when sampled.
     pub cpu_pct: Option<f64>,
@@ -48,7 +52,8 @@ pub struct HogFactInfo {
 }
 
 /// The inventory response: rows + the honest probe note + hog facts.
-#[derive(Clone, Debug, serde::Serialize, PartialEq, Default)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Default, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct PortInventoryInfo {
     /// Rows sorted by port.
     pub rows: Vec<PortRowInfo>,
@@ -60,7 +65,8 @@ pub struct PortInventoryInfo {
 }
 
 /// The pre-launch collision warning (advisor informs, never blocks).
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct PortWarningInfo {
     /// The contested port.
     pub port: u16,
@@ -69,6 +75,7 @@ pub struct PortWarningInfo {
     /// The Instance label (`Provider (id-prefix)`).
     pub instance: String,
     /// How long the holder has lived, ms.
+    #[ts(type = "number")]
     pub age_ms: i64,
     /// The copy-exact warning (Req.4).
     pub message: String,

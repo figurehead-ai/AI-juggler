@@ -3,7 +3,8 @@
 use crate::features::tools::scan_wire::DiscoveredInfo;
 
 /// One probe's result as the UI reads it (Req.4 — health rides along).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ProbeInfo {
     /// Probe id (`s1-config-dirs` … `s10-desktop`).
     pub id: String,
@@ -19,7 +20,8 @@ pub struct ProbeInfo {
 
 /// The widened scan report (AJ-E302): the candidate installs plus the
 /// per-probe health, project seeds (S9), and desktop apps (S10).
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ScanReportInfo {
     /// Candidate setups (S1/S2/S3/S5 origins).
     pub installs: Vec<DiscoveredInfo>,

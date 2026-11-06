@@ -4,7 +4,8 @@ use crate::features::redaction::dto::{RedactionItemInfo, RedactionPolicyInfo};
 
 /// AJ-E205: the preflight verdict for one switch (rendered by the
 /// freeze dialog / door before anything executes).
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "wire DTO: each flag is its own fact the door renders"
@@ -46,6 +47,7 @@ pub struct PreflightInfo {
     /// The F1-experimental transplant copy (until E210 proves pairs).
     pub experimental_copy: String,
     /// AJ-E206 §8 door verdict: `one-click` or `wizard`.
+    #[ts(type = "\"one-click\" | \"wizard\"")]
     pub door: String,
     /// Wizard step titles in §8 order (empty for 1-click; only the
     /// non-trivial steps ever appear — never phantom steps).
@@ -85,7 +87,8 @@ pub struct PreflightInfo {
 
 /// The carry-list grouped by disposition (AJ-E206; every name is a
 /// concrete artifact — "some context" is forbidden copy).
-#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct CarryListInfo {
     /// Artifacts that move or copy.
     pub carried: Vec<String>,
@@ -98,7 +101,8 @@ pub struct CarryListInfo {
 
 /// AJ-E206: the executed switch's handles — the new instance plus
 /// the graph edge that `switch_undo` compensates.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SwitchExecutedInfo {
     /// The continuation instance's session id.
     pub session_id: String,
@@ -140,7 +144,8 @@ pub struct SwitchExecutedInfo {
 
 /// One listed conflict for the review UI (three radio choices each,
 /// keyboard-completable — never auto-merged).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct FileConflictInfo {
     /// Pack-relative path (the carry-list name).
     pub rel_path: String,
@@ -165,7 +170,8 @@ impl FileConflictInfo {
 
 /// The switch-back plan the suggestion card / review modal renders
 /// (suggest-only; the user clicks — SPEC:26,263).
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SwitchBackPlanInfo {
     /// The verbatim quota-reset suggestion (Req.3), naming the original
     /// folder's Account (D-62: the reset is its).
@@ -208,7 +214,8 @@ pub struct SwitchBackPlanInfo {
 }
 
 /// One account a switch back can return to (AJ-E1541).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SwitchBackReturnInfo {
     /// The epoch to pass back as `to_epoch`.
     pub epoch_id: String,
@@ -219,7 +226,8 @@ pub struct SwitchBackReturnInfo {
 }
 
 /// One user resolution from the review UI.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SwitchBackChoiceIn {
     /// The conflicting path.
     pub rel_path: String,
@@ -228,7 +236,8 @@ pub struct SwitchBackChoiceIn {
 }
 
 /// One suggested return (suggest-only — the user clicks).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SwitchBackSuggestionInfo {
     /// The away instance to return FROM (the card's target).
     pub session_id: String,
@@ -249,7 +258,8 @@ pub struct SwitchBackSuggestionInfo {
 
 /// 0.3.4: why a switch target is held back, when a step of the user's
 /// fixes it (the words are its `filtered_reason`).
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 #[serde(rename_all = "snake_case")]
 pub enum HeldBack {
     /// Its tool's first-run setup isn't done there: a session started on
@@ -259,7 +269,8 @@ pub enum HeldBack {
 
 /// One ranked, badged switch destination (the handover section's
 /// rows). Suggest-only: the click is the user's.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "a target's facts, each its own: validated, cross-tool, suggested, first run"
@@ -307,7 +318,8 @@ pub struct SwitchTargetInfo {
 }
 
 /// One epoch node on the timeline.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct EpochNodeInfo {
     /// Epoch id.
     pub id: String,
@@ -327,7 +339,8 @@ pub struct EpochNodeInfo {
 }
 
 /// One labelled edge on the timeline.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct EdgeInfo {
     /// The edge's id (what opens its handover).
     pub id: String,
@@ -349,7 +362,8 @@ pub struct EdgeInfo {
 }
 
 /// One work item's timeline.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct WorkGraphInfo {
     /// Work title.
     pub title: String,

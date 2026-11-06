@@ -2,7 +2,8 @@
 
 /// One Step-0 row (AJ-E301 Req.2): `Installed vX.Y` / `Not installed`
 /// / `Installed (vX, unverified)`.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ProviderInstallInfo {
     /// Provider id (the wizard's `provider` parameter).
     pub provider: String,
@@ -24,6 +25,7 @@ pub struct ProviderInstallInfo {
     /// badge; empty renders "unverified" honestly.
     pub verified_against: Vec<String>,
     /// `terminal` or `desktop` (the kind badge, Req.3).
+    #[ts(type = "\"terminal\" | \"desktop\"")]
     pub kind: String,
     /// The single-instance desktop limit, stated BEFORE selection
     /// (Req.3) — the adapter's isolation claim verbatim.
@@ -32,7 +34,8 @@ pub struct ProviderInstallInfo {
 
 /// What a registered Provider supports, from the registry alone — no
 /// install probe, so it is cheap to ask on every screen that needs it.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct ProviderCapabilityInfo {
     /// Provider id.
     pub provider: String,

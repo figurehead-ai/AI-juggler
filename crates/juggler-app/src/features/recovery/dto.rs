@@ -3,7 +3,8 @@
 /// The one-time recovery summary (AJ-E510 Req.3): present exactly
 /// once per crash — the second relaunch (no new findings) re-shows
 /// nothing.
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct RecoverySummaryInfo {
     /// The exact template text.
     pub summary: String,

@@ -18,6 +18,9 @@ pub mod activation;
 pub mod app_relaunch;
 pub mod backup;
 pub mod cloud_backup;
+// AJ-E2019: writes ui/src/types/generated/commands.ts when the tests run.
+#[cfg(test)]
+mod command_types;
 pub mod commands;
 pub mod crash;
 pub mod crash_native;

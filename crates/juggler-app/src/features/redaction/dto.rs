@@ -4,7 +4,8 @@ use crate::features::redaction::redaction_line;
 
 /// The resolved policy a switch surface shows (the confirm line is
 /// verbatim per Req.2).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct RedactionPolicyInfo {
     /// The user's global choice wire name (`strip|keep|ask`).
     pub global: Option<String>,
@@ -14,6 +15,7 @@ pub struct RedactionPolicyInfo {
     /// is blocked until the user chooses).
     pub effective: Option<String>,
     /// `global` | `override` | `unset`.
+    #[ts(type = "\"global\" | \"override\" | \"unset\"")]
     pub source: String,
     /// The verbatim confirm line ("Keys and passwords for {Provider}: …").
     pub line: String,
@@ -44,7 +46,8 @@ impl RedactionPolicyInfo {
 
 /// One listed secret for the preview UI (masked — values never
 /// cross the bridge).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct RedactionItemInfo {
     /// Detection kind (`sk-key`, `bearer`, `env-value`,
     /// `private-key`, `zcode-rollout`).

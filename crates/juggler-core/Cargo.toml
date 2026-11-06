@@ -16,6 +16,13 @@ rusqlite = { workspace = true, features = ["bundled", "backup"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+# AJ-E2019 (ADR-0029): the few domain types a command returns as they are
+# get their TypeScript from ts-rs too, only in the app's build (`ts`).
+ts-rs = { workspace = true, optional = true, features = ["no-serde-warnings"] }
+
+[features]
+# The app turns it on: domain types a command serves export their TypeScript.
+ts = ["dep:ts-rs"]
 
 [dev-dependencies]
 proptest = { workspace = true }

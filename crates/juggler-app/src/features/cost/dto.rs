@@ -4,7 +4,8 @@
 /// dimensions share one shape — the UI matrix and the CSV export read
 /// the SAME rows, so reconciliation is exact) plus the dual
 /// subscription view and the pricing-staleness flag.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct CostRollupsInfo {
     /// Day-bucketed rollup rows (`key` = session id in the session
     /// dimension).
@@ -15,6 +16,7 @@ pub struct CostRollupsInfo {
     /// The bundled pricing table is >30 d old (inline warn).
     pub pricing_stale: bool,
     /// The bundled table's `last synced`, epoch ms.
+    #[ts(type = "number | null")]
     pub pricing_last_synced_ms: Option<i64>,
     /// The scope's USD at list prices: every model that has a list price,
     /// summed; `None` when none has one. Models without one are in
@@ -30,7 +32,8 @@ pub struct CostRollupsInfo {
 /// One row of the cost table (0.1.8): one session's UTC day, its models
 /// folded together and named as the rest of the app names a session.
 /// Each model's own part rides along for the row's breakdown.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct CostRowInfo {
     /// The tool's id for the session (`""` when the usage names none).
     /// The row never shows it; its tooltip and the CSV carry it.

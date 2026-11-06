@@ -162,7 +162,8 @@ pub struct Tier2Notice {
 }
 
 /// One live Tier-2 notice as the UI reads it.
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct Tier2NoticeInfo {
     /// The candidate pid.
     pub pid: u32,
@@ -171,12 +172,14 @@ pub struct Tier2NoticeInfo {
     /// Truncated command line.
     pub cmdline_trunc: String,
     /// The window's end, epoch ms.
+    #[ts(type = "number")]
     pub deadline_ms: i64,
 }
 
 /// One passive Cleanup Centre alert (AJ-E512 Req.3). `role=status`
 /// surfaces in the UI — never a focus-stealing dialog.
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct CleanupAlertInfo {
     /// `hog` (resource alert, staged-sheet eligible) or `idle` (the
     /// once-per-orphan nudge).
@@ -193,7 +196,8 @@ pub struct CleanupAlertInfo {
 /// The passive alert set: hog alerts (exact template) + idle-orphan
 /// nudges (fired at most ONCE per orphan — the once-flag is persisted
 /// the moment the nudge is computed).
-#[derive(Clone, Debug, serde::Serialize, PartialEq, Default)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Default, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct CleanupAlertsInfo {
     /// Hog alerts first (actionable), then idle nudges.
     pub alerts: Vec<CleanupAlertInfo>,
@@ -201,13 +205,15 @@ pub struct CleanupAlertsInfo {
 
 /// The cleanup automation's status (the centre's banners + the
 /// Settings surface read THIS — one truth).
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct CleanupStatusInfo {
     /// True while `Pause automatic cleanup` is on.
     pub paused: bool,
     /// True while the 24 h crash suspension is active.
     pub suspended: bool,
     /// The suspension's deadline, epoch ms (when `suspended`).
+    #[ts(type = "number | null")]
     pub suspended_until_ms: Option<i64>,
     /// The live Tier-2 notices (open Undo windows).
     pub tier2_pending: Vec<Tier2NoticeInfo>,

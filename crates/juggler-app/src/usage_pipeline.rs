@@ -978,15 +978,18 @@ fn record_health(
 /// One source's health, flattened for IPC (the AJ-E610 `Feed stale`
 /// banner binds to this; `last_event_at: None` + zero errors = the
 /// source has simply never fired).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct SourceHealthInfo {
     /// Account id (storage string form).
     pub account: String,
     /// Source name (`statusline` | `transcript` | `rollout` | `sqlite`).
     pub source: String,
     /// Last ingested event time, epoch ms, when any.
+    #[ts(type = "number | null")]
     pub last_event_at: Option<i64>,
     /// Dropped malformed lines/rows since first sight (never resets).
+    #[ts(type = "number")]
     pub parse_errors: u64,
 }
 

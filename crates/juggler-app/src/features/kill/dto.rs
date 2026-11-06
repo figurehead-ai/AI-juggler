@@ -1,7 +1,8 @@
 //! The kill types on the wire (exported to TypeScript).
 
 /// One PGID member in the verify sheet's collateral list (Req.5).
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct KillMemberInfo {
     /// OS process id.
     pub pid: u32,
@@ -22,7 +23,8 @@ pub struct KillMemberInfo {
 
 /// The verify sheet's data (step 1): click-time identity verdict +
 /// the re-read-now facts + the PGID collateral list.
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct KillVerifyInfo {
     /// The machine that owns the target (AJ-E511: every kill-sheet
     /// payload names its machine — `This Mac` locally).
@@ -54,6 +56,7 @@ pub struct KillVerifyInfo {
     /// `TERM → grace → KILL` | `TerminateProcess only` (verbatim).
     pub platform: String,
     /// The ladder grace, seconds.
+    #[ts(type = "number")]
     pub grace_secs: u64,
     /// Attribution.
     pub provider: String,
@@ -65,7 +68,8 @@ pub struct KillVerifyInfo {
 
 /// One still-held port after the ladder (the honest post-kill report,
 /// FMEA C2 — never a success claim).
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct StillHoldingInfo {
     /// The port still held.
     pub port: u16,
@@ -77,7 +81,8 @@ pub struct StillHoldingInfo {
 
 /// The ladder's per-process report (Req.6's vocabulary, one label per
 /// member).
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct KillMemberOutcome {
     /// OS process id.
     pub pid: u32,
@@ -90,7 +95,8 @@ pub struct KillMemberOutcome {
 /// The kill outcome (step 3's report): per-process outcomes, the
 /// honest still-holding list, and — when an escapee holds the port —
 /// the pid-only re-offer data.
-#[derive(Clone, Debug, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct KillExecuteInfo {
     /// The exact refusal copy when the same-tick verification failed
     /// (zero signals were sent).

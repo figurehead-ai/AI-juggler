@@ -8,7 +8,8 @@ use juggler_core::model::SessionId;
 use juggler_core::storage::Storage;
 
 /// The numbers behind a quota alert.
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct AlertQuotaInfo {
     /// Its Account's name (D-62: the window is the Account's, whichever
     /// of its folders it was read for); a folder no Account lists, its
@@ -23,6 +24,7 @@ pub struct AlertQuotaInfo {
     /// Minutes of work left at the current pace, when forecast.
     pub minutes_left: Option<f64>,
     /// When the window resets, epoch ms.
+    #[ts(type = "number | null")]
     pub resets_at_ms: Option<i64>,
 }
 

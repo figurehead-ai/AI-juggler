@@ -2963,6 +2963,7 @@ dependencies = [
  "objc2-foundation",
  "png 0.18.1",
  "prost",
+ "quote",
  "rfd",
  "rusqlite",
  "screencapturekit",
@@ -2970,6 +2971,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "subtle",
+ "syn 2.0.119",
  "sysinfo",
  "tar",
  "tauri",
@@ -3003,6 +3005,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
+ "ts-rs",
  "zeroize",
 ]
 

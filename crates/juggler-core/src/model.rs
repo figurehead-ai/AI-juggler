@@ -343,17 +343,27 @@ impl SessionStatus {
 
 /// Token counters for a session snapshot (`docs/SPEC.md` §6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct TokenCounts {
     /// Prompt tokens consumed.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub input: u64,
     /// Completion tokens consumed (thinking included, billed as output).
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub output: u64,
     /// Tokens served from prompt cache.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub cache_read: u64,
     /// Tokens written to the prompt cache.
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub cache_write: u64,
     /// Reasoning tokens (subset semantics per harness; kept separate for
     /// analytics).
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
     pub reasoning: u64,
 }
 
@@ -367,6 +377,11 @@ pub struct QuotaWindow {
 }
 
 /// How trustworthy a usage number is (`docs/SPEC.md` §6 honesty rule).
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub enum Confidence {
     /// Observed directly from a vendor-provided feed.

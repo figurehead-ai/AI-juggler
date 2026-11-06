@@ -31,7 +31,8 @@ pub struct Named {
 
 /// What moves, as the confirm step names it (the preflight's
 /// `source_title`, `source_account` and `source_family`).
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct Moving {
     /// The conversation's title (None when it has none).
     pub source_title: Option<String>,

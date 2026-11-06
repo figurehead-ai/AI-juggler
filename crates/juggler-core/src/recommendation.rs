@@ -36,6 +36,11 @@ pub struct RecProviderGap {
 /// One recommended item: label + its ONE-LINE rationale (an item
 /// without a rationale is unrepresentable — Req.8).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct RecommendedItem {
     /// Provider id.
     pub provider: String,
@@ -53,6 +58,11 @@ pub struct RecommendedItem {
 
 /// The set-level proposal.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export_to = "../../../ui/src/types/generated/")
+)]
 pub struct Recommendation {
     /// The recommended items (signed-in/active first, quiet after).
     pub items: Vec<RecommendedItem>,

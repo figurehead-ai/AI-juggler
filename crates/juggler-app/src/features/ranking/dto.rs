@@ -3,7 +3,8 @@
 /// AJ-E611: one ranked (or filtered) row on the wire — greyed rows
 /// carry their filter reason; survivors carry the score + their
 /// explanation (top-2 factors in words; the full five in `factors`).
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct RankedRowInfo {
     /// Account id.
     pub account: String,
@@ -29,5 +30,6 @@ pub struct RankedRowInfo {
     /// this account on the requested project — None when headroom or
     /// burn is unknown (rendered as "headroom unknown", never a
     /// guess). Warns; never blocks (AJ-E306 Req.7).
+    #[ts(type = "\"ok\" | \"tight\" | \"no\" | null")]
     pub admission: Option<String>,
 }

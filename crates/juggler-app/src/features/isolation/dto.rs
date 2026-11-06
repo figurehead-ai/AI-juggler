@@ -1,7 +1,8 @@
 //! The isolation types on the wire (exported to TypeScript).
 
 /// AJ-E308 Req.7: one named isolation-checklist row.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct IsolationRowInfo {
     /// Stable row id (`managed_dir_private`, …).
     pub id: &'static str,

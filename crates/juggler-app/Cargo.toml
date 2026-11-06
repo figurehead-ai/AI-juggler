@@ -50,7 +50,7 @@ juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
 juggler-account = { version = "0.4.0", path = "../juggler-account" }
 juggler-agentbridge = { version = "0.4.0", path = "../juggler-agentbridge" }
 juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
-juggler-core = { version = "0.4.0", path = "../juggler-core" }
+juggler-core = { version = "0.4.0", path = "../juggler-core", features = ["ts"] }
 juggler-floor = { version = "0.4.0", path = "../juggler-floor" }
 juggler-floor-render = { version = "0.4.0", path = "../juggler-floor-render" }
 juggler-window-events = { version = "0.4.0", path = "../juggler-window-events" }
@@ -113,6 +113,10 @@ ts-rs = { workspace = true, features = ["serde-json-impl", "no-serde-warnings"] 
 tauri-build = { version = "2.7.2", features = [] }
 
 [dev-dependencies]
+# AJ-E2019 (ADR-0029): the command map generator reads each command's
+# signature from its source (both already in the tree through Tauri's macros).
+syn = { version = "2.0.119", features = ["full"] }
+quote = "1.0.47"
 # The usage-stats integration tests seed the store directly.
 juggler-stats = { version = "0.4.0", path = "../juggler-stats" }
 # Timing budgets measured as thread CPU time (AJ-E806 ledger).

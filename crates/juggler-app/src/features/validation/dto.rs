@@ -2,7 +2,8 @@
 
 /// One Settings → Beta matrix row (the same data the badges derive
 /// from — one source, no drift).
-#[derive(Clone, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 // A flat table row for one panel: independent facts about one pair, not
 // a state machine.
 #[allow(
@@ -48,7 +49,8 @@ pub struct ValidationCellInfo {
 }
 
 /// The recorded live cell as the UI reads it.
-#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct DogfoodCellInfo {
     /// ISO date the cell ran.
     pub at: String,
