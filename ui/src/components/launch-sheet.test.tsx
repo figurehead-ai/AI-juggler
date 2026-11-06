@@ -10,6 +10,7 @@
  * fabricated %; Sign in first keeps the sheet open (Req.8); "Profile"
  * never names a thing here (D-02/D-10).
  */
+import { moreOptionsWords } from "../screens/new-session/MoreOptions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NewSessionModal } from "../screens/NewSession";
@@ -150,6 +151,8 @@ describe("N3 the rare options, folded", () => {
     // it runs only once it differs from the launch settings (inside, it
     // says "As its launch settings say").
     expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Opus");
+    // Walk N3: with nothing set, the label says so.
+    expect(moreOptionsWords({ recipe: { ...RECIPES[0]!, model: null }, settingsCount: 1, runtime: undefined, machine: null })).toBe("the defaults");
     expect(fold.textContent).toContain("How it runs");
     expect(fold.textContent).toContain("Start from a saved handover…");
     expect(fold.textContent).toContain("Advanced…");

@@ -31,8 +31,9 @@ export function runtimeWords(runtime: RuntimeChoice): string | null {
 /** The fold's label: its current values, the ones worth saying. */
 export function moreOptionsWords({ recipe, settingsCount, runtime, machine }: { recipe: LaunchRecipeInfo | null; settingsCount: number; runtime: RuntimeChoice; machine: string | null }): string {
   // The model as people say it ("Opus", not "opus"; the review, 71).
-  const parts = [settingsCount > 1 ? recipe?.name : null, recipe?.model ? modelName(recipe.model) : null, runtimeWords(runtime), machine];
-  return parts.filter(Boolean).join(" · ");
+  const parts = [settingsCount > 1 ? recipe?.name : null, recipe?.model ? modelName(recipe.model) : null, runtimeWords(runtime), machine].filter(Boolean);
+  // Walk N3: nothing set is a value too, said, not a "·" before nothing.
+  return parts.length > 0 ? parts.join(" · ") : "the defaults";
 }
 
 export function MoreOptions({

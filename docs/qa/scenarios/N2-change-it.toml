@@ -7,7 +7,7 @@ exercises = ["New session"]
 needs = ["replica"]
 
 [setup]
-projects = ["web"]
+projects = ["api", "web"]  # web last: the usual folder is the latest
 history = "one usual: Claude Code · Work in web"
 
 [[setup.apps]]
@@ -41,6 +41,13 @@ id = "codex"
 tool = "codex"
 account = "Personal"
 profile = "default"
+
+# The usual, as data: the last session was Claude Code · Work in web.
+[[setup.sessions]]
+id = "usual"
+app = "cc-work"
+project = "web"
+state = "ended"
 
 [[steps]]
 do = "Change folder, then Change app"
