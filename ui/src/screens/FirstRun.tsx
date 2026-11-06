@@ -67,6 +67,11 @@ import {
 } from "../lib/bridge";
 import { byteSize } from "../lib/compact";
 import { Radio } from "../components/controls";
+import { lazyNamed } from "../lib/lazy";
+
+// The sign-in terminal shows in the step itself (0.4.1: it opened behind
+// this full-window flow); xterm loads only when a sign-in starts.
+const TerminalView = lazyNamed(() => import("../components/TerminalView"), "TerminalView");
 
 /** AJ-E1525: first run's groups come from each tool's spec (its
  * `setup_groups`, in order), never from a table here. */
@@ -618,6 +623,7 @@ function countLogin(provider: string, outcome: "completed" | "skipped" | "expire
 function SigninRow({
   entry,
   active,
+  terminal,
   onStart,
   onReady,
   onSkip,
@@ -625,6 +631,8 @@ function SigninRow({
   onSkip?: () => void;
   entry: Signin;
   active: boolean;
+  /** The sign-in's terminal, once it started: shown under the row. */
+  terminal: string | null;
   onStart: () => void;
   onReady: () => void;
 }): JSX.Element {
@@ -665,7 +673,7 @@ function SigninRow({
           ) : skipped ? (
             <span className="text-muted">Later</span>
           ) : active ? (
-            <span className="text-live">Finish signing in in the window that opened</span>
+            <span className="text-live">Finish signing in below</span>
           ) : (
             <span className="text-muted">Not signed in yet</span>
           )}
@@ -691,6 +699,11 @@ function SigninRow({
           </>
         )}
       </div>
+      {active && terminal && !ready && (
+        <div className="mx-5 mb-3 h-72 overflow-hidden rounded-lg border border-hairline" data-testid="first-run-signin-terminal">
+          <TerminalView id={terminal} title={`Sign in · ${entry.label}`} />
+        </div>
+      )}
       {more && !ready && (
         <div className="flex flex-col gap-2 px-5 pb-3 pl-11 text-xs text-muted">
           {entry.loginNote && <span>{entry.loginNote}</span>}
@@ -719,9 +732,10 @@ function SigninStep({
 }: {
   provider: string;
   queue: Signin[];
-  openLoginTerminal: (id: string, title: string) => void;
+  openLoginTerminal: (id: string, title: string, options?: { select?: boolean }) => void;
   onDone: () => void;
 }): JSX.Element {
+  const [terminals, setTerminals] = useState<Record<string, string>>({});
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const [skippedIds, setSkippedIds] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string | null>(null);
@@ -733,7 +747,12 @@ function SigninStep({
       setError(null);
       setActive(entry.accountId);
       void terminalSpawnLogin(entry.accountId).then(
-        (terminal) => openLoginTerminal(terminal.id, `Sign in · ${entry.label}`),
+        (terminal) => {
+          setTerminals((current) => ({ ...current, [entry.accountId]: terminal.id }));
+          // Known to the window too (it stays reachable after this flow
+          // closes), but not shown there: two views would fight its size.
+          openLoginTerminal(terminal.id, `Sign in · ${entry.label}`, { select: false });
+        },
         (cause) => setError(errorText(cause)),
       );
     },
@@ -779,6 +798,7 @@ function SigninStep({
             key={entry.accountId}
             entry={entry}
             active={active === entry.accountId}
+            terminal={terminals[entry.accountId] ?? null}
             onStart={() => start(entry)}
             onReady={() => markReady(entry)}
           />
@@ -1041,7 +1061,7 @@ export function FirstRun({
   startAt?: "found" | "fresh";
   /** An account was created or brought in (the caller refreshes). */
   onAccountsChanged?: () => void;
-  openLoginTerminal: (id: string, title: string) => void;
+  openLoginTerminal: (id: string, title: string, options?: { select?: boolean }) => void;
   /** Back after Reopen AI Juggler: start at the access step. */
   resumeAtAccess?: boolean;
 }): JSX.Element {

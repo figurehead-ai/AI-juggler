@@ -422,13 +422,14 @@ export default function App() {
 
   // Login flows (Accounts screen) hand their terminal here; it joins the
   // Sessions rail list and gets selected.
-  const openLoginTerminal = useCallback((id: string, title: string) => {
+  const openLoginTerminal = useCallback((id: string, title: string, options?: { select?: boolean }) => {
     // A sign-in may change what the accounts read says: the next view of
     // them reads it again.
     staleSubscriptions();
     setLoginTerminals((current) =>
       current.some((t) => t.id === id) ? current : [...current, { id, title, ended: false }],
     );
+    if (options?.select === false) return; // Add account shows it in its own step
     setGlobal(null); // the panel must show the terminal, not stay on Accounts
     setSelection({ kind: "login", id });
   }, []);

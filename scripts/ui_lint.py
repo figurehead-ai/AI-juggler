@@ -32,7 +32,11 @@ def counts() -> dict[str, dict[str, int]]:
         cwd=UI, capture_output=True, text=True, check=False,
     )
     found: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
-    for item in json.loads(out.stdout).get("diagnostics", []):
+    try:
+        report = json.loads(out.stdout)
+    except json.JSONDecodeError:
+        sys.exit(f"ui-lint: oxlint didn't run (pnpm install in ui/?): {out.stderr.strip()[:300]}")
+    for item in report.get("diagnostics", []):
         found[item.get("filename", "?")][item.get("code", "?")] += 1
     return {f: dict(c) for f, c in found.items()}
 

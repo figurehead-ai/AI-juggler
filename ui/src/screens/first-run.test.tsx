@@ -12,6 +12,11 @@ import { FirstRun, freeLabel, groupOf, groupsFor, labelOf, outcomeWords, plainIm
 import type { DiscoveredInfo } from "../lib/bridge";
 import { foundWords } from "./firstRunScan";
 
+// xterm needs a real browser; the step shows whatever terminal view it gets.
+vi.mock("../components/TerminalView", () => ({
+  TerminalView: ({ id }: { id: string }) => <div data-testid={`terminal-${id}`} />,
+}));
+
 const w = () => window as unknown as Record<string, unknown>;
 const NOW = Math.floor(Date.now() / 1000);
 
@@ -479,8 +484,9 @@ describe("AJ-E1022 a fresh account", () => {
     w().__AIJ_FIXTURE__ = undefined;
     const changed = vi.fn();
     const opened: string[] = [];
+    const selects: boolean[] = [];
     const { findByTestId, getByRole, getByTestId, findAllByTestId } = render(
-      <FirstRun mode="add" onDone={() => null} onAccountsChanged={changed} openLoginTerminal={(_id, title) => opened.push(title)} />,
+      <FirstRun mode="add" onDone={() => null} onAccountsChanged={changed} openLoginTerminal={(_id, title, options) => (opened.push(title), selects.push(options?.select ?? true))} />,
     );
     await findByTestId("first-run-found");
     fireEvent.click(getByRole("button", { name: "Add a fresh app instead" }));
@@ -499,6 +505,10 @@ describe("AJ-E1022 a fresh account", () => {
       fireEvent.click(within(rows[0]!).getByRole("button", { name: /^Sign in/ }));
     });
     await waitFor(() => expect(opened).toEqual(["Sign in · Side project"]));
+    // 0.4.1: the sign-in shows in this step (it used to open behind it).
+    expect(await findByTestId("first-run-signin-terminal")).toBeTruthy();
+    expect(rows[0]!.textContent).toContain("Finish signing in below");
+    expect(selects).toEqual([false]); // the window behind doesn't switch to it
   });
 
   it("an empty name can't be created", async () => {
