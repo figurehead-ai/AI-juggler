@@ -8,7 +8,8 @@
  * The mark's one rise-in is decorative and stops under reduced motion.
  */
 import { SmootherCard } from "./SmootherCard";
-import { useEffect, useState, type JSX } from "react";
+import type { JSX } from "react";
+import { useResource } from "../lib/use-resource";
 import { Button, Card } from "./primitives";
 import { IconDashboard, IconJuggler, IconProjects, IconSessions, IconShield, IconTerminal, IconUsage } from "./icons";
 import { providersDiscover, type ProviderInstallData } from "../lib/ipc/providers";
@@ -54,17 +55,8 @@ export function Welcome({
   onFreshAccount: () => void;
 }): JSX.Element {
   const tools = useTools();
-  const [installs, setInstalls] = useState<ProviderInstallData[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void providersDiscover().then(
-      (rows) => alive && setInstalls(rows),
-      () => alive && setInstalls([]),
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const discovered = useResource("providers-discover", providersDiscover);
+  const installs: ProviderInstallData[] | null = discovered.error !== undefined ? [] : (discovered.data ?? null);
   // The tools first run brings in, by name, for the lead line.
   const names = tools.filter((tool) => tool.flow.first_run).map((tool) => tool.display_name);
   const toInstall = installs === null || installedTools(installs).length > 0 ? [] : installs.filter((row) => row.install_url);

@@ -9,7 +9,7 @@ import { previewHooks } from "../preview-hooks";
 
 export async function providersList(): Promise<ProviderInfo[]> {
   if (!hasBackend) {
-    return [{ id: "claude-code", name: "Claude Code" }];
+    return [{ ...previewHooks().fixtures.PREVIEW_TOOL }];
   }
   return invoke<ProviderInfo[]>("providers_list");
 }

@@ -29,7 +29,7 @@ import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { SessionTab, useSessionTabs } from "../pages/session/session-tabs";
+import { SessionTab, useSessionTabs, type SessionTabId } from "../pages/session/session-tabs";
 import { WhenShown } from "../pages/PageShell";
 import { QuotaBar } from "./primitives";
 import { useQualitySignals } from "../lib/kept-reads";
@@ -306,46 +306,48 @@ function workingSetHasUsage(projectId: string, sessions: InstanceInfo[], convers
   );
 }
 
+/** AJ-E2018: what each tab of a session shows, by tab (the tab list
+ * itself is pages/registry.ts's). */
+const INSTANCE_TABS: Partial<Record<PageTabId, (props: PanelProps & { tab: PageTabId }) => ReactNode>> = {
+  terminal: (props) => <InstanceOverview {...props} />,
+  window: (props) => <InstanceOverview {...props} />,
+  // AJ-E2108: where it runs and its last messages.
+  overview: (props) => (props.data.instance ? <OwnSessionOverview {...props} session={props.data.instance} /> : null),
+  // 0.1.5: the same Usage tab as any session's (its charts and its
+  // account's window), then how it's going (AJ-E1533: Quality joins Usage).
+  usage: (props) =>
+    props.data.instance ? (
+      <div className="flex flex-col gap-grid" data-testid="instance-usage">
+        <OwnSessionUsage session={props.data.instance} visible />
+        <QualityTab {...props} />
+      </div>
+    ) : (
+      <HonestEmpty tab="usage" />
+    ),
+  processes: (props) => <ProcessesTab {...props} readOnly={false} />,
+  messages: (props) => sessionTab(props, "messages"),
+  tasks: (props) => sessionTab(props, "tasks"),
+  subagents: (props) => sessionTab(props, "subagents"),
+  history: (props) => sessionTab(props, "history"),
+  pools: (props) => sessionTab(props, "pools"),
+};
+
+function sessionTab(props: PanelProps, tab: SessionTabId): ReactNode {
+  return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} onOpenProject={props.onOpenProject} /> : null;
+}
+
+/** AJ-E2018: the inspector's tab bodies, by the kind of item shown. */
+const INSPECTOR_TABS: Record<InspectorKind, (props: PanelProps & { tab: PageTabId }) => ReactNode> = {
+  instance: (props) => INSTANCE_TABS[props.tab]?.(props) ?? null,
+  // 0.3: its seven tabs (pages/project/ProjectTabs).
+  project: (props) => (props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null),
+  // AJ-E3104: its tabs (pages/tool/ToolTabs).
+  provider: (props) => (props.data.provider ? <ToolTab {...props} tool={props.data.provider} tab={props.tab} /> : null),
+  machine: () => null,
+};
+
 function InspectorPanel(props: PanelProps & { tab: PageTabId }) {
-  const { tab, kind } = props;
-  switch (kind) {
-    case "instance":
-      switch (tab) {
-        case "terminal":
-        case "window":
-          return <InstanceOverview {...props} />;
-        case "overview": // AJ-E2108: where it runs and its last messages.
-          return props.data.instance ? <OwnSessionOverview {...props} session={props.data.instance} /> : null;
-        case "usage":
-          // 0.1.5: the same Usage tab as any session's (its charts and its
-          // account's window), then how it's going (AJ-E1533: Quality
-          // joins Usage).
-          return props.data.instance ? (
-            <div className="flex flex-col gap-grid" data-testid="instance-usage">
-              <OwnSessionUsage session={props.data.instance} visible />
-              <QualityTab {...props} />
-            </div>
-          ) : (
-            <HonestEmpty tab="usage" />
-          );
-        case "processes":
-          return <ProcessesTab {...props} readOnly={false} />;
-        case "messages":
-        case "tasks":
-        case "subagents":
-        case "history":
-        case "pools":
-          return props.data.instance ? <SessionTab tab={tab} session={props.data.instance} now={props.now} visible={props.visible} onOpenProject={props.onOpenProject} /> : null;
-        default:
-          return null;
-      }
-    case "project": // 0.3: its seven tabs (pages/project/ProjectTabs).
-      return props.data.project ? <ProjectTab {...props} project={props.data.project} visible={props.visible} /> : null;
-    case "provider": // AJ-E3104: its tabs (pages/tool/ToolTabs).
-      return props.data.provider ? <ToolTab {...props} tool={props.data.provider} tab={tab} /> : null;
-    case "machine":
-      return null;
-  }
+  return INSPECTOR_TABS[props.kind](props);
 }
 
 type PanelProps = {

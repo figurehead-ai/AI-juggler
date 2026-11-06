@@ -186,7 +186,7 @@ export async function accountSetRenewal(
     if (!account) {
       return {
         id: accountId,
-        provider: "claude-code",
+        provider: previewHooks().fixtures.PREVIEW_TOOL.id,
         label: accountId,
         plan: null,
         login_state: "logged_out",

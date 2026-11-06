@@ -14,6 +14,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { fleetPeers } from "../lib/ipc/fleet";
 import { lazyNamed } from "../lib/lazy";
+import { useResource } from "../lib/use-resource";
 import { PaneIcon } from "./settings/pane-icons";
 import { lastPane, rememberPane, shownPanes, targetOf, type PaneId } from "./settings/panes";
 import { searchSettings } from "./settings/settings-index";
@@ -39,11 +40,8 @@ const PANE_BODIES: Record<PaneId, (props: PaneProps) => JSX.Element> = {
 
 /** How many Macs are paired (the Your Macs pane shows once one is). */
 function usePairedMacs(): number | null {
-  const [count, setCount] = useState<number | null>(null);
-  useEffect(() => {
-    void fleetPeers().then((peers) => setCount(peers.length), () => setCount(0));
-  }, []);
-  return count;
+  const peers = useResource("fleet-peers", fleetPeers);
+  return peers.data ? peers.data.length : peers.error !== undefined ? 0 : null;
 }
 
 export function SettingsScreen({

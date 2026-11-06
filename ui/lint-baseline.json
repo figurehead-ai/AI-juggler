@@ -1,16 +1,6 @@
 {
  "src/App.tsx": {
-  "eslint(complexity)": 1,
-  "eslint(max-lines)": 1,
-  "eslint(no-unused-expressions)": 2,
-  "react(globals)": 1,
-  "react(immutability)": 1,
-  "react(no-unstable-nested-components)": 2,
-  "react(purity)": 1,
-  "react(refs)": 1,
-  "react(set-state-in-effect)": 2,
-  "typescript(no-misused-promises)": 2,
-  "typescript(no-unsafe-type-assertion)": 6
+  "react(no-unstable-nested-components)": 2
  },
  "src/app-find-accounts.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 3
@@ -424,7 +414,7 @@
   "eslint(max-lines)": 1,
   "react(no-unstable-nested-components)": 1,
   "react(purity)": 1,
-  "typescript(consistent-return)": 3,
+  "typescript(consistent-return)": 2,
   "typescript(no-misused-promises)": 2,
   "typescript(no-unsafe-type-assertion)": 1
  },
@@ -1070,9 +1060,6 @@
  },
  "src/components/switch/CrossSteps.tsx": {
   "jsx-a11y(label-has-associated-control)": 3
- },
- "src/components/switch/DiskSpace.tsx": {
-  "react(exhaustive-effect-dependencies)": 1
  },
  "src/components/switch/DoneStep.tsx": {
   "eslint(complexity)": 1
@@ -1724,6 +1711,9 @@
  "src/lib/use-folder-drop.ts": {
   "react(refs)": 1
  },
+ "src/lib/use-resource.ts": {
+  "react(exhaustive-effect-dependencies)": 1
+ },
  "src/lib/useSwitchSetup.ts": {
   "react(set-state-in-effect)": 1
  },
@@ -2251,9 +2241,7 @@
  "src/screens/Home.tsx": {
   "eslint(max-lines)": 1,
   "jsx-a11y(no-static-element-interactions)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(consistent-return)": 2,
-  "typescript(no-unnecessary-boolean-literal-compare)": 1,
   "typescript(no-unnecessary-type-assertion)": 2,
   "typescript(no-unsafe-type-assertion)": 2
  },
@@ -2365,6 +2353,9 @@
  },
  "src/screens/history.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 6
+ },
+ "src/screens/home-cards.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/home-places.test.tsx": {
   "eslint(no-shadow)": 1,
@@ -2561,6 +2552,25 @@
  },
  "src/serde-null-ranked-surfaces.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/shell/pages.tsx": {
+  "typescript(no-misused-promises)": 2
+ },
+ "src/shell/use-app-data.ts": {
+  "react(globals)": 1,
+  "react(purity)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/shell/use-navigation.ts": {
+  "react(set-state-in-effect)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/shell/use-rail.ts": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/shell/use-shell.ts": {
+  "react(refs)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
  },
  "src/test/cpuTime.ts": {
   "typescript(no-unsafe-type-assertion)": 1

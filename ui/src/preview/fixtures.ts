@@ -237,3 +237,6 @@ function Some<T>(value: T): T | null {
 function None<T>(): T | null {
   return null;
 }
+
+/** The preview's one tool, for mock answers that name a tool. */
+export const PREVIEW_TOOL = { id: "claude-code", name: "Claude Code" };

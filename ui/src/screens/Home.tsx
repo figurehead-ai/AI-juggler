@@ -26,27 +26,19 @@
  * action. The ledger-degraded banner moved here from Overview.
  */
 import { useKeys } from "../lib/use-keys";
+import { useResource } from "../lib/use-resource";
 import { focusHandoverSoon } from "../lib/handover-focus";
 import { instancesMarkReviewed } from "../lib/ipc/review";
-import { ProjectMark } from "../components/ProjectMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
-import { Button } from "../components/primitives";
-import { MorningSummary } from "../components/MorningSummary";
 import { runwayOf } from "../components/AccountRunway";
 import type { ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
-import { parkedWords } from "../lib/parked";
 import { sessionLabel } from "../lib/stop";
-import { keysOf, matches, SHORTCUTS, type KeyLike } from "../lib/shortcuts";
+import { matches, type KeyLike } from "../lib/shortcuts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
-import { SectionTitle } from "../components/SectionTitle";
-import { SmootherCard } from "../components/SmootherCard";
 
-import { HomeApps } from "../components/HomeApps";
 import { HomeRecent } from "../components/HomeRecent";
-import { HomeNeeds } from "../components/HomeNeeds";
-import { HomeRunway } from "../components/HomeRunway";
 import { isSessionNeed, needsHeading } from "../lib/home-needs";
 import { endedToday, itemsOf, openNow } from "../lib/rail-items";
 import { showInRail } from "../lib/rail-view";
@@ -61,7 +53,7 @@ import { showToast } from "../components/Toast";
 import { accountLoginState } from "../lib/ipc/accounts";
 import { dashboardStats } from "../lib/ipc/instances";
 import { errorText, signedIn } from "../lib/bridge";
-import { instancePark, instanceMarkReviewed, instanceUnmarkReviewed, parkedResume } from "../lib/ipc/park";
+import { instanceMarkReviewed, instanceUnmarkReviewed, parkedResume } from "../lib/ipc/park";
 import { instanceArchive, instanceUnarchive } from "../lib/ipc/session-history";
 import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -69,7 +61,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { accountNameOf, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
-import { CapNeedItems } from "../components/BudgetNeeds";
+import { HomeCards, type HomeCardContext } from "./home-cards";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
@@ -183,14 +175,7 @@ export function HomeScreen({
   const taskNeeds = useMemo(() => tasksRead.filter((need) => !snoozedNow.has(`task:${need.id}`)), [tasksRead, snoozedNow]);
   const seen = useSeen();
   // AJ-E501: process tracking degraded — said here, only when it is.
-  const [ledgerDegraded, setLedgerDegraded] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    void dashboardStats().then((stats) => alive && setLedgerDegraded(stats.ledger_degraded === true), () => null);
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const ledgerDegraded = useResource("dashboard-stats", dashboardStats).data?.ledger_degraded === true;
   const [busy, setBusy] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   // Set when Mark reviewed or Resume starts; the parent's refresh can
@@ -433,6 +418,12 @@ export function HomeScreen({
   // Few needs: Pick up where you left off moves up into the left column (the 0.4 design review, 39).
   const fewNeeds = allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length <= 2;
   const recentArea = <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
+  // AJ-E2018: the cards themselves are a registry (screens/home-cards).
+  const cards: HomeCardContext = {
+    sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
+    parked, recent, quota, quotaKnown, ledgerDegraded, fewNeeds, recentArea, busy, actionKeysAria: actionKeys.aria,
+    signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
+  };
 
   return (
     <div
@@ -463,117 +454,14 @@ export function HomeScreen({
         )}
       </header>
 
-      {ledgerDegraded && (
-        <div
-          role="alert"
-          data-testid="ledger-degraded-banner"
-          className="flex items-center gap-2.5 rounded-lg border border-warning/25 bg-warning-soft px-4 py-3 text-meta text-ink"
-        >
-          <span aria-hidden>⚠</span>
-          Process tracking degraded — cleanup is read-only until restart.
-        </div>
-      )}
-
-      {/* AJ-E1006: what changed while you were away — only when something did. */}
-      <MorningSummary onOpenSession={onOpenSession} />
-
-      {sessions.length === 0 && conversations.length === 0 && (
-        <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
-          <h2 className="text-section font-semibold text-ink">Start your first session</h2>
-          <p className="max-w-xl text-body text-ink-2">
-            Pick a project folder and an app. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
-          </p>
-          <Button variant="primary" onClick={onNewSession}>New session</Button>
-        </section>
-      )}
-
-      <HomeApps items={items} runwayOf={runwayFor} />
+      <HomeCards area="top" ctx={cards} />
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
-        <div className="flex min-w-0 flex-col gap-6">
-          {allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length > 0 && (
-          <HomeNeeds
-            needs={allNeeds}
-            messages={messageNeeds}
-            tasks={{ needs: taskNeeds, projects }}
-            handlers={{
-              onOpenSession,
-              onLimit,
-              onWait: (id) => void instancePark(id).then(() => { showToast({ message: "Parked until its reset." }); onChanged?.(); }, (cause) => showToast({ tone: "warning", message: errorText(cause) })),
-              onSignIn: (need) => need.account && startSignIn(need.account),
-              onOpenThisMac,
-              onOpenCleanup,
-            }}
-          >
-            {signingIn && <p className="text-meta text-ink-2" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{signInError ? ` ${signInError}` : ""}</p>}
-            <CapNeedItems caps={capNeeds.caps} accounts={accounts} projects={projects} onSeen={capNeeds.reload} />
-          </HomeNeeds>
-          )}
-          {parked.length > 0 && (
-            <section aria-labelledby="home-parked" className="flex flex-col gap-2.5" data-testid="home-parked">
-              <SectionTitle id="home-parked">Parked until a reset</SectionTitle>
-              <ul className="overflow-hidden rounded-xl border border-hairline bg-surface">
-                {parked.map((session) => {
-                  const place = placeOf(session, projects);
-                  const words = parkedWords(session, now)!;
-                  return (
-                    <li key={session.id} data-home-item className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-hairline/60 px-4 py-2.5 first:border-t-0">
-                      <span aria-hidden="true" className="w-4 shrink-0 text-center text-xs text-muted">⏸</span>
-                      <ProjectMark projectId={session.project_id} size={16} />
-                      <span className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-                        <span className="truncate text-body text-ink">
-                          {place.title}
-                          {session.git_branch && <span className="text-muted"> · {session.git_branch}</span>}
-                        </span>
-                        <span className="truncate text-meta text-muted" title={words.long}>
-                          {accountNameOf(subscriptions, session.account_id, session.account_label)} · {words.short.replace(/^Parked · /, "")}
-                        </span>
-                      </span>
-                      <Button
-                        size="sm"
-                        variant={words.due ? "primary" : "secondary"}
-                        className="ml-auto"
-                        data-home-row
-                        aria-keyshortcuts={actionKeys.aria}
-                        disabled={busy === session.id}
-                        onClick={() => (words.due ? void act(session, "resume") : onOpenSession(session.id))}
-                      >
-                        {words.due ? "Resume" : "Open"}
-                        <span className="sr-only"> — {place.title}</span>
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-          {fewNeeds && recentArea}
-        </div>
-        <div className="flex min-w-0 flex-col gap-6">
-          <HomeRunway accounts={accounts} quota={quota} quotaKnown={quotaKnown} sessions={sessions} items={items} />
-          {!fewNeeds && recentArea}
-        </div>
+        <div className="flex min-w-0 flex-col gap-6"><HomeCards area="left" ctx={cards} /></div>
+        <div className="flex min-w-0 flex-col gap-6"><HomeCards area="right" ctx={cards} /></div>
       </div>
 
-      {/* The optional access, once and quietly at the foot (the review of
-          0.1.4: it took the top of Home until answered). */}
-      <SmootherCard variant="reminder" />
-
-      {allNeeds.length + parked.length + recent.length > 0 && (
-        <p className="text-label text-muted" data-testid="home-keys">
-          {/* AJ-E1504: the same words and keys as the ? sheet. */}
-          Keyboard:{" "}
-          {(["home-next", "home-prev", "home-open", "home-action", "home-reply", "home-handover", "home-snooze", "home-archive", "help"] as const).map((id, index) => {
-            const entry = SHORTCUTS.find((row) => row.id === id)!;
-            return (
-              <span key={id}>
-                {index > 0 && " · "}
-                <kbd className="font-mono">{keysOf(id)[0]}</kbd> {entry.label.toLowerCase()}
-              </span>
-            );
-          })}
-        </p>
-      )}
+      <HomeCards area="foot" ctx={cards} />
     </div>
   );
 }

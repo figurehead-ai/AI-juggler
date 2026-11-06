@@ -48,7 +48,7 @@ export async function identityCheck(recipeId: string): Promise<IdentityCheckInfo
     if (seeded) return seeded;
     return {
       state: "verified",
-      provider: "claude-code",
+      provider: previewHooks().fixtures.PREVIEW_TOOL.id,
       account_id: "",
       account_label: "",
       model: null,

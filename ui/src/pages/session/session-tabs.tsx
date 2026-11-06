@@ -42,7 +42,7 @@ export function useSessionTabs(session: InstanceInfo | null): { hasMessages: boo
   return { hasMessages: messages.poolId !== null, hasTasks: tasks.has, hasSubagents, hasHistory, known: messages.known && tasks.known };
 }
 
-type SessionTabId = "messages" | "tasks" | "subagents" | "history" | "pools";
+export type SessionTabId = "messages" | "tasks" | "subagents" | "history" | "pools";
 
 /** The Messages, Tasks, Subagents, History or Pools tab of a session. */
 export function SessionTab({ tab, session, now, visible = true, onOpenProject }: { tab: SessionTabId; session: InstanceInfo; now: number; visible?: boolean; onOpenProject: (id: string) => void }): JSX.Element | null {

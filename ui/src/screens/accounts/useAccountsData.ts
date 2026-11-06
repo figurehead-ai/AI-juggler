@@ -10,6 +10,7 @@ import { accountsList } from "../../lib/ipc/accounts";
 import { errorText } from "../../lib/bridge";
 import { launchRecipesList } from "../../lib/ipc/launch";
 import { providersCapabilities } from "../../lib/ipc/providers";
+import { useResource } from "../../lib/use-resource";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 
@@ -18,23 +19,9 @@ import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
  * offer stays; the backend refuses what it can't adopt. 0.0.11 walk (Q3):
  * the tools that don't report their own limits. */
 export function useToolCapabilities(): { inPlace: InPlaceSupport | null; limits: InPlaceSupport } {
-  const [inPlace, setInPlace] = useState<InPlaceSupport | null>(null);
-  const [limits, setLimits] = useState<InPlaceSupport>("unknown");
-  useEffect(() => {
-    let alive = true;
-    void providersCapabilities().then(
-      (rows) => {
-        if (!alive) return;
-        setInPlace(inPlaceProviders(rows));
-        setLimits(limitProviders(rows));
-      },
-      () => alive && setInPlace("unknown"),
-    );
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return { inPlace, limits };
+  const { data, error } = useResource("providers-capabilities", providersCapabilities);
+  if (data) return { inPlace: inPlaceProviders(data), limits: limitProviders(data) };
+  return { inPlace: error !== undefined ? "unknown" : null, limits: "unknown" };
 }
 
 /** The accounts, their profiles and the subscriptions they make up. */
