@@ -10,6 +10,12 @@
 /crates/juggler-app/tauri.*.conf.json   @fbrbovic
 /crates/*/build.rs                      @fbrbovic
 /deny.toml                              @fbrbovic
+/supply-chain/                          @fbrbovic
+/ui/pnpm-workspace.yaml                 @fbrbovic
+/scripts/install_release_tool.sh        @fbrbovic
+/scripts/install_tauri_cli.sh           @fbrbovic
+/scripts/sign_macos.sh                  @fbrbovic
+/scripts/cargo_auditable_runner.sh      @fbrbovic
 /crates/juggler-link/                   @fbrbovic
 /crates/juggler-account/                @fbrbovic
 /SECURITY.md                            @fbrbovic

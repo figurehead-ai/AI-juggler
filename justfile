@@ -45,6 +45,7 @@ verify-static:
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings
     cargo clippy -p juggler-app --all-targets --features lab-bridge -- -D warnings
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+    just supply-chain
     just stats-events
     cargo deny check
 
@@ -425,3 +426,11 @@ visual-selftest:
 # and on demand; the core gate above runs on every UI PR.
 visual-sweep base="origin/main" head="HEAD":
     ./scripts/visual_sweep.sh --base {{base}} --head {{head}}
+
+# AJ-E2007: cargo-vet with an exemption list that only shrinks, the SBOM script.
+# (cargo deny check runs in verify-static itself.)
+supply-chain:
+    cargo vet --locked
+    python3 scripts/vet_exemptions.py --selftest
+    python3 scripts/vet_exemptions.py
+    python3 scripts/js_sbom.py --selftest

@@ -36,6 +36,9 @@ RUNNER_ONLY = (
     # A release pull request's own gate (D-83): it fails by design while
     # a release is being built, so `just verify` reports it (release-selftest).
     "python3 scripts/release_scope.py check",
+    # Installs a pinned tool on the runner (AJ-E2007); locally it's
+    # installed once by hand.
+    "./scripts/install_release_tool.sh",
     "df -h",
     "free=",
     "sudo ",

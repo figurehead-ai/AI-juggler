@@ -427,6 +427,49 @@ known version in Figurehead's usage-statistics configuration when it reaches
 beta or stable. Reports from unregistered versions are left out of the
 dashboards.
 
+## Checking where a build came from (AJ-E2007)
+
+Every nightly publishes, beside the DMG and the updater archive:
+
+- **Build provenance.** A signed SLSA provenance attestation for the DMG,
+  the `.app.tar.gz` and each SBOM. It names the workflow, the commit and
+  the run that built the file. Anyone can check a download:
+
+  ```bash
+  gh attestation verify AI-Juggler-0.4.1-universal.dmg --repo figurehead-ai/AI-juggler
+  ```
+
+  A file that was changed after the build, or built anywhere else, fails.
+- **SBOMs (CycloneDX 1.5).** `AI-Juggler-<version>-juggler-app.cdx.json`
+  and `…-juggler-agentbridge.cdx.json` for the Rust side, as that build
+  resolved them, and `…-ui.cdx.json` for the shipped JavaScript
+  (`scripts/js_sbom.py`, from pnpm's own list).
+- **The dependency list inside the executables.** The app and the agent
+  bridge are built with `cargo auditable`, so `cargo audit bin
+  "AI Juggler.app/Contents/MacOS/juggler-app"` checks a shipped copy
+  against the advisory database with nothing else to hand.
+
+What goes in is checked before it's built:
+
+- `cargo deny check`, with `[bans.build]`: no dependency may ship an
+  executable or a script without being named in `deny.toml` with why.
+- `cargo vet --locked`: every crate is audited (ours or imported from
+  Mozilla, Google, the Bytecode Alliance, ISRG, Embark and Zcash) or
+  exempted. `scripts/vet_exemptions.py` keeps the exemption list
+  shrinking; a new dependency needs an audit (`cargo vet certify`) or an
+  imported one.
+- pnpm takes a version only after a day (`minimumReleaseAge`), refuses
+  one whose trust evidence weakened (`trustPolicy: no-downgrade`) and any
+  git or tarball dependency deep in the tree (`blockExoticSubdeps`), at
+  the pinned `packageManager` version. `pnpm audit --prod` runs on every
+  pull request.
+- Dependabot proposes a version only after it's a week old (a major,
+  two).
+- `supply-chain.yml` runs zizmor on the workflows and the OpenSSF
+  Scorecard on pull requests that touch them and weekly. Every checkout
+  sets `persist-credentials: false`, and every workflow starts from
+  read-only or empty permissions.
+
 ## Rollback
 
 A release is never deleted to roll it back. Instead:

@@ -256,6 +256,16 @@ jobs:
           ./scripts/stats_feature_check.sh
       - name: Dependency policy (cargo-deny)
         run: cargo deny check
+      - name: cargo-vet (pinned, digest-checked)
+        run: ./scripts/install_release_tool.sh cargo-vet "$HOME/.local/bin" >/dev/null
+      - name: Every dependency audited or exempted; exemptions only shrink (cargo-vet, AJ-E2007 R1)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+        run: |
+          cargo vet --locked
+          python3 scripts/vet_exemptions.py --selftest
+          python3 scripts/vet_exemptions.py
+          python3 scripts/js_sbom.py --selftest
       - name: Save the Cargo cache
         if: steps.cargo-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -612,6 +622,9 @@ jobs:
       - name: Install
         working-directory: ui
         run: pnpm install --frozen-lockfile
+      - name: Known vulnerabilities in what ships (AJ-E2007 R3)
+        working-directory: ui
+        run: pnpm audit --prod --audit-level moderate
       - name: Component tests (AJ-E402 SessionRow fixtures)
         working-directory: ui
         run: pnpm test

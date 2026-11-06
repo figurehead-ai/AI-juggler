@@ -128,7 +128,7 @@
 **Research basis**: the security guidelines (files and paths); SQLite's defensive mode.
 **Handover note**: —
 
-### AJ-E2007 Supply chain and release evidence | Status: TODO | Priority P2 | Effort M | Depends: AJ-E2001
+### AJ-E2007 Supply chain and release evidence | Status: DONE (2026-11-06, release/0.4.1; R5 confirmed on the next nightly, R6's first zizmor run on the release PR) | Priority P2 | Effort M | Depends: AJ-E2001
 **Goal**: Every dependency is reviewed, and every release can be verified.
 **User story**: As a user or auditor, I can check where a build came from and what went into it.
 **Requirements**:

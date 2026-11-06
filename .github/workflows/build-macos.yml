@@ -177,6 +177,8 @@ jobs:
           rustup target add "$ARCH"
           # tauri-cli: Tauri's prebuilt release, checked against its digest.
           ./scripts/install_tauri_cli.sh "$RUNNER_TEMP/tauri-cli" >> "$GITHUB_PATH"
+          # AJ-E2007 R5: cargo-auditable, prebuilt and digest-checked too.
+          ./scripts/install_release_tool.sh cargo-auditable "$RUNNER_TEMP/tools" >> "$GITHUB_PATH"
           # pnpm: this exact version, which corepack checks against its
           # sha512 (a mismatch stops the job). Activated as the default, so
           # tauri's `pnpm build` uses it too.
@@ -210,7 +212,8 @@ jobs:
           set -euo pipefail
           arch="$ARCH"
           mkdir -p crates/juggler-app/binaries
-          cargo build --release --offline -p juggler-agentbridge --bin juggler-agent --target "$arch"
+          # AJ-E2007 R5: its dependency list embedded (`cargo auditable`).
+          cargo auditable build --release --offline -p juggler-agentbridge --bin juggler-agent --target "$arch"
           cp "target/$arch/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$arch"
 
       - name: Compile the app, unsigned (this architecture)
@@ -246,10 +249,43 @@ jobs:
           PY
           # From the repository root, as `just app` does: that's where the
           # Tauri CLI finds the UI project (ui/) and runs `pnpm build` in it.
-          cargo tauri build --target "$ARCH" --no-bundle --config "$out/config-$ARCH.json" -- --offline
+          # AJ-E2007 R5: through `cargo auditable`, which embeds the
+          # dependency list in the executable for scanners.
+          cargo tauri build --target "$ARCH" --no-bundle --config "$out/config-$ARCH.json" \
+            --runner "$PWD/scripts/cargo_auditable_runner.sh" -- --offline
           # A tar keeps the modes (an artifact wouldn't).
           tar -C "target/$ARCH/release" -cf "$out/$ARCH.tar" juggler-app juggler-agent
           tar -tvf "$out/$ARCH.tar"
+
+      - name: SBOMs (AJ-E2007 R5; once, from the main edition's arm64 compile)
+        if: matrix.edition == 'main' && matrix.arch == 'aarch64-apple-darwin'
+        env:
+          CARGO_NET_OFFLINE: "true"
+        run: |
+          set -euo pipefail
+          ./scripts/install_release_tool.sh cargo-cyclonedx "$RUNNER_TEMP/tools" >/dev/null
+          sbom="$RUNNER_TEMP/sbom" && mkdir -p "$sbom"
+          # The Rust SBOM: the app's and the agent bridge's dependencies,
+          # as this build resolved them. cargo-cyclonedx writes one file
+          # per workspace member; only the two that ship are kept.
+          for crate in juggler-app juggler-agentbridge; do
+            "$RUNNER_TEMP/tools/cargo-cyclonedx" cyclonedx --manifest-path "crates/$crate/Cargo.toml" \
+              --format json --spec-version 1.5 --target "$ARCH" --override-filename sbom
+            cp "crates/$crate/sbom.json" "$sbom/AI-Juggler-${VERSION}-${crate}.cdx.json"
+          done
+          find crates -maxdepth 2 -name sbom.json -delete
+          # The UI's shipped JavaScript.
+          python3 scripts/js_sbom.py "$VERSION" "$sbom/AI-Juggler-${VERSION}-ui.cdx.json"
+          ls -l "$sbom"
+
+      - name: Keep the SBOMs for the release
+        if: matrix.edition == 'main' && matrix.arch == 'aarch64-apple-darwin'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-sbom
+          path: ${{ runner.temp }}/sbom/
+          retention-days: 7
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

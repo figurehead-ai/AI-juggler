@@ -53,6 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Resolve base and head
         id: resolve
@@ -107,13 +108,16 @@ jobs:
       # gallery is rendered from its side's commit (which may predate it).
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           path: tools
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: ${{ needs.refs.outputs.base }}
           path: base
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           ref: ${{ needs.refs.outputs.head }}
           path: head
       - name: Render base and head, twice each (shard ${{ matrix.shard }}/4)
@@ -149,6 +153,8 @@ jobs:
       options: --ipc=host
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Install
         working-directory: ui
         run: corepack enable && corepack prepare pnpm@10 --activate && pnpm install --frozen-lockfile

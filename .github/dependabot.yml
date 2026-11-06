@@ -1,10 +1,15 @@
 # Weekly dependency update PRs (grouped to keep the queue reviewable).
+# AJ-E2007 R4: a release must be a week old (a major two) before it's
+# proposed, so a hijacked version pulled within days never reaches a PR.
 version: 2
 updates:
   - package-ecosystem: cargo
     directory: "/"
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     groups:
       rust-minor-patch:
         update-types: ["minor", "patch"]
@@ -12,6 +17,9 @@ updates:
     directory: "/ui"
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     groups:
       ui-minor-patch:
         update-types: ["minor", "patch"]
@@ -19,3 +27,5 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7

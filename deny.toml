@@ -27,6 +27,79 @@ allow = [
 multiple-versions = "warn"
 wildcards = "deny"
 
+# AJ-E2007 R2: no dependency ships a native executable or an interpreted
+# script that its build could run; a crate that needs one is named below
+# with what it ships and why.
+[bans.build]
+executables = "deny"
+interpreted = "deny"
+include-dependencies = true
+include-workspace = false
+include-archives = true
+enable-builtin-globs = true
+# Each crate's flagged files, by exact path (a few by glob), with why. A new
+# file in a later version fails until it's looked at and named here.
+bypass = [
+    # Windows import libraries and DLLs, linked only when building for Windows.
+    { crate = "winapi-i686-pc-windows-gnu", allow-globs = ["lib/*.a"] },
+    { crate = "winapi-x86_64-pc-windows-gnu", allow-globs = ["lib/*.a"] },
+    { crate = "windows_aarch64_gnullvm", allow-globs = ["lib/libwindows.0.52.0.a", "lib/libwindows.0.53.0.a", "lib/libwindows.a"] },
+    { crate = "windows_aarch64_msvc", allow-globs = ["lib/windows.0.52.0.lib", "lib/windows.0.53.0.lib", "lib/windows.lib"] },
+    { crate = "windows_i686_gnu", allow-globs = ["lib/libwindows.0.52.0.a", "lib/libwindows.0.53.0.a", "lib/libwindows.a"] },
+    { crate = "windows_i686_gnullvm", allow-globs = ["lib/libwindows.0.52.0.a", "lib/libwindows.0.53.0.a"] },
+    { crate = "windows_i686_msvc", allow-globs = ["lib/windows.0.52.0.lib", "lib/windows.0.53.0.lib", "lib/windows.lib"] },
+    { crate = "windows_x86_64_gnu", allow-globs = ["lib/libwindows.0.52.0.a", "lib/libwindows.0.53.0.a", "lib/libwindows.a"] },
+    { crate = "windows_x86_64_gnullvm", allow-globs = ["lib/libwindows.0.52.0.a", "lib/libwindows.0.53.0.a", "lib/libwindows.a"] },
+    { crate = "windows_x86_64_msvc", allow-globs = ["lib/windows.0.52.0.lib", "lib/windows.0.53.0.lib", "lib/windows.lib"] },
+    { crate = "webview2-com-sys", allow-globs = ["arm64/WebView2Loader.dll", "arm64/WebView2Loader.dll.lib", "arm64/WebView2LoaderStatic.lib", "x64/WebView2Loader.dll", "x64/WebView2Loader.dll.lib", "x64/WebView2LoaderStatic.lib", "x86/WebView2Loader.dll", "x86/WebView2Loader.dll.lib", "x86/WebView2LoaderStatic.lib"] },
+    { crate = "libloading", allow-globs = ["tests/nagisa32.dll", "tests/nagisa64.dll"] },
+    { crate = "wit-bindgen", allow-globs = ["src/rt/libwit_bindgen_cabi.a"] },
+    # JavaScript the crate embeds in the web view or ships as its JS API (Tauri's own and its plugins'), not run by a build.
+    { crate = "tauri", allow-globs = ["scripts/bundle.global.js", "scripts/core.js", "scripts/freeze_prototype.js", "scripts/init.js", "scripts/ipc-protocol.js", "scripts/ipc.js", "scripts/isolation.js", "scripts/pattern.js", "scripts/process-ipc-message-fn.js", "src/event/init.js", "src/path/init.js", "src/webview/scripts/print.js", "src/webview/scripts/toggle-devtools.js", "src/webview/scripts/zoom-hotkey.js", "src/window/scripts/drag.js"] },
+    { crate = "tauri-plugin-dialog", allow-globs = ["api-iife.js", "src/init-iife.js"] },
+    { crate = "tauri-plugin-fs", allow-globs = ["api-iife.js"] },
+    { crate = "tauri-plugin-global-shortcut", allow-globs = ["api-iife.js"] },
+    { crate = "tauri-plugin-notification", allow-globs = ["api-iife.js", "src/init-iife.js"] },
+    { crate = "tauri-plugin-opener", allow-globs = ["api-iife.js", "src/init-iife.js"] },
+    { crate = "tauri-plugin-updater", allow-globs = ["api-iife.js"] },
+    { crate = "tauri-utils", allow-globs = ["src/pattern/isolation.js"] },
+    { crate = "js-sys", allow-globs = ["src/futures/task/worker.js"] },
+    { crate = "wasm-bindgen-macro", allow-globs = ["src/worker.js"] },
+    { crate = "serialize-to-javascript", allow-globs = ["tests/keygen.js"] },
+    { crate = "wasm-streams", allow-globs = ["tests/js/readable_stream.js", "tests/js/transform_stream.js", "tests/js/writable_stream.js"] },
+    { crate = "wry", allow-globs = ["examples/custom_protocol/script.js"] },
+    { crate = "screencapturekit", allow-globs = ["examples/22_tauri_app/src/main.js"] },
+    # ring's perlasm generators: crates.io builds use the pregenerated assembly; perl runs only from a git checkout.
+    { crate = "ring", allow-globs = ["crypto/**/*.pl"] },
+    # Maintainers' scripts shipped in the package (tests, CI, code generation, examples); no build script runs them.
+    { crate = "bit-vec", allow-globs = ["crusader.sh"] },
+    { crate = "brotli-decompressor", allow-globs = ["scripts/dict_corpus/generate.py", "src/bin/ipsum_gen.py"] },
+    { crate = "cookie", allow-globs = ["scripts/test.sh"] },
+    { crate = "curve25519-dalek", allow-globs = ["tests/build_tests.sh"] },
+    { crate = "darling", allow-globs = ["compiletests.sh"] },
+    { crate = "glow", allow-globs = ["generate-native.sh"] },
+    { crate = "jni", allow-globs = [".github/workflows/run_invocation_tests.sh", ".github/workflows/run_windows_invocation_tests.ps1", ".github/workflows/shellcheck.sh", "example/HelloWorld.java", "test_profile"] },
+    { crate = "keyboard-types", allow-globs = ["convert.py"] },
+    { crate = "kqueue", allow-globs = ["ci/build.sh", "ci/post.sh"] },
+    { crate = "libdbus-sys", allow-globs = ["vendor/dbus/autogen.sh", "vendor/dbus/cleanup-man-pages.sh"] },
+    { crate = "ndk-sys", allow-globs = ["generate_bindings.sh"] },
+    { crate = "open", allow-globs = ["src/powershell.ps1"] },
+    { crate = "proptest", allow-globs = ["test-persistence-location/run-tests.bat", "test-persistence-location/run-tests.sh"] },
+    { crate = "redox_syscall", allow-globs = ["src/scheme/generate.sh"] },
+    { crate = "renderdoc-sys", allow-globs = ["generate_bindings.sh"] },
+    { crate = "rustls-platform-verifier", allow-globs = ["src/tests/verification_mock/ca.go"] },
+    { crate = "serial2", allow-globs = ["check-targets"] },
+    { crate = "sharded-slab", allow-globs = ["bin/loom.sh"] },
+    { crate = "target-lexicon", allow-globs = [".github/actions/install-rust/main.js", "scripts/rust-targets.sh"] },
+    { crate = "tracing", allow-globs = ["test-macros/bin/macro-results.sh"] },
+    { crate = "unicode-width", allow-globs = ["scripts/unicode.py"] },
+    { crate = "untrusted", allow-globs = ["mk/cargo.sh", "mk/install-build-tools.sh", "mk/runner"] },
+    { crate = "vcpkg", allow-globs = ["setup_vcp.sh", "tests/run.sh", "tests/vcpkgrs_target.sh"] },
+    { crate = "walkdir", allow-globs = ["compare/walk.py"] },
+    { crate = "xattr", allow-globs = [".github/workflows/run-on-host.sh"] },
+    { crate = "zerocopy", allow-globs = ["cargo.sh", "ci/check_all_toolchains_tested.sh", "ci/check_fmt.sh", "ci/check_msrv_is_minimal.sh", "ci/check_packaging.sh", "ci/check_readme.sh", "ci/check_stale_stderr.sh", "ci/check_versions.sh", "ci/release_crate_version.sh", "win-cargo.bat"] },
+]
+
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"

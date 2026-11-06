@@ -141,9 +141,13 @@ jobs:
     needs: [plan, build]
     runs-on: ubuntu-latest
     # With the feed job below, the only jobs that may write to the
-    # repository (AJ-E2001); this one runs no build code.
+    # repository (AJ-E2001); this one runs no build code. It also signs the
+    # build's provenance (AJ-E2007 R5): an OIDC token for Sigstore and the
+    # attestation store.
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     env:
       VERSION: ${{ needs.plan.outputs.version }}
     steps:
@@ -197,6 +201,17 @@ jobs:
               json.dump(feed, open(f"{out}/{feed_name}", "w"), indent=2)
           PY
           (cd "$RUNNER_TEMP/assets" && sha256sum ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
+      - name: Build provenance for what users download (AJ-E2007 R5)
+        # `gh attestation verify <file> --repo figurehead-ai/AI-juggler`
+        # proves a file came from this workflow at this commit
+        # (docs/RELEASING.md).
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/assets/*.dmg
+            ${{ runner.temp }}/assets/*.app.tar.gz
+            ${{ runner.temp }}/assets/*.cdx.json
 
       - name: Publish the build (pre-release; channels point at it later)
         env:
