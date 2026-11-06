@@ -73,7 +73,7 @@
 **Goal**: The bell in the header, the app badge and the menu-bar item show the same number as Needs you on Home.
 **Requirements**:
 1. Needs you SHALL be the backend's one list (D-49): the rail (by place and the Project lens, the collapsed rail and folded headers), Home, the bell, the badge, the menu-bar item and the system notifications read it and its one count; the window works nothing out (`lib/needs-you.ts` reads it). The rail's Needs you also lists the needs that aren't a session's, so its number is the bell's. In the preview a lazy stand-in (`preview/needs.tsx`) runs the same rules over the preview's own data.
-2. Home SHALL list the model's own needs (an account almost out of room) with "Continue in another app…". (Amended 2026-11-06: the action reads "Continue in another app…" everywhere (Home, the centre, a session's page), as the design review named it.)
+2. Home SHALL list the model's own needs (an account almost out of room) with "Continue in another app…" when one of its sessions is open, else "Open its app". (Amended 2026-11-06: the action reads "Continue in another app…" everywhere (Home, the centre, a session's page), as the design review named it.) (Amended 2026-11-06: Home's account line acts on its open session when there is one; with none open there's nothing to continue, so it opens the app (F16).)
 3. The bell: the count (none at zero), "Notifications: 3 things need you, 2 unread" for screen readers, ⌥⌘N (⌘⇧N until D-50), opens the centre.
 4. The app badge SHALL be set through the platform seam on every change.
 **Quality gates**: `src/count-agreement.test.tsx` (the bell, Home and the rail); `tests/notification_model.rs` (the same count on the rail's list, the bell, the badge and the menu-bar item, worked out by the backend's tick with no window, a snooze ending bringing its need back); the gallery's header capture.
@@ -126,7 +126,7 @@
 **Requirements**:
 1. Navigation keeps Home · Accounts · Usage · History (D-25); ⌘, still opens Settings.
 2. Without an account: your name and initial (the system's), "On this Mac · no Figurehead account", one quiet "Connect a Figurehead account (optional)" (D-18, D-46: no reminders). With one: the address shortened, the plan, Cloud backup (when last), My Macs (how many), and Disconnect Figurehead… last.
-3. Settings ⌘,, This Mac, Processes, Privacy, Appearance (Light / Dark / Auto inline), Keyboard shortcuts ?, Help and guides, Report a problem…, About and updates (version · channel). (Amended 2026-11-06: D-49: My Macs shows only with a Figurehead account, in the account group of requirement 2.)
+3. Settings ⌘,, This Mac, Processes, Privacy, Appearance (Light / Dark / Auto inline), Keyboard shortcuts ?, Help and guides, Report a bug…, About and updates (version · channel). (Amended 2026-11-06: D-49: My Macs shows only with a Figurehead account, in the account group of requirement 2.) (Amended 2026-11-06: the menu names it as AJ-E2911 does.)
 4. The menu rule (AJ-E2106): icons on every line, three groups, `role=menu`, the arrows, Esc.
 **Quality gates**: `src/components/notifications.test.tsx`; the gallery (user-menu, user-menu-account); the visual helpers reach the old More's screens through it.
 **Files to touch**: `ui/src/components/UserMenu.tsx`, `icons-menu.tsx`, `RowMenu.tsx`, `MainNav.tsx`, `lib/nav.ts`, `lib/ipc/app.ts`, `crates/juggler-app/src/features/app/user.rs`.
