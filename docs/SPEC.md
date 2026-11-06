@@ -891,14 +891,27 @@ pinch, ⌘-scroll or +/− zoom towards the pointer, **one floor at a
 time** (AJ-E3516): zoom never switches between a floor and the
 building. A **lift** on a floor's right edge shows the floor above and
 below with their waiting counts and this floor's number between them
-(the buttons hidden at the top and the bottom); Page Up and Page Down
-do the same, and the camera rides one storey (a cut with Reduce Motion).
-The floor tabs carry each floor's waiting count. **The building is a
-side-on tower**, seen straight on: the lobby at the ground, each floor
-a strip with its number and waiting count, each App a room in its
-colour with its mark (back row above the front), dark when unused, a
-badge in a room that needs you; hovering a floor lights it with its
-summary and a click enters it. The tower doesn't pan, turn or zoom.
+(the buttons hidden at the top and the bottom; no lift on a one-floor
+office); Page Up and Page Down do the same, and the camera rides one
+storey (a cut with Reduce Motion). The floor tabs carry each floor's
+waiting count. **The building view is a cross-section of the building
+on its street** (the maintainer, 2026-11-06), all procedural in both
+looks: the facade cut away; floor slabs with their cut edges; side
+walls with windows (glass by day, warm at night on a floor in use);
+the lift shaft through every floor; the roof with its plant, antenna
+and the company's sign; the lobby at the ground with its doors,
+reception and bench; each App a small office of its own in its colour
+with its logo, a desk and person for each session, lit when in use,
+dark and dusty when not, under dust sheets after a week. Outside: the
+lawn, sidewalk and street, parked cars, a bike rack, trees, and street
+lamps beside the building that light at night only. The sky follows the
+light (AJ-E3520's clock): the sun and clouds by day, the moon and stars at
+night; the clouds drift only while Motion is on, so a still building
+view draws once and then nothing. Each floor's name and waiting count
+stand at its left, and each office that needs you has a flag placed as
+the far band's (no overlap, no count lost); hovering an office names
+it and what waits there, and a click on a floor or an office enters
+that floor. The building view doesn't pan, turn or zoom.
 H resets; 0, B and the floor numbers pick the building or a floor. Anything a click acts on
 shows the hand cursor; a press that moves less than 4 points is still a
 click. Walls between the camera and the room vanish

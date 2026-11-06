@@ -460,11 +460,12 @@
 **Requirements**:
 1. On a floor, up and down buttons at the right edge with each floor's waiting count, hidden at the top and the bottom; Page Up and Page Down do the same; the camera rides one storey (a cut with Reduce Motion).
 2. The floor tabs SHALL show each floor's waiting count.
-3. The building view SHALL be a side-on tower: each floor a strip, each App a room in its colour with its mark, dark when unused, the waiting count per floor; the lobby at the ground.
-4. Hovering a floor in the tower SHALL light it with its summary; a click enters it.
+3. The building view SHALL be a cross-section of the building on its street, all procedural in both looks: the facade cut away; slabs with thickness; side walls with windows (lit at night on a floor in use); the lift shaft through every floor; a roof with its plant, antenna and sign; a lobby at the ground with entrance doors, reception and the lift; each App a small office in its colour and kit with its logo, tiny desks and people, lit when in use and dark or dusty when not; outside, the ground, sidewalk, street, trees and bushes, street lamps lit at night, parked cars and a bike rack; the sky from the clock (sun or moon, stars at night) with clouds that drift only while the Floor animates anyway. *(Amended 2026-11-06 from the maintainer's finding: "make that look much nicer, maybe to look like a real cross section of a building … on the ground, with trees outside and clouds and sky"; it was a side-on tower of coloured strips.)*
+4. Each floor SHALL carry its name and waiting count; each office that needs you a flag by the labels-by-zoom rules (AJ-E3515); hovering an office SHALL name it and what waits there, and a click on a floor or an office enters that floor.
 5. Zoom never switches between a floor and the building.
-**Quality gates**: driver tests for the buttons and keys; golden frames of the tower.
-**Evidence/validation proof**: a timed walk of every button, tab and floor click.
+6. The building view SHALL keep the SPEC §9.7 and D-79 budgets in both looks, measured; at rest it draws 0 frames.
+**Quality gates**: driver tests for the buttons and keys; scene tests for the building (offices, flags, night-only lamps, a still sky); golden frames of the building view.
+**Evidence/validation proof**: a timed walk of every button, tab and floor click; captures of the building by day and night in both looks; the harness's budgets in the building view.
 
 ### AJ-E3517 Hover cards: what they ask or do, and where to answer | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3505
 **Goal**: Hovering a person or a screen tells you enough to decide whether to act.
