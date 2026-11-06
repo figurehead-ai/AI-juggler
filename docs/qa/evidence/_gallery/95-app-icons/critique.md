@@ -1,4 +1,4 @@
-<!-- captures: d5cc492696e1 -->
+<!-- captures: 49587e5f0b63 -->
 # 95-app-icons: installed apps' own icons on Home, in the rail, in History and in the Go to session palette
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.

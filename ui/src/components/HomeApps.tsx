@@ -12,6 +12,7 @@
 import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
 import { IconAlert } from "./icons";
+import { IconReplay } from "./icons-actions";
 import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
 import { showToast } from "./Toast";
@@ -190,25 +191,27 @@ function Tile({ group, runway, kept, appId, rows }: { group: RailGroup; runway: 
   const low = runway?.left !== null && runway?.left !== undefined && runway.left <= 25;
   const name = [place.app, place.profile].filter(Boolean).join(" · ");
   return (
-    <li className="flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card" data-testid="home-app-tile" data-place={place.key}>
+    <li className="@container flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card" data-testid="home-app-tile" data-place={place.key}>
       <div className="flex min-w-0 items-start gap-3">
         <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={32} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {/* The app's name, then "kept alive" beside it, where a
-              short name leaves room (0.4.1: never squeezing the profile). */}
-          <span className="flex min-w-0 items-center justify-between gap-2">
+          {/* The app's name, then the kept-alive mark beside it (0.4.1:
+              never squeezing the profile): its words on a wide card, its
+              mark alone on a narrow one, so the name is never cut. */}
+          <span className="flex min-w-0 items-center gap-2">
             <AppName id={appId} name={name}>
               {place.app}
             </AppName>
             {kept && (
-              <span className="shrink-0 whitespace-nowrap rounded-full bg-accent/10 px-1.5 text-label font-medium text-accent-hi" data-testid="home-app-kept-mark" title="Keep alive: AI Juggler starts it again if it stops">
-                kept alive
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-accent/10 px-1.5 py-0.5 text-label font-medium text-accent-hi" data-testid="home-app-kept-mark" title="Kept alive: AI Juggler starts it again if it stops">
+                <IconReplay width={11} height={11} aria-hidden="true" />
+                <span className="sr-only @[16rem]:not-sr-only">kept alive</span>
               </span>
             )}
           </span>
           {/* One line (0.4.1): the profile's badge beside its name, never
-              on the icon (D-38), then the count; the profile is cut first,
-              its whole name in the tooltip. */}
+              on the icon (D-38), then the count; the profile is cut only
+              when its name alone is too long, whole in its tooltip. */}
           <span className="flex min-w-0 flex-nowrap items-center gap-x-1 text-meta text-muted">
             {place.profile && (
               <span className="flex min-w-0 items-center gap-1 font-semibold text-ink">
@@ -219,7 +222,13 @@ function Tile({ group, runway, kept, appId, rows }: { group: RailGroup; runway: 
               </span>
             )}
             {place.profile ? <span className="shrink-0">·</span> : null}
-            <span className="shrink-0 whitespace-nowrap">{count === 1 ? "1 session" : `${count} sessions`}</span>
+            {/* Beside a profile on a narrow card the count is a bare number,
+                as in the rail, so the profile keeps its name; the words stay
+                in its tooltip. */}
+            <span className="shrink-0 whitespace-nowrap" title={count === 1 ? "1 session" : `${count} sessions`}>
+              {count}
+              <span className={place.profile ? "sr-only @[12rem]:not-sr-only" : undefined}> {count === 1 ? "session" : "sessions"}</span>
+            </span>
           </span>
         </div>
       </div>
