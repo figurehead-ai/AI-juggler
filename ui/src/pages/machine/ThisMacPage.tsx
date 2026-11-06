@@ -17,7 +17,7 @@ import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
 import { fleetSelf, hasLiveBackend, type AccountInfo, type InstanceInfo, type ProjectInfo } from "../../lib/bridge";
 import { machineStatus, ThisMacContext } from "../../lib/machine";
 import { THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
-import { appByConversation, appKeyOf } from "../../lib/rail-apps";
+import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { placeOf } from "../../lib/project-words";
 import { useRelationCounts } from "../../lib/relation-counts";
@@ -69,7 +69,9 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
   const { conversations } = useShownConversations();
   const seen = useSeen();
   const items = useMemo(() => itemsOf({ sessions, conversations, projects, seen }), [sessions, conversations, projects, seen]);
-  const byConversation = useMemo(() => appByConversation((apps ?? []).flatMap((app) => (app.place ? [app.place] : []))), [apps]);
+  const knownPlaces = useMemo(() => (apps ?? []).flatMap((app) => (app.place ? [app.place] : [])), [apps]);
+  const byConversation = useMemo(() => appByConversation(knownPlaces), [knownPlaces]);
+  const byFolder = useMemo(() => appByFolder(knownPlaces), [knownPlaces]);
   const rows = useMemo(() => macApps(apps ?? [], items, byConversation), [apps, items, byConversation]);
   const worked = useMemo(() => appProjects(items), [items]);
   const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
@@ -86,7 +88,7 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
     pools: pools?.length,
   };
   const tabs = pageTabs("machine", { local: true, counts });
-  const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation)) : null);
+  const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation, byFolder)) : null);
   const open = items.filter(openHere).length;
   const facts = [
     status ? <span key="state" className={status.tone}>{status.words}</span> : null,

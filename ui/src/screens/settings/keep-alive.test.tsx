@@ -38,7 +38,7 @@ function place(over: Partial<KnownPlaceInfo>): KnownPlaceInfo {
   };
 }
 
-type Seams = { __AIJ_PLACES__?: { places: KnownPlaceInfo[]; sessions?: Record<string, string> } };
+type Seams = { __AIJ_PLACES__?: { places: KnownPlaceInfo[]; sessions?: Record<string, string>; offers?: { id: string; label: string }[] } };
 const seams = () => window as unknown as Seams;
 
 afterEach(() => {
@@ -112,7 +112,7 @@ describe("Settings › Desktop apps: your apps", () => {
         <DesktopAppsPane />
       </ConversationsProvider>,
     );
-    expect((await screen.findByTestId("desktop-places-empty")).textContent).toContain("once AI Juggler has seen them running");
+    expect((await screen.findByTestId("desktop-places-empty")).textContent).toContain("Apps you add show here");
   });
 });
 
@@ -169,5 +169,30 @@ describe("an ended session's app", () => {
     seams().__AIJ_PLACES__ = { places: [place({})], sessions: { "claude-code/s-1": "app:claude-app:/Users/you/Profiles/b-lab" } };
     expect((await placesFind("claude-code", "s-1"))?.label).toBe("Claude · b-lab");
     expect(await placesFind("claude-code", "s-2")).toBeNull();
+  });
+});
+
+describe("D-84 Settings › Desktop apps: found on this Mac", () => {
+  it("an app seen running but never added is only offered: Add or Not now", async () => {
+    seams().__AIJ_PLACES__ = {
+      places: [],
+      offers: [
+        { id: "app:claude-app:/Users/you/ClaudeProfiles/aij-test", label: "Claude app · aij-test" },
+        { id: "app:codex-app:", label: "Codex app" },
+      ],
+    };
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    const offers = await screen.findAllByTestId("desktop-offer");
+    expect(offers.map((row) => row.textContent)).toEqual(["Claude app · aij-testAddNot now", "Codex appAddNot now"]);
+    // Not in Your apps until added.
+    expect(screen.getByTestId("desktop-places-empty")).toBeTruthy();
+    fireEvent.click(within(offers[1]!).getByTestId("desktop-offer-not-now"));
+    await waitFor(() => expect(screen.getAllByTestId("desktop-offer")).toHaveLength(1));
+    fireEvent.click(screen.getByTestId("desktop-offer-add"));
+    await waitFor(() => expect(screen.queryByTestId("desktop-offer")).toBeNull());
   });
 });

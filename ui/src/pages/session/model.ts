@@ -39,6 +39,8 @@ export type SessionModel = {
   model: string | null;
   /** AI Juggler started it in a tool's own desktop app (not a terminal). */
   desktop?: boolean;
+  /** The desktop app its tool's files say it was started in (`claude-app`). */
+  startedIn?: string | null;
 };
 
 const TONE: Record<string, ChipTone> = { asks_you: "warning", working: "live", idle: "neutral", done_review: "accent" };
@@ -51,6 +53,7 @@ export function fromConversation(c: ConversationInfo): SessionModel {
     profileLabel: c.account_label,
     conversationId: c.id,
     sessionId: c.session_id,
+    startedIn: c.started_in,
     switchSource: switchSourceOf(c),
     live: c.live,
     state: {

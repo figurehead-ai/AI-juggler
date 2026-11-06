@@ -611,6 +611,28 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
     }
 }
 
+/// D-84: an app or profile seen running that the user hasn't added:
+/// offered once, never added. Its Open goes to Settings › Desktop apps,
+/// where Add and Not now are.
+#[must_use]
+pub fn found_notice(id: &str, label: &str) -> NewNotice {
+    NewNotice {
+        key: format!("found:{id}"),
+        kind: "found".to_owned(),
+        title: format!("Found on this Mac: {label}"),
+        detail: "Not in AI Juggler unless you add it: Settings › Desktop apps.".to_owned(),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("desktop_apps".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    }
+}
+
 /// AJ-E2006: an import that left links pointing outside its folder, or
 /// copied files that look like they hold a secret, says so once (`None`
 /// when there is nothing to tell). The detail lists each, masked.

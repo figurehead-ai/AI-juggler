@@ -44,6 +44,8 @@ fn ran(dir: &Path, bundle: &Path, seen_ms: i64) -> KnownPlace {
         keep_alive: false,
         paused: None,
         found: false,
+        users: true,
+        declined: false,
     }
 }
 

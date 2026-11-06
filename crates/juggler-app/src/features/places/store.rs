@@ -110,6 +110,7 @@ fn row(id: &str, place: &KnownPlace, tool: &str) -> App {
         sessions_json: serde_json::to_string(&place.conversations).ok(),
         first_seen: place.seen_ms,
         last_seen: place.seen_ms,
+        added: false,
     }
 }
 
@@ -141,6 +142,8 @@ fn place(app: &App) -> Option<KnownPlace> {
             .as_deref()
             .and_then(|json| serde_json::from_str(json).ok()),
         found: ran.found,
+        users: app.is_users(),
+        declined: app.hidden && !app.is_users(),
     })
 }
 
@@ -167,6 +170,9 @@ mod tests {
             keep_alive,
             paused: keep_alive.then(|| "it stopped too often".to_owned()),
             found: false,
+            // D-84: kept alive, it's the user's; else (no Account) an offer.
+            users: keep_alive,
+            declined: false,
         }
     }
 

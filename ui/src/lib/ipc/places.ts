@@ -10,6 +10,7 @@ import { previewPlaceSlots } from "./preview-slots";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 import type { FindProfilesInfo } from "../../types/generated/FindProfilesInfo";
+import type { PlaceOfferInfo } from "../../types/generated/PlaceOfferInfo";
 import { knownPlacesPreview } from "../../preview/places";
 
 export type { FindProfilesInfo, KnownPlaceInfo };
@@ -27,6 +28,8 @@ interface PreviewPlaces {
   /** AJ-E3203: finding the profiles that aren't running, and the ones a
    * yes finds. */
   profiles?: FindProfilesInfo & { beside?: KnownPlaceInfo[] };
+  /** D-84: found running, not added. */
+  offers?: PlaceOfferInfo[];
 }
 
 /** The preview's places: a spec's fixture, else the places desktop's
@@ -63,12 +66,12 @@ export async function placesList(): Promise<KnownPlaceInfo[]> {
 }
 
 /** The place an ended session of `tool` was last open in. */
-export async function placesFind(tool: string, conversationId: string): Promise<KnownPlaceInfo | null> {
+export async function placesFind(tool: string, conversationId: string, account: string | null = null, app: string | null = null): Promise<KnownPlaceInfo | null> {
   if (!hasLiveBackend()) {
     const id = preview().sessions?.[`${tool}/${conversationId}`];
     return preview().places.find((place) => place.id === id) ?? null;
   }
-  return invoke<KnownPlaceInfo | null>("places_find", { tool, conversationId });
+  return invoke<KnownPlaceInfo | null>("places_find", { tool, conversationId, account, app });
 }
 
 /** Open: the app forward when it runs, else started; at the session when
@@ -171,4 +174,22 @@ export function onPlacesChanged(on: () => void): () => void {
     window.removeEventListener(PLACES_CHANGED, on);
     stop?.();
   };
+}
+
+/** D-84: the apps found running that aren't the user's yet ("Found on
+ * this Mac"); none without a backend. */
+export async function placesOffers(): Promise<PlaceOfferInfo[]> {
+  if (!hasLiveBackend()) return [...(preview().offers ?? [])];
+  return invoke<PlaceOfferInfo[]>("places_offers");
+}
+
+/** D-84: Add an offer as an App, or Not now. */
+export async function placesOfferAnswer(id: string, add: boolean): Promise<void> {
+  if (!hasLiveBackend()) {
+    const now = preview();
+    now.offers = (now.offers ?? []).filter((offer) => offer.id !== id);
+  } else {
+    await invoke<void>("places_offer_answer", { id, add });
+  }
+  changedHere();
 }

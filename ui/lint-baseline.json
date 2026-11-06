@@ -309,7 +309,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(exhaustive-effect-dependencies)": 1,
   "react(immutability)": 2,
-  "react(preserve-manual-memoization)": 2,
   "react(refs)": 4,
   "react(set-state-in-effect)": 1,
   "react-hooks(exhaustive-deps)": 1,

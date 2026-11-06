@@ -75,11 +75,17 @@ export function appByConversation(known: readonly KnownPlaceInfo[]): Map<string,
  * open. */
 export function appByFolder(known: readonly KnownPlaceInfo[]): Map<string, string> {
   const out = new Map<string, string>();
+  const linked = new Map<string, string[]>();
   for (const place of [...known].sort((a, b) => b.seen_ms - a.seen_ms)) {
     if (place.account_id === null) continue;
     const key = `${place.app_id}|${place.account_id}`;
     if (!out.has(key)) out.set(key, knownKey(place));
+    linked.set(place.account_id, [...(linked.get(place.account_id) ?? []), knownKey(place)]);
   }
+  // 0.4.1: a folder only one desktop profile runs on (`|<folder>`): its
+  // sessions are that profile's, closed or not (a closed Claude app
+  // profile's Code sessions fell to the folder's CLI App, with no Open).
+  for (const [folder, keys] of linked) if (new Set(keys).size === 1) out.set(`|${folder}`, keys[0]!);
   return out;
 }
 
@@ -95,6 +101,11 @@ export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, str
     if (desktop) return desktop;
     const started = conversation.started_in ? byFolder.get(`${conversation.started_in}|${conversation.account_id}`) : undefined;
     if (started) return started;
+  }
+  // Open, but not seen in a terminal: the one profile on its folder.
+  if (conversation && openNow(item) && item.place.key.startsWith("cli|") && item.place.kind !== "terminal") {
+    const alone = byFolder.get(`|${conversation.account_id}`);
+    if (alone) return alone;
   }
   // A desktop session AI Juggler started: the profile on its folder.
   if (item.place.kind === "own" && item.place.key.startsWith("app|") && item.place.appId && item.accountId) {

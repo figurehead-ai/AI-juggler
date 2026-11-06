@@ -24,12 +24,13 @@ import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import { useShownConversations } from "../lib/shown-apps";
 import { conversationsBringForward } from "../lib/ipc/conversations";
-import { placeFor, useKnownPlaces } from "../lib/places";
+import { useKnownPlaces } from "../lib/places";
 import { itemsOf, openNow } from "../lib/rail-items";
 import { useClosedSections } from "./rail-groups";
-import { buildLines, foldSections, lineHeights, lineKey, offsetOf, sharedProfileNames, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
+import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import { headerActions, keepAliveOf } from "./place-actions";
 import { recentWords } from "../lib/rail-apps";
+import { groupApp, groupClosed, openGroupApp } from "./rail-group-app";
 import { appIdOfRailKey, openApp } from "../lib/apps";
 import { openAccount } from "../lib/accounts-page";
 import { accountOfProfile, cachedSubscriptions } from "../lib/subscriptions";
@@ -122,7 +123,6 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   // Inactive apps starts folded, and each one stays as it was left.
   const [closed, foldSection] = useClosedSections();
   const lines = foldSections(built.lines, closed);
-  const sharedNames = useMemo(() => sharedProfileNames(built.lines), [built.lines]);
   useEffect(() => {
     last.current = shownOrder(built.lines);
   });
@@ -152,26 +152,26 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     if (account) return () => openAccount(account);
     return id !== null && host.openAccountById ? () => host.openAccountById!(id) : undefined;
   };
+  const knownOf = (group: RailGroup) => groupApp(lens, group, places); // 0.4.1: by key, running or not
   const openPlace = (group: RailGroup) => {
     // A pool's header (and its ⌘ digit) opens the pool's page.
     if (group.poolId !== null) {
       host.openPool?.(group.poolId);
       return;
     }
-    // A CLI App's sessions may be in AI Juggler and in a terminal: the first
-    // leads (selected in AI Juggler; elsewhere, its window comes forward).
+    const known = knownOf(group);
+    // Closed: started (0.4.1); running: brought forward as before.
+    if (groupClosed(known, group)) return openGroupApp(known);
+    // A CLI App's sessions: the first leads (selected here; else its window comes forward).
     const first = group.items[0];
     if (first?.session && first.place.kind === "own") {
       onSelect(first.session.id);
       return;
     }
     const pid = group.items.find((item) => item.place.appPid !== null)?.place.appPid;
-    if (pid === null || pid === undefined) return;
+    if (pid === null || pid === undefined) return void (known && openGroupApp(known));
     showToast({ id: "go-to", message: "Bringing it forward…" });
-    conversationsBringForward(pid).then(
-      showGoTo,
-      () => showToast({ id: "go-to", message: "Couldn't bring it forward" }),
-    );
+    conversationsBringForward(pid).then(showGoTo, () => showToast({ id: "go-to", message: "Couldn't bring it forward" }));
   };
   // D-47: dragging and ⌥⌘↑ / ⌥⌘↓ in Your order.
   const showAll = (key: string) => setToggled((current) => new Set(current).add(`${key}#all`));
@@ -281,15 +281,14 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} />;
       case "header": {
         const group = line.group;
-        const known = lens === "place" && group.place?.kind === "desktop" ? placeFor(places, group.place.appPid) : null;
+        const known = knownOf(group);
         const opens =
           lens === "pool"
             ? group.poolId !== null && host.openPool !== undefined
-            : lens !== "account" && group.items.some((item) => (item.session !== null && item.place.kind === "own") || item.place.appPid !== null);
+            : lens !== "account" && (known !== null || group.items.some((item) => (item.session !== null && item.place.kind === "own") || item.place.appPid !== null));
         return (
           <PlaceHeader
             place={lens === "account" || lens === "pool" ? null : group.place}
-            sharedName={!!group.place?.profile && sharedNames.has(group.place.profile)}
             label={group.label}
             count={group.items.length}
             needs={line.needs}
@@ -298,7 +297,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             onToggle={() => (stable ? toggleFold(orderLens, group.key) : toggle(group.key))}
             arrange={arrangeOf("group", group.key, group.key)}
             onOpen={opens ? () => openPlace(group) : undefined}
-            openWords={lens === "pool" ? "Open its page" : undefined}
+            openWords={lens === "pool" ? "Open its page" : groupClosed(known, group) ? "Start" : undefined}
             onPage={pageOf(group)}
             shortcut={line.digit ?? undefined}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}

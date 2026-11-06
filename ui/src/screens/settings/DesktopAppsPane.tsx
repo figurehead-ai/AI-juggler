@@ -21,7 +21,8 @@ import { IconMore } from "../../components/icons-canvas";
 import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
-import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
+import { onPlacesChanged, placesForget, placesKeepAlive, placesOfferAnswer, placesOffers, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
+import type { PlaceOfferInfo } from "../../types/generated/PlaceOfferInfo";
 import { placeWords, useKnownPlaces } from "../../lib/places";
 import { useFindProfiles } from "../../lib/find-profiles";
 import { appName, desktopProfile } from "../../lib/app-name";
@@ -267,6 +268,38 @@ function FindProfilesRow(): JSX.Element | null {
   );
 }
 
+/** D-84: apps seen running that the user hasn't added: offered, never
+ * added by themselves. Add makes one an App; Not now stops offering it. */
+function FoundOnThisMac(): JSX.Element | null {
+  const [offers, setOffers] = useState<PlaceOfferInfo[] | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    const load = () => void placesOffers().then(setOffers, () => setOffers([]));
+    load();
+    return onPlacesChanged(load);
+  }, []);
+  if (!offers || offers.length === 0) return null;
+  const answer = (offer: PlaceOfferInfo, add: boolean) => {
+    setNote(null);
+    placesOfferAnswer(offer.id, add).then(
+      () => setOffers((now) => (now ?? []).filter((one) => one.id !== offer.id)),
+      (cause) => setNote(errorText(cause)),
+    );
+  };
+  return (
+    <PaneSection id="found" title="Found on this Mac" footer="Seen running, not added. AI Juggler adds an app only when you say so; until then it isn't in your apps, the rail or Home.">
+      {offers.map((offer) => (
+        <li key={offer.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5" data-testid="desktop-offer">
+          <span className="min-w-0 flex-1 truncate text-sm text-ink">{offer.label}</span>
+          <Button size="sm" variant="secondary" onClick={() => answer(offer, true)} data-testid="desktop-offer-add">Add</Button>
+          <Button size="sm" variant="ghost" onClick={() => answer(offer, false)} data-testid="desktop-offer-not-now">Not now</Button>
+        </li>
+      ))}
+      {note && <RowNote>{note}</RowNote>}
+    </PaneSection>
+  );
+}
+
 /** 0.3.3: the apps and profiles seen running, with Start and Keep alive. */
 function YourApps(): JSX.Element | null {
   const places = useKnownPlaces();
@@ -279,7 +312,7 @@ function YourApps(): JSX.Element | null {
     >
       {places.length === 0 ? (
         <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
-          Apps show here once AI Juggler has seen them running.
+          Apps you add show here: an app you import, or one found on this Mac that you add.
         </li>
       ) : (
         places.map((place) => <PlaceRow key={place.id} place={place} />)
@@ -322,6 +355,7 @@ export function DesktopAppsPane({ anchor }: { anchor?: string }): JSX.Element {
   return (
     <Pane id="desktop-apps" title="Desktop apps" anchor={anchor}>
       <ShowSessionsFrom />
+      <FoundOnThisMac />
       <YourApps />
       <PaneSection
         id="go-to"

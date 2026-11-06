@@ -35,7 +35,7 @@ import { useApps, type AppModel } from "../../lib/apps";
 import { appItems, appProjects, openHere } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
 import { placeWords } from "../../lib/places";
-import { appByConversation } from "../../lib/rail-apps";
+import { appByConversation, appByFolder } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
@@ -108,7 +108,7 @@ function AppBody({
   const places = useMemo(() => apps.flatMap((one) => (one.place ? [one.place] : [])), [apps]);
   const items = useMemo(() => {
     const all = itemsOf({ sessions, conversations, projects, seen });
-    return appItems(all, app.railKey, appByConversation(places));
+    return appItems(all, app.railKey, appByConversation(places), appByFolder(places));
   }, [sessions, conversations, projects, seen, app.railKey, places]);
   const worked = useMemo(() => appProjects(items), [items]);
   const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);

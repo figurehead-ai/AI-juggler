@@ -29,6 +29,7 @@ fn app(id: &str, kind: &str, tool: &str, folder: Option<&str>) -> App {
         sessions_json: None,
         first_seen: 1,
         last_seen: NOW - 1000,
+        added: false,
     }
 }
 

@@ -14,9 +14,9 @@ export function openHere(item: RailItem): boolean {
 
 /** App `railKey`'s sessions (archived ones left out): open first, then
  * the most recent. */
-export function appItems(items: readonly RailItem[], railKey: string, byConversation: ReadonlyMap<string, string>): RailItem[] {
+export function appItems(items: readonly RailItem[], railKey: string, byConversation: ReadonlyMap<string, string>, byFolder: ReadonlyMap<string, string> = new Map()): RailItem[] {
   return items
-    .filter((item) => !item.archived && appKeyOf(item, byConversation) === railKey)
+    .filter((item) => !item.archived && appKeyOf(item, byConversation, byFolder) === railKey)
     .sort((a, b) => Number(openHere(b)) - Number(openHere(a)) || b.lastMs - a.lastMs);
 }
 

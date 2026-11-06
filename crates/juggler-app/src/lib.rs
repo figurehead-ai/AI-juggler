@@ -584,6 +584,9 @@ macro_rules! app_commands {
             Write features::apps::commands::apps_rename,
             Read  features::places::commands::places_list,
             Read  features::places::commands::places_find,
+            // D-84: what AI Juggler found running, offered, never added by itself.
+            Read  features::places::commands::places_offers,
+            Write features::places::commands::places_offer_answer,
             Write features::places::commands::places_open,
             // 0.3.8: quits and starts again one that lost its window when
             // macOS restarted its display (asked first, in the toast).

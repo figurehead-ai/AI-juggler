@@ -24,6 +24,10 @@ import { openApp } from "../lib/apps";
 import { agoWords } from "../lib/time-words";
 import { cliAppId } from "../lib/app-name";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
+import { askRestart } from "./RestartApp";
+
+/** A running desktop app restarts (after the confirm) from its row too. */
+const restartable = (app: IdleApp): boolean => app.kind === "desktop" && app.appPid !== null && app.placeId !== null;
 
 /** What the app's one action is, in words and as an icon. */
 export function idleAction(app: IdleApp): { words: string; Icon: typeof IconPlus } {
@@ -144,6 +148,12 @@ export function RailIdleApp({
           <MenuItem onClick={run(act)} disabled={blocked !== null} title={blocked ?? undefined} testId="rail-idle-menu-act">
             {words}
           </MenuItem>
+          {/* 0.4.1: a running app here restarts from its own row too. */}
+          {restartable(app) && (
+            <MenuItem onClick={run(() => askRestart({ placeId: app.placeId ?? "", name: app.name, working: 0 }))} testId="rail-idle-menu-restart">
+              Restart…
+            </MenuItem>
+          )}
           {keepAlive && (
             <MenuItem onClick={run(keepAlive.toggle)} checked={keepAlive.on} multi testId="rail-idle-menu-keep">
               <span className="flex items-center gap-2">

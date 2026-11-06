@@ -32,7 +32,15 @@ export function useKnownPlaces(): KnownPlaceInfo[] | null {
 
 /** The app an ended session was last open in, when one is remembered
  * (`null` while it's open, or none is). */
-export function useLastPlace(tool: string, conversationId: string, ended: boolean): KnownPlaceInfo | null {
+/** Where a session's files say it started: a desktop app, on a folder. */
+export interface StartedIn {
+  account: string;
+  app: string;
+}
+
+export function useLastPlace(tool: string, conversationId: string, ended: boolean, startedIn: StartedIn | null = null): KnownPlaceInfo | null {
+  const account = startedIn?.account ?? null;
+  const app = startedIn?.app ?? null;
   const [place, setPlace] = useState<KnownPlaceInfo | null>(null);
   useEffect(() => {
     if (!ended) {
@@ -40,14 +48,16 @@ export function useLastPlace(tool: string, conversationId: string, ended: boolea
       return;
     }
     let live = true;
-    const load = () => void placesFind(tool, conversationId).then((found) => live && setPlace(found), () => null);
+    // 0.4.1: a session started in a desktop app that AI Juggler never saw
+    // open is that app's profile on its folder, when the user has one.
+    const load = () => void placesFind(tool, conversationId, account, app).then((found) => live && setPlace(found), () => null);
     load();
     const stop = onPlacesChanged(load);
     return () => {
       live = false;
       stop();
     };
-  }, [tool, conversationId, ended]);
+  }, [tool, conversationId, ended, account, app]);
   return place;
 }
 

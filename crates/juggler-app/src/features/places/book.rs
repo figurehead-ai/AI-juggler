@@ -32,6 +32,10 @@ const CONVERSATIONS: usize = 100;
 
 /// One app or profile, as it last ran.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent facts of one record, each its own column"
+)]
 pub struct KnownPlace {
     /// The host registry's id for the app.
     pub app_id: String,
@@ -74,6 +78,13 @@ pub struct KnownPlace {
     /// goes or finding is turned off.
     #[serde(default)]
     pub found: bool,
+    /// D-84: the user's App (added, imported, kept alive or named);
+    /// otherwise only an offer. From its row, never stored here.
+    #[serde(skip)]
+    pub users: bool,
+    /// D-84: an offer the user said "Not now" to.
+    #[serde(skip)]
+    pub declined: bool,
 }
 
 impl KnownPlace {
@@ -162,6 +173,16 @@ impl Book {
     ) -> bool {
         let before = self.clone();
         for app in running {
+            // D-84: a test's or an installer's profile under the system's
+            // temporary folder is never remembered (one was, as an App).
+            if app
+                .instance
+                .as_deref()
+                .and_then(Path::to_str)
+                .is_some_and(juggler_core::storage::in_temporary_folder)
+            {
+                continue;
+            }
             let id = place_id(&app.app_id, app.instance.as_deref());
             if !self.places.contains_key(&id) && !self.make_room() {
                 continue;
@@ -190,6 +211,8 @@ impl Book {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: false,
+                declined: false,
             });
             place.name =
                 host.map_or_else(|| app.app_id.clone(), |host| host.shown_name().to_owned());
@@ -246,6 +269,19 @@ impl Book {
             .min_by_key(|(_, place)| (!place.found, place.seen_ms))
             .map(|(id, _)| id.clone());
         oldest.is_some_and(|id| self.places.remove(&id).is_some())
+    }
+
+    /// 0.4.1: the user's one place of desktop app `app` on folder
+    /// `account`: where a session started in that app (its tool's files
+    /// say so) belongs when it was never seen open. `None` when the user
+    /// has none there, or several (which one isn't known).
+    #[must_use]
+    pub fn users_place_on(&self, app: &str, account: &str) -> Option<&String> {
+        let mut on = self.places.iter().filter(|(_, place)| {
+            place.users && place.app_id == app && place.account_id.as_deref() == Some(account)
+        });
+        let (id, _) = on.next()?;
+        on.next().is_none().then_some(id)
     }
 
     /// The place a session was last seen open in: the most recent one

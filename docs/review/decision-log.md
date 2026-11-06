@@ -2615,3 +2615,34 @@ stable state so we can actually start promoting the app to more users."
 - D-81 is read accordingly: an approval to ship is an approval to ship
   the complete release, never what happens to exist.
 - The audit of 2026-11-06 and the order of the work: `docs/qa/0.4-completion.md`.
+
+### D-84 AI Juggler never adds an app by itself: what it sees is offered — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06, testing 0.4.0 on their own Mac:
+"our app should not just add automatically services to AI juggler,
+remember this is part of adding new apps, or importing, like I never asked
+to import any of those to my primary".
+
+- **An App exists only because the user said so:** an Account they added
+  or imported (its CLI App, and a desktop profile whose sessions run on
+  that Account's folder), or an explicit **Add** on an offer. Nothing seen
+  running creates one.
+- **What AI Juggler sees running and doesn't know is offered, never
+  added:** "Found on this Mac: Claude app · aij-test — Add / Not now", in
+  Settings › Desktop apps and as one quiet notice. Until it's added it is
+  in no list, count, picker, the rail, Open now, Inactive apps, Home or the
+  Floor; Open and Keep alive act only on added Apps.
+- **Every provider, desktop and CLI.**
+- **Existing data (migration):** a desktop row linked to an imported
+  Account (`folder_id`) or kept alive stays an App; any other becomes an
+  offer; one under the system's temporary folder, or whose folder is gone,
+  is dropped outright (a test's leftover was recorded as an App).
+
+**What it replaces.** AJ-E2111 R1 and the "remember what ran" design of
+D-63 ("AI Juggler SHALL remember each desktop app and profile it sees
+running"): it still remembers how each ran, so an offer can be added and
+started, but remembering is no longer adding. AJ-E3203 R1/R3 (D-62's "every
+Claude app profile is an App, even when it's closed"): a profile found
+beside one that ran is offered, and becomes an App when added (or when its
+Account is one the user imported). D-64's "Inactive apps" lists added Apps
+only. D-63's Open and Keep alive are unchanged for added Apps.

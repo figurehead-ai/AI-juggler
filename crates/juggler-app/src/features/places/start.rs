@@ -209,6 +209,8 @@ mod tests {
             keep_alive: false,
             paused: None,
             found: false,
+            users: true,
+            declined: false,
         }
     }
 

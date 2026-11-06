@@ -27,7 +27,8 @@ import { isSearching, matches, type RailQuery, type RailView } from "./rail-view
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { nestRows } from "./rail-tree";
-import { appByConversation, appByFolder, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, RECENT_INLINE, type IdleApp } from "./rail-apps";
+import { appByConversation, appByFolder, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, RECENT_INLINE, type IdleApp } from "./rail-apps";
+import { desktopProfile } from "./app-name";
 
 export type SectionId = "needs" | "open" | "idle";
 
@@ -143,7 +144,19 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   const keep = (list: string, rows: RailItem[]) => (frozen?.has(list) ? frozenOrder(rows, frozen.get(list)!, (item) => item.key) : rows);
 
   const needs = keep("needs", needsYou(shown));
-  const open = shown.filter((item) => openNow(item) || (want("background") && item.background && item.need === null));
+  // 0.4.1: an open session not seen in a terminal, on a folder only one
+  // desktop profile runs on, is that profile's (its group has the
+  // profile's Start, Restart and Keep alive), not the folder's CLI App.
+  const byFolder = appByFolder(known);
+  const ofKey = new Map(known.map((place) => [knownKey(place), place]));
+  const theirs = (item: RailItem): RailItem => {
+    if (!item.conversation || !item.place.key.startsWith("cli|") || item.place.kind === "terminal") return item;
+    const key = byFolder.get(`|${item.conversation.account_id}`);
+    const place = key ? ofKey.get(key) : undefined;
+    if (!key || !place) return item;
+    return { ...item, place: { key, app: knownAppWord(place), appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null } };
+  };
+  const open = shown.filter((item) => openNow(item) || (want("background") && item.background && item.need === null)).map(theirs);
   const ended = shown.filter((item) => endedToday(item, now, want("archived"))).sort((a, b) => b.lastMs - a.lastMs);
   const background = shown.filter((item) => item.background && item.need === null);
   // The Project lens is the project board's; the Pool lens waits for a pool.
@@ -151,7 +164,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   // D-64: by App, an inactive session is under its app, not a list apart.
   const apps = by === "place";
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
-  const idle = apps ? idleSessionsByApp(shown, appByConversation(known), appByFolder(known)) : new Map<string, RailItem[]>();
+  const idle = apps ? idleSessionsByApp(shown, appByConversation(known), byFolder) : new Map<string, RailItem[]>();
   // Its last ones, under an app: unfolded by a click, and while searching.
   const past = (key: string, sessions: readonly RailItem[]) => {
     const open = searching || toggled.has(`${key}#recent`);
@@ -322,14 +335,3 @@ export function windowOf(lines: Line[], top: number, height: number, overscan = 
   return { start, end, before, after };
 }
 
-/** The own names two headers share (the 0.4 review): their app's word is
- * what tells them apart, so it shows beside them; a unique name stands
- * alone. */
-export function sharedProfileNames(lines: readonly Line[]): Set<string> {
-  const seen = new Map<string, number>();
-  for (const line of lines) {
-    const profile = line.kind === "header" ? line.group.place?.profile : undefined;
-    if (profile) seen.set(profile, (seen.get(profile) ?? 0) + 1);
-  }
-  return new Set([...seen].filter(([, n]) => n > 1).map(([name]) => name));
-}

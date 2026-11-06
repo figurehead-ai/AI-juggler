@@ -221,8 +221,8 @@
 **Goal**: Open works whether the app is running or not (D-63).
 **User story**: As a user, I click Open on an app or profile I closed, and it starts on the same profile, at the session where its app can.
 **Requirements**:
-1. AI Juggler SHALL remember each desktop app and profile it sees running: its bundle, the instance folder it was given, the sessions open in it; at most 32, forgotten after 90 days unseen unless kept alive.
-2. Open SHALL bring a running place forward, and start one that isn't, exactly as it last ran (the instance folder only), in front.
+1. AI Juggler SHALL remember each desktop app and profile the user added (by import, or Add on an offer; D-84 replaced "each one it sees running"): its bundle, the instance folder it was given, the sessions open in it; at most 32, forgotten after 90 days unseen unless kept alive. One seen running that the user never added SHALL only be offered ("Found on this Mac", Add / Not now), never become an App; one under the system's temporary folder SHALL never be recorded.
+2. Open SHALL bring a running place forward, and start one that isn't, exactly as it last ran (the instance folder only), in front. A place SHALL count as running only while its recorded process is alive as the same program with the same start time (0.4.1: a reused pid read a closed profile as running). Open SHALL start a closed App from every door: the rail's App header and its menu, Inactive apps, the App page, Home, ⌘K, Settings › Desktop apps and an ended session's "Open in".
 3. An ended session SHALL offer "Open in {app}" for the place it was last open in; Codex opens the thread by its link.
 4. Every start SHALL check the bundle is still the app's and its executable is one no other user can change; the window's setting writer SHALL NOT change the record.
 **UI/UX reasoning**: Nielsen's match with the real world: "Open" means open, whatever state the app is in.

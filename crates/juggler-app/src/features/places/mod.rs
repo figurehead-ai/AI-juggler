@@ -132,24 +132,47 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
     let hosts = HostRegistry::of(&state.registry);
     let home = dirs::home_dir().unwrap_or_default();
     let now = crate::commands::now_millis();
-    let Ok((changed_book, watched)) = with_book(state, |book| {
+    let Ok((changed_book, watched, new_offers)) = with_book(state, |book| {
+        let before: std::collections::BTreeSet<String> = book.places.keys().cloned().collect();
         let changed = book.observe(running, entries, &hosts, &home, now);
+        // D-84: an app seen for the first time that isn't the user's is
+        // offered once (a quiet notice), never added.
+        let new_offers: Vec<(String, String)> = book
+            .places
+            .iter()
+            .filter(|(id, place)| {
+                !before.contains(*id) && !place.users && place.account_id.is_none()
+            })
+            .map(|(id, place)| (id.clone(), place.label()))
+            .collect();
         let watched: Vec<String> = book
             .places
             .iter()
             .filter(|(_, place)| place.watched())
             .map(|(id, _)| id.clone())
             .collect();
-        (changed, watched)
+        (changed, watched, new_offers)
     }) else {
         return;
     };
+    if !new_offers.is_empty()
+        && let Ok(storage) = crate::commands::lock_storage_arc(state)
+    {
+        for (id, label) in &new_offers {
+            let _ = crate::features::notifications::centre::record(
+                &storage,
+                &crate::features::notifications::sources::found_notice(id, label),
+                now,
+            );
+        }
+    }
     let found = profiles::after_scan(state, &hosts, &home, now);
     let moved = state.places.watch.lock().is_ok_and(|mut watch| {
         let before = watch.known();
         for app in running {
             let id = book::place_id(&app.app_id, app.instance.as_deref());
             watch.found(&id, app.pid, app.start);
+            watch.note_exe(&id, &app.exe);
         }
         // A place not running now and not watched: no process (a watched
         // one's end is the watch's to see, two misses in a row).
@@ -388,6 +411,7 @@ pub fn tick_with(
                 {
                     Some(app) => {
                         watch.found(id, app.pid, app.start);
+                        watch.note_exe(id, &app.exe);
                         true
                     }
                     None => false,
@@ -534,7 +558,8 @@ pub fn set_keep_alive(state: &Arc<AppState>, id: &str, on: bool) -> AppResult<()
         let place = book
             .places
             .get_mut(id)
-            .ok_or_else(|| AppError::Refused("AI Juggler doesn't remember that app".to_owned()))?;
+            .filter(|place| place.users)
+            .ok_or_else(|| AppError::Refused(NOT_ADDED.to_owned()))?;
         if on {
             start::plan(place, &hosts, None, true).map_err(AppError::Refused)?;
         }
@@ -544,6 +569,66 @@ pub fn set_keep_alive(state: &Arc<AppState>, id: &str, on: bool) -> AppResult<()
     })??;
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.drop_place(id);
+    }
+    changed(state);
+    Ok(())
+}
+
+/// D-84: what Open, Restart and Keep alive say about an app that isn't
+/// one of the user's (an offer, or nothing known).
+pub const NOT_ADDED: &str = "That app isn't in AI Juggler: add it first (Settings › Desktop apps)";
+
+/// D-84: what AI Juggler found running and the user hasn't added or
+/// declined: each offer's id and name. Offers whose folder is gone are
+/// forgotten here.
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+pub fn offers(state: &Arc<AppState>) -> AppResult<Vec<(String, String)>> {
+    let gone: Vec<String> = with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| {
+                !place.users && place.instance_dir.as_ref().is_some_and(|dir| !dir.exists())
+            })
+            .map(|(id, _)| id.clone())
+            .collect()
+    })?;
+    for id in &gone {
+        forget(state, id)?;
+    }
+    with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| !place.users && !place.declined)
+            .map(|(id, place)| (id.clone(), place.label()))
+            .collect()
+    })
+}
+
+/// D-84: the user adds offer `id` (or answers "Not now": `add` false).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for an id that isn't an offer; storage errors.
+pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()> {
+    {
+        let storage = crate::commands::lock_storage_arc(state)?;
+        if add {
+            if !storage.apps().add(id)? {
+                return Err(AppError::Refused(
+                    "AI Juggler didn't find that app".to_owned(),
+                ));
+            }
+        } else {
+            storage.apps().decline(id)?;
+        }
+    }
+    // The book reads its rows again: the place is the user's now (or
+    // declined).
+    if let Ok(mut slot) = state.places.book.lock() {
+        *slot = None;
     }
     changed(state);
     Ok(())
@@ -585,19 +670,42 @@ fn host_of(
     }
 }
 
+/// Whether `process` is still the app a place last ran as: the same
+/// start time (to the second) and the same program. A pid alone isn't
+/// enough: the system reuses them, and a closed profile read as running
+/// on 0.4.0 (2026-11-06).
+#[must_use]
+pub fn is_its_process(
+    exe: &std::path::Path,
+    recorded_start: Option<i64>,
+    process: &procs::Proc,
+) -> bool {
+    let started =
+        matches!((recorded_start, process.start), (Some(was), Some(is)) if (was - is).abs() <= 1);
+    let program = exe.as_os_str().is_empty() || process.exe.as_deref() == Some(exe);
+    started && program
+}
+
 /// The process `id` runs as now: the watch's, when it's still that one,
 /// else looked for in the whole list.
 pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
-    let known = state
+    let (known, exe) = state
         .places
         .watch
         .lock()
         .ok()
-        .and_then(|watch| watch.pid_of(id));
+        .map(|watch| {
+            (
+                watch.pid_of(id),
+                watch.exe_of(id).map(std::path::Path::to_path_buf),
+            )
+        })
+        .unwrap_or_default();
+    let exe = exe.unwrap_or_default();
     if let Some((pid, start)) = known
         && procs::some(&[pid])
             .get(&pid)
-            .is_some_and(|process| juggler_adapter::live::same_start(start, process.start))
+            .is_some_and(|process| is_its_process(&exe, start, process))
     {
         return Some((pid, start));
     }
@@ -608,6 +716,7 @@ pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Optio
         .find(|app| book::place_id(&app.app_id, app.instance.as_deref()) == id)?;
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.found(id, app.pid, app.start);
+        watch.note_exe(id, &app.exe);
     }
     Some((app.pid, app.start))
 }
@@ -691,12 +800,15 @@ pub fn restart(
     now: i64,
 ) -> Result<String, String> {
     let place = with_book(state, |book| {
-        book.places.get_mut(id).map(|place| {
-            if !background {
-                place.paused = None;
-            }
-            place.clone()
-        })
+        book.places
+            .get_mut(id)
+            .filter(|place| place.users)
+            .map(|place| {
+                if !background {
+                    place.paused = None;
+                }
+                place.clone()
+            })
     })
     .map_err(|error| error.to_string())?
     .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
@@ -818,12 +930,15 @@ pub fn open(
     starter: Arc<dyn start::Starter>,
 ) -> AppResult<GoToOutcomeInfo> {
     let place = with_book(state, |book| {
-        book.places.get_mut(id).map(|place| {
-            place.paused = None;
-            place.clone()
-        })
+        book.places
+            .get_mut(id)
+            .filter(|place| place.users)
+            .map(|place| {
+                place.paused = None;
+                place.clone()
+            })
     })?
-    .ok_or_else(|| AppError::Refused("AI Juggler doesn't remember that app".to_owned()))?;
+    .ok_or_else(|| AppError::Refused(NOT_ADDED.to_owned()))?;
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.drop_place(id);
     }
@@ -894,5 +1009,7 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     }
 }
 
+#[cfg(test)]
+mod d84_tests;
 #[cfg(test)]
 mod tests;

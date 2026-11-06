@@ -68,6 +68,9 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<StoredAppInfo>> {
         .list()?
         .into_iter()
         .filter(|app| !app.hidden)
+        // D-84: an App only because the user said so; one only seen
+        // running is an offer (Settings › Desktop apps), never listed here.
+        .filter(juggler_core::storage::App::is_users)
         // A removed folder's CLI App goes with it.
         .filter(|app| {
             app.kind != "cli"

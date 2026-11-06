@@ -22,6 +22,13 @@ left=""
 for pid in $(pgrep -f "$pattern"); do # pgrep patterns are extended regexes
   [ "$(ps -o ppid= -p "$pid" | tr -d ' ')" = 1 ] && left+="$(ps -o pid=,command= -p "$pid")"$'\n'
 done
+# A throwaway desktop profile a live test started (places_real's "Lab
+# Claude profile", under the system's temporary folder): the app runs
+# under launchd, so any one still up after the suite is left behind. On
+# 0.4.0 one ran long enough for the installed AI Juggler to record it.
+for pid in $(pgrep -f -- '--user-data-dir=(/private)?/var/folders/[^ ]*/Lab [A-Za-z]+ profile'); do
+  left+="$(ps -o pid=,command= -p "$pid")"$'\n'
+done
 if [ -n "$left" ]; then
   echo "leaked-fixtures: these test fixtures outlived the suite:" >&2
   printf '%s' "$left" >&2

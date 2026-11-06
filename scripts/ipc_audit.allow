@@ -128,6 +128,7 @@ unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices 
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
 unbounded places_find  # bounded: one app; its sessions are the book's newest 100 (D-64)
+unbounded places_offers  # bounded: the places book keeps at most 32 apps, offers among them
 unbounded places_profiles  # bounded: one folder per remembered profile's folder (the book keeps at most 32)
 unbounded places_profiles_set  # bounded: one folder per remembered profile's folder (the book keeps at most 32)
 unbounded pools_canvas  # bounded: at most 200 members named, edges per pair of them, the newest 100 waiting messages and 30 stream lines

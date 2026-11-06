@@ -117,6 +117,8 @@ fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
         book.places.insert(
@@ -135,6 +137,8 @@ fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
     })
@@ -373,7 +377,12 @@ fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
     let start = crate::features::conversations::procs::some(&[me])
         .get(&me)
         .and_then(|process| process.start);
-    state.places.watch.lock().unwrap().found(id, me, start);
+    let mut watch = state.places.watch.lock().unwrap();
+    watch.found(id, me, start);
+    // As found running: this test's program (0.4.1: the pid and start
+    // alone aren't the app; its program must be too).
+    watch.note_exe(id, &std::env::current_exe().unwrap());
+    drop(watch);
     (me, start)
 }
 

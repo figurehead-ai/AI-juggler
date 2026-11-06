@@ -64,12 +64,12 @@
 **Handover note**: Schema numbers follow 0.3.x and AJ-E3003's.
 
 ### AJ-E3203 Claude app profiles found when they aren't running | Status: IN-PROGRESS (built: the adapter says which app keeps its profiles side by side (`HostApp::siblings`, the Claude app) and lists the folder names beside one that ran, names only, never home or outside it, never beside the default instance, at most 64, under 50 ms; asked once on the App page ("Find this app's other profiles", naming the folder), kept, off in Settings › Desktop apps, which forgets what it found; each found profile is a desktop App row that starts from its sibling's bundle with only its folder; a profile is named by its Claude Code folder once its sessions link one, else its own folder; the Privacy page's line with its tests, including that nothing inside a profile folder is opened; gallery 99-app-profiles critiqued. L2 on the replica and A6 walked on the real setup remain) | Priority P1 | Effort M | Depends: AJ-E3202
-**Goal**: Every Claude app profile is an App, even when it's closed.
+**Goal**: Every Claude app profile the user has is easy to add as an App, even when it's closed (D-84: found profiles are offered, never added by themselves).
 **User story**: As someone with six Claude app profiles, the App list shows all six, including the ones I haven't opened today.
 **Requirements**:
 1. AI Juggler SHALL list the folder names beside one seen running, never their contents, after asking once on the App page.
 2. The Privacy page SHALL say what is read.
-3. Each SHALL become an App named "Claude app · <profile>", linked to its Account when its Code sessions show one.
+3. Each SHALL be offered ("Found on this Mac", Add / Not now) and become an App named "Claude app · <profile>" only when the user adds it, or imports the Claude Code folder it is linked to (D-84 replaced "each SHALL become an App").
 **UI/UX reasoning**: no hidden things the user has.
 **Performance budget**: the listing ≤ 50 ms.
 **Quality gates**: L2 on the replica; a test that no file inside a profile is opened.
@@ -155,7 +155,7 @@
 **Requirements**:
 1. The Accounts screen SHALL have two sections, Accounts and Apps (or tabs, if the screen reads better so), each counted.
 2. Each App row SHALL show its icon and mark, its whole name, its Account, whether it runs, and Start (closed) or Open (running); Keep alive in its menu.
-3. Apps SHALL include desktop apps' profiles never opened since AI Juggler was installed (AJ-E3203), shown as found.
+3. Apps SHALL include the desktop apps' profiles the user added, running or not; profiles found but not added SHALL be offered, not listed (D-84, AJ-E3203).
 4. Restart for a running App (D-71, AJ-E3209) and 0.3.8's restart of one that lost its window show here too.
 **UI/UX reasoning**: desktop-first navigation: what is open, where, one click to it; recognition over recall.
 **Performance budget**: the screen paints from cache at once; ≤ 150 ms to a page.

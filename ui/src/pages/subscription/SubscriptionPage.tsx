@@ -32,7 +32,7 @@ import { useRelationCounts } from "../../lib/relation-counts";
 import { accountApps, accountItems } from "../../lib/account-items";
 import { appProjects, openHere } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
-import { appByConversation, appKeyOf } from "../../lib/rail-apps";
+import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
 import { RenewalChip } from "../../components/RenewalChip";
@@ -87,12 +87,14 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const folderIds = useMemo(() => new Set(sub.profiles.map((profile) => profile.id)), [sub.profiles]);
   const allItems = useMemo(() => itemsOf({ sessions, conversations, projects, seen }), [sessions, conversations, projects, seen]);
   const items = useMemo(() => accountItems(allItems, folderIds), [allItems, folderIds]);
-  const byConversation = useMemo(() => appByConversation((apps ?? []).flatMap((app) => (app.place ? [app.place] : []))), [apps]);
+  const knownPlaces = useMemo(() => (apps ?? []).flatMap((app) => (app.place ? [app.place] : [])), [apps]);
+  const byConversation = useMemo(() => appByConversation(knownPlaces), [knownPlaces]);
+  const byFolder = useMemo(() => appByFolder(knownPlaces), [knownPlaces]);
   const onIt = useMemo(() => accountApps(apps ?? [], sub.account_id ?? "", folderIds, allItems, byConversation), [apps, sub.account_id, folderIds, allItems, byConversation]);
   const worked = useMemo(() => appProjects(items), [items]);
   // Each session's App, by the rail's rule (a session that ended in the
   // Claude app says so, not its tool).
-  const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation)) : null);
+  const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation, byFolder)) : null);
   const name = accountName(sub);
   const open = items.filter(openHere).length;
   // AJ-E3102: Sessions counts what its list pages through (the backend's

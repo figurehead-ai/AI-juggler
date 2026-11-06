@@ -219,6 +219,7 @@ fn a_desktop_app_is_written_whole_and_keeps_the_users_name() {
         sessions_json: Some(r#"["claude-code/s-1"]"#.into()),
         first_seen: 10,
         last_seen: 10,
+        added: false,
     };
     apps.put_desktop(&app).unwrap();
     apps.rename(&id, Some("Work desk")).unwrap();
@@ -266,6 +267,7 @@ fn desktop(id: &str, first_seen: i64) -> App {
         sessions_json: None,
         first_seen,
         last_seen: first_seen,
+        added: false,
     }
 }
 

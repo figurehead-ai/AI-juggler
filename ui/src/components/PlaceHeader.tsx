@@ -38,7 +38,6 @@ export function PlaceHeader({
   keepAlive = null,
   onNew,
   onRestart,
-  sharedName = false,
 }: {
   place: RailPlace | null;
   label: string;
@@ -63,10 +62,6 @@ export function PlaceHeader({
   onNew?: () => void;
   /** D-71: a running desktop app: Restart…, after its confirm. */
   onRestart?: () => void;
-  /** Another header in this list has the same own name ("Work Max" in
-   * Claude Code and in the Claude app): its app's word is what tells
-   * them apart, so it keeps its room and the name gives way. */
-  sharedName?: boolean;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
   const [menu, setMenu] = useState<MenuAt | null>(null);
@@ -120,7 +115,8 @@ export function PlaceHeader({
                 <ProfileBadge app={place.key} name={place.profile} size={6} />
                 <span className="truncate">{place.profile}</span>
               </span>
-              {sharedName && <span className="shrink-0 text-label text-muted" data-testid="place-app-word">{label}</span>}
+              {/* 0.4.1: always its app's word: "bookauth-anela" in Claude Code and in the Claude app read as one App twice. */}
+              <span className="shrink-0 text-label text-muted" data-testid="place-app-word">{label}</span>
             </>
           ) : (
             <span className="ml-0.5 shrink-0 truncate text-label font-semibold text-ink">{label}</span>

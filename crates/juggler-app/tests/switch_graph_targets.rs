@@ -395,6 +395,8 @@ fn a_claude_app_profile_signed_in_through_the_app_is_offered_and_continues_there
                 keep_alive: false,
                 paused: None,
                 found: false,
+                users: true,
+                declined: false,
             },
         );
     })

@@ -137,7 +137,7 @@ function ConversationView({
   const goTo = useCallback(() => void host.goToConversation?.(latest.current), [host]);
   // 0.3.3: an ended session reopens in the app it was last open in (that
   // app started when it isn't running; Codex at the thread itself).
-  const lastPlace = useLastPlace(conversation.tool, conversation.id, !conversation.live);
+  const lastPlace = useLastPlace(conversation.tool, conversation.id, !conversation.live, conversation.started_in ? { account: conversation.account_id, app: conversation.started_in } : null);
   const openIn = useCallback(() => {
     if (!lastPlace) return;
     showToast({ id: "go-to", message: `Opening ${lastPlace.label}…` });
