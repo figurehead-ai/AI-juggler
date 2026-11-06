@@ -733,19 +733,21 @@ fn area_floor(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
         dim: a.dim,
     };
     let fr = rect.inset(0.12);
-    b.tex(
-        Mesh::QuadUp,
-        T::new()
-            .t(fr.cx(), a.fy + 0.004, fr.cz())
-            .s(fr.w(), 1.0, fr.d()),
-        [255; 4],
-        Skin {
-            uv: finish,
-            repeat: [fr.w() / tile, fr.d() / tile],
-            glow: 0.0,
-            flags: 0,
-        },
-    );
+    b.with(a.kit.floor.mat(), |b| {
+        b.tex(
+            Mesh::QuadUp,
+            T::new()
+                .t(fr.cx(), a.fy + 0.004, fr.cz())
+                .s(fr.w(), 1.0, fr.d()),
+            [255; 4],
+            Skin {
+                uv: finish,
+                repeat: [fr.w() / tile, fr.d() / tile],
+                glow: 0.0,
+                flags: 0,
+            },
+        );
+    });
     if a.placed.size == Size::L {
         b.put(
             Mesh::QuadUp,
@@ -785,7 +787,7 @@ fn area_floor(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
                 misc: [1.0, 1.0, 0.0, models::TEXTURED as f32],
                 off: [0.0; 2],
                 id: a.id,
-                pad: 0,
+                mat: crate::materials::NONE,
             },
         });
     }
@@ -796,15 +798,17 @@ fn area_floor(out: &mut Vec<Item>, atlas: &mut Atlas, a: &Area<'_>) -> Result<()
             &format!("rug:{}:{}", a.app.id, a.placed.annex),
             &tex::rug_img(a.kit.rug, a.kit.accent, a.seed),
         )?;
-        b.tex(
-            Mesh::Box,
-            T::new()
-                .t(g.x, a.fy + 0.008, g.z)
-                .ry(g.turn)
-                .s(3.6, 0.01, 2.8),
-            [255; 4],
-            skin(rug, 0.0, 0),
-        );
+        b.with(crate::materials::CARPET, |b| {
+            b.tex(
+                Mesh::Box,
+                T::new()
+                    .t(g.x, a.fy + 0.008, g.z)
+                    .ry(g.turn)
+                    .s(3.6, 0.01, 2.8),
+                [255; 4],
+                skin(rug, 0.0, 0),
+            );
+        });
     }
     Ok(())
 }
@@ -1149,7 +1153,12 @@ fn divider(
             let books = atlas.add("divbooks", &tex::books_img(91))?;
             for k in 0..(len / 1.2).floor().max(1.0) as usize {
                 let p = t.t(-len / 2.0 + 0.6 + k as f32 * 1.2, 0.0, 0.0);
-                b.put(Mesh::Box, p.s(1.15, 1.15, 0.36), hex("#6b4a32"));
+                b.put_m(
+                    Mesh::Box,
+                    p.s(1.15, 1.15, 0.36),
+                    hex("#6b4a32"),
+                    crate::materials::WOOD,
+                );
                 for shelf in 0..2 {
                     for side in [0.0f32, PI] {
                         b.tex(

@@ -14,7 +14,7 @@ use crate::colour::{Rgba, hex, mix, ramp};
 use crate::layout::{AISLE, LOBBY_W, ROW_D};
 use crate::math::{T, V3};
 use crate::mesh::Mesh;
-use crate::models::{self, B, Growth, Item, Look, Pose, person, plant};
+use crate::models::{self, B, Growth, Item, Look, Pose, person_as, plant};
 use crate::rng::{Rng, hash};
 use crate::state::FloorState;
 use crate::tex::{Icon, Uv};
@@ -233,7 +233,16 @@ impl Scene {
         } else {
             (d.frame.t(0.0, 0.0, 0.62), d.seat)
         };
-        let head = person(&mut b, root, &d.look, pose, t + d.phase, seat, turn);
+        let head = person_as(
+            self.detail,
+            &mut b,
+            root,
+            &d.look,
+            pose,
+            t + d.phase,
+            seat,
+            turn,
+        );
         let icon = match d.state {
             FloorState::Asks => Some(Icon::Asks),
             FloorState::Stuck => Some(Icon::Stuck),
@@ -253,7 +262,7 @@ impl Scene {
             });
         }
         state_effects(&mut b, d, t, drawn);
-        helpers(d, t, out, drawn);
+        helpers(d, (t, self.detail), out, drawn);
         drawn.moving = true;
     }
 
@@ -341,7 +350,8 @@ impl Scene {
                 id: 0,
                 dim: 1.0,
             };
-            person(
+            person_as(
+                self.detail,
                 &mut b,
                 T::new().t(x, fy, z).ry(dir),
                 &look,
@@ -447,7 +457,7 @@ fn state_effects(b: &mut B, d: &DeskRec, t: f32, drawn: &mut Drawn) {
 }
 
 /// Subagents round a desk: a few drawn, the rest a "+N".
-fn helpers(d: &DeskRec, t: f32, out: &mut Vec<Item>, drawn: &mut Drawn) {
+fn helpers(d: &DeskRec, (t, detail): (f32, bool), out: &mut Vec<Item>, drawn: &mut Drawn) {
     let helpers = d.session.subagents as usize;
     if helpers > 0 {
         let mut hb = B {
@@ -469,7 +479,8 @@ fn helpers(d: &DeskRec, t: f32, out: &mut Vec<Item>, drawn: &mut Drawn) {
             look.height *= 0.9;
             look.top = mix(d.accent, hex("#f4efe6"), 0.45);
             look.top_style = 3;
-            let above = person(
+            let above = person_as(
+                detail,
                 &mut hb,
                 at,
                 &look,

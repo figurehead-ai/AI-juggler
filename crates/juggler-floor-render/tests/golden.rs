@@ -246,6 +246,18 @@ fn scene_with(
     seating: &mut Seating,
     covers: bool,
 ) -> Scene {
+    scene_full(snap, office, seating, covers, false)
+}
+
+/// A scene with 0.4.2's dust sheets (`covers`) and second pass
+/// (`detail`) chosen.
+fn scene_full(
+    snap: &FloorSnapshot,
+    office: &mut Office,
+    seating: &mut Seating,
+    covers: bool,
+    detail: bool,
+) -> Scene {
     let open: Vec<_> = snap
         .apps
         .iter()
@@ -274,6 +286,7 @@ fn scene_with(
         seats: &seats,
         decay: true,
         covers,
+        detail,
         machine: "This computer",
         now_ms: NOW,
         logos: &BTreeMap::new(),
@@ -842,6 +855,7 @@ fn the_design_proposal_frames() {
     let day = Look {
         sky: Sky::always_day(),
         rework: true,
+        ..Look::default()
     };
     let looks = [
         ("before", classic),
@@ -851,6 +865,7 @@ fn the_design_proposal_frames() {
             Look {
                 sky: Sky::at(3.0, 250.0),
                 rework: true,
+                ..Look::default()
             },
         ),
         (
@@ -858,6 +873,7 @@ fn the_design_proposal_frames() {
             Look {
                 sky: Sky::at(-4.0, 262.0),
                 rework: true,
+                ..Look::default()
             },
         ),
         (
@@ -865,6 +881,7 @@ fn the_design_proposal_frames() {
             Look {
                 sky: Sky::always_night(),
                 rework: true,
+                ..Look::default()
             },
         ),
     ];
@@ -893,6 +910,7 @@ fn the_design_proposal_frames() {
             renderer.set_look(Look {
                 sky: Sky::always_night(),
                 rework: true,
+                ..Look::default()
             });
             let img = renderer
                 .capture(&covered, &area_cam("cli:n", 13.0), &live, size, &extras)
@@ -1011,4 +1029,301 @@ fn the_design_proposal_frames() {
         },
     );
     shoot(&mut renderer, "labels-before-far", &zooms[2].1);
+}
+
+/// The second pass's material maps as swatches, each lit from the upper
+/// left on a typical colour, for the design proposal (`AJ_FLOOR_PROPOSAL`
+/// names the folder).
+#[test]
+#[ignore = "writes the design proposal's swatches; opt-in"]
+fn the_material_swatches() {
+    use juggler_floor::materials as m;
+    let Some(dir) = std::env::var_os("AJ_FLOOR_PROPOSAL").map(PathBuf::from) else {
+        return;
+    };
+    let dir = dir.join("swatches");
+    std::fs::create_dir_all(&dir).unwrap();
+    let swatches = [
+        ("wood", m::WOOD, [0.72, 0.5, 0.32]),
+        ("fabric", m::FABRIC, [0.3, 0.42, 0.62]),
+        ("carpet", m::CARPET, [0.55, 0.36, 0.34]),
+        ("metal", m::METAL, [0.62, 0.63, 0.66]),
+        ("plastic", m::PLASTIC, [0.9, 0.9, 0.88]),
+        ("leaf", m::LEAF, [0.2, 0.5, 0.25]),
+        ("skin", m::SKIN, [0.9, 0.72, 0.6]),
+        ("hair", m::HAIR, [0.42, 0.27, 0.16]),
+        ("cloth", m::CLOTH, [0.78, 0.3, 0.24]),
+        ("denim", m::DENIM, [0.2, 0.27, 0.42]),
+        ("leather", m::LEATHER, [0.45, 0.28, 0.18]),
+        ("ceramic", m::CERAMIC, [0.85, 0.83, 0.78]),
+        ("plaster", m::PLASTER, [0.86, 0.84, 0.8]),
+        ("rubber", m::RUBBER, [0.2, 0.2, 0.22]),
+        ("paper", m::PAPER, [0.95, 0.93, 0.88]),
+        ("soil", m::SOIL, [0.32, 0.22, 0.15]),
+    ];
+    let mut sheet = Img::new(4 * 260, 4 * 260);
+    for (i, (name, mat, colour)) in swatches.into_iter().enumerate() {
+        let img = m::preview(mat, colour);
+        let k = i32::try_from(i).unwrap_or(0);
+        sheet.blit(&img, (k % 4) * 260, (k / 4) * 260);
+        write_png(&dir.join(format!("{name}.png")), &img);
+    }
+    write_png(&dir.join("sheet.png"), &sheet);
+}
+
+/// A part of `img`: `w` × `h` from `(x, y)`.
+#[allow(clippy::many_single_char_names)] // a rectangle's own short names
+fn crop(img: &Img, x: i32, y: i32, w: i32, h: i32) -> Img {
+    let mut out = Img::new(w, h);
+    for j in 0..h {
+        for i in 0..w {
+            let (sx, sy) = ((x + i).clamp(0, img.w - 1), (y + j).clamp(0, img.h - 1));
+            let s = ((sy * img.w + sx) * 4) as usize;
+            let o = ((j * w + i) * 4) as usize;
+            out.px[o..o + 4].copy_from_slice(&img.px[s..s + 4]);
+        }
+    }
+    out
+}
+
+/// The second pass's frames for the design proposal (0.4.2, research
+/// §12): the first pass (v1) and the second (v2) side by side, up close
+/// and at the normal zoom, in Pixel art (and its finer pixel) and Full
+/// resolution, on a Retina-sized window; a portrait of a sitter in each
+/// state; and what each costs, in `costs.json`.
+#[test]
+#[ignore = "writes the design proposal's second-pass frames; opt-in"]
+#[allow(clippy::too_many_lines)] // one sheet of frames, shot by shot
+fn the_second_pass_frames() {
+    use juggler_floor::daylight::Sky;
+    use juggler_floor_render::Look;
+    use std::fmt::Write as _;
+    use std::time::Instant;
+
+    let Some(dir) = std::env::var_os("AJ_FLOOR_PROPOSAL").map(PathBuf::from) else {
+        return;
+    };
+    let dir = dir.join("v2");
+    std::fs::create_dir_all(&dir).unwrap();
+    let only = std::env::var("AJ_SHOTS").unwrap_or_default();
+    let want = |name: &str| only.is_empty() || only.split(',').any(|s| name.starts_with(s));
+    let snap = company(false);
+    let (mut o1, mut s1) = (Office::new(42, 10), Seating::default());
+    let v1 = scene_full(&snap, &mut o1, &mut s1, false, false);
+    let (mut o2, mut s2) = (Office::new(42, 10), Seating::default());
+    let v2 = scene_full(&snap, &mut o2, &mut s2, false, true);
+    let mut r = Renderer::headless(&v1).unwrap();
+    r.set_overlay(false);
+    let size = (2560, 1600, 2.0);
+    let aspect = size.0 as f32 / size.1 as f32;
+    let home = v1.frame_size().home(Some(0), aspect);
+    let live = Live {
+        t: 2.0,
+        ..Live::default()
+    };
+    let extras = Extras {
+        hint: "",
+        alert: None,
+        mouse: None,
+    };
+    let sky = Sky::always_day();
+    let first = Look {
+        sky,
+        rework: true,
+        ..Look::default()
+    };
+    let second = Look {
+        materials: true,
+        ..first
+    };
+    let fine = Look {
+        fine: true,
+        ..second
+    };
+    let area = |app: &str, dist: f32, pitch: f32, yaw: f32| {
+        let l = v1.labels.iter().find(|l| l.app == app).unwrap();
+        View {
+            focus: Some(l.floor),
+            cam: Cam {
+                t: [l.at[0] + 0.3, l.at[1] - 2.7, l.at[2] - 3.4],
+                yaw,
+                pitch,
+                dist,
+            },
+        }
+    };
+    let floor = View {
+        focus: Some(0),
+        cam: home,
+    };
+    // (name, view, look, full, second pass)
+    let mut shots: Vec<(String, View, Look, bool, bool)> = Vec::new();
+    for (vw, view) in [("desk", area("cli:w", 5.2, 0.78, 0.5)), ("floor", floor)] {
+        shots.push((format!("{vw}-v1-px"), view, first, false, false));
+        shots.push((format!("{vw}-v2-px"), view, second, false, true));
+        shots.push((format!("{vw}-v2-fine"), view, fine, false, true));
+        shots.push((format!("{vw}-v1-full"), view, first, true, false));
+        shots.push((format!("{vw}-v2-full"), view, second, true, true));
+    }
+    for (name, view, look, full, detail) in &shots {
+        if !want(name) {
+            continue;
+        }
+        let scene = if *detail { &v2 } else { &v1 };
+        r.load(scene);
+        r.set_look(*look);
+        r.set_full(*full);
+        let img = r.capture(scene, view, &live, size, &extras).unwrap();
+        write_png(&dir.join(format!("{name}.png")), &img);
+        if name.starts_with("desk") {
+            write_png(
+                &dir.join(format!("{name}-crop.png")),
+                &crop(&img, 380, 40, 1100, 900),
+            );
+        }
+    }
+    // Portraits: one sitter in each state, turned to look at the camera.
+    let mut states: Vec<(FloorState, u32)> = Vec::new();
+    for l in &v1.labels {
+        let Some(app) = v1.app(&l.app) else { continue };
+        for s in &app.sessions {
+            if states.iter().any(|(st, _)| *st == s.state) {
+                continue;
+            }
+            if let Some(id) = v1.pick_of_session(&s.key) {
+                states.push((s.state, id));
+            }
+        }
+    }
+    for (state, id) in &states {
+        let Some((at, ahead)) = v1.sitter(*id) else {
+            continue;
+        };
+        let stands = matches!(state, FloorState::Asks | FloorState::Crashed);
+        // from the sitter's side, a little in front, the head turned to us
+        let across = [ahead[2], 0.0, -ahead[0]];
+        let f = if stands { -1.0 } else { 0.9 };
+        let e = [
+            ahead[0] * f + across[0] * 0.7,
+            ahead[2] * f + across[2] * 0.7,
+        ];
+        let yaw = e[0].atan2(e[1]);
+        let view = View {
+            focus: Some(0),
+            cam: Cam {
+                t: if stands {
+                    // beside the desk, where a standing sitter goes
+                    [
+                        at[0] - across[0] * 0.9 - ahead[0] * 0.13,
+                        at[1] + 0.15,
+                        at[2] - across[2] * 0.9 - ahead[2] * 0.13,
+                    ]
+                } else {
+                    [at[0], at[1] - 0.2, at[2]]
+                },
+                yaw,
+                pitch: 0.42,
+                dist: 3.4,
+            },
+        };
+        let hov = Live {
+            hover: *id,
+            ..live.clone()
+        };
+        for (tag, scene, look, full) in [
+            ("v1-full", &v1, first, true),
+            ("v2-full", &v2, second, true),
+            ("v1-px", &v1, first, false),
+            ("v2-px", &v2, second, false),
+        ] {
+            let name = format!("person-{state:?}-{tag}").to_lowercase();
+            if !want(&name) {
+                continue;
+            }
+            r.load(scene);
+            r.set_look(look);
+            r.set_full(full);
+            let img = r.capture(scene, &view, &hov, size, &extras).unwrap();
+            write_png(
+                &dir.join(format!("{name}.png")),
+                &crop(&img, 880, 250, 800, 900),
+            );
+        }
+    }
+    // Costs: the maps, the scene, a frame (CPU), a frame (CPU and GPU).
+    if !want("costs") {
+        return;
+    }
+    let t0 = Instant::now();
+    let maps = juggler_floor::materials::bake();
+    let bake_ms = t0.elapsed().as_secs_f64() * 1000.0;
+    let mut builds = [0.0f64; 2];
+    for (k, detail) in [false, true].into_iter().enumerate() {
+        let t0 = Instant::now();
+        for _ in 0..5 {
+            let (mut o, mut s) = (Office::new(42, 10), Seating::default());
+            let _ = scene_full(&snap, &mut o, &mut s, false, detail);
+        }
+        builds[k] = t0.elapsed().as_secs_f64() * 1000.0 / 5.0;
+    }
+    let mut frame_cpu = [0.0f64; 2];
+    let mut parts = [0usize; 2];
+    for (k, scene) in [&v1, &v2].into_iter().enumerate() {
+        let mut moving = Vec::new();
+        let t0 = Instant::now();
+        for i in 0..200 {
+            moving.clear();
+            let l = Live {
+                t: 2.0 + i as f32 / 60.0,
+                ..live.clone()
+            };
+            let _ = scene.frame(&l, &[0], &mut moving);
+        }
+        frame_cpu[k] = t0.elapsed().as_secs_f64() * 1000.0 / 200.0;
+        parts[k] = moving.len();
+    }
+    let mut json = format!(
+        "{{\"bake_ms\":{bake_ms:.2},\"maps_mb\":{:.2},\"build_ms\":[{:.2},{:.2}],\"frame_cpu_ms\":[{:.3},{:.3}],\"moving_parts\":[{},{}],\"still_parts\":[{},{}],\"frames\":[",
+        maps.data.len() as f64 / 1_048_576.0,
+        builds[0],
+        builds[1],
+        frame_cpu[0],
+        frame_cpu[1],
+        parts[0],
+        parts[1],
+        v1.stat.len(),
+        v2.stat.len()
+    );
+    let mut first_row = true;
+    for (label, size) in [
+        ("retina", (2560u32, 1600u32, 2.0f32)),
+        ("wide", (3440, 1410, 1.0)),
+    ] {
+        for (mode, full) in [("px", false), ("fine", false), ("full", true)] {
+            for (pass, scene, look) in [("v1", &v1, first), ("v2", &v2, second)] {
+                if mode == "fine" && pass == "v1" {
+                    continue;
+                }
+                let look = if mode == "fine" {
+                    Look { fine: true, ..look }
+                } else {
+                    look
+                };
+                r.load(scene);
+                r.set_look(look);
+                r.set_full(full);
+                let ms = r.bench(scene, &floor, &live, size, 120);
+                if !first_row {
+                    json.push(',');
+                }
+                first_row = false;
+                let _ = write!(
+                    json,
+                    "{{\"window\":\"{label}\",\"mode\":\"{mode}\",\"pass\":\"{pass}\",\"ms\":{ms:.3}}}"
+                );
+            }
+        }
+    }
+    json.push_str("]}");
+    std::fs::write(dir.join("costs.json"), json).unwrap();
 }

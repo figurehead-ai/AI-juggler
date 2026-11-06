@@ -6,9 +6,16 @@
 //! resolution (D-80) the scene is at device pixels: textures sharp-
 //! bilinear, edges smoothed, outlines as wide as Pixel art's look.
 
-/// The scene and shadow passes.
-pub const SCENE_WGSL: &str = r"
-struct G { vp: mat4x4<f32>, lvp: mat4x4<f32>, eye: vec4<f32>, sun: vec4<f32>, sky: vec4<f32>, ground: vec4<f32>, params: vec4<f32>, sunc: vec4<f32>, look: vec4<f32> };
+/// The scene and shadow passes, with the materials' table
+/// ([`juggler_floor::materials::wgsl_table`]) in place.
+#[must_use]
+pub fn scene_wgsl() -> String {
+    SCENE_WGSL.replace("//MATERIALS//", &juggler_floor::materials::wgsl_table())
+}
+
+/// The scene and shadow passes (the materials' table still to fill in).
+const SCENE_WGSL: &str = r"
+struct G { vp: mat4x4<f32>, lvp: mat4x4<f32>, eye: vec4<f32>, sun: vec4<f32>, sky: vec4<f32>, ground: vec4<f32>, params: vec4<f32>, sunc: vec4<f32>, look: vec4<f32>, mat: vec4<f32> };
 struct Lt { p: vec4<f32>, c: vec4<f32> };
 @group(0) @binding(0) var<uniform> g: G;
 @group(0) @binding(1) var<storage, read> lights: array<Lt>;
@@ -16,16 +23,26 @@ struct Lt { p: vec4<f32>, c: vec4<f32> };
 @group(0) @binding(3) var samp: sampler;
 @group(0) @binding(4) var smap: texture_depth_2d;
 @group(0) @binding(5) var ssamp: sampler_comparison;
+@group(0) @binding(6) var mats: texture_2d_array<f32>;
+@group(0) @binding(7) var msamp: sampler;
+//MATERIALS//
 struct VI {
   @location(0) pos: vec3<f32>, @location(1) n: vec3<f32>, @location(2) uv: vec2<f32>,
   @location(3) m0: vec4<f32>, @location(4) m1: vec4<f32>, @location(5) m2: vec4<f32>, @location(6) m3: vec4<f32>,
   @location(7) col: vec4<f32>, @location(8) tex: vec4<f32>, @location(9) misc: vec4<f32>, @location(10) off: vec2<f32>, @location(11) id: u32,
+  @location(12) mat: u32,
 };
 struct VO {
   @builtin(position) pos: vec4<f32>,
   @location(0) wp: vec3<f32>, @location(1) n: vec3<f32>, @location(2) uv: vec2<f32>,
   @location(3) col: vec4<f32>, @location(4) tex: vec4<f32>, @location(5) misc: vec4<f32>, @location(6) off: vec2<f32>,
   @location(7) @interpolate(flat) id: u32,
+  // 0.4.2's second pass: where the pixel is in the part's own space (in
+  // metres, or its unit shape for a leaf or a face), its normal there,
+  // the part's turn and scale, and its material
+  @location(8) lp: vec3<f32>, @location(9) ln: vec3<f32>,
+  @location(10) r0: vec3<f32>, @location(11) r1: vec3<f32>, @location(12) r2: vec3<f32>,
+  @location(13) sc: vec3<f32>, @location(14) @interpolate(flat) mat: u32,
 };
 fn hash2(p: vec2<f32>) -> f32 { return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453); }
 const DISK = array<vec2<f32>, 8>(
@@ -46,6 +63,12 @@ fn culled(v: VI) -> bool {
   o.pos = g.vp * vec4<f32>(wp, 1.0);
   if (culled(v)) { o.pos = vec4<f32>(0.0, 0.0, 2.0, 1.0); }
   o.uv = v.uv; o.col = v.col; o.tex = v.tex; o.misc = v.misc; o.off = v.off; o.id = v.id;
+  let sc = max(vec3<f32>(length(v.m0.xyz), length(v.m1.xyz), length(v.m2.xyz)), vec3<f32>(1e-5));
+  let unit = MKIND[min(v.mat, 17u)].x < 0.0;
+  o.lp = select(v.pos * sc, v.pos + vec3<f32>(0.5, 0.0, 0.0), unit);
+  o.ln = select(normalize(v.n / sc), v.n, unit);
+  o.r0 = v.m0.xyz / sc.x; o.r1 = v.m1.xyz / sc.y; o.r2 = v.m2.xyz / sc.z;
+  o.sc = sc; o.mat = v.mat;
   return o;
 }
 @vertex fn vs_shadow(v: VI) -> @builtin(position) vec4<f32> {
@@ -70,9 +93,94 @@ fn sharp(v: VO, p: vec2<f32>, w: vec2<f32>) -> vec4<f32> {
   let t11 = textureLoad(atlas, clamp(a + vec2<i32>(1, 1), lo, hi), 0);
   return mix(mix(t00, t10, f.x), mix(t01, t11, f.x), f.y);
 }
+// A capsule's distance: from p to the segment a–b.
+fn seg(p: vec2<f32>, a: vec2<f32>, b: vec2<f32>) -> f32 {
+  let pa = p - a; let ba = b - a;
+  let h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h);
+}
+// 0.4.2's faces: eyes, brows and mouth drawn on a head's front, from the
+// expression in the part (tex: open, brow tilt, brow raise, smile; misc:
+// mouth open, happy). fp is the face's point (unit head, centred), aa a
+// pixel's size there. Returns the colour over the skin and its cover.
+fn face(skin: vec3<f32>, fp: vec2<f32>, front: f32, e4: vec4<f32>, m2: vec2<f32>, aa: f32) -> vec4<f32> {
+  var c = skin;
+  let s = select(-1.0, 1.0, fp.x > 0.0);
+  let ink = skin * 0.28 + vec3<f32>(0.03, 0.02, 0.03);
+  // cheeks, when smiling
+  let ch = length(fp - vec2<f32>(s * 0.2, -0.075)) / 0.065;
+  c = mix(c, c * vec3<f32>(1.04, 0.86, 0.86), (1.0 - smoothstep(0.4, 1.0, ch)) * clamp(e4.w, 0.0, 1.0) * 0.6);
+  let e = vec2<f32>(s * 0.14, 0.05);
+  let open = e4.x;
+  if (open > 0.08) {
+    let q = (fp - e) / vec2<f32>(0.056, 0.064 * clamp(open, 0.2, 1.25));
+    let r = length(q);
+    let w = max(aa / 0.075, 0.02);
+    let white = 1.0 - smoothstep(1.0 - w, 1.0 + w, r);
+    c = mix(c, vec3<f32>(0.97, 0.95, 0.93), white);
+    let ic = e + vec2<f32>(0.0, -0.004);
+    let ri = length(fp - ic) / 0.04;
+    let wi = max(aa / 0.04, 0.02);
+    let iris = (1.0 - smoothstep(1.0 - wi, 1.0 + wi, ri)) * white;
+    c = mix(c, mix(vec3<f32>(0.3, 0.2, 0.13), vec3<f32>(0.16, 0.1, 0.07), smoothstep(0.2, 1.0, ri)), iris);
+    c = mix(c, vec3<f32>(0.05, 0.04, 0.06), (1.0 - smoothstep(0.42 - wi, 0.42 + wi, ri)) * white);
+    let hl = length(fp - ic - vec2<f32>(0.014, 0.016)) / 0.011;
+    c = mix(c, vec3<f32>(1.0), (1.0 - smoothstep(1.0 - wi * 3.0, 1.0 + wi * 3.0, hl)) * white);
+    // the upper lid's lashes
+    let lid = (1.0 - smoothstep(0.1, 0.1 + w * 2.0, abs(r - 1.0))) * smoothstep(0.05, 0.45, q.y);
+    c = mix(c, ink, lid * 0.95);
+  } else {
+    // shut: an arc (up when happy, down when asleep)
+    let dx = (fp.x - e.x) / 0.065;
+    let bend = select(-0.022, 0.026, m2.y > 0.5);
+    let y = e.y - 0.005 + bend * (1.0 - dx * dx);
+    let d = abs(fp.y - y);
+    let line = (1.0 - smoothstep(0.009, 0.009 + aa, d)) * step(abs(dx), 1.0);
+    c = mix(c, ink, line);
+  }
+  // brows
+  let bc = vec2<f32>(s * 0.15, 0.175 + 0.035 * e4.z);
+  let slope = -s * e4.y * 0.45;
+  let bd = normalize(vec2<f32>(1.0, slope)) * 0.065;
+  let bb = seg(fp, bc - bd, bc + bd);
+  c = mix(c, min(ink, vec3<f32>(0.14, 0.09, 0.07)), 1.0 - smoothstep(0.019, 0.019 + aa, bb));
+  // the mouth
+  let mo = m2.x;
+  let my = -0.17;
+  if (mo > 0.05) {
+    let q = (fp - vec2<f32>(0.0, my - 0.01)) / vec2<f32>(0.05 + 0.02 * max(e4.w, 0.0), 0.012 + 0.055 * mo);
+    let r = length(q);
+    let w = max(aa / 0.04, 0.03);
+    let inside = 1.0 - smoothstep(1.0 - w, 1.0 + w, r);
+    let tongue = smoothstep(0.1, 0.6, -q.y);
+    c = mix(c, mix(vec3<f32>(0.36, 0.1, 0.13), vec3<f32>(0.78, 0.36, 0.38), tongue * 0.7), inside);
+    c = mix(c, ink, (1.0 - smoothstep(0.1, 0.1 + w * 2.0, abs(r - 1.0))) * 0.6);
+  } else {
+    let x = fp.x / 0.075;
+    let y = my + e4.w * 0.045 * (x * x - 0.35);
+    let d = abs(fp.y - y);
+    let th = 0.011 * (1.0 - 0.5 * x * x);
+    let line = (1.0 - smoothstep(th, th + aa, d)) * (1.0 - smoothstep(0.95, 1.05, abs(x)));
+    c = mix(c, vec3<f32>(0.42, 0.18, 0.18) * 0.8 + skin * 0.2, line);
+  }
+  return vec4<f32>(c, front);
+}
+// 0.4.2's second pass: the part's material and how it's lit.
+struct Surf { n: vec3<f32>, alb: f32, rough: f32 };
 fn shade(v: VO) -> vec4<f32> {
   var base = v.col;
   let flags = u32(v.misc.w + 0.5);
+  // the material's three planes and their footprints (derivatives before
+  // any branch, as the texture's mip choice needs)
+  let mk = MKIND[min(v.mat, 17u)];
+  let q3 = v.lp / max(abs(mk.x), 0.001);
+  let pX = q3.zy; let pY = q3.xz; let pZ = q3.xy;
+  let gk = g.mat.y;
+  let dXx = dpdx(pX) * gk; let dXy = dpdy(pX) * gk;
+  let dYx = dpdx(pY) * gk; let dYy = dpdy(pY) * gk;
+  let dZx = dpdx(pZ) * gk; let dZy = dpdy(pZ) * gk;
+  let fp = vec2<f32>(v.lp.x - 0.5, v.lp.y - 0.5);
+  let faa = max(fwidth(fp.x), fwidth(fp.y));
   let uv = v.tex.xy + fract(v.uv * v.misc.xy + v.off) * v.tex.zw;
   // Derivatives before any branch on the item (uniform control flow).
   let tp = uv * vec2<f32>(textureDimensions(atlas)) - vec2<f32>(0.5);
@@ -84,8 +192,31 @@ fn shade(v: VO) -> vec4<f32> {
       base = base * textureSampleLevel(atlas, samp, uv, 0.0);
     }
   }
-  let n = normalize(v.n);
-  let lp = g.lvp * vec4<f32>(v.wp + n * 0.05, 1.0);
+  var n = normalize(v.n);
+  var sf = Surf(n, 1.0, 0.6);
+  if (g.mat.x > 0.5 && v.mat != 0u) {
+    let layer = select(i32(v.mat) - 1, 6, v.mat == 17u);
+    let w0 = pow(abs(v.ln), vec3<f32>(4.0));
+    let w = w0 / max(w0.x + w0.y + w0.z, 1e-4);
+    let a = textureSampleGrad(mats, msamp, pX, layer, dXx, dXy);
+    let b = textureSampleGrad(mats, msamp, pY, layer, dYx, dYy);
+    let c = textureSampleGrad(mats, msamp, pZ, layer, dZx, dZy);
+    let tX = a.ba * 2.0 - 1.0; let tY = b.ba * 2.0 - 1.0; let tZ = c.ba * 2.0 - 1.0;
+    let nl = normalize(v.ln + w.x * vec3<f32>(0.0, tX.y, tX.x) + w.y * vec3<f32>(tY.x, 0.0, tY.y) + w.z * vec3<f32>(tZ.x, tZ.y, 0.0));
+    var nm = nl;
+    if (mk.x < 0.0) { nm = nl / v.sc; }
+    sf.n = normalize(v.r0 * nm.x + v.r1 * nm.y + v.r2 * nm.z);
+    if (dot(sf.n, n) < 0.0) { sf.n = n; }
+    sf.alb = (a.r * w.x + b.r * w.y + c.r * w.z) * 1.5;
+    sf.rough = a.g * w.x + b.g * w.y + c.g * w.z;
+    if (v.mat == 17u) {
+      let fc = face(base.rgb, fp, smoothstep(-0.1, -0.3, v.lp.z), v.tex, v.misc.xy, faa);
+      base = vec4<f32>(mix(base.rgb, fc.rgb, fc.a), base.a);
+    }
+    base = vec4<f32>(base.rgb * sf.alb, base.a);
+    n = sf.n;
+  }
+  let lp = g.lvp * vec4<f32>(v.wp + normalize(v.n) * 0.05, 1.0);
   let suv = clamp(vec2<f32>(lp.x * 0.5 + 0.5, 0.5 - lp.y * 0.5), vec2<f32>(0.0), vec2<f32>(1.0));
   var sh = textureSampleCompareLevel(smap, ssamp, suv, lp.z - 0.002);
   if (g.look.x > 0.5) {
@@ -116,6 +247,13 @@ fn shade(v: VO) -> vec4<f32> {
   // the sun in three bands, for a painted look (four, softer, in 0.4.2's)
   var sun = floor(ndl * sh * 3.0 + 0.4) / 3.0 * g.sun.w;
   if (g.look.x > 0.5) { sun = floor(ndl * sh * 4.0 + 0.5) / 4.0 * g.sun.w; }
+  if (g.mat.x > 0.5) {
+    // the second pass: light wrapping round skin and leaves, the bands
+    // softened so the surfaces' relief shows
+    let wr = mk.z;
+    let d = max((dot(n, g.sun.xyz) + wr) / (1.0 + wr), 0.0) * sh;
+    sun = mix(d, floor(d * 4.0 + 0.5) / 4.0, g.mat.z) * g.sun.w;
+  }
   let hemi = mix(g.ground.rgb, g.sky.rgb, n.y * 0.5 + 0.5);
   var light = hemi + g.sunc.rgb * sun;
   if (g.look.z > 0.5) {
@@ -141,6 +279,40 @@ fn shade(v: VO) -> vec4<f32> {
     }
   }
   var c = base.rgb * light;
+  if (g.mat.x > 0.5) {
+    // the second pass's highlights: the sun's (GGX), the sky's
+    // reflection, a fill from the other side, cloth's sheen and hair's
+    // strands
+    let vd = normalize(g.eye.xyz - v.wp);
+    let metal = mk.y;
+    let rough = clamp(sf.rough, 0.06, 1.0);
+    let f0 = mix(vec3<f32>(0.04), base.rgb, metal);
+    let hv = normalize(g.sun.xyz + vd);
+    let nh = max(dot(n, hv), 0.0);
+    let vh = max(dot(vd, hv), 0.0);
+    let nv = max(dot(n, vd), 0.001);
+    let a2 = rough * rough * rough * rough;
+    let dd = nh * nh * (a2 - 1.0) + 1.0;
+    let dist = min(a2 / (3.14159 * dd * dd), 40.0);
+    let fr = f0 + (vec3<f32>(1.0) - f0) * pow(1.0 - vh, 5.0);
+    let lh = max(dot(g.sun.xyz, hv), 0.1);
+    var spec = dist * fr * (0.25 / (lh * lh)) * ndl * sh * g.sun.w * g.sunc.rgb;
+    if (MANISO[min(v.mat, 17u)] > 0.5) {
+      // strands along the part's length (Kajiya-Kay)
+      let tg = normalize(v.r1);
+      let th = dot(tg, hv);
+      let st = pow(sqrt(max(1.0 - th * th, 0.0)), 60.0) * 0.35 + pow(sqrt(max(1.0 - th * th, 0.0)), 12.0) * 0.12;
+      spec = vec3<f32>(st) * mix(vec3<f32>(1.0), base.rgb * 2.0, 0.5) * ndl * sh * g.sun.w;
+    }
+    let rv = reflect(-vd, n);
+    let env = mix(g.ground.rgb, g.sky.rgb * 1.15, smoothstep(-0.3, 0.6, rv.y));
+    let fe = f0 + (max(vec3<f32>(1.0 - rough), f0) - f0) * pow(1.0 - nv, 5.0);
+    let gloss = (1.0 - rough) * (1.0 - rough);
+    let fill_dir = normalize(vec3<f32>(-g.sun.x, 0.55, -g.sun.z));
+    let fill = max(dot(n, fill_dir), 0.0) * g.sky.rgb * 0.16;
+    let sheen = pow(1.0 - nv, 4.0) * mk.w * 0.35 * (g.sky.rgb + g.sunc.rgb * sun);
+    c = base.rgb * (1.0 - metal) * (light + fill) + base.rgb * metal * (light * 0.25) + spec * g.mat.w + env * fe * (0.25 + 0.75 * gloss) * g.mat.w + sheen * base.rgb;
+  }
   c = mix(c, base.rgb * 1.1, clamp(v.misc.z, 0.0, 1.0));
   return vec4<f32>(c, base.a);
 }

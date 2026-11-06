@@ -11,7 +11,8 @@
 //! - [`state`] and [`snapshot`]: a session's state as the rail says it,
 //!   and the company at one moment, as the backend feeds it.
 //! - [`math`], [`mesh`] and [`paint`]: the matrices, the low-poly shapes
-//!   and the pixel painting the scene is built from.
+//!   and the pixel painting the scene is built from; [`materials`]: the
+//!   surfaces' maps, generated at run time.
 //!
 //! It runs on every OS and in Linux CI; the renderer
 //! (`juggler-floor-render`) and the window's events
@@ -38,6 +39,7 @@ pub mod driver;
 pub mod family;
 pub mod kit;
 pub mod layout;
+pub mod materials;
 pub mod math;
 pub mod mesh;
 pub mod models;

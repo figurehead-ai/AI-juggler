@@ -404,6 +404,85 @@ maintainer's review before the big visual rework is built:
 golden -- --ignored proposal`; the reworked look is already in the
 renderer behind `Look { rework: true }`, off by default.
 
+## 12. The second pass: materials, objects and people (maintainer's review)
+
+The maintainer asked, on seeing the proposal, whether the textures of all
+objects and people could be of higher quality, still all generated, and
+whether v1 was the best we can get. **It wasn't.** v1 drew every object
+and person as flat colour on boxes and balls; only floors, walls and
+signs had textures (24 px a metre). The second pass (v2) is built behind
+a switch (`Look::materials`, scene input `detail`), nothing bundled:
+
+- **Materials** (`juggler_floor::materials`): 16 tileable maps generated
+  at run time from periodic gradient, fractal and cellular noise: wood
+  (flat-sawn rings, fibres, pores), plain-weave fabric, loop-pile carpet,
+  brushed metal, satin plastic, leaf (midrib, veins, areoles), skin
+  (pores, mottling), hair (strands, clumps), cotton with folds, denim
+  twill, pebbled leather, glaze, plaster, rubber, paper, soil. Each is 256²
+  RGBA8 (colour multiplier, roughness, normal x, y) with every mip level.
+  Normals come from the generated height. Mips fold lost normal variance
+  into roughness (Toksvig), so a bumpy surface turns matt at a distance
+  instead of sparkling. They're made on 16 threads in about 10 ms the first
+  time v2 draws, into one texture array (5.3 MB). A part keeps its own
+  colour; the map adds the surface.
+- **Shading**: triplanar in the part's own metric space (a texture sticks
+  to what it's on, and keeps its size however the part is scaled), with
+  normals blended by the UDN method. GGX highlights from roughness, the sky
+  reflected by Fresnel, a cool fill light, sheen on cloth, Kajiya-Kay
+  highlights along hair, light wrapping round skin and leaves. The sun's
+  bands are softened (more of them kept in Pixel art).
+- **Geometry**: five smooth meshes (sphere, capsule, rounded box, smooth
+  cylinder, torso). Desks, chairs, props, pots and plants are tagged with
+  their materials. Floors and walls take theirs from the kit
+  (`FloorMat::mat`, `WallFinish::mat`).
+- **People** (`models::person_v2`): smooth proportioned bodies, hands with
+  thumbs, ears, a nose, shoes with soles, hair as strands, glasses and
+  beards, and a **face drawn by the shader**. Eyes (iris, pupil,
+  catch-light, lashes), brows and mouth come from the state
+  (`models::expression`): focused working, hopeful when asking, worried
+  when stuck, alarmed when crashed, happy shut eyes when done, asleep
+  when out of usage. They blink, breathe and sway a little, only while
+  the Floor already animates (0 frames at rest).
+- **Pixel art** keeps its look; the maps read as pixel texture. A finer
+  pixel (`Look::fine`: 2 device pixels on Retina instead of 3, never under
+  2) keeps more detail for +0.04 ms a frame.
+
+**Measured** (this Mac, the gallery company; the test
+`the_second_pass_frames` writes the frames and `costs.json`):
+
+| | v1 | v2 |
+|---|---|---|
+| Maps (once) | — | 10 ms, 5.3 MB |
+| Scene build | 5.8 ms | 5.9 ms |
+| Moving parts on floor 1 | 1,681 | 1,942 |
+| CPU to build a frame's moving parts | 0.050 ms | 0.057 ms |
+| Frame, Retina, Pixel art / finer / Full | 0.79 / — / 1.24 ms | 0.89 / 0.93 / 1.45 ms |
+| Frame, 3440 × 1410, Pixel art / Full | 0.84 / 1.43 ms | 1.01 / 1.60 ms |
+
+Budgets (SPEC §9.7, D-79): Pixel art holds every one. Full resolution
+was already 4 MB over memory open and still; the maps make that about
+9 MB over. Either the budget moves or the atlas is trimmed (preferred: it
+is larger than it needs to be). The harness re-measures both looks on the
+release build before v2 becomes the default.
+
+**Honest limits.** At the default zoom a person is about 30 pixels tall,
+so most material detail averages out. v2 pays off up close and in Full
+resolution. The ceiling of this way of building (parts from ~19
+generated shapes, one shadow map, no bounce light) is about v2 after
+one more tuning round. What gets past it, still generated:
+
+| Limit | Past it | Cost |
+|---|---|---|
+| Rigid parts: seams at joints, mitten hands | One skinned body per person from a parametric SDF template, fingers, hair cards | 2–3 weeks; GPU +0.2 ms, ~2 MB |
+| Boxy furniture | SDF modelling meshed at build, cached | 1–2 weeks; +20–40 ms first build |
+| No bounce light | Light probes or screen-space GI | ~1 week; GPU +1–3 ms |
+| Maps blur right up close | 512² maps, or made on the GPU per zoom | +16 MB, or ~1 week |
+
+Beyond these is hand-made art (sculpted characters, photographed
+materials), the only way to a film or AAA look. It breaks the
+nothing-bundled rule and adds tens of MB, licences and ongoing art work.
+I don't recommend it.
+
 ## 11. Sources
 
 - Mapbox GL JS symbol placement and collision; Supercluster (point

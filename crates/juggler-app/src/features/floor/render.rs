@@ -233,6 +233,7 @@ impl World {
             seats: &seats,
             decay: settings.decay,
             covers: false,
+            detail: false,
             machine: &machine,
             now_ms: now,
             logos: &logos,

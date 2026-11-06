@@ -202,6 +202,10 @@ pub struct Inputs<'a> {
     /// 0.4.2's decay: dust sheets over the desks of an App unused for
     /// over a week (`docs/research/floor-04x.md` §4); off keeps 0.4.0's.
     pub covers: bool,
+    /// 0.4.2's second pass: smooth people with faces that show the
+    /// state, materials on everything (`docs/research/floor-04x.md` §12);
+    /// off keeps the first pass's figures.
+    pub detail: bool,
     /// This computer's name ("This Mac"), from the platform's noun.
     pub machine: &'a str,
     /// Now, epoch ms.
@@ -289,6 +293,7 @@ pub struct Scene {
     apps: BTreeMap<String, FloorApp>,
     unused: BTreeMap<String, u8>,
     covers: bool,
+    detail: bool,
     notices: u32,
     accounts: Vec<FloorAccount>,
     desks: Vec<DeskRec>,
@@ -326,6 +331,18 @@ impl Scene {
             .iter()
             .find(|d| d.id == id)
             .map(|d| d.frame.0.point([0.0, 1.2, 0.62]))
+    }
+
+    /// Where a desk's sitter is (pick id `id`) and which way they face,
+    /// along the floor (to frame them up close).
+    #[must_use]
+    pub fn sitter(&self, id: u32) -> Option<(V3, V3)> {
+        let d = self.desks.iter().find(|d| d.id == id)?;
+        let at = d.frame.0.point([0.0, 1.2, 0.62]);
+        let ahead = d.frame.0.point([0.0, 1.2, -1.0]);
+        let f = [ahead[0] - at[0], 0.0, ahead[2] - at[2]];
+        let l = (f[0] * f[0] + f[2] * f[2]).sqrt().max(1e-6);
+        Some((at, [f[0] / l, 0.0, f[2] / l]))
     }
 
     /// The pick of a session, by the rail's key (Show on the Floor).
@@ -399,6 +416,7 @@ impl Scene {
             apps,
             unused: levels,
             covers: inputs.covers,
+            detail: inputs.detail,
             notices: inputs.snapshot.notices,
             accounts: inputs.snapshot.accounts.clone(),
             desks: Vec::new(),

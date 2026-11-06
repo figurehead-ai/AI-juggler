@@ -73,6 +73,13 @@ pub struct Look {
     pub sky: juggler_floor::daylight::Sky,
     /// The reworked look.
     pub rework: bool,
+    /// The second pass (`docs/research/floor-04x.md` §12): every part's
+    /// material (generated maps, normals and roughness), highlights and
+    /// faces. Its maps are made the first time it's drawn.
+    pub materials: bool,
+    /// Pixel art's finer pixel (two device pixels on a Retina screen,
+    /// not three).
+    pub fine: bool,
 }
 
 impl Default for Look {
@@ -80,6 +87,8 @@ impl Default for Look {
         Self {
             sky: juggler_floor::daylight::Sky::classic(),
             rework: false,
+            materials: false,
+            fine: false,
         }
     }
 }
@@ -270,6 +279,7 @@ impl Renderer {
     /// The light and look, from the next frame.
     pub fn set_look(&mut self, look: Look) {
         self.gpu.look = look;
+        self.gpu.ensure_materials();
     }
 
     fn frame_into(
@@ -303,13 +313,16 @@ impl Renderer {
         if !self.overlay {
             quads.clear();
         }
+        // bare frames (the proposal's) show a hovered sitter turning to
+        // look, without the hover's ring
+        let ring = if self.overlay { live.hover } else { 0 };
         let frame = Frame {
             view,
             floors: &floors,
             size,
             t: live.t,
             alert: live.alert,
-            hover: live.hover,
+            hover: ring,
             moving: &self.moving,
             lights: &drawn.lights,
             quads: &quads,
@@ -353,6 +366,53 @@ impl Renderer {
         self.gpu.queue.present(texture);
         let _ = self.gpu.device.poll(wgpu::PollType::Poll);
         Ok(shown)
+    }
+
+    /// Draws `n` frames offscreen at `size` and waits for the GPU: the
+    /// milliseconds a frame took, CPU and GPU together (for the budgets'
+    /// records and the design proposal's costs).
+    pub fn bench(
+        &mut self,
+        scene: &Scene,
+        view: &View,
+        live: &Live,
+        size: (u32, u32, f32),
+        n: u32,
+    ) -> f64 {
+        let (w, h, _) = size;
+        let texture = self.gpu.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("bench"),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.gpu.format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let target = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let extras = Extras {
+            hint: "",
+            alert: None,
+            mouse: None,
+        };
+        // one frame to settle the targets' sizes
+        self.frame_into(scene, view, live, size, &extras, &target);
+        let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
+        let start = std::time::Instant::now();
+        for k in 0..n {
+            let l = Live {
+                t: live.t + k as f32 / 60.0,
+                ..live.clone()
+            };
+            self.frame_into(scene, view, &l, size, &extras, &target);
+        }
+        let _ = self.gpu.device.poll(wgpu::PollType::wait_indefinitely());
+        start.elapsed().as_secs_f64() * 1000.0 / f64::from(n.max(1))
     }
 
     /// Draws a frame offscreen at `size` and reads it back as RGBA.

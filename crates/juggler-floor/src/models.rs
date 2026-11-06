@@ -9,14 +9,19 @@ use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 use crate::colour::{Rgba, hex, mix, ramp};
 use crate::kit::{ChairKind, DeskKind, Plant, Pot, Screens};
+use crate::materials::{
+    CERAMIC, CLOTH, DENIM, FABRIC, HAIR, LEAF, LEATHER, METAL, Mat, PAPER, PLASTER, PLASTIC,
+    RUBBER, SKIN, SOIL, WOOD,
+};
 use crate::math::{T, V3};
 use crate::mesh::Mesh;
 use crate::rng::Rng;
 use crate::tex::Uv;
 
 /// One drawn part, as the GPU reads it: its transform, colour, texture
-/// place, `(repeat u, repeat v, glow, flags)`, a texture scroll and its
-/// pick id.
+/// place, `(repeat u, repeat v, glow, flags)`, a texture scroll, its
+/// pick id and its material ([`crate::materials`]; drawn only by 0.4.2's
+/// second-pass look, the others ignore it).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Inst {
@@ -32,8 +37,8 @@ pub struct Inst {
     pub off: [f32; 2],
     /// What a click on it opens (0: nothing).
     pub id: u32,
-    /// Padding.
-    pub pad: u32,
+    /// Its material (0: its flat colour).
+    pub mat: u32,
 }
 
 /// A part is textured.
@@ -170,9 +175,39 @@ impl B<'_> {
                 misc: [repeat[0], repeat[1], glow, flags as f32],
                 off: [0.0; 2],
                 id: self.id,
-                pad: 0,
+                mat: 0,
             },
         });
+    }
+
+    /// Builds with `f`, giving every part it adds that has no material
+    /// yet `mat` (an inner `with` wins).
+    pub fn with<R>(&mut self, mat: Mat, f: impl FnOnce(&mut Self) -> R) -> R {
+        let from = self.out.len();
+        let r = f(self);
+        for it in &mut self.out[from..] {
+            if it.inst.mat == 0 {
+                it.inst.mat = mat;
+            }
+        }
+        r
+    }
+
+    /// A plain part of `mat`.
+    pub fn put_m(&mut self, mesh: Mesh, t: T, c: Rgba, mat: Mat) {
+        self.with(mat, |b| b.put(mesh, t, c));
+    }
+
+    /// A face on a head (`t` the head's ball), with `expr`: skin with
+    /// eyes, brows and a mouth drawn by the second pass's shader.
+    pub fn face(&mut self, t: T, c: Rgba, expr: crate::materials::Face) {
+        self.put_m(Mesh::Sphere, t, c, crate::materials::FACE);
+        if let Some(it) = self.out.last_mut() {
+            let (tex, misc) = expr.pack();
+            it.inst.tex = tex;
+            it.inst.misc[0] = misc[0];
+            it.inst.misc[1] = misc[1];
+        }
     }
 
     /// A box from its lowest corner and its size, in the frame `t`.
@@ -201,14 +236,37 @@ pub const DESK_H: f32 = 0.74;
 
 /// A desk `w` wide, centred on the frame's origin, its sitter on +z
 /// facing -z; its top's height.
-#[allow(clippy::too_many_lines)] // one model per desk kind, side by side
 pub fn desk(b: &mut B, t: T, kind: DeskKind, top: Rgba, frame: Rgba, w: f32) -> f32 {
+    let tm = surface_of(top);
+    b.with(METAL, |b| desk_parts(b, t, kind, (top, tm), frame, w))
+}
+
+/// The material a surface of colour `c` is made of: wood when its colour
+/// is a wood's (warm, brownish, not pale), else laminate.
+#[must_use]
+pub fn surface_of(c: Rgba) -> Mat {
+    let [r, g, bl, _] = rgba(c);
+    let (hi, lo) = (r.max(g).max(bl), r.min(g).min(bl));
+    let warm = r >= g && g >= bl;
+    if warm && hi - lo > 0.18 && hi < 0.93 {
+        WOOD
+    } else {
+        PLASTIC
+    }
+}
+
+#[allow(clippy::too_many_lines)] // one model per desk kind, side by side
+fn desk_parts(b: &mut B, t: T, kind: DeskKind, (top, tm): (Rgba, Mat), frame: Rgba, w: f32) -> f32 {
     let d = 0.72;
     let edge = ramp(top, -0.18);
     match kind {
         DeskKind::FourLeg => {
-            b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
-            b.bx(t, [-w / 2.0, DESK_H - 0.045, -d / 2.0], [w, 0.012, d], edge);
+            b.with(tm, |b| {
+                b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
+            });
+            b.with(tm, |b| {
+                b.bx(t, [-w / 2.0, DESK_H - 0.045, -d / 2.0], [w, 0.012, d], edge);
+            });
             for (x, z) in [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
                 b.bx(
                     t,
@@ -229,7 +287,9 @@ pub fn desk(b: &mut B, t: T, kind: DeskKind, top: Rgba, frame: Rgba, w: f32) -> 
             );
         }
         DeskKind::Trestle => {
-            b.bx(t, [-w / 2.0, DESK_H - 0.04, -d / 2.0], [w, 0.04, d], top);
+            b.with(tm, |b| {
+                b.bx(t, [-w / 2.0, DESK_H - 0.04, -d / 2.0], [w, 0.04, d], top);
+            });
             for x in [-w / 2.0 + 0.18, w / 2.0 - 0.18] {
                 for s in [-1.0f32, 1.0] {
                     b.put(
@@ -250,7 +310,9 @@ pub fn desk(b: &mut B, t: T, kind: DeskKind, top: Rgba, frame: Rgba, w: f32) -> 
             );
         }
         DeskKind::Pedestal => {
-            b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
+            b.with(tm, |b| {
+                b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
+            });
             b.bx(
                 t,
                 [-w / 2.0 + 0.03, 0.0, -d / 2.0 + 0.03],
@@ -288,7 +350,9 @@ pub fn desk(b: &mut B, t: T, kind: DeskKind, top: Rgba, frame: Rgba, w: f32) -> 
         }
         DeskKind::Standing => {
             let h = 1.04;
-            b.bx(t, [-w / 2.0, h - 0.035, -d / 2.0], [w, 0.035, d], top);
+            b.with(tm, |b| {
+                b.bx(t, [-w / 2.0, h - 0.035, -d / 2.0], [w, 0.035, d], top);
+            });
             for x in [-w / 2.0 + 0.12, w / 2.0 - 0.12] {
                 b.bx(t, [x - 0.04, 0.0, -0.32], [0.08, 0.04, 0.64], frame);
                 b.bx(t, [x - 0.035, 0.04, -0.035], [0.07, h - 0.075, 0.07], frame);
@@ -308,13 +372,17 @@ pub fn desk(b: &mut B, t: T, kind: DeskKind, top: Rgba, frame: Rgba, w: f32) -> 
             return h;
         }
         DeskKind::LShape => {
-            b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
-            b.bx(
-                t,
-                [w / 2.0 - 0.6, DESK_H - 0.035, d / 2.0],
-                [0.6, 0.035, 0.55],
-                top,
-            );
+            b.with(tm, |b| {
+                b.bx(t, [-w / 2.0, DESK_H - 0.035, -d / 2.0], [w, 0.035, d], top);
+            });
+            b.with(tm, |b| {
+                b.bx(
+                    t,
+                    [w / 2.0 - 0.6, DESK_H - 0.035, d / 2.0],
+                    [0.6, 0.035, 0.55],
+                    top,
+                );
+            });
             b.bx(
                 t,
                 [-w / 2.0 + 0.02, 0.0, -d / 2.0 + 0.02],
@@ -335,16 +403,20 @@ pub fn desk(b: &mut B, t: T, kind: DeskKind, top: Rgba, frame: Rgba, w: f32) -> 
             );
         }
         DeskKind::Round => {
-            b.put(
-                Mesh::Cyl12,
-                t.t(0.0, DESK_H - 0.035, 0.0).s(1.0, 0.035, 0.9),
-                top,
-            );
-            b.put(
-                Mesh::Cyl12,
-                t.t(0.0, DESK_H - 0.045, 0.0).s(0.98, 0.012, 0.88),
-                edge,
-            );
+            b.with(tm, |b| {
+                b.put(
+                    Mesh::Cyl12,
+                    t.t(0.0, DESK_H - 0.035, 0.0).s(1.0, 0.035, 0.9),
+                    top,
+                );
+            });
+            b.with(tm, |b| {
+                b.put(
+                    Mesh::Cyl12,
+                    t.t(0.0, DESK_H - 0.045, 0.0).s(0.98, 0.012, 0.88),
+                    edge,
+                );
+            });
             b.put(
                 Mesh::Cyl8,
                 t.t(0.0, 0.03, 0.0).s(0.08, DESK_H - 0.07, 0.08),
@@ -358,19 +430,26 @@ pub fn desk(b: &mut B, t: T, kind: DeskKind, top: Rgba, frame: Rgba, w: f32) -> 
 
 /// A long shared table `len` long, centred on the frame.
 pub fn long_table(b: &mut B, t: T, len: f32, top: Rgba, frame: Rgba) {
+    b.with(METAL, |b| table_parts(b, t, len, top, frame));
+}
+
+fn table_parts(b: &mut B, t: T, len: f32, top: Rgba, frame: Rgba) {
     let d = 1.05;
-    b.bx(
-        t,
-        [-len / 2.0, DESK_H - 0.045, -d / 2.0],
-        [len, 0.045, d],
-        top,
-    );
-    b.bx(
-        t,
-        [-len / 2.0, DESK_H - 0.055, -d / 2.0],
-        [len, 0.012, d],
-        ramp(top, -0.2),
-    );
+    let surface = surface_of(top);
+    b.with(surface, |b| {
+        b.bx(
+            t,
+            [-len / 2.0, DESK_H - 0.045, -d / 2.0],
+            [len, 0.045, d],
+            top,
+        );
+        b.bx(
+            t,
+            [-len / 2.0, DESK_H - 0.055, -d / 2.0],
+            [len, 0.012, d],
+            ramp(top, -0.2),
+        );
+    });
     for x in [-len / 2.0 + 0.25, len / 2.0 - 0.25] {
         b.bx(t, [x - 0.04, 0.0, -0.4], [0.08, 0.04, 0.8], frame);
         b.bx(
@@ -401,6 +480,11 @@ pub const SEAT_H: f32 = 0.48;
 /// A chair whose sitter faces -z (`high`: at a standing desk); its seat
 /// height.
 pub fn chair(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
+    b.with(PLASTIC, |b| chair_parts(b, t, kind, c, high))
+}
+
+#[allow(clippy::too_many_lines)] // one model per chair kind, side by side
+fn chair_parts(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
     let dark = hex("#2a2b30");
     let metal = hex("#9a9ca4");
     match kind {
@@ -412,29 +496,39 @@ pub fn chair(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
                     t.ry(a).t(0.0, 0.03, 0.14).s(0.045, 0.035, 0.28),
                     dark,
                 );
-                b.put(
+                b.put_m(
                     Mesh::BallLo,
                     t.ry(a).t(0.0, 0.0, 0.27).s(0.05, 0.05, 0.05),
                     dark,
+                    RUBBER,
                 );
             }
-            b.put(Mesh::Cyl8, t.t(0.0, 0.05, 0.0).s(0.06, 0.36, 0.06), metal);
-            b.cb(t, [-0.24, 0.42, -0.24], [0.48, 0.08, 0.46], c);
+            b.put_m(
+                Mesh::Cyl8,
+                t.t(0.0, 0.05, 0.0).s(0.06, 0.36, 0.06),
+                metal,
+                METAL,
+            );
+            b.with(FABRIC, |b| {
+                b.cb(t, [-0.24, 0.42, -0.24], [0.48, 0.08, 0.46], c);
+            });
             let back = if kind == ChairKind::Mesh {
                 hex("#3a3c44")
             } else {
                 c
             };
-            b.put(
+            b.put_m(
                 Mesh::Chamfer,
                 t.t(0.0, 0.52, 0.24).rx(-0.12).s(0.44, 0.5, 0.07),
                 back,
+                FABRIC,
             );
             if kind == ChairKind::Mesh {
-                b.put(
+                b.put_m(
                     Mesh::Box,
                     t.t(0.0, 0.58, 0.215).rx(-0.12).s(0.36, 0.38, 0.02),
                     hex("#55575f"),
+                    FABRIC,
                 );
                 b.put(
                     Mesh::Chamfer,
@@ -442,7 +536,12 @@ pub fn chair(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
                     back,
                 );
             }
-            b.put(Mesh::Box, t.t(0.0, 0.45, 0.24).s(0.05, 0.12, 0.04), metal);
+            b.put_m(
+                Mesh::Box,
+                t.t(0.0, 0.45, 0.24).s(0.05, 0.12, 0.04),
+                metal,
+                METAL,
+            );
             for s in [-1.0f32, 1.0] {
                 b.bx(t, [s * 0.25 - 0.02, 0.48, -0.02], [0.04, 0.2, 0.04], dark);
                 b.bx(t, [s * 0.25 - 0.035, 0.67, -0.15], [0.07, 0.03, 0.26], dark);
@@ -452,18 +551,25 @@ pub fn chair(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
         ChairKind::Stool => {
             let h = if high { 0.72 } else { 0.46 };
             let wood = hex("#7a5a3a");
-            b.put(Mesh::Cyl12, t.t(0.0, h - 0.05, 0.0).s(0.38, 0.05, 0.38), c);
+            b.put_m(
+                Mesh::Cyl12,
+                t.t(0.0, h - 0.05, 0.0).s(0.38, 0.05, 0.38),
+                c,
+                LEATHER,
+            );
             for k in 0..4 {
                 let a = k as f32 / 4.0 * TAU + 0.785;
-                b.put(
+                b.put_m(
                     Mesh::Box,
                     t.ry(a).t(0.0, 0.0, 0.16).rx(0.12).s(0.035, h - 0.04, 0.035),
                     wood,
+                    WOOD,
                 );
-                b.put(
+                b.put_m(
                     Mesh::Box,
                     t.ry(a).t(0.0, h * 0.35, 0.095).s(0.2, 0.025, 0.025),
                     wood,
+                    WOOD,
                 );
             }
             h
@@ -471,20 +577,27 @@ pub fn chair(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
         ChairKind::Saddle => {
             let h = if high { 0.74 } else { 0.55 };
             b.put(Mesh::Cyl8, t.s(0.44, 0.03, 0.44), dark);
-            b.put(
+            b.put_m(
                 Mesh::Cyl8,
                 t.t(0.0, 0.03, 0.0).s(0.06, h - 0.12, 0.06),
                 metal,
+                METAL,
             );
-            b.put(Mesh::Ball, t.t(0.0, h - 0.12, 0.0).s(0.4, 0.14, 0.34), c);
+            b.put_m(
+                Mesh::Ball,
+                t.t(0.0, h - 0.12, 0.0).s(0.4, 0.14, 0.34),
+                c,
+                LEATHER,
+            );
             h
         }
         ChairKind::Ball => {
-            b.put(Mesh::Ball, t.s(0.6, 0.55, 0.6), c);
-            b.put(
+            b.put_m(Mesh::Sphere, t.s(0.6, 0.55, 0.6), c, RUBBER);
+            b.put_m(
                 Mesh::Ball,
                 t.t(0.0, 0.22, 0.0).s(0.62, 0.06, 0.62),
                 ramp(c, -0.15),
+                RUBBER,
             );
             0.5
         }
@@ -494,6 +607,12 @@ pub fn chair(b: &mut B, t: T, kind: ChairKind, c: Rgba, high: bool) -> f32 {
 /// Screens on a desk top at `top` showing `pic`; `scroll` ≥ 0 scrolls a
 /// code picture (twice as tall as the screen), < 0 holds it still.
 pub fn screens(b: &mut B, t: T, kind: Screens, top: f32, pic: Uv, glow: f32, scroll: f32) {
+    b.with(PLASTIC, |b| {
+        screen_parts(b, t, kind, top, (pic, glow), scroll);
+    });
+}
+
+fn screen_parts(b: &mut B, t: T, kind: Screens, top: f32, (pic, glow): (Uv, f32), scroll: f32) {
     let dark = hex("#1d1e23");
     let mut uv = pic;
     if scroll >= 0.0 {
@@ -532,14 +651,19 @@ pub fn screens(b: &mut B, t: T, kind: Screens, top: f32, pic: Uv, glow: f32, scr
         }
         Screens::Laptop => {
             let shell = hex("#b9bcc4");
-            b.put(Mesh::Box, t.t(0.0, top, 0.02).s(0.34, 0.018, 0.23), shell);
+            b.put_m(
+                Mesh::Box,
+                t.t(0.0, top, 0.02).s(0.34, 0.018, 0.23),
+                shell,
+                METAL,
+            );
             b.put(
                 Mesh::Box,
                 t.t(0.0, top + 0.018, 0.03).s(0.28, 0.003, 0.11),
                 hex("#3a3c44"),
             );
             let lid = t.t(0.0, top + 0.012, -0.09).rx(-0.25);
-            b.put(Mesh::Box, lid.s(0.34, 0.23, 0.012), shell);
+            b.put_m(Mesh::Box, lid.s(0.34, 0.23, 0.012), shell, METAL);
             b.tex(
                 Mesh::QuadWall,
                 lid.t(0.0, 0.015, 0.007).s(0.3, 0.2, 1.0),
@@ -577,13 +701,23 @@ pub fn desk_props(
     lamp: bool,
     w: f32,
 ) -> Option<V3> {
+    b.with(PLASTIC, |b| props(b, t, top, r, accent, lamp, w))
+}
+
+#[allow(clippy::too_many_lines)] // one set of things per kind of desk, side by side
+fn props(b: &mut B, t: T, top: f32, r: &mut Rng, accent: Rgba, lamp: bool, w: f32) -> Option<V3> {
     let side = if r.chance(0.5) { -1.0 } else { 1.0 };
     let x0 = side * (w / 2.0 - 0.18);
     if r.chance(0.75) {
         let c = hex(r.pick(&["#f4efe6", "#c86f4f", "#3a5a7a", "#e8b33a", "#2f2f3a"]));
         let m = t.t(-x0 * 0.55, top, 0.12 + r.range(-0.05, 0.05));
-        b.put(Mesh::Cyl8, m.s(0.08, 0.1, 0.08), c);
-        b.put(Mesh::Box, m.t(0.05, 0.03, 0.0).s(0.03, 0.05, 0.015), c);
+        b.put_m(Mesh::CylS, m.s(0.08, 0.1, 0.08), c, CERAMIC);
+        b.put_m(
+            Mesh::RoundBox,
+            m.t(0.05, 0.03, 0.0).s(0.03, 0.05, 0.015),
+            c,
+            CERAMIC,
+        );
         b.put(
             Mesh::Cyl8,
             m.t(0.0, 0.09, 0.0).s(0.065, 0.005, 0.065),
@@ -592,31 +726,34 @@ pub fn desk_props(
     }
     match r.int(5) {
         0 => {
-            b.put(
-                Mesh::Cyl8,
+            b.put_m(
+                Mesh::CylS,
                 t.t(x0, top, -0.05).s(0.09, 0.08, 0.09),
                 hex("#e8e2d6"),
+                CERAMIC,
             );
             for k in 0..6 {
-                b.put(
+                b.put_m(
                     Mesh::Leaf,
                     t.t(x0, top + 0.08, -0.05)
                         .ry(k as f32 * 1.05)
                         .rx(-0.7)
                         .s(0.06, 0.06, 0.07),
                     hex("#6fae7a"),
+                    LEAF,
                 );
             }
         }
         1 => {
             for k in 0..3 {
                 let c = hex(r.pick(&["#a4543a", "#3a5a7a", "#d9b44a", "#4a7a5a"]));
-                b.put(
+                b.put_m(
                     Mesh::Box,
                     t.t(x0, top + k as f32 * 0.035, -0.08)
                         .ry(r.range(-0.3, 0.3))
                         .s(0.2, 0.033, 0.15),
                     c,
+                    PAPER,
                 );
             }
         }
@@ -630,31 +767,34 @@ pub fn desk_props(
                 hex("#2a2530"),
             );
             let photo = mix(accent, hex("#f2e8d5"), 0.5);
-            b.put(
+            b.put_m(
                 Mesh::Box,
                 t.t(x0, top + 0.02, -0.092)
                     .ry(side * 0.4)
                     .rx(-0.2)
                     .s(0.09, 0.1, 0.01),
                 photo,
+                PAPER,
             );
         }
         3 => {
             let book = hex(r.pick(&["#3d405b", "#81b29a", "#e07a5f"]));
-            b.put(
+            b.put_m(
                 Mesh::Box,
                 t.t(x0, top, 0.05)
                     .ry(r.range(-0.4, 0.4))
                     .s(0.16, 0.012, 0.22),
                 book,
+                LEATHER,
             );
             for k in 0..2 {
                 let note = hex(r.pick(&["#ffe27a", "#ffb3c7", "#a8e6cf"]));
-                b.put(
+                b.put_m(
                     Mesh::Box,
                     t.t(x0 - 0.05 + k as f32 * 0.07, top + 0.013, -0.12)
                         .s(0.06, 0.004, 0.06),
                     note,
+                    PAPER,
                 );
             }
         }
@@ -678,6 +818,10 @@ pub fn desk_props(
 
 /// A desk lamp on its base at `base`; where its light is.
 fn desk_lamp(b: &mut B, base: T, r: &mut Rng) -> V3 {
+    b.with(METAL, |b| lamp_parts(b, base, r))
+}
+
+fn lamp_parts(b: &mut B, base: T, r: &mut Rng) -> V3 {
     let ink = hex("#2a2b30");
     b.put(Mesh::Cyl8, base.s(0.12, 0.02, 0.12), ink);
     b.put(
@@ -704,6 +848,23 @@ fn desk_lamp(b: &mut B, base: T, r: &mut Rng) -> V3 {
 
 /// A pot of `kind` at scale `s`; its rim's height.
 pub fn pot(b: &mut B, t: T, kind: Pot, s: f32) -> f32 {
+    let m = match kind {
+        Pot::Terracotta | Pot::Concrete => PLASTER,
+        Pot::Ceramic(_) => CERAMIC,
+        Pot::Box(_) => PLASTIC,
+        Pot::Basket => FABRIC,
+    };
+    let h = b.with(m, |b| pot_parts(b, t, kind, s));
+    b.put_m(
+        Mesh::Cyl12,
+        t.t(0.0, h - 0.03 * s, 0.0).s(0.34 * s, 0.031, 0.34 * s),
+        hex("#4a3426"),
+        SOIL,
+    );
+    h
+}
+
+fn pot_parts(b: &mut B, t: T, kind: Pot, s: f32) -> f32 {
     let h = 0.42 * s;
     match kind {
         Pot::Terracotta => {
@@ -751,11 +912,6 @@ pub fn pot(b: &mut B, t: T, kind: Pot, s: f32) -> f32 {
             );
         }
     }
-    b.put(
-        Mesh::Cyl8,
-        t.t(0.0, h - 0.03 * s, 0.0).s(0.34 * s, 0.03, 0.34 * s),
-        hex("#4a3426"),
-    );
     h
 }
 
@@ -782,6 +938,7 @@ pub fn plant(b: &mut B, t: T, kind: Plant, pot_kind: Pot, g: Growth) {
         g,
         at: t.t(0.0, top, 0.0),
     };
+    let from = b.out.len();
     match kind {
         Plant::Monstera => leaves.monstera(b),
         Plant::Fern => leaves.fern(b),
@@ -791,6 +948,16 @@ pub fn plant(b: &mut B, t: T, kind: Plant, pot_kind: Pot, g: Growth) {
         Plant::Palm => leaves.palm(b),
         Plant::Herbs => leaves.herbs(b),
         Plant::Succulent => leaves.succulent(b),
+    }
+    // leaves and fronds veined; stems, trunks and cacti their own way
+    for it in &mut b.out[from..] {
+        if it.inst.mat == 0 {
+            it.inst.mat = match it.mesh {
+                Mesh::Leaf | Mesh::Frond => LEAF,
+                Mesh::Cyl6 if matches!(kind, Plant::Fig | Plant::Palm) => WOOD,
+                _ => PLASTIC,
+            };
+        }
     }
 }
 
@@ -1370,9 +1537,387 @@ fn face(b: &mut B, head: T, lk: &Look, t: f32) {
     }
 }
 
+/// [`person`] or, in 0.4.2's second pass (`detail`), [`person_v2`].
+#[allow(clippy::too_many_arguments)] // the person's own inputs, plus which pass
+pub fn person_as(
+    detail: bool,
+    b: &mut B,
+    root: T,
+    lk: &Look,
+    pose: Pose,
+    t: f32,
+    seat: f32,
+    turn: f32,
+) -> V3 {
+    if detail {
+        person_v2(b, root, lk, pose, t, seat, turn)
+    } else {
+        person(b, root, lk, pose, t, seat, turn)
+    }
+}
+
+/// A face for each pose (the state it shows), blinking now and then.
+#[must_use]
+pub fn expression(pose: Pose, t: f32) -> crate::materials::Face {
+    use crate::materials::Face;
+    let f = |open: f32, tilt: f32, raise: f32, smile: f32, mouth: f32| Face {
+        open,
+        tilt,
+        raise,
+        smile,
+        mouth,
+        happy: false,
+    };
+    let mut e = match pose {
+        // working: focused, a little frown of concentration
+        Pose::Typing => f(0.78, -0.25, 0.0, 0.05, 0.0),
+        // idle: relaxed, half-lidded, content
+        Pose::Idle => f(0.62, 0.0, 0.0, 0.55, 0.0),
+        // asks you: brows up, eyes open, a hopeful smile, mouth open
+        Pose::Wave => f(1.0, 0.15, 1.0, 0.7, 0.45),
+        // stuck: worried brows, a frown
+        Pose::Scratch => f(0.9, 0.75, 0.35, -0.45, 0.0),
+        // crashed: alarmed, wide eyes, an open mouth
+        Pose::HandsOnHead => f(1.15, 0.9, 0.9, -0.55, 0.8),
+        // done: eyes shut happily, a big smile
+        Pose::Stretch => Face {
+            happy: true,
+            ..f(0.0, 0.1, 0.4, 0.9, 0.35)
+        },
+        // out of usage: asleep, mouth a little open
+        Pose::Asleep => f(0.0, 0.0, 0.0, 0.0, 0.18),
+        Pose::Helper => f(0.85, -0.1, 0.1, 0.25, 0.0),
+        Pose::Walk | Pose::Stand => f(0.9, 0.0, 0.0, 0.2, 0.0),
+    };
+    // a blink every few seconds (not while asleep or beaming)
+    if e.open > 0.0 && (t * 0.29).rem_euclid(1.0) < 0.035 {
+        e.open = 0.0;
+    }
+    e
+}
+
+/// 0.4.2's second-pass person: the same poses on smooth, proportioned
+/// shapes, cloth, denim and leather, hands, ears and a nose, real hair,
+/// and a face whose eyes, brows and mouth show the state; breathing.
+#[allow(clippy::too_many_lines)] // one figure, part by part
+pub fn person_v2(b: &mut B, root: T, lk: &Look, pose: Pose, t: f32, seat: f32, turn: f32) -> V3 {
+    let sit = pose.sits();
+    let root = root.s(lk.height, lk.height, lk.height);
+    let hip_y = if sit { seat / lk.height + 0.02 } else { 0.88 };
+    let (lean, head_p, head_y, al, ar, walk) = rig(pose, t);
+    let (thigh, knee) = if sit {
+        (FRAC_PI_2, -FRAC_PI_2)
+    } else {
+        (0.0, 0.0)
+    };
+    let breathe = 1.0 + 0.012 * (t * 1.7).sin();
+    for (s, sw) in [(-1.0f32, walk), (1.0, -walk)] {
+        let hip = root.t(s * 0.085, hip_y, 0.0).rx(thigh + sw);
+        b.put_m(
+            Mesh::Capsule,
+            hip.t(0.0, -0.46, 0.0).s(0.15, 0.5, 0.16),
+            lk.legs,
+            DENIM,
+        );
+        let kn = hip.t(0.0, -0.41, 0.0).rx(knee - sw.max(0.0) * 0.6);
+        b.put_m(
+            Mesh::Capsule,
+            kn.t(0.0, -0.44, 0.0).s(0.12, 0.48, 0.125),
+            lk.legs,
+            DENIM,
+        );
+        let foot = kn.t(0.0, -0.45, 0.0);
+        b.put_m(
+            Mesh::RoundBox,
+            foot.t(0.0, 0.0, -0.05).s(0.11, 0.08, 0.25),
+            lk.shoes,
+            LEATHER,
+        );
+        b.put_m(
+            Mesh::RoundBox,
+            foot.t(0.0, -0.012, -0.05).s(0.115, 0.022, 0.255),
+            ramp(lk.shoes, -0.3),
+            RUBBER,
+        );
+    }
+    let up = root.t(0.0, hip_y, 0.0).rx(-lean).t(0.0, -0.86, 0.0);
+    // hips and belt, then the torso breathing
+    b.put_m(
+        Mesh::RoundBox,
+        up.t(0.0, 0.79, 0.0).s(0.33, 0.17, 0.22),
+        lk.legs,
+        DENIM,
+    );
+    b.put_m(
+        Mesh::Torso,
+        up.t(0.0, 0.9, 0.0).s(0.4, 0.5 * breathe, 0.25 * breathe),
+        lk.top,
+        CLOTH,
+    );
+    b.with(CLOTH, |b| top_v2(b, up, lk));
+    b.glow(
+        Mesh::RoundBox,
+        up.t(0.1, 1.2, -0.122).s(0.055, 0.075, 0.012),
+        lk.badge,
+        0.35,
+    );
+    b.put_m(
+        Mesh::CylS,
+        up.t(0.0, 1.36, 0.0).s(0.1, 0.08, 0.1),
+        lk.skin,
+        SKIN,
+    );
+    let sway = 0.03 * (t * 0.7).sin();
+    let head = up.t(0.0, 1.42, 0.0).rx(-head_p).ry(turn + head_y + sway);
+    head_v2(b, head, lk, expression(pose, t));
+    let long = lk.top_style != 0;
+    for (s, (p, roll, el)) in [(-1.0f32, al), (1.0, ar)] {
+        let sh = up.t(s * 0.215, 1.32, 0.0).rz(s * roll).rx(p);
+        b.put_m(
+            Mesh::Sphere,
+            sh.t(0.0, -0.08, 0.0).s(0.11, 0.11, 0.115),
+            lk.top,
+            CLOTH,
+        );
+        b.put_m(
+            Mesh::Capsule,
+            sh.t(0.0, -0.32, 0.0).s(0.095, 0.36, 0.1),
+            lk.top,
+            CLOTH,
+        );
+        let fo = sh.t(0.0, -0.29, 0.0).rx(el);
+        if long {
+            b.put_m(
+                Mesh::Capsule,
+                fo.t(0.0, -0.28, 0.0).s(0.09, 0.32, 0.095),
+                lk.top,
+                CLOTH,
+            );
+        } else {
+            b.put_m(
+                Mesh::Capsule,
+                fo.t(0.0, -0.28, 0.0).s(0.08, 0.32, 0.085),
+                lk.skin,
+                SKIN,
+            );
+        }
+        let hand = fo.t(0.0, -0.3, 0.0);
+        b.put_m(
+            Mesh::Sphere,
+            hand.t(0.0, -0.06, 0.0).s(0.075, 0.1, 0.06),
+            lk.skin,
+            SKIN,
+        );
+        b.put_m(
+            Mesh::Capsule,
+            hand.t(-s * 0.03, -0.04, -0.02)
+                .rz(s * 0.5)
+                .s(0.03, 0.06, 0.03),
+            lk.skin,
+            SKIN,
+        );
+        if pose == Pose::Idle && s > 0.0 {
+            b.put_m(
+                Mesh::CylS,
+                fo.t(0.0, -0.33, -0.04).rx(-el - p).s(0.08, 0.1, 0.08),
+                hex("#f4efe6"),
+                CERAMIC,
+            );
+        }
+        if pose == Pose::Helper && s < 0.0 {
+            b.put_m(
+                Mesh::RoundBox,
+                fo.t(0.05, -0.3, -0.06).rx(-0.4).s(0.2, 0.26, 0.015),
+                hex("#c9a46c"),
+                WOOD,
+            );
+            b.put_m(
+                Mesh::Box,
+                fo.t(0.05, -0.18, -0.072).rx(-0.4).s(0.16, 0.18, 0.006),
+                hex("#f4efe6"),
+                PAPER,
+            );
+        }
+    }
+    head.0.point([0.0, 0.4, 0.0])
+}
+
+/// A top's details: a hoodie's hood and pocket, a shirt's collar and
+/// tie, a stripe.
+fn top_v2(b: &mut B, up: T, lk: &Look) {
+    match lk.top_style {
+        1 => {
+            b.put(
+                Mesh::Sphere,
+                up.t(0.0, 1.22, 0.1).s(0.3, 0.17, 0.14),
+                ramp(lk.top, -0.1),
+            );
+            b.put(
+                Mesh::RoundBox,
+                up.t(0.0, 0.96, -0.118).s(0.22, 0.1, 0.02),
+                ramp(lk.top, -0.06),
+            );
+            for s in [-1.0f32, 1.0] {
+                b.put_m(
+                    Mesh::CylS,
+                    up.t(s * 0.04, 1.12, -0.125).s(0.008, 0.16, 0.008),
+                    hex("#f4efe6"),
+                    FABRIC,
+                );
+            }
+        }
+        2 => {
+            for s in [-1.0f32, 1.0] {
+                b.put(
+                    Mesh::RoundBox,
+                    up.t(s * 0.055, 1.31, -0.105).rz(s * 0.5).s(0.1, 0.06, 0.03),
+                    hex("#f4f1ea"),
+                );
+            }
+            b.put_m(
+                Mesh::RoundBox,
+                up.t(0.0, 0.98, -0.128).s(0.035, 0.32, 0.012),
+                ramp(lk.top, -0.3),
+                FABRIC,
+            );
+        }
+        3 => b.put(
+            Mesh::Torso,
+            up.t(0.0, 1.1, 0.0).s(0.402, 0.05, 0.252),
+            ramp(lk.top, 0.18),
+        ),
+        _ => {}
+    }
+}
+
+/// The head: a face that shows the state, ears, a nose, glasses, a beard
+/// and hair.
+#[allow(clippy::too_many_lines)] // one head: face, ears, nose, glasses, beard, nine hairstyles
+fn head_v2(b: &mut B, head: T, lk: &Look, expr: crate::materials::Face) {
+    b.face(head.t(0.0, 0.0, 0.0).s(0.27, 0.3, 0.27), lk.skin, expr);
+    b.with(SKIN, |b| {
+        for s in [-1.0f32, 1.0] {
+            b.put(
+                Mesh::Sphere,
+                head.t(s * 0.135, 0.12, 0.01).s(0.035, 0.06, 0.04),
+                lk.skin,
+            );
+        }
+        b.put(
+            Mesh::Sphere,
+            head.t(0.0, 0.1, -0.13).s(0.04, 0.05, 0.04),
+            ramp(lk.skin, -0.04),
+        );
+    });
+    if lk.glasses {
+        b.with(PLASTIC, |b| {
+            b.put(
+                Mesh::RoundBox,
+                head.t(0.0, 0.186, -0.142).s(0.19, 0.012, 0.012),
+                hex("#2a2530"),
+            );
+            b.put(
+                Mesh::RoundBox,
+                head.t(0.0, 0.17, -0.145).s(0.02, 0.008, 0.01),
+                hex("#2a2530"),
+            );
+            for s in [-1.0f32, 1.0] {
+                b.put(
+                    Mesh::RoundBox,
+                    head.t(s * 0.11, 0.18, -0.08).s(0.008, 0.012, 0.13),
+                    hex("#2a2530"),
+                );
+            }
+        });
+    }
+    let h = lk.hair;
+    b.with(HAIR, |b| {
+        if lk.beard {
+            b.put(
+                Mesh::Sphere,
+                head.t(0.0, -0.005, -0.03).s(0.25, 0.13, 0.22),
+                h,
+            );
+        }
+        let cap = |b: &mut B, y: f32, sy: f32| {
+            b.put(Mesh::Sphere, head.t(0.0, y, 0.012).s(0.29, sy, 0.29), h);
+        };
+        match lk.style {
+            0 => cap(b, 0.12, 0.2),
+            1 => {
+                cap(b, 0.11, 0.21);
+                b.put(
+                    Mesh::Capsule,
+                    head.t(0.0, -0.14, 0.05).s(0.28, 0.36, 0.14),
+                    h,
+                );
+            }
+            2 => {
+                cap(b, 0.13, 0.19);
+                b.put(Mesh::Sphere, head.t(0.0, 0.25, 0.1).s(0.12, 0.12, 0.12), h);
+            }
+            3 => {
+                for k in 0..9 {
+                    let a = k as f32 / 9.0 * TAU;
+                    let p = head.t(
+                        0.1 * a.cos(),
+                        0.19 + 0.03 * (k % 2) as f32,
+                        0.1 * a.sin() + 0.02,
+                    );
+                    b.put(Mesh::Sphere, p.s(0.13, 0.12, 0.13), h);
+                }
+            }
+            4 => {
+                cap(b, 0.12, 0.2);
+                b.put(
+                    Mesh::Capsule,
+                    head.t(0.0, 0.16, 0.15).rx(2.6).s(0.07, 0.26, 0.07),
+                    h,
+                );
+            }
+            5 => cap(b, 0.15, 0.16),
+            6 => {
+                cap(b, 0.1, 0.22);
+                for s in [-1.0f32, 1.0] {
+                    b.put(
+                        Mesh::Capsule,
+                        head.t(s * 0.12, -0.05, 0.02).s(0.07, 0.28, 0.2),
+                        h,
+                    );
+                }
+            }
+            7 => {}
+            _ => {
+                b.put_m(
+                    Mesh::CylS,
+                    head.t(0.0, 0.17, 0.01).s(0.3, 0.13, 0.3),
+                    ramp(lk.top, 0.15),
+                    CLOTH,
+                );
+                b.put_m(
+                    Mesh::Sphere,
+                    head.t(0.0, 0.18, 0.01).s(0.3, 0.2, 0.3),
+                    ramp(lk.top, 0.15),
+                    CLOTH,
+                );
+                b.put_m(
+                    Mesh::Sphere,
+                    head.t(0.0, 0.36, 0.01).s(0.08, 0.08, 0.08),
+                    hex("#f4efe6"),
+                    FABRIC,
+                );
+            }
+        }
+    });
+}
+
 /// The office cat: walks (`walk` is its gait's phase), or sits when
 /// clicked.
 pub fn cat(b: &mut B, t: T, walk: f32, sitting: bool) {
+    b.with(HAIR, |b| cat_parts(b, t, walk, sitting));
+}
+
+fn cat_parts(b: &mut B, t: T, walk: f32, sitting: bool) {
     let (c, d) = (hex("#e0913a"), hex("#b86a24"));
     let body_y = if sitting { 0.16 } else { 0.18 };
     if sitting {

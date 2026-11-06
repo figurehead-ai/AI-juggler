@@ -108,6 +108,7 @@ fn scene(snap: &FloorSnapshot) -> Scene {
         seats: &seats,
         decay: true,
         covers: false,
+        detail: false,
         machine: "This computer",
         now_ms: NOW,
         logos: &BTreeMap::new(),
