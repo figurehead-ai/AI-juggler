@@ -73,7 +73,7 @@
 **Goal**: The bell in the header, the app badge and the menu-bar item show the same number as Needs you on Home.
 **Requirements**:
 1. Needs you SHALL be the backend's one list (D-49): the rail (by place and the Project lens, the collapsed rail and folded headers), Home, the bell, the badge, the menu-bar item and the system notifications read it and its one count; the window works nothing out (`lib/needs-you.ts` reads it). The rail's Needs you also lists the needs that aren't a session's, so its number is the bell's. In the preview a lazy stand-in (`preview/needs.tsx`) runs the same rules over the preview's own data.
-2. Home SHALL list the model's own needs (an account almost out of room) with "Hand over…".
+2. Home SHALL list the model's own needs (an account almost out of room) with "Continue in another app…". (Amended 2026-11-06: the action reads "Continue in another app…" everywhere (Home, the centre, a session's page), as the design review named it.)
 3. The bell: the count (none at zero), "Notifications: 3 things need you, 2 unread" for screen readers, ⌥⌘N (⌘⇧N until D-50), opens the centre.
 4. The app badge SHALL be set through the platform seam on every change.
 **Quality gates**: `src/count-agreement.test.tsx` (the bell, Home and the rail); `tests/notification_model.rs` (the same count on the rail's list, the bell, the badge and the menu-bar item, worked out by the backend's tick with no window, a snooze ending bringing its need back); the gallery's header capture.
@@ -97,7 +97,7 @@
 **Goal**: One shared Banner; the account banners in plain words with their meter and real actions; the window says when AI Juggler's own service stops answering.
 **Requirements**:
 1. `Banner` (tone, title, detail, meter, actions, close): every band banner uses it — an account almost out of room, an update, a parked session's reset, a queued resume, this computer's alerts, another computer's alerts.
-2. The account banner: "Work Max is almost out of room · 7% of its 5-hour window left · resets at 9:09 PM · 2 sessions use it", the meter, Hand over…, Queue for the reset, Snooze 1 h, ×; at most three (one per account); a dismissed one stays in the centre; on Home the item is in Needs you instead.
+2. The account banner: "Work Max is almost out of room · 7% of its 5-hour window left · resets at 9:09 PM · 2 sessions use it", the meter, Hand over…, Remind me at <its reset time>, Snooze 1 h, ×; at most three (one per account); a dismissed one stays in the centre; on Home the item is in Needs you instead. (Amended 2026-11-06: 0.3.2: "Queue for the reset" said nothing about what it does; the reminder names its time.)
 3. `refresh()` SHALL no longer swallow a failure: with the app's service live, "Showing the last state AI Juggler knew — It couldn't reach its own service 20 s ago. Actions are paused until it's back." with Retry (`role=alert`); data stays; New session says why it waits.
 **Quality gates**: `src/components/notifications.test.tsx`; the gallery (banner-quota, banner-offline).
 **Files to touch**: `ui/src/components/Banner.tsx`, `NotificationRegion.tsx`, `OfflineBanner.tsx`, `lib/backend-health.ts`, `App.tsx`.
@@ -117,7 +117,7 @@
 **Requirements**:
 1. Tauri's tray (`tray-icon`), made at start, redrawn on every change: the count as its title, "AI Juggler · 3 things need you" as its tooltip.
 2. The menu: "Needs you · n" and five lines (with "and n more…"), "Open now · 10 · 4 working" and the apps, Open AI Juggler, New session…. A line brings AI Juggler forward on that notice; nothing else happens.
-3. What is open comes from the window (Home's own count of open sessions by app).
+3. What is open comes from the backend (`notifications::needs`'s open-now count by app, the one count the rail and Home read). (Amended 2026-11-06: the count moved to the backend with D-49's one list, so the menu-bar item no longer depends on the window.)
 **Quality gates**: `features::notifications::tray` tests (the builder, the ids, the gallery's fixture `ui/tests/visual/fixtures/tray-menu.json`); the gallery's tray-menu capture (drawn from that fixture; the system draws the real one).
 **Files to touch**: `crates/juggler-app/src/features/notifications/tray.rs`, `views.rs`, `Cargo.toml`, `lib.rs`.
 
