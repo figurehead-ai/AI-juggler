@@ -186,6 +186,27 @@ describe("Home, desktop first", () => {
     expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).not.toContain("Work Max · 60% left");
   });
 
+  it("the cards line up (0.4.1): the account row and bar on every card when any has one, on none when none does; Open and the badge in one bottom row", async () => {
+    const view = home([], placesConversations(NOW));
+    const tiles = await view.findAllByTestId("home-app-tile");
+    // Nothing measured: no empty rows to leave a gap.
+    for (const tile of tiles) expect(within(tile).queryByTestId("home-app-account")).toBeNull();
+    cleanup();
+    seams().__AIJ_QUOTA_DISPLAY__ = [{ account: "claude-work", five_hour: { percentage: 40, state: "measured", resets_at_ms: null }, weekly: null }];
+    const measured = home([], placesConversations(NOW));
+    await waitFor(() => expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).toContain("60% left"));
+    // Every card keeps the same two rows, a measured one's meter or an empty one of its height.
+    for (const tile of measured.getAllByTestId("home-app-tile")) {
+      const rows = within(tile).getByTestId("home-app-account");
+      expect(rows.children).toHaveLength(2);
+      expect(rows.children[0]!.className).toContain("truncate");
+    }
+    const work = measured.getAllByTestId("home-app-tile")[2]!;
+    expect(within(work).getByTestId("home-app-account").children[0]!.getAttribute("title")).toMatch(/60% left$/);
+    // The badge sits in the Open button's row.
+    expect(within(work).getByTestId("home-app-needs").parentElement).toBe(within(work).getByRole("button", { name: /^Open Claude/ }).parentElement);
+  });
+
   it("few needs: Pick up where you left off moves up beside them; many: it stays under the runway (0.4 design review, 39)", async () => {
     const ended = own("done", { status: "finished", last_activity_ms: NOW - 60_000 });
     const few = home([own("f1", { status: "failed" }), ended], []);

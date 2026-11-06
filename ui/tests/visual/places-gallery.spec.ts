@@ -8,7 +8,7 @@ import { type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, gate, scan, test } from "./axe-gallery";
-import { placesConversations } from "../../src/preview/places";
+import { knownPlacesPreview, placesConversations } from "../../src/preview/places";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/94-places");
 const T0 = new Date(2026, 9, 24, 15, 0, 0).getTime();
@@ -44,17 +44,31 @@ const SETS = {
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-async function seed(page: Page, set: keyof typeof SETS, theme: "dark" | "light") {
+/** 0.4.1: the cards' line-up with room measured (one Account low) and the
+ * remembered apps, the closed ones among them. */
+const LINE_UP = {
+  known: knownPlacesPreview(T0),
+  room: [
+    { account: "claude-work", five_hour: { percentage: 30, state: "measured", resets_at_ms: null }, weekly: null },
+    { account: "claude-personal", five_hour: { percentage: 82, state: "measured", resets_at_ms: null }, weekly: null },
+  ],
+};
+
+async function seed(page: Page, set: keyof typeof SETS, theme: "dark" | "light", extra: typeof LINE_UP | null = null) {
   await page.addInitScript(
-    ({ fixture, theme, t0 }) => {
+    ({ fixture, theme, t0, extra }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
+      if (extra) {
+        w.__AIJ_PLACES__ = extra.known;
+        w.__AIJ_QUOTA_DISPLAY__ = extra.room;
+      }
       localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture: { accounts: ACCOUNTS, projects: PROJECTS, ...SETS[set] }, theme, t0: T0 },
+    { fixture: { accounts: ACCOUNTS, projects: PROJECTS, ...SETS[set] }, theme, t0: T0, extra },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -134,6 +148,14 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("home-heading")).toHaveText("3 sessions need you");
     await expect(page.getByTestId("home-app-tile")).toHaveCount(4);
     await shoot(page, "home-typical", theme);
+  });
+
+  test(`Home, the app cards line up: room measured, one low, closed apps after — ${theme}`, async ({ page }) => {
+    await seed(page, "eight", theme, LINE_UP);
+    await expect(page.getByTestId("home-app-closed").first()).toBeVisible();
+    await expect(page.getByTestId("home-app-account").first()).toBeVisible();
+    await page.getByTestId("home-apps").scrollIntoViewIfNeeded();
+    await shoot(page, "home-cards", theme);
   });
 
   test(`Home, busy — ${theme}`, async ({ page }) => {
