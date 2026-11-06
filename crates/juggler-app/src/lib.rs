@@ -841,6 +841,9 @@ pub fn run() {
     }
     // AJ-E1513: prepared switches a crash left for sessions now ended.
     features::staging::sweep_at_startup(&app_state);
+    // 0.4.1: the user's own install, with no keychain reachable, says
+    // once where its keys went.
+    features::notifications::sources::secrets_in_files_if_fallen_back(&app_state);
     // AJ-E1907 R2: task briefs read long ago, or whose task closed.
     features::tasks::launch::sweep_briefs(&app_state, commands::now_millis());
 

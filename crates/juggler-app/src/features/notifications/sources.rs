@@ -633,6 +633,44 @@ pub fn found_notice(id: &str, label: &str) -> NewNotice {
     }
 }
 
+/// 0.4.1: the user's own install found no keychain it could use without
+/// asking, so its keys (the Figurehead device token, the vault key,
+/// service keys, the Fleet identity) are in owner-only files in its data
+/// folder. Told once (its key is fixed); labs, tests and Dev builds, which
+/// choose files on purpose, never say it.
+#[must_use]
+pub fn secrets_in_files_notice() -> NewNotice {
+    NewNotice {
+        key: "secrets-in-files".to_owned(),
+        kind: "secrets-in-files".to_owned(),
+        title: "AI Juggler keeps its keys in a private file".to_owned(),
+        detail: "No keychain could be reached without asking you, so its keys are in files only you can open, in AI Juggler's data folder. Nothing was shown or changed in your keychain.".to_owned(),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("settings".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    }
+}
+
+/// Records [`secrets_in_files_notice`] when this run is the user's own
+/// install and fell back to files only because no keychain was reachable.
+pub fn secrets_in_files_if_fallen_back(state: &Arc<AppState>) {
+    if crate::edition::current() == crate::edition::Edition::Dev
+        || crate::edition::secrets_kept_in_files() != Some("no keychain could be reached")
+    {
+        return;
+    }
+    let now = crate::commands::now_millis();
+    if let Ok(storage) = state.storage.lock() {
+        let _ = centre::record(&storage, &secrets_in_files_notice(), now);
+    }
+}
+
 /// AJ-E2006: an import that left links pointing outside its folder, or
 /// copied files that look like they hold a secret, says so once (`None`
 /// when there is nothing to tell). The detail lists each, masked.
@@ -856,7 +894,7 @@ pub fn app_started_again(
     keep_alive_notice(
         state,
         &NewNotice {
-            key: format!("app-started:{place_id}:{now}"),
+            key: format!("app-started:{place_id}:{attempt}:{now}"),
             kind: "app-started".to_owned(),
             title: if lost {
                 format!("{label} lost its window and was restarted")

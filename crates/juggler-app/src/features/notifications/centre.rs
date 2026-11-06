@@ -59,6 +59,7 @@ pub const APP_KINDS: &[(&str, &str)] = &[
     ("renewal", "Plan renewals"),
     ("import", "Imports"),
     ("found", "Apps found on this Mac"),
+    ("secrets-in-files", "Keys kept in a private file"),
 ];
 
 /// The kinds that come up as a banner while they need the user (at most
