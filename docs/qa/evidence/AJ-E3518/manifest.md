@@ -1,7 +1,7 @@
 # Evidence manifest — AJ-E3518 Inactive Apps: lights off, dust and dust sheets
 
 Built in d16811b95 (decay levels 1–5, covers follow the decay setting) on
-the 0.4.2 look (D-86). Captures: one App ("cli:n") closed for 30 minutes,
+the 0.4.1 look (D-86). Captures: one App ("cli:n") closed for 30 minutes,
 6 hours, 3 days, 12 days and 40 days, by day and at night
 (`AJ_FLOOR_EVIDENCE=… cargo test -p juggler-floor-render --test golden the_decay_and_daylight_captures -- --ignored`).
 

@@ -86,7 +86,7 @@ pub enum FloorMat {
 }
 
 impl FloorMat {
-    /// The surface it's made of (0.4.2's second pass).
+    /// The surface it's made of (0.4.1's second pass).
     #[must_use]
     pub const fn mat(&self) -> crate::materials::Mat {
         use crate::materials as m;
@@ -148,7 +148,7 @@ pub enum WallFinish {
 }
 
 impl WallFinish {
-    /// The surface it's made of (0.4.2's second pass).
+    /// The surface it's made of (0.4.1's second pass).
     #[must_use]
     pub const fn mat(&self) -> crate::materials::Mat {
         use crate::materials as m;

@@ -42,10 +42,10 @@ struct Globals {
     params: [f32; 4],
     /// The sun's colour.
     sunc: [f32; 4],
-    /// `(rework, night, rim, dust)` (0.4.2's look; all 0 in the classic).
+    /// `(rework, night, rim, dust)` (0.4.1's look; all 0 in the classic).
     look: [f32; 4],
     /// `(materials on, their footprint's scale, the sun's banding,
-    /// highlights)` (0.4.2's second pass; all 0 without it).
+    /// highlights)` (0.4.1's second pass; all 0 without it).
     mat: [f32; 4],
     /// `(the atlas's v scale, 0, 0, 0)`: the scene's `atlas_v`.
     atl: [f32; 4],
@@ -60,7 +60,7 @@ struct PostU {
     top: [f32; 4],
     bot: [f32; 4],
     hov: [u32; 4],
-    /// `(ambient occlusion, grade, night, 0)` (0.4.2's look).
+    /// `(ambient occlusion, grade, night, 0)` (0.4.1's look).
     look: [f32; 4],
 }
 
@@ -98,7 +98,7 @@ pub fn pixel_size(scale: f32) -> f32 {
 }
 
 /// The scene's pixel in device pixels for a mode (D-80): Pixel art's
-/// `pixel_size` (a finer one with 0.4.2's `fine`: two device pixels on a
+/// `pixel_size` (a finer one with 0.4.1's `fine`: two device pixels on a
 /// Retina screen instead of three; never under two), or one in Full
 /// resolution.
 fn scene_px(full: bool, fine: bool, scale: f32) -> f32 {
@@ -216,7 +216,7 @@ pub struct Gpu {
     /// D-80: Full resolution (the scene at device pixels, smoothed)
     /// instead of Pixel art (at `pixel_size`, scaled up).
     pub(crate) full: bool,
-    /// The light and whether 0.4.2's reworked look is on.
+    /// The light and whether 0.4.1's reworked look is on.
     pub(crate) look: crate::Look,
 }
 

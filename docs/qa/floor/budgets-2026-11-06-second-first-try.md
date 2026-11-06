@@ -1,4 +1,4 @@
-# The Floor's budgets, 0.4.2's second pass (materials and faces), 2026-11-06-second-first-try
+# The Floor's budgets, 0.4.1's second pass (materials and faces), 2026-11-06-second-first-try
 
 Read by `scripts/floor_harness.py` on the release build with the harness
 (AJ-E3513 req. 3), on the replica company: 9 Apps, 340 sessions. Budgets: SPEC §9.7.

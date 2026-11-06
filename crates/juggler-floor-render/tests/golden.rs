@@ -252,7 +252,7 @@ fn scene_with(
     scene_full(snap, office, seating, covers, true)
 }
 
-/// A scene with 0.4.2's dust sheets (`covers`) and second pass
+/// A scene with 0.4.1's dust sheets (`covers`) and second pass
 /// (`detail`) chosen.
 fn scene_full(
     snap: &FloorSnapshot,
@@ -813,7 +813,7 @@ fn area_chips_never_overlap() {
     );
 }
 
-/// 0.4.2's design proposal (`docs/research/floor-04x.md` §10), opt-in:
+/// 0.4.1's design proposal (`docs/research/floor-04x.md` §10), opt-in:
 /// `AJ_FLOOR_PROPOSAL=<folder> cargo test -p juggler-floor-render --test
 /// golden -- --ignored proposal`. The same made-up company in 0.4.0's look
 /// and the reworked one, by day, at the golden hour, at dusk and at night,
@@ -1104,7 +1104,7 @@ fn crop(img: &Img, x: i32, y: i32, w: i32, h: i32) -> Img {
     out
 }
 
-/// The second pass's frames for the design proposal (0.4.2, research
+/// The second pass's frames for the design proposal (0.4.1, research
 /// §12): the first pass (v1) and the second (v2) side by side, up close
 /// and at the normal zoom, in Pixel art (and its finer pixel) and Full
 /// resolution, on a Retina-sized window; a portrait of a sitter in each

@@ -4,7 +4,7 @@
 > 0.4.0 (nine findings, three screenshots). Rulings: the bugs (the hand
 > cursor, the floor tabs, the floor that appeared when zooming out, the
 > desktop App names, Apps only seen running, the long leader lines) ship
-> in **0.4.1**; the design items below ship in **0.4.2**, as E35 tasks
+> in **0.4.1**; the design items below ship in **0.4.1** too (D-90, 2026-11-06: there is no 0.4.2), as E35 tasks
 > AJ-E3515…AJ-E3521. Design calls are decided by the goal (the Floor is an
 > indicator first: where work is busy, waiting on you, stuck, crashing or
 > overloaded) and reported here; the visual direction is shown, not

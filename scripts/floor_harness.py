@@ -88,7 +88,7 @@ def run(home: Path, quick: bool = False, out: Path | None = None, detail: str = 
             env["AIJ_FLOOR_HARNESS_QUICK"] = "1"
         # D-80: Pixel art (the default) or Full resolution.
         env["AIJ_FLOOR_HARNESS_DETAIL"] = detail
-        # 0.4.2 (D-86): its look with the second pass (`second`, the default),
+        # 0.4.1 (D-86): its look with the second pass (`second`, the default),
         # or 0.4.0's classic (`first`) to measure beside it.
         env["AIJ_FLOOR_HARNESS_LOOK"] = look
         print(f"floor-harness: running (about {4 if quick else 12} minutes) on the replica in {home}")
@@ -223,7 +223,7 @@ def report(results: Path) -> int:
     date = results.stem.removeprefix("budgets-").removesuffix("-second").removesuffix("-full")
     look = " in Full resolution (D-80)" if data.get("detail") == "full" else ""
     if data.get("look") == "second":
-        look += ", 0.4.2's second pass (materials and faces)"
+        look += ", 0.4.1's second pass (materials and faces)"
     lines = [
         f"# The Floor's budgets{look}, {date}",
         "",

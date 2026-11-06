@@ -95,11 +95,12 @@ rule (D-24's three days of use) applies from then on.
 candidate with nothing scored under 4, the full preflight passes, the
 maintainer has used it, and its findings are fixed.
 
-### 0.4.2 — the Floor from the maintainer's findings
+### 0.4.1 — the Floor from the maintainer's findings
 
-Added after 0.4.0 from the maintainer's Floor findings. The release check
-holds 0.4.2 and later patches to these rows, not 0.4.1; the first Stable
-holds them all (D-85).
+Added after 0.4.0 from the maintainer's Floor findings. D-90
+(2026-11-06): they ship in 0.4.1, and there is no 0.4.2; the release
+check holds 0.4.1 to these rows, and the first Stable holds them all
+(D-85).
 
 | Area | Tasks |
 |---|---|

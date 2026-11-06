@@ -2670,7 +2670,7 @@ Stable under 0.4. Its 0.5 section stays as planned work that starts after
 the Stable.
 
 
-### D-86 The Floor's new graphics are the default from 0.4.2 — SETTLED (2026-11-06)
+### D-86 The Floor's new graphics are the default from 0.4.2 (0.4.1 since D-90) — SETTLED (2026-11-06)
 
 **Ruling.** The maintainer, 2026-11-06, on the Floor's design proposal
 with its second pass (generated materials, people with faces; v1 and v2

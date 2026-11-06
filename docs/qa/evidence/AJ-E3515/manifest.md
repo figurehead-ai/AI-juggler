@@ -3,7 +3,7 @@
 Built in d16811b95 (flags, bands, overlay). Requirement 1 amended there
 (bands in points on a 640-point view; far below 14). Tests run on
 `release/0.4.1` at the commit in each row; captures drawn offscreen on this
-Mac's GPU (Metal) from the 0.4.2 company fixture (generic names only).
+Mac's GPU (Metal) from the 0.4.1 company fixture (generic names only).
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
 |---|---|---|---|---|---|---|---|

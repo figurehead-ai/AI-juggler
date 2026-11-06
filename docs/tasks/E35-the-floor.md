@@ -432,11 +432,11 @@
 
 ---
 
-## 0.4.2: the maintainer's 0.4.0 findings (design items)
+## 0.4.1: the maintainer's 0.4.0 findings (design items)
 
 > Source: the maintainer's first test of the Floor on 0.4.0, 2026-11-06
 > (nine findings). The bugs shipped in 0.4.1 (`docs/qa/floor/walk-0.4.1.md`).
-> These design items ship in 0.4.2; research and picks:
+> These design items ship in 0.4.1 (D-90, 2026-11-06: there is no 0.4.2); research and picks:
 > [`docs/research/floor-04x.md`](../research/floor-04x.md); the visual
 > proposal on real renders was published for the maintainer's review
 > before the visual rework is built. Every task: both looks (D-80), SPEC

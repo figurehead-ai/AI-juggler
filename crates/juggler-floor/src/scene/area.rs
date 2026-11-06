@@ -891,7 +891,7 @@ fn desk_of(b: &mut B, kit: &Kit, frame: T, shared: bool) -> (f32, f32) {
     (desk(b, frame, kit.desk, kit.desk_top, kit.desk_frame, w), w)
 }
 
-/// 0.4.2: a dust sheet over a long-unused desk and its chair's back:
+/// 0.4.1: a dust sheet over a long-unused desk and its chair's back:
 /// pale cloth, a little crumpled, hanging to just above the floor, and a
 /// box left by it.
 fn sheet(b: &mut B, frame: T, top: f32, width: f32, dr: &mut Rng) {

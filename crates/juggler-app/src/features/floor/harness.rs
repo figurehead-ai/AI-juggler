@@ -30,7 +30,7 @@ pub const VAR: &str = "AIJ_FLOOR_HARNESS";
 pub const QUICK: &str = "AIJ_FLOOR_HARNESS_QUICK";
 /// D-80: `full` measures Full resolution (Pixel art otherwise).
 pub const DETAIL: &str = "AIJ_FLOOR_HARNESS_DETAIL";
-/// `first` measures 0.4.0's classic look; 0.4.2's (D-86: reworked, with
+/// `first` measures 0.4.0's classic look; 0.4.1's (D-86: reworked, with
 /// its second pass of materials and faces) otherwise.
 pub const LOOK: &str = "AIJ_FLOOR_HARNESS_LOOK";
 

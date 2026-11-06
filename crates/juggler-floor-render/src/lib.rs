@@ -62,11 +62,11 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-/// How the office is lit and finished (0.4.2, `docs/research/floor-04x.md`
+/// How the office is lit and finished (0.4.1, `docs/research/floor-04x.md`
 /// §6–7): the sky (day and night from the Mac's clock, or a fixed one)
 /// and whether the reworked look is on (ambient occlusion, soft shadows,
 /// a rim light, the grade, dust on what's long unused), with its second
-/// pass. The default is 0.4.2's look (D-86): reworked, materials and
+/// pass. The default is 0.4.1's look (D-86): reworked, materials and
 /// faces, the finer Pixel art; [`Look::classic`] is 0.4.0's, kept for
 /// rollback and its tests.
 #[derive(Clone, Copy, Debug, PartialEq)]

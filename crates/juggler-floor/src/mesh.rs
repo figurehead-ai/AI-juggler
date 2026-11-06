@@ -50,7 +50,7 @@ pub enum Mesh {
     QuadWall,
     /// A flat disc facing up.
     Disc,
-    /// A smooth ball (0.4.2's second pass: people and round things).
+    /// A smooth ball (0.4.1's second pass: people and round things).
     Sphere,
     /// A smooth capsule standing on y = 0: its caps a quarter of its
     /// height each, so a limb scaled about four times as long as it's wide

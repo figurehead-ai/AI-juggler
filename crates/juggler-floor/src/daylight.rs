@@ -1,4 +1,4 @@
-//! Day and night (0.4.2, `docs/research/floor-04x.md` §6): where the sun
+//! Day and night (0.4.1, `docs/research/floor-04x.md` §6): where the sun
 //! is for the Mac's own place and clock, and the light that gives the
 //! office. Pure: the window side reads the time zone's coordinates (the
 //! system's `zone.tab`) and the clock, and asks again every

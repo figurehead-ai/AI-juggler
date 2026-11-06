@@ -1,4 +1,4 @@
-//! The Floor's materials (0.4.2 second pass, `docs/research/floor-04x.md`
+//! The Floor's materials (0.4.1 second pass, `docs/research/floor-04x.md`
 //! §12): wood, fabric, carpet, metal, plastic, leaves, skin, hair, cloth,
 //! denim, leather, glaze, plaster, rubber, paper and soil, each a small
 //! tileable map **generated at run time** (nothing is bundled): how much

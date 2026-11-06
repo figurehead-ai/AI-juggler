@@ -37,7 +37,7 @@ struct VO {
   @location(0) wp: vec3<f32>, @location(1) n: vec3<f32>, @location(2) uv: vec2<f32>,
   @location(3) col: vec4<f32>, @location(4) tex: vec4<f32>, @location(5) misc: vec4<f32>, @location(6) off: vec2<f32>,
   @location(7) @interpolate(flat) id: u32,
-  // 0.4.2's second pass: where the pixel is in the part's own space (in
+  // 0.4.1's second pass: where the pixel is in the part's own space (in
   // metres, or its unit shape for a leaf or a face), its normal there,
   // the part's turn and scale, and its material
   @location(8) lp: vec3<f32>, @location(9) ln: vec3<f32>,
@@ -101,7 +101,7 @@ fn seg(p: vec2<f32>, a: vec2<f32>, b: vec2<f32>) -> f32 {
   let h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
   return length(pa - ba * h);
 }
-// 0.4.2's faces: eyes, brows and mouth drawn on a head's front, from the
+// 0.4.1's faces: eyes, brows and mouth drawn on a head's front, from the
 // expression in the part (tex: open, brow tilt, brow raise, smile; misc:
 // mouth open, happy). fp is the face's point (unit head, centred), aa a
 // pixel's size there. Returns the colour over the skin and its cover.
@@ -167,7 +167,7 @@ fn face(skin: vec3<f32>, fp: vec2<f32>, front: f32, e4: vec4<f32>, m2: vec2<f32>
   }
   return vec4<f32>(c, front);
 }
-// 0.4.2's second pass: the part's material and how it's lit.
+// 0.4.1's second pass: the part's material and how it's lit.
 struct Surf { n: vec3<f32>, alb: f32, rough: f32 };
 fn shade(v: VO) -> vec4<f32> {
   var base = v.col;
@@ -225,7 +225,7 @@ fn shade(v: VO) -> vec4<f32> {
   // never the map's edge stretched across as streaks.
   let inside = abs(lp.x) < 1.0 && abs(lp.y) < 1.0 && lp.z > 0.0 && lp.z < 1.0;
   if (g.look.x > 0.5) {
-    // 0.4.2: a soft edge in both looks, eight taps on a disk turned per
+    // 0.4.1: a soft edge in both looks, eight taps on a disk turned per
     // small patch of floor (steady from frame to frame).
     let t = 1.8 / f32(textureDimensions(smap).x);
     let r = hash2(floor(v.wp.xz * 9.0)) * 6.2832;
@@ -250,7 +250,7 @@ fn shade(v: VO) -> vec4<f32> {
   }
   if (!inside) { sh = 1.0; }
   let ndl = max(dot(n, g.sun.xyz), 0.0);
-  // the sun in three bands, for a painted look (four, softer, in 0.4.2's)
+  // the sun in three bands, for a painted look (four, softer, in 0.4.1's)
   var sun = floor(ndl * sh * 3.0 + 0.4) / 3.0 * g.sun.w;
   if (g.look.x > 0.5) { sun = floor(ndl * sh * 4.0 + 0.5) / 4.0 * g.sun.w; }
   if (g.mat.x > 0.5) {
@@ -343,7 +343,7 @@ fn luma(c: vec3<f32>) -> f32 { return dot(c, vec3<f32>(0.299, 0.587, 0.114)); }
 const RING = array<vec2<f32>, 8>(
   vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 1.0), vec2<f32>(-1.0, 0.0), vec2<f32>(0.0, -1.0),
   vec2<f32>(0.7, 0.7), vec2<f32>(-0.7, 0.7), vec2<f32>(-0.7, -0.7), vec2<f32>(0.7, -0.7));
-// 0.4.2: ambient occlusion from the depth alone. Each sample is compared
+// 0.4.1: ambient occlusion from the depth alone. Each sample is compared
 // with the plane the pixel sits on (its one-sided slopes, the smaller,
 // so an edge isn't read as a slope): nearer than the plane, it occludes.
 fn occlusion(q: vec2<i32>, lim: vec2<i32>, d0: f32, rad: f32) -> f32 {
@@ -421,7 +421,7 @@ fn seen(q: vec2<i32>, skyc: vec3<f32>) -> vec3<f32> {
     if (hl) { c = vec3<f32>(1.0, 0.93, 0.6); }
   }
   if (p.look.y > 0.5 && draw < 1.0) {
-    // 0.4.2's grade: cool shadows, warm lights, a gentle S-curve, a little
+    // 0.4.1's grade: cool shadows, warm lights, a gentle S-curve, a little
     // more colour (the night keeps it cooler)
     let l = luma(c);
     let warm = mix(vec3<f32>(0.03, 0.015, -0.02), vec3<f32>(-0.01, 0.0, 0.03), p.look.z);

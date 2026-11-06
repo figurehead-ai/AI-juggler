@@ -20,7 +20,7 @@ use crate::tex::Uv;
 
 /// One drawn part, as the GPU reads it: its transform, colour, texture
 /// place, `(repeat u, repeat v, glow, flags)`, a texture scroll, its
-/// pick id and its material ([`crate::materials`]; drawn only by 0.4.2's
+/// pick id and its material ([`crate::materials`]; drawn only by 0.4.1's
 /// second-pass look, the others ignore it).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
@@ -46,7 +46,7 @@ pub const TEXTURED: u32 = 1;
 /// A part vanishes when it stands between the camera and the room.
 pub const CUTAWAY: u32 = 2;
 /// The first of two bits holding a part's dust (0–3): what's long unused
-/// gathers it (0.4.2's look draws it; the classic look ignores it).
+/// gathers it (0.4.1's look draws it; the classic look ignores it).
 pub const DUST_SHIFT: u32 = 3;
 
 /// The dust on a part of an App dimmed to `dim` ([`crate::scene::dimming`]):
@@ -1541,7 +1541,7 @@ fn face(b: &mut B, head: T, lk: &Look, t: f32) {
     }
 }
 
-/// [`person`] or, in 0.4.2's second pass (`detail`), [`person_v2`].
+/// [`person`] or, in 0.4.1's second pass (`detail`), [`person_v2`].
 #[allow(clippy::too_many_arguments)] // the person's own inputs, plus which pass
 pub fn person_as(
     detail: bool,
@@ -1600,7 +1600,7 @@ pub fn expression(pose: Pose, t: f32) -> crate::materials::Face {
     e
 }
 
-/// 0.4.2's second-pass person: the same poses on smooth, proportioned
+/// 0.4.1's second-pass person: the same poses on smooth, proportioned
 /// shapes, cloth, denim and leather, hands, ears and a nose, real hair,
 /// and a face whose eyes, brows and mouth show the state; breathing.
 #[allow(clippy::too_many_lines)] // one figure, part by part

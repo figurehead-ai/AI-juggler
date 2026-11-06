@@ -200,10 +200,10 @@ pub struct Inputs<'a> {
     pub seats: &'a BTreeMap<String, Vec<Option<String>>>,
     /// Show unused Apps' decay (Settings › The Floor).
     pub decay: bool,
-    /// 0.4.2's decay: dust sheets over the desks of an App unused for
+    /// 0.4.1's decay: dust sheets over the desks of an App unused for
     /// over a week (`docs/research/floor-04x.md` §4); off keeps 0.4.0's.
     pub covers: bool,
-    /// 0.4.2's second pass: smooth people with faces that show the
+    /// 0.4.1's second pass: smooth people with faces that show the
     /// state, materials on everything (`docs/research/floor-04x.md` §12);
     /// off keeps the first pass's figures.
     pub detail: bool,

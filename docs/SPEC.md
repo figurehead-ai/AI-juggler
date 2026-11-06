@@ -964,7 +964,7 @@ pixels at scale 1): within every budget but memory open and still
 the number. The records sit side by side in `docs/qa/floor/`
 (`budgets-2026-11-05.md`, `-full.md`, `-full-large.md`).
 
-**0.4.2's look (D-86)** was measured the same way on 2026-11-06 (Apple
+**0.4.1's look (D-86)** was measured the same way on 2026-11-06 (Apple
 M5 Ultra, 1278 × 798 at scale 1, while other work kept the Mac at a load
 of 8–22). Pixel art kept all 15 budgets: memory open and still +127 MB,
 animating 0.58 ms of CPU a frame and 0.51% of a core, opening in 291 ms.

@@ -2,7 +2,7 @@
 
 Built in 4f548a4b4 (tower, lift, Page Up/Down, tab counts, zoom never
 switches); the driver test for the lift buttons and the View button added
-with this manifest. Captures drawn offscreen (Metal) from the 0.4.2 company
+with this manifest. Captures drawn offscreen (Metal) from the 0.4.1 company
 fixture; the timed walk is in `walk.md` here.
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |

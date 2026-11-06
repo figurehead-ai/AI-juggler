@@ -20,7 +20,7 @@ use juggler_floor_render::{Extras, Renderer, wgpu};
 
 use super::store::{self, Settings};
 
-/// 0.4.0's classic look instead of 0.4.2's (D-86): only when the budget
+/// 0.4.0's classic look instead of 0.4.1's (D-86): only when the budget
 /// harness asks, to measure the two beside each other (and for rollback).
 fn classic() -> bool {
     #[cfg(feature = "floor-harness")]
