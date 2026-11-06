@@ -110,6 +110,8 @@ export function useShell() {
     toggleInspector: dialogs.toggleInspector,
     cycleDensity: rail.cycleDensity,
     goHome: nav.openHome,
+    back: nav.back,
+    forward: nav.forward,
     goTo: setGlobal,
     openSettings: nav.openSettings,
     onCleanup: () => global === "cleanup",

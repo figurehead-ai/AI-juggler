@@ -1,6 +1,5 @@
 import { focusHandover } from "../lib/handover-focus";
 import { ToolChip } from "./ToolMark";
-import { matches } from "../lib/shortcuts";
 import { PageShell } from "../pages/PageShell";
 import { InspectorHeader, statusTone } from "../pages/ItemHeader";
 import { since } from "../lib/time-words";
@@ -11,7 +10,7 @@ import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotes } from "./SessionNotes";
 import { identityWords } from "../lib/identity";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, Card, Chip } from "./primitives";
 import { lazyNamed } from "../lib/lazy";
 
@@ -177,18 +176,8 @@ export function RightInspector({
   const toolCounts = useToolTabCounts(data.provider && !data.project ? { tool: data.provider, sessions, projects, accounts, now, onOpenSession, onOpenProject } : null);
   const projectUsage = useProjectHasUsage(data.project?.id ?? null, data.project ? workingSetHasUsage(data.project.id, sessions, conversations) : false);
 
-  useEffect(() => {
-    if (!remote || !onRemoteBack) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (matches("remote-back", event)) {
-        event.preventDefault();
-        onRemoteBack();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [remote, onRemoteBack]);
-
+  // ⌘[ is the window's Back (walk A3), which leaves a remote session for
+  // where you came from, Fleet as a rule; its header's button stays.
   const sessionTabs = useSessionTabs(remote ? null : (data.instance ?? null));
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;

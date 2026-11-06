@@ -77,13 +77,15 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
   const host = useActionHost();
   const [at, setAt] = useState<MenuAt | null>(null);
   const button = useRef<HTMLButtonElement | null>(null);
+  const chip = useRef<HTMLSpanElement | null>(null);
   const badge = profileName(model);
   useMarks();
   const mark = sessionAppMark(model);
   const words = accountWordsOf(account);
   const app = sessionAppName(model);
   const open = () => {
-    const rect = button.current?.getBoundingClientRect();
+    // Under the whole chip, its left edge.
+    const rect = (chip.current ?? button.current)?.getBoundingClientRect();
     if (rect) setAt({ x: rect.left, y: rect.bottom + 6, above: rect.top - 6, right: rect.right });
   };
   // D-62 (AJ-E3206, A3): the App it runs in (a Claude app profile, else
@@ -94,23 +96,41 @@ export function AccountMenu({ model, account }: { model: SessionModel; account: 
   const accountId = account?.state === "signed_in" ? (account.account_id ?? null) : null;
   return (
     <>
-      <button
-        ref={button}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={at !== null}
-        aria-label={`App: ${app}`}
-        title={words ? `${app}\nAccount: ${words}` : app}
-        onClick={() => (at ? setAt(null) : open())}
-        // A menu button, not a pill: beside the state's pill it must never
-        // read as a second state. The App's colour is its dot's alone.
-        className="inline-flex min-w-0 max-w-full shrink items-center gap-1.5 whitespace-nowrap rounded-md border border-hairline px-2 py-0.5 text-meta font-medium leading-5 text-ink outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
-        data-testid="session-account-menu"
+      {/* AJ-E3206 (walk A3): the App's name opens its page in one click;
+          ▾ beside it opens the menu that says which App, Account and
+          folder. A menu button, not a pill: beside the state's pill it
+          must never read as a second state. The App's colour is its
+          dot's alone. */}
+      <span
+        ref={chip}
+        className="inline-flex min-w-0 max-w-full shrink items-center whitespace-nowrap rounded-md border border-hairline text-meta font-medium leading-5 text-ink"
+        data-testid="session-app-chip"
       >
-        <ProfileBadge app={mark} name={badge} size={16} />
-        <span className="truncate">{app}</span>
-        <IconChevronDown width={12} height={12} aria-hidden="true" className="shrink-0 text-muted" />
-      </button>
+        <button
+          type="button"
+          aria-label={openPage ? `Open ${app}'s page` : `App: ${app}`}
+          title={words ? `${app}\nAccount: ${words}` : app}
+          onClick={() => (openPage ? openPage() : at ? setAt(null) : open())}
+          className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-l-md py-0.5 pl-2 pr-1 outline-none transition-colors hover:bg-surface-2 hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="session-app-page"
+        >
+          <ProfileBadge app={mark} name={badge} size={16} />
+          <span className="truncate">{app}</span>
+        </button>
+        <button
+          ref={button}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={at !== null}
+          aria-label={`App: ${app}`}
+          title="Which App, Account and folder"
+          onClick={() => (at ? setAt(null) : open())}
+          className="inline-flex shrink-0 items-center self-stretch rounded-r-md border-l border-hairline px-1 outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60"
+          data-testid="session-account-menu"
+        >
+          <IconChevronDown width={12} height={12} aria-hidden="true" className="shrink-0 text-muted" />
+        </button>
+      </span>
       {at && (
         <RowMenu heading="App" ariaLabel={`App: ${app}`} at={at} onClose={() => setAt(null)} wide testId="session-account-panel">
           {/* The App: its name (its profile is inside it), on the menu's

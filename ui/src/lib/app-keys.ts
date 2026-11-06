@@ -32,6 +32,9 @@ export interface AppKeyActions {
   toggleInspector: () => void;
   cycleDensity: () => void;
   goHome: () => void;
+  /** Walk A3: ⌘[ and ⌘]. */
+  back: () => void;
+  forward: () => void;
   goTo: (screen: "projects" | "pools" | "tasks" | "accounts" | "usage" | "history" | "fleet" | "cleanup") => void;
   openSettings: () => void;
   /** Whether the Cleanup Centre is the screen now. */
@@ -118,6 +121,14 @@ export function useAppKeys(actions: AppKeyActions): void {
     "go-home": () => {
       shortcutUsed("other");
       d.goHome();
+    },
+    back: () => {
+      shortcutUsed("other");
+      d.back();
+    },
+    forward: () => {
+      shortcutUsed("other");
+      d.forward();
     },
     "go-projects": () => {
       shortcutUsed("other");

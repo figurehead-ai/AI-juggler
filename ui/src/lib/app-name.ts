@@ -44,13 +44,14 @@ export function cliAppName(tool: string, folder: string | null | undefined): str
   return appName(toolSpec(tool).display_name, folder);
 }
 
-/** A session's App by its full name: a desktop session's app and
- * profile ("Claude app · Work · Work Max"), else its tool's CLI App on
- * its folder ("Claude Code · Work · work"). */
+/** A session's App by its full name, from its row alone: a desktop
+ * session's app and profile ("Claude app · Work · Work Max"), else its
+ * tool's CLI App on its folder ("Claude Code · Work · work"). The session
+ * page names it from its places first (`pages/session/model`). */
 export function sessionAppName(row: { kind: string; provider: string; account_label: string }): string {
-  if (row.kind !== "desktop") return cliAppName(row.provider, row.account_label);
-  const spec = toolSpec(row.provider);
-  return appName(desktopAppWord(spec.desktop_app ?? "", row.provider) || spec.display_name, row.account_label);
+  const own = row.kind === "desktop" ? toolSpec(row.provider).desktop_app : null;
+  if (own) return appName(desktopAppWord(own, row.provider), row.account_label);
+  return cliAppName(row.provider, row.account_label);
 }
 
 /** A CLI App's stored id: its folder's row (the backend's `cli_app_id`). */

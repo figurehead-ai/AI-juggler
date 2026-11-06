@@ -127,7 +127,7 @@ export function InspectorHeader({
             data-testid="remote-freshness"
             data-freshness={remote.machine.freshness}
           >
-            {freshnessText(remote.machine, now)} <span className="text-muted">({keysOf("remote-back")[0]} back)</span>
+            {freshnessText(remote.machine, now)} <span className="text-muted">({keysOf("back")[0]} back)</span>
           </span>
         }
         folded={folded}

@@ -52,7 +52,6 @@ describe("AJ-E1504 the ? sheet", () => {
     render(<ShortcutSheet onClose={() => {}} />);
     const rows = [...document.querySelectorAll<HTMLElement>("[data-shortcut]")];
     expect(rows.map((row) => row.dataset.shortcut)).not.toContain("go-fleet");
-    expect(rows.map((row) => row.dataset.shortcut)).not.toContain("remote-back");
     expect(rows.some((row) => /Fleet/.test(row.textContent ?? ""))).toBe(false);
     expect(rows).toHaveLength(SHORTCUTS.filter((entry) => !("fleet" in entry)).length);
     // ⌘0 twice: Home, and the terminal's text size, which says where.
@@ -128,7 +127,8 @@ describe("AJ-E1504 the typing rule", () => {
       stop: { key: "." },
       handover: { key: "H", shiftKey: true },
       "inspector-tab": { key: "¡", code: "Digit1", altKey: true },
-      "remote-back": { key: "[" },
+      back: { key: "[" },
+      forward: { key: "]" },
       "home-next": { key: "j" },
       "home-prev": { key: "k" },
       "home-action": { key: "a" },

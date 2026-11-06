@@ -414,7 +414,7 @@
   "eslint(max-lines)": 1,
   "react(no-unstable-nested-components)": 1,
   "react(purity)": 1,
-  "typescript(consistent-return)": 2,
+  "typescript(consistent-return)": 1,
   "typescript(no-misused-promises)": 2,
   "typescript(no-unsafe-type-assertion)": 1
  },

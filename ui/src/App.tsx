@@ -116,6 +116,7 @@ export default function App() {
           sessions={sessions}
           onOpenThisMac={() => setGlobal("thismac")}
           onNewSession={() => newSheet.show()}
+          back={{ canBack: shell.canBack, canForward: shell.canForward, onBack: shell.back, onForward: shell.forward }}
           onPick={(id) => {
             if (PRIMARY_NAV.some((item) => item.id === id)) shell.clearSettingsFocus();
             if (id === "home") shell.openHome();

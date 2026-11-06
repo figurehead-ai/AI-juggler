@@ -11,7 +11,7 @@ import { stateWord } from "../../components/OutsideConversations";
 import { statusTone } from "../ItemHeader";
 import { sessionState } from "../../lib/rail-items";
 import { toolSpec } from "../../lib/tools";
-import { appName, cliAppName, desktopAppWord, desktopProfile } from "../../lib/app-name";
+import { appName, desktopAppWord, desktopProfile, sessionAppName as rowAppName } from "../../lib/app-name";
 
 export type SessionModel = {
   /** Its tool. */
@@ -112,9 +112,7 @@ export function appWords(place: PlaceInfo | undefined, tool: string): string | n
 export function sessionAppName(model: SessionModel): string {
   const place = model.places[0];
   if (place && place.app !== "" && (place.kind === "desktop" || isDesktopApp(place, model.tool))) return appName(desktopAppWord(place.app, model.tool, place.shown), desktopProfile(place.instance, place.profile));
-  const own = model.desktop ? toolSpec(model.tool).desktop_app : null;
-  if (own) return appName(desktopAppWord(own, model.tool), model.profileLabel);
-  return cliAppName(model.tool, model.profileLabel);
+  return rowAppName({ kind: model.desktop ? "desktop" : "terminal", provider: model.tool, account_label: model.profileLabel });
 }
 
 /** Where a CLI session's window is: its terminal or editor ("Terminal"),

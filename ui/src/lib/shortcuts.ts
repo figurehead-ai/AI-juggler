@@ -140,6 +140,10 @@ export const SHORTCUTS = [
   { id: "rail-view", owner: "app", area: "Anywhere", keys: ["⇧V"], label: "The list's View: group, show, only", match: (event: KeyLike) => !event.metaKey && !event.ctrlKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "v" },
   // Screens (AJ-E2104: ⌘1–4 went to the places)
   { id: "go-home", owner: "app", area: "Screens", keys: ["⌘0"], label: "Home", match: cmdDigit([0]), fieldOwnsIt: true },
+  // Walk A3: every name opens its page, and these bring you back (a
+  // browser's and Finder's keys; Fleet's "Back to Fleet" is this Back).
+  { id: "back", owner: "app", area: "Screens", keys: ["⌘["], label: "Back", match: cmd("[") },
+  { id: "forward", owner: "app", area: "Screens", keys: ["⌘]"], label: "Forward", match: cmd("]") },
   // 0.3: the header's new doors (⌘N, ⌘⇧N and ⌥⌘N stay D-50's).
   { id: "go-projects", owner: "app", area: "Screens", keys: ["⌘⇧P"], label: "Projects", match: cmd("p", { shift: true }) },
   { id: "go-pools", owner: "app", area: "Screens", keys: ["⌘⇧O"], label: "Pools", match: cmd("o", { shift: true }) },
@@ -170,7 +174,6 @@ export const SHORTCUTS = [
     label: "Inspector tabs",
     match: cmdDigit([1, 2, 3, 4, 5, 6], { alt: true }),
   },
-  { id: "remote-back", owner: "inspector", area: "Session", keys: ["⌘["], label: "Back to Fleet (another computer's session)", match: cmd("["), fleet: true },
   { id: "leave-terminal", owner: "terminal", area: "Session", keys: ["⌃Tab", "⌃⇧Tab"], label: "Leave the terminal" },
   // AJ-E1506: the terminal's own tools, read while typing in it (Ctrl+Shift
   // on Windows and Linux, where plain Ctrl is the shell's).

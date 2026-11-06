@@ -244,7 +244,7 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
   it("the session header says on which account and since when, and offers Continue in another app…", () => {
     const { getByTestId } = shell({ kind: "instance", id: "sess-1" });
     // 0.3 polish: the account is its Account chip, said once.
-    expect(getByTestId("session-account-menu").textContent).toContain("Work Max");
+    expect(getByTestId("session-app-chip").textContent).toContain("Work Max");
     expect(getByTestId("session-subline").textContent).not.toContain("Work Max");
     expect(getByTestId("session-subline").textContent).toMatch(/started .+ ago/);
     expect(getByTestId("header-switch").textContent).toBe("Continue in another app…");

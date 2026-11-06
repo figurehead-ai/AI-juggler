@@ -45,7 +45,7 @@ function List({ took, id = "s-1" }: { took: () => void; id?: string }) {
 
 function Keys() {
   const noop = () => {};
-  useAppKeys({ openShortcuts: noop, togglePalette: noop, toggleNotifications: noop, newSession: noop, newProject: noop, toggleRail: noop, toggleInspector: noop, cycleDensity: noop, goHome: noop, goTo: noop, openSettings: noop, onCleanup: () => false, focusCleanupFilter: noop, stopSelected: noop } satisfies AppKeyActions);
+  useAppKeys({ openShortcuts: noop, togglePalette: noop, toggleNotifications: noop, newSession: noop, newProject: noop, toggleRail: noop, toggleInspector: noop, cycleDensity: noop, goHome: noop, back: noop, forward: noop, goTo: noop, openSettings: noop, onCleanup: () => false, focusCleanupFilter: noop, stopSelected: noop } satisfies AppKeyActions);
   return <ToastHost />;
 }
 

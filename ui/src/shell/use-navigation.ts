@@ -9,7 +9,12 @@ import { sessionTarget } from "../lib/ipc/conversations";
 import { focusPageIfLost, useSettingsLinks, type GlobalId } from "../lib/nav";
 import { useCleanupCount } from "../lib/cleanup-count";
 import { useResource } from "../lib/use-resource";
+import { emptyHistory, goBack, goForward, visit, type NavHistory } from "../lib/nav-history";
 import type { Selection } from "./selection";
+
+/** A page the window was on: what was selected, or a global screen. */
+type Page = { selection: Selection; global: GlobalId | null };
+const samePage = (a: Page, b: Page) => a.global === b.global && JSON.stringify(a.selection) === JSON.stringify(b.selection);
 
 /** AJ-E1103: the schema's screen names (History isn't counted; Home and
  * the retired Overview aren't either — the schema keeps the name). */
@@ -24,6 +29,38 @@ const STAT_SCREENS: Partial<Record<string, string>> = {
 export function useNavigation() {
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
   const [global, setGlobal] = useState<GlobalId | null>(null);
+  // Walk A3: Back and Forward (⌘[ ⌘], the top bar's ‹ ›). Each page
+  // change joins the history, except the ones Back and Forward make.
+  const [history, setHistory] = useState<NavHistory<Page>>(emptyHistory);
+  const here = useRef<Page>({ selection, global });
+  const moving = useRef(false);
+  useEffect(() => {
+    const page = { selection, global };
+    if (samePage(page, here.current)) return;
+    const left = here.current;
+    here.current = page;
+    if (moving.current) {
+      moving.current = false;
+      return;
+    }
+    setHistory((now) => visit(now, left));
+  }, [selection, global]);
+  const latest = useRef(history);
+  useEffect(() => {
+    latest.current = history;
+  }, [history]);
+  const move = useCallback((step: typeof goBack) => {
+    const next = step(latest.current, here.current);
+    if (!next) return;
+    // A page that's this one (it can't be, but then nothing moves and
+    // the next real change must still join the history).
+    if (!samePage(next.to, here.current)) moving.current = true;
+    setHistory(next.history);
+    setSelection(next.to.selection);
+    setGlobal(next.to.global);
+  }, []);
+  const back = useCallback(() => move(goBack), [move]);
+  const forward = useCallback(() => move(goForward), [move]);
   // F11: a page opened from something that went with the old page (not
   // the first one: the window opens with nothing focused, the skip link first).
   const shownPage = useRef(JSON.stringify([selection, global]));
@@ -108,5 +145,6 @@ export function useNavigation() {
     selection, setSelection, global, setGlobal, cleanupCount, pairedCount,
     settingsFocusCloud, settingsSection, openHome, openCloudSettings, clearSettingsFocus, openSettings, openToolInSettings,
     historyQuery, setHistoryQuery, selectSession, selectProject, selectLogin, inspectRemote, openPage,
+    back, forward, canBack: history.back.length > 0, canForward: history.forward.length > 0,
   };
 }

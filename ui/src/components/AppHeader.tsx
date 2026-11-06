@@ -11,6 +11,8 @@
 import type { JSX } from "react";
 import { Button } from "./primitives";
 import { IconTerminal } from "./icons";
+import { IconChevronRight } from "./icons-controls";
+import { keysOf } from "../lib/shortcuts";
 import { FloorButton } from "./FloorButton";
 import { CleanupPill, MainNav } from "./MainNav";
 import { MachineStatusLine } from "./MachineStatusLine";
@@ -30,6 +32,7 @@ export function AppHeader({
   onPick,
   onOpenThisMac,
   onNewSession,
+  back,
 }: {
   /** The page's title: the lit tab says it on screen; this is for
    * screen readers (the window's one h1). */
@@ -42,6 +45,8 @@ export function AppHeader({
   onPick: (id: GlobalId | "home") => void;
   onOpenThisMac: () => void;
   onNewSession: () => void;
+  /** Walk A3: Back and Forward through the pages opened (⌘[ ⌘]). */
+  back?: { canBack: boolean; canForward: boolean; onBack: () => void; onForward: () => void };
 }): JSX.Element {
   const { downSince } = useBackendHealth();
   return (
@@ -53,6 +58,7 @@ export function AppHeader({
       className="@container/header relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
     >
       <h1 className="sr-only">{title}</h1>
+      {back && <BackForward {...back} />}
       <MainNav primary={PRIMARY_NAV} global={global} page={page} pairedCount={pairedCount} onPick={onPick} />
       {/* From 960 px the rest always fits one row beside the tabs, so the
           cluster takes the room left and This Mac's line shortens (…)
@@ -77,5 +83,21 @@ export function AppHeader({
         </span>
       </div>
     </header>
+  );
+}
+
+/** ‹ › before the tabs, as in Finder and a browser: greyed with nowhere
+ * to go, each saying its key. */
+function BackForward({ canBack, canForward, onBack, onForward }: { canBack: boolean; canForward: boolean; onBack: () => void; onForward: () => void }): JSX.Element {
+  const step = "inline-flex size-7 items-center justify-center rounded-md text-ink-2 outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60 disabled:pointer-events-none disabled:opacity-35";
+  return (
+    <span className="-ml-1 flex shrink-0 items-center" data-tauri-drag-region={false} data-testid="header-back-forward">
+      <button type="button" className={step} onClick={onBack} disabled={!canBack} aria-label="Back" title={`Back (${keysOf("back")[0]})`} data-testid="header-back">
+        <IconChevronRight width={15} height={15} aria-hidden="true" className="rotate-180" />
+      </button>
+      <button type="button" className={step} onClick={onForward} disabled={!canForward} aria-label="Forward" title={`Forward (${keysOf("forward")[0]})`} data-testid="header-forward">
+        <IconChevronRight width={15} height={15} aria-hidden="true" />
+      </button>
+    </span>
   );
 }
