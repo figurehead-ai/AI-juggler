@@ -18,6 +18,7 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
+import { useRelationCounts } from "../../lib/relation-counts";
 
 export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; sessions: InstanceInfo[]; now: number }): JSX.Element {
   const host = useActionHost();
@@ -30,13 +31,11 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
   const others = usePagePools("project", project.id, mine, forIt)?.filter((entry) => entry.id !== poolId);
   const list = usePoolMembers(poolId);
   const waiting = useTaskNeeds().filter((need) => need.pool_id === poolId);
-  // Each state word, counted: "2 working · 1 asks you".
-  const states = new Map<string, number>();
-  for (const row of list.items) {
-    const word = sessionState(sessions.find((s) => s.id === row.session.id) ?? row.session).word;
-    states.set(word, (states.get(word) ?? 0) + 1);
-  }
-  const summary = [...states].map(([word, n]) => `${n} ${word.toLowerCase()}`).join(" · ");
+  const counted = useRelationCounts("pool", poolId);
+  const summary = poolStates(
+    list.items.map((row) => sessionState(sessions.find((s) => s.id === row.session.id) ?? row.session).word),
+    counted?.sessions.ended ?? null,
+  );
   const open = (id: string) => host.openPool?.(id);
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="project-pool">
@@ -79,4 +78,18 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
       </Section>
     </div>
   );
+}
+
+/** Each state word, counted: "2 working · 1 asks you · 498 ended". The
+ * live ones from the members' first page (open ones come first); the
+ * ended ones from the pool's count once it's known, not that page's
+ * (walk K2: a 500-session pool said "50 ended"). */
+export function poolStates(words: readonly string[], ended: number | null): string {
+  const states = new Map<string, number>();
+  for (const word of words) {
+    if (ended !== null && word === "Ended") continue;
+    states.set(word, (states.get(word) ?? 0) + 1);
+  }
+  if (ended !== null && ended > 0) states.set("Ended", ended);
+  return [...states].map(([word, n]) => `${n} ${word.toLowerCase()}`).join(" · ");
 }

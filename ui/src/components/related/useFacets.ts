@@ -93,7 +93,7 @@ export function useFacetNames(folders: readonly AccountInfo[], projects: readonl
         case "app":
           return appNames.get(id) ?? id.replace(/^(cli|app):/, "");
         case "account":
-          return accountNames.get(id) ?? "An Account";
+          return id === "" ? "No account" : (accountNames.get(id) ?? "An Account");
         default:
           return macs.get(id) ?? (id === "this-mac" ? THIS_MACHINE : id);
       }

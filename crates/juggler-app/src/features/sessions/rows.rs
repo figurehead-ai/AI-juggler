@@ -410,8 +410,17 @@ impl Lookup {
 struct Narrow {
     app: Option<String>,
     desktop: std::collections::BTreeMap<String, String>,
-    account: bool,
+    /// The Account filter: none, one Account (`folders`: the folders
+    /// signed in as it), or "No account" (`folders`: every signed-in one).
+    account: AccountNarrow,
     folders: std::collections::BTreeSet<String>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AccountNarrow {
+    Any,
+    One,
+    None,
 }
 
 impl Narrow {
@@ -421,12 +430,22 @@ impl Narrow {
         } else {
             std::collections::BTreeMap::new()
         };
+        // "" is "No account": the sessions on a folder no sign-in was read
+        // for (as "" is "No project"), so the filter's values cover the list.
+        let account = match query.subscription_id.as_deref() {
+            None => AccountNarrow::Any,
+            Some("") => AccountNarrow::None,
+            Some(_) => AccountNarrow::One,
+        };
         let folders = match query.subscription_id.as_deref() {
-            Some(account) => lock_storage_arc(state)?
+            Some(want) => lock_storage_arc(state)?
                 .subscriptions()
                 .folders()?
                 .into_iter()
-                .filter(|(_, of)| of.as_deref() == Some(account))
+                .filter(|(_, of)| match of.as_deref() {
+                    Some(account) => want.is_empty() || account == want,
+                    None => false,
+                })
                 .map(|(folder, _)| folder)
                 .collect(),
             None => std::collections::BTreeSet::new(),
@@ -434,7 +453,7 @@ impl Narrow {
         Ok(Self {
             app: query.app_id.clone(),
             desktop,
-            account: query.subscription_id.is_some(),
+            account,
             folders,
         })
     }
@@ -447,7 +466,11 @@ impl Narrow {
 
     /// A session on folder `folder` (`key` as [`Self::app`]) passes.
     fn passes(&self, folder: Option<&str>, key: Option<&str>) -> bool {
-        let on_account = !self.account || folder.is_some_and(|id| self.folders.contains(id));
+        let on_account = match self.account {
+            AccountNarrow::Any => true,
+            AccountNarrow::One => folder.is_some_and(|id| self.folders.contains(id)),
+            AccountNarrow::None => folder.is_none_or(|id| !self.folders.contains(id)),
+        };
         let in_app = self
             .app
             .as_ref()
@@ -728,7 +751,7 @@ pub fn sessions_counts_impl(
 /// The entity whose sessions `query`'s list is, when it is a whole one.
 fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::EntityRef> {
     use crate::features::relations::{EntityKind, EntityRef};
-    // A search, a Mac, a time or "No project" narrow what no entity's
+    // A search, a Mac, a time, "No project" or "No account" narrow what no entity's
     // counts hold.
     if query
         .text
@@ -737,6 +760,7 @@ fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::Entit
         || query.machine_id.is_some()
         || query.since_ms.is_some()
         || query.project_id.as_deref() == Some("")
+        || query.subscription_id.as_deref() == Some("")
     {
         return None;
     }
@@ -801,7 +825,7 @@ mod tests {
         let app = |id: &str| Narrow {
             app: Some(id.to_owned()),
             desktop: desktop.clone(),
-            account: false,
+            account: AccountNarrow::Any,
             folders: std::collections::BTreeSet::new(),
         };
         let work = app("app:claude-app:/p/Work");
@@ -818,12 +842,21 @@ mod tests {
         let account = Narrow {
             app: None,
             desktop: std::collections::BTreeMap::new(),
-            account: true,
+            account: AccountNarrow::One,
             folders: ["work".to_owned(), "side".to_owned()].into(),
         };
         assert!(account.passes(Some("side"), None));
         assert!(!account.passes(Some("home"), None));
         assert!(!account.passes(None, None));
+        // "No account": a folder no sign-in was read for (`folders`: every
+        // signed-in one), and AI Juggler's own rows without a folder.
+        let none = Narrow {
+            account: AccountNarrow::None,
+            ..account
+        };
+        assert!(none.passes(Some("home"), None));
+        assert!(none.passes(None, None));
+        assert!(!none.passes(Some("work"), None));
     }
 
     /// AJ-E3102: a whole list's heading comes from the relation counts; a

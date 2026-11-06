@@ -55,7 +55,7 @@ function anchorKind(anchor: Anchor): { kind: EntityKind; id: string; own: FacetK
   return { kind: "all", id: "", own: null };
 }
 
-/** The chip's value for "No project" (no project's id). */
+/** The chip's value for "No project" and "No account" (`""` to the backend). */
 const NONE = "(none)";
 
 const CHIPS: { kind: FacetKind; label: string; all: string }[] = [
@@ -159,7 +159,7 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
             const values = facets?.[chip.kind] ?? [];
             // A Mac only when its sessions ran on more than one.
             if (chip.kind === "machine" && values.length < 2 && filters.machine === null) return null;
-            // "No project" is `""` to the backend, and All's value to the chip.
+            // "No project" and "No account" are `""` to the backend, and All's value to the chip.
             const value = filters[chip.kind];
             return (
               <FilterChip

@@ -49,6 +49,8 @@ describe("AJ-E3103 the order", () => {
     expect([recent, old, open].filter((row) => passes(row, of, { ...NO_FILTERS, state: "open" }, NOW)).map((row) => row.key)).toEqual(["w"]);
     expect(passes(open, of, { ...NO_FILTERS, project: "" }, NOW)).toBe(false);
     expect(passes(open, { ...of, project: "" }, { ...NO_FILTERS, project: "" }, NOW)).toBe(true);
+    expect(passes(open, { ...of, account: null }, { ...NO_FILTERS, account: "" }, NOW)).toBe(true);
+    expect(passes(open, { ...of, account: "acct:a" }, { ...NO_FILTERS, account: "" }, NOW)).toBe(false);
     expect(filtersOn({ ...NO_FILTERS, state: "open", app: "cli:a" })).toBe(2);
   });
 
@@ -57,7 +59,8 @@ describe("AJ-E3103 the order", () => {
     const facets = facetsOf([of("p1", "cli:a", "acct:a"), of("", "cli:b", null), of("p1", "cli:b", "acct:a")]);
     expect(facets.project).toEqual([{ id: "p1", count: 2 }, { id: "", count: 1 }]);
     expect(facets.app).toEqual([{ id: "cli:b", count: 2 }, { id: "cli:a", count: 1 }]);
-    expect(facets.account).toEqual([{ id: "acct:a", count: 2 }]);
+    // "No account" ("") for the row on a folder no sign-in was read for (walk K2).
+    expect(facets.account).toEqual([{ id: "acct:a", count: 2 }, { id: "", count: 1 }]);
     expect(facets.machine).toEqual([{ id: "this-mac", count: 3 }]);
   });
 });

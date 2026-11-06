@@ -656,13 +656,13 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
                 assert!(values.len() <= 1, "{page:?}: one {kind}, its own");
                 continue;
             }
-            if kind != "account" {
-                assert_eq!(
-                    values.iter().map(|facet| facet.count).sum::<u64>(),
-                    rows.len() as u64,
-                    "{page:?}: every row has one {kind}"
-                );
-            }
+            // "No account" ("") holds the rows on a folder no sign-in was
+            // read for, so every kind's values cover the list.
+            assert_eq!(
+                values.iter().map(|facet| facet.count).sum::<u64>(),
+                rows.len() as u64,
+                "{page:?}: every row has one {kind}"
+            );
             for facet in values {
                 let mut narrowed = query.clone();
                 let id = Some(facet.id.clone());
@@ -724,6 +724,25 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
         .find(|facet| facet.id.is_empty())
         .expect("some have no project");
     assert_eq!(none.count, (0..240).filter(|n| n % 9 == 0).count() as u64);
+    // "No account" too: the folders no sign-in was read for (K2: the
+    // Account filter left a not-signed-in Codex's sessions out).
+    let unsigned = all
+        .subscriptions
+        .iter()
+        .find(|facet| facet.id.is_empty())
+        .expect("some folders have no sign-in");
+    let no_account = SessionsQuery {
+        subscription_id: Some(String::new()),
+        ..SessionsQuery::default()
+    };
+    assert_eq!(listed(state, &no_account, None), unsigned.count);
+    assert_eq!(
+        all.subscriptions
+            .iter()
+            .map(|facet| facet.count)
+            .sum::<u64>(),
+        listed(state, &SessionsQuery::default(), None)
+    );
     assert_eq!(
         all.machines.len(),
         3,

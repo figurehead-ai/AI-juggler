@@ -84,9 +84,11 @@ pub fn sessions_facets_impl(
             .or_insert(0) += 1;
         *apps.entry(of.app.clone()).or_insert(0) += 1;
         *machines.entry(of.machine.clone()).or_insert(0) += 1;
-        if let Some(account) = of.folder.as_ref().and_then(|folder| signed_in.get(folder)) {
-            *subscriptions.entry(account.clone()).or_insert(0) += 1;
-        }
+        // "" is "No account": a folder no sign-in was read for.
+        let account = of.folder.as_ref().and_then(|folder| signed_in.get(folder));
+        *subscriptions
+            .entry(account.cloned().unwrap_or_default())
+            .or_insert(0) += 1;
     }
     Ok(SessionsFacetsInfo {
         projects: ranked(projects),
