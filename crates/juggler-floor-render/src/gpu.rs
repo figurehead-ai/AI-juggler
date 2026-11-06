@@ -155,11 +155,14 @@ fn post_uniform(
         top: rgb1(look.sky.top),
         bot: rgb1(look.sky.bottom),
         hov: [frame.hover, 0, 0, 0],
+        // (the tower's view has no perspective: its depth isn't the
+        // distance occlusion reads, so it has no occlusion)
         look: if look.rework {
             // the focal length in scene pixels, for an occlusion radius
             // that's the same size in the room at every zoom
             let focal = lh as f32 * 0.5 / (juggler_floor::camera::FOV * 0.5).tan();
-            [1.0, 1.0, look.sky.night, focal]
+            let ao = if frame.view.focus.is_some() { 1.0 } else { 0.0 };
+            [ao, 1.0, look.sky.night, focal]
         } else {
             [0.0; 4]
         },
@@ -947,7 +950,8 @@ impl Gpu {
                 .write_buffer(&self.lights, 0, bytemuck::cast_slice(&gl));
         }
         let aspect = w as f32 / h.max(1) as f32;
-        let vp = cam.vp(aspect);
+        // AJ-E3516: the building view sees the tower straight on
+        let (vp, eye) = frame.view.sight(&scene.frame_size(), aspect);
         let sun = norm(self.look.sky.sun_dir);
         let centre = [
             cam.t[0].clamp(0.0, scene.width),
@@ -966,7 +970,6 @@ impl Gpu {
             centre,
             [0.0, 1.0, 0.0],
         ));
-        let eye = cam.eye();
         let alert = if frame.alert { 1.0 } else { 0.0 };
         let g = Globals {
             vp: vp.0,
@@ -1025,7 +1028,14 @@ impl Gpu {
         (glass, limit): (bool, u32),
         floors: &[usize],
     ) {
-        let shown = |f: i32| f < 0 || usize::try_from(f).is_ok_and(|f| floors.contains(&f));
+        let tower = floors.is_empty();
+        let shown = |f: i32| {
+            // the street and skyline only around a floor; the tower stands
+            // on its own ground
+            (f == -1 && !tower)
+                || (f == juggler_floor::scene::tower::TOWER && tower)
+                || usize::try_from(f).is_ok_and(|f| floors.contains(&f))
+        };
         rp.set_vertex_buffer(1, buf.slice(..));
         for b in batches
             .iter()

@@ -67,6 +67,10 @@ pub enum Key {
     BackTab,
     /// Enter: open what's selected.
     Enter,
+    /// Page Up: the lift up a floor (AJ-E3516).
+    PageUp,
+    /// Page Down: the lift down a floor (from the building, the top one).
+    PageDown,
 }
 
 /// What the window sends (positions in points from the top left).
@@ -315,7 +319,13 @@ impl Driver {
     }
 
     fn move_to(&mut self, to: Cam, now: Duration) {
-        self.tween = Some((self.view.cam, to, now));
+        if self.motion == Motion::Off {
+            // Reduce Motion: a cut, not a ride
+            self.view.cam = to;
+            self.tween = None;
+        } else {
+            self.tween = Some((self.view.cam, to, now));
+        }
         self.dirty = true;
     }
 
@@ -380,6 +390,9 @@ impl Driver {
                     aspect,
                 );
                 self.dirty = true;
+            }
+            Input::Twist(_) | Input::Drag { .. } if self.view.focus.is_none() => {
+                // the tower stands still: a floor is entered, not dragged to
             }
             Input::Twist(deg) => {
                 self.tween = None;
@@ -473,6 +486,17 @@ impl Driver {
             }
             Key::Char('0' | 'b') => {
                 self.go_to_floor(None, now);
+                return;
+            }
+            Key::PageUp | Key::PageDown => {
+                let top = self.frame.floors.max(1) - 1;
+                let to = match (self.view.focus, key == Key::PageUp) {
+                    (None, false) => Some(top),
+                    (Some(f), true) if f < top => Some(f + 1),
+                    (Some(f), false) if f > 0 => Some(f - 1),
+                    _ => return,
+                };
+                self.go_to_floor(to, now);
                 return;
             }
             Key::Char('h') => self.frame.home(self.view.focus, aspect),
@@ -706,7 +730,7 @@ mod tests {
 
     #[test]
     fn a_camera_move_draws_until_it_lands() {
-        let mut d = driver(Motion::Off);
+        let mut d = driver(Motion::Calm);
         run(&mut d, 0, 100, false);
         d.input(
             Input::Key(Key::Char('2')),
@@ -718,6 +742,16 @@ mod tests {
             (25..=35).contains(&frames),
             "a 0.45 s move at ~60 a second: {frames}"
         );
+        assert_eq!(d.view.focus, Some(1));
+        // AJ-E3516: with Reduce Motion the lift cuts, one frame
+        let mut d = driver(Motion::Off);
+        run(&mut d, 0, 100, false);
+        d.input(
+            Input::Key(Key::PageUp),
+            Duration::from_millis(100),
+            &mut Office,
+        );
+        assert_eq!(run(&mut d, 100, 2000, false), 1, "a cut");
         assert_eq!(d.view.focus, Some(1));
     }
 

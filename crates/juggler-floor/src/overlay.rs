@@ -13,7 +13,6 @@ use crate::layout::{DEPTH, WALL_H};
 use crate::math::{M4, V3};
 use crate::models::rgba;
 use crate::scene::{Mark, Scene, floor_y};
-use crate::state::FloorState;
 use crate::tex::Icon;
 
 /// One textured rectangle: where (device pixels), what part of the UI
@@ -196,7 +195,10 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     };
     // What the flags keep clear of: the floor switcher and the hint line
     // (and, up close, the balloons).
-    let chips = switcher(&mut o, i.view, u);
+    let mut chips = switcher(&mut o, i.view, u);
+    if let Some(f) = i.view.focus {
+        chips.extend(lift(&mut o, f, u, (w, h)));
+    }
     let mut taken: Vec<[f32; 4]> = chips
         .iter()
         .map(|(r, _)| [r[0], r[1], r[2], r[3] + u])
@@ -210,19 +212,25 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     };
     let mut asks: Vec<(FlagAsk, FlagBody)> = Vec::new();
     marks(&mut o, i, (band, u), &project, &mut taken, &mut asks);
-    if band != Band::Close {
+    if i.view.focus.is_none() {
+        tower(&mut o, u, &project);
+    } else if band != Band::Close {
         area_flags(&mut o, i, (band, hk), &project, &mut asks);
         flags(&mut o, i, &asks, &taken, hk);
     }
     o.placed.band = Some(band);
     o.placed.kept_clear = taken;
-    o.text(
-        16.0 * u,
-        h - 14.0 * hk,
-        &i.hint.to_uppercase(),
-        hk,
-        [0.85, 0.83, 0.9, 0.7],
+    // the hint on a dark backing: readable over a day sky too
+    let hint = i.hint.to_uppercase();
+    let hw = o.text_w(&hint, hk);
+    o.rect(
+        12.0 * u,
+        h - 16.0 * hk,
+        hw + 8.0 * u,
+        11.0 * hk,
+        [0.08, 0.07, 0.12, 0.55],
     );
+    o.text(16.0 * u, h - 14.0 * hk, &hint, hk, [0.85, 0.83, 0.9, 0.85]);
     if let (Some(p), Some((mx, my))) = (scene.pick_of(i.hover), i.mouse) {
         let k = u - 1.0;
         let (l1, l2) = (p.label.to_uppercase(), p.detail.to_uppercase());
@@ -402,7 +410,7 @@ fn area_flags(
             .filter(|(f, _)| *f != l.floor)
             .map(|(_, p)| p.clone())
             .collect();
-        let needs = needs_of(scene, app);
+        let needs = scene.needs_of(app);
         let top = needs.iter().map(|(n, _)| *n).min();
         let total: u32 = needs.iter().map(|(_, c)| c).sum();
         let (need, words, shown_name) = match (band, top) {
@@ -593,34 +601,6 @@ fn draw_flag(
     }
 }
 
-/// What needs you in an App: each need and how many (sessions, or one
-/// for its Account out of usage or the machine hot).
-fn needs_of(scene: &Scene, app: &crate::snapshot::FloorApp) -> Vec<(Need, u32)> {
-    let count = |state: FloorState| {
-        u32::try_from(app.sessions.iter().filter(|s| s.state == state).count()).unwrap_or(0)
-    };
-    let mut needs: Vec<(Need, u32)> = [
-        (Need::Crashed, count(FloorState::Crashed)),
-        (Need::Asks, count(FloorState::Asks)),
-        (Need::Stuck, count(FloorState::Stuck)),
-        (Need::Done, count(FloorState::Done)),
-    ]
-    .into_iter()
-    .filter(|(_, n)| *n > 0)
-    .collect();
-    if app.hot_since_ms.is_some() {
-        needs.push((Need::Hot, 1));
-    }
-    if scene
-        .account(app.account_id.as_deref())
-        .is_some_and(|a| a.out)
-    {
-        needs.push((Need::Out, 1));
-    }
-    needs.sort();
-    needs
-}
-
 /// The longest App name a chip shows whole; longer ones end in "..".
 /// Most App names ("Claude Code · Work Max") fit.
 pub const NAME_MAX: usize = 24;
@@ -694,6 +674,163 @@ pub fn meets(r: &[f32; 4], poly: &[(f32, f32)]) -> bool {
     })
 }
 
+/// AJ-E3516: the lift on a floor's right edge, vertically centred: the
+/// floor above (with its waiting count) over this floor's number over
+/// the floor below; the buttons are hidden at the top and the bottom.
+/// Their rectangles, as floor chips for clicks.
+fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> Vec<Chip> {
+    let floors = o.scene.floors;
+    let k = (u - 1.0).max(1.0);
+    let label = |n: usize| {
+        let waiting = o.scene.tower_floors.get(n).map_or(0, |t| t.waiting);
+        (format!("FLOOR {}", n + 1), waiting)
+    };
+    let mut rows: Vec<(Option<usize>, String, usize, i8)> = Vec::new();
+    if f + 1 < floors {
+        let (s, n) = label(f + 1);
+        rows.push((Some(f + 1), s, n, 1));
+    }
+    rows.push((None, format!("{}", f + 1), 0, 0));
+    if f > 0 {
+        let (s, n) = label(f - 1);
+        rows.push((Some(f - 1), s, n, -1));
+    }
+    let row_h = 14.0 * k;
+    let gap = 3.0 * k;
+    let total = rows.len() as f32 * (row_h + gap) + 6.0 * k;
+    let mut y = ((h - total) / 2.0).round();
+    let mut chips = Vec::new();
+    // one width for the stack: the widest row's
+    let bw = rows
+        .iter()
+        .map(|(to, s, waiting, _)| {
+            let tk = if to.is_none() { k * 1.6 } else { k };
+            o.text_w(s, tk)
+                + if *waiting > 0 {
+                    o.text_w(&format!("!{waiting}"), k) + 4.0 * k
+                } else {
+                    0.0
+                }
+                + 22.0 * k
+        })
+        .fold(0.0f32, f32::max);
+    for (to, s, waiting, dir) in rows {
+        let count = (waiting > 0).then(|| format!("!{waiting}"));
+        let big = to.is_none();
+        let tk = if big { k * 1.6 } else { k };
+        let bh = if big { row_h + 6.0 * k } else { row_h };
+        let r = [(w - bw - 12.0 * u).round(), y, bw, bh];
+        o.rect(
+            r[0],
+            r[1],
+            r[2],
+            r[3],
+            if big {
+                [0.36, 0.31, 0.84, 0.95]
+            } else {
+                [0.08, 0.07, 0.12, 0.9]
+            },
+        );
+        let mut tx = r[0] + 7.0 * k;
+        if dir != 0 {
+            // an arrow: a little stepped triangle
+            let (ax, ay) = (tx, r[1] + bh / 2.0);
+            for step in 0..4 {
+                let s = step as f32;
+                let yy = if dir > 0 {
+                    ay - 2.0 * k + s * k
+                } else {
+                    ay + 2.0 * k - s * k
+                };
+                o.rect(
+                    ax + (3.0 - s) * k,
+                    yy,
+                    (2.0 * s + 1.0) * k,
+                    k,
+                    [0.9, 0.88, 0.96, 1.0],
+                );
+            }
+            tx += 10.0 * k;
+        }
+        let ty = r[1] + (bh - 7.0 * tk) / 2.0;
+        if big {
+            // this floor's number, centred
+            tx = r[0] + (bw - o.text_w(&s, tk)) / 2.0;
+        }
+        o.text(tx.round(), ty.round(), &s, tk, [0.96, 0.94, 1.0, 1.0]);
+        if let Some(c) = &count {
+            o.text(
+                (tx + o.text_w(&s, tk) + 4.0 * k).round(),
+                (r[1] + (bh - 7.0 * k) / 2.0).round(),
+                c,
+                k,
+                Need::Asks.colour(),
+            );
+        }
+        if let Some(to) = to {
+            chips.push((r, Some(to)));
+        }
+        y += bh + gap;
+    }
+    chips
+}
+
+/// AJ-E3516: the tower's words: each floor's number at its left, its
+/// waiting count at its right, and a badge over each room that needs you.
+fn tower(o: &mut Out<'_>, u: f32, project: &impl Fn(V3) -> Option<(f32, f32)>) {
+    let k = (u - 1.0).max(1.0) * 1.4;
+    for t in o.scene.tower_floors.clone() {
+        if let Some((lx, ly)) = project(t.ends.0) {
+            let s = format!("{}", t.floor + 1);
+            let tw = o.text_w(&s, k);
+            let r = [
+                (lx - tw - 10.0 * k).round(),
+                (ly - 6.0 * k).round(),
+                tw + 8.0 * k,
+                12.0 * k,
+            ];
+            o.rect(r[0], r[1], r[2], r[3], [0.12, 0.1, 0.18, 0.9]);
+            o.text(
+                r[0] + 4.0 * k,
+                r[1] + 2.5 * k,
+                &s,
+                k,
+                [0.95, 0.93, 1.0, 1.0],
+            );
+        }
+        if t.waiting > 0
+            && let Some((rx, ry)) = project(t.ends.1)
+        {
+            let s = format!("!{}", t.waiting);
+            let tw = o.text_w(&s, k);
+            let r = [
+                (rx + 4.0 * k).round(),
+                (ry - 6.0 * k).round(),
+                tw + 8.0 * k,
+                12.0 * k,
+            ];
+            o.rect(r[0], r[1], r[2], r[3], Need::Asks.colour());
+            o.text(r[0] + 4.0 * k, r[1] + 2.5 * k, &s, k, [0.1, 0.08, 0.0, 1.0]);
+        }
+    }
+    let bk = (u - 1.0).max(1.0);
+    for room in o.scene.tower_rooms.clone() {
+        let (Some((x, y)), Some(r)) = (
+            project(room.at),
+            o.scene.ui.badge.get(&icon_of(room.need)).copied(),
+        ) else {
+            continue;
+        };
+        // inside the room's top left corner, clear of the rooms around
+        let side = 9.0 * bk;
+        o.q.push(Quad {
+            dst: [x.round(), (y + 2.0).round(), side, side],
+            src: r,
+            tint: [1.0; 4],
+        });
+    }
+}
+
 /// The floor switcher: Building, then each floor from the top.
 fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
     let mut chips = Vec::new();
@@ -706,7 +843,13 @@ fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
     );
     for (s, floor) in items {
         let active = view.focus == floor;
-        let r = [x, 14.0 * u, o.text_w(&s, u) + 10.0 * u, 12.0 * u];
+        // AJ-E3516: each floor's waiting count on its tab
+        let waiting = floor
+            .and_then(|f| o.scene.tower_floors.get(f))
+            .map_or(0, |t| t.waiting);
+        let count = (waiting > 0).then(|| format!("!{waiting}"));
+        let extra = count.as_ref().map_or(0.0, |c| o.text_w(c, u) + 4.0 * u);
+        let r = [x, 14.0 * u, o.text_w(&s, u) + extra + 10.0 * u, 12.0 * u];
         o.rect(
             r[0],
             r[1],
@@ -732,6 +875,15 @@ fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
                 [0.7, 0.72, 0.8, 1.0]
             },
         );
+        if let Some(c) = &count {
+            o.text(
+                r[0] + 9.0 * u + o.text_w(&s, u),
+                r[1] + 2.5 * u,
+                c,
+                u,
+                Need::Asks.colour(),
+            );
+        }
         chips.push((r, floor));
         x += r[2] + 4.0 * u;
     }

@@ -12,6 +12,7 @@
 mod area;
 mod building;
 mod frame;
+pub mod tower;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -308,6 +309,11 @@ pub struct Scene {
     pub floors: usize,
     /// A floor's width.
     pub width: f32,
+    /// AJ-E3516: the tower's floors and its rooms that need you, for the
+    /// overlay.
+    pub tower_floors: Vec<tower::TowerFloor>,
+    /// The tower's rooms that need you.
+    pub tower_rooms: Vec<tower::TowerRoom>,
     apps: BTreeMap<String, FloorApp>,
     unused: BTreeMap<String, u8>,
     covers: bool,
@@ -363,6 +369,37 @@ impl Scene {
         Some((at, [f[0] / l, 0.0, f[2] / l]))
     }
 
+    /// AJ-E3515, AJ-E3516: what needs you in an App, most urgent first:
+    /// each need and how many (sessions; one for its Account out of
+    /// usage or the machine hot).
+    #[must_use]
+    pub fn needs_of(&self, app: &FloorApp) -> Vec<(crate::flags::Need, u32)> {
+        use crate::flags::Need;
+        let count = |state: FloorState| {
+            u32::try_from(app.sessions.iter().filter(|s| s.state == state).count()).unwrap_or(0)
+        };
+        let mut needs: Vec<(Need, u32)> = [
+            (Need::Crashed, count(FloorState::Crashed)),
+            (Need::Asks, count(FloorState::Asks)),
+            (Need::Stuck, count(FloorState::Stuck)),
+            (Need::Done, count(FloorState::Done)),
+        ]
+        .into_iter()
+        .filter(|(_, n)| *n > 0)
+        .collect();
+        if app.hot_since_ms.is_some() {
+            needs.push((Need::Hot, 1));
+        }
+        if self
+            .account(app.account_id.as_deref())
+            .is_some_and(|a| a.out)
+        {
+            needs.push((Need::Out, 1));
+        }
+        needs.sort();
+        needs
+    }
+
     /// The pick of a session, by the rail's key (Show on the Floor).
     #[must_use]
     pub fn pick_of_session(&self, key: &str) -> Option<u32> {
@@ -378,6 +415,7 @@ impl Scene {
     ///
     /// [`Full`] if the textures outgrow the atlas (a test holds a large
     /// office inside it).
+    #[allow(clippy::too_many_lines)] // the whole office, part by part, in order
     pub fn build(inputs: Inputs<'_>) -> Result<Self, Full> {
         let plan = pack(inputs.office);
         let apps: BTreeMap<String, FloorApp> = inputs
@@ -432,6 +470,8 @@ impl Scene {
             labels: Vec::new(),
             floors,
             width,
+            tower_floors: Vec::new(),
+            tower_rooms: Vec::new(),
             apps,
             unused: levels,
             covers: inputs.covers,
@@ -475,6 +515,8 @@ impl Scene {
             }
         }
         scene.cat = scene.pick(Target::Cat, "The office cat", "pet it");
+        // AJ-E3516: the tower, last (its floors' summaries count the desks)
+        scene.tower(&mut out, &mut atlas)?;
         scene.stat = out;
         // Only the rows in use go to the GPU (and stay in memory); the
         // places the atlas gave are in its full height, so the renderer

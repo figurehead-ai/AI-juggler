@@ -1,13 +1,15 @@
 //! The orbit camera (SPEC §9.7): a target on a floor, a turn (yaw), a
 //! tilt (pitch, 18°–79°) and a distance. Drag pans; right-drag, ⌥-drag, a
 //! two-finger twist, Q/E or the arrows turn and tilt; pinch, ⌘-scroll or
-//! +/− zoom towards the pointer, on one floor at a time (in from the
-//! building, to the floor under it); H resets; 0 and the floor numbers
-//! pick the building or a floor.
+//! +/− zoom towards the pointer, on one floor at a time; H resets; 0, B
+//! and the floor numbers pick the building or a floor; Page Up and Page
+//! Down ride the lift. The building is a side-on tower (AJ-E3516), seen
+//! straight on with no perspective; zoom never switches between it and a
+//! floor.
 
 use std::f32::consts::{PI, TAU};
 
-use crate::layout::{DEPTH, STOREY};
+use crate::layout::DEPTH;
 use crate::math::{M4, V3, add, cross, norm, scale, sub};
 use crate::scene::floor_y;
 
@@ -185,6 +187,24 @@ impl Frame {
     }
 }
 
+/// How the building view sees the tower: straight on, from in front and
+/// a little above, with no perspective. Its view and projection at
+/// `aspect`, and where it looks from.
+#[must_use]
+pub fn tower_view(frame: &Frame, aspect: f32) -> (M4, V3) {
+    let (mid, half_h) = crate::scene::tower::tower_middle(frame.width, frame.floors);
+    let half_w = crate::scene::tower::TOWER_W / 2.0 + 6.0;
+    let half_h = (half_h + 3.0).max(half_w / aspect.max(0.1));
+    let half_w = half_h * aspect;
+    let eye = [mid[0], mid[1] + 18.0, mid[2] + 80.0];
+    let vp = M4::ortho(-half_w, half_w, -half_h, half_h, 1.0, 400.0).mul(&M4::look_at(
+        eye,
+        mid,
+        [0.0, 1.0, 0.0],
+    ));
+    (vp, eye)
+}
+
 /// What is in view: a floor (or the building), and the camera.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct View {
@@ -195,19 +215,35 @@ pub struct View {
 }
 
 impl View {
-    /// The floors to draw.
+    /// The floors to draw (none in the building view: the tower stands in
+    /// for them).
     #[must_use]
     pub fn floors(&self, frame: &Frame) -> Vec<usize> {
-        self.focus
-            .map_or_else(|| (0..frame.floors).collect(), |f| vec![f])
+        let _ = frame;
+        self.focus.map_or_else(Vec::new, |f| vec![f])
+    }
+
+    /// Its view and projection at `aspect` (the tower's in the building
+    /// view), and where it looks from.
+    #[must_use]
+    pub fn sight(&self, frame: &Frame, aspect: f32) -> (M4, V3) {
+        if self.focus.is_none() {
+            tower_view(frame, aspect)
+        } else {
+            (self.cam.vp(aspect), self.cam.eye())
+        }
     }
 
     /// Zooms by `step` (positive: in) towards the screen point (`sx`,
     /// `sy`). On a floor it stays on that floor: one floor at a time, out
     /// to [`Frame::floor_max_dist`] (0.4.1: zooming out used to switch to
     /// the stacked building, and the floor below appeared from nowhere).
-    /// Coming in from the building lands on the floor under the pointer.
+    /// The building view doesn't zoom (AJ-E3516: a floor is entered by a
+    /// click or its tab, never by a zoom).
     pub fn zoom_at(&mut self, frame: &Frame, step: f32, (sx, sy): (f32, f32), aspect: f32) {
+        if self.focus.is_none() {
+            return;
+        }
         let c = &mut self.cam;
         let far = if self.focus.is_some() {
             frame.floor_max_dist(aspect)
@@ -221,11 +257,6 @@ impl View {
             c.t = add(c.t, scale(sub(g, c.t), 1.0 - nd / c.dist));
         }
         c.dist = nd;
-        if self.focus.is_none() && nd < frame.home(Some(0), aspect).dist * 1.3 {
-            let f = ((c.t[1] / STOREY).round().max(0.0) as usize).min(frame.floors.max(1) - 1);
-            self.focus = Some(f);
-            c.t[1] = floor_y(f);
-        }
     }
 }
 
@@ -269,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn zooming_out_stays_on_the_floor_and_in_from_the_building_lands_on_one() {
+    fn zooming_never_switches_between_a_floor_and_the_building() {
         let mut view = View {
             focus: Some(1),
             cam: FRAME.home(Some(1), 1.6),
@@ -284,11 +315,20 @@ mod tests {
             focus: None,
             cam: FRAME.home(None, 1.6),
         };
-        assert_eq!(building.floors(&FRAME), [0, 1]);
+        assert!(building.floors(&FRAME).is_empty(), "the tower instead");
         for _ in 0..40 {
             building.zoom_at(&FRAME, 1.0, (0.5, 0.5), 1.6);
         }
-        assert!(building.focus.is_some());
-        assert!(building.cam.dist >= super::MIN_DIST);
+        assert_eq!(
+            building.focus, None,
+            "AJ-E3516 R5: zoom never enters a floor"
+        );
+        assert_eq!(building.cam, FRAME.home(None, 1.6));
+        // the tower is framed whole, straight on
+        let (vp, eye) = building.sight(&FRAME, 1.6);
+        let (mid, _) = crate::scene::tower::tower_middle(FRAME.width, FRAME.floors);
+        let c = vp.project(mid);
+        assert!((c[0] / c[3]).abs() < 0.01 && (c[1] / c[3]).abs() < 0.2);
+        assert!(eye[2] > mid[2], "from in front");
     }
 }

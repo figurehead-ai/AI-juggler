@@ -160,13 +160,10 @@ fn every_live_session_has_a_desk_and_a_door_to_it() {
     assert!(targets.contains(&&Target::ThisMac));
     assert!(targets.contains(&&Target::Helpers("s:1".into())));
     assert!(scene.pick_of(0).is_none());
-    assert_eq!(
-        scene
-            .pick_of(u32::try_from(scene.picks.len()).unwrap())
-            .unwrap()
-            .target,
-        Target::Cat
-    );
+    assert!(targets.contains(&&Target::Cat));
+    // AJ-E3516: the tower's floors are doors into them
+    assert!(targets.contains(&&Target::Floor(0)));
+    assert_eq!(scene.tower_floors.len(), scene.floors);
     assert_ne!(scene.stat.len(), 0);
 }
 

@@ -321,12 +321,12 @@ impl Renderer {
         target: &wgpu::TextureView,
     ) -> Shown {
         let floors = view.floors(&scene.frame_size());
+        let (vp, eye) = view.sight(&scene.frame_size(), size.0 as f32 / size.1.max(1) as f32);
         let live = Live {
-            eye: view.cam.eye(),
+            eye,
             ..live.clone()
         };
         let drawn = scene.frame(&live, &floors, &mut self.moving);
-        let vp = view.cam.vp(size.0 as f32 / size.1.max(1) as f32);
         let band = juggler_floor::flags::band(
             overlay::desk_px(view, &vp, (size.0, size.1), size.2),
             view.focus.is_none(),

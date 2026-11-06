@@ -108,6 +108,8 @@ pub fn input_of(event: Event) -> Input {
             juggler_window_events::Key::Tab => Key::Tab,
             juggler_window_events::Key::BackTab => Key::BackTab,
             juggler_window_events::Key::Enter => Key::Enter,
+            juggler_window_events::Key::PageUp => Key::PageUp,
+            juggler_window_events::Key::PageDown => Key::PageDown,
         }),
     }
 }
