@@ -25,6 +25,8 @@ pub struct Named {
     /// Lines for the summary: the family that moves, what stays (none
     /// when nothing does).
     pub stays: Vec<CarryItemInfo>,
+    /// ADR-0028: what wakes it by itself, and what happens to it.
+    pub automation: super::automation::Preview,
 }
 
 /// What moves, as the confirm step names it (the preflight's
@@ -37,6 +39,9 @@ pub struct Moving {
     pub source_account: String,
     /// ADR-0028: how many sessions started from it move with it.
     pub source_family: u32,
+    /// ADR-0028: what wakes it by itself, handed over to the copy.
+    #[serde(flatten)]
+    pub automation: super::automation::Preview,
 }
 
 impl Named {
@@ -47,6 +52,7 @@ impl Named {
             source_title: self.title.clone(),
             source_account: from.label.clone(),
             source_family: self.family,
+            automation: self.automation.clone(),
         }
     }
 }
@@ -108,10 +114,12 @@ pub fn of(state: &Arc<AppState>, reference: &TranscriptRef, from: &Account, to: 
     if !pages.is_empty() {
         stays.push(pages_line(pages.len(), &from.label, &to.label));
     }
+    let automation = super::automation::preview(state, from, to, reference, &host.refs);
     Named {
         title,
         family,
         stays,
+        automation,
     }
 }
 

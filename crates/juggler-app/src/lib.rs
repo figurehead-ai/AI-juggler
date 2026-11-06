@@ -1310,6 +1310,8 @@ fn spawn_read_model_ticks(
     });
     // 0.3.3: Keep alive, every 2 s (features::places::keep says when not).
     features::places::spawn(subagents_app.clone(), quota_state.clone());
+    // ADR-0028: a switch's automation hand-over, applied as apps close.
+    features::handover::automation::spawn(quota_state.clone());
     // AJ-E1520 (0.2): the rail's subagent count, on its own tick.
     features::subagents::count::start(subagents_app.clone(), quota_state.clone());
     // 0.2: an own session of a tool without hooks learns its conversation

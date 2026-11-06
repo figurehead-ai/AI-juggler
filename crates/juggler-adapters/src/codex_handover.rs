@@ -673,9 +673,14 @@ pub(crate) fn switch_answers(
         SwitchCapability::Resumable => {
             SwitchAnswer::Supported("resumes by its own thread id: `codex resume`")
         }
-        SwitchCapability::SourceUntouched => SwitchAnswer::Supported("the source is only read"),
+        SwitchCapability::SourceUntouched => SwitchAnswer::Supported(
+            "the rollouts are only read; only the original's goal is paused, through Codex's own app-server, reversibly",
+        ),
         SwitchCapability::LeftBehindNamed => SwitchAnswer::Supported(
-            "a Codex conversation links to nothing that belongs to its account",
+            "a heartbeat automation aimed at the thread is named before the move (the Codex app keeps it with its sign-in)",
+        ),
+        SwitchCapability::AutomationHandover => SwitchAnswer::Supported(
+            "the thread's goal is set on the copy and paused on the original through Codex's app-server (`thread/goal/set`), CLI and desktop alike; switching back sets it as it was",
         ),
         SwitchCapability::SwitchBackDelta => {
             SwitchAnswer::Supported("switching back carries only the turns taken away (AJ-E1541)")

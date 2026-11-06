@@ -28,18 +28,26 @@ pub enum SwitchCapability {
     FamilyLinks,
     /// Every moved conversation resumes on the target by its own id.
     Resumable,
-    /// Nothing under the source account changes.
+    /// The source conversation itself never changes: its files are only
+    /// read. The one exception is what [`Self::AutomationHandover`]
+    /// changes in the source app's own record of it, reversibly.
     SourceUntouched,
     /// What can't move (pages published under the account and the like)
     /// is listed before anything moves.
     LeftBehindNamed,
     /// Switching back carries only what happened away, for every member.
     SwitchBackDelta,
+    /// What wakes the conversation by itself in its app (watching a pull
+    /// request to fix it, resuming when usage resets, …) is named before
+    /// the move, taken over by the copy, and turned off on the original,
+    /// so two copies never work at once and nobody tidies up by hand;
+    /// switching back reverses it.
+    AutomationHandover,
 }
 
 impl SwitchCapability {
     /// Every capability, in the order the contract lists them.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::HistoryExact,
         Self::OwnSubagents,
         Self::Family,
@@ -48,6 +56,7 @@ impl SwitchCapability {
         Self::SourceUntouched,
         Self::LeftBehindNamed,
         Self::SwitchBackDelta,
+        Self::AutomationHandover,
     ];
 
     /// The capability's name in the contract (ADR-0028, SPEC §7.9).
@@ -62,6 +71,7 @@ impl SwitchCapability {
             Self::SourceUntouched => "source_untouched",
             Self::LeftBehindNamed => "left_behind_named",
             Self::SwitchBackDelta => "switch_back_delta",
+            Self::AutomationHandover => "automation_handover",
         }
     }
 

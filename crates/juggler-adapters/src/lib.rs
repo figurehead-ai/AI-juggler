@@ -13,6 +13,7 @@
 )]
 
 pub mod activity;
+pub mod claude_app_automation;
 pub mod claude_app_family;
 pub mod claude_asks;
 pub mod claude_bridge;
@@ -44,6 +45,7 @@ pub mod codex_cut;
 mod codex_endpoint;
 pub mod codex_environment;
 pub mod codex_family;
+pub mod codex_goals;
 pub mod codex_handover;
 pub mod codex_inventory;
 pub mod codex_live;

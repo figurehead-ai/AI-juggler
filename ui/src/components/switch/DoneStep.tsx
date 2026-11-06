@@ -19,6 +19,7 @@ import { destinationsOf, type Destination } from "./WhereChoice";
 import type { SwitchExecutedData } from "../../lib/bridge";
 import { restartPlace } from "../../lib/go-to";
 import { Button } from "../primitives";
+import { AutomationAfter } from "./AutomationLine";
 
 /** ADR-0028: the sessions started from it that moved with it, and where
  * they nest: in the app now, or once it restarts (its records load then). */
@@ -50,6 +51,7 @@ export function DoneStep({
   results,
   continuedIn = "cli",
   family,
+  executed,
 }: {
   preflight: PreflightInfoData;
   target: string;
@@ -57,6 +59,8 @@ export function DoneStep({
   results: AppliedInfo[];
   continuedIn?: Destination;
   family?: FamilyMoved;
+  /** ADR-0028: the switch's result, for what wakes it by itself. */
+  executed?: SwitchExecutedData;
 }): JSX.Element {
   const desktop = continuedIn === "desktop" ? destinationsOf(preflight).desktop : null;
   const spec = toolSpec(preflight.target_tool);
@@ -96,6 +100,13 @@ export function DoneStep({
             </Button>
           )}
         </div>
+      )}
+      {executed && (
+        <AutomationAfter
+          result={executed}
+          app={desktop?.name ?? spec.desktop_app ?? "the app"}
+          sourceApp={preflight.source_app ?? `the app on ${preflight.source_account ?? "the original account"}`}
+        />
       )}
       <SwitchHandover edgeId={edgeId} />
       <SwitchSetupResults target={target} results={results} />

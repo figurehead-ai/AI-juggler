@@ -478,6 +478,10 @@ impl HarnessAdapter for CodexAdapter {
     }
 
     // AJ-E1520 (0.2): its subagents, from its own records.
+    fn host_automation(&self) -> Option<&dyn juggler_adapter::automation::HostAutomation> {
+        Some(self)
+    }
+
     fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
         crate::codex_handover::switch_answers
     }

@@ -1986,7 +1986,7 @@ export interface PreflightInfoData {
   zombies: string[];
   diff_snapshotted: boolean;
   source_live: boolean;
-  /** 0.4: what moves (its title) and the account it's on: the confirm step names both. */ source_title?: string | null; source_account?: string; source_family?: number;
+  /** 0.4: what moves (its title) and the account it's on: the confirm step names both. */ source_title?: string | null; source_account?: string; source_family?: number; /** ADR-0028: what wakes it by itself (moves to the copy, off on the original), what stays with the account, and whether taking it needs Desktop. */ automation?: string[]; automation_stays?: string[]; automation_needs_desktop?: boolean;
   /** AJ-E1540: live, but AI Juggler can't stop it (started outside it). */
   source_keeps_running: boolean;
   /** AJ-E2108: a session another app runs: only read, left as it is, and
@@ -2072,7 +2072,7 @@ export interface SwitchExecutedData {
    * Claude app (`conversation:<account>:<id>`), whose page opens after. */
   continued_in?: string;
   conversation_key?: string | null;
-  /** ADR-0028: the sessions started from it that moved with it, and where they nest ("now" | "restart" | ""). */ family_moved?: number; family_nests?: string; family_place?: string | null;
+  /** ADR-0028: the sessions started from it that moved with it, and where they nest ("now" | "restart" | ""). */ family_moved?: number; family_nests?: string; family_place?: string | null; /** ADR-0028: the automation handed over, the copy's app to restart for it, whether the original's is off only once its app closes, and what stayed. */ automation_moved?: string[]; automation_copy_place?: string | null; automation_original_waits?: boolean; automation_kept?: string[];
 }
 
 /** The no-backend preflight default (fixtures merge over it —

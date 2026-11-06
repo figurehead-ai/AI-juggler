@@ -882,6 +882,14 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 
+    /// ADR-0028 (`automation_handover`): what wakes this tool's
+    /// conversations by themselves, and how a switch hands it over. `None`
+    /// when nothing does.
+    #[must_use]
+    fn host_automation(&self) -> Option<&dyn crate::automation::HostAutomation> {
+        None
+    }
+
     /// ADR-0028: this tool's answer for every switching capability
     /// ([`crate::switching::SwitchCapability`]): supported and how, or
     /// not and why. The default leaves them all unanswered, which the

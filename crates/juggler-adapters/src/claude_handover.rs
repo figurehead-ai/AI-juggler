@@ -564,9 +564,14 @@ pub(crate) fn switch_answers(
         SwitchCapability::Resumable => SwitchAnswer::Supported(
             "resumes by its own id: `claude --resume`, or the Claude app's resume link",
         ),
-        SwitchCapability::SourceUntouched => SwitchAnswer::Supported("the source is only read"),
+        SwitchCapability::SourceUntouched => SwitchAnswer::Supported(
+            "the conversation's files are only read; only its app record's automation marks change, reversibly",
+        ),
         SwitchCapability::LeftBehindNamed => SwitchAnswer::Supported(
             "the claude.ai pages it links to are named before the move (they stay with their account)",
+        ),
+        SwitchCapability::AutomationHandover => SwitchAnswer::Supported(
+            "Auto-fix on its pull requests moves to the copy's app record; the original's record is put away (archived, Auto-fix off) while its app is closed, which stops every automatic resume; switching back reverses both",
         ),
         SwitchCapability::SwitchBackDelta => {
             SwitchAnswer::Supported("switching back carries only the turns taken away (AJ-E1541)")

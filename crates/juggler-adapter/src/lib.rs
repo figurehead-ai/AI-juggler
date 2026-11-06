@@ -15,6 +15,7 @@
 
 pub mod adapter;
 pub mod agent_bridge;
+pub mod automation;
 pub mod capabilities;
 pub mod conversation;
 pub mod discovery;

@@ -5834,6 +5834,17 @@ pub struct SwitchExecutedInfo {
     pub family_nests: String,
     /// ADR-0028: the target app profile the family waits for.
     pub family_place: Option<String>,
+    /// ADR-0028: what woke the original by itself and the copy now
+    /// takes over (Auto-fix on a pull request, a goal), in words.
+    pub automation_moved: Vec<String>,
+    /// The copy's app profile when the copy takes it over only once that
+    /// app restarts (the done step offers Restart).
+    pub automation_copy_place: Option<String>,
+    /// Whether the original's is turned off only once its app closes.
+    pub automation_original_waits: bool,
+    /// What stays with the original (the switch went to a terminal), in
+    /// words.
+    pub automation_kept: Vec<String>,
 }
 
 /// AJ-E205: executes a switch with the user's freeze choice — the
@@ -6194,6 +6205,18 @@ fn switch_execute_core(
         &family,
         desktop.as_deref(),
     );
+    // ADR-0028: what wakes it by itself moves to the copy and is turned
+    // off on the original (never two copies at work).
+    let automation = crate::features::handover::automation::hand_over(
+        state,
+        &account_a,
+        &account_b,
+        &reference,
+        &family.refs,
+        &renamed_of(&reference, &record, &family),
+        desktop.as_deref(),
+        edge_id.as_str(),
+    );
 
     // AJ-E208: the switch's redaction decision rides the edge.
     record_redaction_decision(
@@ -6214,7 +6237,31 @@ fn switch_execute_core(
         family_moved: u32::try_from(record.family.len()).unwrap_or(u32::MAX),
         family_nests,
         family_place,
+        automation_moved: automation.moved,
+        automation_copy_place: automation.copy_waits,
+        automation_original_waits: automation.original_waits,
+        automation_kept: automation.kept,
     })
+}
+
+/// ADR-0028: the conversation ids the switch changed (a fork on a
+/// collision): original → copy, for the conversation and its family.
+fn renamed_of(
+    reference: &juggler_core::model::TranscriptRef,
+    record: &juggler_handover::pipeline::SwitchRecord,
+    family: &crate::features::handover::family::Family,
+) -> Vec<(String, String)> {
+    let installed = |install: &juggler_adapter::handover::InstallOutcome| {
+        install.reference.native_id.clone().unwrap_or_default()
+    };
+    std::iter::once((reference, &record.install))
+        .chain(family.refs.iter().zip(&record.family))
+        .filter_map(|(original, install)| {
+            let old = original.native_id.clone()?;
+            let new = installed(install);
+            (!new.is_empty() && new != old).then_some((old, new))
+        })
+        .collect()
 }
 
 /// ADR-0028: after a switch into a desktop app profile, its family's
@@ -6233,22 +6280,10 @@ fn family_after(
     let (Some(place), false) = (place, record.family.is_empty()) else {
         return (String::new(), None);
     };
-    let mut renamed: Vec<(String, String)> = Vec::new();
+    let renamed = renamed_of(reference, record, family);
     let installed = |install: &juggler_adapter::handover::InstallOutcome| {
         install.reference.native_id.clone().unwrap_or_default()
     };
-    if let Some(old) = reference.native_id.clone()
-        && installed(&record.install) != old
-    {
-        renamed.push((old, installed(&record.install)));
-    }
-    for (member, install) in family.refs.iter().zip(&record.family) {
-        if let Some(old) = member.native_id.clone()
-            && installed(install) != old
-        {
-            renamed.push((old, installed(install)));
-        }
-    }
     let pending = family::Pending {
         place: place.to_owned(),
         tool: account_b.harness.to_string(),
@@ -6657,6 +6692,10 @@ fn switch_replay(
         family_moved: 0,
         family_nests: String::new(),
         family_place: None,
+        automation_moved: Vec::new(),
+        automation_copy_place: None,
+        automation_original_waits: false,
+        automation_kept: Vec::new(),
     })
 }
 
@@ -12814,6 +12853,9 @@ pub fn switch_back_execute_to_impl(
             },
         )],
     );
+    // ADR-0028: the automation comes back with the work: the original
+    // takes over the copy's and leaves the archive, the copy's is off.
+    crate::features::handover::automation::switch_back(state, lineage.fork_edge.id.as_str());
     Ok(resumed)
 }
 

@@ -741,7 +741,7 @@ pub fn restart(
     let nested = place
         .instance_dir
         .as_deref()
-        .and_then(|dir| crate::features::handover::family::place_waiting(state, id, dir));
+        .and_then(|dir| crate::features::handover::automation::apply_for_place(state, id, dir));
     let launched = start::start(
         &place,
         &hosts,
@@ -876,7 +876,7 @@ pub fn open(
         // ADR-0028: a switched family waiting for this profile's start
         // nests now, before the app reads its records.
         if let Some(dir) = place.instance_dir.as_deref() {
-            crate::features::handover::family::place_waiting(&state, &id, dir);
+            crate::features::handover::automation::apply_for_place(&state, &id, dir);
         }
         match start::start(&place, &hosts, folder.as_deref(), starter.as_ref(), false) {
             Ok(()) => outcome(format!("Starting {label}{pick}"), "started"),

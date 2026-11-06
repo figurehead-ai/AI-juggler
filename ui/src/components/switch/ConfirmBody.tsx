@@ -35,6 +35,7 @@ import { Disclosure } from "../controls";
 import { risky, RoomNote } from "./TargetRoom";
 import { WhereChoice, whereWords, type Destination } from "./WhereChoice";
 import { creditsConsequence } from "../../lib/credits";
+import { AutomationBefore } from "./AutomationLine";
 import type { TargetRoom } from "../../lib/room-targets";
 
 /** What needs the user among the setup offers this conversation used (or
@@ -123,6 +124,7 @@ export function ConfirmBody({
         <p className="text-body text-ink-2" data-testid={outside ? "switch-outside" : preflight.source_keeps_running ? "switch-keeps-running" : "switch-original"}>
           {originalWords({ live: preflight.source_live, keepsRunning: preflight.source_keeps_running, outside, choice: freeze })}
         </p>
+        <AutomationBefore preflight={preflight} destination={destination} app={toolSpec(preflight.target_tool).desktop_app ?? "the desktop app"} />
         {room && (tight || room.kind === "credits") && (
           <p data-testid="switch-summary-room" className={"text-body " + (tight ? "font-semibold text-warning" : "text-ink-2")}>
             {tight

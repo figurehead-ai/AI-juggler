@@ -196,6 +196,24 @@ pub fn waiting(state: &Arc<AppState>, place: &str) -> Vec<Pending> {
         .unwrap_or_default()
 }
 
+/// The app profiles with a family waiting.
+#[must_use]
+pub fn waiting_places(state: &Arc<AppState>) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(state.data_dir.join("family-pending")) else {
+        return Vec::new();
+    };
+    let mut places: Vec<String> = entries
+        .flatten()
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "json"))
+        .filter_map(|entry| std::fs::read(entry.path()).ok())
+        .filter_map(|bytes| serde_json::from_slice::<Vec<Pending>>(&bytes).ok())
+        .filter_map(|all| all.first().map(|pending| pending.place.clone()))
+        .collect();
+    places.sort();
+    places.dedup();
+    places
+}
+
 /// How many sessions wait to nest in `place` at its next start.
 #[must_use]
 pub fn waiting_count(state: &Arc<AppState>, place: &str) -> usize {

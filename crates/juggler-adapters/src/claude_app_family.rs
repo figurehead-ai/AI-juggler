@@ -83,7 +83,7 @@ struct Parent {
     session_id: Option<String>,
 }
 
-fn read(path: &Path) -> Option<serde_json::Value> {
+pub(crate) fn read(path: &Path) -> Option<serde_json::Value> {
     let meta = std::fs::symlink_metadata(path).ok()?;
     if !meta.is_file() || meta.len() > RECORD_MAX {
         return None;
@@ -103,6 +103,20 @@ fn records(instance_dir: &Path) -> HashMap<String, (PathBuf, Shape)> {
             (stem == id && id.starts_with(LOCAL)).then_some((id, (path, shape)))
         })
         .collect()
+}
+
+/// Every record in the app instance at `instance_dir` of conversation
+/// `conversation` (usually one: the app's own, or the one it made when it
+/// imported the conversation), sorted.
+#[must_use]
+pub fn records_of(instance_dir: &Path, conversation: &str) -> Vec<PathBuf> {
+    let mut paths: Vec<PathBuf> = records(instance_dir)
+        .into_values()
+        .filter(|(_, shape)| shape.cli_session_id.as_deref() == Some(conversation))
+        .map(|(path, _)| path)
+        .collect();
+    paths.sort();
+    paths
 }
 
 /// The sessions started from conversation `conversation` in the app
@@ -167,6 +181,23 @@ pub fn descendants(instance_dir: &Path, conversation: &str) -> Vec<Member> {
         level = next;
     }
     out
+}
+
+/// The app's own record of `conversation` itself, as the root of its
+/// family (no parent), for a target app that has no record of it yet.
+#[must_use]
+pub fn root(instance_dir: &Path, conversation: &str) -> Option<Member> {
+    records(instance_dir)
+        .into_iter()
+        .filter(|(_, (_, shape))| shape.cli_session_id.as_deref() == Some(conversation))
+        .map(|(id, (path, shape))| Member {
+            record: path,
+            local_id: id,
+            conversation: conversation.to_owned(),
+            parent_conversation: String::new(),
+            title: shape.title.filter(|t| !t.trim().is_empty()),
+        })
+        .min_by(|a, b| a.local_id.cmp(&b.local_id))
 }
 
 /// The folder of the target app's record of `conversation` (where the
@@ -246,13 +277,22 @@ fn carried(
     let object = value
         .as_object_mut()
         .ok_or_else(|| refuse("isn't a record"))?;
+    // The family's root (the conversation the switch moved, carried as
+    // its own record when the target app has none yet) has no parent in
+    // the family: on the target it stands at the top.
+    let root = member.parent_conversation.is_empty();
     if object.get("sessionId").and_then(|v| v.as_str()) != Some(member.local_id.as_str())
         || object.get("cliSessionId").and_then(|v| v.as_str()) != Some(member.conversation.as_str())
-        || !object
-            .get("spawnedFrom")
-            .is_some_and(serde_json::Value::is_object)
+        || (!root
+            && !object
+                .get("spawnedFrom")
+                .is_some_and(serde_json::Value::is_object))
     {
         return Err(refuse("isn't of a shape AI Juggler knows"));
+    }
+    if root {
+        object.remove("spawnedFrom");
+        object.remove("forkedFromSessionId");
     }
     // Its parent on the target: a carried sibling keeps its record id;
     // the conversation the switch moved was imported as `local_<id>`.
@@ -275,6 +315,7 @@ fn carried(
     if let Some(parent) = object
         .get_mut("spawnedFrom")
         .and_then(|v| v.as_object_mut())
+        .filter(|_| !root)
     {
         parent.insert(
             "sessionId".to_owned(),
@@ -291,6 +332,9 @@ fn carried(
     for key in ACCOUNT_BOUND {
         object.remove(key);
     }
+    // Auto-fix moves only by the switch's hand-over, once the original's
+    // is off (never two copies fixing one pull request).
+    crate::claude_app_automation::as_inherited(object);
     object.retain(|key, _| !key.starts_with("remoteControl"));
     Ok(value)
 }
@@ -403,6 +447,25 @@ mod tests {
         let source_child: serde_json::Value =
             serde_json::from_slice(&std::fs::read(from.join("local_c.json")).unwrap()).unwrap();
         assert_eq!(source_child["spawnedFrom"]["sessionId"], "local_p");
+    }
+
+    #[test]
+    fn the_root_travels_with_its_record_at_the_top_and_its_children_keep_their_link() {
+        let (source, from) = app();
+        record(&from, "local_p", "P", Some("local_elsewhere"), false);
+        record(&from, "local_c", "C", Some("local_p"), false);
+        let mut family = vec![super::root(source.path(), "P").unwrap()];
+        family.extend(descendants(source.path(), "P"));
+        let (_target, to) = app();
+        place(&family, &to, &[]).unwrap();
+        let read = |name: &str| -> serde_json::Value {
+            serde_json::from_slice(&std::fs::read(to.join(name)).unwrap()).unwrap()
+        };
+        assert!(
+            read("local_p.json").get("spawnedFrom").is_none(),
+            "at the top"
+        );
+        assert_eq!(read("local_c.json")["spawnedFrom"]["sessionId"], "local_p");
     }
 
     #[test]

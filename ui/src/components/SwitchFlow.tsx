@@ -39,6 +39,7 @@ import {
   switchUndo,
   redactionPolicySetGlobal,
   type PreflightInfoData,
+  type SwitchExecutedData,
   errorText,
 } from "../lib/bridge";
 
@@ -46,7 +47,7 @@ type Phase =
   | { kind: "preflight" }
   | { kind: "confirm"; preflight: PreflightInfoData }
   | { kind: "executing"; startedAt: number; app: string | null }
-  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData; continuedIn: Destination; family?: FamilyMoved }
+  | { kind: "done"; sessionId: string; edgeId: string; preflight: PreflightInfoData; continuedIn: Destination; family?: FamilyMoved; executed?: SwitchExecutedData }
   // A failure keeps what it failed on: Retry runs the switch again from
   // there (or checks it again when the check itself failed).
   | { kind: "failed"; message: string; preflight: PreflightInfoData | null; cause?: unknown };
@@ -184,7 +185,7 @@ export function SwitchFlow({
         onSwitched(opened, { edgeId: result.edge_id });
         return;
       }
-      setPhase({ kind: "done", sessionId: opened, edgeId: result.edge_id, preflight, continuedIn, family: familyOf(result) });
+      setPhase({ kind: "done", sessionId: opened, edgeId: result.edge_id, preflight, continuedIn, family: familyOf(result), executed: result });
     } catch (cause) {
       started.current = false;
       runningRef.current = false;
@@ -294,7 +295,7 @@ export function SwitchFlow({
       case "executing":
         return <Executing target={targetLabel} holding={holding} app={phase.app} />;
       case "done":
-        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} continuedIn={phase.continuedIn} family={phase.family} />;
+        return <DoneStep preflight={phase.preflight} target={targetLabel} edgeId={phase.edgeId} results={setupCheck.results} continuedIn={phase.continuedIn} family={phase.family} executed={phase.executed} />;
       case "failed":
         return <FailedStep target={targetLabel} message={phase.message} cause={phase.cause} results={setupCheck.results} />;
     }
