@@ -1,4 +1,22 @@
-# AJ-E2907 evidence: a confirm before deleting launch settings
+# Evidence manifest — AJ-E2907
+
+Task: `docs/tasks/E29-trust-and-the-finished-basics.md` AJ-E2907, a confirm
+before deleting launch settings, and no delete while they're in use. Built
+in 0.3.1 (D-60: the sessions stay in History) and 0.4. Checked again,
+requirement by requirement, on 2026-11-06 (release/0.4.1). Status:
+**DONE, 3 gaps open** (agent self-check, 2026-11-06).
+
+| Req | Result | Evidence |
+|---|---|---|
+| R1 | GAP | The bin opens a confirm on the shared `Modal` with a red Delete: `ui/src/screens/accounts/delete-launch-settings.test.tsx` "the row's delete button opens the confirm, never deletes on the click" and "asks first…". Missing: the title reads "Delete Deep work?" (`DeleteLaunchSettings.tsx`), not "Delete the launch settings “Deep work”?"; no test asserts Cancel has focus, Esc cancels, or focus returns to the bin for this confirm (the shared `Modal` does these in code only). |
+| R2 | PASS | Q1 was ruled by D-60 (0.3.1): the sessions stay. `delete-launch-settings.test.tsx` "asks first and says the sessions made with them stay" asserts "Sessions already made with it stay in History."; `crates/juggler-app/tests/manage_accounts.rs` `deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones` asserts both sessions are still in storage after the delete (Rust: run in the release preflight). |
+| R3 | GAP | The backend refuses: `manage_accounts.rs` `deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones` ("«Main» has a session open: api. Stop it first, then delete the launch settings"); the window shows that refusal after Delete is clicked (`delete-launch-settings.test.tsx` "shows a refusal in the backend's words…"; gallery `41-policy` `accounts-delete-launch-settings-refused-*`). Missing: the window doesn't refuse before the click while sessions run (it learns only from the backend's error); and nothing proves "no race": `manage::launch_settings_remove_impl` checks and marks under one storage lock, but no test starts a session against them while a delete runs, and the launch path's own check of removed launch settings is untested. |
+| R4 | GAP | `delete-launch-settings.test.tsx` "the row's delete button opens the confirm…" asserts `ProfileRow.tsx` uses `<ActionIcon name="delete" size={13} />`. Missing: no test asserts the button keeps its accessible name (`aria-label="Delete <name>"` is in the code only). |
+| R5 | PASS | `delete-launch-settings.test.tsx` "asks first and says the sessions made with them stay": after Delete, the toast "Deleted “Deep work”." shows; there is no Undo in `DeleteLaunchSettings.tsx`. |
+
+Run 2026-11-06: `pnpm exec vitest run src/screens/accounts/delete-launch-settings.test.tsx` — pass.
+
+## The first part (2026-11-05)
 
 - `cargo test -p juggler-app --test manage_accounts`
   ("deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones":
