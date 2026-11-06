@@ -61,7 +61,7 @@
 **Research basis**: the MCP spec's security practices; the security guidelines (agent bridge).
 **Handover note**: —
 
-### AJ-E2003 Lock down the webview: command allowlist, capabilities, navigation | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2003 Lock down the webview: command allowlist, capabilities, navigation | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; the hand check waits for the 0.4.1 walk) | Priority P1 | Effort M | Depends: —
 **Goal**: Injected script in the webview can do as little as possible.
 **User story**: As a user, text from a transcript or another agent can never run commands on my Mac.
 **Requirements**:
