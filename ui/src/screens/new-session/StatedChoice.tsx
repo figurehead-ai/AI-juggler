@@ -233,7 +233,8 @@ function lowerFirst(words: string): string {
   return words.charAt(0).toLowerCase() + words.slice(1);
 }
 
-/** "Use Claude Code · Personal (80% left)": the App with room, offered. */
+/** "Use Claude Code · Personal (80% left)": the App with room, offered;
+ * "(its room isn't measured)" when that's all that's known. */
 function OfferButton({ other, left, onUse }: { other: string; left: number | null; onUse: () => void }): JSX.Element {
   return (
     <button
@@ -243,7 +244,7 @@ function OfferButton({ other, left, onUse }: { other: string; left: number | nul
       data-testid="launch-use-roomier"
     >
       Use {other}
-      {left !== null ? ` (${left}% left)` : ""}
+      {left !== null ? ` (${left}% left)` : " (its room isn't measured)"}
     </button>
   );
 }

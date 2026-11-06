@@ -139,6 +139,13 @@ describe("out of room (N5, D-31)", () => {
     expect(choice).toMatchObject({ recipe: WORK, kind: "out", roomier: SIDE });
   });
 
+  it("with the others unmeasured, offers one of them as such, never switching (walk N5)", () => {
+    const choice = chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0 }) });
+    expect(choice).toMatchObject({ recipe: WORK, kind: "out", roomier: HOME });
+    // A measured one with room comes first.
+    expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 0, side: 70 }) })).toMatchObject({ roomier: SIDE });
+  });
+
   it("low room offers too; plenty offers nothing", () => {
     expect(chooseApp({ ...base, project: here, roomOf: roomOf({ work: 10, home: 90 }) })).toMatchObject({ recipe: WORK, kind: "low", roomier: HOME });
     expect(chooseApp({ ...base, project: here })).toMatchObject({ recipe: WORK, kind: "room", roomier: null });

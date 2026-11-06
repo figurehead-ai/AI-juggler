@@ -152,10 +152,11 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   const kind = roomKind(room.left, canStart(inputs.folders, recipe.account_id), room.credits);
   const accountOf = inputs.accountOf ?? ((id: string) => id);
   const mine = accountOf(recipe.account_id);
-  const roomier =
-    kind === "out" || kind === "low" || kind === "blocked"
-      ? (ranked.find((row) => row.kind === "room" && accountOf(row.recipe.account_id) !== mine)?.recipe ?? null)
-      : null;
+  // Another Account's App with room; else, when the usual can't go on, one
+  // whose room isn't measured, offered as such (walk N5: nothing was offered
+  // while the others were unmeasured). Never switched to by itself (D-31).
+  const other = (want: RoomKind) => ranked.find((row) => row.kind === want && accountOf(row.recipe.account_id) !== mine)?.recipe;
+  const roomier = kind === "out" || kind === "low" || kind === "blocked" ? (other("room") ?? other("unknown") ?? null) : null;
   return { recipe, why, kind, roomier };
 }
 
