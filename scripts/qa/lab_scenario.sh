@@ -64,7 +64,7 @@ case "$cmd" in
       # P9: the lab starts as a 0.3 data folder (schema v39), for 0.4 to
       # move on first open; seeding through 0.4 would move it already.
       (cd "$root" && AIJ_P9_DB="$data/juggler.sqlite" AIJ_P9_LAB="$lab" \
-        cargo test -q --offline -p juggler-core --test pools_v45 write_the_p9_labs_0_3_data_folder -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
+        cargo test -q --offline -p juggler-core --test pools_v45 "$(grep -q '"from": ".*disagree' "$lab/scenario-seed.json" && echo write_the_a9_labs_0_3_data_folder || echo write_the_p9_labs_0_3_data_folder)" -- --ignored --exact --nocapture 2>&1 | grep '^seed:' || true)
     else
       # AIJ_LAB_ADOPT=<tool> (ADR-0027 condition 7): that tool's App uses
       # its real default folder where it is; the bridge checks it again.

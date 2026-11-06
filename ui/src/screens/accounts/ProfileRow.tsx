@@ -23,7 +23,7 @@ import { cliAppName } from "../../lib/app-name";
 import { signedIn } from "../../lib/bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
-import type { SubscriptionInfo } from "../../lib/subscriptions";
+import { planWords, type SubscriptionInfo } from "../../lib/subscriptions";
 import { placementWords, UseOriginalModal } from "./UseOriginal";
 import { DeleteLaunchSettingsModal } from "./DeleteLaunchSettings";
 
@@ -79,7 +79,7 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
   // choice between two is asked (the 0.4 review, 17).
   const own = subscription?.profiles.find((p) => p.id === account.id);
   const differs = subscription?.differs ?? [];
-  const perProfile = [differs.includes("plan") && own?.plan ? own.plan : null, differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null].filter(Boolean);
+  const perProfile = [differs.includes("plan") && own?.plan ? planWords(own.plan) : null, differs.includes("fee") && own?.fee_usd != null ? `$${own.fee_usd}/month` : null].filter(Boolean);
   const tool = service ? `${providerDisplayName(account.provider)} through ${service}` : providerDisplayName(account.provider);
   // D-62: the row is an App; its full name where the tool isn't beside it.
   const name = cliAppName(account.provider, account.label);

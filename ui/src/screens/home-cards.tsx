@@ -102,9 +102,12 @@ const HOME_CARDS: readonly HomeCard[] = [
     render: (ctx) =>
       ctx.sessions.length === 0 && ctx.conversations.length === 0 && (
         <section className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-surface p-6" data-testid="home-first-session">
-          <h2 className="text-section font-semibold text-ink">Start your first session</h2>
+          {/* Walk A9: "first" only when it is; older sessions, out of the
+              working set, are in History. */}
+          <h2 className="text-section font-semibold text-ink">{ctx.projects.length > 0 ? "Start a session" : "Start your first session"}</h2>
           <p className="max-w-xl text-body text-ink-2">
             Pick a project folder and an app. AI Juggler starts Claude Code there and keeps an eye on it — when it needs you, it shows up here.
+            {ctx.projects.length > 0 && " Your earlier sessions are in History."}
           </p>
           <Button variant="primary" onClick={ctx.onNewSession}>New session</Button>
         </section>

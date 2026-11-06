@@ -173,6 +173,14 @@ describe("D-25 Home — the screen", () => {
     expect(renderHome([]).getByTestId("home").textContent).toContain("Ready when you are");
   });
 
+  it("says 'first' only when it is: with projects worked in, older sessions are in History (walk A9)", () => {
+    // PROJECTS has some: a Mac that worked before, its sessions past the working set.
+    const card = renderHome([]).getByTestId("home-first-session");
+    expect(card.textContent).toContain("Start a session");
+    expect(card.textContent).not.toContain("first");
+    expect(card.textContent).toContain("Your earlier sessions are in History.");
+  });
+
   it("never 'all clear' while an account has run out (QA batch 9)", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [
       { account: "work", five_hour: { percentage: 100, state: "measured", resets_at_ms: null }, weekly: { percentage: 40, state: "measured", resets_at_ms: null } },

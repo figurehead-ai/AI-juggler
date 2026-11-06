@@ -1,0 +1,8 @@
+[
+  { "step": "1-open-0.4-on-0.3", "data": "schema v39 → v48 on first open",
+    "accounts": { "Claude Pro (p…@example.invalid)": ["Claude Code · Personal"], "w…@example.invalid": ["Claude Code · Work A", "Claude Code · Work B"] },
+    "terms": "Personal's moved to its Account; Work A and Work B disagree, so each keeps its own until chosen" },
+  { "step": "2-choose", "asked": ["Max 20x or Max 5x", "20 Nov or 28 Nov (28 Nov the newer reading)", "$200/month or $100/month"],
+    "chosen": "Max 20x, 28 Nov, $200 → the Account is named Claude Max 20x, Renews 28 Nov, $200/month",
+    "nothing_lost": { "work-a": "max-20x · 2026-11-20 · fee 200", "work-b": "max-5x · 2026-11-28 · fee 100" } }
+]
