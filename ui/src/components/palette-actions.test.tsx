@@ -69,19 +69,21 @@ describe("AJ-E2106 ⌘K on a selected session", () => {
   it("lists its actions first, with their shortcuts, then the sessions", () => {
     const { options, input } = open(live(), appHost());
     const ids = options().map((option) => option.getAttribute("data-testid"));
-    expect(ids.slice(0, 7)).toEqual([
+    expect(ids.slice(0, 8)).toEqual([
       "goto-row-action::focus",
       "goto-row-action::reveal-project",
       "goto-row-action::continue",
       "goto-row-action::rename",
       "goto-row-action::copy-resume",
       "goto-row-action::pin",
+      // AJ-E2910 R4: greyed while it runs, with why.
+      "goto-row-action::archive",
       "goto-row-action::stop",
     ]);
     expect(ids.at(-1)).toBe("goto-row-s2");
     // On its page already: no "Open its page".
     expect(ids).not.toContain("goto-row-action::open");
-    const stop = options()[6]!;
+    const stop = options()[7]!;
     expect(stop.textContent).toContain("Stop this session");
     expect(stop.querySelector("kbd")?.textContent).toBe("⌘.");
     expect(stop.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");

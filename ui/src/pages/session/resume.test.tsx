@@ -55,13 +55,16 @@ describe("AJ-E2908 — an ended session's page", () => {
     expect(screen.getByTestId("header-resume-why").textContent).toBe("It has no conversation to resume yet");
   });
 
-  it("adds Replay, Archive and Copy the conversation's id to an ended session's menu only", () => {
+  it("adds Replay, Archive and Copy the conversation's id to an ended session's menu; a running one's Archive is greyed with why", () => {
     const host = { replay: vi.fn(), archive: vi.fn(), unarchive: vi.fn(), isArchived: () => false, copyConversationId: vi.fn() };
     const ended = resolveActions("session", session(), host).map((a) => a.id);
     expect(ended).toEqual(expect.arrayContaining(["replay", "archive", "copy-id"]));
     const live = resolveActions("session", session({ status: "running" }), host).map((a) => a.id);
     expect(live).not.toEqual(expect.arrayContaining(["replay"]));
-    expect(live).not.toContain("archive");
+    // AJ-E2910 R4: Archive stays, greyed with why, so the e key's silence
+    // on a running session is explained.
+    const archiveLive = resolveActions("session", session({ status: "running" }), host).find((a) => a.id === "archive");
+    expect(archiveLive?.reason).toBe("It's still running: stop it first, then archive it");
     expect(live).not.toContain("copy-id");
     const archived = resolveActions("session", session({ lifecycle: "archived" }), { ...host, isArchived: () => true });
     expect(archived.find((a) => a.id === "archive")?.label).toBe("Unarchive");

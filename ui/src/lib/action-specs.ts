@@ -134,9 +134,14 @@ export const SESSION: ActionSpec<"session">[] = [
   },
   // AJ-E2908: an ended session's page has History's Replay and Archive
   // (the same specs, never a copy), and its conversation's id.
+  // AJ-E2910 R4: a live session keeps Archive in its menu, greyed with
+  // why, so the e key doing nothing on it is explained where the user looks.
   ...(["replay", "archive"] as const).map((id): ActionSpec<"session"> => {
     const spec = HISTORY_SPECS.find((entry) => entry.id === id)!;
-    return { ...spec, rank: id === "replay" ? 70 : 80, applies: (row, h) => !isLive(row) && spec.applies(row, h) };
+    if (id === "archive") {
+      return { ...spec, rank: 80, blocked: (row) => (isLive(row) ? "It's still running: stop it first, then archive it" : null) };
+    }
+    return { ...spec, rank: 70, applies: (row, h) => !isLive(row) && spec.applies(row, h) };
   }),
   {
     id: "copy-id",

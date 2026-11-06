@@ -184,6 +184,8 @@ describe("AJ-E1537 the registry: each type's menu", () => {
       "Continue in another app…", "Rename…", "Move to pool…", "Snooze for an hour",
       "For 15 minutes", "Until the limit resets (No known reset time for this quota window)", "Mute this session",
       "Copy the resume command", "Pin to top",
+      // AJ-E2910 R4: Archive stays in the menu while it runs, greyed with why.
+      "Archive (It's still running: stop it first, then archive it)",
       "Stop this session",
     ]);
   });
