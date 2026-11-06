@@ -15,7 +15,7 @@ pub fn scene_wgsl() -> String {
 
 /// The scene and shadow passes (the materials' table still to fill in).
 const SCENE_WGSL: &str = r"
-struct G { vp: mat4x4<f32>, lvp: mat4x4<f32>, eye: vec4<f32>, sun: vec4<f32>, sky: vec4<f32>, ground: vec4<f32>, params: vec4<f32>, sunc: vec4<f32>, look: vec4<f32>, mat: vec4<f32> };
+struct G { vp: mat4x4<f32>, lvp: mat4x4<f32>, eye: vec4<f32>, sun: vec4<f32>, sky: vec4<f32>, ground: vec4<f32>, params: vec4<f32>, sunc: vec4<f32>, look: vec4<f32>, mat: vec4<f32>, atl: vec4<f32> };
 struct Lt { p: vec4<f32>, c: vec4<f32> };
 @group(0) @binding(0) var<uniform> g: G;
 @group(0) @binding(1) var<storage, read> lights: array<Lt>;
@@ -63,6 +63,8 @@ fn culled(v: VI) -> bool {
   o.pos = g.vp * vec4<f32>(wp, 1.0);
   if (culled(v)) { o.pos = vec4<f32>(0.0, 0.0, 2.0, 1.0); }
   o.uv = v.uv; o.col = v.col; o.tex = v.tex; o.misc = v.misc; o.off = v.off; o.id = v.id;
+  // the atlas keeps only its rows in use: a place's v scaled to them
+  if ((u32(v.misc.w + 0.5) & 1u) != 0u) { o.tex = vec4<f32>(v.tex.x, v.tex.y * g.atl.x, v.tex.z, v.tex.w * g.atl.x); }
   let sc = max(vec3<f32>(length(v.m0.xyz), length(v.m1.xyz), length(v.m2.xyz)), vec3<f32>(1e-5));
   let unit = MKIND[min(v.mat, 17u)].x < 0.0;
   o.lp = select(v.pos * sc, v.pos + vec3<f32>(0.5, 0.0, 0.0), unit);

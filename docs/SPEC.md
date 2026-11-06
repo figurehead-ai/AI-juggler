@@ -746,6 +746,21 @@ is busy, waiting on you, stuck, crashing or overloaded, and which
 Account is running out. Decoration only makes areas recognisable.
 Research, measurements and prototypes: `docs/research/floor/`.
 
+**The look (D-86).** Everything is generated at run time; nothing
+drawn is bundled. Every part has a material: wood, woven fabric,
+carpet, brushed metal, plastic, leaves, skin, hair, cloth, denim,
+leather, glaze, plaster, rubber, paper or soil. Each is a small tileable
+map with its own normal and roughness, made in about 10 ms when the
+window opens. Light shows them: soft shadows, ambient occlusion, a warm
+sun over cool shade, highlights by roughness, the sky's reflection, a
+fill and a rim light. People have smooth, proportioned bodies, hair and
+a face whose eyes, brows and mouth show their state (focused when
+working, brows up when asking, worried when stuck, alarmed when crashed,
+happy when done, asleep when out of usage). They blink and breathe only
+while the Floor is already animating. 0.4.0's flat look stays in the
+code for rollback and its tests only (`docs/research/floor-04x.md` §7,
+§12).
+
 **Opening it.** The Floor button in the header (beside the user
 menu), Window › The Floor in the menu bar, the tray menu, and ⌘⇧M
 (which also brings the main window back from the Floor). The window
@@ -864,7 +879,8 @@ with what hangs on them.
 Juggler starts (off); keep it on top (off); Apps per floor (10);
 Motion: Follow the system, Full (8 fps), Calm (4 fps, no walkers) or
 Off; Look (D-80): Pixel art (the default: the scene at its pixel size,
-scaled up) or Full resolution (the scene at the screen's own pixels:
+two device pixels on a Retina screen and never under two, scaled up;
+D-86) or Full resolution (the scene at the screen's own pixels:
 smoothed edges, sharp-filtered textures, outlines and the hover ring at
 Pixel art's weight, softer shadows, picking per screen pixel), applied at
 once and remembered; show unused Apps' decay (on); Reset the view; Re-create the

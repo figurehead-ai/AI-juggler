@@ -65,8 +65,10 @@ impl std::error::Error for Error {}
 /// How the office is lit and finished (0.4.2, `docs/research/floor-04x.md`
 /// §6–7): the sky (day and night from the Mac's clock, or a fixed one)
 /// and whether the reworked look is on (ambient occlusion, soft shadows,
-/// a rim light, the grade, dust on what's long unused). The default is
-/// 0.4.0's look, the one the golden frames are drawn in.
+/// a rim light, the grade, dust on what's long unused), with its second
+/// pass. The default is 0.4.2's look (D-86): reworked, materials and
+/// faces, the finer Pixel art; [`Look::classic`] is 0.4.0's, kept for
+/// rollback and its tests.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Look {
     /// The light.
@@ -84,6 +86,20 @@ pub struct Look {
 
 impl Default for Look {
     fn default() -> Self {
+        Self {
+            sky: juggler_floor::daylight::Sky::always_day(),
+            rework: true,
+            materials: true,
+            fine: true,
+        }
+    }
+}
+
+impl Look {
+    /// 0.4.0's look: flat colours, the classic light, Pixel art's
+    /// coarser pixel (for rollback and its tests).
+    #[must_use]
+    pub fn classic() -> Self {
         Self {
             sky: juggler_floor::daylight::Sky::classic(),
             rework: false,

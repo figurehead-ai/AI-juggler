@@ -449,3 +449,34 @@ fn the_window_says_the_floor_in_view_in_words() {
     assert_eq!(scene.area_stops().len(), 2);
     assert_eq!(scene.waiting_stops().len(), 1);
 }
+
+#[test]
+fn the_atlas_keeps_only_its_rows_in_use() {
+    // D-79 (Full resolution's memory): a big office (20 Apps, every
+    // family, 150 sessions) still leaves most of the 2048² atlas unused
+    let families = [
+        "claude-code",
+        "claude-app",
+        "codex",
+        "opencode",
+        "gemini",
+        "cursor",
+        "other",
+    ];
+    let apps: Vec<FloorApp> = (0..20)
+        .map(|i| {
+            let sessions = (0..if i < 10 { 8 } else { 7 })
+                .map(|k| session(&format!("s:{i}-{k}"), FloorState::Working, 0))
+                .collect();
+            app(&format!("cli:{i}"), families[i % families.len()], sessions)
+        })
+        .collect();
+    let scene = build(&snapshot(apps));
+    assert!(scene.atlas.h <= 1024, "{} rows kept", scene.atlas.h);
+    assert_eq!(
+        scene.atlas.px.len(),
+        (scene.atlas.w * scene.atlas.h * 4) as usize
+    );
+    assert!((scene.atlas_v * scene.atlas.h as f32 - 2048.0).abs() < 1e-3);
+    eprintln!("atlas rows kept: {} (of 2048)", scene.atlas.h);
+}

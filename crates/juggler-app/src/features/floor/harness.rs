@@ -30,6 +30,15 @@ pub const VAR: &str = "AIJ_FLOOR_HARNESS";
 pub const QUICK: &str = "AIJ_FLOOR_HARNESS_QUICK";
 /// D-80: `full` measures Full resolution (Pixel art otherwise).
 pub const DETAIL: &str = "AIJ_FLOOR_HARNESS_DETAIL";
+/// `first` measures 0.4.0's classic look; 0.4.2's (D-86: reworked, with
+/// its second pass of materials and faces) otherwise.
+pub const LOOK: &str = "AIJ_FLOOR_HARNESS_LOOK";
+
+/// The harness asks for 0.4.0's classic look.
+#[must_use]
+pub fn classic() -> bool {
+    std::env::var(LOOK).as_deref() == Ok("first")
+}
 
 /// Starts the harness when [`VAR`] is set.
 pub fn start(app: &tauri::AppHandle) {
@@ -532,6 +541,7 @@ fn run(app: &tauri::AppHandle) -> String {
     let r1 = |x: f64| (x * 10.0).round() / 10.0;
     let report = serde_json::json!({
         "detail": if full { "full" } else { "pixel" },
+        "look": if classic() { "first" } else { "second" },
         // The window drawn into, device pixels, and its scale (D-80's
         // Full resolution draws at these; Pixel art at a fraction).
         "window_px": window.map(|(w, h, _)| [w, h]),

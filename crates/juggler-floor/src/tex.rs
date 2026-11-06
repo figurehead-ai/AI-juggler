@@ -94,6 +94,29 @@ impl Atlas {
         ])
     }
 
+    /// The rows in use: everything added sits above this.
+    #[must_use]
+    pub fn used(&self) -> i32 {
+        (self.y + self.shelf + 2).min(self.img.h)
+    }
+
+    /// The image cut to the rows in use, rounded up to a power of two
+    /// (so the places it gave, scaled by the factor returned, stay
+    /// exact), and that factor: a place's v and height times it.
+    #[must_use]
+    pub fn trimmed(self) -> (Img, f32) {
+        let h = u32::try_from(self.used().max(1))
+            .unwrap_or(1)
+            .next_power_of_two()
+            .min(u32::try_from(self.img.h).unwrap_or(1));
+        let h = i32::try_from(h).unwrap_or(self.img.h);
+        let factor = self.img.h as f32 / h as f32;
+        let mut img = self.img;
+        img.px.truncate((img.w * h * 4) as usize);
+        img.h = h;
+        (img, factor)
+    }
+
     /// The place of `key`, when added.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<Uv> {

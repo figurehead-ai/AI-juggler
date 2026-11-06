@@ -1641,10 +1641,11 @@ pub fn person_v2(b: &mut B, root: T, lk: &Look, pose: Pose, t: f32, seat: f32, t
         );
     }
     let up = root.t(0.0, hip_y, 0.0).rx(-lean).t(0.0, -0.86, 0.0);
-    // hips and belt, then the torso breathing
+    // a round pelvis the thighs and the torso both sink into, then the
+    // torso breathing
     b.put_m(
-        Mesh::RoundBox,
-        up.t(0.0, 0.79, 0.0).s(0.33, 0.17, 0.22),
+        Mesh::Sphere,
+        up.t(0.0, 0.7, 0.0).s(0.34, 0.3, 0.235),
         lk.legs,
         DENIM,
     );
@@ -1668,22 +1669,30 @@ pub fn person_v2(b: &mut B, root: T, lk: &Look, pose: Pose, t: f32, seat: f32, t
         SKIN,
     );
     let sway = 0.03 * (t * 0.7).sin();
-    let head = up.t(0.0, 1.42, 0.0).rx(-head_p).ry(turn + head_y + sway);
+    // asleep: the head rests on its side on the arms, the face to us
+    let head = if pose == Pose::Asleep {
+        up.t(0.0, 1.4, -0.02).rx(lean * 0.7).ry(1.25).rz(0.45)
+    } else {
+        up.t(0.0, 1.42, 0.0).rx(-head_p).ry(turn + head_y + sway)
+    };
     head_v2(b, head, lk, expression(pose, t));
     let long = lk.top_style != 0;
     for (s, (p, roll, el)) in [(-1.0f32, al), (1.0, ar)] {
         let sh = up.t(s * 0.215, 1.32, 0.0).rz(s * roll).rx(p);
+        // the upper arm's round end is the shoulder, tucked into the
+        // torso: no ball on top
         b.put_m(
-            Mesh::Sphere,
-            sh.t(0.0, -0.08, 0.0).s(0.11, 0.11, 0.115),
+            Mesh::Capsule,
+            sh.t(0.0, -0.33, 0.0).s(0.1, 0.42, 0.105),
             lk.top,
             CLOTH,
         );
+        // the elbow: as round as the forearm, whatever its bend
         b.put_m(
-            Mesh::Capsule,
-            sh.t(0.0, -0.32, 0.0).s(0.095, 0.36, 0.1),
-            lk.top,
-            CLOTH,
+            Mesh::Sphere,
+            sh.t(0.0, -0.335, 0.0).s(0.088, 0.088, 0.092),
+            if long { lk.top } else { lk.skin },
+            if long { CLOTH } else { SKIN },
         );
         let fo = sh.t(0.0, -0.29, 0.0).rx(el);
         if long {
@@ -1754,8 +1763,8 @@ fn top_v2(b: &mut B, up: T, lk: &Look) {
             );
             b.put(
                 Mesh::RoundBox,
-                up.t(0.0, 0.96, -0.118).s(0.22, 0.1, 0.02),
-                ramp(lk.top, -0.06),
+                up.t(0.0, 0.95, -0.112).s(0.24, 0.09, 0.012),
+                ramp(lk.top, -0.05),
             );
             for s in [-1.0f32, 1.0] {
                 b.put_m(
@@ -1888,16 +1897,17 @@ fn head_v2(b: &mut B, head: T, lk: &Look, expr: crate::materials::Face) {
             }
             7 => {}
             _ => {
+                // a beanie: a snug knitted dome, a turned-up band, a bobble
                 b.put_m(
-                    Mesh::CylS,
-                    head.t(0.0, 0.17, 0.01).s(0.3, 0.13, 0.3),
+                    Mesh::Sphere,
+                    head.t(0.0, 0.135, 0.01).s(0.295, 0.25, 0.295),
                     ramp(lk.top, 0.15),
                     CLOTH,
                 );
                 b.put_m(
-                    Mesh::Sphere,
-                    head.t(0.0, 0.18, 0.01).s(0.3, 0.2, 0.3),
-                    ramp(lk.top, 0.15),
+                    Mesh::CylS,
+                    head.t(0.0, 0.205, 0.01).s(0.305, 0.045, 0.305),
+                    ramp(lk.top, 0.05),
                     CLOTH,
                 );
                 b.put_m(

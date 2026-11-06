@@ -246,7 +246,8 @@ fn scene_with(
     seating: &mut Seating,
     covers: bool,
 ) -> Scene {
-    scene_full(snap, office, seating, covers, false)
+    // the default look's people (D-86)
+    scene_full(snap, office, seating, covers, true)
 }
 
 /// A scene with 0.4.2's dust sheets (`covers`) and second pass
@@ -818,9 +819,9 @@ fn the_design_proposal_frames() {
     std::fs::create_dir_all(&dir).unwrap();
     let mut office = Office::new(42, 10);
     let mut seating = Seating::default();
-    let scene = scene_of(&company(false), &mut office, &mut seating);
+    let scene = scene_full(&company(false), &mut office, &mut seating, false, false);
     let (mut office2, mut seating2) = (Office::new(42, 10), Seating::default());
-    let covered = scene_with(&company(false), &mut office2, &mut seating2, true);
+    let covered = scene_full(&company(false), &mut office2, &mut seating2, true, false);
     let mut renderer = Renderer::headless(&scene).unwrap();
     let size = (1280, 800, 1.0);
     let aspect = size.0 as f32 / size.1 as f32;
@@ -851,11 +852,11 @@ fn the_design_proposal_frames() {
             },
         }
     };
-    let classic = Look::default();
+    let classic = Look::classic();
     let day = Look {
         sky: Sky::always_day(),
         rework: true,
-        ..Look::default()
+        ..Look::classic()
     };
     let looks = [
         ("before", classic),
@@ -865,7 +866,7 @@ fn the_design_proposal_frames() {
             Look {
                 sky: Sky::at(3.0, 250.0),
                 rework: true,
-                ..Look::default()
+                ..Look::classic()
             },
         ),
         (
@@ -873,7 +874,7 @@ fn the_design_proposal_frames() {
             Look {
                 sky: Sky::at(-4.0, 262.0),
                 rework: true,
-                ..Look::default()
+                ..Look::classic()
             },
         ),
         (
@@ -881,7 +882,7 @@ fn the_design_proposal_frames() {
             Look {
                 sky: Sky::always_night(),
                 rework: true,
-                ..Look::default()
+                ..Look::classic()
             },
         ),
     ];
@@ -910,7 +911,7 @@ fn the_design_proposal_frames() {
             renderer.set_look(Look {
                 sky: Sky::always_night(),
                 rework: true,
-                ..Look::default()
+                ..Look::classic()
             });
             let img = renderer
                 .capture(&covered, &area_cam("cli:n", 13.0), &live, size, &extras)
@@ -1130,7 +1131,7 @@ fn the_second_pass_frames() {
     let first = Look {
         sky,
         rework: true,
-        ..Look::default()
+        ..Look::classic()
     };
     let second = Look {
         materials: true,
@@ -1200,9 +1201,16 @@ fn the_second_pass_frames() {
             continue;
         };
         let stands = matches!(state, FloorState::Asks | FloorState::Crashed);
+        let asleep = *state == FloorState::Limit;
         // from the sitter's side, a little in front, the head turned to us
         let across = [ahead[2], 0.0, -ahead[0]];
-        let f = if stands { -1.0 } else { 0.9 };
+        let f = if stands {
+            -1.0
+        } else if asleep {
+            0.6
+        } else {
+            0.9
+        };
         let e = [
             ahead[0] * f + across[0] * 0.7,
             ahead[2] * f + across[2] * 0.7,
@@ -1218,12 +1226,15 @@ fn the_second_pass_frames() {
                         at[1] + 0.15,
                         at[2] - across[2] * 0.9 - ahead[2] * 0.13,
                     ]
+                } else if asleep {
+                    // the head down on the desk's edge
+                    [at[0] + ahead[0] * 0.3, at[1] - 0.4, at[2] + ahead[2] * 0.3]
                 } else {
                     [at[0], at[1] - 0.2, at[2]]
                 },
                 yaw,
-                pitch: 0.42,
-                dist: 3.4,
+                pitch: if asleep { 0.5 } else { 0.42 },
+                dist: if asleep { 2.8 } else { 3.4 },
             },
         };
         let hov = Live {

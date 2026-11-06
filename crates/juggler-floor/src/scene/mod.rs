@@ -274,8 +274,11 @@ pub struct Scene {
     pub kits: BTreeMap<String, Kit>,
     /// The still parts.
     pub stat: Vec<Item>,
-    /// The textures.
+    /// The textures (only the rows in use).
     pub atlas: Img,
+    /// What a texture place's v and height are scaled by: the atlas's
+    /// full height over the rows kept.
+    pub atlas_v: f32,
     /// The overlay's glyphs and balloons.
     pub ui: Ui,
     /// Everything pickable; pick id `n` is `picks[n - 1]`.
@@ -406,6 +409,7 @@ impl Scene {
             kits,
             stat: Vec::new(),
             atlas: Img::new(1, 1),
+            atlas_v: 1.0,
             ui: tex::ui_atlas()?,
             picks: Vec::new(),
             lights: Vec::new(),
@@ -457,7 +461,10 @@ impl Scene {
         }
         scene.cat = scene.pick(Target::Cat, "The office cat", "pet it");
         scene.stat = out;
-        scene.atlas = atlas.img;
+        // Only the rows in use go to the GPU (and stay in memory); the
+        // places the atlas gave are in its full height, so the renderer
+        // scales their v by `atlas_v`.
+        (scene.atlas, scene.atlas_v) = atlas.trimmed();
         Ok(scene)
     }
 

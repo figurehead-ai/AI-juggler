@@ -19,6 +19,19 @@ use juggler_floor::snapshot::FloorSnapshot;
 use juggler_floor_render::{Extras, Renderer, wgpu};
 
 use super::store::{self, Settings};
+
+/// 0.4.0's classic look instead of 0.4.2's (D-86): only when the budget
+/// harness asks, to measure the two beside each other (and for rollback).
+fn classic() -> bool {
+    #[cfg(feature = "floor-harness")]
+    {
+        super::harness::classic()
+    }
+    #[cfg(not(feature = "floor-harness"))]
+    {
+        false
+    }
+}
 use crate::features::notifications::OpenRequest;
 use crate::state::AppState;
 
@@ -233,7 +246,7 @@ impl World {
             seats: &seats,
             decay: settings.decay,
             covers: false,
-            detail: false,
+            detail: !classic(),
             machine: &machine,
             now_ms: now,
             logos: &logos,
@@ -406,6 +419,9 @@ impl Running {
         let mut renderer =
             Renderer::new(&instance, surface, (size.0, size.1), &world.scene).ok()?;
         renderer.set_full(settings.detail.full());
+        if classic() {
+            renderer.set_look(juggler_floor_render::Look::classic());
+        }
         open_step("renderer", opened);
         let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion_now());
         driver.alert = world.snapshot.machine.alert_since_ms.is_some();

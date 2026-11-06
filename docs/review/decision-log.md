@@ -2669,3 +2669,24 @@ no per-release VoiceOver pass. `docs/plan/ROADMAP.md` now names the first
 Stable under 0.4. Its 0.5 section stays as planned work that starts after
 the Stable.
 
+
+### D-86 The Floor's new graphics are the default from 0.4.2 — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06, on the Floor's design proposal
+with its second pass (generated materials, people with faces; v1 and v2
+side by side): "Yes let's go with new graphics".
+
+- **0.4.2's look is the default** in both looks of D-80: the reworked
+  light (soft shadows, ambient occlusion, the grade) and its second pass.
+  That means every part with a generated material (normal and roughness
+  maps, nothing bundled), smooth people, and a face that shows the state
+  (SPEC §9.7 "The look", `docs/research/floor-04x.md` §12).
+- **Pixel art's pixel is finer on Retina screens**: two device pixels,
+  not three, never under two.
+- **Within the budgets** (SPEC §9.7, D-79), measured on the release build
+  with the harness. Full resolution's memory fits by trimming the texture
+  atlas to the rows in use, never by raising the budget (the 0.4
+  completion session's call, 2026-11-06).
+- **0.4.0's flat look** stays in the code only while tests and rollback
+  need it. The golden frames are re-baselined in the new look, every
+  capture checked by eye.

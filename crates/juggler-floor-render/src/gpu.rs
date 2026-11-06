@@ -47,6 +47,8 @@ struct Globals {
     /// `(materials on, their footprint's scale, the sun's banding,
     /// highlights)` (0.4.2's second pass; all 0 without it).
     mat: [f32; 4],
+    /// `(the atlas's v scale, 0, 0, 0)`: the scene's `atlas_v`.
+    atl: [f32; 4],
 }
 
 #[repr(C)]
@@ -714,6 +716,7 @@ impl Gpu {
             look: crate::Look::default(),
         };
         gpu.load(scene);
+        gpu.ensure_materials();
         gpu
     }
 
@@ -985,6 +988,7 @@ impl Gpu {
                 [0.0; 4]
             },
             mat: self.mat_uniform(),
+            atl: [scene.atlas_v, 0.0, 0.0, 0.0],
         };
         self.queue
             .write_buffer(&self.globals, 0, bytemuck::bytes_of(&g));
