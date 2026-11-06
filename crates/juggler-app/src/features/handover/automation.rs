@@ -72,6 +72,9 @@ pub enum Op {
         carried: Value,
         /// Original id → copy's, where they differ.
         renamed: Vec<(String, String)>,
+        /// The switch's edge id (empty for a switch back's).
+        #[serde(default)]
+        edge: String,
     },
     /// The originals' automation is turned off; what undoes it is kept
     /// with the switch `edge`.
@@ -358,6 +361,7 @@ pub fn hand_over(
                 op: Op::Adopt {
                     carried: automation.carried.clone(),
                     renamed: renamed.to_vec(),
+                    edge: edge.to_owned(),
                 },
                 queued_ms: now,
                 applied_ms: None,
@@ -431,13 +435,17 @@ pub fn switch_back(state: &Arc<AppState>, edge: &str) -> Vec<String> {
     };
     let now = crate::commands::now_millis();
     let mut edits: Vec<Edit> = load(state, "waiting.json");
-    // A quieting not applied yet is simply dropped: nothing to undo.
-    let pending_quiet = edits.iter().position(|edit| {
+    // This switch's own changes leave the queue, applied or not: one not
+    // applied yet has nothing to undo (the copy never takes it over, the
+    // original was never put away), and one applied must not be checked
+    // and applied again over the switch back.
+    let pending_quiet = edits.iter().any(|edit| {
         matches!(&edit.op, Op::Quiet { edge: e, .. } if e == edge) && edit.applied_ms.is_none()
     });
-    if let Some(at) = pending_quiet {
-        edits.remove(at);
-    }
+    edits.retain(|edit| match &edit.op {
+        Op::Quiet { edge: e, .. } | Op::Adopt { edge: e, .. } => e != edge,
+        Op::Wake { .. } => true,
+    });
     // The copy's automation as it is now (read where it can be).
     let copy_now = dir_of(state, &pair.target)
         .and_then(|dir| host.read(&dir, &pair.copies).ok())
@@ -457,6 +465,7 @@ pub fn switch_back(state: &Arc<AppState>, edge: &str) -> Vec<String> {
             op: Op::Adopt {
                 carried: copy_now.carried.clone(),
                 renamed: back,
+                edge: String::new(),
             },
             queued_ms: now,
             applied_ms: None,
@@ -472,7 +481,7 @@ pub fn switch_back(state: &Arc<AppState>, edge: &str) -> Vec<String> {
             applied_ms: None,
         });
     }
-    if let Some(restore) = pair.restore.clone().filter(|_| pending_quiet.is_none()) {
+    if let Some(restore) = pair.restore.clone().filter(|_| !pending_quiet) {
         edits.push(Edit {
             tool,
             home: pair.source.clone(),
@@ -501,7 +510,9 @@ fn kept(host: &dyn HostAutomation, dir: &std::path::Path, edit: &Edit) -> bool {
         Op::Quiet { conversations, .. } => host
             .read(dir, conversations)
             .is_ok_and(|found| !found.any()),
-        Op::Adopt { carried, renamed } => {
+        Op::Adopt {
+            carried, renamed, ..
+        } => {
             let copies: Vec<String> = carried
                 .as_object()
                 .into_iter()
@@ -589,7 +600,9 @@ pub fn apply_with(state: &Arc<AppState>, closed: Option<&str>) {
             continue;
         }
         let result = match &edit.op {
-            Op::Adopt { carried, renamed } => host.adopt(&dir, carried, renamed),
+            Op::Adopt {
+                carried, renamed, ..
+            } => host.adopt(&dir, carried, renamed),
             Op::Quiet {
                 conversations,
                 edge,
@@ -821,5 +834,57 @@ mod tests {
         let copy_now = get(&copy);
         assert_eq!(copy_now["isArchived"], true);
         assert_eq!(copy_now["prs"][0]["autoFix"], false);
+    }
+
+    #[test]
+    fn switching_back_before_the_copy_took_over_leaves_it_with_the_original() {
+        let root = tempfile::tempdir().unwrap();
+        let state = Arc::new(AppState::init(root.path().join("data")).unwrap());
+        let (_, olivia) = profile(&state, root.path(), "b-olivia", "olivia");
+        let (aij_place, aij) = profile(&state, root.path(), "aij-test", "aij");
+        let original = record(
+            &olivia,
+            "local_orig",
+            &json!({"sessionId": "local_orig", "cliSessionId": "P", "prs": [
+                {"prNumber": 210, "repo": "org/repo", "state": "OPEN", "own": true, "autoFix": true}
+            ]}),
+        );
+        let from = account("olivia", &root.path().join("cfg-olivia"));
+        let to = account("aij", &root.path().join("cfg-aij"));
+        let reference = TranscriptRef {
+            path: root.path().join("P.jsonl"),
+            native_id: Some("P".into()),
+        };
+        // The copy isn't imported yet, so its taking over waits.
+        super::hand_over(
+            &state,
+            &from,
+            &to,
+            &reference,
+            &[],
+            &[],
+            Some(&aij_place),
+            "e2",
+        );
+        assert_eq!(get(&original)["isArchived"], true);
+        super::switch_back(&state, "e2");
+        // The original is back with its Auto-fix; the copy, imported later,
+        // never gets it.
+        assert_eq!(get(&original)["isArchived"], false);
+        assert_eq!(get(&original)["prs"][0]["autoFix"], true);
+        let copy = record(
+            &aij,
+            "local_P",
+            &json!({"sessionId": "local_P", "cliSessionId": "P"}),
+        );
+        super::apply(&state);
+        assert!(get(&copy).get("prs").is_none());
+        let waiting: Vec<super::Edit> = super::load(&state, "waiting.json");
+        assert!(
+            waiting
+                .iter()
+                .all(|edit| matches!(edit.op, super::Op::Wake { .. })),
+            "only the wake waits to be seen kept: {waiting:?}"
+        );
     }
 }

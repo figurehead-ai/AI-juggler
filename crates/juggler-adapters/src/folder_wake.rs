@@ -77,10 +77,22 @@ mod tests {
         wake.watch(&BTreeSet::from([folder.clone()]));
         assert_eq!(wake.folders().len(), 1);
         std::fs::write(folder.join("s.jsonl"), b"{}\n").unwrap();
-        let paths = rx
-            .recv_timeout(std::time::Duration::from_secs(10))
-            .expect("a wake-up");
-        assert!(paths.iter().any(|path| path.ends_with("s.jsonl")));
+        // Events are hints: they may come in any order (one about the
+        // folder itself, made just before the watch, can come first), late,
+        // or not at all on a busy system. So the file is changed again
+        // every 2 s until a wake-up names it.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        let mut named = false;
+        while !named {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "no wake-up named the file"
+            );
+            match rx.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(paths) => named = paths.iter().any(|path| path.ends_with("s.jsonl")),
+                Err(_) => std::fs::write(folder.join("s.jsonl"), b"{}\n{}\n").unwrap(),
+            }
+        }
         wake.watch(&BTreeSet::new());
         assert!(wake.folders().is_empty());
     }
