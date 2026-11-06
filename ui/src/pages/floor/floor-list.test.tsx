@@ -17,7 +17,7 @@ const w = () => window as unknown as Record<string, unknown>;
 afterEach(() => {
   cleanup();
   forgetPaged();
-  for (const key of ["__AIJ_FLOOR_SETTINGS__", "__AIJ_FLOOR_PLACES__"]) delete w()[key];
+  for (const key of ["__AIJ_FLOOR_SETTINGS__", "__AIJ_FLOOR_PLACES__", "__AIJ_FLOOR_SAID__"]) delete w()[key];
 });
 
 const app = (id: string, name: string, sessions: FloorApp["sessions"], extra: Partial<FloorApp> = {}): FloorApp => ({
@@ -107,7 +107,7 @@ describe("the 0.4 review of the Floor list", () => {
   it("searches, and the Waiting on you chip leaves what waits (22)", async () => {
     const view = await shown(SNAPSHOT);
     const chip = view.getByTestId("floor-list-waiting");
-    expect(chip.textContent).toBe("Waiting on you1");
+    expect(chip.textContent).toBe("Waiting on you 1");
     fireEvent.change(view.getByTestId("floor-list-search"), { target: { value: "refund" } });
     await waitFor(() => expect(titles(view)).toEqual(["▸Working, Refund flow, project shop. Show on the Floor"]));
     // An App whose name matches keeps all its sessions.
@@ -130,6 +130,31 @@ describe("the 0.4 review of the Floor list", () => {
     const view = await shown(big);
     await waitFor(() => expect(view.getByTestId("floor-list-0-more")).toBeTruthy());
     expect(view.getAllByTestId("floor-list-row").length).toBeLessThan(60);
+  });
+});
+
+describe("AJ-E3517 the list carries the card's words", () => {
+  it("resting on a row reads what it asks (or did last) after a moment, and it goes a moment after leaving", async () => {
+    w().__AIJ_FLOOR_PLACES__ = PLACES;
+    w().__AIJ_FLOOR_SAID__ = { s1: { asks: "Should I also update the snapshot test?", step: null }, s2: { asks: null, step: "ran \"pnpm test\"" } };
+    const view = render(<FloorList />);
+    await waitFor(() => expect(view.getByTestId("floor-list-summary").textContent).not.toBe("Reading the office…"));
+    act(() => void window.dispatchEvent(new CustomEvent("aij:floor-changed", { detail: SNAPSHOT })));
+    const rowOf = (title: string) => view.getAllByTestId("floor-list-row").find((r) => r.textContent?.includes(title))!;
+    await waitFor(() => expect(rowOf("Checkout copy")).toBeTruthy());
+    const asks = rowOf("Checkout copy");
+    const bar = () => view.getByTestId("floor-list-row-said");
+    expect(bar().getAttribute("aria-live")).toBe("polite");
+    act(() => asks.focus());
+    expect(document.activeElement).toBe(asks);
+    expect(bar().textContent).toBe("");
+    await waitFor(() => expect(bar().textContent).toBe("Checkout copy · Asks: Should I also update the snapshot test?"));
+    const working = view.getAllByTestId("floor-list-row").find((row) => row.textContent?.includes("Refund flow"))!;
+    act(() => asks.blur());
+    fireEvent.pointerOver(working);
+    await waitFor(() => expect(bar().textContent).toBe('Refund flow · Last: ran "pnpm test"'));
+    fireEvent.pointerOut(working);
+    await waitFor(() => expect(bar().textContent).toBe(""));
   });
 });
 

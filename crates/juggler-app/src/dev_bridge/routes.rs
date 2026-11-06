@@ -253,6 +253,7 @@ read_routes! {
     "apps_list" => async_result features::apps::commands::apps_list(state; page: Option<crate::paging::PageRequest>);
     // AJ-E3505: the Floor's snapshot (reads only).
     "floor_snapshot" => async_result features::floor::commands::floor_snapshot(state);
+    "floor_said" => async_result features::floor::card::floor_said(state; key: String);
     "floor_settings" => async_result features::floor::controls::floor_settings(state);
     "floor_places" => async_result features::floor::controls::floor_places(state);
     "places_list" => async_result features::places::commands::places_list(state; page: Option<crate::paging::PageRequest>);

@@ -31,6 +31,59 @@ pub fn said(state: &Arc<AppState>, key: &str, floor_state: FloorState) -> Said {
         .map_or(Said::Nothing, |info| from_turns(&info.turns, floor_state))
 }
 
+/// What a session asks or did last, for the Floor list (AJ-E3517's
+/// gate: the list carries the card's words): read for one row when the
+/// list asks, as the card reads for one person; never kept.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct FloorSaid {
+    /// What it asks you (≤ 120 characters), when it asks.
+    pub asks: Option<String>,
+    /// What it did last (≤ 160 characters).
+    pub step: Option<String>,
+}
+
+impl From<Said> for FloorSaid {
+    fn from(said: Said) -> Self {
+        match said {
+            Said::Asks(q) => Self {
+                asks: Some(q),
+                step: None,
+            },
+            Said::Step(s) => Self {
+                asks: None,
+                step: Some(s),
+            },
+            Said::Nothing => Self::default(),
+        }
+    }
+}
+
+/// What the session with the rail's `key` asks or did last, in the state
+/// the Floor shows it in now (nothing for a key it doesn't show).
+///
+/// # Errors
+///
+/// Storage errors; a poisoned lock.
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)] // Tauri passes State by value
+pub async fn floor_said(
+    state: tauri::State<'_, Arc<AppState>>,
+    key: String,
+) -> crate::error::AppResult<FloorSaid> {
+    crate::ipc::blocking(state.inner(), "what a session asks", move |state| {
+        let snapshot = super::current(state)?;
+        let floor_state = snapshot
+            .apps
+            .iter()
+            .flat_map(|app| &app.sessions)
+            .find(|s| s.key == key)
+            .map(|s| s.state);
+        Ok(floor_state.map_or_else(FloorSaid::default, |fs| said(state, &key, fs).into()))
+    })
+    .await
+}
+
 /// The conversation behind a rail key: another app's (`c:account/id`), or
 /// the one AI Juggler's own session `s:id` runs.
 fn conversation_of(state: &Arc<AppState>, key: &str) -> Option<(String, String)> {
@@ -98,7 +151,7 @@ fn cut(text: &str, max: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{QUESTION_MAX, STEP_MAX, from_turns};
+    use super::{FloorSaid, QUESTION_MAX, STEP_MAX, from_turns};
     use crate::features::conversations::feed::dto::{TurnBlockInfo, TurnInfo};
     use juggler_floor::overlay::Said;
     use juggler_floor::state::FloorState;
@@ -133,6 +186,25 @@ mod tests {
             model: None,
             redacted: 0,
         }
+    }
+
+    #[test]
+    fn a_said_becomes_the_list_s_words() {
+        assert_eq!(
+            FloorSaid::from(Said::Asks("Push?".into())),
+            FloorSaid {
+                asks: Some("Push?".into()),
+                step: None
+            }
+        );
+        assert_eq!(
+            FloorSaid::from(Said::Step("ran tests".into())),
+            FloorSaid {
+                asks: None,
+                step: Some("ran tests".into())
+            }
+        );
+        assert_eq!(FloorSaid::from(Said::Nothing), FloorSaid::default());
     }
 
     #[test]

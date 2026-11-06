@@ -572,6 +572,9 @@ macro_rules! app_commands {
             Read  features::apps::commands::apps_list,
             // AJ-E3505: the Floor's snapshot, for its list (reads only).
             Read  features::floor::commands::floor_snapshot,
+            // AJ-E3517: one Floor list row's question or latest step, read
+            // when the row is focused (the last-messages setting applies).
+            Read  features::floor::card::floor_said,
             // AJ-E3501: opens the Floor's window (or brings it forward).
             Write features::floor::commands::floor_open,
             // AJ-E3511, AJ-E3512 (D-78): Settings › The Floor and the Floor list.

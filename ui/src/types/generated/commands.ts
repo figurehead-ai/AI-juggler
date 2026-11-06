@@ -64,6 +64,7 @@ import type { FleetSwitchBackPlanInfo } from "./FleetSwitchBackPlanInfo";
 import type { FleetSwitchOutcomeInfo } from "./FleetSwitchOutcomeInfo";
 import type { FleetSwitchRequest } from "./FleetSwitchRequest";
 import type { FloorPlaceInfo } from "./FloorPlaceInfo";
+import type { FloorSaid } from "./FloorSaid";
 import type { FloorSettingsInfo } from "./FloorSettingsInfo";
 import type { FloorSnapshot } from "./FloorSnapshot";
 import type { FocusOutcomeInfo } from "./FocusOutcomeInfo";
@@ -523,6 +524,8 @@ export interface Commands {
   floor_recreate: { args: Record<string, never>; result: void };
   /** Write features::floor::controls::floor_reset_view */
   floor_reset_view: { args: Record<string, never>; result: void };
+  /** Read features::floor::card::floor_said */
+  floor_said: { args: { key: string }; result: FloorSaid };
   /** Write features::floor::controls::floor_setting_set */
   floor_setting_set: { args: { key: string; value: string }; result: FloorSettingsInfo };
   /** Read features::floor::controls::floor_settings */

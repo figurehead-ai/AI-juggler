@@ -6,7 +6,7 @@ Every control reached, in reading order, each named for what it does:
 
 1. Open the Floor ⌘⇧M
 2. Search the Floor list
-3. Waiting on you: 5
+3. Waiting on you 5
 4. Claude Code · Work Max
 5. Show on the Floor: Claude Code · Work Max
 6. Asks you, Checkout copy, project shop. Show on the Floor

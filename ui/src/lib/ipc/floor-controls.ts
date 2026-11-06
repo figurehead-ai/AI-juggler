@@ -2,21 +2,31 @@
  * AJ-E3511, AJ-E3512 (D-78): Settings › The Floor and the Floor list —
  * the Floor's settings (each a `floor.*` key; an open Floor reads a change
  * at once), Re-create the office, Reset the view, an App left off the
- * Floor or put back, each App's floor, and Show on the Floor. Without a
+ * Floor or put back, each App's floor, and Show on the Floor; and
+ * (AJ-E3517) what a Floor list row's session asks or did last. Without a
  * backend the preview keeps them in memory.
  */
 import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { FloorSettingsInfo } from "../../types/generated/FloorSettingsInfo";
 import type { FloorPlaceInfo } from "../../types/generated/FloorPlaceInfo";
+import type { FloorSaid } from "../../types/generated/FloorSaid";
 
-export type { FloorPlaceInfo, FloorSettingsInfo };
+export type { FloorPlaceInfo, FloorSaid, FloorSettingsInfo };
 type Places = FloorPlaceInfo[];
 
 const preview: { settings: FloorSettingsInfo } = {
   settings: { open_at_start: false, on_top: false, apps_per_floor: 10, motion: "system", detail: "pixel", decay: true, hidden: [] },
 };
-const seam = () => (window as unknown as { __AIJ_FLOOR_SETTINGS__?: FloorSettingsInfo; __AIJ_FLOOR_PLACES__?: Places });
+const seam = () => (window as unknown as { __AIJ_FLOOR_SETTINGS__?: FloorSettingsInfo; __AIJ_FLOOR_PLACES__?: Places; __AIJ_FLOOR_SAID__?: Record<string, FloorSaid> });
+
+/** AJ-E3517: what one session asks or did last, read for one Floor list
+ * row as the Floor's card reads for one person (the last-messages setting
+ * applies; nothing is kept). In the preview, the seam's words or none. */
+export async function floorSaid(key: string): Promise<FloorSaid> {
+  if (!hasLiveBackend()) return seam().__AIJ_FLOOR_SAID__?.[key] ?? { asks: null, step: null };
+  return call("floor_said", { key });
+}
 
 export async function floorSettings(): Promise<FloorSettingsInfo> {
   if (!hasLiveBackend()) return { ...(seam().__AIJ_FLOOR_SETTINGS__ ?? preview.settings) };

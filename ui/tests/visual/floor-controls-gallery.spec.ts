@@ -21,6 +21,7 @@ const PLACES = [
   { app_id: "cli:opencode-lab", floor: 1, order: 3 },
   { app_id: "cli:old", floor: 1, order: 4 },
 ];
+const SAID = { "s:p2": { asks: "Should I keep the old wording on the checkout button, or use the new one from the design file?", step: null } };
 const SETTINGS = { open_at_start: false, on_top: false, apps_per_floor: 8, motion: "system", decay: true, hidden: ["cli:old"] };
 
 for (const theme of THEMES) {
@@ -49,11 +50,16 @@ for (const theme of THEMES) {
     });
 
     test(`The Floor list — ${where}`, at(size) === "1280x800" ? gate("99-floor-list") : {}, async ({ page }) => {
-      await open(page, theme, size, { __AIJ_FLOOR_PLACES__: PLACES });
+      await open(page, theme, size, { __AIJ_FLOOR_PLACES__: PLACES, __AIJ_FLOOR_SAID__: SAID });
       await page.getByTestId("floor-menu-button").click();
       await page.getByTestId("floor-menu-list").click();
       await expect(page.getByTestId("floor-list-floor")).toHaveCount(2);
       await shot(page, LIST, `list-${where}`);
+      // AJ-E3517: resting on a row shows what it asks, at the list's foot.
+      await page.getByTestId("floor-list-row").filter({ hasText: "Checkout copy" }).hover();
+      await expect(page.getByTestId("floor-list-row-said")).toHaveText(/Asks: /);
+      await shot(page, LIST, `said-${where}`);
+      await page.mouse.move(0, 0);
       // Keyboard: Tab goes from Open the Floor to the list's search.
       await page.getByRole("button", { name: "Open the Floor ⌘⇧M" }).focus();
       await page.keyboard.press("Tab");
