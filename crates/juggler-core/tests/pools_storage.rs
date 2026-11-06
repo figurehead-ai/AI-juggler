@@ -613,3 +613,50 @@ fn not_a_member_or_no_pool_is_a_deny_and_still_audited() {
     );
     assert_eq!(access.audit(10).unwrap().len(), 2);
 }
+
+/// AJ-E3003 R1: "these projects" of two or more (and "no project" among
+/// them) is stored and read back whole, by `get` and by `list`, on create
+/// and on a later change; the pool's single `project` stays empty.
+#[test]
+fn a_scope_of_several_projects_is_stored_and_read_back() {
+    let storage = Storage::open_in_memory().unwrap();
+    let pools = storage.pools();
+    let (web, api, docs) = (
+        ProjectId::new("web"),
+        ProjectId::new("api"),
+        ProjectId::new("docs"),
+    );
+    let two = Scope::These([Some(web.clone()), Some(api.clone())].into());
+    let made = pools.create_scoped("Checkout", &two).unwrap();
+    assert_eq!(made.scope, two);
+    assert_eq!(made.project, None, "two projects name no single one");
+
+    let read = pools.get(&made.id).unwrap();
+    assert_eq!(read.scope, two);
+    assert_eq!(read.project, None);
+    assert!(read.scope.holds(Some(&web)) && read.scope.holds(Some(&api)));
+    assert!(!read.scope.holds(Some(&docs)) && !read.scope.holds(None));
+
+    // A change to three, "no project" among them, replaces the rows.
+    let three = Scope::These([Some(api.clone()), Some(docs.clone()), None].into());
+    pools.set_scope(&made.id, &three).unwrap();
+    let read = pools.get(&made.id).unwrap();
+    assert_eq!(read.scope, three);
+    assert!(!read.scope.holds(Some(&web)));
+    assert!(read.scope.holds(None));
+    let listed = pools
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|pool| pool.id == made.id)
+        .unwrap();
+    assert_eq!(listed.scope, three);
+
+    // Down to one names it as the pool's project; Every clears the rows.
+    pools.set_scope(&made.id, &Scope::one(Some(&docs))).unwrap();
+    assert_eq!(pools.get(&made.id).unwrap().project, Some(docs.clone()));
+    pools.set_scope(&made.id, &Scope::Every).unwrap();
+    let read = pools.get(&made.id).unwrap();
+    assert_eq!(read.scope, Scope::Every);
+    assert_eq!(read.project, None);
+}

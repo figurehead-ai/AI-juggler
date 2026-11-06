@@ -89,7 +89,7 @@
 
 ## Step 3 — the model
 
-### AJ-E3003 The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | Status: DONE (2026-11-04: schema v45, `crates/juggler-core/tests/pools_v45.rs`) | Priority P0 | Effort L | Depends: AJ-E3202, AJ-E3002
+### AJ-E3003 The pool model stored: scope, member kinds, several pools, levels per member, pair rules, sealed, and today's pools moved | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; built 2026-11-04: schema v45, `crates/juggler-core/tests/pools_v45.rs`) | Priority P0 | Effort L | Depends: AJ-E3202, AJ-E3002
 **Goal**: Store everything D-62 decisions 8–16 need, additively, and move 0.3's pools with nothing lost.
 **User story**: As someone upgrading from 0.3, every pool, member, message, task and canvas position I had is still there, and my pools with no project now say "Every project".
 **Requirements**:
