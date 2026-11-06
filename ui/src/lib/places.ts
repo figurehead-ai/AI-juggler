@@ -4,31 +4,38 @@
  * once, again whenever one changes.
  */
 import { useEffect, useState } from "react";
+import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./shared-read";
 import { onPlacesChanged, placesFind, placesList, type KnownPlaceInfo } from "./ipc/places";
 import { learnPlaces } from "./marks";
 
+/** The places remembered, one read for every screen that shows them
+ * (walk A4: seven hooks each read them, ~20 reads a window's first
+ * seconds). Kept, and read again when one changes. */
+const PLACES: SharedRead<KnownPlaceInfo[]> = sharedRead(async () => {
+  try {
+    const rows = await placesList();
+    learnPlaces(rows); // AJ-E3206: each desktop App's stored colour
+    return rows;
+  } catch {
+    return PLACES.peek() ?? [];
+  }
+});
+let listening = false;
+function listen(): void {
+  if (listening) return;
+  listening = true;
+  onPlacesChanged(() => void PLACES.refresh());
+  whenForgotten(() => (listening = false));
+}
+
 /** The places remembered (`null` until read). */
 export function useKnownPlaces(): KnownPlaceInfo[] | null {
-  const [places, setPlaces] = useState<KnownPlaceInfo[] | null>(null);
-  useEffect(() => {
-    let live = true;
-    const load = () =>
-      void placesList().then(
-        (rows) => {
-          learnPlaces(rows); // AJ-E3206: each desktop App's stored colour
-          if (live) setPlaces(rows);
-        },
-        () => live && setPlaces((was) => was ?? []),
-      );
-    load();
-    const stop = onPlacesChanged(load);
-    return () => {
-      live = false;
-      stop();
-    };
-  }, []);
-  return places;
+  useEffect(listen, []);
+  return useSharedRead(PLACES, { maxAgeMs: FRESH_MS }) ?? null;
 }
+
+/** A read this young is shown as it is (screens mounting together). */
+const FRESH_MS = 5_000;
 
 /** The app an ended session was last open in, when one is remembered
  * (`null` while it's open, or none is). */

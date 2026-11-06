@@ -10,7 +10,8 @@
  * Each App knows its rail key, so its page lists the very sessions the
  * rail puts under it (lib/rail-apps.ts decides that, once).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./shared-read";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import { appName, cliAppId, cliAppKey, desktopProfile } from "./app-name";
 import { appOfTool } from "./app-of";
@@ -127,24 +128,27 @@ export function appIdOfRailKey(railKey: string, cliFolder: string | null, places
   return places?.find((place) => knownKey(place) === railKey)?.id ?? null;
 }
 
-/** The stored Apps (`null` until read), again whenever one is renamed. */
+/** The stored Apps, one read for every screen (walk A4), again whenever
+ * one is renamed. */
+const STORED_APPS: SharedRead<StoredAppInfo[]> = sharedRead(async () => {
+  try {
+    return await appsList();
+  } catch {
+    return STORED_APPS.peek() ?? [];
+  }
+});
+let appsListening = false;
+function listenApps(): void {
+  if (appsListening) return;
+  appsListening = true;
+  window.addEventListener(APPS_CHANGED, () => void STORED_APPS.refresh());
+  whenForgotten(() => (appsListening = false));
+}
+
+/** The stored Apps (`null` until read). */
 function useStoredApps(): StoredAppInfo[] | null {
-  const [rows, setRows] = useState<StoredAppInfo[] | null>(null);
-  useEffect(() => {
-    let live = true;
-    const load = () =>
-      void appsList().then(
-        (next) => live && setRows(next),
-        () => live && setRows((was) => was ?? []),
-      );
-    load();
-    window.addEventListener(APPS_CHANGED, load);
-    return () => {
-      live = false;
-      window.removeEventListener(APPS_CHANGED, load);
-    };
-  }, []);
-  return rows;
+  useEffect(listenApps, []);
+  return useSharedRead(STORED_APPS, { maxAgeMs: 5_000 }) ?? null;
 }
 
 /** Every App, joined (`null` until the places are read). */
