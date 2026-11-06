@@ -286,7 +286,7 @@ export function History({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by title, project, branch, date or what was said"
             aria-label="Search history"
-            className="h-9 min-w-[16rem] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
+            className="h-9 min-w-[min(24rem,100%)] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
             data-testid="history-search"
           />
           {!fixedProject && <FilterChip label="Project" value={projectId} options={projects.map((project) => ({ id: project.id, label: project.name }))} onChange={setProjectId} testId="history-filter-project" />}

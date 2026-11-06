@@ -25,8 +25,7 @@ use std::sync::Arc;
 use juggler_app::state::{AppState, default_registry};
 use juggler_core::agent_access::AccessLevel;
 use juggler_core::model::{
-    InstanceKind, InstanceRecord, MachineId, ProfileId, ProjectId, SessionId, SessionStatus,
-    Timestamp,
+    InstanceKind, InstanceRecord, ProfileId, ProjectId, SessionId, SessionStatus, Timestamp,
 };
 use juggler_core::storage::{MemberLevel, MemberRef, PoolRole, Scope};
 use serde_json::Value;
@@ -138,6 +137,9 @@ fn seed_scenario() {
     let home = lab_path("AIJ_QA_HOME");
     let seed: Value = serde_json::from_str(&std::fs::read_to_string(&seed_path).unwrap()).unwrap();
     let state = Arc::new(AppState::init_with_registry(data, default_registry()).unwrap());
+    // This Mac's own id, as the app's own launches record it (walk K2: a
+    // hard-coded "this-mac" made the lab's launches look like a second Mac).
+    let machine = juggler_app::commands::local_machine_id(&state);
     let mut notes: Vec<String> = Vec::new();
 
     // Projects: a folder each under the lab HOME.
@@ -356,7 +358,7 @@ fn seed_scenario() {
                 id: SessionId::new(id),
                 conversation: None,
                 profile: ProfileId::new(recipe.as_str()),
-                machine: MachineId::new("this-mac"),
+                machine: machine.clone(),
                 // A session AI Juggler started in a desktop App runs there.
                 kind: if desktop_apps.contains_key(session["app"].as_str().unwrap()) {
                     InstanceKind::Desktop
@@ -412,7 +414,7 @@ fn seed_scenario() {
                     id: SessionId::new(format!("ended-{i:04}")),
                     conversation: None,
                     profile: ProfileId::new(recipe.as_str()),
-                    machine: MachineId::new("this-mac"),
+                    machine: machine.clone(),
                     kind: InstanceKind::Terminal,
                     project: name.and_then(|name| projects.get(name)).cloned(),
                     cwd: name.map_or_else(|| home.clone(), |name| home.join("repos").join(name)),

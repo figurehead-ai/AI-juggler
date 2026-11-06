@@ -139,13 +139,15 @@ export function RelatedList(props: RelatedListProps): JSX.Element {
     <div className="flex w-full max-w-content flex-col gap-3" data-testid="related-list" data-anchor={entity.kind}>
       {findable && (
         <div className="flex flex-wrap items-center gap-2" data-testid="related-filters">
+          {/* Wide enough for its whole hint (373 px): the chips wrap first
+              (walk K2: "…date or w" at 1024 with a filter set). */}
           <input
             type="search"
             value={words}
             onChange={(event) => setWords(event.target.value)}
             placeholder="Search by title, project, branch, date or what was said"
             aria-label={props.searchLabel}
-            className="h-9 min-w-[14rem] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
+            className="h-9 min-w-[min(24rem,100%)] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
             data-testid="related-search"
           />
           <FilterChip

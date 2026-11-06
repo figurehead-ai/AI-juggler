@@ -18,6 +18,7 @@ import { conversationTitle, outside, useConversations } from "../lib/conversatio
 import { onConversationsChanged } from "../lib/ipc/conversations";
 import { BAND_WORDS, bandOf } from "../components/related/order";
 import { useHeld } from "../components/related/useHeld";
+import { NewRowsBar } from "../components/related/NewRowsBar";
 import { useActionHost } from "../components/ItemMenu";
 import { ListRow } from "./SessionRow";
 import { ago, agoWords, sessionWhen } from "../lib/time-words";
@@ -321,17 +322,7 @@ export function PagedSessions({
   return (
     <div className="flex flex-col gap-2" data-testid="page-sessions">
       {!counted && !read.loading && list.items.length > 0 && <ListCount total={total} open={open} />}
-      {ordered && held.waiting && (
-        <button
-          type="button"
-          onClick={held.showAll}
-          className="sticky top-1 z-20 self-center rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-meta font-medium text-accent-hi shadow-card outline-none hover:bg-accent/15 focus-visible:ring-2 focus-visible:ring-accent/60"
-          data-testid="related-waiting"
-        >
-          <span aria-hidden="true">↑ </span>
-          {held.waiting}
-        </button>
-      )}
+      {ordered && <NewRowsBar waiting={held.waiting} onShow={held.showAll} />}
       <PagedList
         list={list}
         keyOf={rowKey}
