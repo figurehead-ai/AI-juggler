@@ -12,7 +12,9 @@
 //!   `logs/debug.log` only while debug mode is on.
 //! - Bounded: past [`MAX_BYTES`] the file becomes `debug.1.log` (the older
 //!   one dropped), so at most twice that is kept. Debug mode turns itself
-//!   off [`DAYS_ON`] days after it was turned on. Every line is scrubbed
+//!   off [`DAYS_ON`] days after it was turned on, and says so in a notice
+//!   ([`stop_if_due`]: at start, and on the backend's tick while it runs);
+//!   past its days nothing more is written. Every line is scrubbed
 //!   (home folder, user name, paths outside home, links, keys) before it's
 //!   kept, the file is the owner's alone, and it's scrubbed again (names)
 //!   whenever it's shown.
@@ -50,6 +52,10 @@ static ON: AtomicBool = AtomicBool::new(false);
 static UNTIL_MS: AtomicI64 = AtomicI64::new(0);
 static RECENT: Mutex<VecDeque<Line>> = Mutex::new(VecDeque::new());
 static WRITE: Mutex<()> = Mutex::new(());
+/// Tests that touch debug mode's process-wide state (its flag, the lines
+/// kept in memory) take turns.
+#[cfg(test)]
+pub(super) static TEST_SERIAL: Mutex<()> = Mutex::new(());
 
 /// One step, as kept.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -129,7 +135,18 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for Layer {
     }
 }
 
+/// Whether a step at `at_ms` goes to the file: debug mode on, within its
+/// days.
+fn writing(at_ms: i64) -> bool {
+    ON.load(Ordering::Relaxed) && at_ms <= UNTIL_MS.load(Ordering::Relaxed)
+}
+
 fn keep(at_ms: i64, fields: &Fields) {
+    keep_at(PATH.get().map(PathBuf::as_path), at_ms, fields);
+}
+
+/// [`keep`], writing to `path` (the log's, once installed).
+fn keep_at(path: Option<&Path>, at_ms: i64, fields: &Fields) {
     // Scrubbed before it's kept: a tool's own error names its paths (the
     // home folder as `~`, a path outside it as `[path]`), keys stripped.
     let scrub = super::Scrub::here();
@@ -152,12 +169,12 @@ fn keep(at_ms: i64, fields: &Fields) {
         flow: fields.flow.clone(),
         text,
     };
-    if ON.load(Ordering::Relaxed) {
-        if at_ms > UNTIL_MS.load(Ordering::Relaxed) {
-            ON.store(false, Ordering::Relaxed);
-        } else if let Some(path) = PATH.get() {
-            let _ = append(path, &line.text);
-        }
+    // Off (or past its days: the tick turns it off and says so), nothing
+    // is written.
+    if writing(at_ms)
+        && let Some(path) = path
+    {
+        let _ = append(path, &line.text);
     }
     if let Ok(mut recent) = RECENT.lock() {
         if recent.len() >= RECENT_LINES {
@@ -206,12 +223,40 @@ pub fn install(data_dir: &Path, storage: &Storage) {
             .with(super::app_log::Layer.with_filter(super::app_log::filter())),
     );
     let now = juggler_core::model::Timestamp::now().millis();
-    match since(storage) {
-        Some(since) if now < since + DAYS_ON * DAY_MS => arm(since),
-        Some(_) => {
-            let _ = storage.app_settings().set(SINCE_KEY, "");
-        }
-        None => {}
+    if stop_if_due(storage, now).is_none()
+        && let Some(since) = since(storage)
+    {
+        arm(since);
+    }
+}
+
+/// Turns debug mode off once its [`DAYS_ON`] days are up, and says so in
+/// a notice (once per time it was on). `Some(since)`: it stopped now.
+pub fn stop_if_due(storage: &Storage, now: i64) -> Option<i64> {
+    let since = since(storage)?;
+    if now < since + DAYS_ON * DAY_MS {
+        return None;
+    }
+    let _ = storage.app_settings().set(SINCE_KEY, "");
+    ON.store(false, Ordering::Relaxed);
+    crate::features::notifications::sources::debug_mode_stopped(storage, since, now);
+    Some(since)
+}
+
+/// The backend's tick: debug mode on past its days stops, and the views
+/// hear of its notice. Costs two atomic reads otherwise.
+pub fn tick(state: &std::sync::Arc<crate::state::AppState>) {
+    let now = juggler_core::model::Timestamp::now().millis();
+    if !ON.load(Ordering::Relaxed) || now <= UNTIL_MS.load(Ordering::Relaxed) {
+        return;
+    }
+    let stopped = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| stop_if_due(&storage, now));
+    if stopped.is_some() {
+        crate::features::notifications::changed(state);
     }
 }
 
@@ -306,6 +351,21 @@ pub fn text(data_dir: &Path, max: usize) -> String {
     }
 }
 
+/// Keeps one step of `flow` at `at_ms`, as the layer does (the tests of
+/// what reads the steps).
+#[cfg(test)]
+pub(super) fn keep_step(at_ms: i64, flow: &str, step: &str) {
+    keep_at(
+        None,
+        at_ms,
+        &Fields {
+            flow: flow.to_owned(),
+            step: step.to_owned(),
+            rest: String::new(),
+        },
+    );
+}
+
 /// The last run of `flow` kept in memory, if it ended within `within_ms`:
 /// its lines from its first step (the step named `start`) on.
 #[must_use]
@@ -341,6 +401,9 @@ mod tests {
 
     #[test]
     fn the_last_flow_starts_at_its_start_and_ages_out() {
+        let _serial = TEST_SERIAL
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         keep(1_000, &fields("switch", "start", " pair=claude>codex"));
         keep(1_100, &fields("switch", "stage", " bytes=10"));
         keep(1_150, &fields("launch", "start", ""));
@@ -381,6 +444,96 @@ mod tests {
         );
         clear(dir.path()).unwrap();
         assert!(!path.exists() && !older_of(&path).exists());
+    }
+
+    fn lines_in(path: &Path) -> usize {
+        std::fs::read_to_string(path).map_or(0, |text| text.lines().count())
+    }
+
+    /// R4: off, nothing is written; turned off, the log stays until it's
+    /// cleared.
+    #[test]
+    fn off_writes_nothing_and_turning_it_off_keeps_the_log() {
+        let _serial = TEST_SERIAL
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(RELATIVE);
+        let storage = Storage::open_in_memory().unwrap();
+        let now = || juggler_core::model::Timestamp::now().millis();
+        set(&storage, false).unwrap();
+        keep_at(Some(&path), now(), &fields("switch", "start", " files=3"));
+        assert!(!path.exists(), "off: nothing is written");
+        assert_eq!(info(dir.path()).lines, 0);
+
+        set(&storage, true).unwrap();
+        keep_at(Some(&path), now(), &fields("switch", "start", " files=3"));
+        keep_at(Some(&path), now(), &fields("switch", "done", " ms=40"));
+        assert_eq!(lines_in(&path), 2, "on: each step is written");
+
+        set(&storage, false).unwrap();
+        assert!(!info(dir.path()).on);
+        keep_at(Some(&path), now(), &fields("launch", "spawned", " args=2"));
+        assert_eq!(lines_in(&path), 2, "off again: nothing more is written");
+        assert_eq!(info(dir.path()).lines, 2, "the log stays");
+        assert_eq!(since(&storage), None);
+        clear(dir.path()).unwrap();
+        assert!(!path.exists(), "until it's cleared");
+        assert_eq!(info(dir.path()).lines, 0);
+    }
+
+    /// R3: seven days after it was turned on, debug mode writes nothing
+    /// more and stops by itself, once, with a notice; within its days it
+    /// stays on.
+    #[test]
+    fn it_stops_itself_after_seven_days_and_says_so() {
+        use crate::features::notifications::centre;
+        let _serial = TEST_SERIAL
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(RELATIVE);
+        let storage = Storage::open_in_memory().unwrap();
+        let now = juggler_core::model::Timestamp::now().millis();
+
+        set(&storage, true).unwrap();
+        let since = super::since(&storage).unwrap();
+        assert_eq!(
+            stop_if_due(&storage, since + DAYS_ON * DAY_MS - 1),
+            None,
+            "within its seven days it stays on"
+        );
+        assert!(info(dir.path()).on);
+        assert_eq!(info(dir.path()).until_ms, Some(since + DAYS_ON * DAY_MS));
+
+        // Turned on eight days ago: past its days, nothing is written.
+        let long_ago = now - 8 * DAY_MS;
+        storage
+            .app_settings()
+            .set(SINCE_KEY, &long_ago.to_string())
+            .unwrap();
+        arm(long_ago);
+        keep_at(Some(&path), now, &fields("switch", "start", ""));
+        assert!(!path.exists(), "past its days nothing is written");
+        assert!(!info(dir.path()).on);
+
+        assert_eq!(stop_if_due(&storage, now), Some(long_ago));
+        assert_eq!(super::since(&storage), None, "off in Settings");
+        assert!(!ON.load(Ordering::Relaxed));
+        assert_eq!(stop_if_due(&storage, now + 1), None, "told once");
+        let earlier = centre::page(
+            &storage,
+            "earlier",
+            &crate::paging::PageRequest::first(10),
+            now,
+        )
+        .unwrap()
+        .items;
+        assert_eq!(earlier.len(), 1, "{earlier:?}");
+        assert_eq!(earlier[0].title, "Debug mode turned itself off");
+        assert!(earlier[0].detail.starts_with("It was on for 7 days."));
+        assert_eq!(earlier[0].target.page.as_deref(), Some("diagnostics"));
+        assert!(!earlier[0].needs, "it informs; nothing needs the user");
     }
 
     #[test]

@@ -1327,6 +1327,8 @@ fn spawn_read_model_ticks(
         // D-49: Needs you, worked out here (no window needed); a snooze
         // whose time came brings its need back into every count.
         features::notifications::needs::refresh(&resource_state);
+        // AJ-E2912: debug mode past its seven days stops, and says so.
+        features::app::diagnostics::debug_log::tick(&resource_state);
     });
     // The 2 s per-tree sampling tick (AJ-E410): collector rings/rows,
     // orphan grace poll, and the opted-in Tier-1 auto-cleanup sweep.

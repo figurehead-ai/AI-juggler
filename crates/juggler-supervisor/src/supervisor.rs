@@ -1495,6 +1495,7 @@ fn emit_exit(
         .map(|d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
         .unwrap_or_default();
     exit_at.store(now, Ordering::Release);
+    kind.log_exit();
     if let Some(journal) = journal {
         let _ = journal.record_exited(session, pid, kind);
     }
@@ -1502,15 +1503,7 @@ fn emit_exit(
     // failure degrades health on the next supervisor touch (the flag
     // lives on the shared supervisor, mirrored here best-effort).
     if let Some(ledger) = ledger {
-        let exit_kind = match kind {
-            ExitKind::Code(code) => format!("code:{code}"),
-            ExitKind::Signaled(signal) => {
-                format!(
-                    "signal:{}",
-                    signal.map_or_else(|| "unknown".into(), |s| s.to_string())
-                )
-            }
-        };
+        let exit_kind = kind.ledger_words();
         if ledger
             .mark_exited(pid, &ledger.boot_id(), &exit_kind, true)
             .is_err()

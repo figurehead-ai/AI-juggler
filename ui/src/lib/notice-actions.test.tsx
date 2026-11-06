@@ -76,4 +76,13 @@ describe("AJ-E3104 each notice opens its page on its tab", () => {
     expect(openAccountById).toHaveBeenCalledWith("acc-1");
     expect(rememberedTabId("app")).toBe("overview");
   });
+
+  it("AJ-E2912: debug mode stopping by itself opens Settings at Diagnostics, where its log is", () => {
+    const opened = vi.fn();
+    window.addEventListener("aij:open-settings", opened);
+    actions({}).primary(notice("debug", "open", { page: "diagnostics" }));
+    window.removeEventListener("aij:open-settings", opened);
+    expect(opened).toHaveBeenCalledTimes(1);
+    expect((opened.mock.calls[0]![0] as CustomEvent<{ section: string }>).detail.section).toBe("diagnostics");
+  });
 });

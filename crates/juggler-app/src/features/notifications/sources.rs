@@ -1072,6 +1072,31 @@ pub fn update(state: &Arc<AppState>, status: &crate::updates::UpdateStatusInfo) 
     }
 }
 
+/// AJ-E2912: debug mode turned itself off after its days (it was turned
+/// on at `since`): told once, under Earlier; it opens Diagnostics, where
+/// the log stays until it's cleared.
+pub fn debug_mode_stopped(storage: &Storage, since: i64, now: i64) {
+    use crate::features::app::diagnostics::debug_log::DAYS_ON;
+    let notice = NewNotice {
+        key: format!("debug-off:{since}"),
+        kind: "debug".to_owned(),
+        title: "Debug mode turned itself off".to_owned(),
+        detail: format!(
+            "It was on for {DAYS_ON} days. Its log stays until you clear it in Settings › Advanced."
+        ),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("diagnostics".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    };
+    let _ = centre::record(storage, &notice, now);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

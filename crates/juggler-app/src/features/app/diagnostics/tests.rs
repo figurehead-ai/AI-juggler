@@ -245,3 +245,63 @@ fn a_long_log_comes_as_its_newest_whole_lines() {
     assert!(kept.starts_with("line "), "{}", &kept[..20]);
     assert!(kept.ends_with("line 039999\n"));
 }
+
+/// AJ-E2912 R3: while debug mode's log has lines, Export diagnostics
+/// carries it (both files), scrubbed like every log.
+#[test]
+fn export_carries_the_debug_log_while_it_has_lines() {
+    let _serial = SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (dir, state) = seeded();
+    let home = home();
+    let write = |path: &str, text: String| {
+        let path = state.data_dir.join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+    };
+    write(
+        debug_log::OLDER,
+        "1 switch start mechanism=transplant\n".to_owned(),
+    );
+    write(
+        debug_log::RELATIVE,
+        format!("2 launch failed said=\"{home}/Dev/acme: not found\"\n3 launch exited code=1\n"),
+    );
+    let preview = preview_impl(&state).unwrap();
+    let shown = |name: &str| {
+        preview
+            .files
+            .iter()
+            .find(|file| file.name == name)
+            .unwrap_or_else(|| panic!("{name} not in {:?}", preview.files))
+            .text
+            .clone()
+    };
+    assert!(shown("logs/debug.1.log").contains("switch start"));
+    let debug = shown("logs/debug.log");
+    assert!(debug.contains("launch exited code=1"), "{debug}");
+    assert!(
+        debug.contains("~/Dev/acme") && !debug.contains(&home),
+        "{debug}"
+    );
+
+    let dest = dir.path().join("diagnostics.zip");
+    export_impl(&preview.id, &dest).unwrap();
+    let files = zip::read(&std::fs::read(&dest).unwrap());
+    let (_, data) = files
+        .iter()
+        .find(|(name, _)| name == "logs/debug.log")
+        .expect("the zip carries logs/debug.log");
+    assert_eq!(String::from_utf8_lossy(data), debug);
+
+    // Cleared, it no longer comes.
+    debug_log::clear(&state.data_dir).unwrap();
+    let after = preview_impl(&state).unwrap();
+    assert!(
+        after
+            .files
+            .iter()
+            .all(|file| !file.name.starts_with("logs/debug"))
+    );
+}

@@ -91,6 +91,8 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     }
     if (target.session_id) return host.openSessionById?.(target.session_id);
     if (target.page === "updates") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "updates" } }));
+    // AJ-E2912: debug mode stopped by itself: its log is in Diagnostics.
+    if (target.page === "diagnostics") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "diagnostics" } }));
     // 0.3.3: keep alive's notices open its switches.
     if (target.page === "desktop_apps") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } }));
     if (target.page && SCREENS[target.page]) return openScreen(SCREENS[target.page]!);
