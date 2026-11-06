@@ -95,5 +95,19 @@ export function useAccountsData({
     // Once, on opening: the lists' own changes come through the effects above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Walk A10: back in the window (a sign-in changed in a terminal), the
+  // sign-ins read again when older than half a minute, as on opening.
+  useEffect(() => {
+    const back = () => {
+      if (document.visibilityState === "hidden") return;
+      void loadSubscriptions(false).then(setSubscriptions, () => undefined);
+    };
+    window.addEventListener("focus", back);
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      window.removeEventListener("focus", back);
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, []);
   return { accounts, profiles, subscriptions, refresh };
 }

@@ -15,7 +15,7 @@ import { BurnDowns } from "../BurnDown";
 import { ProfileBadge } from "../ProfileBadge";
 import { cliAppId, cliAppName } from "../../lib/app-name";
 import { IconGauge } from "./controls";
-import { accountGroups, type AccountGroup } from "./accounts";
+import { accountGroups, runwayTitle, type AccountGroup } from "./accounts";
 import { RunwayPanel } from "./Runway";
 import { useMinute, useUsageHistory } from "./useUsage";
 
@@ -70,6 +70,7 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
           const measuredProfile = display && runwayOf(display).left !== null ? display.account : null;
           const first = accounts.find((account) => account.id === group.profiles[0]);
           const names = group.profiles.map((id) => appNames.get(id) ?? "An app");
+          const title = runwayTitle(group, subscriptions);
           return (
             <li key={group.key} className="@container sheen flex min-w-0 flex-col gap-3.5 rounded-card border border-hairline bg-surface p-card shadow-card" data-testid="usage-account">
               <div className="flex items-center gap-3">
@@ -77,10 +78,10 @@ export function RunwayCards({ accounts, className = "" }: { accounts: AccountInf
                 <span className="flex min-w-0 flex-1 flex-col">
                   {first ? (
                     <button type="button" onClick={() => (sub?.account_id ? openAccount(sub.account_id) : host.openAccount?.(first))} className="truncate text-left text-section text-ink outline-none hover:text-accent-hi focus-visible:ring-2 focus-visible:ring-accent/60">
-                      {group.label}
+                      {title}
                     </button>
                   ) : (
-                    <span className="truncate text-section text-ink">{group.label}</span>
+                    <span className="truncate text-section text-ink">{title}</span>
                   )}
                   <span className="truncate text-meta text-muted">{(sub && accountLine(sub)) ?? names.join(", ")}</span>
                 </span>

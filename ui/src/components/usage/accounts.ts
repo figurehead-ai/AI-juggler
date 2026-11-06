@@ -27,6 +27,15 @@ export function accountGroups(subscriptions: SubscriptionInfo[] | null, labels: 
   return out;
 }
 
+/** A Runway card's title: its Account's name; a folder that isn't signed
+ * in has none to name, so it says so (AJ-E3202 req. 3, walk A10), its App
+ * named under it. */
+export function runwayTitle(group: AccountGroup, subscriptions: SubscriptionInfo[] | null): string {
+  const folder = group.profiles[0];
+  const signedOut = group.key.startsWith("profile:") && (subscriptions ?? []).some((entry) => entry.state === "signed_out" && entry.profiles.some((profile) => profile.id === folder));
+  return signedOut ? "Not signed in" : group.label;
+}
+
 /** Profile series summed into their accounts, biggest first. */
 export function foldSeries(series: Series[], groups: Map<string, AccountGroup>): Series[] {
   const out = new Map<string, Series>();

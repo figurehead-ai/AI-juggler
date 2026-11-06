@@ -1,0 +1,7 @@
+[
+  { "step": "1-unreadable", "how": "Personal · personal's .claude.json cut short (not JSON) in the lab",
+    "seen": { "accounts": "\"Account unknown — Claude Code · Claude Code's state file couldn't be read\", holding Claude Code · Personal · personal; Personal: 2 apps (was 3)", "home_runway": "Account unknown, its reason, its App", "usage_runway": ["Work", "Personal", "Account unknown", "Not signed in"] },
+    "live": { "before_fix": "the open Accounts screen kept its last read until reopened", "after_fix": "made readable again: 32 s later, back in the window, Account unknown gone and Personal 3 apps" } },
+  { "step": "a1-open-item", "how": "Work Max's folder (a Claude app profile's) without its credentials file, its state file naming its account",
+    "seen": "still on Work (3 apps); its terminal App \"Not signed in · Sign in\" (true for the terminal); no sign-in need for it" }
+]
