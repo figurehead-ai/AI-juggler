@@ -126,7 +126,7 @@
 **Requirements**:
 1. Navigation keeps Home · Accounts · Usage · History (D-25); ⌘, still opens Settings.
 2. Without an account: your name and initial (the system's), "On this Mac · no Figurehead account", one quiet "Connect a Figurehead account (optional)" (D-18, D-46: no reminders). With one: the address shortened, the plan, Cloud backup (when last), My Macs (how many), and Disconnect Figurehead… last.
-3. Settings ⌘,, This Mac, Processes, My Macs (without an account), Privacy, Appearance (Light / Dark / Auto inline), Keyboard shortcuts ?, Help and guides, Report a problem…, About and updates (version · channel).
+3. Settings ⌘,, This Mac, Processes, Privacy, Appearance (Light / Dark / Auto inline), Keyboard shortcuts ?, Help and guides, Report a problem…, About and updates (version · channel). (Amended 2026-11-06: D-49: My Macs shows only with a Figurehead account, in the account group of requirement 2.)
 4. The menu rule (AJ-E2106): icons on every line, three groups, `role=menu`, the arrows, Esc.
 **Quality gates**: `src/components/notifications.test.tsx`; the gallery (user-menu, user-menu-account); the visual helpers reach the old More's screens through it.
 **Files to touch**: `ui/src/components/UserMenu.tsx`, `icons-menu.tsx`, `RowMenu.tsx`, `MainNav.tsx`, `lib/nav.ts`, `lib/ipc/app.ts`, `crates/juggler-app/src/features/app/user.rs`.
