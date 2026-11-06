@@ -1,6 +1,6 @@
 //! 0.4.1: a run under a replica `HOME` (the Floor harness, a lab, a test)
 //! never reaches a keychain. Before this, the harness's release app made
-//! macOS start SecurityAgent and offer to create or reset a keychain.
+//! macOS start `SecurityAgent` and offer to create or reset a keychain.
 //!
 //! The no-keychain choice is made once per process, so the test runs
 //! itself again as a child with `HOME` pointed at an empty replica and

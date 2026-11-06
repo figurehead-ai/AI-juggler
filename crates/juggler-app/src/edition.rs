@@ -204,9 +204,12 @@ mod tests {
     use super::*;
 
     /// The keychain must not be reached, even to ask, unless the run is
-    /// the user's own install under their own home.
+    /// the user's own install under their own home: this probe counts the
+    /// times it was asked.
+    static ASKED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     fn never() -> bool {
-        panic!("the keychain was reached")
+        ASKED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        true
     }
 
     #[test]
@@ -225,6 +228,11 @@ mod tests {
         assert_eq!(
             secrets_in_files(Edition::Dev, None, &never),
             Some("a Dev build")
+        );
+        assert_eq!(
+            ASKED.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the keychain was asked"
         );
         // The user's own install: the keychain, when one is there.
         assert_eq!(secrets_in_files(Edition::Main, None, &|| true), None);
