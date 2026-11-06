@@ -35,6 +35,14 @@ account = "Personal"
 profile = "Side"
 running = false
 
+# D-84: a third profile only on disk, for Find them to offer.
+[[setup.apps]]
+id = "app-pro"
+tool = "claude-desktop"
+account = "Work"
+profile = "Work Pro"
+added = false
+
 [[setup.apps]]
 id = "codex"
 tool = "codex"
@@ -61,8 +69,12 @@ state = "ended"
 
 [[steps]]
 do = "Open Accounts"
-expect = "Three Claude app profiles over two subscriptions, the one not running included"
+expect = "The two Claude app profiles added, over two subscriptions, the one not running (Side) included"
 
 [[steps]]
-do = "Look at how the closed one was found"
-expect = "Asked once, names only; a line on the Privacy page says it"
+do = "On Claude app · Work Max's page, Find them"
+expect = "Asked once, names only: Work Pro is offered (Add / Not now), nothing is added by itself (D-84); a line on the Privacy page says it"
+
+[[steps]]
+do = "Add Work Pro, then open Accounts"
+expect = "Three Claude app profiles, the closed ones included"

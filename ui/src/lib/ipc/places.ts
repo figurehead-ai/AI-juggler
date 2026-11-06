@@ -149,7 +149,11 @@ export async function placesProfilesSet(on: boolean): Promise<FindProfilesInfo> 
     const profiles = (host.profiles ??= { answer: "ask", folders: [] });
     profiles.answer = on ? "on" : "off";
     host.places = host.places.filter((place) => !place.found);
-    if (on) host.places.push(...(profiles.beside ?? []).map((place) => ({ ...place })));
+    // D-84, as the backend: a yes offers the profiles beside the one that
+    // ran (Add makes one an App); a no forgets the offers too.
+    const beside = new Set((profiles.beside ?? []).map((place) => place.id));
+    host.offers = (host.offers ?? []).filter((offer) => !beside.has(offer.id));
+    if (on) host.offers.push(...(profiles.beside ?? []).map((place) => ({ id: place.id, label: `Claude app · ${place.instance ?? place.label}` })));
     changedHere();
     return { answer: profiles.answer, folders: profiles.folders };
   }
@@ -188,6 +192,8 @@ export async function placesOfferAnswer(id: string, add: boolean): Promise<void>
   if (!hasLiveBackend()) {
     const now = preview();
     now.offers = (now.offers ?? []).filter((offer) => offer.id !== id);
+    const found = now.profiles?.beside?.find((place) => place.id === id);
+    if (add && found) now.places.push({ ...found });
   } else {
     await call("places_offer_answer", { id, add });
   }

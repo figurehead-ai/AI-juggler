@@ -402,6 +402,14 @@ fn session_in_lab(state: &AppState, id: &str, may_adopt: bool) -> Result<(), Str
 /// # Errors
 ///
 /// What the write would reach outside the lab.
+/// An offered profile's folder, from its id (`app:<host>:<folder>`).
+fn offer_folder(id: &str) -> Option<&str> {
+    id.strip_prefix("app:")
+        .and_then(|rest| rest.split_once(':'))
+        .map(|(_, folder)| folder)
+        .filter(|folder| !folder.is_empty())
+}
+
 fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<(), String> {
     let text = |args: &serde_json::Value, key: &str| -> Result<String, String> {
         args.get(key)
@@ -448,6 +456,17 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
         "messages_deliver" => session_in_lab(state, &text(args, "recipient")?, true),
         "stop_session" | "session_resume" | "pools_move" | "pools_set_role" => {
             session_in_lab(state, &text(args, "sessionId")?, true)
+        }
+        // D-84 (walk A6): an offered profile is added only from inside the
+        // lab: its id is `app:<host>:<its folder>`.
+        "places_offer_answer" => {
+            let id = text(args, "id")?;
+            let folder = offer_folder(&id).ok_or("not an offered profile")?;
+            if inside(Path::new(folder)) {
+                Ok(())
+            } else {
+                Err("the profile is outside the lab".to_owned())
+            }
         }
         "switch_execute" => {
             // Neither side may be condition 7's folder: a switch writes the
@@ -565,6 +584,11 @@ lab_routes! {
     // agent's turn with it, delivered at their click).
     "messages_send" => features::messages::commands::messages_send(state; input: crate::features::messages::dto::ComposeInput);
     "messages_deliver" => features::messages::commands::messages_deliver(state; message_id: String, recipient: String);
+    // D-84 (walk A6): Find them reads the names of the profile folders
+    // under the lab's HOME and keeps the choice in the lab's data; an
+    // offer is answered only for a folder inside the lab (guard).
+    "places_profiles_set" => features::places::commands::places_profiles_set(state; on: bool);
+    "places_offer_answer" => features::places::commands::places_offer_answer(state; id: String, add: bool);
 }
 
 #[cfg(test)]
@@ -574,6 +598,18 @@ mod tests {
 
     fn me() -> u32 {
         juggler_platform::user::current().unwrap().uid()
+    }
+
+    #[test]
+    fn an_offer_is_known_by_its_folder() {
+        assert_eq!(
+            offer_folder(
+                "app:claude-app:/tmp/aij-lab-a6/Library/Application Support/ClaudeProfiles/Work Pro"
+            ),
+            Some("/tmp/aij-lab-a6/Library/Application Support/ClaudeProfiles/Work Pro")
+        );
+        assert_eq!(offer_folder("app:claude-app:"), None);
+        assert_eq!(offer_folder("cli:folder"), None);
     }
 
     /// A fresh lab folder under /tmp, with a data folder inside, removed after.

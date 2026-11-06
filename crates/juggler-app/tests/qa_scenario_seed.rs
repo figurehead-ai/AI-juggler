@@ -183,6 +183,17 @@ fn seed_scenario() {
             // folder its Code sessions run on (its Account), and the
             // desktop App linking them, closed, with how Open starts it.
             let profile = app["profile"].as_str().unwrap_or(id);
+            // D-84: a profile only on disk (`added = false`), for Find
+            // them to offer; nothing of AI Juggler's knows it yet.
+            if app["added"].as_bool() == Some(false) {
+                std::fs::create_dir_all(
+                    home.join("Library/Application Support/ClaudeProfiles")
+                        .join(profile),
+                )
+                .unwrap();
+                notes.push(format!("{id}: only its folder, for Find them to offer"));
+                continue;
+            }
             let label = match app["account"].as_str().unwrap_or("") {
                 "" => profile.to_owned(),
                 account => format!("{account} · {profile}"),

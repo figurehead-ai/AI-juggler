@@ -23,8 +23,8 @@ import { IconMore } from "../../components/icons-canvas";
 import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
-import { onPlacesChanged, placesForget, placesKeepAlive, placesOfferAnswer, placesOffers, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
-import type { PlaceOfferInfo } from "../../types/generated/PlaceOfferInfo";
+import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
+import { OfferRow, usePlaceOffers } from "../../components/PlaceOffers";
 import { placeWords, useKnownPlaces } from "../../lib/places";
 import { useFindProfiles } from "../../lib/find-profiles";
 import { appName, desktopProfile } from "../../lib/app-name";
@@ -270,32 +270,15 @@ function FindProfilesRow(): JSX.Element | null {
   );
 }
 
-/** D-84: apps seen running that the user hasn't added: offered, never
- * added by themselves. Add makes one an App; Not now stops offering it. */
+/** D-84: apps seen running, or profiles found beside one that ran,
+ * that the user hasn't added (components/PlaceOffers). */
 function FoundOnThisMac(): JSX.Element | null {
-  const [offers, setOffers] = useState<PlaceOfferInfo[] | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  useEffect(() => {
-    const load = () => void placesOffers().then(setOffers, () => setOffers([]));
-    load();
-    return onPlacesChanged(load);
-  }, []);
+  const { offers, answer, note } = usePlaceOffers();
   if (!offers || offers.length === 0) return null;
-  const answer = (offer: PlaceOfferInfo, add: boolean) => {
-    setNote(null);
-    placesOfferAnswer(offer.id, add).then(
-      () => setOffers((now) => (now ?? []).filter((one) => one.id !== offer.id)),
-      (cause) => setNote(errorText(cause)),
-    );
-  };
   return (
-    <PaneSection id="found" title="Found on this computer" footer="Seen running, not added. AI Juggler adds an app only when you say so; until then it isn't in your apps, the rail or Home.">
+    <PaneSection id="found" title="Found on this computer" footer="Seen running, or found beside a profile that ran, and not added. AI Juggler adds an app only when you say so; until then it isn't in your apps, the rail or Home.">
       {offers.map((offer) => (
-        <li key={offer.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5" data-testid="desktop-offer">
-          <span className="min-w-0 flex-1 truncate text-sm text-ink">{offer.label}</span>
-          <Button size="sm" variant="secondary" onClick={() => answer(offer, true)} data-testid="desktop-offer-add">Add</Button>
-          <Button size="sm" variant="ghost" onClick={() => answer(offer, false)} data-testid="desktop-offer-not-now">Not now</Button>
-        </li>
+        <OfferRow key={offer.id} offer={offer} onAnswer={(add) => answer(offer, add)} />
       ))}
       {note && <RowNote>{note}</RowNote>}
     </PaneSection>
