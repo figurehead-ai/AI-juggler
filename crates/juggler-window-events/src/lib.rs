@@ -227,7 +227,8 @@ mod imp {
         static NEXT: Cell<u64> = const { Cell::new(1) };
     }
 
-    fn window_of(window: &impl HasWindowHandle) -> Result<Retained<NSWindow>, Error> {
+    /// The view the Floor draws into (its surface's layer is this view's).
+    fn view_of(window: &impl HasWindowHandle) -> Result<Retained<NSView>, Error> {
         MainThreadMarker::new().ok_or(Error::NotMainThread)?;
         let handle = window.window_handle().map_err(|_| Error::NoWindow)?;
         let RawWindowHandle::AppKit(appkit) = handle.as_raw() else {
@@ -236,17 +237,18 @@ mod imp {
         // SAFETY (1): `ns_view` is the window's own `NSView`, valid while
         // the window is; we're on the main thread (checked above), where
         // AppKit objects live, and retain it at once.
-        let view: Retained<NSView> =
-            unsafe { Retained::retain(appkit.ns_view.as_ptr().cast::<NSView>()) }
-                .ok_or(Error::NoWindow)?;
-        view.window().ok_or(Error::NoWindow)
+        unsafe { Retained::retain(appkit.ns_view.as_ptr().cast::<NSView>()) }.ok_or(Error::NoWindow)
+    }
+
+    fn window_of(window: &impl HasWindowHandle) -> Result<Retained<NSWindow>, Error> {
+        view_of(window)?.window().ok_or(Error::NoWindow)
     }
 
     /// One event of `window` (numbered `number`), as the Floor reads it.
     #[allow(clippy::cast_possible_truncation)] // points and deltas: small numbers
     fn read(
         e: &NSEvent,
-        window: &NSWindow,
+        view: &NSView,
         number: isize,
         last: &Cell<(f32, f32)>,
         dragged: &Cell<bool>,
@@ -254,9 +256,17 @@ mod imp {
         if e.windowNumber() != number {
             return None;
         }
-        let content_h = window.contentLayoutRect().size.height;
-        let at = e.locationInWindow();
-        let (x, y) = (at.x as f32, (content_h - at.y) as f32);
+        // In the drawing view's own points, from its top left: the frame is
+        // drawn into this view, so a click lands where it was drawn (0.4.1:
+        // the window's content-layout rect left clicks a title bar's height
+        // below the floor tabs they were aimed at).
+        let at = view.convertPoint_fromView(e.locationInWindow(), None);
+        let y = if view.isFlipped() {
+            at.y
+        } else {
+            view.bounds().size.height - at.y
+        };
+        let (x, y) = (at.x as f32, y as f32);
         let flags = e.modifierFlags();
         let t = e.r#type();
         Some(if t == NSEventType::ScrollWheel {
@@ -332,7 +342,8 @@ mod imp {
         window: &impl HasWindowHandle,
         on: Box<dyn Fn(Event)>,
     ) -> Result<Monitor, Error> {
-        let window = window_of(window)?;
+        let view = view_of(window)?;
+        let window = view.window().ok_or(Error::NoWindow)?;
         window.setAcceptsMouseMovedEvents(true);
         let number = window.windowNumber();
         let (last, dragged) = (Cell::new((0.0f32, 0.0f32)), Cell::new(false));
@@ -340,7 +351,7 @@ mod imp {
             // SAFETY (3): AppKit hands the monitor a live event, valid for
             // the block's duration; it is only read here.
             let e = unsafe { ev.as_ref() };
-            if let Some(event) = read(e, &window, number, &last, &dragged) {
+            if let Some(event) = read(e, &view, number, &last, &dragged) {
                 on(event);
             }
             ev.as_ptr()

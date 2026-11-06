@@ -355,9 +355,14 @@ at low resolution with a pixel-snapped camera):
 
 - **The hand cursor** over anything a click acts on: doors, toys, floors,
   the floor tabs (`Driver::hand`, the window's cursor through Tauri).
-- **The floor tabs didn't answer**: a press that wobbles a point or two
-  on a trackpad was read as a drag, which never clicks. Presses now have a
-  4-point slop before a drag starts (`juggler-window-events::past_slop`).
+- **The floor tabs didn't answer**: clicks were measured from the
+  window's content-layout rect, not the view the Floor draws into, so they
+  landed about a title bar's height below the tabs (found on the hand
+  walk). Events are now read in the drawing view's own coordinates. And a
+  press that wobbles a point or two on a trackpad was read as a drag; it
+  now has a 4-point slop (`juggler-window-events::past_slop`).
+- **One Window › The Floor made two windows**: the app menu's handler and
+  the tray's both get the press; a press seen twice now toggles once.
 - **One floor at a time**: zooming out on a floor stays on it, out to
   1.6× its framing; the building is a choice (its tab, B or 0), never a
   zoom accident.

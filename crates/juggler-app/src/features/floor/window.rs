@@ -122,6 +122,11 @@ pub fn input_of(event: Event) -> Input {
 pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
     juggler_window_events::supported()
         .map_err(|e| AppError::Refused(format!("The Floor isn't available here yet: {e}.")))?;
+    // Held until the window and its render thread exist: a second open
+    // meanwhile finds the window below instead of making another.
+    let _one = OPENING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(window) = app.get_window(LABEL) {
         let _ = window.unminimize();
         let _ = window.show();
@@ -228,8 +233,37 @@ pub(crate) fn send(app: &tauri::AppHandle, msg: super::render::Msg) {
     }
 }
 
+/// One press arrives twice: Tauri hands a menu event to the app menu's
+/// handler and to the tray's, and both carry the Floor's id. A second
+/// toggle this soon after the first is the same press (0.4.1: one
+/// Window › The Floor made two Floor windows, and a second toggle could
+/// send the user straight back to the main window).
+const SAME_PRESS: std::time::Duration = std::time::Duration::from_millis(400);
+
+/// Whether a toggle at `now` is a new press, given the last one's time;
+/// records it when it is.
+fn new_press(last: &std::sync::Mutex<Option<Instant>>, now: Instant) -> bool {
+    let Ok(mut last) = last.lock() else {
+        return true;
+    };
+    if last.is_some_and(|at| now.saturating_duration_since(at) < SAME_PRESS) {
+        return false;
+    }
+    *last = Some(now);
+    true
+}
+
+static LAST_TOGGLE: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+
+/// One Floor at a time: set while a window is being made, so a second
+/// open meanwhile waits for it rather than making another.
+static OPENING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// ⌘⇧M: from the Floor, back to the main window; otherwise the Floor.
 pub fn toggle(app: &tauri::AppHandle) {
+    if !new_press(&LAST_TOGGLE, Instant::now()) {
+        return;
+    }
     let floor_in_front = app
         .get_window(LABEL)
         .and_then(|w| w.is_focused().ok())
@@ -314,7 +348,10 @@ mod tests {
     use juggler_floor::driver::{Input, Key};
     use juggler_window_events::Event;
 
-    use super::input_of;
+    use std::sync::Mutex;
+    use std::time::{Duration, Instant};
+
+    use super::{SAME_PRESS, input_of, new_press};
 
     #[test]
     fn window_events_become_the_drivers_inputs() {
@@ -327,5 +364,15 @@ mod tests {
             Input::Key(Key::Tab)
         );
         assert_eq!(input_of(Event::Twist(5.0)), Input::Twist(5.0));
+    }
+
+    /// 0.4.1: the app menu and the tray both get one press; it toggles once.
+    #[test]
+    fn one_press_seen_twice_toggles_once() {
+        let last = Mutex::new(None);
+        let t = Instant::now();
+        assert!(new_press(&last, t));
+        assert!(!new_press(&last, t + Duration::from_millis(5)));
+        assert!(new_press(&last, t + SAME_PRESS + Duration::from_millis(1)));
     }
 }
