@@ -7,12 +7,13 @@
 //! from the UI atlas.
 
 use crate::camera::View;
-use crate::driver::Chip;
+use crate::driver::{CardButton, Chip};
 use crate::flags::{Band, FlagAsk, Labels, Need, Slot, place_flags};
 use crate::layout::{DEPTH, WALL_H};
 use crate::math::{M4, V3};
 use crate::models::rgba;
 use crate::scene::{Mark, Scene, floor_y};
+use crate::state::FloorState;
 use crate::tex::Icon;
 
 /// One textured rectangle: where (device pixels), what part of the UI
@@ -54,6 +55,44 @@ pub struct Inputs<'a> {
     pub band: Band,
     /// Which labels show.
     pub labels: Labels,
+    /// AJ-E3517: the hover card open now.
+    pub card: Option<&'a Card>,
+}
+
+/// AJ-E3517: a hover card: whose (their pick id), where it was asked for,
+/// what they ask or did last (read when the card opened; never kept),
+/// and whether the tool's own app can be brought forward to them.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Card {
+    /// The person's pick id.
+    pub id: u32,
+    /// Where it was asked for (the pointer), device pixels.
+    pub at: (f32, f32),
+    /// The pending question, else the latest step.
+    pub said: Said,
+    /// The tool's app can be brought forward (its adapter's Go to it),
+    /// and its name ("Claude app").
+    pub go_to: Option<String>,
+}
+
+/// What a card says they're on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Said {
+    /// What they ask you (≤ 120 characters).
+    Asks(String),
+    /// What they did last (≤ 160 characters).
+    Step(String),
+    /// Nothing to show (idle; or last messages off, or none on this Mac).
+    Nothing,
+}
+
+/// Where the card went and its buttons.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CardOut {
+    /// The card, `(x, y, w, h)`.
+    pub rect: [f32; 4],
+    /// Its buttons.
+    pub buttons: Vec<([f32; 4], CardButton)>,
 }
 
 /// How wide a desk (1.4 m) is on screen at the view's target, in points
@@ -115,6 +154,8 @@ pub struct Placed {
     pub band: Option<Band>,
     /// In the building view, each drawn flag's floor, beside `chips`.
     pub floors: Vec<usize>,
+    /// AJ-E3517: the hover card, when one is open.
+    pub card: Option<CardOut>,
     /// In the building view, each floor's outline on screen (slab to wall
     /// tops), by floor; a chip never touches another floor's.
     pub outlines: Vec<Poly>,
@@ -174,9 +215,9 @@ pub fn unit(scale: f32) -> f32 {
 
 /// Builds the overlay; the floor switcher's chips, for clicks.
 #[must_use]
-pub fn build(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>) {
-    let (q, chips, _) = build_placed(scene, i);
-    (q, chips)
+pub fn build(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Option<CardOut>) {
+    let (q, chips, placed) = build_placed(scene, i);
+    (q, chips, placed.card)
 }
 
 /// [`build`], also saying where the area chips went.
@@ -231,7 +272,12 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         [0.08, 0.07, 0.12, 0.55],
     );
     o.text(16.0 * u, h - 14.0 * hk, &hint, hk, [0.85, 0.83, 0.9, 0.85]);
-    if let (Some(p), Some((mx, my))) = (scene.pick_of(i.hover), i.mouse) {
+    if let Some(card) = i.card {
+        o.placed.card = draw_card(&mut o, card, (u, (w, h)));
+    }
+    if let (Some(p), Some((mx, my))) = (scene.pick_of(i.hover), i.mouse)
+        && i.card.is_none_or(|c| c.id != i.hover)
+    {
         let k = u - 1.0;
         let (l1, l2) = (p.label.to_uppercase(), p.detail.to_uppercase());
         let tw = o.text_w(&l1, k).max(o.text_w(&l2, k));
@@ -829,6 +875,223 @@ fn tower(o: &mut Out<'_>, u: f32, project: &impl Fn(V3) -> Option<(f32, f32)>) {
             tint: [1.0; 4],
         });
     }
+}
+
+/// Words wrapped to lines `width` wide as drawn at `k`, at most `rows`
+/// lines (the last ends in ".." when cut).
+fn wrap(o: &Out<'_>, text: &str, (width, k): (f32, f32), rows: usize) -> Vec<String> {
+    let fits = |s: &str| o.text_w(s, k) <= width;
+    let mut lines: Vec<String> = Vec::new();
+    let mut line = String::new();
+    for word in text.split_whitespace() {
+        let mut word = word.to_owned();
+        while !fits(&word) && word.chars().count() > 1 {
+            word.pop();
+        }
+        let joined = if line.is_empty() {
+            word.clone()
+        } else {
+            format!("{line} {word}")
+        };
+        if fits(&joined) {
+            line = joined;
+        } else {
+            lines.push(std::mem::replace(&mut line, word));
+        }
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+    if lines.len() > rows {
+        lines.truncate(rows);
+        if let Some(last) = lines.last_mut() {
+            while !fits(&format!("{last}..")) && !last.is_empty() {
+                last.pop();
+            }
+            *last = format!("{}..", last.trim_end());
+        }
+    }
+    lines
+}
+
+/// What a person's state says needs you (none while working or idle).
+const fn need_of_state(state: FloorState) -> Option<Need> {
+    match state {
+        FloorState::Crashed => Some(Need::Crashed),
+        FloorState::Asks => Some(Need::Asks),
+        FloorState::Stuck => Some(Need::Stuck),
+        FloorState::Done => Some(Need::Done),
+        FloorState::Limit => Some(Need::Out),
+        FloorState::Working | FloorState::Idle | FloorState::Ended => None,
+    }
+}
+
+/// AJ-E3517: the hover card, a speech bubble near its person: the state
+/// (badge and word), the session's title, what they ask or did last (or
+/// how long they've been idle), the App, project, subagents and tasks;
+/// then Open in AI Juggler and, where the tool's app can be brought
+/// forward, Open in it. Kept inside the window.
+#[allow(clippy::too_many_lines)] // one card, line by line: its bubble, words and buttons
+fn draw_card(o: &mut Out<'_>, card: &Card, (u, (w, h)): (f32, (f32, f32))) -> Option<CardOut> {
+    let (app, session) = o.scene.person(card.id)?;
+    let (app, session) = (app.clone(), session.clone());
+    let k = (u - 1.0).max(1.0);
+    let pad = 6.0 * k;
+    let buttons: Vec<(String, CardButton)> =
+        std::iter::once(("OPEN IN AI JUGGLER".to_owned(), CardButton::Open))
+            .chain(
+                card.go_to
+                    .as_ref()
+                    .map(|app| (format!("OPEN IN {}", app.to_uppercase()), CardButton::GoTo)),
+            )
+            .collect();
+    let buttons_w: f32 = buttons.iter().map(|(l, _)| o.text_w(l, k) + 14.0 * k).sum();
+    let cw = (210.0 * k).max(buttons_w + 2.0 * pad).min(w - 16.0 * u);
+    let room = (cw - 2.0 * pad, k);
+    let line_h = 10.0 * k;
+    let need = need_of_state(session.state);
+    let title = wrap(o, &session.title.to_uppercase(), room, 2);
+    let said: Vec<String> = match &card.said {
+        Said::Asks(q) => wrap(o, &format!("ASKS: {}", q.to_uppercase()), room, 4),
+        Said::Step(st) => wrap(o, &format!("LATEST: {}", st.to_uppercase()), room, 4),
+        Said::Nothing => {
+            let mins = (o.scene.now_ms() - session.last_ms).max(0) / 60_000;
+            let ago = match mins {
+                0 => "ACTIVE JUST NOW".to_owned(),
+                m if m < 60 => format!("LAST ACTIVE {m} MIN AGO"),
+                m if m < 48 * 60 => format!("LAST ACTIVE {} H AGO", m / 60),
+                m => format!("LAST ACTIVE {} DAYS AGO", m / (24 * 60)),
+            };
+            vec![ago]
+        }
+    };
+    let mut meta = vec![short_name(&app.name.to_uppercase())];
+    if let Some(p) = &session.project {
+        meta.push(p.to_uppercase());
+    }
+    if session.subagents > 0 {
+        meta.push(format!("{} SUBAGENTS", session.subagents));
+    }
+    if session.tasks > 0 {
+        meta.push(format!("{} TASKS", session.tasks));
+    }
+    let meta = wrap(o, &meta.join(" · "), room, 2);
+    let button_h = 13.0 * k;
+    let ch = pad * 2.0
+        + line_h * (1 + title.len() + said.len() + meta.len()) as f32
+        + 2.0 * k
+        + button_h
+        + 4.0 * k;
+    // above and to the right of its person; below when there's no room
+    let (ax, ay) = card.at;
+    let x = (ax + 10.0 * k)
+        .clamp(8.0 * u, (w - cw - 8.0 * u).max(8.0 * u))
+        .round();
+    let above = ay - ch - 14.0 * k;
+    let y = if above >= 40.0 * u {
+        above
+    } else {
+        ay + 18.0 * k
+    };
+    let y = y.clamp(8.0 * u, (h - ch - 8.0 * u).max(8.0 * u)).round();
+    let rect = [x, y, cw, ch];
+    let ink = [0.11, 0.1, 0.17, 1.0];
+    // the bubble: its border, its face, and its tail towards the person
+    o.rect(x - 2.0 * k, y - 2.0 * k, cw + 4.0 * k, ch + 4.0 * k, ink);
+    o.rect(x, y, cw, ch, [1.0, 0.99, 0.96, 1.0]);
+    let tail_x = ax.clamp(x + 8.0 * k, x + cw - 8.0 * k);
+    let tail_y = if y > ay {
+        y - 2.0 * k
+    } else {
+        y + ch + 2.0 * k
+    };
+    for step in 0..3 {
+        let st = step as f32;
+        let ty = if y > ay {
+            tail_y - (st + 1.0) * 2.0 * k
+        } else {
+            tail_y + st * 2.0 * k
+        };
+        o.rect(
+            tail_x - (3.0 - st) * k,
+            ty,
+            (6.0 - 2.0 * st) * k,
+            2.0 * k,
+            ink,
+        );
+    }
+    let mut ty = y + pad;
+    let mut tx = x + pad;
+    let state_ink = need.map_or([0.33, 0.31, 0.42, 1.0], |n| match n {
+        Need::Asks | Need::Done => [0.48, 0.36, 0.0, 1.0],
+        other => {
+            let c = other.colour();
+            [c[0] * 0.75, c[1] * 0.6, c[2] * 0.6, 1.0]
+        }
+    });
+    if let Some(r) = need.and_then(|n| o.scene.ui.badge.get(&icon_of(n)).copied()) {
+        o.q.push(Quad {
+            dst: [tx, ty, 9.0 * k, 9.0 * k],
+            src: r,
+            tint: [1.0; 4],
+        });
+        tx += 12.0 * k;
+    }
+    let word = if session.word.is_empty() {
+        need.map_or("WORKING", |n| n.word(false)).to_owned()
+    } else {
+        session.word.to_uppercase()
+    };
+    o.text(tx, ty + k, &word, k, state_ink);
+    ty += line_h;
+    for l in &title {
+        o.text(x + pad, ty + k, l, k, ink);
+        ty += line_h;
+    }
+    if !said.is_empty() {
+        o.rect(
+            x + pad - 2.0 * k,
+            ty - k,
+            cw - 2.0 * pad + 4.0 * k,
+            line_h * said.len() as f32 + k,
+            [0.95, 0.93, 0.86, 1.0],
+        );
+    }
+    for l in &said {
+        o.text(x + pad, ty + k, l, k, [0.2, 0.18, 0.26, 1.0]);
+        ty += line_h;
+    }
+    for l in &meta {
+        o.text(x + pad, ty + k, l, k, [0.42, 0.4, 0.5, 1.0]);
+        ty += line_h;
+    }
+    ty += 2.0 * k;
+    let mut bx = x + pad;
+    let mut out = CardOut {
+        rect,
+        buttons: Vec::new(),
+    };
+    for (n, (label, button)) in buttons.iter().enumerate() {
+        let bw = o.text_w(label, k) + 10.0 * k;
+        let r = [bx, ty, bw.min(x + cw - pad - bx), button_h];
+        if n == 0 {
+            o.rect(r[0], r[1], r[2], r[3], ink);
+            o.text(r[0] + 5.0 * k, r[1] + 3.0 * k, label, k, [1.0; 4]);
+        } else {
+            o.rect(r[0], r[1], r[2], r[3], ink);
+            o.rect(
+                r[0] + k,
+                r[1] + k,
+                r[2] - 2.0 * k,
+                r[3] - 2.0 * k,
+                [1.0, 0.99, 0.96, 1.0],
+            );
+            o.text(r[0] + 5.0 * k, r[1] + 3.0 * k, label, k, ink);
+        }
+        out.buttons.push((r, *button));
+        bx += r[2] + 4.0 * k;
+    }
+    Some(out)
 }
 
 /// The floor switcher: Building, then each floor from the top.

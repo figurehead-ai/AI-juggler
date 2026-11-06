@@ -66,6 +66,37 @@ impl render::Window for Side {
         });
     }
 
+    fn go_to(&self, key: String) {
+        // AJ-E3517: the card's "Open in its app": Go to it, off this
+        // thread (it waits up to 1.5 s for the app to come forward)
+        let Some((account, id)) = key
+            .strip_prefix("c:")
+            .and_then(|rest| rest.split_once('/'))
+            .map(|(a, i)| (a.to_owned(), i.to_owned()))
+        else {
+            return;
+        };
+        let state = std::sync::Arc::clone(
+            self.app
+                .state::<std::sync::Arc<crate::state::AppState>>()
+                .inner(),
+        );
+        let _ = std::thread::Builder::new()
+            .name("floor-go-to".into())
+            .spawn(move || {
+                let outcome = crate::features::conversations::goto::go_to_impl(
+                    &state,
+                    &account,
+                    &id,
+                    None,
+                    std::sync::Arc::new(crate::features::conversations::goto::MacDesktop),
+                );
+                if let Err(e) = outcome {
+                    tracing::info!("floor: go to it: {e}");
+                }
+            });
+    }
+
     fn open(&self, door: OpenRequest) {
         let app = self.app.clone();
         let _ = self.app.run_on_main_thread(move || {
@@ -110,6 +141,7 @@ pub fn input_of(event: Event) -> Input {
             juggler_window_events::Key::Enter => Key::Enter,
             juggler_window_events::Key::PageUp => Key::PageUp,
             juggler_window_events::Key::PageDown => Key::PageDown,
+            juggler_window_events::Key::Escape => Key::Escape,
         }),
     }
 }

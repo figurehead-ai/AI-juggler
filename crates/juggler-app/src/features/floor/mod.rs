@@ -8,6 +8,7 @@
 //!   it to the render thread's subscribers and tells the window
 //!   (`floor://changed`).
 
+pub mod card;
 pub mod commands;
 pub mod controls;
 pub mod feed;

@@ -38,6 +38,7 @@ fn snapshot() -> FloorSnapshot {
         cpu_pct: 1.0,
         started_ms: NOW,
         last_ms: NOW,
+        go_to: None,
     };
     let app = FloorApp {
         id: "cli:a".into(),
@@ -146,6 +147,7 @@ fn it_draws_the_office_offscreen_and_picks_a_desk() {
         hint: "Drag to pan",
         alert: None,
         mouse: None,
+        card: None,
     };
     let img = renderer
         .capture(

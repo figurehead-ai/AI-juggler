@@ -71,6 +71,8 @@ pub enum Key {
     PageUp,
     /// Page Down: the lift down a floor (from the building, the top one).
     PageDown,
+    /// Escape: closes a hover card.
+    Escape,
 }
 
 /// What the window sends (positions in points from the top left).
@@ -151,7 +153,24 @@ pub enum Effect {
     Open(u32),
     /// Play with the prop with this id.
     Play(u32),
+    /// AJ-E3517: bring the app the session with this pick id is open in
+    /// forward (its adapter's Go to it).
+    GoTo(u32),
 }
+
+/// AJ-E3517: a hover card's button.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardButton {
+    /// Open in AI Juggler (at the question).
+    Open,
+    /// Open in the tool's own app (Go to it).
+    GoTo,
+}
+
+/// How long the pointer rests on a person before their card opens.
+pub const CARD_AFTER: Duration = Duration::from_millis(250);
+/// How long a card stays after the pointer has left it and its person.
+pub const CARD_STAYS: Duration = Duration::from_millis(300);
 
 /// A floor-switcher chip's place (device pixels) and the floor it shows
 /// (`None`: the building).
@@ -178,6 +197,13 @@ pub enum PickKind {
     Toy,
     /// The lift to a floor.
     Floor(usize),
+    /// A person at a desk: opens in the main window, and has a hover card
+    /// (AJ-E3517).
+    Person,
+}
+
+fn inside(r: &[f32; 4], x: f32, y: f32) -> bool {
+    x >= r[0] && y >= r[1] && x < r[0] + r[2] && y < r[1] + r[3]
 }
 
 /// A place the keyboard moves to: an area (Tab) or a desk waiting on you
@@ -223,6 +249,18 @@ pub struct Driver {
     /// The pointer is over something a click acts on (a door, a toy, a
     /// floor or a floor tab): the window shows the hand (0.4.1).
     pub hand: bool,
+    /// AJ-E3517: the hover card open now (its person's pick id), and
+    /// where it was asked for (its anchor).
+    pub card: Option<(u32, (f32, f32))>,
+    /// The open card's place on screen, from the last frame (the card
+    /// stays while the pointer is on it).
+    pub card_area: Option<[f32; 4]>,
+    /// The card's buttons, from the last frame.
+    pub card_buttons: Vec<([f32; 4], CardButton)>,
+    /// A person the pointer rests on, and since when.
+    resting: Option<(u32, Duration)>,
+    /// Since when the pointer has been off the card and its person.
+    leaving: Option<Duration>,
     tween: Option<(Cam, Cam, Duration)>,
     visible: bool,
     animating: bool,
@@ -268,6 +306,11 @@ impl Driver {
             waiting: Vec::new(),
             selected: None,
             hand: false,
+            card: None,
+            card_area: None,
+            card_buttons: Vec::new(),
+            resting: None,
+            leaving: None,
             tween: None,
             visible: true,
             animating: false,
@@ -305,6 +348,24 @@ impl Driver {
     /// When to wake next (`None`: only for input).
     #[must_use]
     pub fn wake_at(&self, now: Duration) -> Option<Duration> {
+        match (self.wake_for_view(now), self.card_wake()) {
+            (Some(a), Some(c)) => Some(a.min(c)),
+            (a, c) => a.or(c),
+        }
+    }
+
+    /// When a resting pointer opens a card, or a card left closes.
+    fn card_wake(&self) -> Option<Duration> {
+        match (self.resting, self.card, self.leaving) {
+            (_, Some(_), Some(left)) => Some(left + CARD_STAYS),
+            (Some((id, since)), card, _) if card.map(|c| c.0) != Some(id) => {
+                Some(since + CARD_AFTER)
+            }
+            _ => None,
+        }
+    }
+
+    fn wake_for_view(&self, now: Duration) -> Option<Duration> {
         if self.tween.is_some() {
             Some(now + TWEEN_STEP)
         } else if self.retry && self.visible {
@@ -408,20 +469,7 @@ impl Driver {
                 }
                 self.dirty = true;
             }
-            Input::Move { x, y } => {
-                self.mouse = Some((x * sf, y * sf));
-                self.selected = None;
-                let on_tab = self.tab_at(x * sf, y * sf).is_some();
-                let id = if on_tab {
-                    0
-                } else {
-                    picker.pick(x * sf, y * sf)
-                };
-                self.hand = on_tab || picker.kind(id) != PickKind::Nothing;
-                // A tooltip follows the pointer while over something.
-                self.dirty |= id != self.hover || id != 0;
-                self.hover = id;
-            }
+            Input::Move { x, y } => self.moved(x * sf, y * sf, now, picker),
             Input::Click { x, y } => return self.click(x * sf, y * sf, now, picker),
             Input::Key(Key::Enter) => return self.selected.map(Effect::Open),
             Input::Key(key) => self.key(key, now),
@@ -432,6 +480,36 @@ impl Driver {
             }
         }
         None
+    }
+
+    /// The pointer moved to `(px, py)` (device pixels): what's under it,
+    /// the hand, a person's card resting and staying.
+    fn moved(&mut self, px: f32, py: f32, now: Duration, picker: &mut dyn Picker) {
+        self.mouse = Some((px, py));
+        self.selected = None;
+        let on_tab = self.tab_at(px, py).is_some();
+        let id = if on_tab { 0 } else { picker.pick(px, py) };
+        let on_button = self.card_buttons.iter().any(|(r, _)| inside(r, px, py));
+        self.hand = on_tab || on_button || picker.kind(id) != PickKind::Nothing;
+        // AJ-E3517: resting on a person opens their card; it
+        // stays while the pointer is on it, them or between
+        if picker.kind(id) == PickKind::Person {
+            if self.resting.map(|r| r.0) != Some(id) {
+                self.resting = Some((id, now));
+            }
+        } else {
+            self.resting = None;
+        }
+        if self.card.is_some() {
+            if self.on_card(px, py, id) {
+                self.leaving = None;
+            } else if self.leaving.is_none() {
+                self.leaving = Some(now);
+            }
+        }
+        // A tooltip follows the pointer while over something.
+        self.dirty |= id != self.hover || id != 0;
+        self.hover = id;
     }
 
     /// The floor tab under a point, device pixels: `Some(None)` the
@@ -455,6 +533,15 @@ impl Driver {
             self.go_to_floor(focus, now);
             return None;
         }
+        if let (Some((card, _)), Some((_, button))) = (
+            self.card,
+            self.card_buttons.iter().find(|(r, _)| inside(r, px, py)),
+        ) {
+            return Some(match button {
+                CardButton::Open => Effect::Open(card),
+                CardButton::GoTo => Effect::GoTo(card),
+            });
+        }
         let id = picker.pick(px, py);
         self.dirty = true;
         match picker.kind(id) {
@@ -469,7 +556,7 @@ impl Driver {
                 self.clicked.insert(id, now.as_secs_f32());
                 Some(Effect::Play(id))
             }
-            PickKind::Door => Some(Effect::Open(id)),
+            PickKind::Door | PickKind::Person => Some(Effect::Open(id)),
         }
     }
 
@@ -486,6 +573,12 @@ impl Driver {
             }
             Key::Char('0' | 'b') => {
                 self.go_to_floor(None, now);
+                return;
+            }
+            Key::Escape => {
+                if self.card.is_some() {
+                    self.close_card();
+                }
                 return;
             }
             Key::PageUp | Key::PageDown => {
@@ -564,9 +657,52 @@ impl Driver {
         self.move_to(to, now);
     }
 
+    /// AJ-E3517: opens the card of a person the pointer rested on, and
+    /// closes one it left.
+    fn card_tick(&mut self, now: Duration) {
+        if let Some((id, since)) = self.resting
+            && self.card.map(|c| c.0) != Some(id)
+            && now >= since + CARD_AFTER
+        {
+            self.card = Some((id, self.mouse.unwrap_or_default()));
+            self.card_area = None;
+            self.card_buttons.clear();
+            self.leaving = None;
+            self.dirty = true;
+        }
+        if self.card.is_some() && self.leaving.is_some_and(|left| now >= left + CARD_STAYS) {
+            self.close_card();
+        }
+    }
+
+    fn close_card(&mut self) {
+        self.card = None;
+        self.card_area = None;
+        self.card_buttons.clear();
+        self.leaving = None;
+        self.dirty = true;
+    }
+
+    /// Whether `(x, y)` is on the open card, its person, or the way
+    /// between them (the box holding both).
+    fn on_card(&self, x: f32, y: f32, id: u32) -> bool {
+        let Some((card, (ax, ay))) = self.card else {
+            return false;
+        };
+        if id == card {
+            return true;
+        }
+        self.card_area.is_some_and(|r| {
+            let (x0, y0) = (r[0].min(ax) - 6.0, r[1].min(ay) - 6.0);
+            let (x1, y1) = ((r[0] + r[2]).max(ax) + 6.0, (r[1] + r[3]).max(ay) + 6.0);
+            x >= x0 && x <= x1 && y >= y0 && y <= y1
+        })
+    }
+
     /// Moves the camera along and says whether to draw now (and whether to
     /// ask if the window can be seen).
     pub fn tick(&mut self, now: Duration) -> Tick {
+        self.card_tick(now);
         if let Some((a, b, t0)) = self.tween {
             let k = ((now.saturating_sub(t0)).as_secs_f32() / TWEEN_S).min(1.0);
             self.view.cam = Cam::lerp(a, b, 1.0 - (1.0 - k).powi(3));
@@ -618,8 +754,77 @@ impl Driver {
 mod tests {
     use std::time::Duration;
 
-    use super::{Driver, Effect, Input, Key, Motion, PickKind, Picker};
+    use super::{
+        CARD_AFTER, CARD_STAYS, CardButton, Driver, Effect, Input, Key, Motion, PickKind, Picker,
+    };
     use crate::camera::Frame;
+
+    /// A person (id 5) right of x = 300.
+    struct People;
+
+    impl Picker for People {
+        fn pick(&mut self, x: f32, _y: f32) -> u32 {
+            if x >= 300.0 { 5 } else { 0 }
+        }
+        fn kind(&self, id: u32) -> PickKind {
+            if id == 5 {
+                PickKind::Person
+            } else {
+                PickKind::Nothing
+            }
+        }
+    }
+
+    #[test]
+    fn a_person_s_card_opens_after_a_rest_stays_while_near_and_closes() {
+        let mut d = driver(Motion::Off);
+        let ms = Duration::from_millis;
+        run(&mut d, 0, 100, false);
+        d.input(Input::Move { x: 320.0, y: 100.0 }, ms(100), &mut People);
+        // not yet: a passing pointer opens nothing
+        d.tick(ms(200));
+        assert_eq!(d.card, None);
+        assert_eq!(
+            d.wake_at(ms(200)),
+            Some(ms(100) + CARD_AFTER),
+            "it wakes to open it"
+        );
+        d.tick(ms(100) + CARD_AFTER);
+        assert!(d.card.is_some_and(|(id, _)| id == 5), "open after 250 ms");
+        // its place and buttons come back from the frame, in device
+        // pixels (this window is at scale 2)
+        d.card_area = Some([660.0, 40.0, 400.0, 160.0]);
+        d.card_buttons = vec![
+            ([680.0, 160.0, 180.0, 26.0], CardButton::Open),
+            ([880.0, 160.0, 160.0, 26.0], CardButton::GoTo),
+        ];
+        // on the card (off the person): it stays
+        d.input(Input::Move { x: 400.0, y: 50.0 }, ms(400), &mut People);
+        d.tick(ms(1000));
+        assert!(d.card.is_some(), "stays while on the card");
+        // its buttons
+        assert_eq!(
+            d.input(Input::Click { x: 350.0, y: 85.0 }, ms(1100), &mut People),
+            Some(Effect::Open(5))
+        );
+        assert_eq!(
+            d.input(Input::Click { x: 450.0, y: 85.0 }, ms(1150), &mut People),
+            Some(Effect::GoTo(5))
+        );
+        // away: closes 300 ms later
+        d.input(Input::Move { x: 50.0, y: 300.0 }, ms(1200), &mut People);
+        d.tick(ms(1490));
+        assert_eq!(CARD_STAYS, ms(300));
+        assert!(d.card.is_some(), "not before 300 ms");
+        d.tick(ms(1200) + CARD_STAYS);
+        assert_eq!(d.card, None, "gone 300 ms after leaving");
+        // Esc closes one at once
+        d.input(Input::Move { x: 320.0, y: 100.0 }, ms(2000), &mut People);
+        d.tick(ms(2000) + CARD_AFTER);
+        assert!(d.card.is_some());
+        d.input(Input::Key(Key::Escape), ms(2400), &mut People);
+        assert_eq!(d.card, None);
+    }
 
     struct Office;
 

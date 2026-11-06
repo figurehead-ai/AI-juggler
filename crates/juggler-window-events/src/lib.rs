@@ -54,6 +54,8 @@ pub enum Key {
     PageUp,
     /// Page Down.
     PageDown,
+    /// Escape.
+    Escape,
 }
 
 /// What happened in the window (points from its top left).
@@ -329,6 +331,7 @@ mod imp {
                 48 if flags.contains(NSEventModifierFlags::Shift) => Key::BackTab,
                 48 => Key::Tab,
                 36 | 76 => Key::Enter,
+                53 => Key::Escape,
                 116 => Key::PageUp,
                 121 => Key::PageDown,
                 _ => Key::Char(

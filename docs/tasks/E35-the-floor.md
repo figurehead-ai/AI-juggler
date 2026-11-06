@@ -472,7 +472,7 @@
 1. After 250 ms on a person, desk or screen, a speech-bubble card SHALL show the state (icon + word), the session title, then the pending question (≤ 120 characters), else the latest step, else the idle time, and the project and subagents.
 2. It SHALL stay while the pointer is on its subject, the card or the way between, and 300 ms after; Esc closes it.
 3. Buttons: Open in AI Juggler (at the question) and Open in the tool's app through the adapter's Go to it, shown only where the adapter can.
-4. The snapshot SHALL carry the question and the latest step (≤ 160 characters each) for sessions shown; the Floor stores neither.
+4. The question (≤ 120 characters) and the latest step (≤ 160) SHALL be read when the card opens, through the session page's last-messages reader (its setting and redaction, AJ-E2108); the snapshot carries only whether Go to it can reach the session; the Floor stores neither. *(Amended 2026-11-06 while building it: carrying every shown session's question in each snapshot would read transcripts in the background, which AJ-E2108 rules out.)*
 **Quality gates**: feed tests for the new fields; a card layout test (stays on screen); the a11y list carries the same words.
 **Evidence/validation proof**: captures of the card for each state; a recording of both buttons.
 

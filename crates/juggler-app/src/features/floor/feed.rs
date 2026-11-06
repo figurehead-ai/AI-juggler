@@ -199,6 +199,8 @@ fn own_seat(row: &OwnRow, inputs: &Inputs) -> FloorSession {
         cpu_pct: cpu_of(inputs, &format!("s:{}", row.id)),
         started_ms: row.started_ms,
         last_ms: row.last_ms.unwrap_or(row.started_ms),
+        // AI Juggler's own: it is the app
+        go_to: None,
     }
 }
 
@@ -233,6 +235,19 @@ fn other_seat(c: &ConversationInfo, inputs: &Inputs) -> FloorSession {
         cpu_pct: cpu_of(inputs, &format!("c:{}/{}", c.account_id, c.id)),
         started_ms: c.started_ms.unwrap_or(last),
         last_ms: last,
+        // open in an app: Go to it brings that app forward to it
+        go_to: c
+            .places
+            .first()
+            .filter(|_| c.live)
+            .map(|p| {
+                if p.shown.is_empty() {
+                    p.app.clone()
+                } else {
+                    p.shown.clone()
+                }
+            })
+            .filter(|name| !name.is_empty()),
     }
 }
 

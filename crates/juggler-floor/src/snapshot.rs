@@ -50,6 +50,12 @@ pub struct FloorSession {
     /// Its last activity (epoch ms).
     #[ts(type = "number")]
     pub last_ms: i64,
+    /// AJ-E3517: open now in an app its adapter can bring forward to it
+    /// (Go to it): that app's name on screen ("Claude app", "Terminal");
+    /// the hover card's second button.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub go_to: Option<String>,
 }
 
 /// One App's area.

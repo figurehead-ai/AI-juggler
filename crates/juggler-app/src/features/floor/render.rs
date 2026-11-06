@@ -172,6 +172,11 @@ pub trait Window: Send + 'static {
     fn cursor(&self, hand: bool) {
         let _ = hand;
     }
+    /// AJ-E3517: bring the app the session with the rail's `key` is open
+    /// in forward (Go to it).
+    fn go_to(&self, key: String) {
+        let _ = key;
+    }
 }
 
 /// The office, seated, and its scene, kept current.
@@ -297,6 +302,7 @@ impl Picker for Picks<'_> {
             None => PickKind::Nothing,
             Some(Target::Prop(_) | Target::Cat) => PickKind::Toy,
             Some(Target::Floor(f)) => PickKind::Floor(*f),
+            Some(Target::Session(_)) => PickKind::Person,
             Some(_) => PickKind::Door,
         }
     }
@@ -376,6 +382,8 @@ struct Running {
     /// step drawn last (the light changes only between steps).
     place: Option<(f32, f32)>,
     lit: Option<(i64, super::store::Light)>,
+    /// AJ-E3517: the hover card shown, its words read when it opened.
+    card: Option<juggler_floor::overlay::Card>,
 }
 
 impl Running {
@@ -453,6 +461,7 @@ impl Running {
             hand: false,
             place,
             lit: None,
+            card: None,
         })
         .map(|mut floor| {
             floor.relight(Duration::ZERO);
@@ -536,10 +545,22 @@ impl Running {
                     scene: &self.world.scene,
                     scale: self.driver.size.2,
                 };
-                if let Some(Effect::Open(id)) = self.driver.input(input, now, &mut picks)
-                    && let Some(open) = self.world.scene.pick_of(id).and_then(|p| door(&p.target))
-                {
-                    window.open(open);
+                match self.driver.input(input, now, &mut picks) {
+                    Some(Effect::Open(id)) => {
+                        if let Some(open) =
+                            self.world.scene.pick_of(id).and_then(|p| door(&p.target))
+                        {
+                            window.open(open);
+                        }
+                    }
+                    Some(Effect::GoTo(id)) => {
+                        if let Some(Target::Session(key)) =
+                            self.world.scene.pick_of(id).map(|p| &p.target)
+                        {
+                            window.go_to(key.clone());
+                        }
+                    }
+                    _ => {}
                 }
                 if self.driver.hand != self.hand {
                     self.hand = self.driver.hand;
@@ -607,8 +628,30 @@ impl Running {
         self.message_snapshot(snapshot, now);
     }
 
+    /// AJ-E3517: the card the driver opened, its words read now (once,
+    /// when it opens).
+    fn card_now(&mut self) {
+        let want = self.driver.card;
+        if want.map(|(id, _)| id) == self.card.as_ref().map(|c| c.id) {
+            if let (Some(card), Some((_, at))) = (&mut self.card, want) {
+                card.at = at;
+            }
+            return;
+        }
+        self.card = want.and_then(|(id, at)| {
+            let (_, session) = self.world.scene.person(id)?;
+            Some(juggler_floor::overlay::Card {
+                id,
+                at,
+                said: super::card::said(&self.state, &session.key, session.state),
+                go_to: session.go_to.clone(),
+            })
+        });
+    }
+
     /// Draws a frame (a refused one is retried by the driver).
     fn frame(&mut self, now: Duration) {
+        self.card_now();
         let (d, w) = (&mut self.driver, &self.world);
         let live = Live {
             t: now.as_secs_f32(),
@@ -624,6 +667,7 @@ impl Running {
             hint: juggler_window_events::hint(),
             alert: w.snapshot.machine.alert.as_deref().filter(|_| d.alert),
             mouse: d.mouse,
+            card: self.card.as_ref(),
         };
         let drawing = Instant::now();
         match self
@@ -642,6 +686,8 @@ impl Running {
                     );
                 }
                 d.chips = shown.chips;
+                d.card_area = shown.card.as_ref().map(|c| c.rect);
+                d.card_buttons = shown.card.map(|c| c.buttons).unwrap_or_default();
                 d.drew(true, shown.moving, now);
                 if std::mem::take(&mut self.first) {
                     log_first_frame(self.opened.elapsed());

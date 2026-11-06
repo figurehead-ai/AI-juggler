@@ -52,6 +52,7 @@ fn session(key: &str, state: FloorState, subagents: u32) -> FloorSession {
         cpu_pct: 4.0,
         started_ms: NOW - 60_000,
         last_ms: NOW - 1000,
+        go_to: None,
     }
 }
 
@@ -496,6 +497,7 @@ fn the_gallery_of_golden_frames() {
             hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
             alert: shot.alert,
             mouse: shot.mouse,
+            card: None,
         };
         frames.push((
             shot.name,
@@ -514,6 +516,7 @@ fn the_gallery_of_golden_frames() {
             hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
             alert: shot.alert,
             mouse: shot.mouse,
+            card: None,
         };
         frames.push((
             format!("full-{}", shot.name),
@@ -534,6 +537,7 @@ fn the_gallery_of_golden_frames() {
         hint: "",
         alert: None,
         mouse: hover.mouse,
+        card: None,
     };
     let mut picked = Vec::new();
     for full in [true, false, true, false] {
@@ -575,6 +579,7 @@ fn the_gallery_of_golden_frames() {
             hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
             alert: None,
             mouse: None,
+            card: None,
         };
         for full in [false, true] {
             renderer.set_full(full);
@@ -600,6 +605,7 @@ fn the_gallery_of_golden_frames() {
         hint: "",
         alert: None,
         mouse: None,
+        card: None,
     };
     frames.push((
         "reflow-after".into(),
@@ -752,6 +758,7 @@ fn area_chips_never_overlap() {
                             hint: "Drag: pan",
                             band: b,
                             labels,
+                            card: None,
                         },
                     );
                     let at = format!(
@@ -843,6 +850,7 @@ fn the_design_proposal_frames() {
         hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
         alert: None,
         mouse: None,
+        card: None,
     };
     let floor = View {
         focus: Some(0),
@@ -1134,6 +1142,7 @@ fn the_second_pass_frames() {
         hint: "",
         alert: None,
         mouse: None,
+        card: None,
     };
     let sky = Sky::always_day();
     let first = Look {
@@ -1382,6 +1391,7 @@ fn opening_and_closing_does_not_grow() {
         hint: "",
         alert: None,
         mouse: None,
+        card: None,
     };
     let mut marks = Vec::new();
     for k in 0..30 {
@@ -1430,6 +1440,7 @@ fn the_label_bands() {
         hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
         alert: None,
         mouse: None,
+        card: None,
     };
     let views = [
         (
@@ -1501,6 +1512,170 @@ fn desk_sizes_by_zoom() {
             eprintln!(
                 "{size:?} dist {k}× home: desk {:.1} pt",
                 juggler_floor::overlay::desk_px(&view, &vp, (size.0, size.1), size.2)
+            );
+        }
+    }
+}
+
+/// AJ-E3517: a hover card for a sitter in each state stays inside the
+/// window wherever it's asked for (each corner and the middle), has its
+/// Open button (and Open in its app only where Go to it can), and, with
+/// `AJ_FLOOR_EVIDENCE`, is captured in both looks.
+#[test]
+fn hover_cards_stay_on_screen_with_their_buttons() {
+    use juggler_floor::driver::CardButton;
+    use juggler_floor::overlay::{Card, Said, build};
+    let mut office = Office::new(42, 10);
+    let mut seating = Seating::default();
+    let scene = scene_of(&company(false), &mut office, &mut seating);
+    let frame = scene.frame_size();
+    let mut people: Vec<(FloorState, u32)> = Vec::new();
+    for l in &scene.labels {
+        let Some(app) = scene.app(&l.app) else {
+            continue;
+        };
+        for s in &app.sessions {
+            if !people.iter().any(|(st, _)| *st == s.state)
+                && let Some(id) = scene.pick_of_session(&s.key)
+            {
+                people.push((s.state, id));
+            }
+        }
+    }
+    assert!(people.len() >= 5, "people in many states: {people:?}");
+    for size in [(1280u32, 800u32, 2.0f32), (640, 400, 1.0)] {
+        let aspect = size.0 as f32 / size.1 as f32;
+        let view = View {
+            focus: Some(0),
+            cam: frame.home(Some(0), aspect),
+        };
+        let (vp, _) = view.sight(&frame, aspect);
+        let (w, h) = (size.0 as f32, size.1 as f32);
+        for (n, (state, id)) in people.iter().enumerate() {
+            for at in [
+                (5.0, 5.0),
+                (w - 5.0, 5.0),
+                (5.0, h - 5.0),
+                (w - 5.0, h - 5.0),
+                (w / 2.0, h / 2.0),
+            ] {
+                let card = Card {
+                    id: *id,
+                    at,
+                    said: if n % 2 == 0 {
+                        Said::Asks("Should I also update the snapshot test and the golden frames before I push this branch?".into())
+                    } else {
+                        Said::Step("ran \"pnpm test\"".into())
+                    },
+                    go_to: (n % 3 == 0).then(|| "Claude app".to_owned()),
+                };
+                let (_, _, out) = build(
+                    &scene,
+                    &juggler_floor::overlay::Inputs {
+                        view: &view,
+                        vp: &vp,
+                        size: (size.0, size.1),
+                        scale: size.2,
+                        marks: &[],
+                        hover: *id,
+                        mouse: Some(at),
+                        alert: None,
+                        hint: "Drag: pan",
+                        band: juggler_floor::flags::Band::Middle,
+                        labels: juggler_floor::flags::Labels::Smart,
+                        card: Some(&card),
+                    },
+                );
+                let out = out.unwrap_or_else(|| panic!("{state:?}: a card"));
+                let r = out.rect;
+                assert!(
+                    r[0] >= 0.0 && r[1] >= 0.0 && r[0] + r[2] <= w && r[1] + r[3] <= h,
+                    "{state:?} at {at:?} in {size:?}: {r:?} leaves the window"
+                );
+                assert_eq!(out.buttons[0].1, CardButton::Open);
+                assert_eq!(
+                    out.buttons.iter().any(|(_, b)| *b == CardButton::GoTo),
+                    card.go_to.is_some(),
+                    "Open in its app only where Go to it can"
+                );
+                for (b, _) in &out.buttons {
+                    assert!(
+                        b[0] >= r[0] && b[0] + b[2] <= r[0] + r[2] + 0.5,
+                        "{b:?} in {r:?}"
+                    );
+                }
+            }
+        }
+    }
+    // the evidence: a card per state, both looks
+    let Some(dir) = std::env::var_os("AJ_FLOOR_EVIDENCE").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut r = Renderer::headless(&scene).unwrap();
+    let size = (1280, 800, 2.0);
+    let aspect = size.0 as f32 / size.1 as f32;
+    for (state, id) in &people {
+        let Some((at, ahead)) = scene.sitter(*id) else {
+            continue;
+        };
+        let across = [ahead[2], 0.0, -ahead[0]];
+        let e = [
+            ahead[0] * 0.9 + across[0] * 0.7,
+            ahead[2] * 0.9 + across[2] * 0.7,
+        ];
+        let view = View {
+            focus: Some(0),
+            cam: Cam {
+                t: [at[0], at[1] - 0.6, at[2]],
+                yaw: e[0].atan2(e[1]),
+                pitch: 0.7,
+                dist: 9.0,
+            },
+        };
+        let (vp, _) = view.sight(&frame, aspect);
+        let c = vp.project([at[0], at[1] + 0.2, at[2]]);
+        let pt = (
+            (c[0] / c[3] * 0.5 + 0.5) * size.0 as f32,
+            (0.5 - c[1] / c[3] * 0.5) * size.1 as f32,
+        );
+        let said = match state {
+            FloorState::Asks => {
+                Said::Asks("Should I also update the snapshot test before I push?".into())
+            }
+            FloorState::Idle => Said::Nothing,
+            _ => Said::Step("ran \"cargo test -p shop\"".into()),
+        };
+        let card = Card {
+            id: *id,
+            at: pt,
+            said,
+            go_to: Some("Claude app".into()),
+        };
+        let live = Live {
+            t: 2.0,
+            hover: *id,
+            ..Live::default()
+        };
+        for (mode, full) in [("pixel", false), ("full", true)] {
+            r.set_full(full);
+            let img = r
+                .capture(
+                    &scene,
+                    &view,
+                    &live,
+                    size,
+                    &Extras {
+                        hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
+                        alert: None,
+                        mouse: Some(pt),
+                        card: Some(&card),
+                    },
+                )
+                .unwrap();
+            write_png(
+                &dir.join(format!("card-{state:?}-{mode}.png").to_lowercase()),
+                &img,
             );
         }
     }

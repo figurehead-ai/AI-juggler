@@ -30,6 +30,7 @@ fn session(key: &str, state: FloorState, subagents: u32) -> FloorSession {
         cpu_pct: 5.0,
         started_ms: NOW - 1000,
         last_ms: NOW,
+        go_to: None,
     }
 }
 
@@ -338,8 +339,9 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         hint: "Drag to pan",
         band: crate::flags::Band::Far,
         labels: crate::flags::Labels::Smart,
+        card: None,
     };
-    let (quads, chips) = overlay(&scene, &inputs);
+    let (quads, chips, _) = overlay(&scene, &inputs);
     assert_eq!(chips.len(), scene.floors + 1);
     assert_eq!(chips[0].1, None, "the Building chip first");
     assert!(
@@ -351,7 +353,7 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         focus: Some(0),
         cam: frame.home(Some(0), 1.6),
     };
-    let (fewer, _) = overlay(
+    let (fewer, _, _) = overlay(
         &scene,
         &Over {
             view: &near,

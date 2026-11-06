@@ -357,6 +357,23 @@ impl Scene {
             .map(|d| d.frame.0.point([0.0, 1.2, 0.62]))
     }
 
+    /// The moment the scene was built for (epoch ms).
+    #[must_use]
+    pub const fn now_ms(&self) -> i64 {
+        self.now_ms
+    }
+
+    /// AJ-E3517: the person with pick id `id`: their App and session.
+    #[must_use]
+    pub fn person(&self, id: u32) -> Option<(&FloorApp, &FloorSession)> {
+        let d = self.desks.iter().find(|d| d.id == id)?;
+        let app = self
+            .apps
+            .values()
+            .find(|a| a.sessions.iter().any(|s| s.key == d.session.key))?;
+        Some((app, &d.session))
+    }
+
     /// Where a desk's sitter is (pick id `id`) and which way they face,
     /// along the floor (to frame them up close).
     #[must_use]

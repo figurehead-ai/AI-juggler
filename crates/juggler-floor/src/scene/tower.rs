@@ -153,6 +153,7 @@ impl Scene {
 
     /// Floor `f`'s rooms: each area of an App in its colour (dark when
     /// unused) with the App's mark, free cells grey.
+    #[allow(clippy::too_many_lines)] // a floor's rooms: each App's, part by part, then its free cells
     fn tower_rooms(
         &mut self,
         b: &mut B<'_>,
@@ -229,7 +230,11 @@ impl Scene {
                 b.tex(
                     Mesh::QuadWall,
                     T::new()
-                        .t(f32::midpoint(xa, xb), low + (high - side) / 2.0, front - 0.24)
+                        .t(
+                            f32::midpoint(xa, xb),
+                            low + (high - side) / 2.0,
+                            front - 0.24,
+                        )
                         .s(side, side, 1.0),
                     [255; 4],
                     Skin {

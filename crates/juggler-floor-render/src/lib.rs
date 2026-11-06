@@ -118,6 +118,8 @@ pub struct Extras<'a> {
     pub alert: Option<&'a str>,
     /// The pointer, device pixels.
     pub mouse: Option<(f32, f32)>,
+    /// AJ-E3517: the hover card open now.
+    pub card: Option<&'a overlay::Card>,
 }
 
 /// What a drawn frame says.
@@ -127,6 +129,8 @@ pub struct Shown {
     pub moving: bool,
     /// The floor switcher's chips, for clicks.
     pub chips: Vec<Chip>,
+    /// AJ-E3517: where the hover card went and its buttons, for clicks.
+    pub card: Option<overlay::CardOut>,
 }
 
 /// The surface refused a frame (covered, minimised, out of date): retry.
@@ -345,8 +349,9 @@ impl Renderer {
             hint: extras.hint,
             band,
             labels: self.labels,
+            card: extras.card,
         };
-        let (mut quads, chips) = overlay::build(scene, &over);
+        let (mut quads, chips, card) = overlay::build(scene, &over);
         if !self.overlay {
             quads.clear();
         }
@@ -368,6 +373,7 @@ impl Renderer {
         Shown {
             moving: drawn.moving,
             chips,
+            card,
         }
     }
 
@@ -436,6 +442,7 @@ impl Renderer {
             hint: "",
             alert: None,
             mouse: None,
+            card: None,
         };
         // one frame to settle the targets' sizes
         self.frame_into(scene, view, live, size, &extras, &target);
