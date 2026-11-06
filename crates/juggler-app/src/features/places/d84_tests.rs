@@ -1,5 +1,5 @@
 //! D-84 (2026-11-06): AI Juggler never adds an app by itself. One seen
-//! running that the user never added is offered ("Found on this Mac"),
+//! running that the user never added is offered ("Found on this computer"),
 //! never listed, opened or kept alive; Add makes it an App, Not now
 //! hides the offer. A profile under the system's temporary folder is
 //! never remembered at all, and a reused pid is never the app.

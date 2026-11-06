@@ -15,7 +15,7 @@ export async function fetchAppInfo(): Promise<AppInfo | null> {
   if (!hasBackend) {
     // Gallery seam: a Nightly or Dev window (D-23).
     const seeded = (window as unknown as { __AIJ_APP_INFO__?: AppInfo }).__AIJ_APP_INFO__;
-    return seeded ?? { version: "0.0.0-preview", name: "AI Juggler", edition: "main" };
+    return seeded ?? { version: "0.0.0-preview", name: "AI Juggler", edition: "main", reserved_keys: [] };
   }
   try {
     return await invoke<AppInfo>("app_info");

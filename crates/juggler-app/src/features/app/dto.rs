@@ -14,6 +14,23 @@ pub struct AppInfo {
     pub name: String,
     /// The edition: `main` | `nightly` | `dev`.
     pub edition: String,
+    /// AJ-E2905 R7: the keys this system keeps, which no shortcut may
+    /// take (`juggler_platform::system::reserved_keys`).
+    pub reserved_keys: Vec<ReservedKeyInfo>,
+}
+
+/// One key the system keeps (`juggler_platform::system::ReservedKey`).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ReservedKeyInfo {
+    /// The key's place (`KeyboardEvent.code`).
+    pub code: String,
+    /// With the primary modifier (⌘ on macOS, Ctrl elsewhere).
+    pub primary: bool,
+    /// With ⌥ / Alt.
+    pub alt: bool,
+    /// What the system does with it (`quits the app`).
+    pub whose: String,
 }
 
 impl AppInfo {
@@ -24,6 +41,15 @@ impl AppInfo {
             version: env!("CARGO_PKG_VERSION").to_string(),
             name: crate::edition::current().app_name().to_string(),
             edition: crate::edition::current().as_str().to_string(),
+            reserved_keys: juggler_platform::system::reserved_keys()
+                .iter()
+                .map(|key| ReservedKeyInfo {
+                    code: key.code.to_owned(),
+                    primary: key.primary,
+                    alt: key.alt,
+                    whose: key.whose.to_owned(),
+                })
+                .collect(),
         }
     }
 }

@@ -289,7 +289,7 @@ function FoundOnThisMac(): JSX.Element | null {
     );
   };
   return (
-    <PaneSection id="found" title="Found on this Mac" footer="Seen running, not added. AI Juggler adds an app only when you say so; until then it isn't in your apps, the rail or Home.">
+    <PaneSection id="found" title="Found on this computer" footer="Seen running, not added. AI Juggler adds an app only when you say so; until then it isn't in your apps, the rail or Home.">
       {offers.map((offer) => (
         <li key={offer.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5" data-testid="desktop-offer">
           <span className="min-w-0 flex-1 truncate text-sm text-ink">{offer.label}</span>
@@ -314,7 +314,7 @@ function YourApps(): JSX.Element | null {
     >
       {places.length === 0 ? (
         <li className="px-4 py-3 text-xs text-muted" data-testid="desktop-places-empty">
-          Apps you add show here: an app you import, or one found on this Mac that you add.
+          Apps you add show here: an app you import, or one found on this computer that you add.
         </li>
       ) : (
         places.map((place) => <PlaceRow key={place.id} place={place} />)

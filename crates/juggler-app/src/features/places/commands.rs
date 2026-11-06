@@ -278,7 +278,7 @@ pub struct PlaceOfferInfo {
     pub label: String,
 }
 
-/// D-84: what's offered ("Found on this Mac … Add / Not now").
+/// D-84: what's offered ("Found on this computer … Add / Not now").
 ///
 /// # Errors
 ///

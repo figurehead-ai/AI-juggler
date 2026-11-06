@@ -11,6 +11,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
 chacha20poly1305 = "0.11"
 getrandom = { workspace = true }
 sha2 = { workspace = true }

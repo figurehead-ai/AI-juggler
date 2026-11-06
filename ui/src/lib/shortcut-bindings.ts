@@ -84,9 +84,11 @@ export const FIXED_WHY: Partial<Record<ShortcutId, string>> = {
   "go-to": "Chosen in Settings › Desktop apps, as it works from any app.",
 };
 
-/** Keys the system or a text field keeps (this Mac; each system's own
- * list comes with its release). */
-const RESERVED: { binding: Binding; whose: string }[] = [
+/** Keys the system or a text field keeps. The system's own list comes
+ * from the backend's platform seam (`juggler_platform::system::
+ * reserved_keys`, in the app info: AJ-E2905 R7); macOS's stands in until
+ * it answers, and in the preview. */
+const MAC_RESERVED: { binding: Binding; whose: string }[] = [
   { binding: b("KeyQ"), whose: "quits the app" },
   { binding: b("KeyW"), whose: "closes the window" },
   { binding: b("KeyH"), whose: "hides the app" },
@@ -98,6 +100,15 @@ const RESERVED: { binding: Binding; whose: string }[] = [
   { binding: b("KeyX"), whose: "cuts" },
   { binding: b("KeyA"), whose: "selects all" },
 ];
+
+let reserved = MAC_RESERVED;
+
+/** The system's reserved keys, from the app info (an empty list keeps
+ * the stand-in). */
+export function setReservedKeys(list: readonly { code: string; primary: boolean; alt: boolean; whose: string }[] | undefined): void {
+  if (!list || list.length === 0) return;
+  reserved = list.map((key) => ({ binding: { code: key.code, primary: key.primary, alt: key.alt, shift: false }, whose: key.whose }));
+}
 
 const STORE_KEY = "ui.shortcuts";
 
@@ -196,8 +207,8 @@ export function refusal(id: ShortcutId, binding: Binding, labelOf: (id: Shortcut
   }
   const fixed = FIXED_KEYS.find((entry) => same(entry.binding, binding));
   if (fixed) return `${words} is ${labelOf(fixed.id)}. Pick another key.`;
-  const reserved = RESERVED.find((entry) => same(entry.binding, binding));
-  if (reserved) return `${words} ${reserved.whose} on this computer. Pick another key.`;
+  const kept = reserved.find((entry) => same(entry.binding, binding));
+  if (kept) return `${words} ${kept.whose} on this computer. Pick another key.`;
   if (!binding.primary && !binding.alt && area !== "Home") return "Use ⌘ or ⌥ with the key: a plain key belongs to what you type.";
   return null;
 }
@@ -287,5 +298,6 @@ export async function loadBindings(labelOf: (id: ShortcutId) => string, areaOf: 
 /** For tests: forget every change. */
 export function resetForTests(): void {
   custom = {};
+  reserved = MAC_RESERVED;
   notify();
 }

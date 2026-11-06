@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { accountsList } from "../lib/ipc/accounts";
 import { fetchAppInfo, onAppReady } from "../lib/ipc/app-lifecycle";
+import { setReservedKeys } from "../lib/shortcut-bindings";
 import { onConversationsChanged } from "../lib/ipc/conversations";
 import { instancesList, onSessionsUpdated } from "../lib/ipc/instances";
 import { launchRecipesList } from "../lib/ipc/launch";
@@ -73,8 +74,13 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
   const [switchBackCards, setSwitchBackCards] = useState<SwitchBackSuggestionData[]>([]);
 
   useEffect(() => {
-    void fetchAppInfo().then(setInfo);
-    return onAppReady(setInfo);
+    // AJ-E2905 R7: the system's reserved keys come with the app info.
+    const take = (next: AppInfo | null): void => {
+      if (next) setReservedKeys(next.reserved_keys);
+      setInfo(next);
+    };
+    void fetchAppInfo().then(take);
+    return onAppReady(take);
   }, []);
 
   const refresh = useMemo(() => singleFlight(async () => {

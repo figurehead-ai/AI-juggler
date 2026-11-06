@@ -129,7 +129,7 @@ it is never a rail noun and never means Account (D-02/D-10).
 > App exists only because the user said so: they imported its folder
 > (Add account / import), or they pressed **Add** on an offer. A desktop
 > app, in any of its instances, that AI Juggler sees running and the user never added is at
-> most **offered**, once, as "Found on this Mac: Claude app · aij-test —
+> most **offered**, once, as "Found on this computer: Claude app · aij-test —
 > Add / Not now" (Settings › Desktop apps, and a quiet notice). An offer
 > is never an App: it is not in the rail, Open now, Inactive apps, any
 > count, the Floor, a picker or Home, and Open, Restart and Keep alive

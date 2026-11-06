@@ -172,7 +172,7 @@ describe("an ended session's app", () => {
   });
 });
 
-describe("D-84 Settings › Desktop apps: found on this Mac", () => {
+describe("D-84 Settings › Desktop apps: found on this computer", () => {
   it("an app seen running but never added is only offered: Add or Not now", async () => {
     seams().__AIJ_PLACES__ = {
       places: [],

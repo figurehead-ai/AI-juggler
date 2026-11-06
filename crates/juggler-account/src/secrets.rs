@@ -288,7 +288,6 @@ pub fn keychain_reachable() -> bool {
 /// Owner-only files, one per item (the item's service and account name,
 /// hashed, as the file name).
 mod files {
-    use std::io::Write as _;
     use std::path::{Path, PathBuf};
 
     fn path(dir: &Path, service: &str, account: &str) -> PathBuf {
@@ -312,25 +311,10 @@ mod files {
         account: &str,
         secret: &str,
     ) -> std::io::Result<()> {
-        std::fs::create_dir_all(dir)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
-        }
-        let target = path(dir, service, account);
-        let staged = target.with_extension("new");
-        let mut options = std::fs::OpenOptions::new();
-        options.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt as _;
-            options.mode(0o600);
-        }
-        let mut file = options.open(&staged)?;
-        file.write_all(secret.as_bytes())?;
-        file.sync_all()?;
-        std::fs::rename(staged, target)
+        // The platform's seam: a folder only this user can open (made, or
+        // checked closed), a file only this user can read, written whole.
+        juggler_platform::private_fs::ensure_own_private_dir(dir)?;
+        juggler_platform::private_fs::write_private(&path(dir, service, account), secret.as_bytes())
     }
 
     pub(super) fn delete(dir: &Path, service: &str, account: &str) {
@@ -372,19 +356,7 @@ mod files {
                 .as_deref(),
                 Some("other")
             );
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt as _;
-                assert_eq!(
-                    std::fs::metadata(&store).unwrap().permissions().mode() & 0o777,
-                    0o700
-                );
-                let file = super::path(&store, "ai.figurehead.juggler.dev", "fleet/identity.key");
-                assert_eq!(
-                    std::fs::metadata(file).unwrap().permissions().mode() & 0o777,
-                    0o600
-                );
-            }
+            // Owner-only folder and file: juggler_platform::private_fs's own tests.
             super::delete(&store, "ai.figurehead.juggler.dev", "fleet/identity.key");
             assert_eq!(
                 super::get(&store, "ai.figurehead.juggler.dev", "fleet/identity.key"),

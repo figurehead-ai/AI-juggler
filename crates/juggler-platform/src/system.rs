@@ -70,13 +70,100 @@ pub const fn computer_noun() -> (&'static str, &'static str) {
 /// AJ-E2904: where the user allows an app's notifications, in this
 /// system's own words (Send test points there when nothing appeared).
 #[must_use]
-pub const fn notification_settings_words() -> &'static str {
-    if cfg!(target_os = "macos") {
-        "System Settings › Notifications"
-    } else if cfg!(target_os = "windows") {
-        "Settings › System › Notifications"
-    } else {
-        "your desktop's notification settings"
+pub fn notification_settings_words() -> &'static str {
+    notification_settings_words_on(std::env::consts::OS)
+}
+
+/// [`notification_settings_words`] on the system `os` names
+/// (`std::env::consts::OS`).
+#[must_use]
+pub fn notification_settings_words_on(os: &str) -> &'static str {
+    match os {
+        "macos" => "System Settings › Notifications",
+        "windows" => "Settings › System › Notifications",
+        _ => "your desktop's notification settings",
+    }
+}
+
+/// AJ-E2905 R7: a key combination the system (or every text field) keeps,
+/// so a shortcut can't take it. `code` is the key's place as the window
+/// reads it (`KeyboardEvent.code`); `primary` is ⌘ on macOS and Ctrl
+/// elsewhere.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReservedKey {
+    /// The key's place (`KeyQ`, `Tab`, `F4`…).
+    pub code: &'static str,
+    /// With the primary modifier (⌘ on macOS, Ctrl elsewhere).
+    pub primary: bool,
+    /// With ⌥ / Alt.
+    pub alt: bool,
+    /// What the system does with it, after "is"/"does": `quits the app`.
+    pub whose: &'static str,
+}
+
+const fn key(code: &'static str, primary: bool, alt: bool, whose: &'static str) -> ReservedKey {
+    ReservedKey {
+        code,
+        primary,
+        alt,
+        whose,
+    }
+}
+
+/// Every text field's own keys, on every system.
+const EDITING: [ReservedKey; 4] = [
+    key("KeyC", true, false, "copies"),
+    key("KeyV", true, false, "pastes"),
+    key("KeyX", true, false, "cuts"),
+    key("KeyA", true, false, "selects all"),
+];
+
+const MACOS: [ReservedKey; 10] = [
+    key("KeyQ", true, false, "quits the app"),
+    key("KeyW", true, false, "closes the window"),
+    key("KeyH", true, false, "hides the app"),
+    key("KeyM", true, false, "minimises the window"),
+    key("Tab", true, false, "switches apps"),
+    key("Space", true, false, "is Spotlight"),
+    EDITING[0],
+    EDITING[1],
+    EDITING[2],
+    EDITING[3],
+];
+
+const WINDOWS: [ReservedKey; 7] = [
+    key("Tab", false, true, "switches apps"),
+    key("F4", false, true, "closes the window"),
+    key("Space", false, true, "opens the window's menu"),
+    EDITING[0],
+    EDITING[1],
+    EDITING[2],
+    EDITING[3],
+];
+
+const LINUX: [ReservedKey; 7] = [
+    key("Tab", false, true, "switches apps"),
+    key("F4", false, true, "closes the window"),
+    key("KeyT", true, true, "opens a terminal on many desktops"),
+    EDITING[0],
+    EDITING[1],
+    EDITING[2],
+    EDITING[3],
+];
+
+/// The keys this system keeps ([`ReservedKey`]).
+#[must_use]
+pub fn reserved_keys() -> &'static [ReservedKey] {
+    reserved_keys_on(std::env::consts::OS)
+}
+
+/// [`reserved_keys`] on the system `os` names (`std::env::consts::OS`).
+#[must_use]
+pub fn reserved_keys_on(os: &str) -> &'static [ReservedKey] {
+    match os {
+        "macos" => &MACOS,
+        "windows" => &WINDOWS,
+        _ => &LINUX,
     }
 }
 
@@ -187,6 +274,31 @@ fn spaced(word: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn each_system_keeps_its_own_keys_and_every_text_fields() {
+        let mac = super::reserved_keys_on("macos");
+        assert!(
+            mac.iter()
+                .any(|k| k.code == "KeyQ" && k.primary && k.whose == "quits the app")
+        );
+        let windows = super::reserved_keys_on("windows");
+        assert!(
+            windows
+                .iter()
+                .any(|k| k.code == "F4" && k.alt && !k.primary)
+        );
+        assert!(
+            !windows.iter().any(|k| k.code == "KeyQ"),
+            "Ctrl+Q isn't Windows' quit"
+        );
+        let linux = super::reserved_keys_on("linux");
+        for list in [mac, windows, linux] {
+            for code in ["KeyC", "KeyV", "KeyX", "KeyA"] {
+                assert!(list.iter().any(|k| k.code == code && k.primary));
+            }
+        }
+    }
+
     use super::*;
 
     #[test]
@@ -214,6 +326,36 @@ mod tests {
         assert_eq!(badge_value(0), None);
         assert_eq!(badge_value(3), Some(3));
         assert_eq!(badge_value(u32::MAX), Some(i64::from(u32::MAX)));
+    }
+
+    /// AJ-E2904 R3: each system's own words for where notifications are
+    /// allowed, and this one's are what Send test says.
+    #[test]
+    fn each_system_names_its_own_notification_settings() {
+        assert_eq!(
+            notification_settings_words_on("macos"),
+            "System Settings › Notifications"
+        );
+        assert_eq!(
+            notification_settings_words_on("windows"),
+            "Settings › System › Notifications"
+        );
+        for other in ["linux", "freebsd"] {
+            assert_eq!(
+                notification_settings_words_on(other),
+                "your desktop's notification settings"
+            );
+        }
+        assert_eq!(
+            notification_settings_words(),
+            notification_settings_words_on(std::env::consts::OS)
+        );
+        if cfg!(target_os = "macos") {
+            assert_eq!(
+                notification_settings_words(),
+                "System Settings › Notifications"
+            );
+        }
     }
 
     #[test]
