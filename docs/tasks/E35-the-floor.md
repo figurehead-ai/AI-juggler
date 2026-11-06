@@ -429,3 +429,91 @@
 **Files to touch**: `docs/qa/floor/` (walk sheet).
 **Research basis**: `docs/tasks/E33-validated-by-use.md` (the walk form).
 **Handover note**: —
+
+---
+
+## 0.4.2: the maintainer's 0.4.0 findings (design items)
+
+> Source: the maintainer's first test of the Floor on 0.4.0, 2026-11-06
+> (nine findings). The bugs shipped in 0.4.1 (`docs/qa/floor/walk-0.4.1.md`).
+> These design items ship in 0.4.2; research and picks:
+> [`docs/research/floor-04x.md`](../research/floor-04x.md); the visual
+> proposal on real renders was published for the maintainer's review
+> before the visual rework is built. Every task: both looks (D-80), SPEC
+> §9.7 and D-79 budgets re-measured with `scripts/floor_harness.py`, a
+> hand walk in AI Juggler Dev on the replica, generic names in captures.
+
+### AJ-E3515 Labels by zoom: flags that stay readable, attention first | Status: TODO | Priority P0 | Effort M | Depends: —
+**Goal**: From any zoom, what needs you is readable and clearly tied to its place; never a sea of labels.
+**Requirements**:
+1. The band SHALL come from a desk's size on screen (close ≥ 28 px, middle 10–28 px, far < 10 px and the building), with 15% hysteresis.
+2. Close: no overlay labels besides balloons and the hover card.
+3. Middle: a flag on a short pole straight above each desk that needs you (icon + word), and one name flag per area; calm sessions get none.
+4. Far: one flag per App that needs you, fixed-size text, its colour on the pole; calm Apps none; flags that would overlap merge into one count ("3 waiting").
+5. Placement by priority (Crashed, Asks, Stuck, Hot, Done, Out); a flag never moves aside; one with no room joins its neighbour's count, so no count is lost.
+6. Colour never the only cue: icon, word and colour on every flag.
+**Quality gates**: placement property tests (no overlap, no lost count, priority order); golden frames per band.
+**Evidence/validation proof**: captures at the three bands in both looks; the walk record.
+
+### AJ-E3516 One floor at a time: lift buttons, tab counts and the tower | Status: TODO | Priority P0 | Effort M | Depends: —
+**Goal**: Moving between floors and seeing the whole building is obvious and never confusing.
+**Requirements**:
+1. On a floor, up and down buttons at the right edge with each floor's waiting count, hidden at the top and the bottom; Page Up and Page Down do the same; the camera rides one storey (a cut with Reduce Motion).
+2. The floor tabs SHALL show each floor's waiting count.
+3. The building view SHALL be a side-on tower: each floor a strip, each App a room in its colour with its mark, dark when unused, the waiting count per floor; the lobby at the ground.
+4. Hovering a floor in the tower SHALL light it with its summary; a click enters it.
+5. Zoom never switches between a floor and the building.
+**Quality gates**: driver tests for the buttons and keys; golden frames of the tower.
+**Evidence/validation proof**: a timed walk of every button, tab and floor click.
+
+### AJ-E3517 Hover cards: what they ask or do, and where to answer | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3505
+**Goal**: Hovering a person or a screen tells you enough to decide whether to act.
+**Requirements**:
+1. After 250 ms on a person, desk or screen, a speech-bubble card SHALL show the state (icon + word), the session title, then the pending question (≤ 120 characters), else the latest step, else the idle time, and the project and subagents.
+2. It SHALL stay while the pointer is on its subject, the card or the way between, and 300 ms after; Esc closes it.
+3. Buttons: Open in AI Juggler (at the question) and Open in the tool's app through the adapter's Go to it, shown only where the adapter can.
+4. The snapshot SHALL carry the question and the latest step (≤ 160 characters each) for sessions shown; the Floor stores neither.
+**Quality gates**: feed tests for the new fields; a card layout test (stays on screen); the a11y list carries the same words.
+**Evidence/validation proof**: captures of the card for each state; a recording of both buttons.
+
+### AJ-E3518 Inactive Apps: lights off, dust and dust sheets | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3521
+**Goal**: An unused App reads as closed at a glance, more so the longer it's been.
+**Requirements**:
+1. By time since last active: lamps and screens off when closed; the room's light at 80% under an hour, 55% to a day, 40% to a week, 25% after a month, logo and sign still readable.
+2. A dust film on upward surfaces from a day, growing with time.
+3. Dust sheets over desks and screens after a week; a box by the way in.
+4. When the App runs again, its lights come on first; covers go with the next snapshot.
+5. "Show unused Apps' decay" stays the off switch.
+**Quality gates**: scene tests per level; golden frames.
+**Evidence/validation proof**: captures per level, day and night.
+
+### AJ-E3519 The View menu, top right | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3515
+**Goal**: What to show and how to arrange it is one click away on the Floor.
+**Requirements**:
+1. A View button at the top right SHALL open a native menu: Show (All Apps, Active Apps only), Arrange (Kept places, Active Apps packed together), Labels (Smart, Attention only, All names), Light (Follow my clock, Always day, Always night), Look (Pixel art, Full resolution), Settings › The Floor….
+2. Each choice applies at once, is remembered as a `floor.*` key and shows its check mark.
+3. Packed is a view only: nothing saved; Kept places brings every area back exactly.
+**Quality gates**: store tests for the keys; a layout test that Packed never writes the office.
+**Evidence/validation proof**: a walk of every item with timings.
+
+### AJ-E3520 Day and night from the Mac's clock | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3521
+**Goal**: The office's light follows the user's own day.
+**Requirements**:
+1. The sun's position SHALL come from the time zone's coordinates (the system's `zone.tab`, read at run time) and the clock, by NOAA's equations (`juggler-floor::daylight`).
+2. The light SHALL step every 10 minutes (one frame); at rest the Floor still draws 0 frames.
+3. Day, golden hour, dusk and night as specified in the research; signals keep their contrast.
+4. Light: Follow my clock (default), Always day, Always night.
+**Quality gates**: sun position tests against known values; budget run at rest.
+**Evidence/validation proof**: captures at the four times in both looks.
+
+### AJ-E3521 The reworked look: light, shadow, occlusion and grade | Status: TODO | Priority P0 | Effort M | Depends: —
+**Goal**: The Floor looks finished: things sit on the floor, light has warmth and depth, signals stand out.
+**Requirements**:
+1. Soft shadows (eight taps on a turned disk) in both looks.
+2. Ambient occlusion from depth in the post pass, its radius in metres.
+3. Warm sun over cool shade, a rim light, a grade that keeps signals at full contrast.
+4. The reworked look becomes the default once the maintainer has approved the proposal; the golden frames are re-approved with notes.
+5. Budgets re-measured on both looks; any line over budget says so with the number.
+**Quality gates**: golden frames; the harness's budgets.
+**Evidence/validation proof**: before/after captures; the budget records.
+**Handover note**: 2026-11-06. Built behind `Look { rework }` (off by default) for the proposal: `juggler-floor-render` shaders and `Look`, `juggler-floor::daylight`, scene `covers`. Left: make it the default after approval, wire it to the settings and the clock, re-baseline, measure.

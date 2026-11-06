@@ -57,7 +57,7 @@
 | [E32-account-and-app.md](E32-account-and-app.md) | Account and App: one word per thing, stored, each with its page; New session redesigned (0.4, D-62) | AJ-E3201-E3209 |
 | [E33-validated-by-use.md](E33-validated-by-use.md) | 0.4 validated by use: every combination, every real use case (0.4, D-62) | AJ-E3301-E3307 |
 | [E34-reply-and-read.md](E34-reply-and-read.md) | Reply and read: a richer conversation, find, one composer, and an honest reply area (0.5, D-66) | AJ-E3401-E3405 |
-| [E35-the-floor.md](E35-the-floor.md) | The Floor: the whole company as a live office in its own native window (0.4, D-67, D-68) | AJ-E3501-E3514 |
+| [E35-the-floor.md](E35-the-floor.md) | The Floor: the whole company as a live office in its own native window (0.4, D-67, D-68; 0.4.2 findings AJ-E3515-E3521) | AJ-E3501-E3521 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

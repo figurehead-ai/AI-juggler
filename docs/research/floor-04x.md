@@ -370,8 +370,10 @@ at low resolution with a pixel-snapped camera):
   b-work", from the places book's word, never "Claude Code · …".
 - **(b)** The Floor's Apps are the rail's (D-84): the user's own Apps
   (`App::is_users`), so an app only seen running is never an area.
-- **(c)** A chip sits at most three rows from its area; one with no room
-  there is left out rather than hung on a long leader line.
+- **(c)** A chip sits at most three rows (or half its width) from its
+  area. In the building view only chips that need you are drawn, and one
+  with no room near its area folds into its nearest same-floor neighbour
+  as "+N"; nothing hangs on a long line.
 
 ---
 
@@ -396,7 +398,11 @@ stepper and the tower, lighting before and after, day and night,
 inactive and dusty areas) is drawn from the real renderer's offscreen
 frames of the gallery's made-up company, with the overlay mocked over
 them where it isn't built yet. It is published privately for the
-maintainer's review before the big visual rework is built.
+maintainer's review before the big visual rework is built:
+<https://claude.ai/artifact/1JYw8ArLXRii6Y1QbFYuCE>. The frames come from
+`AJ_FLOOR_PROPOSAL=<folder> cargo test -p juggler-floor-render --test
+golden -- --ignored proposal`; the reworked look is already in the
+renderer behind `Look { rework: true }`, off by default.
 
 ## 11. Sources
 

@@ -400,5 +400,12 @@
 | AJ-E3512 | The Floor list in the main window: the same facts, accessible | E35-the-floor.md | P0 | M | AJ-E3505, AJ-E3510, AJ-E3511 |
 | AJ-E3513 | The Floor's gates: a gallery of golden frames, budgets and the other systems | E35-the-floor.md | P0 | M | AJ-E3502, AJ-E3508, AJ-E3509, AJ-E3510, AJ-E3512 |
 | AJ-E3514 | Walked by hand: persona walks on the release build | E35-the-floor.md | P0 | S | AJ-E3513 |
-Total: 398 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3515 | Labels by zoom: flags that stay readable, attention first | E35-the-floor.md | P0 | M | — |
+| AJ-E3516 | One floor at a time: lift buttons, tab counts and the tower | E35-the-floor.md | P0 | M | — |
+| AJ-E3517 | Hover cards: what they ask or do, and where to answer | E35-the-floor.md | P0 | M | AJ-E3505 |
+| AJ-E3518 | Inactive Apps: lights off, dust and dust sheets | E35-the-floor.md | P1 | S | AJ-E3521 |
+| AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
+| AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
+| AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
+Total: 405 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
