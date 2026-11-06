@@ -6,8 +6,8 @@
 use proptest::prelude::*;
 
 use super::{
-    AREA_MAX, DEPTH, Free, Office, Plan, ROW_D, SHRINK_AFTER_MS, Size, desks_for, pack, plan_area,
-    units,
+    AREA_MAX, DEPTH, Free, Office, Plan, ROW_D, SHRINK_AFTER_MS, Size, arranged, desks_for, pack,
+    plan_area, units,
 };
 use crate::family::{Family, Layout};
 
@@ -24,6 +24,33 @@ fn area<'a>(plan: &'a Plan, id: &str, annex: usize) -> &'a super::Placed {
         .iter()
         .find(|a| a.id == id && a.annex == annex)
         .expect("placed")
+}
+
+#[test]
+fn packed_is_a_view_only_and_kept_places_come_back_exactly() {
+    let mut office = Office::new(7, 10);
+    office.observe(
+        &open(&[("a", 1), ("b", 1), ("c", 1), ("d", 1), ("e", 1)]),
+        0,
+    );
+    let before = office.clone();
+    let kept = pack(&office);
+    let active: std::collections::BTreeSet<String> = ["c".to_owned(), "e".to_owned()].into();
+    let view = arranged(&office, &active, true);
+    // the office itself is untouched: nothing to save
+    assert_eq!(office, before, "Packed never writes the office");
+    // the active Apps take the first places, in their order
+    let packed = pack(&view);
+    let first: Vec<&str> = packed
+        .areas
+        .iter()
+        .filter(|a| a.annex == 0)
+        .take(2)
+        .map(|a| a.id.as_str())
+        .collect();
+    assert_eq!(first, ["c", "e"]);
+    // Kept places brings every area back exactly
+    assert_eq!(pack(&arranged(&office, &active, false)), kept);
 }
 
 #[test]

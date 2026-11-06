@@ -26,6 +26,134 @@ use crate::state::AppState;
 pub const LABEL: &str = "floor";
 /// The menu item's (and the tray's) id.
 pub const MENU_ID: &str = "floor:open";
+/// AJ-E3519: the View menu's items are `floorview:<what>:<choice>`.
+pub const VIEW_PREFIX: &str = "floorview:";
+
+/// A View menu section: its title, its setting's key, and its choices
+/// (stored word, words shown).
+type ViewSection = (&'static str, &'static str, &'static [(&'static str, &'static str)]);
+
+/// AJ-E3519: the View menu's sections.
+const VIEW: &[ViewSection] = &[
+    (
+        "Show",
+        super::store::SHOW_KEY,
+        &[("all", "All Apps"), ("active", "Active Apps only")],
+    ),
+    (
+        "Arrange",
+        super::store::ARRANGE_KEY,
+        &[("kept", "Kept places"), ("packed", "Active Apps packed together")],
+    ),
+    (
+        "Labels",
+        super::store::LABELS_KEY,
+        &[("smart", "Smart"), ("attention", "Attention only"), ("names", "All names")],
+    ),
+    (
+        "Light",
+        super::store::LIGHT_KEY,
+        &[("clock", "Follow my clock"), ("day", "Always day"), ("night", "Always night")],
+    ),
+    (
+        "Look",
+        super::store::DETAIL_KEY,
+        &[("pixel", "Pixel art"), ("full", "Full resolution")],
+    ),
+];
+
+/// The stored word each section shows checked now.
+fn view_words(s: &Settings) -> [&'static str; 5] {
+    use super::store::Word;
+    [
+        s.show.word(),
+        s.arrange.word(),
+        s.labels.word(),
+        s.light.word(),
+        if s.detail.full() { "full" } else { "pixel" },
+    ]
+}
+
+/// The setting a View menu item sets: its key and stored word (`None`
+/// for Settings › The Floor… and anything else).
+#[must_use]
+pub fn view_choice(id: &str) -> Option<(&'static str, &'static str)> {
+    let rest = id.strip_prefix(VIEW_PREFIX)?;
+    let (what, choice) = rest.split_once(':')?;
+    VIEW.iter()
+        .find(|(title, _, _)| title.eq_ignore_ascii_case(what))
+        .and_then(|(_, key, choices)| {
+            choices
+                .iter()
+                .find(|(word, _)| *word == choice)
+                .map(|(word, _)| (*key, *word))
+        })
+}
+
+/// Builds the View menu (checked as `settings` stand) and shows it at
+/// `at`, points from the window's top left. On the main thread.
+fn show_view_menu(window: &tauri::Window, at: (f32, f32), settings: &Settings) -> tauri::Result<()> {
+    use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+    let app = window.app_handle();
+    let menu = Menu::new(app)?;
+    let checked = view_words(settings);
+    for (n, ((title, _, choices), on)) in VIEW.iter().zip(checked).enumerate() {
+        if n > 0 {
+            menu.append(&PredefinedMenuItem::separator(app)?)?;
+        }
+        menu.append(&MenuItem::with_id(
+            app,
+            format!("{VIEW_PREFIX}title:{title}"),
+            *title,
+            false,
+            None::<&str>,
+        )?)?;
+        for (word, words) in *choices {
+            menu.append(&CheckMenuItem::with_id(
+                app,
+                format!("{VIEW_PREFIX}{}:{word}", title.to_lowercase()),
+                *words,
+                true,
+                *word == on,
+                None::<&str>,
+            )?)?;
+        }
+    }
+    menu.append(&PredefinedMenuItem::separator(app)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        format!("{VIEW_PREFIX}settings"),
+        "Settings › The Floor…",
+        true,
+        None::<&str>,
+    )?)?;
+    window.popup_menu_at(&menu, tauri::LogicalPosition::new(f64::from(at.0), f64::from(at.1)))
+}
+
+/// A View menu item chosen: its setting stored and the Floor reading it
+/// at once; Settings › The Floor… opens that pane in the main window.
+fn view_chosen(app: &tauri::AppHandle, id: &str) {
+    if id == format!("{VIEW_PREFIX}settings") {
+        crate::main_window::bring_forward(app);
+        let _ = app.emit(
+            APP_OPEN,
+            OpenRequest {
+                session_id: None,
+                page: Some("settings".to_owned()),
+                machine_id: None,
+                id: Some("the-floor".to_owned()),
+            },
+        );
+        return;
+    }
+    let Some((key, word)) = view_choice(id) else {
+        return;
+    };
+    let state = Arc::clone(app.state::<Arc<AppState>>().inner());
+    if super::controls::set_word(&state, key, word).is_ok() {
+        reload(app);
+    }
+}
 
 /// The open window: the render thread's channel and the event monitor.
 pub struct Open {
@@ -95,6 +223,15 @@ impl render::Window for Side {
                     tracing::info!("floor: go to it: {e}");
                 }
             });
+    }
+
+    fn view_menu(&self, at: (f32, f32), settings: Settings) {
+        let window = self.window.clone();
+        let _ = self.app.run_on_main_thread(move || {
+            if let Err(e) = show_view_menu(&window, at, &settings) {
+                tracing::info!("floor: the View menu: {e}");
+            }
+        });
     }
 
     fn open(&self, door: OpenRequest) {
@@ -187,6 +324,16 @@ pub fn open(app: &tauri::AppHandle) -> AppResult<()> {
         .build()
         .map_err(|e| refused(&e))?;
     render::open_step("window", opened);
+    {
+        // AJ-E3519: the View menu's choices
+        let app = app.clone();
+        window.on_menu_event(move |_, event| {
+            let id = event.id().as_ref();
+            if id.starts_with(VIEW_PREFIX) {
+                view_chosen(&app, id);
+            }
+        });
+    }
     let size = window.inner_size().map_err(|e| refused(&e))?;
     #[allow(clippy::cast_possible_truncation)] // a display's scale: 1–3
     let scale = window.scale_factor().map_err(|e| refused(&e))? as f32;
@@ -384,6 +531,22 @@ mod tests {
 
     use std::sync::Mutex;
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn every_view_menu_item_sets_a_setting_the_floor_has() {
+        use super::{VIEW, VIEW_PREFIX, view_choice};
+        for (title, key, choices) in VIEW {
+            for (word, _) in *choices {
+                let id = format!("{VIEW_PREFIX}{}:{word}", title.to_lowercase());
+                assert_eq!(view_choice(&id), Some((*key, *word)), "{id}");
+                // and the Floor takes that word
+                assert!(super::super::controls::checked_for_tests(key, word), "{key} = {word}");
+            }
+        }
+        assert_eq!(view_choice("floorview:settings"), None);
+        assert_eq!(view_choice("floorview:light:dusk"), None);
+        assert_eq!(view_choice("floor:open"), None);
+    }
 
     use super::{SAME_PRESS, input_of, new_press};
 

@@ -39,6 +39,8 @@ export interface OpenRoutes {
   app: (id: string) => void;
   conversation: (accountId: string, id: string) => void;
   pool: (id: string) => void;
+  /** AJ-E3519: a Settings pane (the Floor's View menu opens `the-floor`). */
+  settings: (section: string) => void;
 }
 
 /** Opens what `open` asks for: a notification's session or page, or (AJ-E3510)
@@ -64,6 +66,8 @@ export function routeOpen(open: OpenRequest, to: OpenRoutes): void {
       return to.page("usage");
     case "pool":
       return to.pool(id);
+    case "settings":
+      return to.settings(id);
     default:
       return to.page("thismac");
   }

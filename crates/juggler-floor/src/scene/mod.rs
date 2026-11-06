@@ -207,6 +207,9 @@ pub struct Inputs<'a> {
     /// state, materials on everything (`docs/research/floor-04x.md` §12);
     /// off keeps the first pass's figures.
     pub detail: bool,
+    /// AJ-E3519: Apps whose areas are left out of view (Show: Active Apps
+    /// only), their cells empty; nothing about them changes.
+    pub hide: &'a std::collections::BTreeSet<String>,
     /// This computer's name ("This Mac"), from the platform's noun.
     pub machine: &'a str,
     /// Now, epoch ms.
@@ -318,6 +321,7 @@ pub struct Scene {
     unused: BTreeMap<String, u8>,
     covers: bool,
     detail: bool,
+    hidden: std::collections::BTreeSet<String>,
     notices: u32,
     accounts: Vec<FloorAccount>,
     desks: Vec<DeskRec>,
@@ -493,6 +497,7 @@ impl Scene {
             unused: levels,
             covers: inputs.covers,
             detail: inputs.detail,
+            hidden: inputs.hide.clone(),
             notices: inputs.snapshot.notices,
             accounts: inputs.snapshot.accounts.clone(),
             desks: Vec::new(),
@@ -511,7 +516,7 @@ impl Scene {
             scene.building_floor(&mut out, &mut atlas, f, inputs.machine)?;
         }
         let areas = scene.plan.areas.clone();
-        for placed in &areas {
+        for placed in areas.iter().filter(|p| !inputs.hide.contains(&p.id)) {
             scene.area(&mut out, &mut atlas, placed, &inputs)?;
         }
         let mut rooms = scene.meeting_rooms(&inputs.snapshot.pools);

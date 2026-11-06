@@ -114,6 +114,7 @@ fn build(snap: &FloorSnapshot) -> Scene {
         decay: true,
         covers: false,
         detail: false,
+        hide: &std::collections::BTreeSet::new(),
         machine: "This computer",
         now_ms: NOW,
         logos: &BTreeMap::new(),
@@ -273,6 +274,7 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
         decay: true,
         covers: false,
         detail: false,
+        hide: &std::collections::BTreeSet::new(),
         machine: "This computer",
         now_ms: NOW,
         logos: &BTreeMap::new(),
@@ -341,7 +343,8 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         labels: crate::flags::Labels::Smart,
         card: None,
     };
-    let (quads, chips, _) = overlay(&scene, &inputs);
+    let (quads, chips, _, view) = overlay(&scene, &inputs);
+    assert!(view.is_some(), "the View button");
     assert_eq!(chips.len(), scene.floors + 1);
     assert_eq!(chips[0].1, None, "the Building chip first");
     assert!(
@@ -353,7 +356,7 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         focus: Some(0),
         cam: frame.home(Some(0), 1.6),
     };
-    let (fewer, _, _) = overlay(
+    let (fewer, _, _, _) = overlay(
         &scene,
         &Over {
             view: &near,

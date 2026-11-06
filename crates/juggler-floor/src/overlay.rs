@@ -156,6 +156,8 @@ pub struct Placed {
     pub floors: Vec<usize>,
     /// AJ-E3517: the hover card, when one is open.
     pub card: Option<CardOut>,
+    /// AJ-E3519: the View button, top right.
+    pub view: Option<[f32; 4]>,
     /// In the building view, each floor's outline on screen (slab to wall
     /// tops), by floor; a chip never touches another floor's.
     pub outlines: Vec<Poly>,
@@ -215,9 +217,12 @@ pub fn unit(scale: f32) -> f32 {
 
 /// Builds the overlay; the floor switcher's chips, for clicks.
 #[must_use]
-pub fn build(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Option<CardOut>) {
+pub fn build(
+    scene: &Scene,
+    i: &Inputs<'_>,
+) -> (Vec<Quad>, Vec<Chip>, Option<CardOut>, Option<[f32; 4]>) {
     let (q, chips, placed) = build_placed(scene, i);
-    (q, chips, placed.card)
+    (q, chips, placed.card, placed.view)
 }
 
 /// [`build`], also saying where the area chips went.
@@ -246,6 +251,9 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
         .collect();
     let hk = (u - 1.0).max(1.0);
     taken.push([0.0, h - 16.0 * hk, w, 16.0 * hk]);
+    let view = view_button(&mut o, u, w);
+    taken.push(view);
+    o.placed.view = Some(view);
     let band = if i.view.focus.is_none() {
         Band::Far
     } else {
@@ -718,6 +726,36 @@ pub fn meets(r: &[f32; 4], poly: &[(f32, f32)]) -> bool {
         let (a, b) = (span(&corners, ax), span(poly, ax));
         a.1 > b.0 && b.1 > a.0
     })
+}
+
+/// AJ-E3519: the View button, top right beside the tabs' row: its
+/// place.
+fn view_button(o: &mut Out<'_>, u: f32, w: f32) -> [f32; 4] {
+    let label = "VIEW";
+    let bw = o.text_w(label, u) + 22.0 * u;
+    let r = [(w - bw - 12.0 * u).round(), 14.0 * u, bw, 12.0 * u];
+    o.rect(r[0], r[1], r[2], r[3], [0.11, 0.1, 0.15, 0.85]);
+    o.rect(r[0], r[1] + r[3], r[2], u, [0.53, 0.53, 0.96, 1.0]);
+    o.text(
+        r[0] + 5.0 * u,
+        r[1] + 2.5 * u,
+        label,
+        u,
+        [0.96, 0.94, 1.0, 1.0],
+    );
+    // a small arrow down: it opens a menu
+    let (ax, ay) = (r[0] + r[2] - 12.0 * u, r[1] + 5.0 * u);
+    for step in 0..3 {
+        let st = step as f32;
+        o.rect(
+            ax + st * u,
+            ay + st * u,
+            (5.0 - 2.0 * st) * u,
+            u,
+            [0.85, 0.83, 0.96, 1.0],
+        );
+    }
+    r
 }
 
 /// AJ-E3516: the lift on a floor's right edge, vertically centred: the

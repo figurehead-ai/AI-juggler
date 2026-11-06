@@ -141,14 +141,33 @@ pub async fn floor_setting_set(
     value: String,
 ) -> AppResult<FloorSettingsInfo> {
     let info = crate::ipc::blocking(state.inner(), "the Floor's settings", move |state| {
-        let word = checked(&key, &value)?;
+        set_word(state, &key, &value)?;
         let storage = lock_storage_arc(state)?;
-        storage.app_settings().set(&key, &word)?;
         settings_info(&storage)
     })
     .await?;
     super::window::reload(&app);
     Ok(info)
+}
+
+/// Whether the Floor takes `key` = `value` (for other modules' tests).
+#[cfg(test)]
+pub(crate) fn checked_for_tests(key: &str, value: &str) -> bool {
+    checked(key, value).is_ok()
+}
+
+/// Stores one of the Floor's settings, checked (Settings › The Floor and
+/// the Floor's own View menu, AJ-E3519); the caller has the open Floor
+/// read it.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a key or value the Floor doesn't have;
+/// storage errors.
+pub fn set_word(state: &Arc<AppState>, key: &str, value: &str) -> AppResult<()> {
+    let word = checked(key, value)?;
+    lock_storage_arc(state)?.app_settings().set(key, &word)?;
+    Ok(())
 }
 
 /// Re-create the office: a new look and layout for every area, the same

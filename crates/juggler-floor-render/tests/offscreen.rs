@@ -110,6 +110,7 @@ fn scene(snap: &FloorSnapshot) -> Scene {
         decay: true,
         covers: false,
         detail: false,
+        hide: &std::collections::BTreeSet::new(),
         machine: "This computer",
         now_ms: NOW,
         logos: &BTreeMap::new(),

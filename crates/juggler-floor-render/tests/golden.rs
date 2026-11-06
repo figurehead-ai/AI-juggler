@@ -290,6 +290,7 @@ fn scene_full(
         decay: true,
         covers,
         detail,
+        hide: &std::collections::BTreeSet::new(),
         machine: "This computer",
         now_ms: NOW,
         logos: &BTreeMap::new(),
@@ -1569,7 +1570,7 @@ fn hover_cards_stay_on_screen_with_their_buttons() {
                     },
                     go_to: (n % 3 == 0).then(|| "Claude app".to_owned()),
                 };
-                let (_, _, out) = build(
+                let (_, _, out, _) = build(
                     &scene,
                     &juggler_floor::overlay::Inputs {
                         view: &view,

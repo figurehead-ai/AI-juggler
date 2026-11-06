@@ -147,7 +147,7 @@ pub enum Input {
 }
 
 /// What the render thread should do after an input.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Effect {
     /// Open the pickable thing with this id in the main window.
     Open(u32),
@@ -156,6 +156,9 @@ pub enum Effect {
     /// AJ-E3517: bring the app the session with this pick id is open in
     /// forward (its adapter's Go to it).
     GoTo(u32),
+    /// AJ-E3519: open the View menu under its button (its bottom left,
+    /// device pixels).
+    ViewMenu((f32, f32)),
 }
 
 /// AJ-E3517: a hover card's button.
@@ -257,6 +260,8 @@ pub struct Driver {
     pub card_area: Option<[f32; 4]>,
     /// The card's buttons, from the last frame.
     pub card_buttons: Vec<([f32; 4], CardButton)>,
+    /// AJ-E3519: the View button, from the last frame.
+    pub view_button: Option<[f32; 4]>,
     /// A person the pointer rests on, and since when.
     resting: Option<(u32, Duration)>,
     /// Since when the pointer has been off the card and its person.
@@ -309,6 +314,7 @@ impl Driver {
             card: None,
             card_area: None,
             card_buttons: Vec::new(),
+            view_button: None,
             resting: None,
             leaving: None,
             tween: None,
@@ -490,7 +496,8 @@ impl Driver {
         let on_tab = self.tab_at(px, py).is_some();
         let id = if on_tab { 0 } else { picker.pick(px, py) };
         let on_button = self.card_buttons.iter().any(|(r, _)| inside(r, px, py));
-        self.hand = on_tab || on_button || picker.kind(id) != PickKind::Nothing;
+        let on_view = self.view_button.is_some_and(|r| inside(&r, px, py));
+        self.hand = on_tab || on_button || on_view || picker.kind(id) != PickKind::Nothing;
         // AJ-E3517: resting on a person opens their card; it
         // stays while the pointer is on it, them or between
         if picker.kind(id) == PickKind::Person {
@@ -532,6 +539,9 @@ impl Driver {
         if let Some(focus) = self.tab_at(px, py) {
             self.go_to_floor(focus, now);
             return None;
+        }
+        if let Some(r) = self.view_button.filter(|r| inside(r, px, py)) {
+            return Some(Effect::ViewMenu((r[0], r[1] + r[3])));
         }
         if let (Some((card, _)), Some((_, button))) = (
             self.card,

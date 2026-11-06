@@ -131,6 +131,8 @@ pub struct Shown {
     pub chips: Vec<Chip>,
     /// AJ-E3517: where the hover card went and its buttons, for clicks.
     pub card: Option<overlay::CardOut>,
+    /// AJ-E3519: the View button, for clicks.
+    pub view: Option<[f32; 4]>,
 }
 
 /// The surface refused a frame (covered, minimised, out of date): retry.
@@ -351,7 +353,7 @@ impl Renderer {
             labels: self.labels,
             card: extras.card,
         };
-        let (mut quads, chips, card) = overlay::build(scene, &over);
+        let (mut quads, chips, card, view_button) = overlay::build(scene, &over);
         if !self.overlay {
             quads.clear();
         }
@@ -374,6 +376,7 @@ impl Renderer {
             moving: drawn.moving,
             chips,
             card,
+            view: view_button,
         }
     }
 

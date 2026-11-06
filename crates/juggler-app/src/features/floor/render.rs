@@ -177,6 +177,11 @@ pub trait Window: Send + 'static {
     fn go_to(&self, key: String) {
         let _ = key;
     }
+    /// AJ-E3519: the View menu, at `at` (points from the window's top
+    /// left), its marks from `settings`.
+    fn view_menu(&self, at: (f32, f32), settings: Settings) {
+        let _ = (at, settings);
+    }
 }
 
 /// The office, seated, and its scene, kept current.
@@ -245,14 +250,38 @@ impl World {
         let machine = machine_word();
         let logos = logos_of(state, snapshot);
         let built = Instant::now();
+        // AJ-E3519: the View menu's Show and Arrange, a view only: the
+        // office saved above is never the arranged one
+        let active: std::collections::BTreeSet<String> = snapshot
+            .apps
+            .iter()
+            .filter(|a| scene::unused(a, now, settings.decay) == 0)
+            .map(|a| a.id.clone())
+            .collect();
+        let view = juggler_floor::layout::arranged(
+            office,
+            &active,
+            settings.arrange == super::store::Arrange::Packed,
+        );
+        let hide: std::collections::BTreeSet<String> =
+            if settings.show == super::store::Show::Active {
+                view.placed
+                    .iter()
+                    .filter(|id| !active.contains(*id))
+                    .cloned()
+                    .collect()
+            } else {
+                std::collections::BTreeSet::new()
+            };
         let scene = Scene::build(scene::Inputs {
             snapshot,
-            office,
+            office: &view,
             seats: &seats,
             decay: settings.decay,
             // AJ-E3518: dust sheets go with the decay setting
             covers: settings.decay && !classic(),
             detail: !classic(),
+            hide: &hide,
             machine: &machine,
             now_ms: now,
             logos: &logos,
@@ -553,6 +582,10 @@ impl Running {
                             window.open(open);
                         }
                     }
+                    Some(Effect::ViewMenu((x, y))) => {
+                        let scale = self.driver.size.2.max(1.0);
+                        window.view_menu((x / scale, y / scale), self.settings);
+                    }
                     Some(Effect::GoTo(id)) => {
                         if let Some(Target::Session(key)) =
                             self.world.scene.pick_of(id).map(|p| &p.target)
@@ -688,6 +721,7 @@ impl Running {
                 d.chips = shown.chips;
                 d.card_area = shown.card.as_ref().map(|c| c.rect);
                 d.card_buttons = shown.card.map(|c| c.buttons).unwrap_or_default();
+                d.view_button = shown.view;
                 d.drew(true, shown.moving, now);
                 if std::mem::take(&mut self.first) {
                     log_first_frame(self.opened.elapsed());

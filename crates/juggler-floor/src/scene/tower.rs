@@ -178,7 +178,7 @@ impl Scene {
             .plan
             .areas
             .iter()
-            .filter(|a| a.floor == f)
+            .filter(|a| a.floor == f && !self.hidden.contains(&a.id))
             .cloned()
             .collect();
         for area in areas {
