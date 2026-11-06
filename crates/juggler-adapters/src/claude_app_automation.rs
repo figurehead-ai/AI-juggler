@@ -125,24 +125,7 @@ fn rewrite(path: &Path, object: Map<String, Value>) -> Result<(), AdapterError> 
     };
     let bytes =
         serde_json::to_vec(&Value::Object(object)).map_err(|e| failed(std::io::Error::other(e)))?;
-    let staged = path.with_extension("json.aij-new");
-    {
-        use std::io::Write as _;
-        let mut options = std::fs::OpenOptions::new();
-        options.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt as _;
-            options.mode(0o600);
-        }
-        let mut file = options.open(&staged).map_err(failed)?;
-        file.write_all(&bytes).map_err(failed)?;
-        file.sync_all().map_err(failed)?;
-    }
-    std::fs::rename(&staged, path).map_err(|error| {
-        let _ = std::fs::remove_file(&staged);
-        failed(error)
-    })
+    juggler_adapter::private_fs::write_private(path, &bytes).map_err(failed)
 }
 
 /// What runs by itself for `conversations` in the app instance `home`.

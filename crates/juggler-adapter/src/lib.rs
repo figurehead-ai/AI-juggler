@@ -55,6 +55,9 @@ pub use environment::{
 };
 pub use error::AdapterError;
 pub use identity::IdentityProbe;
+/// The OS seam for files only this user can read, for adapters that write
+/// a tool's own records (ADR-0028).
+pub use juggler_platform::private_fs;
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;
 pub use runtime::{

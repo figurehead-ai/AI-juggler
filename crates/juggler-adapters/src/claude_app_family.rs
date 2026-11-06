@@ -366,17 +366,10 @@ fn parent_archived(member: &Member) -> bool {
 /// Writes `value` to `to`, never over an existing file, readable by the
 /// user alone.
 fn write_new(to: &Path, value: &serde_json::Value) -> std::io::Result<()> {
-    use std::io::Write as _;
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt as _;
-        options.mode(0o600);
-    }
-    let mut file = options.open(to)?;
-    file.write_all(&serde_json::to_vec(value).map_err(std::io::Error::other)?)?;
-    file.sync_all()
+    juggler_adapter::private_fs::create_new_private(
+        to,
+        &serde_json::to_vec(value).map_err(std::io::Error::other)?,
+    )
 }
 
 #[cfg(test)]

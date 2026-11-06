@@ -35,8 +35,6 @@ use crate::codex::CodexAdapter;
 const ANSWER_WAIT: Duration = Duration::from_secs(20);
 /// A goal's objective, in the switch screen's words, at most.
 const OBJECTIVE_WORDS: usize = 60;
-/// The Codex the desktop app ships, for a Mac with no Codex CLI.
-const BUNDLED: &str = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex";
 
 /// A goal status (the database's or the API's) that keeps the thread
 /// going by itself: working, or waiting for usage to return.
@@ -273,16 +271,16 @@ fn not_found(error: &AdapterError) -> bool {
 }
 
 impl CodexAdapter {
-    /// The `codex` that serves goals: the user's CLI, else the one the
-    /// desktop app ships.
+    /// The `codex` that serves goals: the one the adapter found, as for
+    /// every other Codex feature (the CLI and the desktop app share the
+    /// account's folder, so it serves both).
     fn goal_binary(&self) -> Result<PathBuf, AdapterError> {
-        juggler_adapter::HarnessAdapter::locate(self)
-            .or_else(|| Some(PathBuf::from(BUNDLED)).filter(|bin| bin.is_file()))
-            .ok_or_else(|| {
-                AdapterError::Unsupported(
-                    "Codex isn't installed here, so its goal couldn't be handed over".to_owned(),
-                )
-            })
+        juggler_adapter::HarnessAdapter::locate(self).ok_or_else(|| {
+            AdapterError::Unsupported(
+                "Codex's command-line tool isn't installed here, so its goal couldn't be handed over"
+                    .to_owned(),
+            )
+        })
     }
 
     fn set_goals(&self, home: &Path, goals: &[(String, Value)]) -> Result<Applied, AdapterError> {

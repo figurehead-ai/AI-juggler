@@ -3,7 +3,7 @@
 //! The confirm step names the conversation that moves (0.3.9 moved one
 //! the user didn't pick); the sessions started from it, which move with
 //! it (ADR-0028), counted and named as the switch will find them; and
-//! what stays: a family member whose conversation isn't on this Mac, a
+//! what stays: a family member whose conversation isn't on this computer, a
 //! family across tools, and the pages on the tool's website it links to
 //! (they belong to the account that made them; the other account sees
 //! "This artifact is private").
@@ -160,11 +160,11 @@ fn moves_line(titles: &[String], count: usize) -> CarryItemInfo {
     }
 }
 
-/// Members whose conversation file isn't on this Mac.
+/// Members whose conversation file isn't on this computer.
 fn missing_line(titles: &[String], from: &str) -> CarryItemInfo {
     CarryItemInfo {
         label: format!(
-            "{} not on this Mac",
+            "{} not on this computer",
             if titles.len() == 1 {
                 "1 of them is".to_owned()
             } else {
