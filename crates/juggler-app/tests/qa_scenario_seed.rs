@@ -52,6 +52,51 @@ fn status_of(state: &str) -> SessionStatus {
     }
 }
 
+/// Folder `id`'s own folder.
+fn dir_of(state: &Arc<AppState>, id: &str) -> PathBuf {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(id.to_owned()))
+        .unwrap()
+        .state_dir
+}
+
+/// A lab sign-in for a Claude Code folder on scenario Account `name`:
+/// made-up ids in `.claude.json`'s `oauthAccount` (what AI Juggler reads
+/// to know the Account; folders on one name share it, so they group) and
+/// a `.credentials.json` that only exists (AI Juggler checks presence and
+/// size, never opens it). Nothing in it signs anything in.
+fn lab_sign_in(dir: &std::path::Path, name: &str) {
+    let slug: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let state = juggler_adapters::claude_code::claude_state_file(dir);
+    let mut value: Value = std::fs::read(&state)
+        .ok()
+        .and_then(|raw| serde_json::from_slice(&raw).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    value["oauthAccount"] = serde_json::json!({
+        "accountUuid": format!("lab-account-{slug}"),
+        "emailAddress": format!("{slug}@example.invalid"),
+    });
+    std::fs::write(&state, serde_json::to_vec_pretty(&value).unwrap()).unwrap();
+    std::fs::write(
+        dir.join(".credentials.json"),
+        b"{\"lab\": \"not a sign-in\"}",
+    )
+    .unwrap();
+}
+
 fn level_of(word: &str) -> Option<AccessLevel> {
     AccessLevel::parse(&word.replace('-', "_"))
 }
@@ -93,6 +138,14 @@ fn seed_scenario() {
     let mut recipes: HashMap<String, (String, String)> = HashMap::new();
     // The desktop Apps by the scenario's id: their sessions run in them.
     let mut desktop_apps: HashMap<String, String> = HashMap::new();
+    // A scenario's Accounts: its Claude folders get a lab sign-in on their
+    // `account` (unless `signed_in = false`), and the Account its name.
+    let mut account_names: HashMap<String, String> = HashMap::new();
+    fn signed_in(app: &Value) -> Option<&str> {
+        app["account"]
+            .as_str()
+            .filter(|name| !name.is_empty() && app["signed_in"].as_bool() != Some(false))
+    }
     let adopt = std::env::var("AIJ_LAB_ADOPT").ok();
     let mut adopted_once = false;
     for app in seed["apps"].as_array().cloned().unwrap_or_default() {
@@ -115,6 +168,10 @@ fn seed_scenario() {
                 ));
                 continue;
             };
+            if let Some(name) = signed_in(&app) {
+                lab_sign_in(&dir_of(&state, &account.id), name);
+                account_names.insert(account.id.clone(), name.to_owned());
+            }
             let dir = home
                 .join("Library/Application Support/ClaudeProfiles")
                 .join(profile);
@@ -218,6 +275,12 @@ fn seed_scenario() {
                 ));
                 continue;
             };
+            if tool == "claude-code"
+                && let Some(name) = signed_in(&app)
+            {
+                lab_sign_in(&dir_of(&state, &account.id), name);
+                account_names.insert(account.id.clone(), name.to_owned());
+            }
             account
         };
         let profile =
@@ -346,6 +409,27 @@ fn seed_scenario() {
             .pools()
             .join(pool, &member_ref, &[], role, level.as_ref())
             .unwrap();
+    }
+    // Each signed-in Account named as the scenario names it ("Work").
+    let mut named = BTreeSet::new();
+    for account in juggler_app::features::subscriptions::list_impl(&state).unwrap() {
+        let Some(id) = account.account_id.clone() else {
+            continue;
+        };
+        if let Some(name) = account
+            .profiles
+            .iter()
+            .find_map(|profile| account_names.get(&profile.id))
+        {
+            juggler_app::features::subscriptions::rename_impl(&state, &id, Some(name)).unwrap();
+            named.insert(name.clone());
+        }
+    }
+    if !named.is_empty() {
+        notes.push(format!(
+            "Accounts signed in with a lab sign-in: {}",
+            named.into_iter().collect::<Vec<_>>().join(", ")
+        ));
     }
     for note in &notes {
         println!("seed: {note}");

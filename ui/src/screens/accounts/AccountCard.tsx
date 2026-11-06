@@ -179,9 +179,10 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
         <RenewalChip renewal={renewal} />
         {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
         <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
-        {profiles.length > 1 && !signedOut && (
+        {/* Every App listed below: its folders and the desktop Apps on them (walk A2). */}
+        {profiles.length + desktop.length > 1 && !signedOut && (
           <span className="text-meta text-muted" data-testid="account-profiles-count">
-            {profiles.length} apps share this account
+            {profiles.length + desktop.length} apps share this account
           </span>
         )}
         {service && first && (

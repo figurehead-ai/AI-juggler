@@ -35,6 +35,10 @@ export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$HOM
 # The real home, before any command's HOME is set to the lab (ADR-0027
 # condition 7's seeding needs it).
 real_home="$HOME"
+# cargo and rustup run under the lab's HOME too: they keep their own
+# homes, or rustup fetches a whole toolchain into the lab and the seed
+# fails offline (walk A2).
+export CARGO_HOME="${CARGO_HOME:-$real_home/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$real_home/.rustup}" RUSTUP_AUTO_INSTALL=0
 case "$lab" in
   /tmp/*aij-lab*|/private/tmp/*aij-lab*) ;;
   *) echo "lab-scenario: $lab isn't a lab (under /tmp, named aij-lab…) — refusing" >&2; exit 1 ;;
@@ -65,7 +69,9 @@ case "$cmd" in
       # AIJ_LAB_ADOPT=<tool> (ADR-0027 condition 7): that tool's App uses
       # its real default folder where it is; the bridge checks it again.
       (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" AIJ_QA_REAL_HOME="$real_home" \
-        "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture 2>&1 | grep '^seed:' || true)
+        "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture > "$lab/seed.log" 2>&1) \
+        || { tail -20 "$lab/seed.log" >&2; echo "lab-scenario: the seed failed (whole log: $lab/seed.log)" >&2; exit 1; }
+      grep '^seed:' "$lab/seed.log" || true
     fi
     sheet="$root/docs/qa/0.4-walks/$id.md"
     if [ ! -e "$sheet" ]; then python3 -I "$root/scripts/qa/scenario.py" sheet "$id" --out "$sheet"; echo "lab-scenario: walk sheet $sheet"; fi
