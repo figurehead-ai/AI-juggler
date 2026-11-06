@@ -110,6 +110,8 @@ describe("the App (N1, N4)", () => {
     expect(chooseApp({ recipes: [WORK], folders: FOLDERS, roomOf: unknown, project: null })).toMatchObject({ recipe: WORK, why: "only" });
     const signedOut = [folder("work", { login_state: "logged_out" }), folder("home"), folder("side")];
     expect(chooseApp({ recipes: RECIPES, folders: signedOut, roomOf: unknown, project: null })).toMatchObject({ recipe: HOME, why: "first" });
+    // Walk N4: a guess says why it's one.
+    expect(appWhyWords("first")).toBe("a first guess: no app has run a session yet");
   });
 
   it("is one per App: its first launch settings", () => {

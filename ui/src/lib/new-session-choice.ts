@@ -175,7 +175,8 @@ export function appWhyWords(why: AppWhy): string | null {
     case "only":
       return "your only app";
     case "first":
-      return "a first guess";
+      // Walk N4: why it's a guess (none of them has history to go by).
+      return "a first guess: no app has run a session yet";
     case "chosen":
       return null;
   }
