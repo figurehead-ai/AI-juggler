@@ -1142,8 +1142,8 @@ fn namespaced_service(state_dir: &Path) -> String {
     format!("Claude Code-credentials-{}", &hex[..8])
 }
 
-/// Probes keychain entry existence via `security find-generic-password`
-/// **without** extracting any secret (`-w` deliberately absent).
+/// Probes keychain entry existence (`juggler_platform::keychain`, never
+/// the secret itself).
 #[cfg(target_os = "macos")]
 fn keychain_entry_exists(service: &str) -> bool {
     use std::collections::HashMap;
@@ -1169,12 +1169,8 @@ fn keychain_entry_exists(service: &str) -> bool {
             return *exists;
         }
     }
-    let exists = juggler_adapter::process::helper(juggler_adapter::system_tools::SECURITY)
-        .args(["find-generic-password", "-s", service])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success());
+    // The keychain's one door: nothing runs in a lab or replica run.
+    let exists = juggler_adapter::keychain::item_exists(service, None);
     if let Ok(mut cache) = seen.lock() {
         cache.insert(service.to_owned(), (Instant::now(), exists));
     }

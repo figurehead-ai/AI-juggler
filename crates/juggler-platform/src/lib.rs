@@ -33,6 +33,7 @@
 
 pub mod apps;
 pub mod file_trust;
+pub mod keychain;
 pub mod local_ipc;
 pub mod private_fs;
 pub mod process;

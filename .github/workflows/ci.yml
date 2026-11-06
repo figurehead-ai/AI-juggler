@@ -168,6 +168,10 @@ jobs:
         run: |
           python3 scripts/platform_lint.py --selftest
           python3 scripts/platform_lint.py
+      - name: The keychain only through its one door (a lab never reaches it)
+        run: |
+          python3 scripts/keychain_lint.py --selftest
+          python3 scripts/keychain_lint.py
       - name: Layering, IPC audit, size budget and machine reads (AJ-E2011)
         run: |
           python3 scripts/check_layering.py --selftest

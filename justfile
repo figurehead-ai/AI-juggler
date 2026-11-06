@@ -171,6 +171,8 @@ webview:
 platform:
     python3 scripts/platform_lint.py --selftest
     python3 scripts/platform_lint.py
+    python3 scripts/keychain_lint.py --selftest
+    python3 scripts/keychain_lint.py
 
 # AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
 # the IPC rules and the size budget; and no new direct read of the

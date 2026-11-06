@@ -8,8 +8,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-/// macOS's keychain tool (existence probes only; never `-w`).
-pub const SECURITY: &str = "/usr/bin/security";
 /// macOS's "open with the default app".
 pub const OPEN: &str = "/usr/bin/open";
 /// macOS's per-process memory report (the Floor's measurement harness
@@ -79,7 +77,7 @@ pub fn explorer() -> PathBuf {
 mod tests {
     #[test]
     fn every_tool_is_named_by_an_absolute_path() {
-        for tool in [super::SECURITY, super::OPEN, super::XDG_OPEN]
+        for tool in [super::OPEN, super::XDG_OPEN]
             .iter()
             .chain(super::GIT_PLACES)
         {

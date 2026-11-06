@@ -320,12 +320,8 @@ fn keychain_entry_exists(state_dir: &Path) -> bool {
     let Some(account) = keychain_account(state_dir) else {
         return false;
     };
-    juggler_adapter::process::helper(juggler_adapter::system_tools::SECURITY)
-        .args(["find-generic-password", "-s", "Codex Auth", "-a", &account])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
+    // The keychain's one door: nothing runs in a lab or replica run.
+    juggler_adapter::keychain::item_exists("Codex Auth", Some(&account))
 }
 
 /// The Keychain account name Codex derives from a home directory.

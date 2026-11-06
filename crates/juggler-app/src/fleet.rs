@@ -66,8 +66,13 @@ impl juggler_link::KeyKeeper for Keychain {
 }
 
 /// From now on, the Fleet identity lives in this edition's keychain
-/// (macOS; elsewhere the files stay until that system's seam exists).
+/// (macOS; elsewhere the files stay until that system's seam exists). The
+/// keychain is the one this run chose ([`crate::edition::keep_secrets`]):
+/// a lab, a replica, a test or a Dev build keeps it in private files.
 pub fn keep_in_keychain() {
+    if let Ok(data_dir) = crate::state::resolve_data_dir() {
+        let _ = crate::edition::keep_secrets(&data_dir);
+    }
     if cfg!(target_os = "macos") {
         let _ = KEEPER.set(Arc::new(Keychain(crate::edition::current().keychain())));
     }
