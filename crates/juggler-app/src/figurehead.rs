@@ -884,8 +884,7 @@ pub async fn figurehead_link_start(
 ) -> AppResult<FigureheadStatusInfo> {
     let status = blocking(&state, move |state| link_start_impl(state, name.as_deref())).await?;
     if let Some(url) = page_url(state.inner(), "verify") {
-        use tauri_plugin_opener::OpenerExt as _;
-        let _ = app.opener().open_url(url, None::<&str>);
+        let _ = crate::webview_guard::open_web(&app, &url, crate::webview_guard::Opened::ByApp);
     }
     Ok(status)
 }
@@ -1016,17 +1015,11 @@ pub async fn figurehead_open_page(
     target: String,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "figurehead open page", move |state| {
-        use tauri_plugin_opener::OpenerExt as _;
         let url = page_url(state, &target).ok_or(AppError::Validation {
             subject: "page",
             message: "That page isn't available.".to_owned(),
         })?;
-        app.opener()
-            .open_url(url, None::<&str>)
-            .map_err(|e| AppError::Io {
-                context: "open Figurehead",
-                message: e.to_string(),
-            })
+        crate::webview_guard::open_web(&app, url, crate::webview_guard::Opened::ByApp)
     })
     .await
 }

@@ -1,11 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "terminal-window",
-  "description": "A terminal in its own window (AJ-E1506): its output and exit events only — no dialogs, no window controls beyond the app's own commands.",
+  "description": "A terminal in its own window (AJ-E1506, AJ-E2003): its own commands (permissions/terminal-window.toml) and events in. No dialogs, no menus, no window controls.",
   "windows": [
     "terminal-*"
   ],
   "permissions": [
-    "core:event:default"
+    "terminal-window",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
   ]
 }

@@ -419,13 +419,7 @@ pub async fn going_back_open_releases(
     app: tauri::AppHandle,
     version: Option<String>,
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
-    app.opener()
-        .open_url(releases_page(version.as_deref()), None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "releases page",
-            message: e.to_string(),
-        })
+    crate::webview_guard::open_web(&app, releases_page(version.as_deref()), crate::webview_guard::Opened::ByApp)
 }
 
 /// "20 Oct 2026" for an epoch-ms time (UTC day).

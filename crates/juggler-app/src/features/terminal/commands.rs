@@ -44,7 +44,9 @@ pub async fn terminal_open_link(
         .await?;
     let opener = app.opener();
     let result = match (&found, editor) {
-        (LinkTarget::Web(url), _) => opener.open_url(url, None::<&str>),
+        (LinkTarget::Web(url), _) => {
+            return crate::webview_guard::open_web(&app, url, crate::webview_guard::Opened::ByUser);
+        }
         (LinkTarget::File(path), Some(editor)) => {
             opener.open_path(path.to_string_lossy(), Some(editor))
         }

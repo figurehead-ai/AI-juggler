@@ -2545,12 +2545,7 @@ pub async fn login_open_web(
                 message: format!("{harness} has no web sign-in page"),
             });
         };
-        app.opener()
-            .open_url(url, None::<&str>)
-            .map_err(|e| AppError::Io {
-                context: "open login page",
-                message: e.to_string(),
-            })
+        crate::webview_guard::open_web(&app, url, crate::webview_guard::Opened::ByApp)
     })
     .await
 }

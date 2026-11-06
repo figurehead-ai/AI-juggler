@@ -51,6 +51,8 @@ pub mod machine_memory;
 pub mod machine_recommendations;
 pub mod machine_tools;
 pub mod main_window;
+pub mod webview_guard;
+pub mod picked;
 pub mod manage;
 pub mod newer_data;
 pub mod os_access;
@@ -666,6 +668,9 @@ macro_rules! app_commands {
             Write features::project_sync::commands::project_sync_apply,
             Read  features::project_sync::commands::project_sync_servers,
             Write features::project_sync::commands::project_sync_servers_apply,
+            // AJ-E2003: the native pickers, from Rust; a pick is remembered
+            // so a command can tell the user chose that path.
+            Write picked::pick_path,
         }
     };
 }
@@ -886,6 +891,10 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             use tauri::Manager;
+            // AJ-E2003: a folder dropped onto a window counts as chosen.
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                picked::record_dropped(paths);
+            }
             if window.label() == features::floor::window::LABEL {
                 features::floor::window::on_window_event(window, event);
                 return;
@@ -908,6 +917,9 @@ pub fn run() {
         })
         .invoke_handler(app_commands!(tauri_handler))
         .setup(move |app| {
+            // AJ-E2003: the main window, built guarded (tauri.conf.json's
+            // entry has `create: false`).
+            webview_guard::create_main(app.handle())?;
             let _ = app.emit(EVENT_APP_READY, commands::AppInfo::current());
             // Q8: answer a second launch only once the window really came
             // forward on the main thread (a stuck app stays silent, and the

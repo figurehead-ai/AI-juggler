@@ -512,14 +512,8 @@ pub fn open_issue(
     words: &str,
     keep: &[String],
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
     let composed = compose(id, title, words, keep)?;
-    app.opener()
-        .open_url(issue_url(&composed.title, &composed.fields), None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "report",
-            message: e.to_string(),
-        })
+    crate::webview_guard::open_web(app, issue_url(&composed.title, &composed.fields), crate::webview_guard::Opened::ByApp)
 }
 
 #[cfg(test)]

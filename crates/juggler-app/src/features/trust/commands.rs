@@ -3,7 +3,6 @@
 
 use std::sync::Arc;
 
-use tauri_plugin_opener::OpenerExt as _;
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -26,10 +25,5 @@ pub async fn trust_open(
         subject: "link",
         message: "That page isn't available.".to_owned(),
     })?;
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "open the page",
-            message: e.to_string(),
-        })
+    crate::webview_guard::open_web(&app, url, crate::webview_guard::Opened::ByApp)
 }

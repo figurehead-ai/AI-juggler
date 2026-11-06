@@ -25,6 +25,7 @@ verify-static:
     just terminology
     just tool-literals
     just platform
+    just webview
     just structure
     just task-counts
     just stats-doc
@@ -150,6 +151,12 @@ terminology:
 tool-literals:
     python3 scripts/tool_literal_lint.py --selftest
     python3 scripts/tool_literal_lint.py
+
+# AJ-E2003: the web views' capabilities, CSP, navigation guard and the
+# one browser opener stay narrow.
+webview:
+    python3 scripts/webview_lint.py --selftest
+    python3 scripts/webview_lint.py
 
 # Cross-platform readiness (docs/research/cross-platform-readiness.md §5.1):
 # no new macOS- or Unix-only assumption outside the platform seams; the

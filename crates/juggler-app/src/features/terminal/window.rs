@@ -75,7 +75,11 @@ pub fn pop_out(app: &AppHandle, id: &str, title: &str) -> AppResult<()> {
         .filter(|c| !c.is_control())
         .take(MAX_TITLE)
         .collect();
-    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+    let window = crate::webview_guard::guarded(WebviewWindowBuilder::new(
+        app,
+        &label,
+        WebviewUrl::App("index.html".into()),
+    ))
         .title(if name.trim().is_empty() {
             "AI Juggler".to_owned()
         } else {

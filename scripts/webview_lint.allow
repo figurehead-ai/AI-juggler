@@ -1,0 +1,4 @@
+# Files that may call .open_url( themselves: the system-settings seam opens
+# x-apple.systempreferences: (and its Windows/Linux equivalents), not the web.
+crates/juggler-app/src/os_access.rs
+crates/juggler-app/src/commands.rs  # open_accessibility_settings

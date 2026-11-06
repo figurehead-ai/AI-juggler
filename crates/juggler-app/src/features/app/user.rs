@@ -54,13 +54,7 @@ pub const GUIDES_URL: &str = "https://github.com/figurehead-ai/AI-juggler/tree/m
 /// [`crate::error::AppError::Io`] when the system can't open the browser.
 #[tauri::command]
 pub async fn app_help_open(app: tauri::AppHandle) -> crate::error::AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
-    app.opener()
-        .open_url(GUIDES_URL, None::<&str>)
-        .map_err(|e| crate::error::AppError::Io {
-            context: "help",
-            message: e.to_string(),
-        })
+    crate::webview_guard::open_web(&app, GUIDES_URL, crate::webview_guard::Opened::ByApp)
 }
 
 #[cfg(test)]

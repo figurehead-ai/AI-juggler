@@ -1,14 +1,21 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default window capability: core access only, no shell/fs/http permissions.",
+  "description": "The main window (AJ-E2003): the app's registered commands, and only the parts of Tauri's own API the page uses: events in, the native context menu, the window drag region, and the open/save dialogs. No shell, fs, http or opener permission, and no remote URL.",
   "windows": [
     "main"
   ],
   "permissions": [
-    "core:default",
+    "main-window",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:menu:allow-new",
+    "core:menu:allow-append",
+    "core:menu:allow-popup",
+    "core:resources:allow-close",
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize",
     "dialog:allow-open",
-    "dialog:allow-save",
-    "core:window:allow-start-dragging"
+    "dialog:allow-save"
   ]
 }
