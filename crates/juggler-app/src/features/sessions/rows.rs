@@ -465,6 +465,49 @@ fn in_project(query: &SessionsQuery, project: Option<&str>) -> bool {
     }
 }
 
+/// AJ-E3102 R1: a list scoped to a project, an App or a folder keeps only
+/// the outside conversations the conversation index puts there (the same
+/// index the relation counts are made from, so a count and its list agree),
+/// before any row is built. An unscoped list (or "no project") keeps all.
+fn narrowed_outside(
+    state: &Arc<AppState>,
+    query: &SessionsQuery,
+    outside: Vec<ConversationInfo>,
+) -> AppResult<Vec<ConversationInfo>> {
+    let project = query.project_id.as_deref().filter(|id| !id.is_empty());
+    if project.is_none() && query.app_id.is_none() && query.account_id.is_none() {
+        return Ok(outside);
+    }
+    let index = crate::features::relations::conversation_index(state)?;
+    let mut keep: Option<std::collections::HashSet<(String, String)>> = None;
+    let mut narrow = |found: Vec<(String, String)>| {
+        let found: std::collections::HashSet<_> = found.into_iter().collect();
+        keep = Some(match keep.take() {
+            Some(before) => before.intersection(&found).cloned().collect(),
+            None => found,
+        });
+    };
+    let pair = |facet: &crate::features::conversations::by_relation::Facet| {
+        (facet.folder.clone(), facet.id.clone())
+    };
+    if let Some(project) = project {
+        narrow(index.of_project(project).map(pair).collect());
+    }
+    if let Some(app) = &query.app_id {
+        narrow(index.of_app(app).map(pair).collect());
+    }
+    if let Some(folder) = &query.account_id {
+        narrow(index.of_folder(folder).map(pair).collect());
+    }
+    let keep = keep.unwrap_or_default();
+    Ok(outside
+        .into_iter()
+        .filter(|conversation| {
+            keep.contains(&(conversation.account_id.clone(), conversation.id.clone()))
+        })
+        .collect())
+}
+
 /// Every row in `query`'s scope that matches its search and its filters
 /// (not yet narrowed to open, ended or archived); `facets`: each row's
 /// App worked out whether or not the query names one (a list's filters,
@@ -473,11 +516,14 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
     let mut lookup = Lookup::new(state, query)?;
     // Outside conversations from the index (in memory), before storage
     // is held.
-    let outside: Vec<ConversationInfo> =
+    let outside: Vec<ConversationInfo> = narrowed_outside(
+        state,
+        query,
         crate::features::conversations::commands::list_impl(state)?
             .into_iter()
             .filter(|conversation| conversation.session_id.is_none())
-            .collect();
+            .collect(),
+    )?;
     let (records, accounts, recipes, lifecycle) = {
         let storage = lock_storage_arc(state)?;
         let (accounts, recipes) =
