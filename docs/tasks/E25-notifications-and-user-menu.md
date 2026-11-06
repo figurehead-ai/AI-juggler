@@ -47,7 +47,7 @@
 
 ## Step 1 — the model
 
-### AJ-E2501 The one notification model | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort L | Depends: AJ-E1510, AJ-E611
+### AJ-E2501 The one notification model | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; built: agent, 2026-10-27) | Priority P0 | Effort L | Depends: AJ-E1510, AJ-E611
 **Goal**: One backend model of what needs the user and what happened, which every source writes through and every view reads.
 **User story**: As someone juggling many sessions and accounts, I find everything that needed me or happened today in one place, told once, in plain words, and the app never acts for me.
 **Requirements**:
@@ -69,7 +69,7 @@
 
 ## Step 2 — one count, everywhere
 
-### AJ-E2502 One count: the bell, the app badge, Needs you | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E2501
+### AJ-E2502 One count: the bell, the app badge, Needs you | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; built: agent, 2026-10-27) | Priority P0 | Effort M | Depends: AJ-E2501
 **Goal**: The bell in the header, the app badge and the menu-bar item show the same number as Needs you on Home.
 **Requirements**:
 1. Needs you SHALL be the backend's one list (D-49): the rail (by place and the Project lens, the collapsed rail and folded headers), Home, the bell, the badge, the menu-bar item and the system notifications read it and its one count; the window works nothing out (`lib/needs-you.ts` reads it). The rail's Needs you also lists the needs that aren't a session's, so its number is the bell's. In the preview a lazy stand-in (`preview/needs.tsx`) runs the same rules over the preview's own data.
@@ -112,7 +112,7 @@
 **Quality gates**: `src/components/notifications.test.tsx`, `feedback.test.tsx`, `switch-flow.test.tsx`; the gallery (toast-undo, toast-error).
 **Files to touch**: `ui/src/components/Toast.tsx`, `ToastStack.tsx`, `styles.css`.
 
-### AJ-E2506 The menu-bar item (§4.17) | Status: DONE-PENDING-EVIDENCE (agent, 2026-10-27) | Priority P1 | Effort M | Depends: AJ-E2501
+### AJ-E2506 The menu-bar item (§4.17) | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1; built: agent, 2026-10-27) | Priority P1 | Effort M | Depends: AJ-E2501
 **Goal**: The count beside AI Juggler's icon in the menu bar, and a menu of what needs you and what is open.
 **Requirements**:
 1. Tauri's tray (`tray-icon`), made at start, redrawn on every change: the count as its title, "AI Juggler · 3 things need you" as its tooltip.

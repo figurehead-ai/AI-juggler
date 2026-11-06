@@ -9,7 +9,7 @@ use std::sync::Arc;
 use juggler_platform::system::{AppBadge, app_badge, badge_value};
 
 use super::centre::{self, NoticeSummaryInfo};
-use super::tray::{self, TrayClick};
+use super::tray::{self, TrayClick, TrayMenu};
 use crate::state::AppState;
 
 /// The window hears of every change: the summary.
@@ -77,8 +77,42 @@ pub fn summary_now(state: &Arc<AppState>) -> NoticeSummaryInfo {
         .unwrap_or_default()
 }
 
+/// Where the views are drawn: the running app's window, badge and
+/// menu-bar item ([`AppViews`]), or a test's record of what it was given.
+pub trait Surface: Send + Sync {
+    /// The window's bell hears the summary.
+    fn tell_window(&self, summary: NoticeSummaryInfo);
+    /// The app badge shows `count`, and the menu-bar item draws `menu`
+    /// (made the first time).
+    fn draw(&self, count: u32, menu: TrayMenu);
+}
+
+/// The running app's views.
+pub struct AppViews<R: tauri::Runtime>(pub tauri::AppHandle<R>);
+
+impl<R: tauri::Runtime> Surface for AppViews<R> {
+    fn tell_window(&self, summary: NoticeSummaryInfo) {
+        self.0.emit_event(AppEvent::NotificationsChanged, summary);
+    }
+
+    fn draw(&self, count: u32, menu: TrayMenu) {
+        let handle = self.0.clone();
+        let _ = self.0.run_on_main_thread(move || {
+            let _ = show_badge(&handle, count);
+            if let Err(error) = tray::apply(&handle, &menu) {
+                tracing::warn!("the menu-bar item couldn't be drawn: {error}");
+            }
+        });
+    }
+}
+
 /// Brings every view to the model's state now.
 pub fn refresh<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppState>) {
+    refresh_on(&AppViews(app.clone()), state);
+}
+
+/// [`refresh`] on `surface`.
+pub fn refresh_on(surface: &dyn Surface, state: &Arc<AppState>) {
     let summary = summary_now(state);
     let now = crate::commands::now_millis();
     let needs = state
@@ -88,14 +122,8 @@ pub fn refresh<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
         .unwrap_or_default();
     let menu = tray::build(summary.count, &needs, &state.notifier.open_now(), now);
     let count = summary.count;
-    app.emit_event(AppEvent::NotificationsChanged, summary);
-    let handle = app.clone();
-    let _ = app.run_on_main_thread(move || {
-        let _ = show_badge(&handle, count);
-        if let Err(error) = tray::apply(&handle, &menu) {
-            tracing::warn!("the menu-bar item couldn't be drawn: {error}");
-        }
-    });
+    surface.tell_window(summary);
+    surface.draw(count, menu);
 }
 
 /// A line of the menu-bar item was clicked: AI Juggler comes forward on
@@ -129,14 +157,22 @@ pub fn tray_clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
 }
 
 /// Connects the views: every change in the model reaches them, and they
-/// show the model's state from the start.
+/// show the model's state from the start (the menu-bar item is made
+/// then).
 pub fn connect(app: &tauri::AppHandle, state: &Arc<AppState>) {
-    let handle = app.clone();
+    let surface: Arc<dyn Surface> = Arc::new(AppViews(app.clone()));
+    connect_on(&surface, state);
+}
+
+/// [`connect`] on `surface`. The notifier holds the state weakly (the
+/// state holds the notifier).
+pub fn connect_on(surface: &Arc<dyn Surface>, state: &Arc<AppState>) {
+    let weak = Arc::downgrade(state);
+    let on_change = Arc::clone(surface);
     state.notifier.set_on_change(Box::new(move || {
-        use tauri::Manager;
-        if let Some(state) = handle.try_state::<Arc<AppState>>() {
-            refresh(&handle, state.inner());
+        if let Some(state) = weak.upgrade() {
+            refresh_on(on_change.as_ref(), &state);
         }
     }));
-    refresh(app, state);
+    refresh_on(surface.as_ref(), state);
 }

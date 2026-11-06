@@ -341,7 +341,7 @@ proptest! {
             now += 60_000;
             let (next, emission) = match obs {
                 Obs::Tte(tte) => step(&fsm, WindowObservation { levels: Levels::default(), tte_min: Some(tte), used_pct: None, confidence: Confidence::Estimated, resets_at_ms: None }, now),
-                Obs::Pct(pct) => step(&fsm, WindowObservation { levels: Levels::default(), tte_min: None, used_pct: Some(pct), confidence: Confidence::Estimated, resets_at_ms: None }, now),
+                Obs::Pct(pct) => step(&fsm, WindowObservation { levels: Levels::default(), tte_min: None, used_pct: Some(pct), confidence: Confidence::Measured, resets_at_ms: None }, now),
                 Obs::Exhausted => signal(&fsm, AlertSignal::Exhausted, now),
                 Obs::Reset => signal(&fsm, AlertSignal::Reset, now),
                 Obs::Snooze => signal(&fsm, AlertSignal::Snooze, now),

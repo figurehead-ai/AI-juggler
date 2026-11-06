@@ -186,3 +186,42 @@ fn the_first_and_last_warnings_come_at_the_users_levels_once_each() {
         vec!["-", "first", "-", "last", "-"]
     );
 }
+
+/// AJ-E2904 R2: the user's levels fire for a window that is measured or
+/// computed; an estimated percentage never crosses them, while the
+/// time-to-empty warnings stay whatever the reading.
+#[test]
+fn the_levels_fire_on_a_measured_or_computed_window_only() {
+    let at = |pct: f64, tte: Option<f64>, confidence: Confidence| WindowObservation {
+        levels: Levels::DEFAULT,
+        tte_min: tte,
+        used_pct: Some(pct),
+        confidence,
+        resets_at_ms: Some(T0 + 5 * HOUR),
+    };
+    for confidence in [Confidence::Measured, Confidence::Computed] {
+        let (fsm, first) = step(&AlertFsm::default(), at(85.0, None, confidence), T0);
+        assert!(
+            matches!(first, AlertEmission::TrayAmber { .. }),
+            "{confidence:?}"
+        );
+        let (_, last) = step(&fsm, at(96.0, None, confidence), T0);
+        assert!(
+            matches!(last, AlertEmission::Actionable { .. }),
+            "{confidence:?}"
+        );
+    }
+    // Estimated: 85 % and 96 % say nothing...
+    let mut fsm = AlertFsm::default();
+    for pct in [85.0, 96.0, 99.0] {
+        let (next, emission) = step(&fsm, at(pct, None, Confidence::Estimated), T0);
+        assert_eq!(emission, AlertEmission::None, "{pct}% estimated");
+        assert_eq!(next.phase, AlertPhase::Armed);
+        fsm = next;
+    }
+    // ...but its time to empty still warns, first and last.
+    let (fsm, amber) = step(&fsm, at(60.0, Some(40.0), Confidence::Estimated), T0);
+    assert!(matches!(amber, AlertEmission::TrayAmber { .. }));
+    let (_, actionable) = step(&fsm, at(60.0, Some(10.0), Confidence::Estimated), T0);
+    assert!(matches!(actionable, AlertEmission::Actionable { .. }));
+}

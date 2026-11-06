@@ -23,6 +23,18 @@ const ALERT_DIGEST_KEY: &str = "alert_digest";
 
 pub(crate) const ALERT_MUTES_KEY: &str = "alert_mutes";
 
+/// A window's reading's confidence, from its badge (no badge: no
+/// percentage, so nothing measured).
+fn window_confidence(
+    window: &crate::features::quota::WindowDisplay,
+) -> juggler_core::model::Confidence {
+    match window.badge.as_deref() {
+        Some("measured") => juggler_core::model::Confidence::Measured,
+        Some("computed") => juggler_core::model::Confidence::Computed,
+        _ => juggler_core::model::Confidence::Estimated,
+    }
+}
+
 /// AJ-E611: one account's two window FSMs + its renewal-approaching
 /// digest line (Req.5 — the subscription clock NEVER steps a window
 /// machine). Pure with respect to Provider surfaces; mutates only the
@@ -42,11 +54,6 @@ fn step_account_alerts(
     let owner = |key: &str| storage.terms().owner(key).ok().flatten();
     let mine = owner(&id);
     let display = quota_display_inner(storage, account, now);
-    let confidence = match display.forecast.badge.as_str() {
-        "measured" => juggler_core::model::Confidence::Measured,
-        "computed" => juggler_core::model::Confidence::Computed,
-        _ => juggler_core::model::Confidence::Estimated,
-    };
     // One buffered line per distinct copy — the label changes as the
     // date nears, which is the natural dedupe key.
     if display.renewal.state == "approaching"
@@ -63,6 +70,9 @@ fn step_account_alerts(
         ("weekly", &display.weekly),
     ] {
         let Some(window) = window else { continue };
+        // AJ-E2904: the window's own reading: the user's levels fire on a
+        // measured or computed one, and an estimate's words say "about".
+        let confidence = window_confidence(window);
         let observation = WindowObservation {
             // AJ-E2904: the user's first and last warnings.
             levels: crate::settings_policy::quota_levels(storage),
@@ -97,6 +107,8 @@ fn step_account_alerts(
                     account_label: account.label.clone(),
                     window: slot.to_owned(),
                     left_pct: window.percentage.map(|used| (100.0 - used).max(0.0)),
+                    estimate: window.percentage.is_some()
+                        && confidence == juggler_core::model::Confidence::Estimated,
                     minutes_left: display.forecast.tte_min,
                     resets_at_ms: window.resets_at_ms,
                 },

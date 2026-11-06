@@ -16,8 +16,10 @@ pub struct AlertQuotaInfo {
     pub account_label: String,
     /// The window (`five_hour|weekly`): data for the UI, never shown.
     pub window: String,
-    /// Percent left, when measured.
+    /// Percent left, when the window has a reading.
     pub left_pct: Option<f64>,
+    /// AJ-E2904: that reading is an estimate, so the words say "about".
+    pub estimate: bool,
     /// Minutes of work left at the current pace, when forecast.
     pub minutes_left: Option<f64>,
     /// When the window resets, epoch ms.
@@ -71,8 +73,9 @@ pub fn quota_alert_words(kind: &str, quota: &AlertQuotaInfo, now: i64) -> String
             None => format!("{who} is running low in its {window}"),
         },
         "actionable" => {
+            let about = if quota.estimate { "about " } else { "" };
             let head = match quota.left_pct {
-                Some(left) => format!("{who} has {left:.0}% left in its {window}"),
+                Some(left) => format!("{who} has {about}{left:.0}% left in its {window}"),
                 None => format!("{who} is about to run out of its {window}"),
             };
             match reset {
@@ -273,6 +276,7 @@ mod tests {
             account_label: "Mia".to_owned(),
             window: window.to_owned(),
             left_pct: left,
+            estimate: false,
             minutes_left: minutes,
             resets_at_ms: reset_in_min.map(|min| NOW + min * 60_000),
         }
@@ -354,5 +358,27 @@ mod tests {
             ),
             "Mia has about 40 min of work left in its 5-hour window"
         );
+    }
+
+    /// AJ-E2904 R2: an estimated reading says "about"; a measured or
+    /// computed one doesn't.
+    #[test]
+    fn an_estimated_reading_says_about() {
+        let measured = quota("five_hour", Some(7.0), None, Some(70));
+        let estimated = AlertQuotaInfo {
+            estimate: true,
+            ..measured.clone()
+        };
+        assert_eq!(
+            quota_alert_words("actionable", &estimated, NOW),
+            "Mia has about 7% left in its 5-hour window, until it resets in 1 h 10 min"
+        );
+        assert!(!quota_alert_words("actionable", &measured, NOW).contains("about"));
+        // Time to empty is a forecast: it always says "about".
+        assert!(
+            quota_alert_words("tray-amber", &quota("weekly", None, Some(40.0), None), NOW)
+                .contains("about 40 min")
+        );
+        assert!(plain(&quota_alert_words("actionable", &estimated, NOW)));
     }
 }

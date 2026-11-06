@@ -404,4 +404,12 @@ fn send_test_reaches_the_system_whatever_holds_the_others_back() {
         words.starts_with("Sent. If nothing appeared, allow "),
         "{words}"
     );
+    // R3: in this system's own words, from the platform seam.
+    assert!(
+        words.ends_with(&format!(
+            " in {}.",
+            juggler_platform::system::notification_settings_words()
+        )),
+        "{words}"
+    );
 }

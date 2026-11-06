@@ -36,10 +36,11 @@ fn reset_words(window: &str) -> &'static str {
     }
 }
 
-/// The fullest window of an account now: `(window, used %, resets at)`.
+/// The fullest window of an account now: `(window, used %, resets at,
+/// whether that percentage is an estimate)`.
 fn fullest(
     display: &crate::features::quota::QuotaDisplayInfo,
-) -> Option<(&'static str, Option<f64>, Option<i64>)> {
+) -> Option<(&'static str, Option<f64>, Option<i64>, bool)> {
     [
         ("five_hour", &display.five_hour),
         ("weekly", &display.weekly),
@@ -50,7 +51,15 @@ fn fullest(
         let used = |w: &crate::features::quota::WindowDisplay| w.percentage.unwrap_or(-1.0);
         used(a.1).total_cmp(&used(b.1))
     })
-    .map(|(slot, window)| (window_words(slot), window.percentage, window.resets_at_ms))
+    .map(|(slot, window)| {
+        (
+            window_words(slot),
+            window.percentage,
+            window.resets_at_ms,
+            window.percentage.is_some()
+                && !matches!(window.badge.as_deref(), Some("measured" | "computed")),
+        )
+    })
 }
 
 fn live_sessions_on(storage: &Storage, account_id: &str) -> u32 {
@@ -87,7 +96,8 @@ pub struct QuotaSubject {
     pub folder: String,
 }
 
-/// The notice for an account running out of room, from its quota now.
+/// The notice for an account running out of room, from its quota now
+/// (a measured or computed reading).
 #[must_use]
 pub fn low_notice(
     subject: &QuotaSubject,
@@ -97,6 +107,43 @@ pub fn low_notice(
     sessions: u32,
     run_out: bool,
 ) -> NewNotice {
+    low_notice_read(
+        subject,
+        window,
+        Used {
+            pct: used,
+            estimate: false,
+        },
+        resets_at_ms,
+        sessions,
+        run_out,
+    )
+}
+
+/// A window's percentage used, and whether it is an estimate.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Used {
+    /// Percent used, when read.
+    pub pct: Option<f64>,
+    /// AJ-E2904: an estimate: the words say "about".
+    pub estimate: bool,
+}
+
+/// [`low_notice`] from a reading that may be an estimate (AJ-E2904: then
+/// its words say "about").
+#[must_use]
+pub fn low_notice_read(
+    subject: &QuotaSubject,
+    window: &str,
+    used: Used,
+    resets_at_ms: Option<i64>,
+    sessions: u32,
+    run_out: bool,
+) -> NewNotice {
+    let Used {
+        pct: used,
+        estimate,
+    } = used;
     let label = &subject.name;
     // Clamped to 0–100 first: the cast can't truncate.
     #[allow(clippy::cast_possible_truncation)]
@@ -107,6 +154,7 @@ pub fn low_notice(
         format!("{label} is almost out of room")
     };
     let detail = match left {
+        Some(left) if estimate => format!("About {left}% of its {window} window left"),
         Some(left) => format!("{left}% of its {window} window left"),
         None => format!("Its {window} window is running low"),
     };
@@ -366,7 +414,7 @@ impl AccountPass<'_> {
             .collect();
         let reading = newest_reading(&displays);
         let display = displays.swap_remove(reading);
-        let Some((window, used, resets_at)) = fullest(&display) else {
+        let Some((window, used, resets_at, estimate)) = fullest(&display) else {
             return;
         };
         let live: Vec<u32> = folders
@@ -436,7 +484,17 @@ impl AccountPass<'_> {
                 let _ = centre::end_need(self.storage, key, self.now);
             }
         }
-        let notice = low_notice(&subject, window, used, resets_at, sessions, run_out);
+        let notice = low_notice_read(
+            &subject,
+            window,
+            Used {
+                pct: used,
+                estimate,
+            },
+            resets_at,
+            sessions,
+            run_out,
+        );
         if let Ok(Some(info)) = centre::open_need(self.storage, &notice, self.now) {
             told.push((Target::Account(subject.folder.clone()), Kind::Quota, info));
         }
@@ -1014,6 +1072,31 @@ pub fn restarted(
     }
 }
 
+/// AJ-E2912: debug mode turned itself off after its days (it was turned
+/// on at `since`): told once, under Earlier; it opens Diagnostics, where
+/// the log stays until it's cleared.
+pub fn debug_mode_stopped(storage: &Storage, since: i64, now: i64) {
+    use crate::features::app::diagnostics::debug_log::DAYS_ON;
+    let notice = NewNotice {
+        key: format!("debug-off:{since}"),
+        kind: "debug".to_owned(),
+        title: "Debug mode turned itself off".to_owned(),
+        detail: format!(
+            "It was on for {DAYS_ON} days. Its log stays until you clear it in Settings › Advanced."
+        ),
+        data: centre::data_of(
+            &NoticeTarget {
+                page: Some("diagnostics".to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts::default(),
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    };
+    let _ = centre::record(storage, &notice, now);
+}
+
 /// The notice for an update, when the status is one worth telling: a new
 /// version found, or one installed and ready.
 #[must_use]
@@ -1070,31 +1153,6 @@ pub fn update(state: &Arc<AppState>, status: &crate::updates::UpdateStatusInfo) 
     if recorded.is_some() {
         super::changed(state);
     }
-}
-
-/// AJ-E2912: debug mode turned itself off after its days (it was turned
-/// on at `since`): told once, under Earlier; it opens Diagnostics, where
-/// the log stays until it's cleared.
-pub fn debug_mode_stopped(storage: &Storage, since: i64, now: i64) {
-    use crate::features::app::diagnostics::debug_log::DAYS_ON;
-    let notice = NewNotice {
-        key: format!("debug-off:{since}"),
-        kind: "debug".to_owned(),
-        title: "Debug mode turned itself off".to_owned(),
-        detail: format!(
-            "It was on for {DAYS_ON} days. Its log stays until you clear it in Settings › Advanced."
-        ),
-        data: centre::data_of(
-            &NoticeTarget {
-                page: Some("diagnostics".to_owned()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts::default(),
-        ),
-        action: Some("open".to_owned()),
-        ..NewNotice::default()
-    };
-    let _ = centre::record(storage, &notice, now);
 }
 
 #[cfg(test)]
@@ -1371,6 +1429,29 @@ mod tests {
         );
         assert_eq!(plain.action.as_deref(), Some("open"));
         assert_eq!(plain.detail, "Sessions on it can carry on");
+    }
+
+    /// AJ-E2904 R2: the notice for an estimated reading says "about"; a
+    /// measured or computed one says the number as it is.
+    #[test]
+    fn an_estimated_reading_says_about_in_the_notice() {
+        let subject = lone("acct-1", "Work Max");
+        let measured = low_notice(&subject, "5-hour", Some(93.0), None, 1, false);
+        assert_eq!(measured.detail, "7% of its 5-hour window left");
+        let estimated = low_notice_read(
+            &subject,
+            "5-hour",
+            Used {
+                pct: Some(93.0),
+                estimate: true,
+            },
+            None,
+            1,
+            false,
+        );
+        assert_eq!(estimated.detail, "About 7% of its 5-hour window left");
+        assert_eq!(estimated.title, measured.title);
+        assert_eq!(estimated.meter, Some(7));
     }
 
     /// wf27: "Claude·Work quota reset — “fix-auth-tests” can switch back."

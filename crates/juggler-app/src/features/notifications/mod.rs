@@ -326,6 +326,12 @@ pub fn changed(state: &Arc<AppState>) {
 /// told again the next time; one that needs the user while it holds (an
 /// account almost out of room) once while it holds.
 pub fn model_event(state: &Arc<AppState>, target: Target, kind: Kind, info: &centre::NoticeInfo) {
+    // R7: a need whose subject is snoozed (an account's room need snoozed
+    // until woken, opening again) waits in the centre; it doesn't
+    // interrupt.
+    if info.snoozed {
+        return;
+    }
     let muted = state.storage.lock().is_ok_and(|storage| {
         !centre::may_interrupt_in(
             &storage,
