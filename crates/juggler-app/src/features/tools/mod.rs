@@ -123,6 +123,10 @@ pub fn spec_info(adapter: &dyn HarnessAdapter) -> ToolSpecInfo {
             app_meter,
             thread_link,
             agent_tools: adapter.capabilities().contains(Capabilities::AGENT_BRIDGE),
+            // AJ-E2908 R2: from its adapter, never a per-tool branch. An
+            // ordinary id is asked: a tool that resumes gives arguments
+            // for it, one that can't gives none.
+            resume: adapter.resume_args("conversation").is_some(),
         },
         runtime: adapter.driven().map(|driven| dto::ToolRuntimeInfo {
             label: driven.label().to_owned(),

@@ -73,7 +73,7 @@ export function genericTool(id: string): ToolSpecInfo {
     flow: { first_run: false, primary: false },
     terms: null,
     home_env: [],
-    supports: { in_place: false, limits: false, app_meter: false, thread_link: false, agent_tools: false },
+    supports: { in_place: false, limits: false, app_meter: false, thread_link: false, agent_tools: false, resume: false },
   };
 }
 

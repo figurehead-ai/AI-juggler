@@ -2023,7 +2023,6 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/pages/session/resume.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 4
  },
  "src/pages/session/session-chips.test.tsx": {

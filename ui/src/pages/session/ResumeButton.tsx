@@ -17,6 +17,7 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { outOfRoomWords } from "../../lib/room";
 import { sessionResume } from "../../lib/ipc/launch";
+import { toolSpec } from "../../lib/tools";
 
 /** Why Resume can't run now, or null. */
 export function resumeBlocked({
@@ -30,6 +31,9 @@ export function resumeBlocked({
   out: string | null;
   openIn: string | null;
 }): string | null {
+  // AJ-E2908 R2: whether its tool can resume is the tool's own spec.
+  const tool = toolSpec(session.provider);
+  if (!tool.supports.resume) return `${tool.display_name} can't resume a conversation from AI Juggler`;
   if (!session.conversation_id) return "It has no conversation to resume yet";
   if (account && !signedIn(account.login_state)) return `Sign in to ${account.label} first`;
   if (out) return out;

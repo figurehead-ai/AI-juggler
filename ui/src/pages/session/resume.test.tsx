@@ -14,6 +14,7 @@ import { asButton, clearSeams, seamCalls, setSeam } from "../../test/fixtures";
 const session = (over: Partial<InstanceInfo> = {}): InstanceInfo =>
   ({
     id: "s-1",
+    provider: "claude-code",
     status: "finished",
     conversation_id: "conv-1",
     account_id: "acc-x",
@@ -49,9 +50,17 @@ describe("AJ-E2908 — an ended session's page", () => {
     expect(onOpen).toHaveBeenCalledWith("sess-resumed-s-1");
   });
 
+  it("R2: whether its tool can resume is the tool's own spec, never a branch here", () => {
+    // A tool whose adapter gives no resume arguments (an unknown one gets
+    // the neutral spec, which claims nothing).
+    render(<ResumeButton session={session({ provider: "acme-cli" })} openIn={null} />);
+    expect(asButton(screen.getByTestId("header-resume")).disabled).toBe(true);
+    expect(screen.getByTestId("header-resume-why").textContent).toBe("acme-cli can't resume a conversation from AI Juggler");
+  });
+
   it("is off, with its reason, without a conversation", () => {
     render(<ResumeButton session={session({ conversation_id: null })} openIn={null} />);
-    expect((screen.getByTestId("header-resume") as HTMLButtonElement).disabled).toBe(true);
+    expect(asButton(screen.getByTestId("header-resume")).disabled).toBe(true);
     expect(screen.getByTestId("header-resume-why").textContent).toBe("It has no conversation to resume yet");
   });
 

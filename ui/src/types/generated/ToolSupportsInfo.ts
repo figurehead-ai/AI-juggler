@@ -27,4 +27,9 @@ thread_link: boolean,
  * D-62: sessions AI Juggler starts carry its agent tools as tools
  * (MCP); without, a pool member acts through its shell only.
  */
-agent_tools: boolean, };
+agent_tools: boolean, 
+/**
+ * AJ-E2908: it can resume one of its conversations (its adapter
+ * gives resume arguments), so an ended session offers Resume.
+ */
+resume: boolean, };

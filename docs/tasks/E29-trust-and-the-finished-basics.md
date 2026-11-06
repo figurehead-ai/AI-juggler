@@ -257,7 +257,7 @@
 **Research basis**: audit "Next after these" ("Deleting launch settings is one click with no confirm"), §10 row "Delete launch settings asks first", §4.2 row; deep/11 §4.5, §10; D-10, D-35.
 **Handover note**: Check what happens when the deleted ones are the account's default launch settings (the row offers "default", `ProfileRow.tsx:5`) and say it in the confirm. Open question **Q1**: should deleting launch settings keep their past sessions in History (a schema change: the sessions keep a name instead of the foreign key) rather than delete them? deep/11 §1.1.5 ("source always survives") leans that way; it is a data-retention choice, so it is yours.
 
-### AJ-E2908 An ended session's page: Resume, Archive, Replay and Copy ID | Status: DONE-PENDING-EVIDENCE | Priority P1 | Effort M | Depends: —
+### AJ-E2908 An ended session's page: Resume, Archive, Replay and Copy ID | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: The page of a session that ended offers what History's row offers and the spec promised: Resume the same conversation on the same account, Relaunch fresh, Replay, Archive, and copy its id.
 **User story**: As someone who opened yesterday's session from Home, I press Resume and carry on the same conversation on the same account, or Replay it to read what happened, without going back to History.
 **Requirements**:
