@@ -59,7 +59,7 @@ impl SwitchCapability {
         Self::AutomationHandover,
     ];
 
-    /// The capability's name in the contract (ADR-0028, SPEC §7.9).
+    /// The capability's name in the contract (ADR-0028, SPEC §7.7).
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {

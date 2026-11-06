@@ -547,6 +547,51 @@ session → any managed Provider) unchanged (T4).
 - [x] D-14 pack redaction: user's remembered choice, visible pre-switch
 - [x] Click-to-execute invariant restated; §3/§9/§12.1 cross-refs live
 
+### 7.7 The switching contract: what every adapter answers (ADR-0028)
+
+Switching is why people use AI Juggler, so no tool may lose part of it by
+being left out. Each adapter answers nine capabilities
+(`juggler-adapter::switching`): *Supported* with how, or *NotSupported*
+with a sentence the switch screen shows. *Unanswered* is refused by the
+conformance kit (check 14), and an adapter that moves conversations must
+support the floor (`history_exact`, `resumable`, `source_untouched`,
+`left_behind_named`).
+
+| Capability | Claude Code (CLI + Claude app) | Codex (CLI + desktop app) | Grok Build, Kimi Code, OpenCode |
+|---|---|---|---|
+| `history_exact` | transcript copied whole, checked by hash; a growing source passes the prefix check | rollout copied whole (unpacked when compressed), checked by hash | fresh start with a handover note |
+| `own_subagents` | the conversation's folder (subagents, tool results) and file history | not applicable: Codex subagents are threads of their own, so they move as its family | fresh start |
+| `family` | the app's side sessions (`spawnedFrom`) and theirs, archived ones too | subagent threads by `parent_thread_id`, in one bundle | fresh start |
+| `family_links` | each child's app record carried beside its parent's record, parent link pointed there; applied while the app is closed | in each child's own file; ids rewritten together on a collision | fresh start |
+| `resumable` | `claude --resume` or the app's resume link | `codex resume` | fresh start |
+| `source_untouched` | conversation files only read; only `automation_handover` changes the app's record of it, reversibly | rollouts only read; only the goal is paused, through Codex's app-server | fresh start |
+| `left_behind_named` | claude.ai pages it links to | heartbeat automations aimed at the thread | fresh start |
+| `switch_back_delta` | only the turns taken away (AJ-E1541) | the same | fresh start |
+| `automation_handover` | Auto-fix moves to the copy's record; the original's record is archived with Auto-fix off, which stops resuming after a usage reset, a quit or sleep | the goal is set on the copy and paused on the original (`thread/goal/set`) | fresh start |
+
+**Desktop and CLI.** Every capability is answered for both ways a tool
+is used:
+- Claude Code's terminal keeps nothing that runs by itself. A switch that
+  continues in a terminal leaves the app's automation with the original,
+  says so on the confirm screen, and suggests continuing in the app.
+- Codex's CLI and its desktop app share the account's folder, so one
+  hand-over serves both. A Mac with only the desktop app uses the `codex`
+  it ships.
+
+**When the tool reads its marks only at start.** A desktop app that reads
+its records only when it starts (the Claude app) gets each change while
+it's closed. The change waits in AI Juggler (`automation/waiting.json`,
+`family-pending/`) and is applied on the first of these:
+- the watch sees the app closed;
+- AI Juggler restarts the app;
+- AI Juggler opens the app.
+
+The change is kept until the app has run with it, and applied again if
+the app wrote over it.
+
+**Refusals.** A record or answer of a shape the adapter doesn't know is
+refused with words and logged, never guessed at.
+
 ## 8. Security & privacy
 
 - **Vendor credentials:** never read, copied, or stored by AI Juggler. They live wherever each harness keeps them inside the managed account dir (Claude: namespaced keychain; Codex: auth.json; ZCode: credentials.json). AI Juggler's own keychain items hold only its own secrets: by default nothing; with an optional Figurehead account linked, the device token (service `ai.figurehead.juggler`) and, once cloud backup is on, the backup vault key (service `ai.figurehead.juggler.vault`). Neither ever appears in SQLite, settings files, logs, packs, backups or crash reports.

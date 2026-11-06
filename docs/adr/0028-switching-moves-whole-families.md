@@ -47,7 +47,7 @@ The Claude app builds its whole family tree from those records (its "linked fami
    - **Supported**, naming what it reads;
    - or **NotSupported**, with a reason a user can read.
 
-   The trait's default is *Unanswered*, and the conformance kit refuses it, as check 11 does for subagents. An exception is allowed only where the tool truly can't. Its reason is written in the adapter and in `docs/SPEC.md §7.9`, and the switch screen says it to the user. A new adapter therefore can't lose a capability by omission. The capabilities:
+   The trait's default is *Unanswered*, and the conformance kit refuses it, as check 11 does for subagents. An exception is allowed only where the tool truly can't. Its reason is written in the adapter and in `docs/SPEC.md §7.7`, and the switch screen says it to the user. A new adapter therefore can't lose a capability by omission. The capabilities:
 
    | Capability | What "supported" proves (conformance check 14) |
    |---|---|
