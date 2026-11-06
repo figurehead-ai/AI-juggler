@@ -24,6 +24,10 @@ of: EntityKind,
  */
 ids: Array<string>, 
 /**
+ * How many of `id`'s sessions each one shares, in `ids`' order.
+ */
+sessions: number[], 
+/**
  * More than were listed.
  */
 more: boolean, };

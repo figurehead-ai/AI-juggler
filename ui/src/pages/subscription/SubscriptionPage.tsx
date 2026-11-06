@@ -34,7 +34,7 @@ import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { useRelationCounts } from "../../lib/relation-counts";
 import { accountApps, accountItems } from "../../lib/account-items";
-import { appProjects, openHere } from "../../lib/app-items";
+import { openHere, useWorkedProjects, type appProjects } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
 import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
@@ -95,7 +95,7 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   const byConversation = useMemo(() => appByConversation(knownPlaces), [knownPlaces]);
   const byFolder = useMemo(() => appByFolder(knownPlaces), [knownPlaces]);
   const onIt = useMemo(() => accountApps(apps ?? [], sub.account_id ?? "", folderIds, allItems, byConversation), [apps, sub.account_id, folderIds, allItems, byConversation]);
-  const worked = useMemo(() => appProjects(items), [items]);
+  const worked = useWorkedProjects("subscription", sub.account_id, items, projects);
   // Each session's App, by the rail's rule (a session that ended in the
   // Claude app says so, not its tool).
   const appOf = (item: RailItem): AppModel | null => (apps ? appByRailKey(apps, appKeyOf(item, byConversation, byFolder)) : null);

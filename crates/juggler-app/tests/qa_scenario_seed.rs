@@ -386,6 +386,53 @@ fn seed_scenario() {
         }
     }
 
+    // `ended_sessions = N` (the K walks: paging a long history): N ended
+    // sessions over the scenario's terminal Apps and projects, one every
+    // 37 minutes back from now, oldest last.
+    let bulk = seed["ended_sessions"].as_u64().unwrap_or(0);
+    let mut terminal: Vec<(&String, &(String, String))> = recipes
+        .iter()
+        .filter(|(app, _)| !desktop_apps.contains_key(*app))
+        .collect();
+    terminal.sort_by(|a, b| a.0.cmp(b.0));
+    let mut names: Vec<&String> = projects.keys().collect();
+    names.sort();
+    if bulk > 0 && !terminal.is_empty() {
+        let now = Timestamp::now().millis();
+        let storage = state.storage.lock().unwrap();
+        for i in 0..bulk {
+            let (_, (_, recipe)) = terminal[usize::try_from(i).unwrap() % terminal.len()];
+            let name = names
+                .get(usize::try_from(i).unwrap() % names.len().max(1))
+                .copied();
+            let started = now - i64::try_from(i + 1).unwrap() * 37 * 60_000;
+            storage
+                .sessions()
+                .insert(&InstanceRecord {
+                    id: SessionId::new(format!("ended-{i:04}")),
+                    conversation: None,
+                    profile: ProfileId::new(recipe.as_str()),
+                    machine: MachineId::new("this-mac"),
+                    kind: InstanceKind::Terminal,
+                    project: name.and_then(|name| projects.get(name)).cloned(),
+                    cwd: name.map_or_else(|| home.clone(), |name| home.join("repos").join(name)),
+                    status: SessionStatus::Finished,
+                    started_at: Timestamp::from_millis(started),
+                    last_activity: Some(Timestamp::from_millis(started + 20 * 60_000)),
+                    usage: Default::default(),
+                    attention: None,
+                    running: None,
+                    transcript_ref: None,
+                    window: None,
+                })
+                .unwrap();
+        }
+        notes.push(format!(
+            "{bulk} ended sessions, back to {} days ago",
+            bulk * 37 / 60 / 24
+        ));
+    }
+
     // Pools, their scope, level and seal; then their members.
     let mut pools: HashMap<String, String> = HashMap::new();
     for pool in seed["pools"].as_array().cloned().unwrap_or_default() {

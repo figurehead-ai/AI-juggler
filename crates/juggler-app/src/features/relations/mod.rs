@@ -41,7 +41,7 @@ pub mod stamps;
 #[cfg(test)]
 mod tests;
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -80,8 +80,9 @@ pub struct Row {
 struct Tally {
     sessions: SessionsCountsInfo,
     /// For each kind, the names (by [`Part::names`] index) its sessions
-    /// are on.
-    related: [HashSet<u32>; KINDS],
+    /// are on, with how many of them (walk K1: a project's Apps tab counts
+    /// each App's sessions there).
+    related: [HashMap<u32, u64>; KINDS],
 }
 
 /// The two halves of the cache, each read from its own sources.
@@ -170,7 +171,7 @@ impl Part {
                     tally.sessions.ended += 1;
                 }
                 for (other, related) in &entries {
-                    tally.related[*other].insert(*related);
+                    *tally.related[*other].entry(*related).or_default() += 1;
                 }
             }
         }
@@ -397,7 +398,7 @@ fn answer(parts: &[Arc<Part>; 2], entity: &EntityRef) -> RelationCountsInfo {
         sessions.archived += tally.sessions.archived;
         for (kind, ids) in tally.related.iter().enumerate() {
             related[kind].extend(
-                ids.iter()
+                ids.keys()
                     .filter_map(|id| part.names.get(*id as usize).map(String::as_str)),
             );
         }
@@ -425,22 +426,30 @@ fn related_in(parts: &[Arc<Part>; 2], entity: &EntityRef, of: EntityKind) -> Rel
     } else {
         entity.id.as_str()
     };
-    let mut ids: BTreeSet<&str> = BTreeSet::new();
+    // Each related id with the sessions it shares with `entity`, summed
+    // over both halves (AI Juggler's sessions and other apps').
+    let mut counted: BTreeMap<&str, u64> = BTreeMap::new();
     for part in parts {
         if let Some(tally) = part.tally(entity.kind, id) {
-            ids.extend(
-                tally.related[of.index()]
-                    .iter()
-                    .filter_map(|id| part.names.get(*id as usize).map(String::as_str)),
-            );
+            for (related, n) in &tally.related[of.index()] {
+                if let Some(name) = part.names.get(*related as usize) {
+                    *counted.entry(name.as_str()).or_default() += n;
+                }
+            }
         }
     }
-    let more = ids.len() > MAX_ASKED;
+    let more = counted.len() > MAX_ASKED;
+    let (ids, sessions) = counted
+        .into_iter()
+        .take(MAX_ASKED)
+        .map(|(id, n)| (id.to_owned(), n))
+        .unzip();
     RelatedIdsInfo {
         kind: entity.kind,
         id: entity.id.clone(),
         of,
-        ids: ids.into_iter().take(MAX_ASKED).map(str::to_owned).collect(),
+        ids,
+        sessions,
         more,
     }
 }

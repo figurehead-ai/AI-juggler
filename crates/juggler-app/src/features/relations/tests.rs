@@ -238,3 +238,29 @@ fn a_session_in_two_pools_counts_in_each_d62() {
         "one session, not two"
     );
 }
+
+/// Walk K1: a project's Apps tab counts each App's sessions there, from
+/// the cache, over both halves (it counted a 100-session sample).
+#[test]
+fn a_related_id_carries_how_many_sessions_it_shares() {
+    let own = Part::of(
+        [
+            row(Some("p-1"), "work", "cli:work", false, false),
+            row(Some("p-1"), "work", "cli:work", false, false),
+            row(Some("p-1"), "home", "cli:home", false, false),
+            row(Some("p-2"), "work", "cli:work", false, false),
+        ],
+        Snapshot::default(),
+        StoredStamps::default(),
+    );
+    let outside = Part::of(
+        [row(Some("p-1"), "work", "cli:work", true, false)],
+        Snapshot::default(),
+        StoredStamps::default(),
+    );
+    let parts = [Arc::new(own), Arc::new(outside)];
+    let apps = related_in(&parts, &entity(EntityKind::Project, "p-1"), EntityKind::App);
+    assert_eq!(apps.ids, ["cli:home", "cli:work"]);
+    assert_eq!(apps.sessions, [1, 3]);
+    assert!(!apps.more);
+}

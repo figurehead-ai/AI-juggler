@@ -7,12 +7,13 @@
  * again when sessions, the tools' conversations or the apps' places
  * change. `undefined` until read, and always in the design preview.
  */
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { hasLiveBackend } from "./bridge";
 import { onSessionsUpdated } from "./ipc/instances";
 import { onConversationsChanged } from "./ipc/conversations";
 import { onPlacesChanged } from "./ipc/places";
 import { relationsCounts, relationsRelated, type EntityKind, type RelationCountsInfo } from "./ipc/relations";
+import type { RelatedIdsInfo } from "../types/generated/RelatedIdsInfo";
 import { onPoolsChanged } from "./pools";
 import { sharedReads, useSharedRead } from "./shared-read";
 
@@ -30,9 +31,9 @@ const SETTLE_MS = 250;
 
 /** AJ-E3104: which of one kind an entity's sessions are on, by
  * `of${KEY}kind${KEY}id`. */
-const relatedOf = sharedReads<string[] | undefined>(async (key) => {
+const relatedOf = sharedReads<RelatedIdsInfo | undefined>(async (key) => {
   const [of, kind, ...id] = key.split(KEY);
-  return (await relationsRelated({ kind: kind as EntityKind, id: id.join(KEY) }, of as EntityKind))?.ids;
+  return relationsRelated({ kind: kind as EntityKind, id: id.join(KEY) }, of as EntityKind);
 });
 
 /** Read `source` again once a change that could move a count settles:
@@ -70,5 +71,17 @@ export function useRelatedIds(kind: EntityKind | null, id: string | null | undef
   const key = live && kind && id != null ? `${of}${KEY}${kind}${KEY}${id}` : null;
   const source = key ? relatedOf(key) : null;
   useReadAgain(source);
-  return useSharedRead(source) ?? undefined;
+  return useSharedRead(source)?.ids;
+}
+
+/** How many of `kind` `id`'s sessions each related `of` shares (walk K1: a
+ * project's Apps tab counted a sample of its sessions); `undefined` until
+ * read, and in the design preview. */
+export function useRelatedCounts(kind: EntityKind | null, id: string | null | undefined, of: EntityKind): ReadonlyMap<string, number> | undefined {
+  const live = hasLiveBackend();
+  const key = live && kind && id != null ? `${of}${KEY}${kind}${KEY}${id}` : null;
+  const source = key ? relatedOf(key) : null;
+  useReadAgain(source);
+  const info = useSharedRead(source);
+  return useMemo(() => (info ? new Map(info.ids.map((one, index) => [one, info.sessions[index] ?? 0])) : undefined), [info]);
 }

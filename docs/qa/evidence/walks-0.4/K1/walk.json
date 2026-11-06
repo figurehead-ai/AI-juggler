@@ -1,0 +1,4 @@
+{ "walked": "2026-11-06", "lab": "/tmp/aij-lab-k1: 1000 ended sessions (500 web, 500 api) over three terminal Apps, plus one started in the walk",
+  "reference": { "web sessions": 501, "web apps": { "Claude Code · Work · work": 168, "Claude Code · Personal · personal": 167, "Codex · Personal · default": 166 }, "Claude Code · Work · work": { "sessions": 334, "web": 168, "api": 166 }, "Work's pools": ["web's own", "api's own"] },
+  "hops_ms": { "Home → web": "31/157", "web Apps → Claude Code · Work · work": "29/113", "Sessions → the open session": "38/426", "→ its Account": "1/171", "Pools → web's canvas": "51/353" },
+  "back_ms": { "canvas → Work [Pools 2]": 30, "Work → the session": 579, "session → the App [Sessions 334]": 63, "App → web [Apps 3]": 24 } }

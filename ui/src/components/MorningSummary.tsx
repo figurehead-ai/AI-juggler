@@ -12,6 +12,9 @@ import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryIn
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import { sessionAppName } from "../lib/app-name";
 
+/** Rows a group shows before "Show all". */
+const SHOWN = 5;
+
 const GROUPS: Array<{ id: string; title: string; icon: string }> = [
   { id: "crashed", title: "Crashed", icon: "✕" },
   { id: "needs_you", title: "Needs you", icon: "!" },
@@ -56,6 +59,8 @@ function Row({ row, onOpen }: { row: SummaryRowInfo; onOpen: (id: string) => voi
 
 export function MorningSummary({ onOpenSession }: { onOpenSession: (id: string) => void }): JSX.Element | null {
   const [summary, setSummary] = useState<OvernightSummaryInfo | null>(null);
+  // The groups opened past their first few rows.
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
     let alive = true;
     overnightSummary()
@@ -106,10 +111,22 @@ export function MorningSummary({ onOpenSession }: { onOpenSession: (id: string) 
               {group.title} ({rows.length})
             </p>
             <ul className="flex flex-col gap-1" aria-label={group.title}>
-              {rows.map((row) => (
+              {(open.has(group.id) ? rows : rows.slice(0, SHOWN)).map((row) => (
                 <Row key={row.session_id} row={row} onOpen={onOpenSession} />
               ))}
             </ul>
+            {/* Walk K1: a long night is a few rows and the rest a click
+                away, never a wall of them. */}
+            {rows.length > SHOWN && !open.has(group.id) && (
+              <button
+                type="button"
+                onClick={() => setOpen((now) => new Set(now).add(group.id))}
+                className="self-start rounded text-label text-muted underline-offset-2 hover:text-ink hover:underline"
+                data-testid="summary-show-all"
+              >
+                Show all {rows.length}
+              </button>
+            )}
           </div>
         );
       })}

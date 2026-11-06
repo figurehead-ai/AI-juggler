@@ -35,7 +35,7 @@ import { useRelationCounts } from "../../lib/relation-counts";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
 import { AccountDoor, Dot, SessionToolChip } from "../session/HeaderDoors";
 import { useApps, type AppModel } from "../../lib/apps";
-import { appItems, appProjects, openHere } from "../../lib/app-items";
+import { appItems, openHere, useWorkedProjects } from "../../lib/app-items";
 import { placesOpen } from "../../lib/ipc/places";
 import { placeWords } from "../../lib/places";
 import { appByConversation, appByFolder } from "../../lib/rail-apps";
@@ -113,7 +113,7 @@ function AppBody({
     const all = itemsOf({ sessions, conversations, projects, seen });
     return appItems(all, app.railKey, appByConversation(places), appByFolder(places));
   }, [sessions, conversations, projects, seen, app.railKey, places]);
-  const worked = useMemo(() => appProjects(items), [items]);
+  const worked = useWorkedProjects("app", app.id, items, projects);
   const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);
   const open = openIds.length;
   const sharedWith = app.accountId ? apps.filter((other) => other.id !== app.id && other.accountId === app.accountId) : [];

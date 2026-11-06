@@ -86,4 +86,16 @@ describe("AJ-E1004 morning summary", () => {
     const names = [...container.querySelectorAll("[data-testid='summary-row']")].map((el) => el.firstElementChild!.textContent);
     expect(names).toEqual(["Claude app · Work · Work Max", "Claude Code · Work · work"]);
   });
+
+  it("shows five rows a group, the rest a click away (walk K1)", async () => {
+    const many = Array.from({ length: 12 }, (_, i) => row(`s${i}`, "finished", "Finished"));
+    w().__AIJ_SUMMARY__ = { since_ms: 1_800_000_000_000 - 8 * 3_600_000, generated_ms: 1_800_000_000_000, rows: many, counts: { finished: 12 }, leftovers: 0 };
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(5));
+    const more = container.querySelector<HTMLButtonElement>("[data-testid='summary-show-all']")!;
+    expect(more.textContent).toBe("Show all 12");
+    fireEvent.click(more);
+    expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(12);
+    expect(container.querySelector("[data-testid='summary-show-all']")).toBeNull();
+  });
 });
