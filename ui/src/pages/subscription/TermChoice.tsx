@@ -8,6 +8,7 @@
  * it (the 0.4 review, 18).
  */
 import { useEffect, useRef, useState, type JSX } from "react";
+import { ariaOf, keysOf } from "../../lib/shortcuts";
 import { IconWarn } from "../../components/icons-menu";
 import { Chip } from "../../components/primitives";
 import { RowNote } from "../../screens/settings/parts";
@@ -73,7 +74,7 @@ export function TermChoice({ sub, choice, now, onChosen }: { sub: SubscriptionIn
               type="button"
               disabled={busy !== null}
               onClick={() => void choose(option.value)}
-              aria-keyshortcuts={chosen ? "Meta+Enter" : undefined}
+              aria-keyshortcuts={chosen ? ariaOf("page-action") : undefined}
               className={
                 "flex min-w-36 cursor-pointer flex-col items-start gap-0.5 rounded-lg border px-3 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60 " +
                 (chosen ? "border-accent/60 bg-accent-soft hover:border-accent" : "border-hairline bg-surface-2 hover:border-accent/50 hover:bg-surface-3")
@@ -83,7 +84,7 @@ export function TermChoice({ sub, choice, now, onChosen }: { sub: SubscriptionIn
             >
               <span className="flex w-full items-baseline gap-2 text-sm font-medium text-ink">
                 <span className="flex-1">{busy === option.value ? "Setting…" : termValueWords(term, option.value, now)}</span>
-                {chosen && <span aria-hidden="true" className="text-label font-normal text-muted">⌘↩</span>}
+                {chosen && <span aria-hidden="true" className="text-label font-normal text-muted">{keysOf("page-action")[0]}</span>}
               </span>
               <span className="text-label text-muted">{option.account ? (option.folders.length > 0 ? `on this account, and in ${apps(option.folders)}` : "on this account now") : `in ${apps(option.folders)}`}</span>
               {chosen && <span className="text-label font-medium text-accent-hi">the newer reading</span>}

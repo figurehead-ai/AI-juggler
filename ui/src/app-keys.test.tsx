@@ -66,7 +66,7 @@ describe("AJ-E1504 the ? sheet", () => {
     const unmatched = SHORTCUTS.filter((entry) => !("match" in entry)).map((entry) => entry.id);
     // ⌘⇧M (the Floor) is the menu bar's own accelerator, so it works from
     // the Floor's window too.
-    expect(unmatched.sort()).toEqual(["close", "floor", "go-to", "home-open", "leave-terminal", "row-menu", "row-open"]);
+    expect(unmatched.sort()).toEqual(["close", "epoch-resume", "floor", "go-to", "home-open", "leave-terminal", "page-action", "row-menu", "row-open"]);
   });
 
   // The anti-drift rule: App and Home test keys only through the

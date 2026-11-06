@@ -90,6 +90,7 @@ describe("AJ-E2906 the words", () => {
 
 describe("AJ-E2906 the found step", () => {
   const renderIt = () => render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
+  const getFooter = () => document.querySelector<HTMLElement>("[data-testid='first-run-actions']")!;
   const rowOf = (step: HTMLElement, folder: string) => within(step).getAllByTestId("first-run-row").find((row) => row.textContent?.includes(folder))!;
 
   it("each row says its word and where it came from; renaming is said once, in the footer; an empty sign-in may have expired", async () => {
@@ -104,6 +105,9 @@ describe("AJ-E2906 the found step", () => {
     // The 0.4 design review, 53: not on the row as well as the footer.
     expect(odd.textContent).not.toContain("rename");
     expect(container.textContent).toContain("Names and plans can be changed later.");
+    // Once, at the list's foot, for every row (R4 as amended).
+    expect((container.textContent ?? "").split("Names and plans can be changed later.")).toHaveLength(2);
+    expect(within(getFooter()).getByText("Names and plans can be changed later.")).toBeTruthy();
     expect(rowOf(step, ".claude-old").textContent).toContain("May have expired");
     for (const id of ["vendor-default", "home-pattern", "env-override", "other-manager", "usual-folder", "sign-in-empty"]) expect(step.textContent).not.toContain(id);
   });
@@ -140,5 +144,31 @@ describe("AJ-E2906 the found step", () => {
     expect(within(rowOf(again, "~/.claude ")).getByRole("checkbox")).toHaveProperty("checked", false);
     expect(within(rowOf(again, ".claude-x")).getByRole("checkbox")).toHaveProperty("checked", true);
     expect(within(rowOf(again, ".claude-new")).getByRole("checkbox")).toHaveProperty("checked", false);
+  });
+});
+
+describe("AJ-E2906 R5 — Look again in Accounts › Add account", () => {
+  const renderAdd = () => render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
+
+  it("on the found step, as in first run", async () => {
+    const { findByTestId, getByTestId } = renderAdd();
+    await findByTestId("first-run-found");
+    expect(getByTestId("first-run-look-again").textContent).toBe("Look again");
+  });
+
+  it("with nothing new it starts at a fresh app, still with Look again; what a new scan finds is listed", async () => {
+    w().__AIJ_SCAN_REPORT__ = report([{ ...USUAL, managed: true }]);
+    const { findByTestId, getByTestId, queryByTestId } = renderAdd();
+    await findByTestId("first-run-fresh");
+    expect(queryByTestId("first-run-found")).toBeNull();
+    // Nothing new again: it stays where it is.
+    fireEvent.click(getByTestId("first-run-look-again"));
+    await waitFor(() => expect(getByTestId("first-run-look-again")).toBeTruthy());
+    expect(queryByTestId("first-run-found")).toBeNull();
+    w().__AIJ_SCAN_REPORT__ = report([{ ...USUAL, managed: true }, WORK]);
+    fireEvent.click(getByTestId("first-run-look-again"));
+    const found = await findByTestId("first-run-found");
+    expect(found.textContent).toContain(".claude-work");
+    expect(getByTestId("first-run-look-again")).toBeTruthy();
   });
 });

@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { epochResume, packExport, switchGraphOverview, type WorkGraphData } from "../lib/ipc/switch-targets";
 import { errorText } from "../lib/bridge";
+import { ariaOf, keysOf } from "../lib/shortcuts";
 import type { SavedHandoverInfo } from "../lib/ipc/handover";
 import { providerMark } from "./indicator";
 import { SavedHandover, SwitchHandover } from "./HandoverView";
@@ -297,15 +298,16 @@ export function SwitchGraph({
                     type="button"
                     data-testid="epoch-resume-button"
                     disabled={!openEpoch.resumable}
+                    aria-keyshortcuts={openEpoch.resumable ? ariaOf("epoch-resume") : undefined}
                     title={
                       openEpoch.resumable
-                        ? "Resumes this epoch's native session (⌘R)"
+                        ? `Resumes this epoch's native session (${keysOf("epoch-resume")[0]})`
                         : "No native session transcript survives for this epoch"
                     }
                     onClick={() => void doResume(openEpoch.id)}
                     className="rounded border border-accent/40 px-2 py-1 text-label text-accent-hi transition-colors hover:border-accent/60 disabled:border-hairline disabled:text-muted"
                   >
-                    Resume {openEpoch.resumable && "(⌘R)"}
+                    Resume {openEpoch.resumable && `(${keysOf("epoch-resume")[0]})`}
                   </button>
                   <button
                     type="button"

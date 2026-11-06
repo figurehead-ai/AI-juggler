@@ -1140,6 +1140,18 @@ export function FirstRun({
       setStep("fresh");
     }
   }, [mode, nothingNew]);
+  // AJ-E2906: Look again from there scans again; what it finds new is
+  // listed on the found step, as in first run.
+  const lookedAgain = useRef(false);
+  const lookAgain = useCallback(() => {
+    lookedAgain.current = true;
+    scan();
+  }, [scan]);
+  useEffect(() => {
+    if (!lookedAgain.current || report === null) return;
+    lookedAgain.current = false;
+    if (!nothingNew) setStep("found");
+  }, [report, nothingNew]);
 
   // "Import from another folder…": the system's picker first; nothing
   // changes when it is cancelled.
@@ -1245,6 +1257,7 @@ export function FirstRun({
               canGoBack={!nothingNew || mode === "first-run"}
               onBack={() => setStep("found")}
               onImportFolder={() => void pickFolder()}
+              onLookAgain={mode === "add" && (nothingNew || lookedAgain.current) ? lookAgain : null}
               onCreated={added}
             />
           )}

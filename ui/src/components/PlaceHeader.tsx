@@ -10,6 +10,7 @@
  * on its folder.
  */
 import { useState, type JSX, type MouseEvent, type ReactNode } from "react";
+import { ariaOf, placeKey } from "../lib/shortcuts";
 import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
@@ -90,7 +91,7 @@ export function PlaceHeader({
         onClick={onPage ?? onToggle}
         data-rail-nav
         data-testid="place-page"
-        aria-keyshortcuts={[shortcut ? `Meta+${shortcut}` : null, arrange?.enabled ? "Alt+Meta+ArrowUp Alt+Meta+ArrowDown" : null].filter(Boolean).join(" ") || undefined}
+        aria-keyshortcuts={[shortcut ? placeKey(shortcut).aria : null, arrange?.enabled ? ariaOf("rail-move") : null].filter(Boolean).join(" ") || undefined}
         title={onPage ? `Open ${name}'s page` : undefined}
         className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
@@ -145,7 +146,7 @@ export function PlaceHeader({
           type="button"
           onClick={onOpen}
           aria-label={`Open ${name}`}
-          title={shortcut ? `${openWords} (⌘${shortcut})` : openWords}
+          title={shortcut ? `${openWords} (${placeKey(shortcut).words})` : openWords}
           data-testid="place-open"
           // On hover and keyboard focus, as the rows' tools (the 0.4
           // review: always shown, it took the room the App's name needs).

@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ariaOf, keysOf } from "../lib/shortcuts";
 import { useEscapeCloses } from "../lib/use-escape-closes";
 import { Button, Card } from "../components/primitives";
 import { IconTerminal } from "../components/icons";
 import { launchSession } from "../lib/ipc/launch";
 import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
 import { errorText, signedIn } from "../lib/bridge";
+import { openReportBug, type Failure } from "../lib/report-bug";
+import { failureOf } from "../components/switch/FailedStep";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -21,6 +24,12 @@ import { folderName, StatedChoice } from "./new-session/StatedChoice";
 import { MoreOptions } from "./new-session/MoreOptions";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input, summary, [tabindex]:not([tabindex='-1'])";
+
+/** A failure's code, when the backend sent one ("adapter"). */
+function codeOf(cause: unknown): string | null {
+  const code = (cause ?? {}) as { code?: unknown };
+  return typeof code.code === "string" ? code.code : null;
+}
 
 /**
  * New session (AJ-E3207): the usual folder and App, chosen and said in
@@ -65,6 +74,8 @@ export function NewSessionModal({
   const [chosenSettings, setChosenSettings] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // AJ-E2911: a launch that failed can be reported with what it showed.
+  const [failure, setFailure] = useState<Failure | null>(null);
   const { dragging, zone } = useFolderDrop(setDirectory); // wf10: a dropped folder
   const pack = usePack(setDirectory); // AJ-E1511: started from a saved handover
   const where = useWhere(); // AJ-E1515: or on a paired Mac
@@ -142,6 +153,7 @@ export function NewSessionModal({
     if (!recipe || !ready || busy) return;
     setBusy(true);
     setError(null);
+    setFailure(null);
     const cwd = folder?.root ?? null;
     try {
       if (!pack.opened && !(await runtimePick.confirm(recipe.id, cwd))) return setBusy(false); // Lab 2: the folder's trust
@@ -153,7 +165,9 @@ export function NewSessionModal({
       }
       onLaunched(result.session_id, launchTitle(recipe));
     } catch (cause) {
-      setError(errorText(cause));
+      const words = errorText(cause);
+      setError(words);
+      setFailure({ from: "launch", words, detail: failureOf(cause).detail, code: codeOf(cause), atMs: Date.now() });
       setBusy(false);
     }
   };
@@ -239,9 +253,19 @@ export function NewSessionModal({
             onManageLaunchSettings={onManageLaunchSettings}
           />
           {error && (
-            <p role="alert" className="mt-3 text-xs text-danger">
-              {error}
-            </p>
+            <div role="alert" className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-danger" data-testid="launch-error">
+              <span>{error}</span>
+              {failure && (
+                <button
+                  type="button"
+                  onClick={() => openReportBug(failure)}
+                  className="rounded text-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  data-testid="launch-report-bug"
+                >
+                  Report a bug…
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -249,11 +273,11 @@ export function NewSessionModal({
           <Button size="sm" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button ref={startRef} size="sm" variant="primary" disabled={busy || !ready} onClick={() => void launch()} aria-keyshortcuts="Meta+Enter" data-testid="launch-now">
+          <Button ref={startRef} size="sm" variant="primary" disabled={busy || !ready} onClick={() => void launch()} aria-keyshortcuts={ariaOf("page-action")} data-testid="launch-now">
             {busy ? "Starting…" : startWords}
             {pack.opened && !busy && " with handover"}
             <kbd aria-hidden="true" className="ml-2 font-sans text-label">
-              ⌘↩
+              {keysOf("page-action")[0]}
             </kbd>
           </Button>
         </div>

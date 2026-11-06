@@ -6,6 +6,7 @@
  * itself. Your word resets the thread's count of agent messages in a row.
  */
 import { useId, useState, type JSX } from "react";
+import { ariaOf, keysOf } from "../../lib/shortcuts";
 import { Button } from "../../components/primitives";
 import { errorText } from "../../lib/bridge";
 import { messagesSend, type ThreadPage } from "../../lib/ipc/messages";
@@ -133,9 +134,9 @@ export function Compose({
               Cancel
             </Button>
           )}
-          <Button type="submit" size="sm" variant="primary" disabled={busy || !body.trim()} aria-keyshortcuts="Meta+Enter" data-testid="compose-send">
+          <Button type="submit" size="sm" variant="primary" disabled={busy || !body.trim()} aria-keyshortcuts={ariaOf("page-action")} data-testid="compose-send">
             {busy ? "Sending…" : "Send"}
-            <span aria-hidden="true" className="opacity-75">⌘↵</span>
+            <span aria-hidden="true" className="opacity-75">{keysOf("page-action")[0]}</span>
           </Button>
         </div>
       </div>

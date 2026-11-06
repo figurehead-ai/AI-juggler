@@ -5,6 +5,7 @@
  */
 import type { JSX, PointerEvent as ReactPointerEvent } from "react";
 import { IconGrip } from "./icons-places";
+import { keysOf } from "../lib/shortcuts";
 
 /** D-47: a row or place that can be arranged (Your order), and how a drag
  * over it looks. */
@@ -30,7 +31,7 @@ export function Grip({ arrange, label }: { arrange: Arrangeable; label: string }
   return (
     <span
       aria-hidden="true"
-      title={`Drag to move ${label} (or ⌥⌘↑ and ⌥⌘↓)`}
+      title={`Drag to move ${label} (or ${keysOf("rail-move").join(" and ")})`}
       data-testid="order-grip"
       onPointerDown={arrange.grip}
       className="pointer-events-auto flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded-md border border-hairline bg-surface text-muted hover:bg-surface-3 hover:text-ink active:cursor-grabbing"

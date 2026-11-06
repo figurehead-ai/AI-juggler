@@ -38,6 +38,7 @@ export function FreshAccountStep({
   canGoBack,
   onBack,
   onImportFolder,
+  onLookAgain,
   onCreated,
 }: {
   toolName: string;
@@ -48,6 +49,9 @@ export function FreshAccountStep({
   canGoBack: boolean;
   onBack: () => void;
   onImportFolder: () => void;
+  /** AJ-E2906: Add account found nothing new and came straight here; a
+   * scan again, back to the found list when it finds something. */
+  onLookAgain?: (() => void) | null;
   onCreated: (signin: Signin | null) => void;
 }): JSX.Element {
   const [label, setLabel] = useState<string | null>(null);
@@ -144,6 +148,11 @@ export function FreshAccountStep({
           <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
             Import from a folder instead…
           </button>
+          {onLookAgain && (
+            <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onLookAgain} data-testid="first-run-look-again">
+              Look again
+            </button>
+          )}
         </div>
         <Button variant="primary" type="submit" disabled={busy || shown.trim().length === 0 || settings?.pending === true} data-testid="first-run-fresh-create">
           {busy ? "Setting it up…" : "Create and sign in"}
