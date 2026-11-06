@@ -2580,3 +2580,38 @@ build to the beta channel through the project's beta workflow.
 - What's left open when it ships is said in the release notes' "Still
   open", not held for.
 - Stable stays a deliberate, separate step (the release channel policy).
+
+### D-82 A switch hands over what runs by itself — SETTLED (2026-11-05)
+
+**Ruling.** The maintainer, 2026-11-05: "we can't expect from our users to
+keep archiving and unarchiving conversations", then "ok go ahead, build it".
+A switch moves the conversation's automation to the copy and turns it off
+on the original: in the Claude app, Auto-fix (and auto-fix of its own next
+PRs) moves to the copy and the original's record is archived with it off,
+applied while that profile is closed; a Codex goal moves through the
+app-server (`thread/goal/set`), paused on the original. Switching back
+reverses it. The ninth switching-contract capability,
+`automation_handover` (ADR-0028 decision 7, SPEC §7.7). Shipped in 0.4.0.
+
+### D-83 0.4's whole scope ships in 0.4.x; a release can't ship short again — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06, after 0.4.0 reached beta with all
+of E20 and most of E33 not built: "Anything that wasn't completed for 0.4
+should go into 0.4.* along with any other bugs I find, we need to complete
+our release, this is unacceptable … You have to make sure this can't happen
+again. 0.4 release was when we strengthen our app, get it to possibly
+stable state so we can actually start promoting the app to more users."
+
+- Every task the roadmap's 0.4 section names is finished in 0.4.x patch
+  releases (from `release/0.4.1` on), together with the maintainer's test
+  findings, before any 0.5 feature work. This overrides the "features go
+  to the next minor" rule for 0.4's own unfinished scope.
+- `scripts/release_scope.py` gates every release: the release pull
+  request, the nightly of a new minor and every promotion fail while a
+  named task isn't DONE with an evidence manifest that has a PASS line for
+  each of its numbered requirements. Only the maintainer defers a task, by
+  a `**Deferred (D-NN):**` line in the roadmap section naming a logged
+  decision; release-notes wording defers nothing.
+- D-81 is read accordingly: an approval to ship is an approval to ship
+  the complete release, never what happens to exist.
+- The audit of 2026-11-06 and the order of the work: `docs/qa/0.4-completion.md`.

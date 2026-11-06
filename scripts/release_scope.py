@@ -5,8 +5,11 @@ docs/plan/ROADMAP.md gives each minor version a section (`## 0.4 — …`)
 whose table names its tasks: single ids (`AJ-E3207`), ranges
 (`AJ-E2001…AJ-E2019`) and whole epics (`E29`, every task in
 docs/tasks/E29-*.md). Each named task must be DONE (its header's
-`Status: DONE…`), or be listed in the section's deferral line, which names
-the maintainer's decision:
+`Status: DONE…`) AND proven: docs/qa/evidence/<id>/manifest.md has, for
+every numbered requirement N of the task, a line naming `R<N>` with PASS
+(or `DEFERRED (D-NN)` for a requirement the maintainer moved). A status
+word alone proves nothing. Otherwise the task must be listed in the
+section's deferral line, which names the maintainer's decision:
 
     **Deferred (D-90):** AJ-E2008, AJ-E2010 — to 0.5, scheduled fuzzing ...
 
@@ -39,14 +42,37 @@ EPIC = re.compile(r"(?<![\w-])E(\d{1,2})(?![\d\w])")
 DEFERRED = re.compile(r"^\*\*Deferred \((D-\d+)\):\*\*(.*)$", re.M)
 
 
+EVIDENCE = ROOT / "docs/qa/evidence"
+REQS: dict[str, int] = {}
+
+
 def tasks() -> dict[str, tuple[str, str, str]]:
-    """Every task: id → (title, status, epic number)."""
+    """Every task: id → (title, status, epic number); REQS gets its count
+    of numbered requirements."""
     found = {}
     for path in sorted(TASKS.glob("E*-*.md")):
         epic = re.match(r"E(\d+)-", path.name).group(1)
-        for m in HEADER.finditer(path.read_text(encoding="utf-8")):
+        text = path.read_text(encoding="utf-8")
+        heads = list(HEADER.finditer(text))
+        for i, m in enumerate(heads):
             found[m.group(1)] = (m.group(2).strip(), m.group(3).strip(), epic)
+            body = text[m.end(): heads[i + 1].start() if i + 1 < len(heads) else len(text)]
+            req = re.search(r"\*\*Requirements\*\*:?(.*?)(?=\n\*\*|\Z)", body, re.S)
+            REQS[m.group(1)] = len(re.findall(r"^\d+\.", req.group(1), re.M)) if req else 0
     return found
+
+
+def unproven(task: str) -> str | None:
+    """Why a DONE task isn't proven, or None when every requirement is."""
+    manifest = EVIDENCE / task / "manifest.md"
+    if not manifest.exists():
+        return "no evidence manifest"
+    lines = manifest.read_text(encoding="utf-8").splitlines()
+    gaps = [
+        f"R{n}" for n in range(1, REQS.get(task, 0) + 1)
+        if not any(re.search(rf"\bR{n}\b", l) and re.search(r"PASS|DEFERRED \(D-\d+\)", l) for l in lines)
+    ]
+    return f"manifest has no PASS line for {', '.join(gaps)}" if gaps else None
 
 
 def section(minor: str) -> str:
@@ -94,7 +120,12 @@ def scope(minor: str):
         (t for t in wanted if t in known and not known[t][1].startswith("DONE") and t not in deferred),
         key=lambda t: int(t[4:]),
     )
-    return known, wanted, open_, deferred, missing, unchecked
+    weak = {
+        t: why for t in sorted(wanted, key=lambda t: int(t[4:]))
+        if t in known and known[t][1].startswith("DONE") and t not in deferred
+        and (why := unproven(t))
+    }
+    return known, wanted, open_, deferred, missing, unchecked, weak
 
 
 def main() -> int:
@@ -103,20 +134,22 @@ def main() -> int:
         return 2
     mode, version = sys.argv[1], sys.argv[2]
     minor = ".".join(version.split(".")[:2])
-    known, wanted, open_, deferred, missing, unchecked = scope(minor)
-    done = len(wanted) - len(open_) - len([t for t in wanted if t in deferred]) - len(missing)
-    print(f"release scope {minor}: {len(wanted)} tasks named, {done} done, "
-          f"{len(deferred)} deferred, {len(open_)} open")
+    known, wanted, open_, deferred, missing, unchecked, weak = scope(minor)
+    done = len(wanted) - len(open_) - len([t for t in wanted if t in deferred]) - len(missing) - len(weak)
+    print(f"release scope {minor}: {len(wanted)} tasks named, {done} done and proven, "
+          f"{len(weak)} marked done but unproven, {len(deferred)} deferred, {len(open_)} open")
     for t in open_:
         title, status, _ = known[t]
         print(f"  OPEN      {t} {title[:70]} — {status[:60]}")
+    for t, why in weak.items():
+        print(f"  UNPROVEN  {t} {known[t][0][:60]} — {why}")
     for t, d in sorted(deferred.items()):
         print(f"  deferred  {t} ({d})")
     for t in missing:
         print(f"  UNKNOWN   {t}: named in the roadmap, no task header in docs/tasks")
     for row in unchecked:
         print(f"  UNCHECKED row '{row[:60]}': names no task, so nothing proves it")
-    failed = bool(open_ or missing or unchecked)
+    failed = bool(open_ or missing or unchecked or weak)
     if mode == "check" and failed:
         print(f"release_scope: {minor} is not complete. Finish the open tasks, or "
               "list them under '**Deferred (D-NN):**' with the maintainer's decision.")
