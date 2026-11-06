@@ -297,7 +297,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: ADR-0019 §2; the engineering guide (architecture).
 **Handover note**: Before E16's first adapter.
 
-### AJ-E2017 Features as modules: split commands.rs and AppState | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2011
+### AJ-E2017 Features as modules: split commands.rs and AppState | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort L | Depends: AJ-E2011
 **Goal**: Each feature lives in its own folder, behind its own service.
 **User story**: As a contributor, I change one feature without reading 14,000 lines.
 **Requirements**:

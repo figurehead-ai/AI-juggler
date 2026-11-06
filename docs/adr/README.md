@@ -33,5 +33,6 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0027](./0027-lab-only-bridge-writes.md) | The test bridge writes only on a throwaway lab: its own feature, a checked lab HOME, the window's own commands on a per-command list | Accepted |
 | [0028](./0028-switching-moves-whole-families.md) | A switch moves a conversation's whole family, exactly; every adapter answers for it | Accepted |
 | [0029](./0029-typed-command-wrappers.md) | Typed command wrappers, generated in-repo from the `app_commands!` registry (tauri-specta 2.0 still a release candidate) | Accepted |
+| [0030](./0030-storage-concurrency.md) | Storage concurrency: one writer lock with short holds (one frame); a read pool only when a measured trigger fires | Accepted |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

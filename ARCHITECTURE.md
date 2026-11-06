@@ -72,8 +72,12 @@ asks the adapter contract, never a tool's files or names directly.
   `juggler-login-item`, `juggler-scap-init`, `juggler-vm-stats`,
   `juggler-window-events`.
 - `crates/juggler-app` — the Tauri shell: `lib.rs` (the command registry
-  `app_commands!`, start-up), `commands.rs` (older commands, shrinking),
-  `features/<feature>/` (new code: its commands, its logic), `state.rs`,
+  `app_commands!`, start-up), `features/<feature>/` (every command and its
+  logic: `commands.rs` the thin `#[tauri::command]`s, `dto.rs` the wire
+  types, the logic in `mod.rs` or named files; a command is named for its
+  folder, `scripts/ipc_audit.py`), `commands.rs` (only the helpers every
+  feature shares: the storage lock, now, this Mac's id, finding an account
+  or profile), `events.rs` (`AppEvent`, every event the UI hears), `state.rs`,
   `webview_guard.rs` and `picked.rs` (what the web view may do and hand
   over), `capabilities/` and `permissions/` (each window's grant).
 - `ui/src` — `shell` (App's state in hooks, and the registries of what
@@ -119,8 +123,9 @@ asks the adapter contract, never a tool's files or names directly.
 
 ## Boundaries
 
-- **Page ↔ backend:** `invoke` with ids; events back. The UI calls the
-  backend only through `lib/ipc`.
+- **Page ↔ backend:** `invoke` with ids; events back, each an `AppEvent`
+  emitted through `EmitEvent::emit_event` (no event by a bare name). The
+  UI calls the backend only through `lib/ipc`.
 - **App ↔ tools:** the adapter contract. A new tool is a new adapter
   module family; nothing else changes.
 - **This Mac ↔ other Macs:** `juggler-link` only, mutual TLS with pinned
@@ -137,7 +142,9 @@ asks the adapter contract, never a tool's files or names directly.
   (`ipc::blocking`); lock order is storage, never together with Fleet.
 - **Storage** is one SQLite database, migrated forward on open, every
   connection in defensive mode; a restored database is checked before
-  use (`storage::foreign`).
+  use (`storage::foreign`). One writer lock (`AppState::storage`), held
+  for the rows, never for the work (ADR-0030: a hold is one frame at
+  most); a repository with its own hot writer has its own connection.
 - **Testing:** the fake harness drives lifecycles; the visual and
   accessibility gates cover every gallery state; the scope gate covers
   releases. See `docs/plan/QUALITY.md`.
