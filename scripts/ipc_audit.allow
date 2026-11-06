@@ -21,6 +21,7 @@ uncalled scan_cancel
 uncalled sessions_list_alias
 uncalled usage_source_health
 uncalled validation_dogfood_record
+unbounded account_import  # bounded: one import's notes and top-level folders
 unbounded account_audit  # TO PAGE: an account's audit log
 unbounded account_set_default  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded account_settings_apply  # bounded: one row per account, tool, launch setting or paired Mac
@@ -227,3 +228,5 @@ unbounded usage_source_health  # bounded: a fixed set (settings, checks, choices
 unbounded usage_stats_overview  # bounded: this week's metrics (a fixed schema)
 unbounded usage_stats_set_sync  # bounded: this week's metrics (a fixed schema)
 unbounded validation_matrix  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded subagents_conversation  # bounded: one conversation's subagents (a few dozen at most; the Subagents tab pages the project's)
+unbounded switch_execute  # bounded: one switch's moved items and notes

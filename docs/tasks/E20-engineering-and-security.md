@@ -23,7 +23,7 @@
 
 ## Security
 
-### AJ-E2001 Sign and publish separately from the build | Status: TODO | Priority P0 | Effort L | Depends: —
+### AJ-E2001 Sign and publish separately from the build | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: —
 **Goal**: No build or dependency code ever runs where the signing keys are.
 **User story**: As a user, I can trust that an update is what the maintainers built, even if a dependency were compromised.
 **Requirements**:
@@ -40,7 +40,7 @@
 **Research basis**: the security guidelines, Updater and release; Tauri's signing docs; GitHub environments.
 **Handover note**: The maintainer moves the secrets into the environment and creates the API key; give them the exact steps.
 
-### AJ-E2002 Agent bridge security design | Status: TODO | Priority P0 | Effort M | Depends: —
+### AJ-E2002 Agent bridge security design | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: —
 **Goal**: The local socket and MCP bridge are designed secure before any code exists.
 **User story**: As a user, no other app on my Mac can talk to AI Juggler's agents, and no agent can make another act without my click.
 **Requirements**:
@@ -253,7 +253,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide, logging.
 **Handover note**: Export diagnostics (AJ-E1517) reads this log.
 
-### AJ-E2014 Slow commands off the main thread | Status: TODO | Priority P1 | Effort M | Depends: AJ-E2011
+### AJ-E2014 Slow commands off the main thread | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: AJ-E2011
 **Goal**: The window never freezes while AI Juggler scans, cleans up or switches.
 **User story**: As a user, the app stays responsive while it works.
 **Requirements**: Every command that touches the filesystem, SQLite, the network or processes is `async`, with its blocking work in `spawn_blocking`, starting with the scans, the cleanup inventory, switch execution and the kill ladder. The IPC audit's allowlist shrinks to pure commands only.

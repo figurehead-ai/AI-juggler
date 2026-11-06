@@ -45,7 +45,7 @@ LIST = re.compile(r"\b(?:Vec|BTreeMap|HashMap|BTreeSet|HashSet)\s*<")
 STRUCT = re.compile(r"pub struct (\w+)(?:<[^>{]*>)?\s*\{")
 PAGED = re.compile(r"^(?:AppResult\s*<\s*)?(?:crate::paging::)?Page\s*<")
 MARKER = re.compile(r"ipc: main-thread\s*\(([^)]+)\)")
-COMMAND = re.compile(r"#\[tauri::command(?:\(([^)]*)\))?\][^\n]*\n((?:\s*(?://[^\n]*|#\[[^\n]*\])\n)*)\s*pub(?:\(crate\))?\s+(async\s+)?fn\s+(\w+)")
+COMMAND = re.compile(r"#\[tauri::command(?:\(([^)]*)\))?\][^\n]*\n((?:\s*(?://[^\n]*|#\[[^\n]*\][^\n]*)\n)*)\s*pub(?:\(crate\))?\s+(async\s+)?fn\s+(\w+)")
 RENAME = re.compile(r'rename\s*=\s*"([a-z0-9_]+)"')
 # A type argument may nest one level (`invoke<Page<Row>>("…")`).
 INVOKE = re.compile(r"""\binvoke\s*(?:<(?:[^<>]|<[^<>]*>)*>)?\s*\(\s*["'`]([a-z0-9_]+)["'`]""")

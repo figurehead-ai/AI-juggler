@@ -2118,7 +2118,7 @@ pub fn source_inspect_impl(
 ///
 /// Returns the typed [`AppError`] message on failure.
 #[allow(clippy::too_many_arguments)] // the Tauri command's flat wire args
-pub fn account_import(
+pub async fn account_import(
     state: tauri::State<'_, Arc<AppState>>,
     harness: String,
     source_path: String,
@@ -2129,20 +2129,19 @@ pub fn account_import(
     in_place: Option<bool>,
 ) -> AppResult<ImportResult> {
     crate::picked::vouch(&source_path, crate::picked::WORK_FOLDER, |_| false)?;
-    let imported = account_import_mode_impl(
-        state.inner(),
-        &harness,
-        &source_path,
-        &label,
-        ImportRequest {
+    // AJ-E2014: a copy can take seconds; never on the main thread.
+    crate::ipc::blocking(state.inner(), "import the account", move |state| {
+        let request = ImportRequest {
             plan,
             origin,
             degraded: degraded.unwrap_or(false),
             in_place: in_place.unwrap_or(false),
-        },
-    );
-    crate::usage_stats::import_finished(&harness, imported.as_ref().err());
-    imported
+        };
+        let imported = account_import_mode_impl(state, &harness, &source_path, &label, request);
+        crate::usage_stats::import_finished(&harness, imported.as_ref().err());
+        imported
+    })
+    .await
 }
 
 /// ADR-0018: a copied account switches to its original folder, used
