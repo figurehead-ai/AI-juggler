@@ -4,12 +4,10 @@
  */
 import { invoke, liveBackend as hasBackend } from "./transport";
 import { refused, signedIn } from "../bridge";
-import { previewFolderSlots } from "./preview-slots";
-import { loadHang } from "./preview-support";
-import { MOCK_ACCOUNTS, MOCK_PROFILES, MOCK_PROJECTS, MOCK_SESSIONS, seeded } from "../../preview/fixtures";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { AccountRemovedInfo } from "../../types/generated/AccountRemovedInfo";
 import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
+import { previewHooks } from "../preview-hooks";
 
 /** ADR-0018: a copied account switches to its original folder, used
  * where it is; the copy stays on disk. Mock: the account, in place. */
@@ -38,8 +36,8 @@ export async function accountRename(accountId: string, label: string, plan: stri
     if (other) throw refused(`Another account is already called «${other.label}» — pick another name`);
     account.label = name;
     account.plan = plan && plan.trim() !== "" ? plan.trim() : null;
-    for (const recipe of MOCK_PROFILES) if (recipe.account_id === accountId) recipe.account_label = name;
-    for (const row of MOCK_SESSIONS) if (row.account_id === accountId) row.account_label = name;
+    for (const recipe of previewHooks().fixtures.MOCK_PROFILES) if (recipe.account_id === accountId) recipe.account_label = name;
+    for (const row of previewHooks().fixtures.MOCK_SESSIONS) if (row.account_id === accountId) row.account_label = name;
     return account;
   }
   return invoke<AccountInfo>("account_rename", { accountId, label, plan });
@@ -52,11 +50,11 @@ export async function accountRemove(accountId: string, folder: "keep" | "trash")
   if (!hasBackend) {
     const fail = (window as unknown as { __AIJ_REMOVE_FAIL__?: string }).__AIJ_REMOVE_FAIL__;
     if (fail) throw refused(fail);
-    const accounts = seeded.accounts ?? MOCK_ACCOUNTS;
+    const accounts = previewHooks().fixtures.seeded.accounts ?? previewHooks().fixtures.MOCK_ACCOUNTS;
     const index = accounts.findIndex((row) => row.id === accountId);
     const account = accounts[index];
     if (!account) throw { code: "not_found", retryable: false, user_message: "That account isn't there any more." };
-    const open = MOCK_SESSIONS.filter(
+    const open = previewHooks().fixtures.MOCK_SESSIONS.filter(
       (row) => row.account_id === accountId && ["starting", "running", "waiting_user", "stuck", "quota_blocked"].includes(row.status),
     ).map((row) => row.git_branch ?? ((row.cwd ?? "").split("/").pop() || row.account_label));
     if (open.length > 0) {
@@ -86,7 +84,7 @@ export async function accountSetDefault(accountId: string | null): Promise<Accou
  * clears it). */
 export async function projectSetDefaultAccount(projectId: string, accountId: string | null): Promise<void> {
   if (!hasBackend) {
-    const project = MOCK_PROJECTS.find((row) => row.id === projectId);
+    const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === projectId);
     if (project) project.default_account_id = accountId;
     return;
   }
@@ -95,7 +93,7 @@ export async function projectSetDefaultAccount(projectId: string, accountId: str
 
 export async function accountsList(): Promise<AccountInfo[]> {
   if (!hasBackend) {
-    const hang = loadHang();
+    const hang = previewHooks().support.loadHang();
     if (hang) return hang;
     // A new array each time (the rows are shared): a change made in
     // preview mode re-renders like a real refresh does.
@@ -108,8 +106,8 @@ export async function accountsList(): Promise<AccountInfo[]> {
  * the backend would give its CLI App and its Account (AJ-E3206: filled
  * once, kept). */
 export function previewFolders(): AccountInfo[] {
-  const subscriptions = (seeded as { subscriptions?: SubscriptionInfo[] }).subscriptions;
-  return previewFolderSlots(seeded.accounts ?? MOCK_ACCOUNTS, subscriptions, signedIn);
+  const subscriptions = (previewHooks().fixtures.seeded as { subscriptions?: SubscriptionInfo[] }).subscriptions;
+  return previewHooks().slots.previewFolderSlots(previewHooks().fixtures.seeded.accounts ?? previewHooks().fixtures.MOCK_ACCOUNTS, subscriptions, signedIn);
 }
 
 export async function createAccount(
@@ -184,7 +182,7 @@ export async function accountSetRenewal(
     // preview session — record it on a seam instead of throwing.
     const seams = window as unknown as { __AIJ_RENEWAL_SET__?: [string, string | null][] };
     seams.__AIJ_RENEWAL_SET__ = [...(seams.__AIJ_RENEWAL_SET__ ?? []), [accountId, date]];
-    const account = MOCK_ACCOUNTS.find((row) => row.id === accountId);
+    const account = previewHooks().fixtures.MOCK_ACCOUNTS.find((row) => row.id === accountId);
     if (!account) {
       return {
         id: accountId,
@@ -205,7 +203,7 @@ export async function accountSetRenewal(
 /** AJ-E410 (D-08): set the per-Account Tier-1 cleanup opt-in. */
 export async function accountSetCleanup(accountId: string, optIn: boolean): Promise<AccountInfo> {
   if (!hasBackend) {
-    const account = MOCK_ACCOUNTS.find((row) => row.id === accountId);
+    const account = previewHooks().fixtures.MOCK_ACCOUNTS.find((row) => row.id === accountId);
     if (!account) throw new Error(`unknown account ${accountId}`);
     return { ...account, cleanup_opt_in: optIn };
   }

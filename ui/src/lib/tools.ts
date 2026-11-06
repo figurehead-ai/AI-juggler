@@ -9,7 +9,10 @@ import { useSyncExternalStore } from "react";
 import { hasLiveBackend } from "./bridge";
 import { previewTools, toolsCatalog, type ToolSpecInfo } from "./ipc/tools";
 
-let catalog: ToolSpecInfo[] = hasLiveBackend() ? [] : previewTools();
+// The preview's catalog is read on first use: the preview's data loads
+// after this module (lib/preview-hooks).
+let catalog: ToolSpecInfo[] | null = hasLiveBackend() ? [] : null;
+const current = (): ToolSpecInfo[] => (catalog ??= previewTools());
 const listeners = new Set<() => void>();
 
 /** Loads the catalog (once at start; again when tools change). */
@@ -32,14 +35,14 @@ export function setToolsForTests(next: ToolSpecInfo[]): void {
 
 /** Every registered tool, the primary first. */
 export function tools(): ToolSpecInfo[] {
-  return catalog;
+  return current();
 }
 
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
 };
-const snapshot = () => catalog;
+const snapshot = () => current();
 
 /** The catalog, re-rendering when it changes. */
 export function useTools(): ToolSpecInfo[] {
@@ -76,16 +79,17 @@ export function genericTool(id: string): ToolSpecInfo {
 
 /** Tool `id`'s spec, or the neutral one. */
 export function toolSpec(id: string): ToolSpecInfo {
-  return catalog.find((tool) => tool.id === id) ?? genericTool(id);
+  return current().find((tool) => tool.id === id) ?? genericTool(id);
 }
 
 /** The tool a fresh account or a folder import is for when nothing else
  * says; the first tool when none is marked; null with no catalog. */
 export function primaryToolId(): string | null {
-  return (catalog.find((tool) => tool.flow.primary) ?? catalog[0])?.id ?? null;
+  const all = current();
+  return (all.find((tool) => tool.flow.primary) ?? all[0])?.id ?? null;
 }
 
 /** The tools first run on a fresh install brings in, in order. */
 export function firstRunToolIds(): string[] {
-  return catalog.filter((tool) => tool.flow.first_run).map((tool) => tool.id);
+  return current().filter((tool) => tool.flow.first_run).map((tool) => tool.id);
 }

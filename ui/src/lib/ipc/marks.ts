@@ -8,9 +8,9 @@
  */
 import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
-import { MOCK_PROJECTS } from "../../preview/fixtures";
 import { initialsOf } from "../palette";
 import type { MarkChoice } from "../../types/generated/MarkChoice";
+import { previewHooks } from "../preview-hooks";
 
 /** A project's own icon, or `null` when it has none. */
 export async function projectIconRead(projectId: string): Promise<string | null> {
@@ -24,14 +24,14 @@ export async function projectIconRead(projectId: string): Promise<string | null>
 /** Choose a project's mark (its clones share it); `{}` resets it. */
 export async function projectMarkSet(projectId: string, choice: MarkChoice): Promise<void> {
   if (!hasLiveBackend()) {
-    const project = MOCK_PROJECTS.find((row) => row.id === projectId);
+    const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === projectId);
     if (!project) throw { code: "not_found", retryable: false, user_message: "That project isn't there any more." };
     const kept: MarkChoice = {};
     if (choice.letters?.trim()) kept.letters = choice.letters.trim();
     if (choice.emoji?.trim()) kept.emoji = choice.emoji.trim();
     if (choice.swatch !== undefined) kept.swatch = choice.swatch;
     // Clones of one repository share the change, as in the app.
-    const clones = MOCK_PROJECTS.filter((row) => row.id === projectId || (project.repo !== null && row.repo === project.repo));
+    const clones = previewHooks().fixtures.MOCK_PROJECTS.filter((row) => row.id === projectId || (project.repo !== null && row.repo === project.repo));
     for (const row of clones) {
       const base = row.mark ?? { letters: initialsOf(row.name), swatch: 0, shows: "letters" as const };
       const own = base.choice?.letters ? initialsOf(row.name) : base.letters;

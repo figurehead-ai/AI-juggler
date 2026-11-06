@@ -2,12 +2,12 @@
  * AJ-E1007: session lifecycle: search, archive, replay, retention.
  */
 import { invoke, liveBackend as hasBackend } from "./transport";
-import { MOCK_ACCOUNTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import type { AccountStorageInfo } from "../../types/generated/AccountStorageInfo";
 import type { DeletePreviewInfo } from "../../types/generated/DeletePreviewInfo";
 import type { ReplayInfo } from "../../types/generated/ReplayInfo";
 import type { RetentionPreviewInfo } from "../../types/generated/RetentionPreviewInfo";
 import type { TranscriptHitInfo } from "../../types/generated/TranscriptHitInfo";
+import { previewHooks } from "../preview-hooks";
 
 
 interface HistorySeams {
@@ -24,7 +24,7 @@ const historyCall = (call: string) => {
   seams.__AIJ_HISTORY_CALLS__ = [...(seams.__AIJ_HISTORY_CALLS__ ?? []), call];
 };
 const setMockLifecycle = (sessionId: string, event: string) => {
-  const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+  const row = previewHooks().fixtures.MOCK_SESSIONS.find((session) => session.id === sessionId);
   if (row) {
     row.lifecycle = event;
     row.lifecycle_at_ms = Date.now();
@@ -73,8 +73,8 @@ export async function instanceDeletePreview(sessionId: string): Promise<DeletePr
 export async function instanceDelete(sessionId: string, token: string): Promise<void> {
   if (!hasBackend) {
     historyCall(`delete:${sessionId}:${token}`);
-    const at = MOCK_SESSIONS.findIndex((session) => session.id === sessionId);
-    if (at >= 0) MOCK_SESSIONS.splice(at, 1);
+    const at = previewHooks().fixtures.MOCK_SESSIONS.findIndex((session) => session.id === sessionId);
+    if (at >= 0) previewHooks().fixtures.MOCK_SESSIONS.splice(at, 1);
     return;
   }
   return invoke<void>("instance_delete", { sessionId, token });
@@ -106,8 +106,8 @@ export async function accountStorage(): Promise<AccountStorageInfo[]> {
   if (!hasBackend) {
     const seeded = historySeams().__AIJ_ACCOUNT_STORAGE__;
     if (seeded) return seeded.map((row) => ({ ...row }));
-    return MOCK_ACCOUNTS.map((account) => {
-      const rows = MOCK_SESSIONS.filter((session) => session.account_id === account.id);
+    return previewHooks().fixtures.MOCK_ACCOUNTS.map((account) => {
+      const rows = previewHooks().fixtures.MOCK_SESSIONS.filter((session) => session.account_id === account.id);
       return {
         account_id: account.id,
         label: account.label,

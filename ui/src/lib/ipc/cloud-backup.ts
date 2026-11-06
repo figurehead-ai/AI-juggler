@@ -7,6 +7,7 @@ import type { CloudBackupInfo } from "../../types/generated/CloudBackupInfo";
 import type { CloudBackupStatusInfo } from "../../types/generated/CloudBackupStatusInfo";
 import type { LastBackupInfo } from "../../types/generated/LastBackupInfo";
 import type { RestorePlanInfo } from "../../types/generated/RestorePlanInfo";
+import { previewHooks } from "../preview-hooks";
 
 
 interface CloudBackupSeams {
@@ -18,24 +19,14 @@ interface CloudBackupSeams {
   __AIJ_CLOUD_RESTORE_ERROR__?: string;
   __AIJ_CLOUD_BACKUP_HOLD__?: boolean;
 }
-const cloudSeams = () => window as unknown as CloudBackupSeams;
+export const cloudSeams = () => window as unknown as CloudBackupSeams;
 const cloudCall = (call: string) => {
   const seams = cloudSeams();
   seams.__AIJ_CLOUD_BACKUP_CALLS__ = [...(seams.__AIJ_CLOUD_BACKUP_CALLS__ ?? []), call];
 };
-const mockCloud = (): CloudBackupStatusInfo =>
-  cloudSeams().__AIJ_CLOUD_BACKUP__ ?? {
-    enabled: true,
-    code_saved: true,
-    schedule: "weekly",
-    last: null,
-    uploading: false,
-    limit_bytes: 25 * 1024 * 1024,
-  };
-
 /** Where Cloud backup stands. */
 export async function cloudBackupStatus(): Promise<CloudBackupStatusInfo> {
-  if (!hasBackend) return { ...mockCloud() };
+  if (!hasBackend) return { ...previewHooks().appState.mockCloud() };
   return invoke<CloudBackupStatusInfo>("cloud_backup_status");
 }
 
@@ -43,7 +34,7 @@ export async function cloudBackupStatus(): Promise<CloudBackupStatusInfo> {
 export async function cloudBackupSetSchedule(schedule: string): Promise<CloudBackupStatusInfo> {
   if (!hasBackend) {
     cloudCall(`schedule:${schedule}`);
-    const next = { ...mockCloud(), schedule };
+    const next = { ...previewHooks().appState.mockCloud(), schedule };
     cloudSeams().__AIJ_CLOUD_BACKUP__ = next;
     return next;
   }
@@ -58,7 +49,7 @@ export async function cloudBackupNow(): Promise<LastBackupInfo> {
     if (seams.__AIJ_CLOUD_BACKUP_HOLD__) return new Promise<LastBackupInfo>(() => {});
     if (seams.__AIJ_CLOUD_BACKUP_ERROR__) throw new Error(seams.__AIJ_CLOUD_BACKUP_ERROR__);
     const last = { at_ms: Date.now(), ok: true, size_bytes: 412_000, error: null };
-    seams.__AIJ_CLOUD_BACKUP__ = { ...mockCloud(), last };
+    seams.__AIJ_CLOUD_BACKUP__ = { ...previewHooks().appState.mockCloud(), last };
     return last;
   }
   return invoke<LastBackupInfo>("cloud_backup_now");

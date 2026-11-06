@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as ipc from "../../lib/ipc/subagents";
 import { forgetPaged } from "../../lib/paged";
-import { previewList, type Seeded } from "../../lib/ipc/subagents-preview";
+import { previewList, type Seeded } from "../../preview/subagents";
 import { takeSubagentsAsk } from "../../lib/subagent-links";
 import { NameCell } from "../../screens/processes/cells";
 import type { ProcessGraphRowInfo } from "../../lib/ipc/processes";

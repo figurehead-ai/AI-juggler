@@ -14,7 +14,12 @@ import { switchSourceOf, type ConversationInfo } from "../../lib/ipc/conversatio
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { ContinueOn } from "./ContinueOn";
 import { fromConversation, fromInstance, type SessionModel } from "./model";
-import { previewNamed } from "../../lib/ipc/preview-names";
+import { previewNamed } from "../../preview/names";
+import { setToolsForTests } from "../../lib/tools";
+import { PREVIEW_TOOLS } from "../../preview/tools";
+
+// This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
+setToolsForTests(PREVIEW_TOOLS);
 
 afterEach(() => {
   cleanup();

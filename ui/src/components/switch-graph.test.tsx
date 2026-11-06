@@ -12,7 +12,7 @@ import graphSource from "./SwitchGraph.tsx?raw";
 import rowsSource from "./SwitchTargetRows.tsx?raw";
 import flowSource from "./SwitchFlow.tsx?raw";
 import backFlowSource from "./SwitchBackFlow.tsx?raw";
-import bridgeSource from "../lib/ipc/switch-targets.ts?raw";
+import bridgeSource from "../preview/switching.ts?raw";
 
 const w = () => window as unknown as Record<string, unknown>;
 

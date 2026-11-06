@@ -4,7 +4,7 @@ import { SwitchFlow } from "./SwitchFlow";
 import { setupSummary } from "./SwitchSetupList";
 import { CarryList } from "./switch/CarryList";
 import { handoverQuestion, notesQuestion } from "./switch/NotesRow";
-import { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../lib/ipc/switchSetup";
+import { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../preview/switch-setup";
 import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 /**

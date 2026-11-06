@@ -1376,9 +1376,6 @@
   "typescript(no-misused-spread)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
- "src/lib/ipc/preview-support.ts": {
-  "typescript(no-unsafe-type-assertion)": 1
- },
  "src/lib/ipc/probe.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
@@ -1433,9 +1430,6 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/lib/ipc/staging.ts": {
-  "typescript(no-unsafe-type-assertion)": 1
- },
- "src/lib/ipc/subagents-preview.ts": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/subscriptions.ts": {
@@ -1502,7 +1496,7 @@
  },
  "src/lib/ipc/validation.ts": {
   "typescript(no-redundant-type-constituents)": 2,
-  "typescript(no-unsafe-type-assertion)": 7
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/lib/ipc/vault.ts": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -2181,6 +2175,15 @@
  "src/preview/processes.ts": {
   "eslint(complexity)": 1,
   "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/preview/subagents.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/preview/support.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/preview/switching.ts": {
+  "typescript(no-unsafe-type-assertion)": 6
  },
  "src/preview/this-mac.ts": {
   "eslint(no-shadow)": 2,

@@ -3,10 +3,10 @@
  * morning triage.
  */
 import { invoke, liveBackend as hasBackend } from "./transport";
-import { MOCK_SESSIONS } from "../../preview/fixtures";
 import type { OvernightSummaryInfo } from "../../types/generated/OvernightSummaryInfo";
 import type { ParkedInfo } from "../../types/generated/ParkedInfo";
 import type { ParkedOfferInfo } from "../../types/generated/ParkedOfferInfo";
+import { previewHooks } from "../preview-hooks";
 
 
 type ParkSeams = {
@@ -103,7 +103,7 @@ export async function instanceMarkReviewed(sessionId: string): Promise<number> {
   if (!hasBackend) {
     const w = window as unknown as { __AIJ_TRIAGE_CALLS__?: string[] };
     w.__AIJ_TRIAGE_CALLS__ = [...(w.__AIJ_TRIAGE_CALLS__ ?? []), `reviewed:${sessionId}`];
-    const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+    const row = previewHooks().fixtures.MOCK_SESSIONS.find((session) => session.id === sessionId);
     const at = Date.now();
     if (row) {
       row.lifecycle = "reviewed";
@@ -120,7 +120,7 @@ export async function instanceUnmarkReviewed(sessionId: string): Promise<number>
   if (!hasBackend) {
     const w = window as unknown as { __AIJ_TRIAGE_CALLS__?: string[] };
     w.__AIJ_TRIAGE_CALLS__ = [...(w.__AIJ_TRIAGE_CALLS__ ?? []), `unreviewed:${sessionId}`];
-    const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+    const row = previewHooks().fixtures.MOCK_SESSIONS.find((session) => session.id === sessionId);
     const at = Date.now();
     if (row) {
       row.lifecycle = "unreviewed";

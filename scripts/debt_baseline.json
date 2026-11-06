@@ -147,7 +147,7 @@
   "jscpd:lines": 25
  },
  "crates/juggler-adapters/src/claude_code.rs": {
-  "jscpd:lines": 179
+  "jscpd:lines": 169
  },
  "crates/juggler-adapters/src/claude_cut.rs": {
   "jscpd:lines": 71
@@ -219,7 +219,7 @@
   "jscpd:lines": 37
  },
  "crates/juggler-adapters/src/codex_environment.rs": {
-  "jscpd:lines": 43
+  "jscpd:lines": 21
  },
  "crates/juggler-adapters/src/codex_family.rs": {
   "jscpd:lines": 10
@@ -252,19 +252,19 @@
   "jscpd:lines": 7
  },
  "crates/juggler-adapters/src/fake.rs": {
-  "jscpd:lines": 31
+  "jscpd:lines": 23
  },
  "crates/juggler-adapters/src/fake_desktop.rs": {
-  "jscpd:lines": 24
+  "jscpd:lines": 8
  },
  "crates/juggler-adapters/src/fake_driven.rs": {
   "jscpd:lines": 41
  },
  "crates/juggler-adapters/src/grok_build.rs": {
-  "jscpd:lines": 471
+  "jscpd:lines": 394
  },
  "crates/juggler-adapters/src/grok_environment.rs": {
-  "jscpd:lines": 51
+  "jscpd:lines": 49
  },
  "crates/juggler-adapters/src/grok_inventory.rs": {
   "jscpd:lines": 119
@@ -279,10 +279,10 @@
   "jscpd:lines": 18
  },
  "crates/juggler-adapters/src/kimi_code.rs": {
-  "jscpd:lines": 360
+  "jscpd:lines": 234
  },
  "crates/juggler-adapters/src/kimi_environment.rs": {
-  "jscpd:lines": 44
+  "jscpd:lines": 42
  },
  "crates/juggler-adapters/src/kimi_inventory.rs": {
   "jscpd:lines": 109
@@ -300,7 +300,7 @@
   "jscpd:lines": 30
  },
  "crates/juggler-adapters/src/opencode.rs": {
-  "jscpd:lines": 225
+  "jscpd:lines": 173
  },
  "crates/juggler-adapters/src/opencode_inventory.rs": {
   "jscpd:lines": 118
@@ -797,12 +797,6 @@
  "crates/lib/ipc/settings.ts": {
   "jscpd:lines": 16
  },
- "crates/lib/ipc/subagents-preview.ts": {
-  "jscpd:lines": 7
- },
- "crates/lib/ipc/subagents.ts": {
-  "jscpd:lines": 7
- },
  "crates/lib/ipc/switchSetup.ts": {
   "jscpd:lines": 14
  },
@@ -1183,9 +1177,6 @@
   "knip:exports": 1,
   "knip:types": 1
  },
- "ui/src/lib/ipc/subagents-preview.ts": {
-  "knip:types": 1
- },
  "ui/src/lib/ipc/subagents.ts": {
   "knip:exports": 2
  },
@@ -1381,12 +1372,6 @@
  },
  "ui/src/pages/tasks/words.ts": {
   "knip:exports": 3
- },
- "ui/src/preview/conversation-feed.ts": {
-  "knip:exports": 1
- },
- "ui/src/preview/machine.ts": {
-  "knip:exports": 1
  },
  "ui/src/preview/usage-fold.ts": {
   "knip:types": 1

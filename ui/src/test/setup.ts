@@ -7,11 +7,18 @@
  * passing test is no slower; only a real failure takes longer to say so.
  */
 import { configure } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, beforeAll } from "vitest";
 import { forgetSharedReads } from "../lib/shared-read";
+import { installPreview } from "../lib/preview-hooks";
 
 configure({ asyncUtilTimeout: 10_000 });
 
 // 0.3.4: what screens keep between visits (the last answers, scroll
 // positions, a session's tabs) never carries from one test to the next.
 afterEach(forgetSharedReads);
+
+// AJ-E2018: the app loads the design preview's data before its first
+// render (main.tsx); a test file gets it before its first test. It loads
+// after the file's own imports, as lib/bridge.ts's fixtures once did, so a
+// `vi.hoisted` `__AIJ_FIXTURE__` still seeds it.
+beforeAll(async () => installPreview(await import("../preview/hooks")));

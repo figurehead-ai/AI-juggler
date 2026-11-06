@@ -21,8 +21,8 @@ import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, expectRail, openSwitch, switchRows, openWorkMaxSession } from "./fixtures";
-import { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "../../src/lib/ipc/switchSetupExamples";
-import { EXAMPLE_DESTINATIONS_DESKTOP, EXAMPLE_DESTINATIONS_NO_DESKTOP } from "../../src/lib/ipc/switchDestinationsExamples";
+import { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "../../src/preview/switch-setup";
+import { EXAMPLE_DESTINATIONS_DESKTOP, EXAMPLE_DESTINATIONS_NO_DESKTOP } from "../../src/preview/switch-destinations";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/96-switch-setup");
 

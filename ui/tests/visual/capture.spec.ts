@@ -16,7 +16,7 @@ import { resolve } from "node:path";
 // Playwright runs with cwd = config dir (ui/).
 const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
-import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/lib/ipc/switchSetupExamples";
+import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/preview/switch-setup";
 import { previewMac } from "../../src/preview/processes-fixture";
 import { allStatuses, honestEmpty, openRailGroup, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openWorkMaxSession } from "./fixtures";
 

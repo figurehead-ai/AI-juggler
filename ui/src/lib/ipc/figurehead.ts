@@ -4,6 +4,7 @@
 import { invoke, liveBackend as hasBackend } from "./transport";
 import type { CloudFeatureInfo } from "../../types/generated/CloudFeatureInfo";
 import type { FigureheadStatusInfo } from "../../types/generated/FigureheadStatusInfo";
+import { previewHooks } from "../preview-hooks";
 
 //
 // Scripted mock (browser/Playwright): `__AIJ_FIGUREHEAD__` holds the
@@ -20,12 +21,6 @@ type FigureheadSeams = {
 };
 
 const fhSeams = () => window as unknown as FigureheadSeams;
-
-const MOCK_FEATURES: CloudFeatureInfo[] = [
-  { key: "cloudBackup", access: "included", tier: "free", on: false },
-  { key: "fleetDiscovery", access: "included", tier: "free", on: false },
-  { key: "usageSync", access: "included", tier: "free", on: false },
-];
 
 function fhStatus(): FigureheadStatusInfo {
   return (
@@ -62,7 +57,7 @@ function fhLinked(name?: string): FigureheadStatusInfo {
     email: "you@example.com",
     plan: "Free",
     device_name: name?.trim() || fhStatus().device_name,
-    features: (fhSeams().__AIJ_FIGUREHEAD_FEATURES__ ?? MOCK_FEATURES).map((f) => ({ ...f })),
+    features: (fhSeams().__AIJ_FIGUREHEAD_FEATURES__ ?? previewHooks().fleet.MOCK_FEATURES).map((f) => ({ ...f })),
     link: null,
     refreshed_at_ms: Date.now(),
     notice: null,

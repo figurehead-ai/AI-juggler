@@ -10,8 +10,8 @@ import { hasLiveBackend, signedIn } from "../bridge";
 import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
 import type { SubscriptionProfileInfo } from "../../types/generated/SubscriptionProfileInfo";
 import type { TermChoiceInfo } from "../../types/generated/TermChoiceInfo";
-import { previewAccountId, previewAccountSlots } from "./preview-slots";
-import { previewNamed, type UnnamedSubscription } from "./preview-names";
+import type { UnnamedSubscription } from "../../preview/names";
+import { previewHooks } from "../preview-hooks";
 
 export type { SubscriptionInfo, SubscriptionProfileInfo, TermChoiceInfo };
 
@@ -65,10 +65,10 @@ function withPreviewTerms(row: UnnamedSubscription): UnnamedSubscription {
 export async function subscriptionsList(): Promise<SubscriptionInfo[]> {
   if (!hasLiveBackend()) {
     const rows = (await previewSubscriptions()).map((row) => {
-      const id = previewAccountId(row);
+      const id = previewHooks().slots.previewAccountId(row);
       return withPreviewTerms({ ...row, choices: row.choices ?? [], account_id: id, name: (id && previewNames.get(id)) ?? row.name ?? null });
     });
-    return previewAccountSlots(previewNamed(rows), previewFolders());
+    return previewHooks().slots.previewAccountSlots(previewHooks().names.previewNamed(rows), previewFolders());
   }
   return invoke<SubscriptionInfo[]>("subscriptions_list");
 }

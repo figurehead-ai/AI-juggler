@@ -6,9 +6,9 @@
  * never run it: they read `display_name` (`accountName`). Mirrors the
  * Rust rule; its tests are there.
  */
-import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
-import { planWords } from "../subscriptions";
-import { toolSpec } from "../tools";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
+import { planWords } from "../lib/subscriptions";
+import { toolSpec } from "../lib/tools";
 
 /** A row as the preview's fixture gives it (its name, if any, is redone). */
 export type UnnamedSubscription = Omit<SubscriptionInfo, "display_name"> & { display_name?: string };

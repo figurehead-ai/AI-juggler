@@ -15,10 +15,15 @@ import * as bridgeProviders from "../../lib/ipc/providers";
 import * as bridgeQuota from "../../lib/ipc/quota";
 import * as subs from "../../lib/ipc/subscriptions";
 import { accountDisplay, accountLine, accountName, shareAccount, type SubscriptionInfo } from "../../lib/subscriptions";
-import { previewNamed, type UnnamedSubscription } from "../../lib/ipc/preview-names";
+import { previewNamed, type UnnamedSubscription } from "../../preview/names";
 import { byAccount, setupWords } from "../../pages/session/ContinueOn";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
+import { setToolsForTests } from "../../lib/tools";
+import { PREVIEW_TOOLS } from "../../preview/tools";
+
+// This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
+setToolsForTests(PREVIEW_TOOLS);
 
 afterEach(() => {
   cleanup();

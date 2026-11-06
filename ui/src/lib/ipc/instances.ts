@@ -4,19 +4,18 @@
  */
 import { invoke, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
-import { loadHang } from "./preview-support";
-import { MOCK_QUALITY, MOCK_SESSIONS, MOCK_STATS } from "../../preview/fixtures";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { InstanceQuotaInfo } from "../../types/generated/InstanceQuotaInfo";
 import type { InstanceResourcesInfo } from "../../types/generated/InstanceResourcesInfo";
 import type { QualitySignalsInfo } from "../../types/generated/QualitySignalsInfo";
 import type { StatsInfo } from "../../types/generated/StatsInfo";
+import { previewHooks } from "../preview-hooks";
 
 export async function instancesList(): Promise<InstanceInfo[]> {
   if (!hasBackend) {
-    const hang = loadHang();
+    const hang = previewHooks().support.loadHang();
     if (hang) return hang;
-    return [...MOCK_SESSIONS];
+    return [...previewHooks().fixtures.MOCK_SESSIONS];
   }
   return invoke<InstanceInfo[]>("instances_list");
 }
@@ -27,7 +26,7 @@ export const sessionsList = instancesList;
 /** AJ-E409: D-07 quality signals for the selected Instance (no score). */
 export async function instanceQuality(sessionId: string): Promise<QualitySignalsInfo | null> {
   if (!hasBackend) {
-    return MOCK_QUALITY[sessionId] ?? null;
+    return previewHooks().fixtures.MOCK_QUALITY[sessionId] ?? null;
   }
   return invoke<QualitySignalsInfo>("instance_quality", { sessionId });
 }
@@ -41,7 +40,7 @@ export async function stopSession(sessionId: string): Promise<void> {
 
 export async function dashboardStats(): Promise<StatsInfo> {
   if (!hasBackend) {
-    return MOCK_STATS;
+    return previewHooks().fixtures.MOCK_STATS;
   }
   return invoke<StatsInfo>("dashboard_stats");
 }

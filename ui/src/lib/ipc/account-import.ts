@@ -3,7 +3,7 @@
  * environment scan, import and inspecting one source.
  */
 import { invoke, liveBackend as hasBackend } from "./transport";
-import { DEFAULT_SCAN_REPORT } from "./providers";
+import { previewHooks } from "../preview-hooks";
 import type { DiscoveredInfo } from "../../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../../types/generated/ImportResult";
 import type { SourceInspectInfo } from "../../types/generated/SourceInspectInfo";
@@ -15,7 +15,7 @@ import type { SourceInspectInfo } from "../../types/generated/SourceInspectInfo"
  */
 export async function environmentScan(): Promise<DiscoveredInfo[]> {
   // The same two setups as the full scan's preview report.
-  if (!hasBackend) return DEFAULT_SCAN_REPORT.installs;
+  if (!hasBackend) return previewHooks().providers.DEFAULT_SCAN_REPORT.installs;
   return invoke<DiscoveredInfo[]>("environment_scan");
 }
 

@@ -7,6 +7,7 @@ import type { DiscoveredMachineInfo } from "../../types/generated/DiscoveredMach
 import type { FleetPeerInfo } from "../../types/generated/FleetPeerInfo";
 import type { LinkStatusInfo } from "../../types/generated/LinkStatusInfo";
 import type { PairingStateInfo } from "../../types/generated/PairingStateInfo";
+import { previewHooks } from "../preview-hooks";
 
 //
 // The mock is a small scripted state machine so the wizard can be
@@ -30,15 +31,6 @@ type LinkSeams = FleetSeams & {
 };
 
 const linkSeams = () => window as unknown as LinkSeams;
-
-const MOCK_JOINER = {
-  label: "Laptop",
-  fingerprint: "9B10 44CE 7A0F E2D3 51B8 06C9 3E7D A425",
-};
-const MOCK_HOST = {
-  label: "Mac mini",
-  fingerprint: "C2E9 1F7A 0B36 8D54 E1A0 7C29 46BF 3D18",
-};
 
 const idlePairing = (): PairingStateInfo => ({
   phase: "idle",
@@ -101,8 +93,8 @@ function installPairSimulator(): void {
       seams.__AIJ_PAIR_HOST__ = {
         ...idlePairing(),
         phase: "confirm",
-        peer_label: MOCK_JOINER.label,
-        peer_fingerprint: MOCK_JOINER.fingerprint,
+        peer_label: previewHooks().fleet.MOCK_JOINER.label,
+        peer_fingerprint: previewHooks().fleet.MOCK_JOINER.fingerprint,
       };
     } else if (event === "mismatch") {
       seams.__AIJ_PAIR_HOST__ = mockWaiting("731 058", "mismatch", "That code didn't match — here's a new one.");
@@ -233,8 +225,8 @@ export async function pairingJoinStart(
       : {
           ...idlePairing(),
           phase: "confirm",
-          peer_label: MOCK_HOST.label,
-          peer_fingerprint: MOCK_HOST.fingerprint,
+          peer_label: previewHooks().fleet.MOCK_HOST.label,
+          peer_fingerprint: previewHooks().fleet.MOCK_HOST.fingerprint,
         };
     return { ...linkSeams().__AIJ_PAIR_JOIN__! };
   }

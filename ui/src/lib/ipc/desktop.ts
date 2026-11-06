@@ -3,12 +3,12 @@
  */
 import { invoke, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
-import { MOCK_ACCOUNTS } from "../../preview/fixtures";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { DesktopLaunchInfo } from "../../types/generated/DesktopLaunchInfo";
 import type { FocusOutcomeInfo } from "../../types/generated/FocusOutcomeInfo";
 import type { PreviewFrameInfo } from "../../types/generated/PreviewFrameInfo";
 import type { PreviewStateInfo } from "../../types/generated/PreviewStateInfo";
+import { previewHooks } from "../preview-hooks";
 
 /** AJ-E413: launch the Provider's desktop app under an Account. */
 export async function desktopLaunch(accountId: string): Promise<DesktopLaunchInfo> {
@@ -42,10 +42,6 @@ export async function desktopFocus(sessionId: string): Promise<FocusOutcomeInfo>
 }
 
 
-/** AJ-E415: the deterministic mock preview frame (a rendered fake-app
- * window; harness captures pin phases via __AIJ_PREVIEW_PHASE__). */
-const MOCK_PREVIEW_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAUAAAADICAIAAAAWZq/8AAACA0lEQVR42u3cMQqDQBCGUQ8hGEhY0SZ4hRSpQ4ocQSxzBk/vBazE5ncfvBMsfNXOTPN6f4FQjScAAQMCBgQMAgYEDAgYEDAIGBAwIGAQMCBgQMCAgEHAgIABAQMCBgEDAgYOB1yGCQglYEgOuO0KEErAIGBAwICAQcCAgAEBAwIGAQMCBgQMAgYEDAgYEDBcP+DlvwKhBAwCBgQMCBgEDAgYEDAgYBAwIGBAwFBzwMbBwTYSIGBAwCBgQMCAgAEBg4ABAQMCBgEDiQF/fjMQSsAgYEDAgIBBwICAAQEDewH7CgeTWICAAQGDgAEBAwIGBAwCBgQMCBgEDCQG/OifQCgBg4ABAQMCBgEDAgYEDAgYBAwIGBAw1Bzw7T4CoQQMAgYEDAgYBAwIGBAwIGAQMCBgQMBQc8DGwcE2EiBgQMAgYEDAgIABAYOAAQEDAgYBA+5CA7aRAAGDgAEBAwIGBAwCBgQMCBgEDAgYcBcasI0EAgYEDAgYEDAIGBAwIGAQMCBgQMCAu9BgGwkQMCBgELBXAAEDAgYEDAIGBAwIGBAwuAsN2EYCBAwCBvICbrsChBIwCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCBgQMAgYEDAgYBAwIGBAwICAQcCAgAEBAwIGAQMCBgQMAgYEDAgYEDAIGBAwcIoN1C7gkSubCwYAAAAASUVORK5CYII=";
-
 /** AJ-E415: starts the read-only live preview for the selected desktop
  * Instance (requires the Account's opt-in; one at a time). */
 export async function previewStart(sessionId: string): Promise<void> {
@@ -71,7 +67,7 @@ export async function accountSetPreviewOptIn(
 ): Promise<AccountInfo> {
   if (!hasBackend) {
     return {
-      ...(MOCK_ACCOUNTS.find((a) => a.id === accountId) ?? MOCK_ACCOUNTS[0]!),
+      ...(previewHooks().fixtures.MOCK_ACCOUNTS.find((a) => a.id === accountId) ?? previewHooks().fixtures.MOCK_ACCOUNTS[0]!),
       preview_opt_in: optIn,
     };
   }
@@ -88,7 +84,7 @@ export function onPreviewFrame(
     // onPreviewState below.
     handler({
       session_id: "sess-desktop-1",
-      png_b64: MOCK_PREVIEW_PNG_B64,
+      png_b64: previewHooks().appState.MOCK_PREVIEW_PNG_B64,
       at_ms: Date.now(),
       seq: 0,
     });

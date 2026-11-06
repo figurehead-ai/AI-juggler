@@ -3,20 +3,20 @@
  * isolation offer and worktrees, and the launch itself.
  */
 import { invoke, liveBackend as hasBackend } from "./transport";
-import { MOCK_PROFILES } from "../../preview/fixtures";
 import type { GitStatusInfo } from "../../types/generated/GitStatusInfo";
 import type { IdentityCheckInfo } from "../../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../../types/generated/IsolationOfferInfo";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import type { WorktreeRemovalInfo } from "../../types/generated/WorktreeRemovalInfo";
+import { previewHooks } from "../preview-hooks";
 
 export async function launchRecipesList(): Promise<LaunchRecipeInfo[]> {
   if (!hasBackend) {
     // AJ-E305 test seam: visual/flow specs inject the recipe set.
     return (
       (window as unknown as { __AIJ_RECIPES__?: LaunchRecipeInfo[] }).__AIJ_RECIPES__ ??
-      MOCK_PROFILES
+      previewHooks().fixtures.MOCK_PROFILES
     );
   }
   return invoke<LaunchRecipeInfo[]>("launch_recipes_list");

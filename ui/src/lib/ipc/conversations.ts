@@ -18,9 +18,8 @@ import type { TurnCallInfo } from "../../types/generated/TurnCallInfo";
 import type { ConversationDeltaInfo } from "../../types/generated/ConversationDeltaInfo";
 import type { ConversationSnapshotInfo } from "../../types/generated/ConversationSnapshotInfo";
 import type { EarlierPageInfo } from "../../types/generated/EarlierPageInfo";
-import { previewEarlier, previewFollow, previewKeep, previewUnfollow, previewWithout, seedTurn, type SeededTurn } from "../../preview/conversation-feed";
-import { PREVIEW_TOOLS } from "../../preview/tools";
-import { placesConversations } from "../../preview/places";
+import type { SeededTurn } from "../../preview/conversation-feed";
+import { previewHooks } from "../preview-hooks";
 
 export type { ConversationInfo, ConversationDeltaInfo, ConversationSnapshotInfo, EarlierPageInfo, GoToOutcomeInfo, LastMessagesInfo, PlaceInfo, TurnBlockInfo, TurnCallInfo, TurnInfo };
 
@@ -67,9 +66,9 @@ function placesPreview(): boolean {
 function previewConversations(): ConversationInfo[] {
   const fixture = (window as unknown as { __AIJ_FIXTURE__?: { conversations?: ConversationInfo[] } }).__AIJ_FIXTURE__;
   if (fixture) return fixture.conversations ?? [];
-  if (placesPreview()) return placesConversations(NOW);
+  if (placesPreview()) return previewHooks().places.placesConversations(NOW);
   const base = {
-    tool: PREVIEW_TOOLS[0]!.id,
+    tool: previewHooks().tools.PREVIEW_TOOLS[0]!.id,
     git_branch: "main",
     started_ms: NOW - 3_600_000,
     tokens: null,
@@ -233,7 +232,7 @@ function previewLastMessages(conversationId: string, ask: LastMessagesAsk): Last
   if (seeded === "off") return none("off");
   if (!seeded) return none("none");
   if (seeded.state !== "shown") return none(seeded.state);
-  const all: TurnInfo[] = seeded.turns.map((turn, index) => seedTurn(turn, index));
+  const all: TurnInfo[] = seeded.turns.map((turn, index) => previewHooks().conversationFeed.seedTurn(turn, index));
   const stamp = `preview:${all.length}`;
   if (ask.before == null && ask.known === stamp) return { ...none("unchanged"), stamp };
   const max = Math.min(Math.max(ask.max ?? 30, 1), 60);
@@ -276,29 +275,29 @@ export async function conversationsLastMessages(accountId: string, conversationI
 export async function conversationsFollow(accountId: string, conversationId: string, max: number, onDelta: (delta: ConversationDeltaInfo) => void): Promise<ConversationSnapshotInfo> {
   if (!hasLiveBackend()) {
     const seeded = seededChat(conversationId);
-    if (seeded === "off") return previewWithout("off");
-    if (!seeded) return previewWithout("none");
-    if (seeded.state !== "shown") return previewWithout(seeded.state);
-    return previewFollow(`${accountId}\u0000${conversationId}`, seeded.turns, seeded.layout ?? "stretches", max, onDelta);
+    if (seeded === "off") return previewHooks().conversationFeed.previewWithout("off");
+    if (!seeded) return previewHooks().conversationFeed.previewWithout("none");
+    if (seeded.state !== "shown") return previewHooks().conversationFeed.previewWithout(seeded.state);
+    return previewHooks().conversationFeed.previewFollow(`${accountId}\u0000${conversationId}`, seeded.turns, seeded.layout ?? "stretches", max, onDelta);
   }
   return invoke<ConversationSnapshotInfo>("conversations_follow", { accountId, conversationId, max, channel: channel(onDelta) });
 }
 
 /** 0.3.5: stops following (the page closed or was hidden). */
 export async function conversationsUnfollow(subscription: number): Promise<void> {
-  if (!hasLiveBackend()) return previewUnfollow(subscription);
+  if (!hasLiveBackend()) return previewHooks().conversationFeed.previewUnfollow(subscription);
   return invoke<void>("conversations_unfollow", { subscription });
 }
 
 /** 0.3.5: the page still follows these; answers the ones that ended. */
 export async function conversationsKeep(subscriptions: number[]): Promise<number[]> {
-  if (!hasLiveBackend()) return previewKeep(subscriptions);
+  if (!hasLiveBackend()) return previewHooks().conversationFeed.previewKeep(subscriptions);
   return invoke<number[]>("conversations_keep", { subscriptions });
 }
 
 /** 0.3.5: the turns before `before` in a followed conversation. No turns
  * with an `earlier` set: a long stretch with none was passed, read on. */
 export async function conversationsEarlier(subscription: number, before: number, max = 30): Promise<EarlierPageInfo> {
-  if (!hasLiveBackend()) return previewEarlier(subscription, before, max);
+  if (!hasLiveBackend()) return previewHooks().conversationFeed.previewEarlier(subscription, before, max);
   return invoke<EarlierPageInfo>("conversations_earlier", { subscription, before, max });
 }

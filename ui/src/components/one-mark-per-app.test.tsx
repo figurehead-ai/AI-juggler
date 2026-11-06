@@ -37,6 +37,11 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
 import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
+import { setToolsForTests } from "../lib/tools";
+import { PREVIEW_TOOLS } from "../preview/tools";
+
+// This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
+setToolsForTests(PREVIEW_TOOLS);
 
 const NOW = new Date(2026, 10, 2, 10, 0, 0).getTime();
 type Seams = { __AIJ_FIXTURE__?: unknown; __AIJ_PLACES__?: unknown };

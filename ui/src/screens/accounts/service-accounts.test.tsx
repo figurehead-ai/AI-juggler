@@ -20,7 +20,7 @@ import { PREVIEW_SERVICES } from "../../preview/services";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { pick } from "../../test/pick";
-import { previewNamed } from "../../lib/ipc/preview-names";
+import { previewNamed } from "../../preview/names";
 
 const w = () => window as unknown as Record<string, unknown>;
 const KEY = "fixture-service-key-0123456789";

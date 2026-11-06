@@ -14,17 +14,22 @@ const readOnlyBridgeCsp: Plugin = {
   },
 };
 
-// The backend calls the first window makes (lib/bridge.ts until AJ-E2018
-// split it into lib/ipc/<feature>.ts) ship as one chunk, as they did: one
-// chunk per module cost ~17 KB of cross-chunk imports. Other lib/ipc
-// modules stay with the screens that load them.
+// AJ-E2018: the lib/ipc modules the first window loads ship as one chunk
+// (lib/bridge.ts was one module until it was split by feature): a chunk per
+// module costs more in cross-chunk imports than it saves. The others stay
+// with the screens that load them.
 const STARTUP_IPC = [
-  "account-import", "accounts", "alerts", "app-lifecycle", "backup", "cleanup",
-  "cloud-backup", "crash", "desktop", "expert", "figurehead", "fleet",
+  "account-import", "accountSettings", "accounts", "alerts", "app-lifecycle",
+  "apps", "backup", "cleanup", "cloud-backup", "conversations", "costs",
+  "crash", "desktop", "expert", "figurehead", "fleet", "fleet-launch",
   "fleet-remote", "fleet-switch", "instances", "kill", "launch", "link",
-  "park", "preview-support", "project-folders", "providers", "redaction",
-  "session-history", "settings", "switch-preflight", "switch-targets",
-  "terminal-io", "updates", "usage-stats", "validation", "vault",
+  "marks", "messages", "notices", "notifications", "park", "places", "pools",
+  "processes", "project-folders", "providers", "quota", "redaction",
+  "relations", "runtime", "services", "session-history", "sessions",
+  "settings", "subagents", "subscriptions", "switch-preflight",
+  "switch-targets", "switchSetup", "tasks", "tasks-across", "terminal-io",
+  "tools", "trust", "updates", "usage-stats", "usageHistory", "validation",
+  "vault",
 ];
 const STARTUP_CALLS = new RegExp(`/src/lib/(bridge|ipc/(${STARTUP_IPC.join("|")}))\\.ts$`);
 

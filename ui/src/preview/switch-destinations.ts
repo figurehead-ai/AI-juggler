@@ -4,7 +4,7 @@
  * Types only here, so a gallery spec can import it without the app's
  * transport.
  */
-import type { DestinationsInfo } from "../../types/generated/DestinationsInfo";
+import type { DestinationsInfo } from "../types/generated/DestinationsInfo";
 
 /** The target has a Claude app profile, open now; it ran in a terminal. */
 export const EXAMPLE_DESTINATIONS: DestinationsInfo = {

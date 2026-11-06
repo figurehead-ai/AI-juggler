@@ -4,10 +4,9 @@
  */
 import { invoke, listen, liveBackend as hasBackend } from "./transport";
 import type { RedactionInfoData, RedactionItemData } from "./redaction";
-import { previewDestinations } from "./switchDestinationsExamples";
-import { MOCK_ACCOUNTS } from "../../preview/fixtures";
 import type { DestinationsInfo } from "../../types/generated/DestinationsInfo";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
+import { previewHooks } from "../preview-hooks";
 
 /** The juggle: move a session's context to another account and resume it. */
 export async function sessionHandover(
@@ -101,53 +100,6 @@ export interface SwitchExecutedData {
   /** ADR-0028: the sessions started from it that moved with it, and where they nest ("now" | "restart" | ""). */ family_moved?: number; family_nests?: string; family_place?: string | null; /** ADR-0028: the automation handed over, the copy's app to restart for it, whether the original's is off only once its app closes, and what stayed. */ automation_moved?: string[]; automation_copy_place?: string | null; automation_original_waits?: boolean; automation_kept?: string[];
 }
 
-/** The no-backend preflight default (fixtures merge over it —
- * AJ-E206 door facts + AJ-E208 redaction policy). */
-const DEFAULT_PREFLIGHT: PreflightInfoData = {
-  mechanism: "transplant",
-  fidelity: "F3",
-  fidelity_words: "Same conversation, another app",
-  score: 0.85,
-  warnings: [],
-  zombies: [],
-  diff_snapshotted: false,
-  source_live: true,
-  source_title: "Fix the checkout flow", source_account: "Work",
-  source_keeps_running: false,
-  experimental_copy:
-    "Beta, not proven yet: the whole session is carried over, with its subagents and file history. The source stays resumable.",
-  door: "wizard",
-  wizard_steps: ["Target", "What's carried", "Confirm"],
-  // D-03 amendment: another account is no reason; an unproven pair is.
-  wizard_reasons: ["This switch hasn't been proven on a real setup yet."],
-  usual_account: false,
-  // A same-tool switch, as the fidelity table has it (AJ-E1540/E1541):
-  // the whole session moves, and the task list is rebuilt from it.
-  carry: {
-    carried: ["The whole conversation", "Project rules", "Your uncommitted changes", "Subagents' work"],
-    regenerated: ["The task list"],
-    dropped: [],
-  },
-  redaction: {
-    global: "strip",
-    override: null,
-    effective: "strip",
-    source: "global",
-    line: "Keys and passwords for Claude Code: hidden (your global choice)",
-  },
-  redaction_items: [],
-  carry_items: [
-    { label: "The whole conversation", hint: "Every message from the start, copied as the tool keeps it; the new account picks it up where it stopped.", how: "moves", kind: "chat" },
-    { label: "Project rules", hint: "The rule files in the project folder (such as CLAUDE.md or AGENTS.md); they stay there and are read again.", how: "moves", kind: "rules" },
-    { label: "Your uncommitted changes", hint: "Changes you haven't committed stay in the folder; the new session works in the same folder.", how: "moves", kind: "changes" },
-    { label: "Subagents' work", hint: "Work done by helper agents inside the session.", how: "moves", kind: "subagents" },
-    { label: "The task list", hint: "What the session planned to do next, from its latest version.", how: "recreated", kind: "tasks" },
-  ],
-  move_line: "The whole conversation is carried over — all 42 messages, its subagents and file history.",
-  secrets: { asks: false, reader: "Claude Code (Anthropic)" },
-  target_tool: MOCK_ACCOUNTS[0]!.provider, // the mock accounts' tool (no tool id written here: ADR-0019)
-};
-
 /** AJ-E206 §5: the switch screen counts the door it shows (local
  * diagnostics); the preflight itself only reads. The preview records it
  * in `__AIJ_DOOR_COUNTS__`. */
@@ -171,7 +123,7 @@ export async function switchPreflight(
       .__AIJ_SWITCH_PREFLIGHT__;
     // AJ-E2108: a session another app runs (its key) is only read.
     const outside = sessionId.startsWith("conversation:") ? { source_outside: true } : {};
-    const base = { ...DEFAULT_PREFLIGHT, ...outside, destinations: previewDestinations(sessionId, targetProfileId) };
+    const base = { ...previewHooks().switching.DEFAULT_PREFLIGHT, ...outside, destinations: previewHooks().switchDestinations.previewDestinations(sessionId, targetProfileId) };
     // Merge over the default so fixtures that predate a field keep
     // working (the seam overrides only what it defines).
     if (seam) {

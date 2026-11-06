@@ -3,10 +3,10 @@
  * one as the seam `__AIJ_SWITCH_SETUP__`). Types only here, so a gallery
  * spec can import it without the app's transport.
  */
-import type { GetItInfo } from "../../types/generated/GetItInfo";
-import type { OfferInfo } from "../../types/generated/OfferInfo";
-import type { SetupCheckInfo } from "../../types/generated/SetupCheckInfo";
-import { EXAMPLE_GITHUB_OFFER } from "../../preview/mcp-secret-offer";
+import type { GetItInfo } from "../types/generated/GetItInfo";
+import type { OfferInfo } from "../types/generated/OfferInfo";
+import type { SetupCheckInfo } from "../types/generated/SetupCheckInfo";
+import { EXAMPLE_GITHUB_OFFER } from "./mcp-secret-offer";
 
 /** The steps a claude.ai skill's offer carries, for the examples (the
  * backend's words, filled in for Personal). */

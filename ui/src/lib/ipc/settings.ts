@@ -7,6 +7,7 @@ import { EVENTS } from "../bridge";
 import type { NotificationPrefsInfo } from "../../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../../types/generated/OsAccessInfo";
 import type { ReopenBlockInfo } from "../../types/generated/ReopenBlockInfo";
+import { previewHooks } from "../preview-hooks";
 
 /** Mock app settings (browser preview and tests): kept for the page. */
 const appSettingSeams = () =>
@@ -62,24 +63,13 @@ export const osAccessSeams = () =>
     /** Test seam: what a Reopen click is told (null = it relaunches). */
     __AIJ_REOPEN_BLOCK__?: ReopenBlockInfo | null;
   };
-const MOCK_OS_ACCESS: OsAccessInfo[] = [
-  {
-    id: "focus",
-    title: "Jump to a session's own window",
-    why: "Brings the right terminal window to the front when you open a session.",
-    system_name: "Accessibility and Automation",
-    status: "not_asked",
-    action: "prompt",
-    note: null,
-  },
-];
 // No "preview" (Screen Recording): as the backend, it's offered only once
 // a tool can show a live preview, and none can yet. Tests of its reopen
 // flow seed it through `__AIJ_OS_ACCESS__`.
 
 /** What this OS needs, as it stands (never prompts — safe to poll). */
 export async function osAccessList(): Promise<OsAccessInfo[]> {
-  if (!hasBackend) return (osAccessSeams().__AIJ_OS_ACCESS__ ?? MOCK_OS_ACCESS).map((entry) => ({ ...entry }));
+  if (!hasBackend) return (osAccessSeams().__AIJ_OS_ACCESS__ ?? previewHooks().appState.MOCK_OS_ACCESS).map((entry) => ({ ...entry }));
   return invoke<OsAccessInfo[]>("os_access_list");
 }
 
@@ -89,7 +79,7 @@ export async function osAccessRequest(id: string): Promise<OsAccessInfo[]> {
     const seams = osAccessSeams();
     seams.__AIJ_OS_ACCESS_CALLS__ = [...(seams.__AIJ_OS_ACCESS_CALLS__ ?? []), `request:${id}`];
     // The preview's user says yes in the system dialog.
-    seams.__AIJ_OS_ACCESS__ = (seams.__AIJ_OS_ACCESS__ ?? MOCK_OS_ACCESS).map((entry) =>
+    seams.__AIJ_OS_ACCESS__ = (seams.__AIJ_OS_ACCESS__ ?? previewHooks().appState.MOCK_OS_ACCESS).map((entry) =>
       entry.id === id ? { ...entry, status: "allowed", action: "none", note: null } : entry,
     );
     return osAccessList();

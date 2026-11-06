@@ -7,14 +7,14 @@ import { invoke } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import { instancesList } from "./instances";
 import { launchRecipesList } from "./launch";
-import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { pickDirectory } from "./project-folders";
 import type { EditorChoicesInfo } from "../../types/generated/EditorChoicesInfo";
+import { previewHooks } from "../preview-hooks";
 
 /** AJ-E1502: name a session (`null` or blank: its own title again). */
 export async function sessionRename(sessionId: string, label: string | null): Promise<void> {
   if (!hasLiveBackend()) {
-    const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+    const row = previewHooks().fixtures.MOCK_SESSIONS.find((session) => session.id === sessionId);
     if (!row) throw { code: "not_found", retryable: false, user_message: "That session isn't there any more." };
     row.label = label && label.trim() !== "" ? label.trim() : undefined;
     return;
@@ -25,7 +25,7 @@ export async function sessionRename(sessionId: string, label: string | null): Pr
 /** AJ-E1502: pin a session to the top of its group, or unpin it. */
 export async function sessionSetPinned(sessionId: string, pinned: boolean): Promise<void> {
   if (!hasLiveBackend()) {
-    const row = MOCK_SESSIONS.find((session) => session.id === sessionId);
+    const row = previewHooks().fixtures.MOCK_SESSIONS.find((session) => session.id === sessionId);
     if (row) row.pinned = pinned ? true : undefined;
     return;
   }
@@ -36,7 +36,7 @@ export async function sessionSetPinned(sessionId: string, pinned: boolean): Prom
  * Blank: the folder's name again. */
 export async function projectRename(projectId: string, name: string): Promise<void> {
   if (!hasLiveBackend()) {
-    const project = MOCK_PROJECTS.find((row) => row.id === projectId);
+    const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === projectId);
     if (project) project.name = name.trim() !== "" ? name.trim() : (project.root.split("/").pop() ?? project.root);
     return;
   }
@@ -46,7 +46,7 @@ export async function projectRename(projectId: string, name: string): Promise<vo
 /** AJ-E1502: pin a project to the top of the rail, or unpin it. */
 export async function projectSetPinned(projectId: string, pinned: boolean): Promise<void> {
   if (!hasLiveBackend()) {
-    const project = MOCK_PROJECTS.find((row) => row.id === projectId);
+    const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === projectId);
     if (project) project.pinned = pinned ? true : undefined;
     return;
   }
@@ -57,9 +57,9 @@ export async function projectSetPinned(projectId: string, pinned: boolean): Prom
  * it back. Refused while a session there is open. */
 export async function projectForget(projectId: string, forgotten: boolean): Promise<void> {
   if (!hasLiveBackend()) {
-    const project = MOCK_PROJECTS.find((row) => row.id === projectId);
+    const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === projectId);
     if (!project) return;
-    const open = MOCK_SESSIONS.filter(
+    const open = previewHooks().fixtures.MOCK_SESSIONS.filter(
       (row) => row.project_id === projectId && ["starting", "running", "waiting_user", "stuck", "quota_blocked"].includes(row.status),
     );
     if (forgotten && open.length > 0) {
@@ -84,7 +84,7 @@ export async function projectRelocate(projectId: string): Promise<boolean> {
     if (fail) throw refused(fail);
     const folder = await pickDirectory();
     if (folder === null) return false;
-    const project = MOCK_PROJECTS.find((row) => row.id === projectId);
+    const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === projectId);
     if (project) {
       project.root = folder;
       project.missing = false;

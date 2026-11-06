@@ -15,7 +15,6 @@
  */
 import { invoke } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
-import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { pageOf, type Page, type PageRequest } from "../paged";
 import { providerDisplayName } from "../providers";
@@ -28,6 +27,7 @@ import type { AccessInfo } from "../../types/generated/AccessInfo";
 import type { AgentRuleInfo } from "../../types/generated/AgentRuleInfo";
 import type { ContextCard } from "../../types/generated/ContextCard";
 import type { CardField } from "../../types/generated/CardField";
+import { previewHooks } from "../preview-hooks";
 export type { PoolsInfo, PoolInfo, PoolMemberInfo, PoolMemberRow, AccessInfo, AgentRuleInfo, ContextCard, CardField };
 export type PoolRole = "lead" | "member" | "reviewer" | "observer";
 
@@ -132,12 +132,12 @@ function previewStore(): Store {
           ...scopeOf("user", pool.project_id ?? null),
           ...(pool.sealed ? { sealed: true } : {}),
         })),
-      ...[...MOCK_PROJECTS].sort((a, b) => a.name.localeCompare(b.name)).map((project) => defaultPool(project.id, project.name)),
+      ...[...previewHooks().fixtures.MOCK_PROJECTS].sort((a, b) => a.name.localeCompare(b.name)).map((project) => defaultPool(project.id, project.name)),
       defaultPool(null, null),
     ];
     store = { pools, places: [...(seeded?.members ?? [])] };
   }
-  for (const session of MOCK_SESSIONS) {
+  for (const session of previewHooks().fixtures.MOCK_SESSIONS) {
     if (!store.places.some((row) => row.session_id === session.id)) {
       store.places.push({ session_id: session.id, pool_id: defaultPoolIdOf(session.project_id), role: "member" });
     }
@@ -145,7 +145,7 @@ function previewStore(): Store {
   return store;
 }
 
-const sessionOf = (id: string) => MOCK_SESSIONS.find((session) => session.id === id);
+const sessionOf = (id: string) => previewHooks().fixtures.MOCK_SESSIONS.find((session) => session.id === id);
 
 /** The preview's pools, as the backend answers: yours first, then each
  * project's default pool by name, "No project" last, each with how many
@@ -259,7 +259,7 @@ export async function poolDelete(poolId: string): Promise<PoolsInfo> {
     record(`delete:${poolId}`);
     store!.pools = store!.pools.filter((row) => row.id !== poolId);
     for (const row of store!.places) {
-      const session = MOCK_SESSIONS.find((entry) => entry.id === row.session_id);
+      const session = previewHooks().fixtures.MOCK_SESSIONS.find((entry) => entry.id === row.session_id);
       if (row.pool_id === poolId) Object.assign(row, { pool_id: defaultPoolIdOf(session?.project_id), role: "member" });
     }
     return preview();
@@ -271,10 +271,10 @@ export async function poolDelete(poolId: string): Promise<PoolsInfo> {
 export async function poolMove(sessionId: string, poolId: string): Promise<PoolsInfo> {
   if (!hasLiveBackend()) {
     const pool = livePool(poolId);
-    const session = MOCK_SESSIONS.find((row) => row.id === sessionId);
+    const session = previewHooks().fixtures.MOCK_SESSIONS.find((row) => row.id === sessionId);
     if (!session) throw refused("That session isn't there any more");
     if (pool.project_id !== null && session.project_id !== pool.project_id) {
-      const project = MOCK_PROJECTS.find((row) => row.id === pool.project_id);
+      const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === pool.project_id);
       throw refused(`«${pool.name}» is for ${project?.name ?? "one project"} only — this session works somewhere else`);
     }
     if (pool.id === NO_PROJECT_POOL_ID && session.project_id) {
@@ -352,7 +352,7 @@ const unavailable = (why: string): CardField => ({ value: null, unavailable: `Un
 /** A preview member's card, as the backend builds it. */
 function previewCard(session: InstanceInfo, role: string): ContextCard {
   const folder = (session.cwd ?? "").replace(/\/+$/, "").split("/").pop() || "its folder";
-  const project = MOCK_PROJECTS.find((row) => row.id === session.project_id)?.name ?? folder;
+  const project = previewHooks().fixtures.MOCK_PROJECTS.find((row) => row.id === session.project_id)?.name ?? folder;
   const activity = seams().__AIJ_POOL_ACTIVITY__?.[session.id];
   // D-33, D-35: the profile's label, never an email.
   const profile = session.account_label && !session.account_label.includes("@") ? session.account_label : null;

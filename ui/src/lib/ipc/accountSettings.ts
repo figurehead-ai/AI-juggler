@@ -8,11 +8,11 @@
 import { hasLiveBackend } from "../bridge";
 import { invoke } from "./transport";
 import type { AppliedInfo, SetupCheckInfo } from "./switchSetup";
-import { EXAMPLE_ACCOUNT_SETTINGS } from "../../preview/account-settings";
+import { previewHooks } from "../preview-hooks";
 
 const seam = () =>
   (window as unknown as { __AIJ_ACCOUNT_SETTINGS__?: Record<string, SetupCheckInfo> }).__AIJ_ACCOUNT_SETTINGS__ ??
-  EXAMPLE_ACCOUNT_SETTINGS;
+  previewHooks().accountSettings.EXAMPLE_ACCOUNT_SETTINGS;
 
 /** What a new account (`target`, or one about to be made: `null`) could
  * start with from `source`. Reads only. */

@@ -9,10 +9,10 @@
 import { invoke } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
-import { PREVIEW_SERVICES } from "../../preview/services";
 import type { AccountServiceInfo } from "../../types/generated/AccountServiceInfo";
 import type { ServiceAccountRequest } from "../../types/generated/ServiceAccountRequest";
 import type { ServiceInfo } from "../../types/generated/ServiceInfo";
+import { previewHooks } from "../preview-hooks";
 
 export type { AccountServiceInfo, ServiceAccountRequest, ServiceInfo };
 
@@ -21,7 +21,7 @@ type PreviewWindow = { __AIJ_SERVICES__?: ServiceInfo[]; __AIJ_SERVICE_ADDED__?:
 /** The services an account can be added through, with the tools here that
  * can run through each. */
 export async function servicesList(): Promise<ServiceInfo[]> {
-  if (!hasLiveBackend()) return (window as unknown as PreviewWindow).__AIJ_SERVICES__ ?? PREVIEW_SERVICES;
+  if (!hasLiveBackend()) return (window as unknown as PreviewWindow).__AIJ_SERVICES__ ?? previewHooks().services.PREVIEW_SERVICES;
   return invoke<ServiceInfo[]>("service_accounts_catalog");
 }
 

@@ -16,7 +16,7 @@ import * as bridgeAccounts from "../../lib/ipc/accounts";
 import * as subs from "../../lib/ipc/subscriptions";
 import { loadSubscriptions, staleSubscriptions, useSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
-import { previewNamed } from "../../lib/ipc/preview-names";
+import { previewNamed } from "../../preview/names";
 
 afterEach(() => {
   cleanup();

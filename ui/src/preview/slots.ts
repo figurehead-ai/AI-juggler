@@ -7,10 +7,10 @@
  * the preview's rows are shared, as the backend's are kept, so a slot
  * given once stays.
  */
-import { MARK_COLOURS } from "../mark-hues";
-import type { AccountInfo } from "../../types/generated/AccountInfo";
-import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
-import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
+import { MARK_COLOURS } from "../lib/mark-hues";
+import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { KnownPlaceInfo } from "../types/generated/KnownPlaceInfo";
+import type { SubscriptionInfo } from "../types/generated/SubscriptionInfo";
 
 /** The least-used slot (the lowest on a tie) given `taken`. */
 function leastUsed(taken: readonly number[]): number {

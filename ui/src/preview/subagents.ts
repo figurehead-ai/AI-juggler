@@ -6,13 +6,13 @@
  * sorted and paged like `features/subagents/view.rs`. Preview only: the
  * app asks the backend.
  */
-import type { PageRequest } from "../../types/generated/PageRequest";
-import type { SubagentsInfo } from "../../types/generated/SubagentsInfo";
-import type { SubagentInfo } from "../../types/generated/SubagentInfo";
-import type { SubagentRowInfo } from "../../types/generated/SubagentRowInfo";
-import type { SubagentsQuery } from "../../types/generated/SubagentsQuery";
-import type { SubagentDetailInfo } from "../../types/generated/SubagentDetailInfo";
-import type { SeededTurn } from "../../preview/conversation-feed";
+import type { PageRequest } from "../types/generated/PageRequest";
+import type { SubagentsInfo } from "../types/generated/SubagentsInfo";
+import type { SubagentInfo } from "../types/generated/SubagentInfo";
+import type { SubagentRowInfo } from "../types/generated/SubagentRowInfo";
+import type { SubagentsQuery } from "../types/generated/SubagentsQuery";
+import type { SubagentDetailInfo } from "../types/generated/SubagentDetailInfo";
+import type { SeededTurn } from "./conversation-feed";
 
 /** A seeded subagent: the row's fields, and what its page shows. */
 export type SeedAgent = Partial<SubagentInfo> & {

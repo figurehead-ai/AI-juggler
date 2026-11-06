@@ -3,10 +3,10 @@
  * pack export.
  */
 import { invoke, liveBackend as hasBackend } from "./transport";
-import { MOCK_ACCOUNTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import type { HandoverSummaryInfo } from "../../types/generated/HandoverSummaryInfo";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { SavedHandoverInfo } from "../../types/generated/SavedHandoverInfo";
+import { previewHooks } from "../preview-hooks";
 
 /** AJ-E209: one ranked, badged switch destination (the handover
  * section's rows — §Q6 extended with switch cost + return bonus).
@@ -40,105 +40,11 @@ export interface SwitchTargetData {
   suggested: boolean;
 }
 
-/** The preview's two tools, named once: Claude Code as its first
- * account's, Codex for the rows that move to it (ADR-0019 keeps tool ids
- * out of the code). */
-const PREVIEW_CLAUDE = MOCK_ACCOUNTS[0]!.provider;
-const PREVIEW_CODEX = "codex";
-
-/** The no-backend switch-targets default (preview mode shows a
- * realistic ranked, badged set; fixtures override wholesale). */
-const DEFAULT_SWITCH_TARGETS: SwitchTargetData[] = [
-  // Each row's words match its tool (the 0.2 re-render): another Claude
-  // Code account keeps the same conversation; Codex starts fresh from the
-  // story, as the backend's pair matrix says. The Claude Code rows carry
-  // the preview accounts' own ids, so their room is read as Home reads it
-  // (the limit dialog's pick said nothing of Work Max's 58% left).
-  {
-    recipe_id: "recipe-work-max",
-    provider: PREVIEW_CLAUDE,
-    account_id: "claude-work",
-    account_label: "Work Max",
-    badge: "Same conversation, another app · Beta",
-    validated: false,
-    cross_provider: false,
-    drops: [],
-    score: 0.62,
-    top_factors: ["80% headroom", "used most here"],
-    factors: [["80% headroom", 0.36], ["used most here", 0.2], ["quiet", 0.1]],
-    confidence: "Computed",
-    tte_min: 262,
-    filtered_reason: null,
-    suggested: true,
-  },
-  {
-    recipe_id: "recipe-personal",
-    provider: PREVIEW_CLAUDE,
-    account_id: "claude-personal",
-    account_label: "Personal",
-    badge: "Same conversation, another app · Beta",
-    validated: false,
-    cross_provider: false,
-    drops: [],
-    score: 0.41,
-    top_factors: ["35% headroom", "quiet"],
-    factors: [["35% headroom", 0.16], ["quiet", 0.1]],
-    confidence: "Estimate",
-    tte_min: 95,
-    filtered_reason: null,
-    suggested: false,
-  },
-  {
-    recipe_id: "recipe-codex",
-    provider: PREVIEW_CODEX,
-    account_id: "acct-codex",
-    account_label: "Codex",
-    badge: "Full story, fresh start · Beta",
-    validated: false,
-    cross_provider: true,
-    drops: ["Subagents' work", "The task list"],
-    score: 0.48,
-    top_factors: ["53% headroom", "another tool's limits"],
-    factors: [["53% headroom", 0.24], ["another tool's limits", 0.12], ["starts fresh from the story", 0.04]],
-    confidence: "Computed",
-    tte_min: 180,
-    filtered_reason: null,
-    suggested: false,
-  },
-  {
-    recipe_id: "recipe-lab",
-    provider: PREVIEW_CLAUDE,
-    account_id: "acct-lab",
-    account_label: "Lab",
-    badge: "Same conversation, another app · Beta",
-    validated: false,
-    cross_provider: false,
-    drops: [],
-    filtered_reason: "exhausted — resets in 3h",
-    top_factors: [],
-    factors: [],
-    confidence: "Measured",
-    score: null,
-    tte_min: null,
-    suggested: false,
-  },
-];
-
-/** The preview's targets for one session: never its own account (the
- * backend never offers where it already is), the best open row the
- * suggestion. */
-function previewSwitchTargets(sessionId: string): SwitchTargetData[] {
-  const own = MOCK_SESSIONS.find((session) => session.id === sessionId)?.account_label;
-  const rows = DEFAULT_SWITCH_TARGETS.filter((row) => row.account_label !== own);
-  const best = rows.filter((row) => row.filtered_reason === null).sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
-  return rows.map((row) => ({ ...row, suggested: row === best }));
-}
-
 /** AJ-E209 Req.1/3: the ranked + badged destinations for one source
  * session. Read-only — ranking suggests, the user clicks. */
 export async function switchTargets(sessionId: string): Promise<SwitchTargetData[]> {
   if (!hasBackend) {
-    return (window as unknown as { __AIJ_SWITCH_TARGETS__?: SwitchTargetData[] }).__AIJ_SWITCH_TARGETS__ ?? previewSwitchTargets(sessionId);
+    return (window as unknown as { __AIJ_SWITCH_TARGETS__?: SwitchTargetData[] }).__AIJ_SWITCH_TARGETS__ ?? previewHooks().switching.previewSwitchTargets(sessionId);
   }
   return invoke<SwitchTargetData[]>("switch_targets", { sessionId });
 }
@@ -181,31 +87,13 @@ export interface WorkGraphData {
   hop_note?: string | null;
 }
 
-/** The no-backend graph default (preview mode; fixtures override). */
-const DEFAULT_SWITCH_GRAPH: WorkGraphData[] = [
-  {
-    title: "Login refactor",
-    epochs: [
-      { id: "ep-1", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-a" },
-      { id: "ep-2", provider: PREVIEW_CODEX, account_label: "Personal", kind: "terminal", resumable: true, session_id: "sess-b" },
-      { id: "ep-3", provider: "claude-code", account_label: "Work Max", kind: "terminal", resumable: true, session_id: "sess-c" },
-    ],
-    edges: [
-      { from: "ep-1", to: "ep-2", label: "Full story, fresh start", switch_back: false },
-      { from: "ep-2", to: "ep-3", label: "Switched back · Full story, fresh start", switch_back: true },
-    ],
-    collapsed: 2,
-    hop_note: "3 switches so far ≈41k tokens",
-  },
-];
-
 /** AJ-E209 Req.4: the per-Work Switch Graph timelines for one
  * project. Read-only. */
 export async function switchGraphOverview(projectId: string): Promise<WorkGraphData[]> {
   if (!hasBackend) {
     return (
       (window as unknown as { __AIJ_SWITCH_GRAPH__?: WorkGraphData[] })
-        .__AIJ_SWITCH_GRAPH__ ?? DEFAULT_SWITCH_GRAPH
+        .__AIJ_SWITCH_GRAPH__ ?? previewHooks().switching.DEFAULT_SWITCH_GRAPH
     );
   }
   return invoke<WorkGraphData[]>("switch_graph_overview", { projectId });

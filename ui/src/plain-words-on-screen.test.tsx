@@ -187,7 +187,7 @@ describe("nothing internal on screen (D-25)", () => {
 
   it("a server that needs its token says what to do, never a bare status", async () => {
     const { SwitchSetupList } = await import("./components/SwitchSetupList");
-    const { EXAMPLE_SETUP } = await import("./lib/ipc/switchSetup");
+    const { EXAMPLE_SETUP } = await import("./preview/switch-setup");
     const view = render(<SwitchSetupList check={EXAMPLE_SETUP} picked={new Set()} onToggle={() => {}} onCheckAgain={async () => ""} />);
     const text = view.container.textContent ?? "";
     expect(leaks(text)).toEqual([]);

@@ -3,13 +3,13 @@
  * picking or dropping a folder.
  */
 import { invoke, liveBackend as hasBackend, pickPath, readOnlyBackend } from "./transport";
-import { MOCK_PROJECTS } from "../../preview/fixtures";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
+import { previewHooks } from "../preview-hooks";
 
 /** Tracked projects — the juggling anchor (which instance is on each directory). */
 export async function projectsList(): Promise<ProjectInfo[]> {
   if (!hasBackend) {
-    return [...MOCK_PROJECTS];
+    return [...previewHooks().fixtures.MOCK_PROJECTS];
   }
   return invoke<ProjectInfo[]>("projects_list");
 }

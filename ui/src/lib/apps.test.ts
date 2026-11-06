@@ -13,6 +13,11 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
 import type { StoredAppInfo } from "./ipc/apps";
+import { setToolsForTests } from "../lib/tools";
+import { PREVIEW_TOOLS } from "../preview/tools";
+
+// This file's top level reads tool names before the preview's data loads (src/test/setup.ts).
+setToolsForTests(PREVIEW_TOOLS);
 
 const NOW = new Date(2026, 10, 2, 15, 0, 0).getTime();
 const H = 3_600_000;

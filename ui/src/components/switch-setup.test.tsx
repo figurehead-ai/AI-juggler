@@ -2,14 +2,8 @@ import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow } from "./SwitchFlow";
 import { SwitchSetupList, setupSummary } from "./SwitchSetupList";
-import {
-  EXAMPLE_SETUP,
-  EXAMPLE_SETUP_UNUSED,
-  SWITCHING_GUIDE_URL,
-  switchSetupTurnOns,
-  type OfferInfo,
-  type SetupCheckInfo,
-} from "../lib/ipc/switchSetup";
+import { EXAMPLE_SETUP, EXAMPLE_SETUP_UNUSED } from "../preview/switch-setup";
+import { SWITCHING_GUIDE_URL, switchSetupTurnOns, type OfferInfo, type SetupCheckInfo } from "../lib/ipc/switchSetup";
 import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
 
 /**

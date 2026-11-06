@@ -5,6 +5,7 @@ import { invoke, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
 import type { GoingBackInfo } from "../../types/generated/GoingBackInfo";
 import type { UpdateStatusInfo } from "../../types/generated/UpdateStatusInfo";
+import { previewHooks } from "../preview-hooks";
 
 
 interface UpdateSeams {
@@ -14,34 +15,14 @@ interface UpdateSeams {
   __AIJ_UPDATE_AFTER_INSTALL__?: UpdateStatusInfo;
   __AIJ_UPDATE_RESTART_ERROR__?: string;
 }
-const updateSeams = () => window as unknown as UpdateSeams;
+export const updateSeams = () => window as unknown as UpdateSeams;
 const updateCall = (call: string) => {
   const seams = updateSeams();
   seams.__AIJ_UPDATE_CALLS__ = [...(seams.__AIJ_UPDATE_CALLS__ ?? []), call];
 };
-const mockUpdateStatus = (): UpdateStatusInfo =>
-  updateSeams().__AIJ_UPDATE_STATUS__ ?? {
-    current_version: "0.0.1",
-    channel: "beta",
-    edition: "main",
-    app_name: "AI Juggler",
-    channels: ["stable", "beta"],
-    configured: false,
-    check_on_launch: true,
-    state: "idle",
-    available: null,
-    progress: null,
-    error: null,
-    error_kind: null,
-    error_detail: null,
-    restart_wait: null,
-    backup_path: null,
-    checked_at_ms: null,
-  };
-
 /** Where updating stands. */
 export async function updateStatus(): Promise<UpdateStatusInfo> {
-  if (!hasBackend) return { ...mockUpdateStatus() };
+  if (!hasBackend) return { ...previewHooks().appState.mockUpdateStatus() };
   return invoke<UpdateStatusInfo>("update_status");
 }
 
@@ -49,7 +30,7 @@ export async function updateStatus(): Promise<UpdateStatusInfo> {
 export async function updateSetCheckOnLaunch(enabled: boolean): Promise<UpdateStatusInfo> {
   if (!hasBackend) {
     updateCall(`check-on-launch:${enabled}`);
-    const next = { ...mockUpdateStatus(), check_on_launch: enabled };
+    const next = { ...previewHooks().appState.mockUpdateStatus(), check_on_launch: enabled };
     updateSeams().__AIJ_UPDATE_STATUS__ = next;
     return next;
   }
@@ -64,7 +45,7 @@ export type UpdateChannel = "stable" | "beta" | "nightly";
 export async function updateSetChannel(channel: UpdateChannel): Promise<UpdateStatusInfo> {
   if (!hasBackend) {
     updateCall(`channel:${channel}`);
-    const current = mockUpdateStatus();
+    const current = previewHooks().appState.mockUpdateStatus();
     const next: UpdateStatusInfo = {
       ...current,
       channel,
@@ -80,7 +61,7 @@ export async function updateSetChannel(channel: UpdateChannel): Promise<UpdateSt
 export async function updateCheck(): Promise<UpdateStatusInfo> {
   if (!hasBackend) {
     updateCall("check");
-    const next = updateSeams().__AIJ_UPDATE_AFTER_CHECK__ ?? mockUpdateStatus();
+    const next = updateSeams().__AIJ_UPDATE_AFTER_CHECK__ ?? previewHooks().appState.mockUpdateStatus();
     updateSeams().__AIJ_UPDATE_STATUS__ = next;
     return { ...next };
   }
@@ -91,7 +72,7 @@ export async function updateCheck(): Promise<UpdateStatusInfo> {
 export async function updateInstall(): Promise<UpdateStatusInfo> {
   if (!hasBackend) {
     updateCall("install");
-    const next = updateSeams().__AIJ_UPDATE_AFTER_INSTALL__ ?? mockUpdateStatus();
+    const next = updateSeams().__AIJ_UPDATE_AFTER_INSTALL__ ?? previewHooks().appState.mockUpdateStatus();
     updateSeams().__AIJ_UPDATE_STATUS__ = next;
     return { ...next };
   }
