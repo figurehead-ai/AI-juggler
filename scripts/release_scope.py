@@ -16,9 +16,17 @@ section's deferral line, which names the maintainer's decision:
 A table row that names no task at all is reported too, so a promise can't
 hide in a row nothing checks.
 
+Work added for a later patch goes under its own sub-section of the
+minor's section (`### 0.4.2 — …`). `check 0.4.1` then needs the section's
+own rows and the sub-sections up to 0.4.1, not 0.4.2's; `check 0.4.2`
+needs all of them up to 0.4.2. A Stable promotion (`--channel stable`)
+needs the whole section, every sub-section included: the minor's first
+Stable is the minor complete (D-85).
+
 Usage:
     release_scope.py report 0.4      # the list, exit 0
     release_scope.py check 0.4.1     # exit 1 when anything is open
+    release_scope.py check 0.4.3 --channel stable   # the whole 0.4
 The nightly runs `check` before it builds a new minor (x.y.0) and the
 promotion runs it before any x.y.z reaches a channel; preflight prints the
 report on release/* branches. (The cause, 2026-11-06: 0.4.0 shipped to
@@ -83,6 +91,11 @@ def section(minor: str) -> str:
     return m.group(1)
 
 
+def named_ids(cell: str, known: dict) -> set[str]:
+    """The tasks `cell` names by id or range, its epics left out."""
+    return named(re.sub(r"(?<![\w-])E\d{1,2}(?![\d\w])", "", cell), known)
+
+
 def named(cell: str, known: dict) -> set[str]:
     ids: set[str] = set()
     for a, b in RANGE.findall(cell):
@@ -95,22 +108,53 @@ def named(cell: str, known: dict) -> set[str]:
     return ids
 
 
-def scope(minor: str):
-    known = tasks()
-    body = section(minor)
-    wanted: set[str] = set()
-    unchecked: list[str] = []
+PATCH = re.compile(r"^### (\d+)\.(\d+)\.(\d+)\b")
+
+
+def promised(body: str, upto: tuple[int, int, int] | None) -> tuple[str, str]:
+    """The section's lines a release of `upto` must prove (its own, and
+    each patch sub-section up to `upto`; all of them for `None`), and the
+    later patches' lines."""
+    keep, later, current = [], [], None
+    for line in body.splitlines():
+        m = PATCH.match(line)
+        if m:
+            current = tuple(int(part) for part in m.groups())
+        elif line.startswith("### "):
+            current = None
+        if upto is None or current is None or current <= upto:
+            keep.append(line)
+        else:
+            later.append(line)
+    return "\n".join(keep), "\n".join(later)
+
+
+def rows(body: str):
+    """Each table row's first and last cells (header rows left out)."""
     for line in body.splitlines():
         if not line.startswith("|") or set(line) <= set("|- "):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if cells[0] in ("Area", "Decision", "Version"):
             continue
-        ids = named(cells[-1], known)
+        yield cells[0], cells[-1]
+
+
+def scope(minor: str, upto: tuple[int, int, int] | None = None):
+    known = tasks()
+    body, later_body = promised(section(minor), upto)
+    wanted: set[str] = set()
+    unchecked: list[str] = []
+    for area, cell in rows(body):
+        ids = named(cell, known)
         if ids:
             wanted |= ids
         else:
-            unchecked.append(cells[0])
+            unchecked.append(area)
+    # A task a later patch names by id is that patch's, even where an
+    # earlier row's whole epic covers it (E35's 0.4.2 tasks).
+    for _, cell in rows(later_body):
+        wanted -= named_ids(cell, known)
     deferred: dict[str, str] = {}
     for decision, rest in DEFERRED.findall(body):
         for t in named(rest.split("—")[0], known):
@@ -129,14 +173,27 @@ def scope(minor: str):
 
 
 def main() -> int:
-    if len(sys.argv) != 3 or sys.argv[1] not in ("report", "check"):
+    args = sys.argv[1:]
+    channel = None
+    if len(args) == 4 and args[2] == "--channel":
+        channel = args.pop()
+        args.pop()
+    if len(args) != 2 or args[0] not in ("report", "check"):
         print(__doc__)
         return 2
-    mode, version = sys.argv[1], sys.argv[2]
+    mode, version = args
     minor = ".".join(version.split(".")[:2])
-    known, wanted, open_, deferred, missing, unchecked, weak = scope(minor)
+    parts = version.split(".")
+    # A patch is held to the patches up to it; a minor alone, or a Stable
+    # promotion, to the whole section.
+    upto = (
+        tuple(int(part) for part in parts)
+        if len(parts) == 3 and all(part.isdigit() for part in parts) and channel != "stable"
+        else None
+    )
+    known, wanted, open_, deferred, missing, unchecked, weak = scope(minor, upto)
     done = len(wanted) - len(open_) - len([t for t in wanted if t in deferred]) - len(missing) - len(weak)
-    print(f"release scope {minor}: {len(wanted)} tasks named, {done} done and proven, "
+    print(f"release scope {version}{' (stable: the whole ' + minor + ')' if channel == 'stable' else ''}: {len(wanted)} tasks named, {done} done and proven, "
           f"{len(weak)} marked done but unproven, {len(deferred)} deferred, {len(open_)} open")
     for t in open_:
         title, status, _ = known[t]

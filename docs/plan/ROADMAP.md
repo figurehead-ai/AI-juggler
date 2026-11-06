@@ -95,6 +95,16 @@ rule (D-24's three days of use) applies from then on.
 candidate with nothing scored under 4, the full preflight passes, the
 maintainer has used it, and its findings are fixed.
 
+### 0.4.2 — the Floor from the maintainer's findings
+
+Added after 0.4.0 from the maintainer's Floor findings. The release check
+holds 0.4.2 and later patches to these rows, not 0.4.1; the first Stable
+holds them all (D-85).
+
+| Area | Tasks |
+|---|---|
+| The Floor reworked: labels by zoom, one floor at a time, hover cards, inactive Apps dimmed, the View menu, day and night, the reworked light | AJ-E3515…AJ-E3521 |
+
 ## 0.5 — More tools and teams
 
 **Intent.** Bring the tools people use next, let work move between
