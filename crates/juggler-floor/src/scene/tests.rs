@@ -508,3 +508,72 @@ fn the_atlas_keeps_only_its_rows_in_use() {
     assert!((scene.atlas_v * scene.atlas.h as f32 - 2048.0).abs() < 1e-3);
     eprintln!("atlas rows kept: {} (of 2048)", scene.atlas.h);
 }
+
+/// AJ-E3516 (2026-11-06): the building view is a cross-section on its
+/// street. Each App has an office whose click goes to its floor and whose
+/// hover names it; an office that needs you has a flag with its count; the
+/// street lamps light only at night; the sky is drawn only in the
+/// building view, and its clouds never keep a still Floor drawing.
+#[test]
+fn the_building_is_a_cross_section_on_its_street() {
+    use super::tower::TOWER;
+    let snap = snapshot(vec![
+        app(
+            "cli:a",
+            "workshop",
+            vec![
+                session("s:1", FloorState::Asks, 0),
+                session("s:2", FloorState::Asks, 0),
+            ],
+        ),
+        app(
+            "cli:b",
+            "studio",
+            vec![session("s:3", FloorState::Working, 0)],
+        ),
+    ]);
+    let scene = build(&snap);
+    for (id, f) in [("cli:a", 0usize), ("cli:b", 0)] {
+        let name = &scene.app(id).unwrap().name;
+        assert!(
+            scene
+                .picks
+                .iter()
+                .any(|p| &p.label == name && p.target == Target::Floor(f)),
+            "{id}'s office goes to floor {f}"
+        );
+    }
+    assert!(scene.picks.iter().any(|p| p.label == "The lobby"));
+    let room = scene
+        .tower_rooms
+        .iter()
+        .find(|r| r.app == "cli:a")
+        .expect("cli:a waits on you");
+    assert_eq!(room.count, 2);
+    assert!(
+        scene.tower_rooms.iter().all(|r| r.app != "cli:b"),
+        "cli:b only works"
+    );
+    let night_only = scene
+        .lights
+        .iter()
+        .filter(|l| l.floor == TOWER && l.c[3] < 0.5)
+        .count();
+    assert_eq!(night_only, 4, "four street lamps, lit only at night");
+    // the sky: only in the building view; drifting only while animating
+    let mut out = Vec::new();
+    let still = scene.frame(&Live::default(), &[], &mut out);
+    assert!(!still.moving, "a still building view draws once");
+    assert!(out.iter().any(|i| i.floor == TOWER), "its sky");
+    let moving = scene.frame(
+        &Live {
+            walkers: true,
+            ..Live::default()
+        },
+        &[],
+        &mut out,
+    );
+    assert!(moving.moving, "clouds drift while Motion is on");
+    scene.frame(&Live::default(), &[0], &mut out);
+    assert!(out.iter().all(|i| i.floor != TOWER), "no sky on a floor");
+}

@@ -262,7 +262,9 @@ pub fn build_placed(scene: &Scene, i: &Inputs<'_>) -> (Vec<Quad>, Vec<Chip>, Pla
     let mut asks: Vec<(FlagAsk, FlagBody)> = Vec::new();
     marks(&mut o, i, (band, u), &project, &mut taken, &mut asks);
     if i.view.focus.is_none() {
-        tower(&mut o, u, &project);
+        tower(&mut o, u, &project, &mut taken);
+        tower_flags(&mut o, hk, &project, &mut asks);
+        flags(&mut o, i, &asks, &taken, hk);
     } else if band != Band::Close {
         area_flags(&mut o, i, (band, hk), &project, &mut asks);
         flags(&mut o, i, &asks, &taken, hk);
@@ -887,59 +889,87 @@ fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> Vec<Chip> {
     chips
 }
 
-/// AJ-E3516: the tower's words: each floor's number at its left, its
-/// waiting count at its right, and a badge over each room that needs you.
-fn tower(o: &mut Out<'_>, u: f32, project: &impl Fn(V3) -> Option<(f32, f32)>) {
-    let k = (u - 1.0).max(1.0) * 1.4;
+/// AJ-E3516: the building view's words: each floor's name at its left,
+/// with how many wait there; the floors' names are kept clear of flags.
+fn tower(
+    o: &mut Out<'_>,
+    u: f32,
+    project: &impl Fn(V3) -> Option<(f32, f32)>,
+    taken: &mut Vec<[f32; 4]>,
+) {
+    let k = (u - 1.0).max(1.0);
     for t in o.scene.tower_floors.clone() {
-        if let Some((lx, ly)) = project(t.ends.0) {
-            let s = format!("{}", t.floor + 1);
-            let tw = o.text_w(&s, k);
-            let r = [
-                (lx - tw - 10.0 * k).round(),
-                (ly - 6.0 * k).round(),
-                tw + 8.0 * k,
-                12.0 * k,
-            ];
-            o.rect(r[0], r[1], r[2], r[3], [0.12, 0.1, 0.18, 0.9]);
-            o.text(
-                r[0] + 4.0 * k,
-                r[1] + 2.5 * k,
-                &s,
-                k,
-                [0.95, 0.93, 1.0, 1.0],
-            );
-        }
-        if t.waiting > 0
-            && let Some((rx, ry)) = project(t.ends.1)
-        {
-            let s = format!("!{}", t.waiting);
-            let tw = o.text_w(&s, k);
-            let r = [
-                (rx + 4.0 * k).round(),
-                (ry - 6.0 * k).round(),
-                tw + 8.0 * k,
-                12.0 * k,
-            ];
-            o.rect(r[0], r[1], r[2], r[3], Need::Asks.colour());
-            o.text(r[0] + 4.0 * k, r[1] + 2.5 * k, &s, k, [0.1, 0.08, 0.0, 1.0]);
-        }
-    }
-    let bk = (u - 1.0).max(1.0);
-    for room in o.scene.tower_rooms.clone() {
-        let (Some((x, y)), Some(r)) = (
-            project(room.at),
-            o.scene.ui.badge.get(&icon_of(room.need)).copied(),
-        ) else {
+        let Some((lx, ly)) = project(t.ends.0) else {
             continue;
         };
-        // inside the room's top left corner, clear of the rooms around
-        let side = 9.0 * bk;
-        o.q.push(Quad {
-            dst: [x.round(), (y + 2.0).round(), side, side],
-            src: r,
-            tint: [1.0; 4],
-        });
+        let name = format!("FLOOR {}", t.floor + 1);
+        let count = (t.waiting > 0).then(|| format!("!{}", t.waiting));
+        let tw = o.text_w(&name, k) + count.as_ref().map_or(0.0, |c| o.text_w(c, k) + 4.0 * k);
+        let r = [
+            (lx - tw - 12.0 * k).round(),
+            (ly - 6.0 * k).round(),
+            tw + 8.0 * k,
+            12.0 * k,
+        ];
+        o.rect(r[0], r[1], r[2], r[3], [0.12, 0.1, 0.18, 0.9]);
+        o.text(
+            r[0] + 4.0 * k,
+            r[1] + 2.5 * k,
+            &name,
+            k,
+            [0.95, 0.93, 1.0, 1.0],
+        );
+        if let Some(c) = count {
+            o.text(
+                r[0] + 8.0 * k + o.text_w(&name, k),
+                r[1] + 2.5 * k,
+                &c,
+                k,
+                Need::Asks.colour(),
+            );
+        }
+        taken.push(r);
+    }
+}
+
+/// AJ-E3516: a flag on each office that needs you, as the far band's on a
+/// floor: what, how many and whose, in the App's colour (placed with the
+/// others: never over each other, no count lost).
+fn tower_flags(
+    o: &mut Out<'_>,
+    k: f32,
+    project: &impl Fn(V3) -> Option<(f32, f32)>,
+    asks: &mut Vec<(FlagAsk, FlagBody)>,
+) {
+    let scene = o.scene;
+    for room in &scene.tower_rooms {
+        let (Some(foot), Some(app)) = (project(room.at), scene.app(&room.app)) else {
+            continue;
+        };
+        let name = short_name(&app.name.to_uppercase());
+        let words = format!("{} {}", room.count, room.need.word(room.count > 1));
+        let accent = scene
+            .kits
+            .get(&app.id)
+            .map_or([1.0; 4], |kit| rgba(kit.accent));
+        let width = o.text_w(&words, k) + o.text_w(&name, k) + 5.0 * k + 19.0 * k;
+        asks.push((
+            FlagAsk {
+                anchor: foot,
+                size: (width, 11.0 * k),
+                need: Some(room.need),
+                count: room.count,
+                keep_out: Vec::new(),
+                hang: true,
+            },
+            FlagBody {
+                icon: Some(icon_of(room.need)),
+                words,
+                name,
+                edge: accent,
+                floor: room.floor,
+            },
+        ));
     }
 }
 

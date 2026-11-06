@@ -695,6 +695,9 @@ impl Running {
             load: w.snapshot.machine.load,
             eye: [0.0; 3],
             walkers: d.motion.walkers(),
+            // the renderer fills in its sky
+            sun: [0.0, 1.0, 0.0],
+            night: 0.0,
         };
         let extras = Extras {
             hint: juggler_window_events::hint(),

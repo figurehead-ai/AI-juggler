@@ -1865,3 +1865,50 @@ fn the_quiet_floor_captures() {
         }
     }
 }
+
+/// AJ-E3516's building view, the cross-section on its street: the
+/// company by day, at dusk and at night, both looks, into
+/// `AJ_FLOOR_EVIDENCE` (opt-in).
+#[test]
+#[ignore = "writes the building view's captures; opt-in"]
+fn the_building_captures() {
+    use juggler_floor::daylight::Sky;
+    use juggler_floor_render::Look;
+    let Some(dir) = std::env::var_os("AJ_FLOOR_EVIDENCE").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    let size = (1280, 800, 2.0);
+    let extras = Extras {
+        hint: "Drag: pan  ·  Right-drag: turn and tilt  ·  Pinch: zoom  ·  H: reset",
+        alert: None,
+        mouse: None,
+        card: None,
+    };
+    let live = Live {
+        t: 2.0,
+        ..Live::default()
+    };
+    let (mut office, mut seating) = (Office::new(42, 10), Seating::default());
+    let scene = scene_of(&company(false), &mut office, &mut seating);
+    let mut r = Renderer::headless(&scene).unwrap();
+    let view = View {
+        focus: None,
+        cam: scene.frame_size().home(None, 1.6),
+    };
+    for (name, sky) in [
+        ("day", Sky::at(40.0, 200.0)),
+        ("dusk", Sky::at(-4.0, 262.0)),
+        ("night", Sky::always_night()),
+    ] {
+        for (mode, full) in [("pixel", false), ("full", true)] {
+            r.set_full(full);
+            r.set_look(Look {
+                sky,
+                ..Look::default()
+            });
+            let img = r.capture(&scene, &view, &live, size, &extras).unwrap();
+            write_png(&dir.join(format!("building-{name}-{mode}.png")), &img);
+        }
+    }
+}

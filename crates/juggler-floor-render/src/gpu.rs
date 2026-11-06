@@ -1279,9 +1279,14 @@ fn light_box(scene: &Scene, focus: Option<usize>, sun: V3) -> M4 {
     }
     let (mid, half_h) = tower_middle(scene.width, scene.floors);
     let x0 = tower_x0(scene.width);
+    // the building, its street and the trees beside it
     shadow_box(
         sun,
-        [x0 - 2.0, -1.0, TOWER_FRONT - 6.0],
-        [x0 + TOWER_W + 2.0, mid[1] + half_h + 2.0, TOWER_FRONT + 2.0],
+        [x0 - 26.0, -1.0, TOWER_FRONT - 14.0],
+        [
+            x0 + TOWER_W + 26.0,
+            mid[1] + half_h + 2.0,
+            TOWER_FRONT + 14.0,
+        ],
     )
 }

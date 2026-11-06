@@ -38,6 +38,11 @@ pub struct Live {
     pub eye: V3,
     /// Motion: people walk the aisle (off in Calm).
     pub walkers: bool,
+    /// Where the light comes from (the sun, or the moon at night), for
+    /// the building view's sky; the renderer fills it from its look.
+    pub sun: V3,
+    /// How much it's night, 0–1.
+    pub night: f32,
 }
 
 /// What the frame drew besides its parts.
@@ -120,6 +125,12 @@ impl Scene {
         }
         if floors.contains(&0) {
             self.cat_now(live, out, &mut drawn);
+        }
+        if floors.is_empty() {
+            // the building view: its sky, the clouds drifting only while
+            // the Floor animates anyway (Motion on)
+            self.tower_sky(live, out);
+            drawn.moving |= live.walkers;
         }
         drawn
     }

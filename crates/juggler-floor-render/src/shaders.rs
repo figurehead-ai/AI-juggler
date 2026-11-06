@@ -280,7 +280,7 @@ fn shade(v: VO) -> vec4<f32> {
     let d = L.p.xyz - v.wp;
     let dist = length(d);
     if (dist < L.p.w) {
-      let att = 1.0 - dist / L.p.w;
+      let att = (1.0 - dist / L.p.w) * select(1.0, g.look.y, L.c.a < 0.5);
       light = light + L.c.rgb * att * att * (0.4 + 0.6 * max(dot(n, d / max(dist, 0.001)), 0.0)) * (1.0 + g.look.y * 0.9);
     }
   }
@@ -319,7 +319,12 @@ fn shade(v: VO) -> vec4<f32> {
     let sheen = pow(1.0 - nv, 4.0) * mk.w * 0.35 * (g.sky.rgb + g.sunc.rgb * sun);
     c = base.rgb * (1.0 - metal) * (light + fill) + base.rgb * metal * (light * 0.25) + spec * g.mat.w + env * fe * (0.25 + 0.75 * gloss) * g.mat.w + sheen * base.rgb;
   }
-  c = mix(c, base.rgb * 1.1, clamp(v.misc.z, 0.0, 1.0));
+  // a NIGHT part (street lamp, lit window, the sign) glows only at night
+  var gl = v.misc.z;
+  if ((flags & 32u) != 0u) { gl = gl * g.look.y; }
+  var lit_as = base.rgb * 1.1;
+  if ((flags & 64u) != 0u) { lit_as = vec3<f32>(1.0, 0.86, 0.58); }
+  c = mix(c, lit_as, clamp(gl, 0.0, 1.0));
   return vec4<f32>(c, base.a);
 }
 @fragment fn fs(v: VO) -> FO { var o: FO; o.c = shade(v); o.id = v.id; return o; }

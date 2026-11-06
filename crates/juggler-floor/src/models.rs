@@ -48,6 +48,12 @@ pub const CUTAWAY: u32 = 2;
 /// The first of two bits holding a part's dust (0–3): what's long unused
 /// gathers it (0.4.1's look draws it; the classic look ignores it).
 pub const DUST_SHIFT: u32 = 3;
+/// A part's glow shows only at night (street lamps, lit windows, a sign);
+/// by day it's its plain colour.
+pub const NIGHT: u32 = 32;
+/// With [`NIGHT`]: the glow is lamplight's warm colour, not the part's
+/// own (a window, glass by day).
+pub const WARM: u32 = 64;
 
 /// The dust on a part of an App dimmed to `dim` ([`crate::scene::dimming`]):
 /// none while in use, some after a week, thick after a month.
@@ -119,6 +125,11 @@ impl B<'_> {
     /// A glowing part (a lamp, a badge).
     pub fn glow(&mut self, mesh: Mesh, t: T, c: Rgba, glow: f32) {
         self.raw(mesh, t, c, None, glow, 0, false);
+    }
+
+    /// A glowing part with `flags` (such as [`NIGHT`]).
+    pub fn raw_glow(&mut self, mesh: Mesh, t: T, c: Rgba, glow: f32, flags: u32) {
+        self.raw(mesh, t, c, None, glow, flags, false);
     }
 
     /// A textured part.

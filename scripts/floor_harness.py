@@ -65,7 +65,7 @@ def build() -> int:
 
 
 def run(home: Path, quick: bool = False, out: Path | None = None, detail: str = "pixel",
-        look: str = "second") -> int:
+        look: str = "second", view: str = "floor") -> int:
     binary = target_dir() / "release" / "juggler-app"
     if not binary.exists():
         print(f"floor-harness: no release build at {binary}; run `build` first", file=sys.stderr)
@@ -91,6 +91,8 @@ def run(home: Path, quick: bool = False, out: Path | None = None, detail: str = 
         # 0.4.1 (D-86): its look with the second pass (`second`, the default),
         # or 0.4.0's classic (`first`) to measure beside it.
         env["AIJ_FLOOR_HARNESS_LOOK"] = look
+        # AJ-E3516: the building view (the cross-section) instead of a floor.
+        env["AIJ_FLOOR_HARNESS_VIEW"] = view
         print(f"floor-harness: running (about {4 if quick else 12} minutes) on the replica in {home}")
         try:
             log = (out or Path(tmp)) / "harness-app.log" if quick else Path(os.devnull)
@@ -108,9 +110,11 @@ def run(home: Path, quick: bool = False, out: Path | None = None, detail: str = 
         data = json.loads(results.read_text())
     where = out if (quick and out) else OUT_DIR
     keep = where / (f"budgets-{dt.date.today().isoformat()}{'-full' if detail == 'full' else ''}"
-                    f"{'-second' if look == 'second' else ''}{'-quick' if quick else ''}.json")
+                    f"{'-second' if look == 'second' else ''}{'-building' if view == 'building' else ''}"
+                    f"{'-quick' if quick else ''}.json")
     where.mkdir(parents=True, exist_ok=True)
     data["machine"] = machine()
+    data["view"] = view
     keep.write_text(json.dumps(data, indent=2) + "\n")
     return report(keep)
 
@@ -220,10 +224,13 @@ def report(results: Path) -> int:
     data = json.loads(results.read_text())
     rows = verdicts(data)
     m = data.get("machine", {})
-    date = results.stem.removeprefix("budgets-").removesuffix("-second").removesuffix("-full")
+    date = (results.stem.removeprefix("budgets-").removesuffix("-quick").removesuffix("-building")
+            .removesuffix("-second").removesuffix("-full"))
     look = " in Full resolution (D-80)" if data.get("detail") == "full" else ""
     if data.get("look") == "second":
         look += ", 0.4.1's second pass (materials and faces)"
+    if data.get("view") == "building":
+        look += ", the building view (AJ-E3516's cross-section)"
     lines = [
         f"# The Floor's budgets{look}, {date}",
         "",
@@ -323,13 +330,14 @@ def main() -> int:
     r.add_argument("--out", type=Path)
     r.add_argument("--detail", choices=["pixel", "full"], default="pixel")
     r.add_argument("--look", choices=["first", "second"], default="second")
+    r.add_argument("--view", choices=["floor", "building"], default="floor")
     p = sub.add_parser("report")
     p.add_argument("results", type=Path)
     args = parser.parse_args()
     if args.cmd == "build":
         return build()
     if args.cmd == "run":
-        return run(args.home, args.quick, args.out, args.detail, args.look)
+        return run(args.home, args.quick, args.out, args.detail, args.look, args.view)
     return report(args.results)
 
 

@@ -193,10 +193,14 @@ impl Frame {
 #[must_use]
 pub fn tower_view(frame: &Frame, aspect: f32) -> (M4, V3) {
     let (mid, half_h) = crate::scene::tower::tower_middle(frame.width, frame.floors);
-    let half_w = crate::scene::tower::TOWER_W / 2.0 + 6.0;
-    let half_h = (half_h + 3.0).max(half_w / aspect.max(0.1));
+    // the building with a little of the street and lawn either side
+    let half_w = crate::scene::tower::TOWER_W / 2.0 + 9.0;
+    let half_h = (half_h + 2.0).max(half_w / aspect.max(0.1));
     let half_w = half_h * aspect;
-    let eye = [mid[0], mid[1] + 18.0, mid[2] + 80.0];
+    // from across the street, a little above and to the right: the cut
+    // face straight on enough to read, a side wall and the roof showing,
+    // and the sky above the lawn
+    let eye = [mid[0] + 18.0, mid[1] + 7.0, mid[2] + 80.0];
     let vp = M4::ortho(-half_w, half_w, -half_h, half_h, 1.0, 400.0).mul(&M4::look_at(
         eye,
         mid,

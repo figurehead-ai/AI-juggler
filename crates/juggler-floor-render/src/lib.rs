@@ -330,6 +330,8 @@ impl Renderer {
         let (vp, eye) = view.sight(&scene.frame_size(), size.0 as f32 / size.1.max(1) as f32);
         let live = Live {
             eye,
+            sun: self.gpu.look.sky.sun_dir,
+            night: self.gpu.look.sky.night,
             ..live.clone()
         };
         let drawn = scene.frame(&live, &floors, &mut self.moving);
