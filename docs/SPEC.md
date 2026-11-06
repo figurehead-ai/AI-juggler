@@ -833,26 +833,36 @@ outside the Floor changes.
   sides, with the tool's mark, the App's full name, an edge in its
   colour and its Account's battery. A flag in the App's colour stands
   at the corner of the way in.
-- From far away a chip floats over each area: its name and counts, at
-  most three rows from it (one with no room there is left out, never
-  hung on a long line). Desktop Apps are named as the rail names them
-  ("Claude app · b-work"); the Floor's Apps are the rail's (D-84).
+- **Labels follow the zoom** (AJ-E3515), by how wide a desk is on
+  screen (points on a 640-point-wide view, so every window size has the
+  same bands; 15% hysteresis): **close** (≥ 28) only balloons and the
+  hover card; **middle** (14–28) a flag on a short pole over each desk
+  that needs you (badge and word) and one name flag per area; **far**
+  (< 14, and the building) one flag per App that needs you, its count
+  and name. Flags stand straight over what they mark and never move
+  aside: one with no room joins its neighbour's count ("3 WAITING · 2
+  PLACES"), so no count is lost. They are placed by priority: Crashed,
+  Asks, Stuck, Hot, Done, Out. Badge, word and colour on every flag. View
+  › Labels: Smart (the default), Attention only, All names. Desktop Apps
+  are named as the rail names them ("Claude app · b-work"); the Floor's
+  Apps are the rail's (D-84).
 
 **Signals.** Colour is never the only cue: each state has a pose, an
-icon and a word, in the tooltip, the chip and the list view.
+icon and a word, in the tooltip, the flags, the hover card and the
+list view.
 
 | Signal (source) | Up close | From far | Limits | A click opens |
 |---|---|---|---|---|
 | Working (running, no need) | Typing, code scrolling, desk lamp on | — | Animates only in view | The session |
 | Idle (open, not working) | Leaning back with a mug | — | — | The session |
-| Waiting on you (a question or a permission) | Stands and waves, `!` balloon, a spotlight on the desk | `!N` on the chip | One balloon a desk | The session, at the question |
-| Stuck (the stuck heuristic) | Scratches head, `?`, frozen screen, amber lamp pulsing | `?N` | — | The session |
-| Crashed (failed) | Hands on head, `X`, error screen, smoke | `XN` | Smoke stops after 10 minutes | The session, at the error |
+| Waiting on you (a question or a permission) | Stands and waves, `!` balloon, a spotlight on the desk; brows up | `N ASKING` flag | One balloon a desk | The session, at the question |
+| Stuck (the stuck heuristic) | Scratches head, `?`, frozen screen, amber lamp pulsing; worried brows | `N STUCK` flag | — | The session |
+| Crashed (failed) | Hands on head, `X`, error screen, smoke; alarmed | `N CRASHED` flag | Smoke stops after 10 minutes | The session, at the error |
 | Done (review it) | Stretches, green tick | — | 15 minutes, then idle | The session |
 | Limit (quota-blocked, or its Account out) | Asleep at the desk, `Z`, screen off | `OUT` | — | The Account in Usage |
 | Subagents (running) | Helpers in the App's colour round the desk | — | 6 drawn, then `+N` | The session's subagents |
 | App overloaded (its CPU share over the threshold for 2 minutes) | A small fire on its busiest desk, smoke, orange flicker; people never burn | `HOT` | One fire an App | The App's processes |
-| App unused (last active) | Under a day: dim, chairs pushed out. Over a week: dust, boxes, wilted plants. Over a month: lights off | `UNUSED` | Desks kept a day after a session ends | The App |
+| App unused (since last active, AJ-E3518) | Closed: lamps and screens off, the area at 80%. From an hour: 55%, chairs pushed in. From a day: 40%, dust on upward faces. From a week: dust sheets over desks and screens, plants droop. From a month: 25%, all covered, a box by the way in. Its logo and sign stay readable. When it runs again its lights come on and the sheets go | — | Desks kept a day after a session ends; "Show unused Apps' decay" off keeps only "closed" | The App |
 | Account low (usage left) | A 4-segment battery on its Apps' signs: yellow under 40%, blinking amber under 20%; the lobby's usage board | `12%` | — | The Account in Usage |
 | This Mac's load | The rack's lights rise, green to red | — | — | This Mac |
 | This Mac overloaded (over its threshold for 5 minutes) | Red alert: a red wash breathing at 0.5 Hz, beacons at lifts and signs, a banner with the number; never a flash (WCAG 2.3.1) | The banner | Ends with the alert's own hysteresis | This Mac |
@@ -860,17 +870,36 @@ icon and a word, in the tooltip, the chip and the list view.
 | Notifications | Notes on the lobby's notice board | — | — | Notifications |
 
 **Hover and play.** The thing under the pointer gets a light outline
-and a tooltip (its name and state); a person looks up. Plants rustle,
+and a tooltip (its name and state); a person looks up. **Resting 250 ms
+on a person opens their card** (AJ-E3517): a speech bubble with the
+state (badge and word), the session's title, what they ask (≤ 120
+characters) or their latest step (≤ 160), or how long since they were
+active, then the App, project, subagents and tasks; **Open in AI
+Juggler** (at the question) and, where the session is open in an app
+its adapter can bring forward, **Open in <app>** (Go to it). The words
+are read when the card opens, through the session page's last-messages
+reader (its setting and redaction); nothing is stored. The card stays
+while the pointer is on the person, the card or the way between, and
+300 ms after; Esc closes it; it stays inside the window. Plants rustle,
 ping-pong plays a rally, the coffee machine steams, beanbags squash,
 the arcade lights up, the office cat sits; none of these navigates. A
 click opens its target in the main window and brings it forward.
 
 **The camera.** Drag or two-finger scroll pans; right-drag, ⌥-drag, a
 two-finger twist, Q/E or the arrows turn and tilt (tilt 18°–79°);
-pinch, ⌘-scroll or +/− zoom towards the pointer, on one floor at a time
-(zooming out never switches to the building; zooming in from the
-building lands on the floor under the pointer); H resets; 0 and the
-floor numbers pick the building or a floor. Anything a click acts on
+pinch, ⌘-scroll or +/− zoom towards the pointer, **one floor at a
+time** (AJ-E3516): zoom never switches between a floor and the
+building. A **lift** on a floor's right edge shows the floor above and
+below with their waiting counts and this floor's number between them
+(the buttons hidden at the top and the bottom); Page Up and Page Down
+do the same, and the camera rides one storey (a cut with Reduce Motion).
+The floor tabs carry each floor's waiting count. **The building is a
+side-on tower**, seen straight on: the lobby at the ground, each floor
+a strip with its number and waiting count, each App a room in its
+colour with its mark (back row above the front), dark when unused, a
+badge in a room that needs you; hovering a floor lights it with its
+summary and a click enters it. The tower doesn't pan, turn or zoom.
+H resets; 0, B and the floor numbers pick the building or a floor. Anything a click acts on
 shows the hand cursor; a press that moves less than 4 points is still a
 click. Walls between the camera and the room vanish
 with what hangs on them.
@@ -886,6 +915,23 @@ Pixel art's weight, softer shadows, picking per screen pixel), applied at
 once and remembered; show unused Apps' decay (on); Reset the view; Re-create the
 office…; under More, Apps hidden from the Floor. Re-create explains
 what it changes and what it doesn't before it acts.
+
+**The View menu** (AJ-E3519), from the View button at the Floor's top
+right, a native menu: Show (All Apps, Active Apps only: the others out
+of view, their places kept), Arrange (Kept places, Active Apps packed
+together: a view only, nothing saved), Labels (Smart, Attention only,
+All names), Light (Follow my clock, Always day, Always night), Look
+(Pixel art, Full resolution), and Settings › The Floor…. Each choice
+applies at once, shows its check mark and is remembered (`floor.show`,
+`floor.arrange`, `floor.labels`, `floor.light`, `floor.detail`).
+
+**Day and night** (AJ-E3520): with Follow my clock (the default) the
+sun stands where it does at the time zone's place (its coordinates in
+the system's zone table; no Location permission) by NOAA's equations,
+stepping every ten minutes with one frame, so a still Floor draws
+nothing in between. Day, golden hour, dusk and night each have their
+light; at night working desks' lamps carry the room. Signals keep their
+contrast.
 
 **Stored.** Per App, in `floor_areas`: order, layout type, seed, size
 and since when it fitted a smaller size. The office seed and the
