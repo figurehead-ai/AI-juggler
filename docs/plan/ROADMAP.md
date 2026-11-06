@@ -75,6 +75,13 @@ same way.
 
 **Not split** (2026-11-02): 0.4 ships whole and announcement ready; a release costs more time than building one.
 
+**Completed in 0.4.x** (D-83, 2026-11-06): 0.4.0 reached beta without
+its whole scope; every task above is finished in 0.4.x patch releases with
+the maintainer's findings, before any 0.5 feature work. The audit and the
+order: [0.4 completion](../qa/0.4-completion.md). `scripts/release_scope.py`
+now fails a release PR, a new minor's nightly and every promotion while a
+task named here is neither proven nor deferred by the maintainer.
+
 **Done when** every task above is evidenced, every scenario in the
 [validation plan](../qa/0.4-validation-plan.md) passes on the release
 candidate with nothing scored under 4, the full preflight passes, the
