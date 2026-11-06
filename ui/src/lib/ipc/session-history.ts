@@ -1,7 +1,7 @@
 /**
  * AJ-E1007: session lifecycle: search, archive, replay, retention.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { AccountStorageInfo } from "../../types/generated/AccountStorageInfo";
 import type { DeletePreviewInfo } from "../../types/generated/DeletePreviewInfo";
 import type { ReplayInfo } from "../../types/generated/ReplayInfo";
@@ -19,9 +19,9 @@ interface HistorySeams {
   __AIJ_RETENTION_PREVIEW__?: RetentionPreviewInfo;
 }
 const historySeams = () => window as unknown as HistorySeams;
-const historyCall = (call: string) => {
+const historyCall = (called: string) => {
   const seams = historySeams();
-  seams.__AIJ_HISTORY_CALLS__ = [...(seams.__AIJ_HISTORY_CALLS__ ?? []), call];
+  seams.__AIJ_HISTORY_CALLS__ = [...(seams.__AIJ_HISTORY_CALLS__ ?? []), called];
 };
 const setMockLifecycle = (sessionId: string, event: string) => {
   const row = previewHooks().fixtures.MOCK_SESSIONS.find((session) => session.id === sessionId);
@@ -38,7 +38,7 @@ export async function instanceArchive(sessionId: string): Promise<number> {
     setMockLifecycle(sessionId, "archived");
     return Date.now();
   }
-  return invoke<number>("instance_archive", { sessionId });
+  return call("instance_archive", { sessionId });
 }
 
 /** Unarchives an Instance — back exactly as it was. */
@@ -48,7 +48,7 @@ export async function instanceUnarchive(sessionId: string): Promise<number> {
     setMockLifecycle(sessionId, "unarchived");
     return Date.now();
   }
-  return invoke<number>("instance_unarchive", { sessionId });
+  return call("instance_unarchive", { sessionId });
 }
 
 /** What deleting an Instance would remove and keep (and its token). */
@@ -66,7 +66,7 @@ export async function instanceDeletePreview(sessionId: string): Promise<DeletePr
       }
     );
   }
-  return invoke<DeletePreviewInfo>("instance_delete_preview", { sessionId });
+  return call("instance_delete_preview", { sessionId });
 }
 
 /** Deletes an Instance's AI Juggler records (with its preview's token). */
@@ -77,7 +77,7 @@ export async function instanceDelete(sessionId: string, token: string): Promise<
     if (at >= 0) previewHooks().fixtures.MOCK_SESSIONS.splice(at, 1);
     return;
   }
-  return invoke<void>("instance_delete", { sessionId, token });
+  return call("instance_delete", { sessionId, token });
 }
 
 /** Transcript text search (local index). */
@@ -87,7 +87,7 @@ export async function transcriptSearch(query: string): Promise<TranscriptHitInfo
     const needle = query.trim().toLowerCase();
     return (historySeams().__AIJ_TRANSCRIPT_HITS__ ?? []).filter((hit) => hit.snippet.toLowerCase().includes(needle));
   }
-  return invoke<TranscriptHitInfo[]>("transcript_search", { query });
+  return call("transcript_search", { query });
 }
 
 /** The read-only replay of an ended or archived Instance. */
@@ -98,7 +98,7 @@ export async function instanceReplay(sessionId: string): Promise<ReplayInfo> {
     if (seeded) return { ...seeded, session_id: sessionId };
     throw new Error("No transcript recorded for this session");
   }
-  return invoke<ReplayInfo>("instance_replay", { sessionId });
+  return call("instance_replay", { sessionId });
 }
 
 /** Every Account's retention policy and storage used. */
@@ -119,7 +119,7 @@ export async function accountStorage(): Promise<AccountStorageInfo[]> {
       };
     });
   }
-  return invoke<AccountStorageInfo[]>("account_storage");
+  return call("account_storage");
 }
 
 /** Sets an Account's retention (null = keep forever). */
@@ -130,7 +130,7 @@ export async function retentionSet(accountId: string, days: number | null): Prom
     if (row) row.retention_days = days;
     return;
   }
-  return invoke<void>("retention_set", { accountId, days });
+  return call("retention_set", { accountId, days });
 }
 
 /** The retention dry run (nothing is deleted). */
@@ -148,7 +148,7 @@ export async function retentionPreview(accountId: string): Promise<RetentionPrev
       }
     );
   }
-  return invoke<RetentionPreviewInfo>("retention_preview", { accountId });
+  return call("retention_preview", { accountId });
 }
 
 /** Applies the retention cleanup its dry run listed. */
@@ -157,5 +157,5 @@ export async function retentionApply(accountId: string, token: string): Promise<
     historyCall(`retention-apply:${accountId}:${token}`);
     return historySeams().__AIJ_RETENTION_PREVIEW__?.deletes.length ?? 0;
   }
-  return invoke<number>("retention_apply", { accountId, token });
+  return call("retention_apply", { accountId, token });
 }

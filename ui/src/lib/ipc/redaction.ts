@@ -1,7 +1,7 @@
 /**
  * What a switch carries and redacts: the redaction policy.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 
 /** AJ-E208: the resolved redaction policy for one Provider. */
 export interface RedactionInfoData {
@@ -37,7 +37,7 @@ export async function redactionPolicyGet(
       }
     );
   }
-  return invoke<RedactionInfoData>("redaction_policy_get", { provider });
+  return call("redaction_policy_get", { provider });
 }
 
 /** AJ-E208: sets (or clears) the GLOBAL policy — Accounts → Pack
@@ -66,7 +66,7 @@ export async function redactionPolicySetGlobal(
     };
     return;
   }
-  await invoke("redaction_policy_set_global", { policy });
+  await call("redaction_policy_set_global", { policy });
 }
 
 /** AJ-E208: sets (or clears) one Provider's override — Provider
@@ -83,5 +83,5 @@ export async function redactionPolicySetOverride(
     ];
     return;
   }
-  await invoke("redaction_policy_set_override", { provider, policy });
+  await call("redaction_policy_set_override", { provider, policy });
 }

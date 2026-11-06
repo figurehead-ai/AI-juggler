@@ -1,7 +1,7 @@
 /**
  * AJ-E1205/E1206: Cloud backup and the Macs on the account.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { AccountMacsInfo } from "../../types/generated/AccountMacsInfo";
 import type { CloudBackupInfo } from "../../types/generated/CloudBackupInfo";
 import type { CloudBackupStatusInfo } from "../../types/generated/CloudBackupStatusInfo";
@@ -20,14 +20,14 @@ interface CloudBackupSeams {
   __AIJ_CLOUD_BACKUP_HOLD__?: boolean;
 }
 export const cloudSeams = () => window as unknown as CloudBackupSeams;
-const cloudCall = (call: string) => {
+const cloudCall = (called: string) => {
   const seams = cloudSeams();
-  seams.__AIJ_CLOUD_BACKUP_CALLS__ = [...(seams.__AIJ_CLOUD_BACKUP_CALLS__ ?? []), call];
+  seams.__AIJ_CLOUD_BACKUP_CALLS__ = [...(seams.__AIJ_CLOUD_BACKUP_CALLS__ ?? []), called];
 };
 /** Where Cloud backup stands. */
 export async function cloudBackupStatus(): Promise<CloudBackupStatusInfo> {
   if (!hasBackend) return { ...previewHooks().appState.mockCloud() };
-  return invoke<CloudBackupStatusInfo>("cloud_backup_status");
+  return call("cloud_backup_status");
 }
 
 /** Sets the schedule (off | daily | weekly). */
@@ -38,7 +38,7 @@ export async function cloudBackupSetSchedule(schedule: string): Promise<CloudBac
     cloudSeams().__AIJ_CLOUD_BACKUP__ = next;
     return next;
   }
-  return invoke<CloudBackupStatusInfo>("cloud_backup_set_schedule", { schedule });
+  return call("cloud_backup_set_schedule", { schedule });
 }
 
 /** Backs up now (builds, seals and uploads). */
@@ -52,7 +52,7 @@ export async function cloudBackupNow(): Promise<LastBackupInfo> {
     seams.__AIJ_CLOUD_BACKUP__ = { ...previewHooks().appState.mockCloud(), last };
     return last;
   }
-  return invoke<LastBackupInfo>("cloud_backup_now");
+  return call("cloud_backup_now");
 }
 
 /** The account's backups, newest first. */
@@ -61,7 +61,7 @@ export async function cloudBackupList(): Promise<CloudBackupInfo[]> {
     cloudCall("list");
     return [...(cloudSeams().__AIJ_CLOUD_BACKUPS__ ?? [])];
   }
-  return invoke<CloudBackupInfo[]>("cloud_backup_list");
+  return call("cloud_backup_list");
 }
 
 /** Downloads and opens one backup; returns the verified restore plan. */
@@ -73,7 +73,7 @@ export async function cloudBackupPrepareRestore(id: string, recoveryCode: string
     if (seams.__AIJ_CLOUD_RESTORE_PLAN__) return seams.__AIJ_CLOUD_RESTORE_PLAN__;
     throw new Error("No backend in this preview");
   }
-  return invoke<RestorePlanInfo>("cloud_backup_prepare_restore", { id, recoveryCode });
+  return call("cloud_backup_prepare_restore", { id, recoveryCode });
 }
 
 
@@ -92,7 +92,7 @@ export async function fleetAccountMacs(): Promise<AccountMacsInfo> {
     if (seeded) return { ...seeded, macs: seeded.macs.map((mac) => ({ ...mac })) };
     throw new Error("Fleet discovery is off");
   }
-  return invoke<AccountMacsInfo>("fleet_account_macs");
+  return call("fleet_account_macs");
 }
 
 /** Pins a listed Mac after its fingerprint was confirmed here. */
@@ -104,5 +104,5 @@ export async function fleetAccountPin(deviceId: string, fingerprint: string): Pr
     if (mac) mac.state = "waiting";
     return;
   }
-  return invoke<void>("fleet_account_pin", { deviceId, fingerprint });
+  return call("fleet_account_pin", { deviceId, fingerprint });
 }

@@ -5,7 +5,7 @@
  * without an entry it isn't offered, as when it is turned off everywhere.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { ProbeStatusInfo } from "../../types/generated/ProbeStatusInfo";
 
 export type { ProbeStatusInfo };
@@ -25,23 +25,23 @@ function mock(accountId: string, change?: Partial<ProbeStatusInfo>): ProbeStatus
 /** Where the profile's probe stands. */
 export async function probeStatus(accountId: string): Promise<ProbeStatusInfo> {
   if (!hasLiveBackend()) return mock(accountId);
-  return invoke<ProbeStatusInfo>("quota_probe_status", { accountId });
+  return call("quota_probe_status", { accountId });
 }
 
 /** Turns it on for the profile (and asks once). */
 export async function probeTurnOn(accountId: string): Promise<ProbeStatusInfo> {
   if (!hasLiveBackend()) return mock(accountId, { state: "on", last_run_ms: Date.now(), last_outcome: "ran" });
-  return invoke<ProbeStatusInfo>("quota_probe_turn_on", { accountId });
+  return call("quota_probe_turn_on", { accountId });
 }
 
 /** Turns it off for the profile. */
 export async function probeTurnOff(accountId: string): Promise<ProbeStatusInfo> {
   if (!hasLiveBackend()) return mock(accountId, { state: "off" });
-  return invoke<ProbeStatusInfo>("quota_probe_turn_off", { accountId });
+  return call("quota_probe_turn_off", { accountId });
 }
 
 /** Asks now ("Measure now"). */
 export async function probeRun(accountId: string): Promise<ProbeStatusInfo> {
   if (!hasLiveBackend()) return mock(accountId, { last_run_ms: Date.now(), last_outcome: "ran" });
-  return invoke<ProbeStatusInfo>("quota_probe_run", { accountId });
+  return call("quota_probe_run", { accountId });
 }

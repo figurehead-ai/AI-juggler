@@ -1,7 +1,7 @@
 /**
  * AJ-E1537 — the sessions feature's calls (ENGINEERING-GUIDE U3).
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { Page, PageRequest } from "../paged";
@@ -20,21 +20,21 @@ export async function sessionsResumeCommand(sessionId: string): Promise<string> 
     const seeded = (window as unknown as { __AIJ_RESUME_COMMAND__?: string }).__AIJ_RESUME_COMMAND__;
     return seeded ?? `cd ~/work && tool --resume ${sessionId}`;
   }
-  return invoke<string>("sessions_resume_command", { sessionId });
+  return call("sessions_resume_command", { sessionId });
 }
 
 /** AJ-E1509: a launch setting's own choice about restarting its crashed
  * sessions; `null` follows Settings › Sessions. */
 export async function sessionsRestartChoiceSet(recipeId: string, restart: boolean | null): Promise<void> {
   if (!hasLiveBackend()) return;
-  return invoke<void>("sessions_restart_choice_set", { recipeId, restart });
+  return call("sessions_restart_choice_set", { recipeId, restart });
 }
 
 /** History, a project's or an account's Sessions, a page at a time: open
  * first, then newest; narrowed and searched by the backend (0.1.5
  * review: these read every session at once). */
 export async function sessionsPage(query: SessionsQuery, page: PageRequest): Promise<Page<SessionRowInfo>> {
-  return invoke<Page<SessionRowInfo>>("sessions_page", { query, page });
+  return call("sessions_page", { query, page });
 }
 
 /** A session's History tab (wf09): its status changes, lifecycle steps
@@ -47,18 +47,18 @@ export async function sessionsHistory(sessionId: string, page: PageRequest): Pro
     const end = start + (page.limit ?? 50);
     return { items: all.slice(start, end), next_cursor: end < all.length ? String(end) : null, total: all.length };
   }
-  return invoke<Page<SessionEventInfo>>("sessions_history", { sessionId, page });
+  return call("sessions_history", { sessionId, page });
 }
 
 /** How many sessions a list holds: open, ended and archived. */
 export async function sessionsCounts(query: SessionsQuery): Promise<SessionsCountsInfo> {
-  return invoke<SessionsCountsInfo>("sessions_counts", { query });
+  return call("sessions_counts", { query });
 }
 
 /** E31 (AJ-E3103): what a list's filters offer: the projects, Apps,
  * Accounts and Macs its rows are on, with how many rows each shows. */
 export async function sessionsFacets(query: SessionsQuery): Promise<SessionsFacetsInfo> {
-  return invoke<SessionsFacetsInfo>("sessions_facets", { query });
+  return call("sessions_facets", { query });
 }
 
 /** A query with only what's given set (the rest `null`, as serde sends). */
@@ -70,5 +70,5 @@ export function sessionsQuery(over: Partial<SessionsQuery> = {}): SessionsQuery 
  * an old one opened from History). */
 export async function sessionsGet(ids: string[]): Promise<InstanceInfo[]> {
   if (!hasLiveBackend() || ids.length === 0) return [];
-  return invoke<InstanceInfo[]>("sessions_get", { ids });
+  return call("sessions_get", { ids });
 }

@@ -5,7 +5,7 @@
  * part alongside (`commands::CostRowInfo`); the totals stay with
  * `costRollups`.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { pageOf, type Page, type PageRequest } from "../paged";
 import { newTokens } from "../usage/tokens";
@@ -68,7 +68,7 @@ export async function costRollups(account?: string): Promise<CostRollupsData> {
       }
     );
   }
-  return invoke<CostRollupsData>("cost_rollups", { account });
+  return call("cost_rollups", { account });
 }
 
 /** AJ-E609: stream the CSV export; resolves to the written file path.
@@ -77,7 +77,7 @@ export async function costCsvExport(account?: string, span?: { fromMs: number; t
   if (!hasLiveBackend()) {
     return (window as unknown as { __AIJ_COST_CSV__?: string }).__AIJ_COST_CSV__ ?? "";
   }
-  return invoke<string>("cost_csv_export", { account, fromMs: span?.fromMs ?? null, toMs: span?.toMs ?? null });
+  return call("cost_csv_export", { account, fromMs: span?.fromMs ?? null, toMs: span?.toMs ?? null });
 }
 
 /** One row of the cost table: a session's UTC day. */
@@ -154,7 +154,7 @@ export async function costRowsPage(account: string | null, page: PageRequest): P
     const seeded = (window as unknown as { __AIJ_COST_ROLLUPS__?: { rows: SeededRow[] } }).__AIJ_COST_ROLLUPS__;
     return pageOf(sessionDays(seeded?.rows ?? []), page);
   }
-  return invoke<Page<CostRow>>("cost_rows_page", { account, page });
+  return call("cost_rows_page", { account, page });
 }
 
 /** The paged list's key for one account's (or every account's) table. */

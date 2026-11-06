@@ -4,7 +4,7 @@
  * what to do when that's low or short.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { SwitchSpaceInfo } from "../../types/generated/SwitchSpaceInfo";
 
 export type { SwitchSpaceInfo };
@@ -25,5 +25,5 @@ export const EXAMPLE_SPACE: SwitchSpaceInfo = {
 /** The disk space switching `sessionId` to `targetProfileId` uses. */
 export async function switchSpace(sessionId: string, targetProfileId: string): Promise<SwitchSpaceInfo> {
   if (!hasLiveBackend()) return seam() ?? EXAMPLE_SPACE;
-  return invoke<SwitchSpaceInfo>("switch_space_check", { sessionId, targetProfileId });
+  return call("switch_space_check", { sessionId, targetProfileId });
 }

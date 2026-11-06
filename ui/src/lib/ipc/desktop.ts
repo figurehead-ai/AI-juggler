@@ -1,7 +1,7 @@
 /**
  * Desktop apps: launch and focus, and the live preview (AJ-E415).
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { DesktopLaunchInfo } from "../../types/generated/DesktopLaunchInfo";
@@ -20,7 +20,7 @@ export async function desktopLaunch(accountId: string): Promise<DesktopLaunchInf
       isolation_label: "Single-account app — Juggler tracks, cannot isolate",
     };
   }
-  return invoke<DesktopLaunchInfo>("desktop_launch", { accountId });
+  return call("desktop_launch", { accountId });
 }
 
 /** AJ-E414: run the focus tiers for one desktop Instance — activate,
@@ -38,7 +38,7 @@ export async function desktopFocus(sessionId: string): Promise<FocusOutcomeInfo>
       }
     );
   }
-  return invoke<FocusOutcomeInfo>("desktop_focus", { sessionId });
+  return call("desktop_focus", { sessionId });
 }
 
 
@@ -48,7 +48,7 @@ export async function previewStart(sessionId: string): Promise<void> {
   if (!hasBackend) {
     return;
   }
-  await invoke("preview_start", { sessionId });
+  await call("preview_start", { sessionId });
 }
 
 /** AJ-E415: stops the live preview (bounded teardown <1 s). */
@@ -56,7 +56,7 @@ export async function previewStop(): Promise<void> {
   if (!hasBackend) {
     return;
   }
-  await invoke("preview_stop");
+  await call("preview_stop");
 }
 
 /** AJ-E415: sets the per-Account live-preview opt-in (the Screen
@@ -71,7 +71,7 @@ export async function accountSetPreviewOptIn(
       preview_opt_in: optIn,
     };
   }
-  return invoke<AccountInfo>("account_set_preview_opt_in", { accountId, optIn });
+  return call("account_set_preview_opt_in", { accountId, optIn });
 }
 
 /** AJ-E415: live frames (filtered to one session by the caller). */

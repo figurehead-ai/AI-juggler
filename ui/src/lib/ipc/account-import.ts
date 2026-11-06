@@ -2,7 +2,7 @@
  * Finding and importing what is already on the Mac (AJ-E3xx): the
  * environment scan, import and inspecting one source.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import { previewHooks } from "../preview-hooks";
 import type { DiscoveredInfo } from "../../types/generated/DiscoveredInfo";
 import type { ImportResult } from "../../types/generated/ImportResult";
@@ -16,7 +16,7 @@ import type { SourceInspectInfo } from "../../types/generated/SourceInspectInfo"
 export async function environmentScan(): Promise<DiscoveredInfo[]> {
   // The same two setups as the full scan's preview report.
   if (!hasBackend) return previewHooks().providers.DEFAULT_SCAN_REPORT.installs;
-  return invoke<DiscoveredInfo[]>("environment_scan");
+  return call("environment_scan");
 }
 
 /** Imports a discovered setup as a managed account (byte copy; source untouched). */
@@ -95,7 +95,7 @@ export async function accountImport(
         : "Your Claude login lives in the macOS Keychain, locked to the original folder — it can't (and shouldn't) be moved. Sign in once inside the imported account; it takes a few seconds.",
     };
   }
-  return invoke<ImportResult>("account_import", {
+  return call("account_import", {
     harness,
     sourcePath,
     label,
@@ -132,5 +132,5 @@ export async function sourceInspect(
       }
     );
   }
-  return invoke<SourceInspectInfo>("source_inspect", { harness, sourcePath });
+  return call("source_inspect", { harness, sourcePath });
 }

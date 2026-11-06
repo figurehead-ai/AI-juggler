@@ -1,7 +1,7 @@
 /**
  * Expert setup: the environment a launch recipe adds.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { ExpertSetupInfo } from "../../types/generated/ExpertSetupInfo";
 
 /** AJ-E309 Req.5: the Expert-setup facts for a Provider (no account
@@ -30,7 +30,7 @@ export async function expertSetupInfo(
       ...seam,
     };
   }
-  return invoke<ExpertSetupInfo>("expert_setup_info", { provider, accountId, recipeId });
+  return call("expert_setup_info", { provider, accountId, recipeId });
 }
 
 /** AJ-E309 Req.5: [Reveal in Finder] — the backend resolves the
@@ -39,7 +39,7 @@ export async function expertReveal(provider: string, accountId: string | null): 
   if (!hasBackend) {
     return;
   }
-  return invoke<void>("expert_reveal", { provider, accountId });
+  return call("expert_reveal", { provider, accountId });
 }
 
 /** AJ-E309 Req.5: one Launch settings' environment overrides. */
@@ -49,7 +49,7 @@ export async function launchRecipeEnvGet(recipeId: string): Promise<Record<strin
       .__AIJ_RECIPE_ENV__;
     return { ...(store?.[recipeId] ?? {}) };
   }
-  return invoke<Record<string, string>>("launch_recipe_env_get", { recipeId });
+  return call("launch_recipe_env_get", { recipeId });
 }
 
 /** AJ-E309 Req.5: replaces one Launch settings' environment overrides
@@ -70,5 +70,5 @@ export async function launchRecipeEnvSet(
     seams.__AIJ_RECIPE_ENV__ = { ...(seams.__AIJ_RECIPE_ENV__ ?? {}), [recipeId]: { ...env } };
     return { ...env };
   }
-  return invoke<Record<string, string>>("launch_recipe_env_set", { recipeId, env });
+  return call("launch_recipe_env_set", { recipeId, env });
 }

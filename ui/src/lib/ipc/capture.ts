@@ -4,7 +4,7 @@
  * tests read the seam `__AIJ_CAPTURE__` (per account) instead.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { CaptureOffInfo } from "../../types/generated/CaptureOffInfo";
 import type { CapturePreviewInfo } from "../../types/generated/CapturePreviewInfo";
 import type { CaptureStatusInfo } from "../../types/generated/CaptureStatusInfo";
@@ -26,7 +26,7 @@ function mockEntry(accountId: string) {
 /** Where the account's capture stands. */
 export async function captureStatus(accountId: string): Promise<CaptureStatusInfo> {
   if (!hasLiveBackend()) return mockEntry(accountId).status;
-  return invoke<CaptureStatusInfo>("quota_capture_status", { accountId });
+  return call("quota_capture_status", { accountId });
 }
 
 /** The exact change, before anything is written. */
@@ -43,7 +43,7 @@ export async function capturePreview(accountId: string): Promise<CapturePreviewI
       }
     );
   }
-  return invoke<CapturePreviewInfo>("quota_capture_preview", { accountId });
+  return call("quota_capture_preview", { accountId });
 }
 
 /** Turns it on, as previewed (`fingerprint` from the preview). */
@@ -52,7 +52,7 @@ export async function captureTurnOn(accountId: string, fingerprint: string): Pro
     mockEntry(accountId).status = { ...mockEntry(accountId).status, state: "on" };
     return;
   }
-  await invoke("quota_capture_turn_on", { accountId, fingerprint });
+  await call("quota_capture_turn_on", { accountId, fingerprint });
 }
 
 /** Turns it off. */
@@ -63,5 +63,5 @@ export async function captureTurnOff(accountId: string): Promise<CaptureOffInfo>
     entry.status = { ...entry.status, state: "off" };
     return { outcome };
   }
-  return invoke<CaptureOffInfo>("quota_capture_turn_off", { accountId });
+  return call("quota_capture_turn_off", { accountId });
 }

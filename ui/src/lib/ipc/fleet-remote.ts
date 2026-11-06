@@ -2,7 +2,7 @@
  * AJ-E705/E709: what paired machines report, and permissions changed on
  * this Mac ("Ask each time" prompts).
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { FleetPeerInfo } from "../../types/generated/FleetPeerInfo";
 import type { FleetPromptInfo } from "../../types/generated/FleetPromptInfo";
 import type { RemoteCommandOutcomeInfo } from "../../types/generated/RemoteCommandOutcomeInfo";
@@ -20,7 +20,7 @@ const remoteSeams = () => window as unknown as RemoteSeams;
 /** Every paired machine with what it last reported (source + freshness). */
 export async function fleetRemote(): Promise<RemoteMachineInfo[]> {
   if (!hasBackend) return [...(remoteSeams().__AIJ_FLEET_REMOTE__ ?? [])];
-  return invoke<RemoteMachineInfo[]>("fleet_remote");
+  return call("fleet_remote");
 }
 
 /** AJ-E707: asks a paired machine to clean one process it owns (it
@@ -35,7 +35,7 @@ export async function fleetRemoteClean(
     seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), `remote-clean:${machineId}:${instanceId}:${pid}`];
     return seams.__AIJ_REMOTE_CLEAN__ ?? { accepted: true, reason_code: null, message: `Exited (pid ${pid})` };
   }
-  return invoke<RemoteCommandOutcomeInfo>("fleet_remote_clean", { machineId, instanceId, pid });
+  return call("fleet_remote_clean", { machineId, instanceId, pid });
 }
 
 /** AJ-E711: asks a paired machine to bring one of its desktop windows
@@ -46,7 +46,7 @@ export async function fleetRemoteFocus(machineId: string, instanceId: string): P
     seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), `remote-focus:${machineId}:${instanceId}`];
     return seams.__AIJ_REMOTE_FOCUS__ ?? { accepted: true, reason_code: null, message: "Focused window" };
   }
-  return invoke<RemoteCommandOutcomeInfo>("fleet_remote_focus", { machineId, instanceId });
+  return call("fleet_remote_focus", { machineId, instanceId });
 }
 
 /** Asks a paired machine to stop one of its Instances; the node decides. */
@@ -58,7 +58,7 @@ export async function fleetRemoteStop(machineId: string, instanceId: string): Pr
       seams.__AIJ_REMOTE_STOP__ ?? { accepted: true, reason_code: null, message: "Stopping" }
     );
   }
-  return invoke<RemoteCommandOutcomeInfo>("fleet_remote_stop", { machineId, instanceId });
+  return call("fleet_remote_stop", { machineId, instanceId });
 }
 
 
@@ -100,13 +100,13 @@ export async function fleetSetPermission(
     );
     return [...(seams.__AIJ_FLEET_PEERS__ ?? [])];
   }
-  return invoke<FleetPeerInfo[]>("fleet_set_permission", { machineId, permission, askEachTime });
+  return call("fleet_set_permission", { machineId, permission, askEachTime });
 }
 
 /** Control commands waiting for this Mac's user ("Ask each time"). */
 export async function fleetPrompts(): Promise<FleetPromptInfo[]> {
   if (!hasBackend) return [...(promptSeams().__AIJ_FLEET_PROMPTS__ ?? [])];
-  return invoke<FleetPromptInfo[]>("fleet_prompts");
+  return call("fleet_prompts");
 }
 
 /** Allows or denies a waiting command. */
@@ -117,5 +117,5 @@ export async function fleetPromptDecide(id: number, allow: boolean): Promise<voi
     seams.__AIJ_FLEET_PROMPTS__ = (seams.__AIJ_FLEET_PROMPTS__ ?? []).filter((p) => p.id !== id);
     return;
   }
-  return invoke<void>("fleet_prompt_decide", { id, allow });
+  return call("fleet_prompt_decide", { id, allow });
 }

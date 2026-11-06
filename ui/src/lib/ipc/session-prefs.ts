@@ -3,7 +3,7 @@
  * file per feature). "Stuck after" reaches the heuristics at once; a save
  * fires `SESSION_PREFS_EVENT` so open terminals follow.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { SessionPrefsInfo } from "../../types/generated/SessionPrefsInfo";
 
@@ -33,7 +33,7 @@ const previewSeams = () => window as unknown as { __AIJ_SESSION_PREFS__?: Sessio
 /** Reads Settings › Sessions. */
 export async function sessionPrefsGet(): Promise<SessionPrefsInfo> {
   if (!hasLiveBackend()) return { ...SESSION_PREFS_DEFAULT, ...previewSeams().__AIJ_SESSION_PREFS__ };
-  return invoke<SessionPrefsInfo>("session_prefs_get");
+  return call("session_prefs_get");
 }
 
 /** Saves Settings › Sessions; open terminals follow the event. */
@@ -46,7 +46,7 @@ export async function sessionPrefsSet(prefs: SessionPrefsInfo): Promise<SessionP
     previewSeams().__AIJ_SESSION_PREFS__ = { ...prefs };
     saved = { ...prefs };
   } else {
-    saved = await invoke<SessionPrefsInfo>("session_prefs_set", { prefs });
+    saved = await call("session_prefs_set", { prefs });
   }
   window.dispatchEvent(new CustomEvent<SessionPrefsInfo>(SESSION_PREFS_EVENT, { detail: saved }));
   return saved;

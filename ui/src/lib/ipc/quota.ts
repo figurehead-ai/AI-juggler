@@ -4,7 +4,7 @@
  * (ENGINEERING-GUIDE U3: the feature's calls; the backend's
  * `features::quota`). Moved from bridge.ts (the size budget).
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 
 /** AJ-E610: one window clock's typed rendered state. */
@@ -143,7 +143,7 @@ export async function quotaDisplay(account: string): Promise<QuotaDisplayData> {
       }
     );
   }
-  return invoke<QuotaDisplayData>("quota_display", { account });
+  return call("quota_display", { account });
 }
 
 /** AJ-E610: every account's two clocks (rail/row source; one query). */
@@ -152,5 +152,5 @@ export async function quotaDisplayAll(): Promise<QuotaDisplayData[]> {
     return (window as unknown as { __AIJ_QUOTA_DISPLAY__?: QuotaDisplayData[] })
       .__AIJ_QUOTA_DISPLAY__ ?? [];
   }
-  return invoke<QuotaDisplayData[]>("quota_display_all");
+  return call("quota_display_all");
 }

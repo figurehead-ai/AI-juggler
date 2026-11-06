@@ -4,7 +4,7 @@
  * `__AIJ_TRIAGE_CALLS__` records them as the single Mark reviewed does.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 
 /** Marks `sessionIds` reviewed, or (`back`) puts them back on the list. */
 export async function instancesMarkReviewed(sessionIds: string[], back = false): Promise<number> {
@@ -13,6 +13,6 @@ export async function instancesMarkReviewed(sessionIds: string[], back = false):
     w.__AIJ_TRIAGE_CALLS__ = [...(w.__AIJ_TRIAGE_CALLS__ ?? []), `${back ? "unreviewed" : "reviewed"}-all:${sessionIds.join(",")}`];
     return Date.now();
   }
-  if (back) return invoke<number>("instances_unmark_reviewed", { sessionIds });
-  return invoke<number>("instances_mark_reviewed", { sessionIds });
+  if (back) return call("instances_unmark_reviewed", { sessionIds });
+  return call("instances_mark_reviewed", { sessionIds });
 }

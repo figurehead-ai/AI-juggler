@@ -2,7 +2,7 @@
  * Accounts: the list, add, rename, remove, default, sign-in, and the
  * per-account settings (fee, renewal, cleanup).
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import { refused, signedIn } from "../bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { AccountRemovedInfo } from "../../types/generated/AccountRemovedInfo";
@@ -21,7 +21,7 @@ export async function accountUseOriginal(accountId: string): Promise<AccountInfo
     account.in_place = true; // the preview's list reflects it on refresh
     return account;
   }
-  return invoke<AccountInfo>("account_use_original", { accountId });
+  return call("account_use_original", { accountId });
 }
 
 /** AJ-E1501: rename an account and set its plan (blank clears it). */
@@ -40,7 +40,7 @@ export async function accountRename(accountId: string, label: string, plan: stri
     for (const row of previewHooks().fixtures.MOCK_SESSIONS) if (row.account_id === accountId) row.account_label = name;
     return account;
   }
-  return invoke<AccountInfo>("account_rename", { accountId, label, plan });
+  return call("account_rename", { accountId, label, plan });
 }
 
 /** AJ-E1501: remove (forget) an account. `folder` decides a copy's
@@ -66,7 +66,7 @@ export async function accountRemove(accountId: string, folder: "keep" | "trash")
     accounts.splice(index, 1);
     return { id: account.id, label: account.label, folder: account.in_place ? "untouched" : folder === "trash" ? "trashed" : "kept" };
   }
-  return invoke<AccountRemovedInfo>("account_remove", { accountId, folder });
+  return call("account_remove", { accountId, folder });
 }
 
 /** AJ-E1501: make an account the default for new sessions (`null`
@@ -77,7 +77,7 @@ export async function accountSetDefault(accountId: string | null): Promise<Accou
     for (const row of accounts) row.is_default = row.id === accountId;
     return accounts;
   }
-  return invoke<AccountInfo[]>("account_set_default", { accountId });
+  return call("account_set_default", { accountId });
 }
 
 /** AJ-E1501: the account a project's new sessions start with (`null`
@@ -88,7 +88,7 @@ export async function projectSetDefaultAccount(projectId: string, accountId: str
     if (project) project.default_account_id = accountId;
     return;
   }
-  return invoke<void>("project_set_default_account", { projectId, accountId });
+  return call("project_set_default_account", { projectId, accountId });
 }
 
 export async function accountsList(): Promise<AccountInfo[]> {
@@ -99,7 +99,7 @@ export async function accountsList(): Promise<AccountInfo[]> {
     // preview mode re-renders like a real refresh does.
     return [...previewFolders()];
   }
-  return invoke<AccountInfo[]>("accounts_list");
+  return call("accounts_list");
 }
 
 /** The preview's folders (the rows are shared), each with the colours
@@ -128,19 +128,19 @@ export async function createAccount(
       in_place: false,
     };
   }
-  return invoke<AccountInfo>("account_create", { harness, label, plan });
+  return call("account_create", { harness, label, plan });
 }
 
 /** Opens the vendor's own web sign-in page in the system browser. */
 export async function loginOpenWeb(harness: string): Promise<void> {
-  return invoke<void>("login_open_web", { harness });
+  return call("login_open_web", { harness });
 }
 
 export async function accountLoginCommand(accountId: string): Promise<string> {
   if (!hasBackend) {
     return `CLAUDE_CONFIG_DIR='~/Library/Application Support/AI Juggler/accounts/claude-code/${accountId}' claude`;
   }
-  return invoke<string>("account_login_command", { accountId });
+  return call("account_login_command", { accountId });
 }
 
 export async function accountLoginState(accountId: string): Promise<string> {
@@ -151,14 +151,14 @@ export async function accountLoginState(accountId: string): Promise<string> {
       "logged_out"
     );
   }
-  return invoke<string>("account_login_state", { accountId });
+  return call("account_login_state", { accountId });
 }
 
 /** AJ-E1001: forgets an Account's remembered identity (learned again at
  * its next launch, shown as "first seen"). */
 export async function accountForgetIdentity(accountId: string): Promise<void> {
   if (!hasBackend) return;
-  return invoke<void>("account_forget_identity", { accountId });
+  return call("account_forget_identity", { accountId });
 }
 
 /** AJ-E610: set/clear the user-entered flat fee (dual view ratio). */
@@ -168,7 +168,7 @@ export async function accountSetFee(account: string, feeUsd: number | null): Pro
     w.__AIJ_SET_FEE__?.(account, feeUsd);
     return;
   }
-  await invoke("account_set_fee", { account, feeUsd });
+  await call("account_set_fee", { account, feeUsd });
 }
 
 
@@ -197,7 +197,7 @@ export async function accountSetRenewal(
     }
     return { ...account, renewal_date: date };
   }
-  return invoke<AccountInfo>("account_set_renewal", { accountId, date });
+  return call("account_set_renewal", { accountId, date });
 }
 
 /** AJ-E410 (D-08): set the per-Account Tier-1 cleanup opt-in. */
@@ -207,5 +207,5 @@ export async function accountSetCleanup(accountId: string, optIn: boolean): Prom
     if (!account) throw new Error(`unknown account ${accountId}`);
     return { ...account, cleanup_opt_in: optIn };
   }
-  return invoke<AccountInfo>("account_set_cleanup", { accountId, optIn });
+  return call("account_set_cleanup", { accountId, optIn });
 }

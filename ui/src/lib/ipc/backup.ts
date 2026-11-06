@@ -1,7 +1,7 @@
 /**
  * AJ-E1009: backup and restore.
  */
-import { invoke, listen, liveBackend as hasBackend, pickPath } from "./transport";
+import { call, listen, liveBackend as hasBackend, pickPath } from "./transport";
 import { EVENTS } from "../bridge";
 import type { BackupExportInfo } from "../../types/generated/BackupExportInfo";
 import type { RestorePlanInfo } from "../../types/generated/RestorePlanInfo";
@@ -21,9 +21,9 @@ interface BackupSeams {
   __AIJ_BACKUP_HOLD__?: boolean;
 }
 const backupSeams = () => window as unknown as BackupSeams;
-const backupCall = (call: string) => {
+const backupCall = (called: string) => {
   const seams = backupSeams();
-  seams.__AIJ_BACKUP_CALLS__ = [...(seams.__AIJ_BACKUP_CALLS__ ?? []), call];
+  seams.__AIJ_BACKUP_CALLS__ = [...(seams.__AIJ_BACKUP_CALLS__ ?? []), called];
 };
 let mockProgress: ((done: number, total: number) => void) | null = null;
 
@@ -73,7 +73,7 @@ export async function backupExport(dest: string): Promise<BackupExportInfo> {
     if (seams.__AIJ_BACKUP_EXPORT__) return { ...seams.__AIJ_BACKUP_EXPORT__, path: dest };
     throw new Error("No backend in this preview");
   }
-  return invoke<BackupExportInfo>("backup_export", { dest });
+  return call("backup_export", { dest });
 }
 
 /** Verifies a backup in full; returns the restore plan (nothing changes yet). */
@@ -85,7 +85,7 @@ export async function backupVerify(path: string): Promise<RestorePlanInfo> {
     if (seams.__AIJ_RESTORE_PLAN__) return { ...seams.__AIJ_RESTORE_PLAN__, path };
     throw new Error("No backend in this preview");
   }
-  return invoke<RestorePlanInfo>("backup_verify", { path });
+  return call("backup_verify", { path });
 }
 
 /** Applies a verified restore (with its plan's token). */
@@ -96,5 +96,5 @@ export async function backupRestore(path: string, token: string): Promise<Restor
     if (result) return result;
     throw new Error("No backend in this preview");
   }
-  return invoke<RestoreResultInfo>("backup_restore", { path, token });
+  return call("backup_restore", { path, token });
 }

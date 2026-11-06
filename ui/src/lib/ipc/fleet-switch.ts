@@ -1,7 +1,7 @@
 /**
  * AJ-E706: cross-machine switching.
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
 import type { DivergenceRecordInfo } from "../../types/generated/DivergenceRecordInfo";
 import type { FleetSwitchBackPlanInfo } from "../../types/generated/FleetSwitchBackPlanInfo";
@@ -24,16 +24,16 @@ type CrossSeams = {
 };
 
 const crossSeams = () => window as unknown as CrossSeams;
-const crossCall = (call: string) => {
+const crossCall = (called: string) => {
   const seams = crossSeams();
-  seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), call];
+  seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), called];
 };
 
 /** Paired machines as switch destinations for one source Instance —
  * computed from what they published; no transcript moves to list them. */
 export async function fleetSwitchTargets(sessionId: string): Promise<RemoteSwitchTargetInfo[]> {
   if (!hasBackend) return [...(crossSeams().__AIJ_FLEET_SWITCH_TARGETS__ ?? [])];
-  return invoke<RemoteSwitchTargetInfo[]>("fleet_switch_targets", { sessionId });
+  return call("fleet_switch_targets", { sessionId });
 }
 
 /** Runs one confirmed cross-machine switch (after the user's click). */
@@ -54,7 +54,7 @@ export async function fleetSwitchExecute(request: FleetSwitchRequest): Promise<F
       }
     );
   }
-  return invoke<FleetSwitchOutcomeInfo>("fleet_switch_execute", { request });
+  return call("fleet_switch_execute", { request });
 }
 
 /** Cancels the push to `machineId` (within one chunk). */
@@ -63,7 +63,7 @@ export async function fleetSwitchCancel(machineId: string): Promise<boolean> {
     crossCall(`switch-cancel:${machineId}`);
     return true;
   }
-  return invoke<boolean>("fleet_switch_cancel", { machineId });
+  return call("fleet_switch_cancel", { machineId });
 }
 
 /** Push progress while a cross-machine switch runs. */
@@ -94,7 +94,7 @@ export function onFleetSwitchProgress(handler: (update: FleetSwitchProgressInfo)
  * (`null` for any other Instance). */
 export async function fleetSwitchBackPlan(sessionId: string): Promise<FleetSwitchBackPlanInfo | null> {
   if (!hasBackend) return crossSeams().__AIJ_FLEET_SWITCH_BACK_PLAN__ ?? null;
-  return invoke<FleetSwitchBackPlanInfo | null>("fleet_switch_back_plan", { sessionId });
+  return call("fleet_switch_back_plan", { sessionId });
 }
 
 /** Switches an away Instance back to its original machine; `choice` is
@@ -119,13 +119,13 @@ export async function fleetSwitchBackExecute(
       }
     );
   }
-  return invoke<FleetSwitchOutcomeInfo>("fleet_switch_back_execute", { sessionId, choice, keepAwayRunning });
+  return call("fleet_switch_back_execute", { sessionId, choice, keepAwayRunning });
 }
 
 /** Every unresolved divergence (the sync chip's "Diverged — N needs you"). */
 export async function fleetDivergences(): Promise<DivergenceRecordInfo[]> {
   if (!hasBackend) return [...(crossSeams().__AIJ_FLEET_DIVERGENCES__ ?? [])];
-  return invoke<DivergenceRecordInfo[]>("fleet_divergences");
+  return call("fleet_divergences");
 }
 
 /** "Keep theirs": leave both sides as they are (nothing is sent). */
@@ -138,5 +138,5 @@ export async function fleetDivergenceKeepTheirs(sessionId: string): Promise<void
     );
     return;
   }
-  return invoke<void>("fleet_divergence_keep_theirs", { sessionId });
+  return call("fleet_divergence_keep_theirs", { sessionId });
 }

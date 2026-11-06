@@ -14,7 +14,7 @@
  * the calls that change them in `__AIJ_TASKS_CALLS__`.
  */
 import { useEffect, useState } from "react";
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import type { TaskInfo } from "../../types/generated/TaskInfo";
 import type { TaskCounts } from "../../types/generated/TaskCounts";
@@ -50,7 +50,7 @@ interface Seams {
   __AIJ_TASKS_CALLS__?: string[];
 }
 const seams = () => window as unknown as Seams;
-const record = (call: string) => (seams().__AIJ_TASKS_CALLS__ ??= []).push(call);
+const record = (called: string) => (seams().__AIJ_TASKS_CALLS__ ??= []).push(called);
 const RANK = ["ready", "in_progress", "in_review", "blocked", "todo", "done", "cancelled"];
 const PRIORITY = ["urgent", "high", "normal", "low"];
 
@@ -134,7 +134,7 @@ export async function tasksCounts(poolId: string): Promise<TaskCounts> {
     const n = (status: string) => all.filter((t) => t.status === status).length;
     return { ready: n("ready"), in_progress: n("in_progress"), in_review: n("in_review"), blocked: n("blocked"), todo: n("todo"), done: n("done"), cancelled: n("cancelled") };
   }
-  return invoke<TaskCounts>("tasks_counts", { poolId });
+  return call("tasks_counts", { poolId });
 }
 
 /** One page of a pool's tasks (the work: epics and stories are the
@@ -162,13 +162,13 @@ export async function tasksList(poolId: string, filter: string | null, words: st
       .sort(order);
     return previewPage(rows, page);
   }
-  return invoke<Page<TaskInfo>>("tasks_list", { poolId, filter, words, page });
+  return call("tasks_list", { poolId, filter, words, page });
 }
 
 /** One page of a pool's epics and stories (the plan's folds). */
 export async function tasksPlan(poolId: string, page: PageRequest): Promise<Page<TaskInfo>> {
   if (!hasLiveBackend()) return previewPage(preview().tasks.filter((t) => t.pool_id === poolId && t.kind !== "task").sort(order), page);
-  return invoke<Page<TaskInfo>>("tasks_plan", { poolId, page });
+  return call("tasks_plan", { poolId, page });
 }
 
 /** One page of the items under an epic or story (`""`: tasks with none). */
@@ -179,7 +179,7 @@ export async function tasksChildren(poolId: string, parent: string, page: PageRe
       .sort(order);
     return previewPage(rows, page);
   }
-  return invoke<Page<TaskInfo>>("tasks_children", { poolId, parent, page });
+  return call("tasks_children", { poolId, parent, page });
 }
 
 /** One page of a session's tasks (what it holds, what it worked). */
@@ -189,13 +189,13 @@ export async function tasksOfSession(sessionId: string, page: PageRequest): Prom
     const ids = data.sessions[sessionId] ?? [];
     return previewPage(data.tasks.filter((t) => ids.includes(t.id) || t.holder_session_id === sessionId).sort(order), page);
   }
-  return invoke<Page<TaskInfo>>("tasks_session", { sessionId, page });
+  return call("tasks_session", { sessionId, page });
 }
 
 /** One task in full (`cursor`: older history). */
 export async function tasksDetail(taskId: string, cursor: string | null = null): Promise<TaskDetail> {
   if (!hasLiveBackend()) return previewDetail(taskId);
-  return invoke<TaskDetail>("tasks_detail", { taskId, cursor });
+  return call("tasks_detail", { taskId, cursor });
 }
 
 /** What you may do to a preview task now (the backend's `may_user`). */
@@ -210,8 +210,8 @@ function previewActions(task: TaskInfo): TaskActions {
 
 /** The preview's take on one of your four actions: the same rules as the
  * backend, the change, and a line in the task's history. */
-function previewAct(taskId: string, call: string, may: keyof TaskActions, change: (task: TaskInfo) => void, what: string): TaskDetail {
-  record(call);
+function previewAct(taskId: string, called: string, may: keyof TaskActions, change: (task: TaskInfo) => void, what: string): TaskDetail {
+  record(called);
   const task = preview().tasks.find((t) => t.id === taskId);
   if (!task) throw refused("That task isn't there any more");
   if (!previewActions(task)[may]) throw refused("That task has moved on: look again");
@@ -228,7 +228,7 @@ function previewAct(taskId: string, call: string, may: keyof TaskActions, change
 /** You approve a task its holder marked in review: it's done (D-44). */
 export async function tasksApprove(taskId: string): Promise<TaskDetail> {
   if (!hasLiveBackend()) return previewAct(taskId, `approve:${taskId}`, "review", (t) => (t.status = "done"), "approved it: done");
-  return invoke<TaskDetail>("tasks_approve", { taskId });
+  return call("tasks_approve", { taskId });
 }
 
 /** You send a task in review back to in progress, with a note its holder
@@ -238,7 +238,7 @@ export async function tasksSendBack(taskId: string, note: string): Promise<TaskD
     if (!note.trim()) throw refused("Say what should change: a short note");
     return previewAct(taskId, `send-back:${taskId}:${note.trim()}`, "review", (t) => (t.status = t.holder ? "in_progress" : "ready"), `sent it back: ${note.trim()}`);
   }
-  return invoke<TaskDetail>("tasks_send_back", { taskId, note });
+  return call("tasks_send_back", { taskId, note });
 }
 
 /** You free a task whose holder's session ended or crashed, so another
@@ -257,19 +257,19 @@ export async function tasksFree(taskId: string): Promise<TaskDetail> {
       "freed it: its session had ended",
     );
   }
-  return invoke<TaskDetail>("tasks_free", { taskId });
+  return call("tasks_free", { taskId });
 }
 
 /** You cancel an open task (D-44). */
 export async function tasksCancel(taskId: string): Promise<TaskDetail> {
   if (!hasLiveBackend()) return previewAct(taskId, `cancel:${taskId}`, "cancel", (t) => (t.status = "cancelled"), "cancelled it");
-  return invoke<TaskDetail>("tasks_cancel", { taskId });
+  return call("tasks_cancel", { taskId });
 }
 
 /** What about tasks waits on you (Needs you). */
 export async function tasksNeeds(): Promise<TaskNeedInfo[]> {
   if (!hasLiveBackend()) return preview().needs.map((n) => ({ ...n }));
-  return invoke<TaskNeedInfo[]>("tasks_needs");
+  return call("tasks_needs");
 }
 
 /** Your answer to an agent's held change: once, always (a rule in this
@@ -281,7 +281,7 @@ export async function tasksAnswer(needId: string, answer: "once" | "always" | "d
     changed();
     return;
   }
-  return invoke<void>("tasks_answer", { needId, answer });
+  return call("tasks_answer", { needId, answer });
 }
 
 /** You dismiss an agent's request for a new session. */
@@ -292,7 +292,7 @@ export async function tasksDismiss(needId: string): Promise<void> {
     changed();
     return;
   }
-  return invoke<void>("tasks_dismiss", { needId });
+  return call("tasks_dismiss", { needId });
 }
 
 /** You start a session for a task, on the launch settings you picked. */
@@ -307,7 +307,7 @@ export async function tasksStart(taskId: string, profileId: string, needId: stri
     changed();
     return { session_id: "sess-preview-new", task: answered(task) };
   }
-  return invoke<TaskStartedInfo>("tasks_start", { taskId, profileId, needId });
+  return call("tasks_start", { taskId, profileId, needId });
 }
 
 /** You look a task's issue up (through your own `gh`). */
@@ -316,7 +316,7 @@ export async function tasksLookUp(taskId: string): Promise<TaskDetail> {
     record(`look-up:${taskId}`);
     return previewDetail(taskId);
   }
-  return invoke<TaskDetail>("tasks_look_up", { taskId });
+  return call("tasks_look_up", { taskId });
 }
 
 /** Calls `handler` when tasks change (the backend's event, or the

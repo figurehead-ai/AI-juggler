@@ -8,7 +8,7 @@
  * in `preview/processes`, so the page, its filters and its sheets work in
  * the dev preview and the gallery.
  */
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { portInventory, type PortInventoryInfo } from "./kill";
 import type { KillExecuteData, KillVerifyData } from "../../components/KillSheet";
@@ -78,19 +78,19 @@ export async function processesPorts(): Promise<PortInventoryInfo> {
  * and how many rows, at most 200). */
 export async function processesPage(input: ProcessQueryInput, page: PageRequest): Promise<Page<ProcessGraphRowInfo>> {
   if (!hasLiveBackend()) return (await preview()).previewPage(input, page);
-  return invoke<Page<ProcessGraphRowInfo>>("processes_page", { input, page });
+  return call("processes_page", { input, page });
 }
 
 /** The view's state: its version, counts, and whether the ledger records. */
 export async function processesStatus(): Promise<ProcessStatusInfo> {
   if (!hasLiveBackend()) return (await preview()).previewStatus();
-  return invoke<ProcessStatusInfo>("processes_status");
+  return call("processes_status");
 }
 
 /** The counts now (the top bar's and This Mac's "to clean up"). */
 export async function processesCounts(): Promise<ProcessCountsInfo> {
   if (!hasLiveBackend()) return (await preview()).previewCounts();
-  return invoke<ProcessCountsInfo>("processes_counts");
+  return call("processes_counts");
 }
 
 /** Keep (not a leftover), Remind me later for `minutes`, or neither. */
@@ -101,13 +101,13 @@ export async function processesMark(
   minutes?: number,
 ): Promise<void> {
   if (!hasLiveBackend()) return (await preview()).previewMark(pid, startTime, mark, minutes);
-  return invoke<void>("processes_mark", { pid, startTime, mark, minutes: minutes ?? null });
+  return call("processes_mark", { pid, startTime, mark, minutes: minutes ?? null });
 }
 
 /** D-41b: the verify sheet for another app's leftover (zero signals). */
 export async function processesObservedVerify(pid: number, startTime: number | null): Promise<KillVerifyData> {
   if (!hasLiveBackend()) return (await preview()).previewObservedVerify(pid, startTime);
-  return invoke<KillVerifyData>("processes_observed_verify", { pid, startTime });
+  return call("processes_observed_verify", { pid, startTime });
 }
 
 /** D-41b: the user's stop of another app's leftover (checked again, audited). */
@@ -117,7 +117,7 @@ export async function processesObservedStop(
   attempt: string,
 ): Promise<KillExecuteData> {
   if (!hasLiveBackend()) return (await preview()).previewObservedStop(pid);
-  return invoke<KillExecuteData>("processes_observed_stop", { pid, startTime, attempt });
+  return call("processes_observed_stop", { pid, startTime, attempt });
 }
 
 /** Cleanup history (7 days), one page, optionally one session's or project's. */
@@ -127,25 +127,25 @@ export async function processesHistory(
   page: PageRequest,
 ): Promise<Page<CleanupEventInfo>> {
   if (!hasLiveBackend()) return (await preview()).previewHistory(sessionId, projectId, page.cursor);
-  return invoke<Page<CleanupEventInfo>>("processes_history", { sessionId, projectId, page });
+  return call("processes_history", { sessionId, projectId, page });
 }
 
 /** What an account's automatic rule would tidy now (nothing is stopped). */
 export async function processesDryRun(accountId: string, tier: 1 | 2): Promise<RulePreviewInfo> {
   if (!hasLiveBackend()) return (await preview()).previewDryRun(accountId, tier);
-  return invoke<RulePreviewInfo>("processes_dry_run", { accountId, tier });
+  return call("processes_dry_run", { accountId, tier });
 }
 
 /** Each account's automatic cleanup, with pause and the crash hold. */
 export async function processesPolicy(): Promise<CleanupPolicyInfo> {
   if (!hasLiveBackend()) return (await preview()).previewPolicy();
-  return invoke<CleanupPolicyInfo>("processes_policy");
+  return call("processes_policy");
 }
 
 /** A snapshot to save: names and hashed command lines only. */
 export async function processesSnapshot(): Promise<ProcessSnapshotInfo> {
   if (!hasLiveBackend()) return (await preview()).previewSnapshot();
-  return invoke<ProcessSnapshotInfo>("processes_snapshot");
+  return call("processes_snapshot");
 }
 
 /** Calls `on` each time the graph changes; returns the disposer. In the
@@ -172,11 +172,11 @@ export function onProcessesChanged(on: (change: ProcessGraphChangedInfo) => void
  * knows for it). False when it has none. */
 export async function processesReveal(sessionKey: string): Promise<boolean> {
   if (!hasLiveBackend()) return false;
-  return invoke<boolean>("processes_reveal", { sessionKey });
+  return call("processes_reveal", { sessionKey });
 }
 
 /** Show in Activity Monitor (macOS's own). */
 export async function processesActivityMonitor(): Promise<boolean> {
   if (!hasLiveBackend()) return false;
-  return invoke<boolean>("processes_activity_monitor");
+  return call("processes_activity_monitor");
 }

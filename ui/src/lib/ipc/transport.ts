@@ -15,6 +15,7 @@ import {
   type EventCallback,
   type UnlistenFn,
 } from "@tauri-apps/api/event";
+import type { Commands } from "../../types/generated/commands";
 import type { PickKind } from "../../types/generated/PickKind";
 import { timed } from "./timing";
 
@@ -42,8 +43,9 @@ export const liveBackend = tauri || readOnly !== null;
 /** True when the backend is the read-only test bridge: writes are off. */
 export const readOnlyBackend = readOnly !== null;
 
-/** Every call is timed (0.3.2, `./timing`): names and times, never data. */
-export function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T> {
+/** Every call is timed (0.3.2, `./timing`): names and times, never data.
+ * Untyped: only `call` below uses it. */
+function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T> {
   return timed(cmd, () =>
     readOnly
       ? readOnly.then((transport) => transport.invoke<T>(cmd, args))
@@ -51,15 +53,36 @@ export function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T> {
   );
 }
 
+/** A command's arguments: optional when it takes none it must have. */
+type CallArgs<K extends keyof Commands> = Record<string, never> extends Commands[K]["args"]
+  ? [args?: Commands[K]["args"]]
+  : [args: Commands[K]["args"]];
+
+/** AJ-E2019 (ADR-0029): calls a backend command, its name, arguments and
+ * result checked against the Rust signature (`types/generated/commands.ts`,
+ * generated from the command registry). The one way lib/ipc reaches the
+ * backend. */
+export function call<K extends keyof Commands>(name: K, ...args: CallArgs<K>): Promise<Commands[K]["result"]> {
+  return invoke<Commands[K]["result"]>(name, args[0]);
+}
+
 /** A stream for a command's changes (a Tauri `Channel`). The read-only
  * bridge carries none: what streams is message text, which it never
- * serves (AJ-E2108), so the call goes without one and the bridge refuses
- * it as any it doesn't serve, in words, never a crash (0.3.5). */
+ * serves (AJ-E2108), so the call goes through `withoutStream` and the
+ * bridge refuses it as any it doesn't serve, in words, never a crash
+ * (0.3.5). */
 export function channel<T>(onMessage: (message: T) => void): Channel<T> | null {
   if (readOnly) return null;
   const made = new Channel<T>();
   made.onmessage = onMessage;
   return made;
+}
+
+/** A streaming command where no stream can be made (the read-only
+ * bridge, see `channel`): sent bare, so the bridge refuses it in its own
+ * words. */
+export function withoutStream<K extends keyof Commands>(name: K): Promise<Commands[K]["result"]> {
+  return invoke<Commands[K]["result"]>(name);
 }
 
 export function listen<T>(
@@ -77,5 +100,5 @@ export function listen<T>(
  * picker and what the pick may be used for; null when cancelled. The
  * read-only bridge refuses it (a pick starts a write). */
 export function pickPath(kind: PickKind, fileName?: string): Promise<string | null> {
-  return invoke<string | null>("pick_path", { kind, fileName: fileName ?? null });
+  return call("pick_path", { kind, fileName: fileName ?? null });
 }

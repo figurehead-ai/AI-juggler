@@ -4,7 +4,7 @@
  * everything travels.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { SwitchCutArgs } from "../../types/generated/SwitchCutArgs";
 import type { SwitchCutInfo } from "../../types/generated/SwitchCutInfo";
 
@@ -32,5 +32,5 @@ export const NO_CUT: SwitchCutInfo = {
 /** What `cut` would leave out of `sessionId`'s conversation there. */
 export async function switchCutPreview(sessionId: string, targetProfileId: string, cut: SwitchCutArgs | null): Promise<SwitchCutInfo> {
   if (!hasLiveBackend()) return seam()?.(cut) ?? NO_CUT;
-  return invoke<SwitchCutInfo>("switch_cut_preview", { sessionId, targetProfileId, cut });
+  return call("switch_cut_preview", { sessionId, targetProfileId, cut });
 }

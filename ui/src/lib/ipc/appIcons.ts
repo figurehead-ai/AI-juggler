@@ -8,7 +8,7 @@
  * the specs fill with made-up test images, else from the preview's own
  * made-up set (`preview/app-icons`).
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { previewHooks } from "../preview-hooks";
 
@@ -36,5 +36,5 @@ export async function appIconRead(ask: AppIconAsk, px: AppIconPixels): Promise<s
     return previewHooks().appIcons.PREVIEW_APP_ICONS[ask.appId] ?? null;
   }
   if (ask.appId === null && ask.appPid === null) return null;
-  return invoke<string | null>("app_icons_read", { appId: ask.appId, process: ask.appPid, px });
+  return call("app_icons_read", { appId: ask.appId, process: ask.appPid, px });
 }

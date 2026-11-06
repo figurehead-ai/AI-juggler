@@ -8,7 +8,7 @@
  * In the preview (no backend) the same calls answer from `previewFloor`,
  * and an `aij:floor-changed` window event stands in for the backend's.
  */
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { FloorAccount } from "../../types/generated/FloorAccount";
 import type { FloorApp } from "../../types/generated/FloorApp";
@@ -28,7 +28,7 @@ export const FLOOR_UNAVAILABLE = "floor://unavailable";
 /** The company now, as the Floor draws it. */
 export async function floorSnapshot(): Promise<FloorSnapshot> {
   if (!hasLiveBackend()) return (await import("../../preview/floor")).previewFloor();
-  return invoke<FloorSnapshot>("floor_snapshot");
+  return call("floor_snapshot");
 }
 
 /** Calls `on` with each new snapshot; returns the disposer. */
@@ -54,7 +54,7 @@ export function onFloorChanged(on: (snapshot: FloorSnapshot) => void): () => voi
  * preview there's no window to open: it says so. */
 export async function floorOpen(): Promise<void> {
   if (!hasLiveBackend()) throw new Error("The Floor opens in the app, not in the preview.");
-  return invoke<void>("floor_open");
+  return call("floor_open");
 }
 
 /** Calls `on` when the Floor couldn't open from ⌘⇧M or the tray. */
@@ -75,5 +75,5 @@ export function onFloorUnavailable(on: (words: string) => void): () => void {
 /** Hands the backend a floor logo the window drew for an App (AJ-E3508). */
 export async function floorLogoPut(appId: string, print: string, png: Uint8Array): Promise<void> {
   if (!hasLiveBackend()) return;
-  return invoke<void>("floor_logo_put", { appId, print, png: Array.from(png) });
+  return call("floor_logo_put", { appId, print, png: Array.from(png) });
 }

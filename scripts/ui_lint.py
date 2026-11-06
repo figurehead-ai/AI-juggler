@@ -4,7 +4,9 @@ only shrink.
 
 Runs oxlint (type-aware, on TypeScript 7's own checker; `ui/.oxlintrc.json`:
 typescript strict rules, react and its hooks, jsx-a11y, `max-lines`,
-complexity, and only `lib/ipc` calling the backend) and compares each
+complexity, only `lib/ipc` calling the backend, and only its
+`transport.ts` invoking: the rest calls through the typed `call`,
+AJ-E2019) and compares each
 file's count per rule with `ui/lint-baseline.json`. A count above its
 baseline fails (new code adds no debt); a count below it fails too until
 the baseline is lowered with `--update` (so the debt paid stays paid).

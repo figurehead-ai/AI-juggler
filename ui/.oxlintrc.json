@@ -35,11 +35,23 @@
         "paths": [
           {
             "name": "@tauri-apps/api/core",
-            "message": "Only lib/ipc calls the backend."
+            "message": "Only lib/ipc/transport.ts invokes the backend; lib/ipc calls through its typed call() (AJ-E2019)."
           },
           {
             "name": "@tauri-apps/api/event",
             "message": "Only lib/ipc listens to the backend."
+          }
+        ],
+        "patterns": [
+          {
+            "group": [
+              "**/transport",
+              "./transport"
+            ],
+            "importNames": [
+              "invoke"
+            ],
+            "message": "A raw invoke is transport.ts's own; call a command through the typed call() (AJ-E2019)."
           }
         ]
       }

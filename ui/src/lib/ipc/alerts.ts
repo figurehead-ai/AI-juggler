@@ -1,7 +1,7 @@
 /**
  * Passive alerts, the ranking and the reset queue.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 
 /** AJ-E611: one ranked (or filtered) account row. */
 export interface RankedRowData {
@@ -29,7 +29,7 @@ export async function rankingRows(project?: string): Promise<RankedRowData[]> {
     return (window as unknown as { __AIJ_RANKING__?: RankedRowData[] })
       .__AIJ_RANKING__ ?? [];
   }
-  return invoke<RankedRowData[]>("ranking_rows", { project });
+  return call("ranking_rows", { project });
 }
 
 /** AJ-E611: one emitted alert (the notification region's payload).
@@ -62,7 +62,7 @@ export async function alertsTick(): Promise<AlertEventData[]> {
     return (window as unknown as { __AIJ_ALERTS__?: AlertEventData[] })
       .__AIJ_ALERTS__ ?? [];
   }
-  return invoke<AlertEventData[]>("alerts_tick", { localHour: new Date().getHours() });
+  return call("alerts_tick", { localHour: new Date().getHours() });
 }
 
 /** AJ-E611: one reset-queue row. */
@@ -80,7 +80,7 @@ export async function resetQueueList(): Promise<ResetQueueRow[]> {
     return (window as unknown as { __AIJ_RESET_QUEUE__?: ResetQueueRow[] })
       .__AIJ_RESET_QUEUE__ ?? [];
   }
-  return invoke<ResetQueueRow[]>("reset_queue_list");
+  return call("reset_queue_list");
 }
 
 /** AJ-E611: queue a resume at the reset (passive timer; the resume
@@ -91,11 +91,11 @@ export async function resetQueueQueue(
   resumeAtMs: number,
 ): Promise<void> {
   if (!hasBackend) return;
-  await invoke("reset_queue_queue", { session, account, resumeAtMs });
+  await call("reset_queue_queue", { session, account, resumeAtMs });
 }
 
 /** AJ-E611: dismiss a queued resume. */
 export async function resetQueueDismiss(id: string): Promise<void> {
   if (!hasBackend) return;
-  await invoke("reset_queue_dismiss", { id });
+  await call("reset_queue_dismiss", { id });
 }

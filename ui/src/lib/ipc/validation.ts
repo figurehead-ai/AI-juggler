@@ -1,7 +1,7 @@
 /**
  * The validation matrix (dogfood cells).
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import { previewHooks } from "../preview-hooks";
 
 /** AJ-E210: one recorded live dogfood cell as the Beta table reads it. */
@@ -48,5 +48,5 @@ export async function validationMatrix(): Promise<ValidationCellData[]> {
         .__AIJ_VALIDATION_MATRIX__ ?? previewHooks().switching.DEFAULT_VALIDATION_MATRIX
     );
   }
-  return invoke<ValidationCellData[]>("validation_matrix");
+  return call("validation_matrix");
 }

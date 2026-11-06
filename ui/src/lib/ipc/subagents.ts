@@ -6,7 +6,7 @@
  * The backend asks the session's tool's adapter, read-only; a saved
  * index makes a long session open at once.
  */
-import { channel, invoke } from "./transport";
+import { channel, call, withoutStream } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { PageRequest } from "../../types/generated/PageRequest";
 import type { SubagentsInfo } from "../../types/generated/SubagentsInfo";
@@ -28,19 +28,19 @@ export const NO_QUERY: SubagentsQuery = { view: null, search: null, kind: null, 
 /** A session's subagents as rows: groups, then each group's tree. */
 export async function subagentsList(accountId: string, conversationId: string, page: PageRequest, query: SubagentsQuery = NO_QUERY): Promise<SubagentsInfo> {
   if (!hasLiveBackend()) return previewHooks().subagents.previewList(conversationId, query, page);
-  return invoke<SubagentsInfo>("subagents_list", { accountId, conversationId, query, page });
+  return call("subagents_list", { accountId, conversationId, query, page });
 }
 
 /** One subagent's own page. */
 export async function subagentsDetail(accountId: string, conversationId: string, subagentId: string): Promise<SubagentDetailInfo> {
   if (!hasLiveBackend()) return previewHooks().subagents.previewDetail(conversationId, subagentId);
-  return invoke<SubagentDetailInfo>("subagents_detail", { accountId, conversationId, subagentId });
+  return call("subagents_detail", { accountId, conversationId, subagentId });
 }
 
 /** A project's subagents: its newest sessions' together. */
 export async function subagentsProject(projectId: string, page: PageRequest, query: SubagentsQuery = NO_QUERY): Promise<SubagentsInfo> {
   if (!hasLiveBackend()) return previewHooks().subagents.previewProject(projectId, query, page);
-  return invoke<SubagentsInfo>("subagents_project", { projectId, query, page });
+  return call("subagents_project", { projectId, query, page });
 }
 
 /** One subagent's conversation: `before` pages back, `from` follows
@@ -54,7 +54,7 @@ export async function subagentsConversation(accountId: string, conversationId: s
     if (ask.before == null && ask.known === stamp) return { state: "unchanged", turns: [], redacted: 0, earlier: null, stamp };
     return { state: "shown", turns, redacted: 0, earlier: null, stamp };
   }
-  return invoke<LastMessagesInfo>("subagents_conversation", {
+  return call("subagents_conversation", {
     accountId,
     conversationId,
     subagentId,
@@ -73,5 +73,6 @@ export async function subagentsFollow(accountId: string, conversationId: string,
     const turns = previewHooks().subagents.seededTurns(conversationId, subagentId);
     return turns ? previewHooks().conversationFeed.previewFollow(`${accountId}\u0000${conversationId}\u0000${subagentId}`, turns, "stretches", max, onDelta) : previewHooks().conversationFeed.previewWithout("none");
   }
-  return invoke<ConversationSnapshotInfo>("subagents_follow", { accountId, conversationId, subagentId, max, channel: channel(onDelta) });
+  const stream = channel(onDelta);
+  return stream ? call("subagents_follow", { accountId, conversationId, subagentId, max, channel: stream }) : withoutStream("subagents_follow");
 }

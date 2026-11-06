@@ -2,7 +2,7 @@
  * Switching (the golden path): the hand-over, the preflight, door count
  * and undo.
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import type { RedactionInfoData, RedactionItemData } from "./redaction";
 import type { DestinationsInfo } from "../../types/generated/DestinationsInfo";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
@@ -13,7 +13,7 @@ export async function sessionHandover(
   sessionId: string,
   targetProfileId: string,
 ): Promise<LaunchResult> {
-  return invoke<LaunchResult>("session_handover", { sessionId, targetProfileId });
+  return call("session_handover", { sessionId, targetProfileId });
 }
 
 /** AJ-E205: the preflight verdict for one switch (rendered by the
@@ -109,7 +109,7 @@ export async function switchDoorCount(door: string, steps: string[]): Promise<vo
     (w.__AIJ_DOOR_COUNTS__ ??= []).push({ door, steps });
     return;
   }
-  await invoke<void>("switch_door_count", { door, steps });
+  await call("switch_door_count", { door, steps });
 }
 
 /** AJ-E205: preflight — ordered checks stop BEFORE any byte moves;
@@ -136,7 +136,7 @@ export async function switchPreflight(
     }
     return base;
   }
-  return invoke<PreflightInfoData>("switch_preflight", { sessionId, targetProfileId });
+  return call("switch_preflight", { sessionId, targetProfileId });
 }
 
 /** AJ-E206 §8.2: undoes a completed switch — stops the continuation
@@ -159,7 +159,7 @@ export async function switchUndo(edgeId: string): Promise<LaunchResult> {
     }
     return { session_id: `sess-undo-${Date.now()}`, pid: 0 };
   }
-  return invoke<LaunchResult>("switch_undo", { edgeId });
+  return call("switch_undo", { edgeId });
 }
 
 /** 0.3.9: the switch pipeline's stage as it moves (`switch://progress`:

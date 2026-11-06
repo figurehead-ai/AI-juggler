@@ -2,7 +2,7 @@
  * Usage statistics and the funnel (AJ-E309): local or shared, the
  * report, UI events and gauges.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { UsageStatsInfo as UsageStatsInfoData } from "../../types/generated/UsageStatsInfo";
 import type { UsageStatsOverview as UsageStatsOverviewData } from "../../types/generated/UsageStatsOverview";
 import type { UsageStatsSetResult as UsageStatsSetResultData } from "../../types/generated/UsageStatsSetResult";
@@ -22,7 +22,7 @@ export async function funnelEventEmit(
     seams.__AIJ_FUNNEL_EVENTS__ = [...(seams.__AIJ_FUNNEL_EVENTS__ ?? []), { kind, fields }];
     return;
   }
-  return invoke<void>("funnel_event", { kind, fields });
+  return call("funnel_event", { kind, fields });
 }
 
 /** The usage-stats modes. */
@@ -62,7 +62,7 @@ function previewStats(): UsageStatsOverviewData {
 /** AJ-E1102: the usage-stats choice and what applies. */
 export async function usageStatsInfo(): Promise<UsageStatsInfoData> {
   if (!hasBackend) return previewStats().info;
-  return invoke<UsageStatsInfoData>("usage_stats_info");
+  return call("usage_stats_info");
 }
 
 /** AJ-E1102: sets the mode (`off` deletes everything counted). */
@@ -90,13 +90,13 @@ export async function usageStatsSet(mode: UsageStatsMode): Promise<UsageStatsSet
             : "Usage stats are on. One small report a week will be sent.",
     };
   }
-  return invoke<UsageStatsSetResultData>("usage_stats_set", { mode });
+  return call("usage_stats_set", { mode });
 }
 
 /** AJ-E1105: everything Settings ▸ Privacy shows. */
 export async function usageStatsOverview(): Promise<UsageStatsOverviewData> {
   if (!hasBackend) return previewStats();
-  return invoke<UsageStatsOverviewData>("usage_stats_overview");
+  return call("usage_stats_overview");
 }
 
 /** AJ-E1105: one report's exact JSON (read-only). */
@@ -105,7 +105,7 @@ export async function usageStatsReport(status: string, week: string): Promise<st
     const reports = (window as unknown as StatsSeam).__AIJ_USAGE_STATS_REPORTS__ ?? {};
     return reports[`${status}/${week}`] ?? "{}";
   }
-  return invoke<string>("usage_stats_report", { status, week });
+  return call("usage_stats_report", { status, week });
 }
 
 /** AJ-E1105: "Delete local stats" (the mode is kept). */
@@ -115,7 +115,7 @@ export async function usageStatsDeleteLocal(): Promise<UsageStatsSetResultData> 
     (window as unknown as StatsSeam).__AIJ_USAGE_STATS__ = { ...current, rows: [], reports: [], last_error: null };
     return { info: current.info, message: "Local stats deleted." };
   }
-  return invoke<UsageStatsSetResultData>("usage_stats_delete_local");
+  return call("usage_stats_delete_local");
 }
 
 /** AJ-E1109: turns the personal stats sync on or off. */
@@ -128,13 +128,13 @@ export async function usageStatsSetSync(on: boolean): Promise<UsageStatsOverview
     };
     return previewStats();
   }
-  return invoke<UsageStatsOverviewData>("usage_stats_set_sync", { on });
+  return call("usage_stats_set_sync", { on });
 }
 
 /** AJ-E1105: opens the public list of every metric. */
 export async function usageStatsOpenDocs(): Promise<void> {
   if (!hasBackend) return;
-  return invoke<void>("usage_stats_open_docs");
+  return call("usage_stats_open_docs");
 }
 
 /** AJ-E1103: the usage-statistics metrics the interface counts. The
@@ -163,7 +163,7 @@ export function statsEvent(metric: UiStatMetric, dims: Record<string, string> = 
     seams.__AIJ_STATS_EVENTS__ = [...(seams.__AIJ_STATS_EVENTS__ ?? []), { metric, dims, value }];
     return;
   }
-  void invoke<void>("usage_stats_ui_event", { metric, dims, value: value ?? null }).catch(() => undefined);
+  void call("usage_stats_ui_event", { metric, dims, value: value ?? null }).catch(() => undefined);
 }
 
 /** AJ-E1103: a display preference as this week's gauge (fire and forget). */
@@ -173,7 +173,7 @@ export function statsGauge(metric: "ui.density" | "ui.theme", value: string): vo
     seams.__AIJ_STATS_GAUGES__ = { ...(seams.__AIJ_STATS_GAUGES__ ?? {}), [metric]: value };
     return;
   }
-  void invoke<void>("usage_stats_ui_gauge", { metric, value }).catch(() => undefined);
+  void call("usage_stats_ui_gauge", { metric, value }).catch(() => undefined);
 }
 
 /** AJ-E309 Req.7: the LOCAL funnel report (markdown; never a network
@@ -182,5 +182,5 @@ export async function funnelExport(): Promise<string> {
   if (!hasBackend) {
     return "# Onboarding funnel — local export\n\n(preview mode — no events are stored)\n";
   }
-  return invoke<string>("funnel_export");
+  return call("funnel_export");
 }

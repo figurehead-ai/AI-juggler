@@ -14,7 +14,7 @@
  * `__AIJ_POOL_CANVAS__` (by pool id); the calls that change things are
  * recorded in `__AIJ_POOL_CANVAS_CALLS__`.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { messagesNeeds, previewPoolMessages } from "./messages";
 import { tasksNeeds } from "./tasks";
@@ -42,7 +42,7 @@ interface Seams {
   __AIJ_POOL_CANVAS_CALLS__?: string[];
 }
 const seams = () => window as unknown as Seams;
-const record = (call: string) => (seams().__AIJ_POOL_CANVAS_CALLS__ ??= []).push(call);
+const record = (called: string) => (seams().__AIJ_POOL_CANVAS_CALLS__ ??= []).push(called);
 
 /** The preview's positions, by pool, then session. */
 let placed: Map<string, Map<string, NodePositionInfo>> | null = null;
@@ -117,7 +117,7 @@ async function preview(poolId: string, shown: string[]): Promise<PoolCanvasInfo>
 export async function poolCanvas(poolId: string, sessionIds: string[]): Promise<PoolCanvasInfo> {
   const shown = sessionIds.slice(0, MOST_NODES);
   if (!hasLiveBackend()) return preview(poolId, shown);
-  return invoke<PoolCanvasInfo>("pools_canvas", { poolId, sessionIds: shown });
+  return call("pools_canvas", { poolId, sessionIds: shown });
 }
 
 /** Puts members' nodes where you dropped them (all or nothing). */
@@ -129,7 +129,7 @@ export async function poolCanvasPlace(poolId: string, nodes: NodePositionInfo[])
     for (const node of rounded) pool.set(node.session_id, node);
     return;
   }
-  return invoke<void>("pools_canvas_place", { poolId, nodes: rounded });
+  return call("pools_canvas_place", { poolId, nodes: rounded });
 }
 
 /** Forgets where you put a pool's members ("Tidy up"). */
@@ -139,7 +139,7 @@ export async function poolCanvasTidy(poolId: string): Promise<void> {
     previewPlaced(poolId).clear();
     return;
   }
-  return invoke<void>("pools_canvas_tidy", { poolId });
+  return call("pools_canvas_tidy", { poolId });
 }
 
 /** The Pools screen's cards: each pool's open members' places and its
@@ -153,7 +153,7 @@ export async function poolCanvasPreviews(poolIds: string[]): Promise<PoolPreview
       moving: seams().__AIJ_POOL_CANVAS__?.[poolId]?.moving ?? 0,
     }));
   }
-  return invoke<PoolPreviewInfo[]>("pools_canvas_previews", { poolIds: asked });
+  return call("pools_canvas_previews", { poolIds: asked });
 }
 
 /** Tests: forget the preview's positions between cases. */

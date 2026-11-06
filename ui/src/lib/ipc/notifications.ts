@@ -5,7 +5,7 @@
  * the kinds, and an `aij:notification-click` window event stands in for
  * a click.
  */
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { SystemNotificationsInfo } from "../../types/generated/SystemNotificationsInfo";
 
@@ -46,7 +46,7 @@ const preview = () => window as unknown as { __AIJ_NOTIFY__?: SystemNotification
 /** Which kinds may become a system notification. */
 export async function notificationsGet(): Promise<SystemNotificationsInfo> {
   if (!hasLiveBackend()) return { ...NOTIFY_DEFAULT, ...preview().__AIJ_NOTIFY__ };
-  return invoke<SystemNotificationsInfo>("notifications_get");
+  return call("notifications_get");
 }
 
 /** Saves which kinds may become a system notification. */
@@ -55,7 +55,7 @@ export async function notificationsSet(kinds: SystemNotificationsInfo): Promise<
     preview().__AIJ_NOTIFY__ = { ...kinds };
     return { ...kinds };
   }
-  return invoke<SystemNotificationsInfo>("notifications_set", { kinds });
+  return call("notifications_set", { kinds });
 }
 
 /** AJ-E2904: Send test — one system notification now; what to check if
@@ -66,7 +66,7 @@ export async function notificationsSendTest(): Promise<string> {
     seams.__AIJ_NOTIFY_TESTS__ = (seams.__AIJ_NOTIFY_TESTS__ ?? 0) + 1;
     return "Sent. If nothing appeared, allow AI Juggler in System Settings › Notifications.";
   }
-  return invoke<string>("notifications_send_test");
+  return call("notifications_send_test");
 }
 
 /** Called when a notification was clicked: open what it was about. */

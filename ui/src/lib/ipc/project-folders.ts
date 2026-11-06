@@ -2,7 +2,7 @@
  * Projects and folders: the list, backfill, the default account, and
  * picking or dropping a folder.
  */
-import { invoke, liveBackend as hasBackend, pickPath, readOnlyBackend } from "./transport";
+import { call, liveBackend as hasBackend, pickPath, readOnlyBackend } from "./transport";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { previewHooks } from "../preview-hooks";
 
@@ -11,14 +11,14 @@ export async function projectsList(): Promise<ProjectInfo[]> {
   if (!hasBackend) {
     return [...previewHooks().fixtures.MOCK_PROJECTS];
   }
-  return invoke<ProjectInfo[]>("projects_list");
+  return call("projects_list");
 }
 
 
 /** Backfills the projects rail from imported transcript history (idempotent). */
 export async function projectsBackfill(): Promise<number> {
   if (!hasBackend) return 0;
-  return invoke<number>("projects_backfill");
+  return call("projects_backfill");
 }
 
 /** Native macOS folder picker; null when cancelled. */

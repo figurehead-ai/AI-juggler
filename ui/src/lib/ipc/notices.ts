@@ -7,7 +7,7 @@
  * happened, the mutes, the quiet hours; preview/needs.tsx stands in for
  * the backend's Needs you).
  */
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { pageOf, type Page, type PageRequest } from "../paged";
 import type { NeedSnoozeInfo } from "../../types/generated/NeedSnoozeInfo";
@@ -126,7 +126,7 @@ function everyRow(s: Stand): NoticeInfo[] {
 /** Where the model stands. */
 export async function notificationsSummary(): Promise<NoticeSummaryInfo> {
   if (!hasLiveBackend()) return summaryOf(standIn());
-  return invoke<NoticeSummaryInfo>("notifications_summary");
+  return call("notifications_summary");
 }
 
 /** One page of a list. */
@@ -136,7 +136,7 @@ export async function notificationsPage(section: NoticeSection, request: PageReq
     const rows = section === "needs" ? openRows(s) : section === "banners" ? bannersOf(s) : s.earlier.map((row) => shaped(s, row));
     return pageOf(rows, request);
   }
-  return invoke<Page<NoticeInfo>>("notifications_page", { section, request });
+  return call("notifications_page", { section, request });
 }
 
 /** The preview's Needs you at once (the first render, no read to wait
@@ -179,7 +179,7 @@ function mark(id: number | null, change: (row: NoticeInfo) => void): NoticeSumma
 /** Marks one notice read, or all of them. */
 export async function notificationsRead(id: number | null): Promise<NoticeSummaryInfo> {
   if (!hasLiveBackend()) return mark(id, (row) => (row.unread = false));
-  return invoke<NoticeSummaryInfo>("notifications_read", { id });
+  return call("notifications_read", { id });
 }
 
 /** Snoozes a subject (`s:<session>`, …): out of the Needs you count until
@@ -193,19 +193,19 @@ export async function notificationsSnooze(subject: string, untilMs: number | nul
     if (untilMs !== null || forever) for (const row of everyRow(s)) if (row.needs && (row.subject ?? "") === subject) row.unread = false;
     return changedIn(s);
   }
-  return invoke<NoticeSummaryInfo>("notifications_snooze", { subject, untilMs, forever });
+  return call("notifications_snooze", { subject, untilMs, forever });
 }
 
 /** The snoozes on now, a page at a time (the rail marks its rows). */
 export async function notificationsSnoozes(request: PageRequest): Promise<Page<NeedSnoozeInfo>> {
   if (!hasLiveBackend()) return pageOf([...snoozesOn(standIn())].map(([subject, until_ms]) => ({ subject, until_ms })), request);
-  return invoke<Page<NeedSnoozeInfo>>("notifications_snoozes", { request });
+  return call("notifications_snoozes", { request });
 }
 
 /** Closes a banner (the notice stays in the centre). */
 export async function notificationsDismiss(id: number): Promise<NoticeSummaryInfo> {
   if (!hasLiveBackend()) return mark(id, (row) => ((row.dismissed = true), (row.unread = false)));
-  return invoke<NoticeSummaryInfo>("notifications_dismiss", { id });
+  return call("notifications_dismiss", { id });
 }
 
 /** Mutes a project or a kind. */
@@ -216,7 +216,7 @@ export async function notificationsMute(scope: "project" | "pool" | "kind", valu
     s.mutes = [...s.mutes.filter((mute) => !(mute.scope === scope && mute.value === value)), { scope, value, label }];
     return changedIn(s);
   }
-  return invoke<NoticeSummaryInfo>("notifications_mute", { scope, value, label });
+  return call("notifications_mute", { scope, value, label });
 }
 
 /** Lets a project or a kind interrupt again. */
@@ -226,13 +226,13 @@ export async function notificationsUnmute(scope: string, value: string): Promise
     s.mutes = s.mutes.filter((mute) => !(mute.scope === scope && mute.value === value));
     return changedIn(s);
   }
-  return invoke<NoticeSummaryInfo>("notifications_unmute", { scope, value });
+  return call("notifications_unmute", { scope, value });
 }
 
 /** The mutes, a page at a time. */
 export async function notificationsMutes(request: PageRequest): Promise<Page<NoticeMuteInfo>> {
   if (!hasLiveBackend()) return pageOf(standIn().mutes, request);
-  return invoke<Page<NoticeMuteInfo>>("notifications_mutes", { request });
+  return call("notifications_mutes", { request });
 }
 
 /** Every change in the model, with the summary. */

@@ -2,7 +2,7 @@
  * AJ-E1003/E1004/E1005: park until reset, the morning summary and
  * morning triage.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { OvernightSummaryInfo } from "../../types/generated/OvernightSummaryInfo";
 import type { ParkedInfo } from "../../types/generated/ParkedInfo";
 import type { ParkedOfferInfo } from "../../types/generated/ParkedOfferInfo";
@@ -15,9 +15,9 @@ type ParkSeams = {
   __AIJ_PARKED_CHECK__?: ParkedInfo;
 };
 const parkSeams = () => window as unknown as ParkSeams;
-const parkCall = (call: string) => {
+const parkCall = (called: string) => {
   const seams = parkSeams();
-  seams.__AIJ_PARK_CALLS__ = [...(seams.__AIJ_PARK_CALLS__ ?? []), call];
+  seams.__AIJ_PARK_CALLS__ = [...(seams.__AIJ_PARK_CALLS__ ?? []), called];
 };
 
 /** Parks a quota-blocked Instance until its window resets (pack staged). */
@@ -34,14 +34,14 @@ export async function instancePark(sessionId: string): Promise<ParkedInfo> {
       pack_dir: "",
     };
   }
-  return invoke<ParkedInfo>("instance_park", { sessionId });
+  return call("instance_park", { sessionId });
 }
 
 /** The resume offers due now (polled with the alerts — never a timer of
  * its own). */
 export async function parkedOffers(): Promise<ParkedOfferInfo[]> {
   if (!hasBackend) return [...(parkSeams().__AIJ_PARKED_OFFERS__ ?? [])];
-  return invoke<ParkedOfferInfo[]>("parked_offers");
+  return call("parked_offers");
 }
 
 /** "Not now": snoozes once, then stays parked quietly. */
@@ -52,7 +52,7 @@ export async function parkedDismiss(sessionId: string): Promise<void> {
     seams.__AIJ_PARKED_OFFERS__ = (seams.__AIJ_PARKED_OFFERS__ ?? []).filter((row) => row.session_id !== sessionId);
     return;
   }
-  return invoke<void>("parked_dismiss", { sessionId });
+  return call("parked_dismiss", { sessionId });
 }
 
 /** Re-reads an Estimated reset ("check now"). */
@@ -63,7 +63,7 @@ export async function parkedCheckNow(sessionId: string): Promise<ParkedInfo> {
     if (seeded) return seeded;
     throw new Error("still estimated");
   }
-  return invoke<ParkedInfo>("parked_check_now", { sessionId });
+  return call("parked_check_now", { sessionId });
 }
 
 /** Resumes a parked Instance — the original session, on its Account. */
@@ -72,7 +72,7 @@ export async function parkedResume(sessionId: string): Promise<{ session_id: str
     parkCall(`resume:${sessionId}`);
     return null;
   }
-  return invoke<{ session_id: string; pid: number }>("parked_resume", { sessionId });
+  return call("parked_resume", { sessionId });
 }
 
 
@@ -82,7 +82,7 @@ export async function overnightSummary(): Promise<OvernightSummaryInfo> {
     const seeded = (window as unknown as { __AIJ_SUMMARY__?: OvernightSummaryInfo }).__AIJ_SUMMARY__;
     return seeded ?? { since_ms: Date.now(), generated_ms: Date.now(), rows: [], counts: {}, leftovers: 0 };
   }
-  return invoke<OvernightSummaryInfo>("overnight_summary", { sinceMs: null });
+  return call("overnight_summary", { sinceMs: null });
 }
 
 /** The user looked: the next summary starts from now. */
@@ -93,7 +93,7 @@ export async function overnightSummarySeen(): Promise<void> {
     delete w.__AIJ_SUMMARY__;
     return;
   }
-  return invoke<void>("overnight_summary_seen");
+  return call("overnight_summary_seen");
 }
 
 
@@ -111,7 +111,7 @@ export async function instanceMarkReviewed(sessionId: string): Promise<number> {
     }
     return at;
   }
-  return invoke<number>("instance_mark_reviewed", { sessionId });
+  return call("instance_mark_reviewed", { sessionId });
 }
 
 /** AJ-E1503: undoes Mark reviewed (back on the finished list; both
@@ -128,5 +128,5 @@ export async function instanceUnmarkReviewed(sessionId: string): Promise<number>
     }
     return at;
   }
-  return invoke<number>("instance_unmark_reviewed", { sessionId });
+  return call("instance_unmark_reviewed", { sessionId });
 }

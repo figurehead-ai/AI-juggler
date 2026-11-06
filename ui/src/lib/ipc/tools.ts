@@ -1,7 +1,7 @@
 /**
  * AJ-E1525 — the tools catalog over IPC (ADR-0019 §1): every tool as data.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { ToolSpecInfo } from "../../types/generated/ToolSpecInfo";
 import { previewHooks } from "../preview-hooks";
@@ -16,5 +16,5 @@ export function previewTools(): ToolSpecInfo[] {
 /** Every registered tool, the primary one first. */
 export async function toolsCatalog(): Promise<ToolSpecInfo[]> {
   if (!hasLiveBackend()) return previewTools();
-  return invoke<ToolSpecInfo[]>("tools_catalog");
+  return call("tools_catalog");
 }

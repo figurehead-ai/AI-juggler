@@ -1,7 +1,7 @@
 /**
  * AJ-E1202/E1203: the optional Figurehead account.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { CloudFeatureInfo } from "../../types/generated/CloudFeatureInfo";
 import type { FigureheadStatusInfo } from "../../types/generated/FigureheadStatusInfo";
 import { previewHooks } from "../preview-hooks";
@@ -45,9 +45,9 @@ function fhSet(next: FigureheadStatusInfo): FigureheadStatusInfo {
   return { ...next };
 }
 
-function fhCall(call: string): void {
+function fhCall(called: string): void {
   const seams = fhSeams();
-  seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), call];
+  seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), called];
 }
 
 function fhLinked(name?: string): FigureheadStatusInfo {
@@ -67,7 +67,7 @@ function fhLinked(name?: string): FigureheadStatusInfo {
 /** The Figurehead status (local — never a network call). */
 export async function figureheadStatus(): Promise<FigureheadStatusInfo> {
   if (!hasBackend) return { ...fhStatus() };
-  return invoke<FigureheadStatusInfo>("figurehead_status");
+  return call("figurehead_status");
 }
 
 /** Starts a browser link and opens the approval page. */
@@ -80,7 +80,7 @@ export async function figureheadLinkStart(name?: string): Promise<FigureheadStat
       link: { user_code: "QVM3-GABM", phase: "waiting", expires_at_ms: Date.now() + 600_000, message: null },
     });
   }
-  return invoke<FigureheadStatusInfo>("figurehead_link_start", { name: name ?? null });
+  return call("figurehead_link_start", { name: name ?? null });
 }
 
 /** Polls the browser link (the app paces it to the server's interval). */
@@ -92,13 +92,13 @@ export async function figureheadLinkPoll(): Promise<FigureheadStatusInfo> {
     if (decision === "approved") return fhLinked();
     return fhSet({ ...status, link: { ...status.link, phase: decision } });
   }
-  return invoke<FigureheadStatusInfo>("figurehead_link_poll");
+  return call("figurehead_link_poll");
 }
 
 /** Cancels a browser link. */
 export async function figureheadLinkCancel(): Promise<FigureheadStatusInfo> {
   if (!hasBackend) return fhSet({ ...fhStatus(), state: "signed_out", link: null });
-  return invoke<FigureheadStatusInfo>("figurehead_link_cancel");
+  return call("figurehead_link_cancel");
 }
 
 /** Links with a pairing code from the Figurehead dashboard. */
@@ -114,13 +114,13 @@ export async function figureheadClaim(code: string, name?: string): Promise<Figu
     }
     return fhLinked(name);
   }
-  return invoke<FigureheadStatusInfo>("figurehead_claim", { code, name: name ?? null });
+  return call("figurehead_claim", { code, name: name ?? null });
 }
 
 /** Refreshes the account now. */
 export async function figureheadRefresh(): Promise<FigureheadStatusInfo> {
   if (!hasBackend) return { ...fhStatus() };
-  return invoke<FigureheadStatusInfo>("figurehead_refresh");
+  return call("figurehead_refresh");
 }
 
 /** Renames this Mac on Figurehead. */
@@ -129,7 +129,7 @@ export async function figureheadRename(name: string): Promise<FigureheadStatusIn
     fhCall(`fh-rename:${name.trim()}`);
     return fhSet({ ...fhStatus(), device_name: name.trim() });
   }
-  return invoke<FigureheadStatusInfo>("figurehead_rename", { name });
+  return call("figurehead_rename", { name });
 }
 
 /** Unlinks this Mac (local cleanup happens even offline). */
@@ -146,13 +146,13 @@ export async function figureheadUnlink(): Promise<FigureheadStatusInfo> {
       consent_version: 0,
     });
   }
-  return invoke<FigureheadStatusInfo>("figurehead_unlink");
+  return call("figurehead_unlink");
 }
 
 /** Dismisses the one-time notice. */
 export async function figureheadDismissNotice(): Promise<FigureheadStatusInfo> {
   if (!hasBackend) return fhSet({ ...fhStatus(), notice: null });
-  return invoke<FigureheadStatusInfo>("figurehead_dismiss_notice");
+  return call("figurehead_dismiss_notice");
 }
 
 /** Stores the cloud choices (consent screen / toggles). */
@@ -169,7 +169,7 @@ export async function figureheadSaveChoices(features: Record<string, boolean>): 
       })),
     });
   }
-  return invoke<FigureheadStatusInfo>("figurehead_save_choices", { features });
+  return call("figurehead_save_choices", { features });
 }
 
 /** Opens a Figurehead page (`verify` | `dashboard` | `devices` | `upgrade`). */
@@ -178,5 +178,5 @@ export async function figureheadOpenPage(target: "verify" | "dashboard" | "devic
     fhCall(`fh-open:${target}`);
     return;
   }
-  return invoke<void>("figurehead_open_page", { target });
+  return call("figurehead_open_page", { target });
 }

@@ -1,7 +1,7 @@
 /**
  * Crash reports: UI errors, the setting and the answer.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { CrashInfo as CrashInfoData } from "../../types/generated/CrashInfo";
 
 function previewCrash(): CrashInfoData {
@@ -19,13 +19,13 @@ export async function crashUiError(screen: string, message: string, stack: strin
     seams.__AIJ_UI_ERRORS__ = [...(seams.__AIJ_UI_ERRORS__ ?? []), { screen, message }];
     return false;
   }
-  return invoke<boolean>("crash_ui_error", { screen, message, stack });
+  return call("crash_ui_error", { screen, message, stack });
 }
 
 /** AJ-E1107: the crash-report setting and the reports waiting. */
 export async function crashInfo(): Promise<CrashInfoData> {
   if (!hasBackend) return previewCrash();
-  return invoke<CrashInfoData>("crash_info");
+  return call("crash_info");
 }
 
 /** AJ-E1107: `never` (deletes every kept report) | `ask` | `always`. */
@@ -41,7 +41,7 @@ export async function crashSet(setting: "never" | "ask" | "always"): Promise<Cra
     (window as unknown as { __AIJ_CRASH__?: CrashInfoData }).__AIJ_CRASH__ = next;
     return next;
   }
-  return invoke<CrashInfoData>("crash_set", { setting });
+  return call("crash_set", { setting });
 }
 
 /** AJ-E1107: the answer to "Send a crash report?" for one report. */
@@ -60,5 +60,5 @@ export async function crashAnswer(id: string, answer: "send" | "dont_send" | "al
     w.__AIJ_CRASH_ANSWERS__ = [...(w.__AIJ_CRASH_ANSWERS__ ?? []), `${id}:${answer}`];
     return next;
   }
-  return invoke<CrashInfoData>("crash_answer", { id, answer });
+  return call("crash_answer", { id, answer });
 }

@@ -4,7 +4,7 @@
  * starts it again when it stops. The backend says when they change
  * (`places-changed`). The preview and tests set `window.__AIJ_PLACES__`.
  */
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { previewFolders } from "./accounts";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
@@ -61,7 +61,7 @@ export async function placesList(): Promise<KnownPlaceInfo[]> {
     previewHooks().slots.previewPlaceSlots(preview().places, previewFolders());
     return [...preview().places].sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || a.label.localeCompare(b.label));
   }
-  const page = await invoke<{ items: KnownPlaceInfo[] }>("places_list", { page: ALL });
+  const page = await call("places_list", { page: ALL });
   return page.items;
 }
 
@@ -71,7 +71,7 @@ export async function placesFind(tool: string, conversationId: string, account: 
     const id = preview().sessions?.[`${tool}/${conversationId}`];
     return preview().places.find((place) => place.id === id) ?? null;
   }
-  return invoke<KnownPlaceInfo | null>("places_find", { tool, conversationId, account, app });
+  return call("places_find", { tool, conversationId, account, app });
 }
 
 /** Open: the app forward when it runs, else started; at the session when
@@ -87,7 +87,7 @@ export async function placesOpen(id: string, conversationId: string | null = nul
     changedHere();
     return running ? { outcome: `Brought ${place.label} forward`, reached: "app" } : { outcome: `Starting ${place.label}`, reached: "started" };
   }
-  return invoke<GoToOutcomeInfo>("places_open", { id, conversationId });
+  return call("places_open", { id, conversationId });
 }
 
 /** 0.3.8: quits an app or profile that lost its window when macOS
@@ -104,7 +104,7 @@ export async function placesRestart(id: string, confirmed = false): Promise<GoTo
     changedHere();
     return { outcome: `Restarting ${place.label}`, reached: "started" };
   }
-  return invoke<GoToOutcomeInfo>("places_restart", { id, confirmed });
+  return call("places_restart", { id, confirmed });
 }
 
 /** Keep alive on or off. */
@@ -118,7 +118,7 @@ export async function placesKeepAlive(id: string, on: boolean): Promise<void> {
     changedHere();
     return;
   }
-  return invoke<void>("places_keep_alive", { id, on });
+  return call("places_keep_alive", { id, on });
 }
 
 /** Forgets a place (remembered again the next time it runs). */
@@ -128,7 +128,7 @@ export async function placesForget(id: string): Promise<void> {
     changedHere();
     return;
   }
-  return invoke<void>("places_forget", { id });
+  return call("places_forget", { id });
 }
 
 /** AJ-E3203: whether AI Juggler finds the profiles that aren't running
@@ -138,7 +138,7 @@ export async function placesProfiles(): Promise<FindProfilesInfo> {
     const profiles = preview().profiles;
     return { answer: profiles?.answer ?? "ask", folders: profiles?.folders ?? [] };
   }
-  return invoke<FindProfilesInfo>("places_profiles");
+  return call("places_profiles");
 }
 
 /** AJ-E3203: the user's answer. Yes reads the folder names now; no
@@ -153,7 +153,7 @@ export async function placesProfilesSet(on: boolean): Promise<FindProfilesInfo> 
     changedHere();
     return { answer: profiles.answer, folders: profiles.folders };
   }
-  const info = await invoke<FindProfilesInfo>("places_profiles_set", { on });
+  const info = await call("places_profiles_set", { on });
   changedHere();
   return info;
 }
@@ -180,7 +180,7 @@ export function onPlacesChanged(on: () => void): () => void {
  * this Mac"); none without a backend. */
 export async function placesOffers(): Promise<PlaceOfferInfo[]> {
   if (!hasLiveBackend()) return [...(preview().offers ?? [])];
-  return invoke<PlaceOfferInfo[]>("places_offers");
+  return call("places_offers");
 }
 
 /** D-84: Add an offer as an App, or Not now. */
@@ -189,7 +189,7 @@ export async function placesOfferAnswer(id: string, add: boolean): Promise<void>
     const now = preview();
     now.offers = (now.offers ?? []).filter((offer) => offer.id !== id);
   } else {
-    await invoke<void>("places_offer_answer", { id, add });
+    await call("places_offer_answer", { id, add });
   }
   changedHere();
 }

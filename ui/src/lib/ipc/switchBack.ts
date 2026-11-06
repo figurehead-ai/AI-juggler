@@ -4,7 +4,7 @@
  * can go to any account the work passed through, nearest first, or back
  * to where it started. Moved from bridge.ts (the size budget).
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 
@@ -67,7 +67,7 @@ export async function switchBackSuggestions(): Promise<SwitchBackSuggestionData[
         .__AIJ_SWITCH_BACK_SUGGESTIONS__ ?? []
     );
   }
-  return invoke<SwitchBackSuggestionData[]>("switch_back_suggestions");
+  return call("switch_back_suggestions");
 }
 
 /** AJ-E207: the plan for one return — verbatim suggestion, S-F7
@@ -107,7 +107,7 @@ export async function switchBackPlan(
       }
     );
   }
-  return invoke<SwitchBackPlanData>("switch_back_plan", { sessionId, toEpoch: toEpoch ?? null });
+  return call("switch_back_plan", { sessionId, toEpoch: toEpoch ?? null });
 }
 
 /** AJ-E207: executes the return with the user's choices — resumes
@@ -139,7 +139,7 @@ export async function switchBackExecute(
     }
     return { session_id: `sess-return-${Date.now()}`, pid: 0 };
   }
-  return invoke<LaunchResult>("switch_back_execute", {
+  return call("switch_back_execute", {
     sessionId,
     choices,
     keepAwayRunning,

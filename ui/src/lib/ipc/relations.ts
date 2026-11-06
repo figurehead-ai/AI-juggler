@@ -3,7 +3,7 @@
  * how many sessions each page's lists hold, and how many projects, Apps,
  * Accounts and the rest they're on, from a cache kept current by stamp.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { EntityKind } from "../../types/generated/EntityKind";
 import type { EntityRef } from "../../types/generated/EntityRef";
@@ -16,7 +16,7 @@ export type { EntityKind, EntityRef, RelationCountsInfo, RelatedIdsInfo };
  * preview has none: its pages count what they show. */
 export async function relationsCounts(entities: EntityRef[]): Promise<RelationCountsInfo[]> {
   if (!hasLiveBackend() || entities.length === 0) return [];
-  return invoke<RelationCountsInfo[]>("relations_counts", { entities });
+  return call("relations_counts", { entities });
 }
 
 /** AJ-E3104: which things of kind `of` an entity's sessions are on (a
@@ -24,5 +24,5 @@ export async function relationsCounts(entities: EntityRef[]): Promise<RelationCo
  * design preview has none: its pages work them out from what they show. */
 export async function relationsRelated(entity: EntityRef, of: EntityKind): Promise<RelatedIdsInfo | undefined> {
   if (!hasLiveBackend()) return undefined;
-  return invoke<RelatedIdsInfo>("relations_related", { entity, of });
+  return call("relations_related", { entity, of });
 }

@@ -4,7 +4,7 @@
  * (nothing is stored). The preview and the tests read the fixture's
  * `subscriptions` instead, or one account per signed-in profile.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { accountsList, previewFolders } from "./accounts";
 import { hasLiveBackend, signedIn } from "../bridge";
 import type { SubscriptionInfo } from "../../types/generated/SubscriptionInfo";
@@ -70,7 +70,7 @@ export async function subscriptionsList(): Promise<SubscriptionInfo[]> {
     });
     return previewHooks().slots.previewAccountSlots(previewHooks().names.previewNamed(rows), previewFolders());
   }
-  return invoke<SubscriptionInfo[]>("subscriptions_list");
+  return call("subscriptions_list");
 }
 
 /** D-62 (AJ-E3205): names an Account (`null` or blank: its default). */
@@ -81,7 +81,7 @@ export async function subscriptionsRename(id: string, name: string | null): Prom
     else previewNames.delete(id);
     return;
   }
-  await invoke<void>("subscriptions_rename", { id, name });
+  await call("subscriptions_rename", { id, name });
 }
 
 /** D-62 (AJ-E3202 req. 4): sets Account `id`'s plan, renewal date
@@ -92,5 +92,5 @@ export async function subscriptionsSetTerm(id: string, term: Term, value: string
     previewTerms.set(id, { ...previewTerms.get(id), [term]: value?.trim() ? value.trim() : null });
     return;
   }
-  await invoke<void>("subscriptions_set_term", { id, term, value });
+  await call("subscriptions_set_term", { id, term, value });
 }

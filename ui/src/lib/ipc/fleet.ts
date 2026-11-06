@@ -1,7 +1,7 @@
 /**
  * AJ-E702: Fleet identity and the paired-peer registry.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { FleetPeerInfo } from "../../types/generated/FleetPeerInfo";
 import type { FleetSelfInfo } from "../../types/generated/FleetSelfInfo";
 
@@ -26,21 +26,21 @@ export function mockFleetSelf(): FleetSelfInfo {
   };
 }
 
-export function recordFleetCall(call: string): void {
+export function recordFleetCall(called: string): void {
   const seams = fleetSeams();
-  seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), call];
+  seams.__AIJ_FLEET_CALLS__ = [...(seams.__AIJ_FLEET_CALLS__ ?? []), called];
 }
 
 /** This Mac's Fleet identity (label, fingerprint, trust state). */
 export async function fleetSelf(): Promise<FleetSelfInfo> {
   if (!hasBackend) return mockFleetSelf();
-  return invoke<FleetSelfInfo>("fleet_self");
+  return call("fleet_self");
 }
 
 /** The machines paired with this Mac. */
 export async function fleetPeers(): Promise<FleetPeerInfo[]> {
   if (!hasBackend) return [...(fleetSeams().__AIJ_FLEET_PEERS__ ?? [])];
-  return invoke<FleetPeerInfo[]>("fleet_peers");
+  return call("fleet_peers");
 }
 
 /** Unpairs one machine (deletes its pin). */
@@ -53,7 +53,7 @@ export async function fleetUnpair(machineId: string): Promise<void> {
     );
     return;
   }
-  return invoke<void>("fleet_unpair", { machineId });
+  return call("fleet_unpair", { machineId });
 }
 
 /** Renames this Mac locally. */
@@ -63,7 +63,7 @@ export async function fleetSetLabel(label: string): Promise<FleetSelfInfo> {
     fleetSeams().__AIJ_FLEET_SELF__ = { ...fleetSeams().__AIJ_FLEET_SELF__, label: label.trim() };
     return mockFleetSelf();
   }
-  return invoke<FleetSelfInfo>("fleet_set_label", { label });
+  return call("fleet_set_label", { label });
 }
 
 /** Clears a broken registry so pairing can start again. */
@@ -74,7 +74,7 @@ export async function fleetResetTrust(): Promise<FleetSelfInfo> {
     fleetSeams().__AIJ_FLEET_SELF__ = { ...fleetSeams().__AIJ_FLEET_SELF__, trust: "trusted", trust_reason: null };
     return mockFleetSelf();
   }
-  return invoke<FleetSelfInfo>("fleet_reset_trust");
+  return call("fleet_reset_trust");
 }
 
 /** Generates a new identity for this Mac; every peer must pair again. */
@@ -88,5 +88,5 @@ export async function fleetResetIdentity(): Promise<FleetSelfInfo> {
     };
     return mockFleetSelf();
   }
-  return invoke<FleetSelfInfo>("fleet_reset_identity");
+  return call("fleet_reset_identity");
 }

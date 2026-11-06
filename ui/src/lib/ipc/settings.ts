@@ -2,7 +2,7 @@
  * App settings: generic keys, notification prefs, what the OS must allow
  * (D-25), the cleanup default and the Go-to hotkey.
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
 import type { NotificationPrefsInfo } from "../../types/generated/NotificationPrefsInfo";
 import type { OsAccessInfo } from "../../types/generated/OsAccessInfo";
@@ -19,7 +19,7 @@ export async function appSettingGet(key: string): Promise<string | null> {
     const stored = appSettingSeams().__AIJ_APP_SETTINGS__?.[key];
     return stored === undefined || stored === "" ? null : stored;
   }
-  return invoke<string | null>("app_setting_get", { key });
+  return call("app_setting_get", { key });
 }
 
 /** Writes one app-level setting (empty value = reset to default). */
@@ -29,7 +29,7 @@ export async function appSettingSet(key: string, value: string): Promise<void> {
     seams.__AIJ_APP_SETTINGS__ = { ...(seams.__AIJ_APP_SETTINGS__ ?? {}), [key]: value };
     return;
   }
-  await invoke("app_setting_set", { key, value });
+  await call("app_setting_set", { key, value });
 }
 
 const notificationSeams = () =>
@@ -40,7 +40,7 @@ export async function notificationPrefsGet(): Promise<NotificationPrefsInfo> {
   if (!hasBackend) {
     return { quiet_start: 22, quiet_end: 7, digest_muted_accounts: [], wait_after_min: 5, quota_first_pct: 80, quota_last_pct: 95, ...notificationSeams().__AIJ_NOTIFICATION_PREFS__ };
   }
-  return invoke<NotificationPrefsInfo>("notification_prefs_get");
+  return call("notification_prefs_get");
 }
 
 /** Saves Settings › Notifications (hours 0–23; equal hours = none). */
@@ -53,7 +53,7 @@ export async function notificationPrefsSet(prefs: NotificationPrefsInfo): Promis
     notificationSeams().__AIJ_NOTIFICATION_PREFS__ = saved;
     return saved;
   }
-  return invoke<NotificationPrefsInfo>("notification_prefs_set", { prefs });
+  return call("notification_prefs_set", { prefs });
 }
 
 export const osAccessSeams = () =>
@@ -70,7 +70,7 @@ export const osAccessSeams = () =>
 /** What this OS needs, as it stands (never prompts — safe to poll). */
 export async function osAccessList(): Promise<OsAccessInfo[]> {
   if (!hasBackend) return (osAccessSeams().__AIJ_OS_ACCESS__ ?? previewHooks().appState.MOCK_OS_ACCESS).map((entry) => ({ ...entry }));
-  return invoke<OsAccessInfo[]>("os_access_list");
+  return call("os_access_list");
 }
 
 /** Allow: raises the system's prompts for one entry. */
@@ -84,7 +84,7 @@ export async function osAccessRequest(id: string): Promise<OsAccessInfo[]> {
     );
     return osAccessList();
   }
-  return invoke<OsAccessInfo[]>("os_access_request", { id });
+  return call("os_access_request", { id });
 }
 
 /** Opens the settings pane for one entry (a fixed link per id). */
@@ -94,14 +94,14 @@ export async function osAccessOpenSettings(id: string): Promise<void> {
     seams.__AIJ_OS_ACCESS_CALLS__ = [...(seams.__AIJ_OS_ACCESS_CALLS__ ?? []), `settings:${id}`];
     return;
   }
-  await invoke("os_access_open_settings", { id });
+  await call("os_access_open_settings", { id });
 }
 
 /** Whether new Accounts start with left-behind dev servers tidied (D-08:
  * off unless the user chooses it). */
 export async function cleanupDefaultGet(): Promise<boolean> {
   if (!hasBackend) return notificationSeams().__AIJ_CLEANUP_DEFAULT__ ?? false;
-  return invoke<boolean>("cleanup_default_get");
+  return call("cleanup_default_get");
 }
 
 /** Sets the cleanup default for new Accounts (existing ones keep theirs). */
@@ -110,7 +110,7 @@ export async function cleanupDefaultSet(on: boolean): Promise<boolean> {
     notificationSeams().__AIJ_CLEANUP_DEFAULT__ = on;
     return on;
   }
-  return invoke<boolean>("cleanup_default_set", { on });
+  return call("cleanup_default_set", { on });
 }
 
 /** Rebinds the global "Go to instance…" hotkey (registers with the OS
@@ -122,7 +122,7 @@ export async function goToHotkeySet(hotkey: string): Promise<void> {
     seams.__AIJ_APP_SETTINGS__ = { ...(seams.__AIJ_APP_SETTINGS__ ?? {}), go_to_hotkey: hotkey.trim() };
     return;
   }
-  await invoke("app_go_to_hotkey_set", { hotkey });
+  await call("app_go_to_hotkey_set", { hotkey });
 }
 
 /** Opens the system Accessibility privacy pane (the explainer's deep
@@ -131,7 +131,7 @@ export async function openAccessibilitySettings(): Promise<void> {
   if (!hasBackend) {
     return;
   }
-  await invoke("open_accessibility_settings");
+  await call("open_accessibility_settings");
 }
 
 /** Fires when the global "Go to instance…" hotkey is pressed anywhere

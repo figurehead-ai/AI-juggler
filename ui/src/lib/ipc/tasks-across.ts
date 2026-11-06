@@ -6,7 +6,7 @@
  *
  * The preview reads its own tasks (`__AIJ_TASKS__`) and pools.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { Page, PageRequest } from "../paged";
 import { poolsList } from "./pools";
@@ -64,7 +64,7 @@ export async function tasksAcross(filter: TasksFilterInput, page: PageRequest): 
     const limit = Math.min(Math.max(page.limit ?? 50, 1), 200);
     return { items: rows.slice(from, from + limit), next_cursor: rows.length > from + limit ? `p${from + limit}` : null, total: rows.length };
   }
-  return invoke<Page<TaskBoardRow>>("tasks_across", { filter, page });
+  return call("tasks_across", { filter, page });
 }
 
 /** How many of the tasks the filter names are in each status (its own
@@ -75,7 +75,7 @@ export async function tasksAcrossCounts(filter: TasksFilterInput): Promise<TaskC
     const n = (status: string) => rows.filter((row) => row.task.status === status).length;
     return { ready: n("ready"), in_progress: n("in_progress"), in_review: n("in_review"), blocked: n("blocked"), todo: n("todo"), done: n("done"), cancelled: n("cancelled") };
   }
-  return invoke<TaskCounts>("tasks_across_counts", { filter });
+  return call("tasks_across_counts", { filter });
 }
 
 /** Each project's tasks by status: a page of the Projects screen, in one
@@ -85,5 +85,5 @@ export async function tasksProjectCounts(projectIds: string[]): Promise<ProjectT
     return Promise.all(projectIds.map(async (id) => ({ project_id: id, counts: await tasksAcrossCounts({ project_id: id }) })));
   }
   const page: PageRequest = { cursor: null, limit: Math.min(Math.max(projectIds.length, 1), 200) };
-  return (await invoke<Page<ProjectTaskCounts>>("tasks_project_counts", { projectIds, page })).items;
+  return (await call("tasks_project_counts", { projectIds, page })).items;
 }

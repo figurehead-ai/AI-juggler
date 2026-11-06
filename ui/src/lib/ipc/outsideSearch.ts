@@ -6,7 +6,7 @@
  * `__AIJ_OUTSIDE_SEARCH_CALLS__`.
  */
 import { hasLiveBackend } from "../bridge";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { OutsideSearchInfo } from "../../types/generated/OutsideSearchInfo";
 import type { OutsideSearchEstimateInfo } from "../../types/generated/OutsideSearchEstimateInfo";
 
@@ -23,13 +23,13 @@ const OFF: OutsideSearchInfo = { enabled: false, size_bytes: null, sessions: 0, 
 /** Whether it's on, and how far the index has got. */
 export async function outsideSearchStatus(): Promise<OutsideSearchInfo> {
   if (!hasLiveBackend()) return preview().__AIJ_OUTSIDE_SEARCH__ ?? OFF;
-  return invoke<OutsideSearchInfo>("outside_search_status");
+  return call("outside_search_status");
 }
 
 /** The index's likely size before it's turned on. */
 export async function outsideSearchEstimate(): Promise<OutsideSearchEstimateInfo> {
   if (!hasLiveBackend()) return preview().__AIJ_OUTSIDE_SEARCH_ESTIMATE__ ?? { size_bytes: 0, sessions: 0 };
-  return invoke<OutsideSearchEstimateInfo>("outside_search_estimate");
+  return call("outside_search_estimate");
 }
 
 /** Turns it on (building starts) or off (the index is deleted). */
@@ -43,6 +43,6 @@ export async function outsideSearchSet(on: boolean): Promise<OutsideSearchInfo> 
     preview().__AIJ_OUTSIDE_SEARCH__ = next;
     return next;
   }
-  return invoke<OutsideSearchInfo>("outside_search_set", { on });
+  return call("outside_search_set", { on });
 }
 

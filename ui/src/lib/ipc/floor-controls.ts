@@ -5,7 +5,7 @@
  * Floor or put back, each App's floor, and Show on the Floor. Without a
  * backend the preview keeps them in memory.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { FloorSettingsInfo } from "../../types/generated/FloorSettingsInfo";
 import type { FloorPlaceInfo } from "../../types/generated/FloorPlaceInfo";
@@ -20,7 +20,7 @@ const seam = () => (window as unknown as { __AIJ_FLOOR_SETTINGS__?: FloorSetting
 
 export async function floorSettings(): Promise<FloorSettingsInfo> {
   if (!hasLiveBackend()) return { ...(seam().__AIJ_FLOOR_SETTINGS__ ?? preview.settings) };
-  return invoke<FloorSettingsInfo>("floor_settings");
+  return call("floor_settings");
 }
 
 const WORDS: Record<string, keyof FloorSettingsInfo> = {
@@ -43,13 +43,13 @@ export async function floorSettingSet(key: string, value: string): Promise<Floor
     seam().__AIJ_FLOOR_SETTINGS__ = preview.settings;
     return { ...preview.settings };
   }
-  return invoke<FloorSettingsInfo>("floor_setting_set", { key, value });
+  return call("floor_setting_set", { key, value });
 }
 
 /** Re-create the office: a new look for every area, the same order. */
 export async function floorRecreate(): Promise<void> {
   if (!hasLiveBackend()) return;
-  return invoke<void>("floor_recreate");
+  return call("floor_recreate");
 }
 
 /** Leaves an App off the Floor, or puts it back. */
@@ -60,23 +60,23 @@ export async function floorAppHiddenSet(appId: string, hidden: boolean): Promise
     seam().__AIJ_FLOOR_SETTINGS__ = preview.settings;
     return { ...preview.settings };
   }
-  return invoke<FloorSettingsInfo>("floor_app_hidden_set", { appId, hidden });
+  return call("floor_app_hidden_set", { appId, hidden });
 }
 
 /** Each App's floor, in the Floor's order. */
 export async function floorPlaces(): Promise<FloorPlaceInfo[]> {
   if (!hasLiveBackend()) return seam().__AIJ_FLOOR_PLACES__ ?? [];
-  return invoke<Places>("floor_places");
+  return call("floor_places");
 }
 
 /** Reset the view: an open Floor back on its first floor. */
 export async function floorResetView(): Promise<void> {
   if (!hasLiveBackend()) return;
-  return invoke<void>("floor_reset_view");
+  return call("floor_reset_view");
 }
 
 /** Show on the Floor: opens it on the floor holding `appId`'s area. */
 export async function floorShowApp(appId: string): Promise<void> {
   if (!hasLiveBackend()) throw new Error("The Floor opens in the app, not in the preview.");
-  return invoke<void>("floor_show_app", { appId });
+  return call("floor_show_app", { appId });
 }

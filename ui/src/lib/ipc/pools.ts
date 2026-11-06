@@ -13,7 +13,7 @@
  * levels and rules) and `__AIJ_POOL_ACTIVITY__` (what each session's transcript said,
  * by session id), and records the calls that change them in `__AIJ_POOL_CALLS__`.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { pageOf, type Page, type PageRequest } from "../paged";
@@ -91,7 +91,7 @@ interface Seams {
   __AIJ_POOL_CALLS__?: string[];
 }
 const seams = () => window as unknown as Seams;
-const record = (call: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(call);
+const record = (called: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(called);
 
 /** The preview's own pools and every preview session's place. */
 type Store = { pools: PoolInfo[]; places: PoolMemberInfo[] };
@@ -193,7 +193,7 @@ function livePool(poolId: string): PoolInfo {
 /** Every pool, and the working set's places. */
 export async function poolsList(): Promise<PoolsInfo> {
   if (!hasLiveBackend()) return preview();
-  return invoke<PoolsInfo>("pools_list");
+  return call("pools_list");
 }
 
 const rank = (role: string) => (role === "lead" ? 0 : role === "member" ? 1 : 2);
@@ -212,7 +212,7 @@ export async function poolMembers(poolId: string, page: PageRequest): Promise<Pa
       .map(({ session, role }) => ({ session, card: previewCard(session, role), via: "session", held_by: null }));
     return pageOf(rows, page);
   }
-  return invoke<Page<PoolMemberRow>>("pools_members", { poolId, page });
+  return call("pools_members", { poolId, page });
 }
 
 /** One session's pool and role: any session, one past the working set
@@ -223,7 +223,7 @@ export async function poolPlace(sessionId: string): Promise<PoolMemberInfo> {
     if (!place) throw refused("That session isn't there any more");
     return { ...place };
   }
-  return invoke<PoolMemberInfo>("pools_place", { sessionId });
+  return call("pools_place", { sessionId });
 }
 
 /** Makes a pool, optionally for one project. */
@@ -236,7 +236,7 @@ export async function poolCreate(name: string, projectId: string | null): Promis
     store!.pools.splice(mine, 0, { id: `pool-preview-${counter}`, name: clean, kind: "user", project_id: projectId, access: accessAt("work_together"), rules: [], spans_macs: false, scopes: 0, members: 0, ...scopeOf("user", projectId) });
     return preview();
   }
-  return invoke<PoolsInfo>("pools_create", { name, projectId });
+  return call("pools_create", { name, projectId });
 }
 
 /** Renames a pool (a project's default pool keeps its project's name). */
@@ -248,7 +248,7 @@ export async function poolRename(poolId: string, name: string): Promise<PoolsInf
     record(`rename:${poolId}:${pool.name}`);
     return preview();
   }
-  return invoke<PoolsInfo>("pools_rename", { poolId, name });
+  return call("pools_rename", { poolId, name });
 }
 
 /** Deletes a pool; its sessions go back to their projects' default pools. */
@@ -264,7 +264,7 @@ export async function poolDelete(poolId: string): Promise<PoolsInfo> {
     }
     return preview();
   }
-  return invoke<PoolsInfo>("pools_delete", { poolId });
+  return call("pools_delete", { poolId });
 }
 
 /** Moves a session into a pool, as a member. */
@@ -284,7 +284,7 @@ export async function poolMove(sessionId: string, poolId: string): Promise<Pools
     Object.assign(store!.places.find((row) => row.session_id === sessionId)!, { pool_id: poolId, role: "member" });
     return preview();
   }
-  return invoke<PoolsInfo>("pools_move", { sessionId, poolId });
+  return call("pools_move", { sessionId, poolId });
 }
 
 /** Sets a session's role in its pool. */
@@ -297,7 +297,7 @@ export async function poolSetRole(sessionId: string, role: PoolRole, poolId: str
     row.role = role;
     return preview();
   }
-  return invoke<PoolsInfo>("pools_set_role", { sessionId, role, poolId });
+  return call("pools_set_role", { sessionId, role, poolId });
 }
 
 /** D-28: sets a pool's access level; `actions` is the Custom set. */
@@ -308,7 +308,7 @@ export async function poolSetAccess(poolId: string, level: string, actions: stri
     pool.access = accessAt(level, actions, pool.access.hop_limit, pool.access.delivery_stopped);
     return preview();
   }
-  return invoke<PoolsInfo>("pools_set_access", { poolId, level, actions });
+  return call("pools_set_access", { poolId, level, actions });
 }
 
 /** D-29: sets a pool's hop limit (1 to 20) and its delivery stop-all. */
@@ -320,7 +320,7 @@ export async function poolSetDelivery(poolId: string, hopLimit: number, stopped:
     pool.access = { ...pool.access, hop_limit: hopLimit, delivery_stopped: stopped };
     return preview();
   }
-  return invoke<PoolsInfo>("pools_set_delivery", { poolId, hopLimit, stopped });
+  return call("pools_set_delivery", { poolId, hopLimit, stopped });
 }
 
 /** D-32: lets a pool span your paired Macs, or not (off by default). */
@@ -331,7 +331,7 @@ export async function poolSetSpansMacs(poolId: string, spans: boolean): Promise<
     pool.spans_macs = spans;
     return preview();
   }
-  return invoke<PoolsInfo>("pools_set_spans_macs", { poolId, spans });
+  return call("pools_set_spans_macs", { poolId, spans });
 }
 
 /** D-28: takes back an "always allow" rule (it stops applying at once). */
@@ -344,7 +344,7 @@ export async function agentRuleRevoke(ruleId: number): Promise<PoolsInfo> {
     pool.rules = pool.rules.filter((rule) => rule.id !== ruleId);
     return preview();
   }
-  return invoke<PoolsInfo>("pools_revoke_rule", { ruleId });
+  return call("pools_revoke_rule", { ruleId });
 }
 
 const unavailable = (why: string): CardField => ({ value: null, unavailable: `Unavailable — ${why}` });

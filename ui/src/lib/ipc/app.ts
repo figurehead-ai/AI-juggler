@@ -4,7 +4,7 @@
  * the bug form (AJ-E1517). In the preview, the seam `__AIJ_UNINSTALL__`
  * answers instead (or a sample).
  */
-import { invoke, pickPath } from "./transport";
+import { call, pickPath } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { LoginItemInfo } from "../../types/generated/LoginItemInfo";
 import type { UninstallPrepInfo } from "../../types/generated/UninstallPrepInfo";
@@ -26,7 +26,7 @@ export async function appPrepareUninstall(): Promise<UninstallPrepInfo> {
   if (!hasLiveBackend()) {
     return (window as unknown as { __AIJ_UNINSTALL__?: UninstallPrepInfo }).__AIJ_UNINSTALL__ ?? SAMPLE;
   }
-  return invoke<UninstallPrepInfo>("app_prepare_uninstall");
+  return call("app_prepare_uninstall");
 }
 
 export type { LoginItemInfo };
@@ -38,7 +38,7 @@ const preview = () => window as unknown as { __AIJ_LOGIN_ITEM__?: LoginItemInfo[
  * `needs_approval` | `unavailable`). */
 export async function appLoginItemGet(): Promise<LoginItemInfo> {
   if (!hasLiveBackend()) return { state: preview().__AIJ_LOGIN_ITEM__ ?? "off" };
-  return invoke<LoginItemInfo>("app_login_item_get");
+  return call("app_login_item_get");
 }
 
 /** AJ-E1509: turns opening at login on or off; how it stands after. */
@@ -47,7 +47,7 @@ export async function appLoginItemSet(on: boolean): Promise<LoginItemInfo> {
     preview().__AIJ_LOGIN_ITEM__ = on ? "on" : "off";
     return { state: on ? "on" : "off" };
   }
-  return invoke<LoginItemInfo>("app_login_item_set", { on });
+  return call("app_login_item_set", { on });
 }
 
 
@@ -88,7 +88,7 @@ const SAMPLE_DIAGNOSTICS: DiagnosticsPreviewInfo = {
 /** AJ-E1517: what a diagnostics zip will hold, scrubbed, to look over. */
 export async function appDiagnosticsPreview(): Promise<DiagnosticsPreviewInfo> {
   if (!hasLiveBackend()) return diagnosticsSeams().__AIJ_DIAGNOSTICS__ ?? SAMPLE_DIAGNOSTICS;
-  return invoke<DiagnosticsPreviewInfo>("app_diagnostics_preview");
+  return call("app_diagnostics_preview");
 }
 
 /** Where to save it (the native save sheet); null when cancelled. */
@@ -103,7 +103,7 @@ export async function appDiagnosticsExport(id: string, dest: string): Promise<Di
     diagnosticsSeams().__AIJ_DIAGNOSTICS_SAVED__ = { id, dest };
     return { path: dest.replace(/^\/Users\/[^/]+/, "~"), bytes: 4_812 };
   }
-  return invoke<DiagnosticsSavedInfo>("app_diagnostics_export", { id, dest });
+  return call("app_diagnostics_export", { id, dest });
 }
 
 /** Opens the bug form on GitHub in the browser. */
@@ -111,11 +111,11 @@ export async function appDiagnosticsExport(id: string, dest: string): Promise<Di
  * and for this computer). */
 export async function appUserGet(): Promise<AppUserInfo> {
   if (!hasLiveBackend()) return (window as unknown as { __AIJ_USER__?: AppUserInfo }).__AIJ_USER__ ?? { name: "Sam", initial: "S", computer: "Mac", computers: "Macs" };
-  return invoke<AppUserInfo>("app_user_get");
+  return call("app_user_get");
 }
 
 /** AJ-E2507: Help and guides, in the browser. */
 export async function appHelpOpen(): Promise<void> {
   if (!hasLiveBackend()) return;
-  return invoke<void>("app_help_open");
+  return call("app_help_open");
 }

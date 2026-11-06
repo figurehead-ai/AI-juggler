@@ -2,7 +2,7 @@
  * Sessions (instances): the list, quality, stop, the dashboard stats and
  * the live update events.
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { InstanceQuotaInfo } from "../../types/generated/InstanceQuotaInfo";
@@ -17,7 +17,7 @@ export async function instancesList(): Promise<InstanceInfo[]> {
     if (hang) return hang;
     return [...previewHooks().fixtures.MOCK_SESSIONS];
   }
-  return invoke<InstanceInfo[]>("instances_list");
+  return call("instances_list");
 }
 
 /** @deprecated legacy alias (AJ-E107) — use instancesList. */
@@ -28,21 +28,21 @@ export async function instanceQuality(sessionId: string): Promise<QualitySignals
   if (!hasBackend) {
     return previewHooks().fixtures.MOCK_QUALITY[sessionId] ?? null;
   }
-  return invoke<QualitySignalsInfo>("instance_quality", { sessionId });
+  return call("instance_quality", { sessionId });
 }
 
 export async function stopSession(sessionId: string): Promise<void> {
   if (!hasBackend) {
     return;
   }
-  await invoke("stop_session", { sessionId });
+  await call("stop_session", { sessionId });
 }
 
 export async function dashboardStats(): Promise<StatsInfo> {
   if (!hasBackend) {
     return previewHooks().fixtures.MOCK_STATS;
   }
-  return invoke<StatsInfo>("dashboard_stats");
+  return call("dashboard_stats");
 }
 
 /** The sessions changed (no payload: read the lists again). */

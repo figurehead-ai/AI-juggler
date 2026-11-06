@@ -1,7 +1,7 @@
 /**
  * AJ-E704: Link on/off, discovery and pairing.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import { type FleetSeams, mockFleetSelf, recordFleetCall } from "./fleet";
 import type { DiscoveredMachineInfo } from "../../types/generated/DiscoveredMachineInfo";
 import type { FleetPeerInfo } from "../../types/generated/FleetPeerInfo";
@@ -118,7 +118,7 @@ function installPairSimulator(): void {
 /** Link status (off by default). */
 export async function linkStatus(): Promise<LinkStatusInfo> {
   if (!hasBackend) return mockLink();
-  return invoke<LinkStatusInfo>("link_status");
+  return call("link_status");
 }
 
 /** Turns Link on or off (a user click; remembered). */
@@ -134,13 +134,13 @@ export async function linkSetEnabled(enabled: boolean): Promise<LinkStatusInfo> 
     }));
     return mockLink();
   }
-  return invoke<LinkStatusInfo>("link_set_enabled", { enabled });
+  return call("link_set_enabled", { enabled });
 }
 
 /** Machines on this network that aren't paired. */
 export async function fleetDiscovered(): Promise<DiscoveredMachineInfo[]> {
   if (!hasBackend) return mockLink().enabled ? [...(linkSeams().__AIJ_DISCOVERED__ ?? [])] : [];
-  return invoke<DiscoveredMachineInfo[]>("fleet_discovered");
+  return call("fleet_discovered");
 }
 
 /** Opens "Add a machine" (shows a code for 2 minutes). */
@@ -162,13 +162,13 @@ export async function pairingHostOpen(): Promise<PairingStateInfo> {
       : mockWaiting("482 913", null, null);
     return { ...linkSeams().__AIJ_PAIR_HOST__! };
   }
-  return invoke<PairingStateInfo>("pairing_host_open");
+  return call("pairing_host_open");
 }
 
 /** The host's pairing state (polled while the wizard is open). */
 export async function pairingHostState(): Promise<PairingStateInfo> {
   if (!hasBackend) return { ...(linkSeams().__AIJ_PAIR_HOST__ ?? idlePairing()) };
-  return invoke<PairingStateInfo>("pairing_host_state");
+  return call("pairing_host_state");
 }
 
 /** The host user's decision: pair (granting `permission`) or cancel. */
@@ -188,7 +188,7 @@ export async function pairingHostDecide(commit: boolean, permission: PairPermiss
     }
     return { ...linkSeams().__AIJ_PAIR_HOST__! };
   }
-  return invoke<PairingStateInfo>("pairing_host_decide", { commit, permission });
+  return call("pairing_host_decide", { commit, permission });
 }
 
 /** Closes "Add a machine". */
@@ -198,7 +198,7 @@ export async function pairingHostClose(): Promise<void> {
     linkSeams().__AIJ_PAIR_HOST__ = idlePairing();
     return;
   }
-  return invoke<void>("pairing_host_close");
+  return call("pairing_host_close");
 }
 
 /** Turns pairing back on after the daily disable (a user click). */
@@ -208,7 +208,7 @@ export async function pairingReEnable(): Promise<void> {
     linkSeams().__AIJ_PAIR_LOCK__ = undefined;
     return;
   }
-  return invoke<void>("pairing_re_enable");
+  return call("pairing_re_enable");
 }
 
 /** Starts joining a machine found on the network, or at an address. */
@@ -230,7 +230,7 @@ export async function pairingJoinStart(
         };
     return { ...linkSeams().__AIJ_PAIR_JOIN__! };
   }
-  return invoke<PairingStateInfo>("pairing_join_start", {
+  return call("pairing_join_start", {
     instanceId: "instanceId" in target ? target.instanceId : null,
     address: "address" in target ? target.address : null,
     code,
@@ -240,7 +240,7 @@ export async function pairingJoinStart(
 /** The joiner's pairing state (polled while the wizard is open). */
 export async function pairingJoinState(): Promise<PairingStateInfo> {
   if (!hasBackend) return { ...(linkSeams().__AIJ_PAIR_JOIN__ ?? idlePairing()) };
-  return invoke<PairingStateInfo>("pairing_join_state");
+  return call("pairing_join_state");
 }
 
 /** The joiner user's decision: pair (granting `permission`) or cancel. */
@@ -256,7 +256,7 @@ export async function pairingJoinDecide(commit: boolean, permission: PairPermiss
     }
     return { ...linkSeams().__AIJ_PAIR_JOIN__! };
   }
-  return invoke<PairingStateInfo>("pairing_join_decide", { commit, permission });
+  return call("pairing_join_decide", { commit, permission });
 }
 
 /** Resets the joiner (Done / Start over / Close). */
@@ -265,5 +265,5 @@ export async function pairingJoinReset(): Promise<void> {
     linkSeams().__AIJ_PAIR_JOIN__ = idlePairing();
     return;
   }
-  return invoke<void>("pairing_join_reset");
+  return call("pairing_join_reset");
 }

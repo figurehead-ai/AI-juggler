@@ -9,7 +9,7 @@
  * records the calls that change it in `__AIJ_AGENT_BRIDGE_CALLS__`.
  */
 import { useSyncExternalStore } from "react";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { AgentBridgeInfo } from "../../types/generated/AgentBridgeInfo";
 
@@ -21,7 +21,7 @@ interface Seams {
   __AIJ_AGENT_BRIDGE_CALLS__?: string[];
 }
 const seams = () => window as unknown as Seams;
-const record = (call: string) => (seams().__AIJ_AGENT_BRIDGE_CALLS__ ??= []).push(call);
+const record = (called: string) => (seams().__AIJ_AGENT_BRIDGE_CALLS__ ??= []).push(called);
 
 let store: AgentBridgeInfo | null = null;
 
@@ -39,7 +39,7 @@ export function resetPreviewAgentBridge(): void {
 /** Whether sessions get the agent tools, and where they're off. */
 export async function agentBridgeGet(): Promise<AgentBridgeInfo> {
   if (!hasLiveBackend()) return preview();
-  return invoke<AgentBridgeInfo>("agent_bridge_get");
+  return call("agent_bridge_get");
 }
 
 /** The answer to the one-time question, or the switch for every session. */
@@ -50,7 +50,7 @@ export async function agentBridgeAnswer(on: boolean): Promise<AgentBridgeInfo> {
     store = { ...store!, asked: true, on };
     return preview();
   }
-  return invoke<AgentBridgeInfo>("agent_bridge_answer", { on });
+  return call("agent_bridge_answer", { on });
 }
 
 /** Switches the tools off (or back on) for one project or profile. */
@@ -65,7 +65,7 @@ export async function agentBridgeSet(scope: AgentToolsScope, id: string, on: boo
     store = { ...store!, [key]: [...off].sort() };
     return preview();
   }
-  return invoke<AgentBridgeInfo>("agent_bridge_set", { scope, id, on });
+  return call("agent_bridge_set", { scope, id, on });
 }
 
 // The one copy every view reads (the pool page's question, Settings).

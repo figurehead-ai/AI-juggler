@@ -2,7 +2,7 @@
  * Stopping processes safely (AJ-E5xx): verify, execute, cancel,
  * liveness, and the port inventory.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { KillExecuteData, KillScope, KillVerifyData } from "../../components/KillSheet";
 
 /** AJ-E505: one port-inventory row (classification is the key). */
@@ -67,7 +67,7 @@ export async function killVerify(sessionId: string, pid: number): Promise<KillVe
       project_id: null,
     };
   }
-  return invoke<KillVerifyData>("kill_verify", { sessionId, pid });
+  return call("kill_verify", { sessionId, pid });
 }
 
 /** AJ-E507: the audited TERM→grace→KILL ladder (step 3). */
@@ -100,7 +100,7 @@ export async function killExecute(
       reoffer_pid: null,
     };
   }
-  return invoke<KillExecuteData>("kill_execute", { sessionId, pid, scope, attempt, goalPort });
+  return call("kill_execute", { sessionId, pid, scope, attempt, goalPort });
 }
 
 /** AJ-E507: cancel a running ladder's grace window. */
@@ -108,7 +108,7 @@ export async function killCancel(attempt: string): Promise<void> {
   if (!hasBackend) {
     return Promise.resolve();
   }
-  return invoke("kill_cancel", { attempt });
+  return call("kill_cancel", { attempt });
 }
 
 /** AJ-E507: the grace window's per-process exit ticks. */
@@ -117,7 +117,7 @@ export async function killLiveness(pids: number[]): Promise<boolean[]> {
     return (window as unknown as { __AIJ_KILL_LIVENESS__?: (pids: number[]) => boolean[] })
       .__AIJ_KILL_LIVENESS__?.(pids) ?? pids.map(() => false);
   }
-  return invoke<boolean[]>("kill_liveness", { pids });
+  return call("kill_liveness", { pids });
 }
 
 /** AJ-E505: the port occupancy map. */
@@ -126,7 +126,7 @@ export async function portInventory(): Promise<PortInventoryInfo> {
     return (window as unknown as { __AIJ_PORTS__?: PortInventoryInfo }).__AIJ_PORTS__
       ?? { rows: [], note: null, hogs: [] };
   }
-  return invoke<PortInventoryInfo>("port_inventory");
+  return call("port_inventory");
 }
 
 /** AJ-E505: the launch pre-check — a warning NEVER blocks launch. */
@@ -135,5 +135,5 @@ export async function launchPortWarning(projectId: string | null): Promise<PortW
     return (window as unknown as { __AIJ_PORT_WARNING__?: PortWarningInfo }).__AIJ_PORT_WARNING__
       ?? null;
   }
-  return invoke<PortWarningInfo | null>("launch_port_warning", { projectId });
+  return call("launch_port_warning", { projectId });
 }

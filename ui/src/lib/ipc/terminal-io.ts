@@ -2,7 +2,7 @@
  * The embedded terminal (M1-4): spawn, attach, write, resize, kill and
  * its output events.
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import { orderedJoin, orderedLatest } from "./ordered";
 import type { TerminalInfo } from "../../types/generated/TerminalInfo";
 
@@ -15,18 +15,18 @@ export const TERMINAL_EVENTS = {
 /** Spawns the guided login for an account inside an embedded terminal. */
 export async function terminalSpawnLogin(accountId: string): Promise<TerminalInfo> {
   if (!hasBackend) return { id: `login-preview-${accountId}` };
-  return invoke<TerminalInfo>("terminal_spawn_login", { accountId });
+  return call("terminal_spawn_login", { accountId });
 }
 
 /** Starts streaming a supervised session into the dock (idempotent). */
 export async function terminalAttach(id: string): Promise<TerminalInfo> {
-  return invoke<TerminalInfo>("terminal_attach", { id });
+  return call("terminal_attach", { id });
 }
 
 /** Sends keystrokes to a terminal, in the order they were typed. */
-export const terminalWrite = orderedJoin((id, data) => invoke<void>("terminal_write", { id, data }));
+export const terminalWrite = orderedJoin((id, data) => call("terminal_write", { id, data }));
 
-const resizeTerminal = orderedLatest<{ cols: number; rows: number }>((id, size) => invoke<void>("terminal_resize", { id, ...size }));
+const resizeTerminal = orderedLatest<{ cols: number; rows: number }>((id, size) => call("terminal_resize", { id, ...size }));
 
 /** Resizes a terminal's PTY (the newest size wins). */
 export async function terminalResize(id: string, cols: number, rows: number): Promise<void> {
@@ -41,12 +41,12 @@ export async function terminalKill(id: string): Promise<void> {
     w.__AIJ_TERMINAL_KILL_CALLS__ = [...(w.__AIJ_TERMINAL_KILL_CALLS__ ?? []), id];
     return;
   }
-  return invoke<void>("terminal_kill", { id });
+  return call("terminal_kill", { id });
 }
 
 /** The retained output tail (base64) for replay on panel reopen. */
 export async function terminalSnapshot(id: string): Promise<string> {
-  return invoke<string>("terminal_snapshot", { id });
+  return call("terminal_snapshot", { id });
 }
 
 /** Live output stream for one terminal (base64 chunks). */

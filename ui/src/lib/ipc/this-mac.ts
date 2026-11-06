@@ -5,7 +5,7 @@
  * fixture; `window.__AIJ_MACHINE__` picks the state ("plenty" | "tight" |
  * "pressure" | "unsampled", or a full payload).
  */
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { instancesList } from "./instances";
 import type { MachineFixture } from "../../preview/machine";
@@ -35,7 +35,7 @@ export async function machineHealth(): Promise<MachineHealthInfo> {
     const seeded = machineSeams().__AIJ_MACHINE__ ?? previewHooks().machine.asFixture(previewParam("aij_machine")) ?? "plenty";
     return typeof seeded === "string" ? previewHooks().machine.mockMachineHealth(seeded) : structuredClone(seeded);
   }
-  return invoke<MachineHealthInfo>("machine_health");
+  return call("machine_health");
 }
 
 interface ThisMacSeams {
@@ -75,7 +75,7 @@ export async function thisMac(): Promise<ThisMacInfo> {
     const observed = seams.__AIJ_OBSERVED__ ?? others?.observed ?? previewHooks().thisMac.previewWindows(Number(previewParam("aij_windows") ?? 0));
     return previewHooks().thisMac.mockThisMac(sessions, await machineHealth(), observed, leftovers, alerts, advice, seams.__AIJ_OTHER_APPS__ ?? others?.apps);
   }
-  return invoke<ThisMacInfo>("this_mac");
+  return call("this_mac");
 }
 
 /** "Can this Mac take another session?" for every launch setting. */
@@ -92,7 +92,7 @@ export async function machineAdvice(): Promise<MachineAdviceInfo[]> {
       top ? { id: top.session_id!, bytes: top.rss_bytes } : null,
     );
   }
-  return invoke<MachineAdviceInfo[]>("machine_advice");
+  return call("machine_advice");
 }
 
 // --- AJ-E1408: overload alerts ---------------------------------------------
@@ -107,7 +107,7 @@ export async function machineAlertsTake(): Promise<OverloadAlertInfo[]> {
     (seams as { __AIJ_ALERT_TOLD__?: boolean }).__AIJ_ALERT_TOLD__ = true;
     return structuredClone(fresh);
   }
-  return invoke<OverloadAlertInfo[]>("machine_alerts_take");
+  return call("machine_alerts_take");
 }
 
 /** This Mac's 5 s `machine://this-mac` emission (live backends only). */

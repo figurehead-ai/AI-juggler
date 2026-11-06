@@ -7,7 +7,7 @@
  * `__AIJ_HANDOVER_REVEALED__` (what Reveal in Finder was asked for)
  * stand in.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import type { HandoverSheetInfo } from "../../types/generated/HandoverSheetInfo";
 import type { HandoverSummaryInfo } from "../../types/generated/HandoverSummaryInfo";
@@ -55,13 +55,13 @@ export async function handoverSummary(edgeId: string): Promise<HandoverSummaryIn
     const set = seams().__AIJ_HANDOVER_SUMMARY__ ?? {};
     return (edgeId in set ? set[edgeId] : set["*"]) ?? null;
   }
-  return invoke<HandoverSummaryInfo | null>("handover_summary", { edgeId });
+  return call("handover_summary", { edgeId });
 }
 
 /** A switch's handover, to read (nothing is written). */
 export async function handoverOpen(edgeId: string): Promise<HandoverSheetInfo> {
   if (!hasLiveBackend()) return seams().__AIJ_HANDOVER__ ?? SAMPLE;
-  return invoke<HandoverSheetInfo>("handover_open", { edgeId });
+  return call("handover_open", { edgeId });
 }
 
 /** Saves a session's handover, keys handled as the user chose. */
@@ -71,7 +71,7 @@ export async function handoverSave(sessionId: string): Promise<SavedHandoverInfo
     if (failure) throw failure;
     return seams().__AIJ_HANDOVER_SAVED__ ?? SAMPLE_SAVED;
   }
-  return invoke<SavedHandoverInfo>("handover_save", { sessionId });
+  return call("handover_save", { sessionId });
 }
 
 /** Reveal in Finder: a handover AI Juggler saved. */
@@ -80,5 +80,5 @@ export async function handoverReveal(path: string): Promise<void> {
     seams().__AIJ_HANDOVER_REVEALED__ = [...(seams().__AIJ_HANDOVER_REVEALED__ ?? []), path];
     return;
   }
-  return invoke<void>("handover_reveal", { path });
+  return call("handover_reveal", { path });
 }

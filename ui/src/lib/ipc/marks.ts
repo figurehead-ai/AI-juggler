@@ -6,7 +6,7 @@
  * id) or the replica fixture's, and a choice changes the preview's own
  * rows.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { initialsOf } from "../palette";
 import type { MarkChoice } from "../../types/generated/MarkChoice";
@@ -18,7 +18,7 @@ export async function projectIconRead(projectId: string): Promise<string | null>
     const seams = window as unknown as { __AIJ_PROJECT_ICONS__?: Record<string, string>; __AIJ_FIXTURE__?: { project_icons?: Record<string, string> } };
     return seams.__AIJ_PROJECT_ICONS__?.[projectId] ?? seams.__AIJ_FIXTURE__?.project_icons?.[projectId] ?? null;
   }
-  return invoke<string | null>("projects_icon_read", { projectId });
+  return call("projects_icon_read", { projectId });
 }
 
 /** Choose a project's mark (its clones share it); `{}` resets it. */
@@ -46,5 +46,5 @@ export async function projectMarkSet(projectId: string, choice: MarkChoice): Pro
     }
     return;
   }
-  return invoke<void>("projects_mark_set", { projectId, choice });
+  return call("projects_mark_set", { projectId, choice });
 }

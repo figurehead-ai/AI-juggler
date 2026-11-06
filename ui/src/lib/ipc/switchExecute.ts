@@ -6,7 +6,7 @@
  */
 import { hasLiveBackend } from "../bridge";
 import type { SwitchExecutedData } from "./switch-preflight";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import type { SwitchCutArgs } from "../../types/generated/SwitchCutArgs";
 
 /** AJ-E1103: why the next switch happens — set when the user picks a
@@ -79,7 +79,7 @@ export async function switchExecute(
   }
   const trigger = pendingSwitchTrigger ?? "manual";
   pendingSwitchTrigger = null;
-  return invoke<SwitchExecutedData>("switch_execute", {
+  return call("switch_execute", {
     sessionId,
     targetProfileId,
     freezeChoice,

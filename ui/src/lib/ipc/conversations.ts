@@ -4,7 +4,7 @@
  * backend reads them from each tool's own files and says when they
  * change (`conversations://changed`).
  */
-import { channel, invoke, listen } from "./transport";
+import { channel, call, withoutStream, listen } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
@@ -113,14 +113,14 @@ function previewConversations(): ConversationInfo[] {
 
 export async function conversationsList(): Promise<ConversationInfo[]> {
   if (!hasLiveBackend()) return previewConversations();
-  return invoke<ConversationInfo[]>("conversations_list");
+  return call("conversations_list");
 }
 
 /** One conversation by its account and id: one past the working set the
  * list holds (an old one opened from History). `null` when it's gone. */
 export async function conversationsGet(accountId: string, conversationId: string): Promise<ConversationInfo | null> {
   if (!hasLiveBackend()) return previewConversations().find((c) => c.account_id === accountId && c.id === conversationId) ?? null;
-  return invoke<ConversationInfo | null>("conversations_get", { accountId, conversationId });
+  return call("conversations_get", { accountId, conversationId });
 }
 
 export type { StartedSessionInfo };
@@ -133,13 +133,13 @@ export async function conversationsStarted(tool: string, conversationId: string)
     const seam = (globalThis as { __AIJ_STARTED__?: Record<string, StartedSessionInfo[]> }).__AIJ_STARTED__;
     return seam?.[conversationId] ?? [];
   }
-  return invoke<StartedSessionInfo[]>("conversations_started", { tool, conversationId });
+  return call("conversations_started", { tool, conversationId });
 }
 
 /** The copyable line that resumes a conversation in a terminal. */
 export async function conversationsResumeCommand(accountId: string, conversationId: string): Promise<string> {
   if (!hasLiveBackend()) return `cd ~/work && tool --resume ${conversationId}`;
-  return invoke<string>("conversations_resume_command", { accountId, conversationId });
+  return call("conversations_resume_command", { accountId, conversationId });
 }
 
 /** "Continue in AI Juggler": a resume launch on its account. */
@@ -149,7 +149,7 @@ export async function conversationsContinue(accountId: string, conversationId: s
     if (live) throw refused("it's open in another session now: close it there first, then continue here");
     return { session_id: `sess-${conversationId}`, pid: 0 };
   }
-  return invoke<LaunchResult>("conversations_continue", { accountId, conversationId });
+  return call("conversations_continue", { accountId, conversationId });
 }
 
 /** AJ-E2102: Go to it, for any session open now: its app forward by the
@@ -161,7 +161,7 @@ export async function conversationsGoTo(accountId: string, conversationId: strin
       ? { outcome: `Brought ${place.label} forward; pick the session in its sidebar`, reached: "app" }
       : { outcome: "It isn't open now", reached: "none" };
   }
-  return invoke<GoToOutcomeInfo>("conversations_go_to", { accountId, conversationId, pid });
+  return call("conversations_go_to", { accountId, conversationId, pid });
 }
 
 /** AJ-E2104: a place's Open: brings the running app whose process is
@@ -171,7 +171,7 @@ export async function conversationsBringForward(appPid: number): Promise<GoToOut
     const place = previewConversations().flatMap((row) => row.places).find((p) => p.app_pid === appPid);
     return place ? { outcome: `Brought ${place.label} forward`, reached: "app" } : { outcome: "That app isn't open now", reached: "none" };
   }
-  return invoke<GoToOutcomeInfo>("conversations_bring_forward", { appPid });
+  return call("conversations_bring_forward", { appPid });
 }
 
 /** What changed: `index` the files (new conversations, titles, folders,
@@ -258,7 +258,7 @@ const PREVIEW_TURNS: SeededChat = {
  * kept for the read-only preview callers until 0.4.0. */
 export async function conversationsLastMessages(accountId: string, conversationId: string, ask: LastMessagesAsk = {}): Promise<LastMessagesInfo> {
   if (!hasLiveBackend()) return previewLastMessages(conversationId, ask);
-  return invoke<LastMessagesInfo>("conversations_last_messages", {
+  return call("conversations_last_messages", {
     accountId,
     conversationId,
     known: ask.known ?? null,
@@ -280,24 +280,25 @@ export async function conversationsFollow(accountId: string, conversationId: str
     if (seeded.state !== "shown") return previewHooks().conversationFeed.previewWithout(seeded.state);
     return previewHooks().conversationFeed.previewFollow(`${accountId}\u0000${conversationId}`, seeded.turns, seeded.layout ?? "stretches", max, onDelta);
   }
-  return invoke<ConversationSnapshotInfo>("conversations_follow", { accountId, conversationId, max, channel: channel(onDelta) });
+  const stream = channel(onDelta);
+  return stream ? call("conversations_follow", { accountId, conversationId, max, channel: stream }) : withoutStream("conversations_follow");
 }
 
 /** 0.3.5: stops following (the page closed or was hidden). */
 export async function conversationsUnfollow(subscription: number): Promise<void> {
   if (!hasLiveBackend()) return previewHooks().conversationFeed.previewUnfollow(subscription);
-  return invoke<void>("conversations_unfollow", { subscription });
+  return call("conversations_unfollow", { subscription });
 }
 
 /** 0.3.5: the page still follows these; answers the ones that ended. */
 export async function conversationsKeep(subscriptions: number[]): Promise<number[]> {
   if (!hasLiveBackend()) return previewHooks().conversationFeed.previewKeep(subscriptions);
-  return invoke<number[]>("conversations_keep", { subscriptions });
+  return call("conversations_keep", { subscriptions });
 }
 
 /** 0.3.5: the turns before `before` in a followed conversation. No turns
  * with an `earlier` set: a long stretch with none was passed, read on. */
 export async function conversationsEarlier(subscription: number, before: number, max = 30): Promise<EarlierPageInfo> {
   if (!hasLiveBackend()) return previewHooks().conversationFeed.previewEarlier(subscription, before, max);
-  return invoke<EarlierPageInfo>("conversations_earlier", { subscription, before, max });
+  return call("conversations_earlier", { subscription, before, max });
 }

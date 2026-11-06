@@ -2,7 +2,7 @@
  * The tools AI Juggler knows: the provider list, what is installed
  * (AJ-E301) and what each can do, and the full environment scan.
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import type { DiscoveredInfo } from "../../types/generated/DiscoveredInfo";
 import type { ProviderInfo } from "../../types/generated/ProviderInfo";
 import { previewHooks } from "../preview-hooks";
@@ -11,7 +11,7 @@ export async function providersList(): Promise<ProviderInfo[]> {
   if (!hasBackend) {
     return [{ ...previewHooks().fixtures.PREVIEW_TOOL }];
   }
-  return invoke<ProviderInfo[]>("providers_list");
+  return call("providers_list");
 }
 
 /** @deprecated legacy alias (AJ-E107) — use providersList. */
@@ -48,7 +48,7 @@ export async function providersDiscover(): Promise<ProviderInstallData[]> {
         .__AIJ_PROVIDER_INSTALLS__ ?? previewHooks().providers.DEFAULT_PROVIDER_INSTALLS
     );
   }
-  return invoke<ProviderInstallData[]>("providers_discover");
+  return call("providers_discover");
 }
 
 /** What a registered Provider supports — from the registry alone, no
@@ -72,7 +72,7 @@ export async function providersCapabilities(): Promise<ProviderCapabilityData[]>
       previewHooks().providers.DEFAULT_PROVIDER_CAPABILITIES
     );
   }
-  return invoke<ProviderCapabilityData[]>("providers_capabilities");
+  return call("providers_capabilities");
 }
 
 /** AJ-E302: one probe's health row (S1–S10). */
@@ -120,7 +120,7 @@ export async function environmentScanFull(
     }).then((unlisten) => unlisten);
   }
   try {
-    return await invoke<ScanReportData>("environment_scan_full");
+    return await call("environment_scan_full");
   } finally {
     stop?.();
   }

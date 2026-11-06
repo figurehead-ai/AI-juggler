@@ -6,7 +6,7 @@
  * `__AIJ_REMOTE_STARTED__` stand in.
  */
 import { useEffect, useState } from "react";
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { NOTIFICATION_CLICK_EVENT } from "./notifications";
 import type { LaunchMachineInfo } from "../../types/generated/LaunchMachineInfo";
@@ -26,7 +26,7 @@ const seams = () =>
 /** What New session can start on each paired Mac (none unpaired). */
 export async function fleetLaunchOptions(): Promise<LaunchMachineInfo[]> {
   if (!hasLiveBackend()) return seams().__AIJ_LAUNCH_MACHINES__ ?? [];
-  return invoke<LaunchMachineInfo[]>("fleet_launch_options");
+  return call("fleet_launch_options");
 }
 
 /** Starts a session on `machineId`; that Mac answers in its own words. A
@@ -43,13 +43,13 @@ export async function fleetLaunchStart(machineId: string, recipeId: string, proj
     }
     return outcome;
   }
-  return invoke<RemoteCommandOutcomeInfo>("fleet_launch_start", { machineId, recipeId, projectId });
+  return call("fleet_launch_start", { machineId, recipeId, projectId });
 }
 
 /** Each machine's usage in the last day: this Mac first. */
 export async function fleetUsageByMachine(): Promise<MachineUsageInfo[]> {
   if (!hasLiveBackend()) return seams().__AIJ_MACHINE_USAGE__ ?? [];
-  return invoke<MachineUsageInfo[]>("fleet_usage_by_machine");
+  return call("fleet_usage_by_machine");
 }
 
 /** The Macs paired with this one, by their names here (none unpaired, and

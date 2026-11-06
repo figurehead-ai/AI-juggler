@@ -3,7 +3,7 @@
  * editor projects open in (ENGINEERING-GUIDE U3: one IPC module per
  * feature). In preview mode each call changes the preview's own rows.
  */
-import { invoke } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import { instancesList } from "./instances";
 import { launchRecipesList } from "./launch";
@@ -19,7 +19,7 @@ export async function sessionRename(sessionId: string, label: string | null): Pr
     row.label = label && label.trim() !== "" ? label.trim() : undefined;
     return;
   }
-  return invoke<void>("session_rename", { sessionId, label });
+  return call("session_rename", { sessionId, label });
 }
 
 /** AJ-E1502: pin a session to the top of its group, or unpin it. */
@@ -29,7 +29,7 @@ export async function sessionSetPinned(sessionId: string, pinned: boolean): Prom
     if (row) row.pinned = pinned ? true : undefined;
     return;
   }
-  return invoke<void>("session_set_pinned", { sessionId, pinned });
+  return call("session_set_pinned", { sessionId, pinned });
 }
 
 /** AJ-E1502: rename a project — its label; the folder is never renamed.
@@ -40,7 +40,7 @@ export async function projectRename(projectId: string, name: string): Promise<vo
     if (project) project.name = name.trim() !== "" ? name.trim() : (project.root.split("/").pop() ?? project.root);
     return;
   }
-  return invoke<void>("project_rename", { projectId, name });
+  return call("project_rename", { projectId, name });
 }
 
 /** AJ-E1502: pin a project to the top of the rail, or unpin it. */
@@ -50,7 +50,7 @@ export async function projectSetPinned(projectId: string, pinned: boolean): Prom
     if (project) project.pinned = pinned ? true : undefined;
     return;
   }
-  return invoke<void>("project_set_pinned", { projectId, pinned });
+  return call("project_set_pinned", { projectId, pinned });
 }
 
 /** AJ-E1502: forget a project (hidden until it is used again), or bring
@@ -72,7 +72,7 @@ export async function projectForget(projectId: string, forgotten: boolean): Prom
     if (forgotten) project.pinned = undefined;
     return;
   }
-  return invoke<void>("project_forget", { projectId, forgotten });
+  return call("project_forget", { projectId, forgotten });
 }
 
 /** AJ-E1502: point a project at the folder it moved to. The backend
@@ -91,7 +91,7 @@ export async function projectRelocate(projectId: string): Promise<boolean> {
     }
     return true;
   }
-  return invoke<boolean>("project_relocate", { projectId });
+  return call("project_relocate", { projectId });
 }
 
 /** AJ-E1502: open a project in the editor chosen in Settings (else
@@ -102,7 +102,7 @@ export async function projectOpen(projectId: string, how: "editor" | "finder"): 
     (w.__AIJ_OPENED__ ??= []).push({ projectId, how });
     return;
   }
-  return invoke<void>("project_open", { projectId, how });
+  return call("project_open", { projectId, how });
 }
 
 /** AJ-E1502: the editors this Mac has, and the one projects open in. */
@@ -111,7 +111,7 @@ export async function editorChoices(): Promise<EditorChoicesInfo> {
     const w = window as unknown as { __AIJ_EDITORS__?: EditorChoicesInfo };
     return (w.__AIJ_EDITORS__ ??= { installed: ["Visual Studio Code", "Zed"], chosen: null });
   }
-  return invoke<EditorChoicesInfo>("editor_choices");
+  return call("editor_choices");
 }
 
 /** AJ-E1502: choose the editor projects open in (`null`: Finder). */
@@ -121,7 +121,7 @@ export async function editorSet(editor: string | null): Promise<void> {
     current.chosen = editor;
     return;
   }
-  return invoke<void>("editor_set", { editor });
+  return call("editor_set", { editor });
 }
 
 /** A session counts as open while it could still be working (the
@@ -139,5 +139,5 @@ export async function deleteProfile(profileId: string): Promise<void> {
     const places = [...new Set(open.map((row) => row.git_branch ?? row.cwd.split("/").pop() ?? row.cwd))].sort();
     throw refused(`«${name}» has ${open.length === 1 ? "a session" : `${open.length} sessions`} open: ${places.join(", ")}. Stop ${open.length === 1 ? "it" : "them"} first, then delete the launch settings`);
   }
-  await invoke("profile_delete", { profileId });
+  await call("profile_delete", { profileId });
 }

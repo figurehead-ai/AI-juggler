@@ -2,7 +2,7 @@
  * Launch recipes and starting a session: the identity check, the
  * isolation offer and worktrees, and the launch itself.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { GitStatusInfo } from "../../types/generated/GitStatusInfo";
 import type { IdentityCheckInfo } from "../../types/generated/IdentityCheckInfo";
 import type { IsolationOfferInfo } from "../../types/generated/IsolationOfferInfo";
@@ -19,7 +19,7 @@ export async function launchRecipesList(): Promise<LaunchRecipeInfo[]> {
       previewHooks().fixtures.MOCK_PROFILES
     );
   }
-  return invoke<LaunchRecipeInfo[]>("launch_recipes_list");
+  return call("launch_recipes_list");
 }
 
 /** @deprecated legacy alias (AJ-E107) — use launchRecipesList. */
@@ -31,7 +31,7 @@ export async function createProfile(
   model: string | null,
   defaultCwd: string | null,
 ): Promise<LaunchRecipeInfo> {
-  return invoke<LaunchRecipeInfo>("profile_create", {
+  return call("profile_create", {
     accountId,
     name,
     model,
@@ -58,7 +58,7 @@ export async function identityCheck(recipeId: string): Promise<IdentityCheckInfo
       alternatives: [],
     };
   }
-  return invoke<IdentityCheckInfo>("identity_check", { recipeId });
+  return call("identity_check", { recipeId });
 }
 
 /** What the user chose in the identity-mismatch dialog. */
@@ -94,7 +94,7 @@ export async function isolationOffer(cwd: string): Promise<IsolationOfferInfo | 
     const seams = window as unknown as { __AIJ_ISOLATION_OFFER__?: IsolationOfferInfo | null };
     return seams.__AIJ_ISOLATION_OFFER__ ?? null;
   }
-  return invoke<IsolationOfferInfo | null>("isolation_offer", { cwd });
+  return call("isolation_offer", { cwd });
 }
 
 /** AJ-E1002: creates the worktree the user confirmed; returns its path. */
@@ -104,7 +104,7 @@ export async function worktreeCreate(cwd: string, path: string, branch: string):
     seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), `worktree:${branch}:${path}`];
     return path;
   }
-  return invoke<string>("worktree_create", { cwd, path, branch });
+  return call("worktree_create", { cwd, path, branch });
 }
 
 /** AJ-E1002: what removing a worktree would discard. */
@@ -114,7 +114,7 @@ export async function worktreeRemovalPreview(path: string): Promise<WorktreeRemo
     if (seams.__AIJ_WORKTREE_REMOVAL__) return seams.__AIJ_WORKTREE_REMOVAL__;
     throw new Error("no worktree here");
   }
-  return invoke<WorktreeRemovalInfo>("worktree_removal_preview", { path });
+  return call("worktree_removal_preview", { path });
 }
 
 /** AJ-E1002: removes a worktree AI Juggler created (typed confirmation
@@ -125,7 +125,7 @@ export async function worktreeRemove(path: string, confirm: string | null): Prom
     seams.__AIJ_LAUNCH_CALLS__ = [...(seams.__AIJ_LAUNCH_CALLS__ ?? []), `worktree-remove:${path}:${confirm ?? ""}`];
     return;
   }
-  return invoke<void>("worktree_remove", { path, confirm });
+  return call("worktree_remove", { path, confirm });
 }
 
 /** AJ-E1002: an Instance's git status, read now (on focus). */
@@ -134,7 +134,7 @@ export async function gitStatusRefresh(sessionId: string): Promise<GitStatusInfo
     const seams = window as unknown as { __AIJ_GIT_STATUS__?: Record<string, GitStatusInfo> };
     return seams.__AIJ_GIT_STATUS__?.[sessionId] ?? null;
   }
-  return invoke<GitStatusInfo | null>("git_status_refresh", { sessionId });
+  return call("git_status_refresh", { sessionId });
 }
 
 /** What the user chose in the isolation offer. */
@@ -199,7 +199,7 @@ export async function launchSession(
     seams.__AIJ_LAUNCH_CWDS__ = [...(seams.__AIJ_LAUNCH_CWDS__ ?? []), directory];
     return null; // preview mode: nothing really launches
   }
-  return invoke<{ session_id: string; pid: number }>("launch_session", {
+  return call("launch_session", {
     profileId: recipe,
     cwd: directory,
     runtime: runtime ?? null,
@@ -215,5 +215,5 @@ export async function sessionResume(sessionId: string): Promise<LaunchResult> {
     seams.__AIJ_SESSION_RESUME__ = [...(seams.__AIJ_SESSION_RESUME__ ?? []), sessionId];
     return { session_id: `sess-resumed-${sessionId}`, pid: 0 };
   }
-  return invoke<LaunchResult>("session_resume", { sessionId });
+  return call("session_resume", { sessionId });
 }

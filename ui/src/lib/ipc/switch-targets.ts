@@ -2,7 +2,7 @@
  * Where a switch can go: targets, the work graph, epoch resume and the
  * pack export.
  */
-import { invoke, liveBackend as hasBackend } from "./transport";
+import { call, liveBackend as hasBackend } from "./transport";
 import type { HandoverSummaryInfo } from "../../types/generated/HandoverSummaryInfo";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { SavedHandoverInfo } from "../../types/generated/SavedHandoverInfo";
@@ -46,7 +46,7 @@ export async function switchTargets(sessionId: string): Promise<SwitchTargetData
   if (!hasBackend) {
     return (window as unknown as { __AIJ_SWITCH_TARGETS__?: SwitchTargetData[] }).__AIJ_SWITCH_TARGETS__ ?? previewHooks().switching.previewSwitchTargets(sessionId);
   }
-  return invoke<SwitchTargetData[]>("switch_targets", { sessionId });
+  return call("switch_targets", { sessionId });
 }
 
 /** AJ-E209: one epoch node on a Work's timeline. */
@@ -96,7 +96,7 @@ export async function switchGraphOverview(projectId: string): Promise<WorkGraphD
         .__AIJ_SWITCH_GRAPH__ ?? previewHooks().switching.DEFAULT_SWITCH_GRAPH
     );
   }
-  return invoke<WorkGraphData[]>("switch_graph_overview", { projectId });
+  return call("switch_graph_overview", { projectId });
 }
 
 /** AJ-E209 Req.5: resumes an epoch's native session (the graph's
@@ -115,7 +115,7 @@ export async function epochResume(epochId: string): Promise<LaunchResult> {
     }
     return { session_id: `sess-resume-${Date.now()}`, pid: 0 };
   }
-  return invoke<LaunchResult>("epoch_resume", { epochId });
+  return call("epoch_resume", { epochId });
 }
 
 /** AJ-E209 Req.5: exports an epoch's pack through the AJ-E208 GLOBAL
@@ -135,5 +135,5 @@ export async function packExport(epochId: string): Promise<SavedHandoverInfo> {
     const path = `~/Library/Application Support/AI Juggler/exports/pack-preview-${Date.now()}`;
     return { path, shown: path, line: null };
   }
-  return invoke<SavedHandoverInfo>("pack_export", { epochId });
+  return call("pack_export", { epochId });
 }

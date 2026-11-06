@@ -2,7 +2,7 @@
  * AI Juggler's own life: its version, ready, relaunch and quitting with
  * live sessions (AJ-E1503).
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
 import { osAccessSeams } from "./settings";
 import { listenScoped } from "./terminal-io";
@@ -18,7 +18,7 @@ export async function fetchAppInfo(): Promise<AppInfo | null> {
     return seeded ?? { version: "0.0.0-preview", name: "AI Juggler", edition: "main", reserved_keys: [] };
   }
   try {
-    return await invoke<AppInfo>("app_info");
+    return await call("app_info");
   } catch {
     return null;
   }
@@ -35,7 +35,7 @@ export async function appRelaunch(anyway: boolean): Promise<ReopenBlockInfo | nu
     const block = seams.__AIJ_REOPEN_BLOCK__ ?? null;
     return anyway && block?.can_reopen_anyway ? null : block;
   }
-  return invoke<ReopenBlockInfo | null>("app_relaunch", { anyway });
+  return call("app_relaunch", { anyway });
 }
 
 export function onAppReady(handler: (info: AppInfo) => void): () => void {
@@ -65,7 +65,7 @@ export async function appQuitPlan(): Promise<QuitPlanInfo> {
     const seam = (window as unknown as { __AIJ_QUIT_PLAN__?: QuitPlanInfo }).__AIJ_QUIT_PLAN__;
     return seam ?? { live: 0, end_on_quit: 0, keep_running: 0, come_back: 0 };
   }
-  return invoke<QuitPlanInfo>("app_quit_plan");
+  return call("app_quit_plan");
 }
 
 /** Quits now; with `stopFirst` each live session is stopped cleanly first. */
@@ -75,7 +75,7 @@ export async function appQuit(stopFirst: boolean): Promise<void> {
     w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), stopFirst ? "stop-first" : "quit"];
     return;
   }
-  return invoke<void>("app_quit", { stopFirst });
+  return call("app_quit", { stopFirst });
 }
 
 /** The quit sheet is shown: the request is in a person's hands (without
@@ -86,7 +86,7 @@ export async function appQuitAck(): Promise<void> {
     w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), "ack"];
     return;
   }
-  return invoke<void>("app_quit_ack");
+  return call("app_quit_ack");
 }
 
 /** Cancel on the quit sheet: the next ⌘Q asks again. */
@@ -96,7 +96,7 @@ export async function appQuitCancel(): Promise<void> {
     w.__AIJ_QUIT_CALLS__ = [...(w.__AIJ_QUIT_CALLS__ ?? []), "cancel"];
     return;
   }
-  return invoke<void>("app_quit_cancel");
+  return call("app_quit_cancel");
 }
 
 /** ⌘Q or the close button while sessions are live: show the quit sheet. */

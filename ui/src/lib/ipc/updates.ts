@@ -1,7 +1,7 @@
 /**
  * AJ-E1010: updates and going back.
  */
-import { invoke, listen, liveBackend as hasBackend } from "./transport";
+import { call, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
 import type { GoingBackInfo } from "../../types/generated/GoingBackInfo";
 import type { UpdateStatusInfo } from "../../types/generated/UpdateStatusInfo";
@@ -16,14 +16,14 @@ interface UpdateSeams {
   __AIJ_UPDATE_RESTART_ERROR__?: string;
 }
 export const updateSeams = () => window as unknown as UpdateSeams;
-const updateCall = (call: string) => {
+const updateCall = (called: string) => {
   const seams = updateSeams();
-  seams.__AIJ_UPDATE_CALLS__ = [...(seams.__AIJ_UPDATE_CALLS__ ?? []), call];
+  seams.__AIJ_UPDATE_CALLS__ = [...(seams.__AIJ_UPDATE_CALLS__ ?? []), called];
 };
 /** Where updating stands. */
 export async function updateStatus(): Promise<UpdateStatusInfo> {
   if (!hasBackend) return { ...previewHooks().appState.mockUpdateStatus() };
-  return invoke<UpdateStatusInfo>("update_status");
+  return call("update_status");
 }
 
 /** Turns "check when AI Juggler starts" on or off. */
@@ -34,7 +34,7 @@ export async function updateSetCheckOnLaunch(enabled: boolean): Promise<UpdateSt
     updateSeams().__AIJ_UPDATE_STATUS__ = next;
     return next;
   }
-  return invoke<UpdateStatusInfo>("update_set_check_on_launch", { enabled });
+  return call("update_set_check_on_launch", { enabled });
 }
 
 /** D-20: the update channel this install follows. AI Juggler offers
@@ -54,7 +54,7 @@ export async function updateSetChannel(channel: UpdateChannel): Promise<UpdateSt
     updateSeams().__AIJ_UPDATE_STATUS__ = next;
     return next;
   }
-  return invoke<UpdateStatusInfo>("update_set_channel", { channel });
+  return call("update_set_channel", { channel });
 }
 
 /** Checks for a newer version now (never installs). */
@@ -65,7 +65,7 @@ export async function updateCheck(): Promise<UpdateStatusInfo> {
     updateSeams().__AIJ_UPDATE_STATUS__ = next;
     return { ...next };
   }
-  return invoke<UpdateStatusInfo>("update_check");
+  return call("update_check");
 }
 
 /** Installs the announced update: backup, download, verify, install. */
@@ -76,7 +76,7 @@ export async function updateInstall(): Promise<UpdateStatusInfo> {
     updateSeams().__AIJ_UPDATE_STATUS__ = next;
     return { ...next };
   }
-  return invoke<UpdateStatusInfo>("update_install");
+  return call("update_install");
 }
 
 /** Restarts into the installed version (refused while it isn't safe: a
@@ -88,7 +88,7 @@ export async function updateRestart(): Promise<void> {
     if (error) throw new Error(error);
     return;
   }
-  return invoke<void>("update_restart");
+  return call("update_restart");
 }
 
 /** AJ-E1010: the earlier versions this install can go back to (the
@@ -97,7 +97,7 @@ export async function goingBackOptions(): Promise<GoingBackInfo[]> {
   if (!hasBackend) {
     return [...((window as unknown as { __AIJ_GOING_BACK__?: GoingBackInfo[] }).__AIJ_GOING_BACK__ ?? [])];
   }
-  return invoke<GoingBackInfo[]>("going_back_options");
+  return call("going_back_options");
 }
 
 /** AJ-E1010: puts the data back as the version reading `schema` left it,
@@ -110,7 +110,7 @@ export async function goingBackPrepare(schema: number): Promise<void> {
     if (error) throw new Error(error);
     return;
   }
-  return invoke<void>("going_back_prepare", { schema });
+  return call("going_back_prepare", { schema });
 }
 
 /** 0.0.11 walk (Q6): opens the page to install `version` from (its
@@ -120,7 +120,7 @@ export async function goingBackOpenReleases(version: string | null): Promise<voi
     updateCall(`open-releases:${version ?? ""}`);
     return;
   }
-  return invoke<void>("going_back_open_releases", { version });
+  return call("going_back_open_releases", { version });
 }
 
 /** Update status changes pushed by the backend. */

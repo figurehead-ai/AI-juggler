@@ -4,7 +4,7 @@
  * preview, opening a link does nothing and the windows are pretend ones
  * (the main window's "in its own window" state still shows).
  */
-import { invoke, listen } from "./transport";
+import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 
 /** The backend's event: the ids of the terminals in their own windows. */
@@ -22,7 +22,7 @@ export async function terminalOpenLink(id: string, target: string): Promise<void
     (window as unknown as { __AIJ_OPENED_LINK__?: string }).__AIJ_OPENED_LINK__ = target;
     return;
   }
-  return invoke<void>("terminal_open_link", { id, target });
+  return call("terminal_open_link", { id, target });
 }
 
 /** Opens the terminal in its own window, or brings that window forward. */
@@ -32,7 +32,7 @@ export async function terminalPopOut(id: string, title: string): Promise<void> {
     tellPreview();
     return;
   }
-  return invoke<void>("terminal_pop_out", { id, title });
+  return call("terminal_pop_out", { id, title });
 }
 
 /** Closes the terminal's own window: it shows here again. */
@@ -42,7 +42,7 @@ export async function terminalPopIn(id: string): Promise<void> {
     tellPreview();
     return;
   }
-  return invoke<void>("terminal_pop_in", { id });
+  return call("terminal_pop_in", { id });
 }
 
 /** Follows which terminals are in their own windows; the first answer is now. */
@@ -55,7 +55,7 @@ export function followTerminalWindows(handler: (ids: string[]) => void): () => v
   let stopped = false;
   let unlisten: (() => void) | null = null;
   void listen<string[]>(WINDOWS_EVENT, (event) => handler(event.payload)).then((stop) => (stopped ? stop() : (unlisten = stop)));
-  void invoke<string[]>("terminal_windows").then((ids) => !stopped && handler(ids), () => null);
+  void call("terminal_windows").then((ids) => !stopped && handler(ids), () => null);
   return () => {
     stopped = true;
     unlisten?.();
