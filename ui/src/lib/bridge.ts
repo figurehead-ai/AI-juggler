@@ -406,7 +406,7 @@ export const MOCK_PROJECTS: ProjectInfo[] = seeded.projects ?? [
     root: "/Users/you/Dev/ai-juggler",
     name: "ai-juggler",
     last_activity_ms: Date.now() - 60_000,
-    active_instance: MOCK_SESSIONS[0],
+    active_instance: MOCK_SESSIONS[0] ?? null,
     accounts_used: ["Work Max"],
     instance_count: 1,
     history_sessions: 0, history_last_used_ms: null, repo: null, mark: { letters: "AJ", swatch: 0, shows: "letters" },
@@ -3780,7 +3780,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
       signals: ["home-pattern", "CLAUDE_CONFIG_DIR in ~/.zshrc:12"],
     },
   ],
-  probes: [
+  probes: ([
     ["s1-config-dirs", "Folders named .claude…", "1 candidate setup(s)"],
     ["s2-env-overrides", "A config folder set for this app (CLAUDE_CONFIG_DIR)", "none set in this app's environment"],
     ["s3-manager-t3", "Claude profiles (ClaudeCodeProfiles)", "not present"],
@@ -3791,7 +3791,7 @@ const DEFAULT_SCAN_REPORT: ScanReportData = {
     ["s8-usage-recency", "When each was last used", "1 setup(s) with recent activity"],
     ["s9-projects", "Recent projects", "3 project name(s)"],
     ["s10-desktop", "Desktop apps", "Claude.app"],
-  ].map(([id, label, detail]) => ({
+  ] as const).map(([id, label, detail]) => ({
     id,
     label,
     health: "ok",

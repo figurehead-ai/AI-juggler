@@ -7,15 +7,15 @@ describe("machine health (AJ-E1401)", () => {
     (window as unknown as { __AIJ_MACHINE__?: string }).__AIJ_MACHINE__ = "pressure";
     const pressure = await machineHealth();
     expect(pressure.summary.level).toBe("pressure");
-    expect(pressure.summary.reasons[0].words).toBe("macOS reports critical memory pressure");
+    expect(pressure.summary.reasons[0]!.words).toBe("macOS reports critical memory pressure");
     delete (window as unknown as { __AIJ_MACHINE__?: string }).__AIJ_MACHINE__;
   });
 
   it("keeps five minutes of 2 s points, the first CPU unmeasured", () => {
     const tight = mockMachineHealth("tight", 1_000_000);
     expect(tight.series).toHaveLength(150);
-    expect(tight.series[0].cpu_pct).toBeNull();
-    expect(tight.series[149].at_ms).toBe(1_000_000);
+    expect(tight.series[0]!.cpu_pct).toBeNull();
+    expect(tight.series[149]!.at_ms).toBe(1_000_000);
     expect(mockMachineHealth("unsampled").sampled).toBe(false);
   });
 

@@ -78,7 +78,7 @@ pub fn open_app(
         return Err(crate::unsupported("starting an app"));
     }
     let (program, words) = open_command(bundle, start, env, args);
-    let out = std::process::Command::new(program)
+    let out = crate::process::helper(program)
         .args(words)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())

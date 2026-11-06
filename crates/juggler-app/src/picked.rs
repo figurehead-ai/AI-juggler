@@ -30,7 +30,11 @@ const MOST: usize = 64;
 /// may be used for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../../ui/src/types/generated/", rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../../ui/src/types/generated/",
+    rename_all = "camelCase"
+)]
 pub enum PickKind {
     /// A folder to work in (a project, a session's folder, an import).
     Folder,
@@ -57,7 +61,11 @@ enum Source {
 
 impl Source {
     fn kept_for(self) -> Duration {
-        if self == Self::Offered { OFFERED_FOR } else { KEPT_FOR }
+        if self == Self::Offered {
+            OFFERED_FOR
+        } else {
+            KEPT_FOR
+        }
     }
 }
 
@@ -117,7 +125,9 @@ pub fn record_dropped(paths: &[PathBuf]) {
 }
 
 fn was(path: &Path, ok: impl Fn(Source) -> bool) -> bool {
-    let Some(path) = plain(path) else { return false };
+    let Some(path) = plain(path) else {
+        return false;
+    };
     CHOSEN
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -160,7 +170,11 @@ pub const WORK_FOLDER: Allowed<'static> = Allowed {
 ///
 /// [`AppError::Validation`] for a path the user didn't choose and AI
 /// Juggler doesn't know.
-pub fn vouch(path: &str, allowed: Allowed<'_>, known: impl FnOnce(&Path) -> bool) -> AppResult<PathBuf> {
+pub fn vouch(
+    path: &str,
+    allowed: Allowed<'_>,
+    known: impl FnOnce(&Path) -> bool,
+) -> AppResult<PathBuf> {
     let given = PathBuf::from(path);
     let chosen = was(&given, |source| match source {
         Source::Picked(kind) => allowed.picked.contains(&kind),
@@ -189,7 +203,9 @@ pub fn within(path: &Path, root: &Path) -> bool {
 /// project's root, a session's folder, or a launch setting's usual folder.
 #[must_use]
 pub fn known_work_folder(state: &crate::state::AppState, path: &Path) -> bool {
-    let Ok(storage) = state.storage.lock() else { return false };
+    let Ok(storage) = state.storage.lock() else {
+        return false;
+    };
     let in_project = storage
         .projects()
         .list()
@@ -197,12 +213,15 @@ pub fn known_work_folder(state: &crate::state::AppState, path: &Path) -> bool {
     let a_default = || {
         storage.accounts().list().is_ok_and(|accounts| {
             accounts.iter().any(|account| {
-                storage.profiles().list_by_account(&account.id).is_ok_and(|profiles| {
-                    profiles
-                        .iter()
-                        .filter_map(|profile| profile.default_cwd.as_deref())
-                        .any(|cwd| within(path, cwd))
-                })
+                storage
+                    .profiles()
+                    .list_by_account(&account.id)
+                    .is_ok_and(|profiles| {
+                        profiles
+                            .iter()
+                            .filter_map(|profile| profile.default_cwd.as_deref())
+                            .any(|cwd| within(path, cwd))
+                    })
             })
         })
     };
@@ -231,7 +250,11 @@ pub fn work_folder(state: &crate::state::AppState, path: &str) -> AppResult<Path
 /// [`AppError::Refused`] through the read-only test bridge (a picker
 /// starts a write).
 #[tauri::command]
-pub async fn pick_path(app: tauri::AppHandle, kind: PickKind, file_name: Option<String>) -> AppResult<Option<String>> {
+pub async fn pick_path(
+    app: tauri::AppHandle,
+    kind: PickKind,
+    file_name: Option<String>,
+) -> AppResult<Option<String>> {
     use tauri_plugin_dialog::DialogExt as _;
     let picked = tauri::async_runtime::spawn_blocking(move || {
         let dialog = app.dialog().file();
@@ -279,7 +302,10 @@ mod tests {
         remember(Path::new(path), Source::Picked(PickKind::BackupDest));
         let dest = picked_as(&[PickKind::BackupDest]);
         assert!(vouch(path, dest, |_| false).is_ok());
-        assert!(vouch(path, ANY, |_| false).is_err(), "a save destination isn't a folder to work in");
+        assert!(
+            vouch(path, ANY, |_| false).is_err(),
+            "a save destination isn't a folder to work in"
+        );
     }
 
     #[test]
@@ -294,16 +320,36 @@ mod tests {
     fn a_path_ai_juggler_offered_may_come_back() {
         record_offered(["/tmp/aij-offered-test/.claude"]);
         assert!(vouch("/tmp/aij-offered-test/.claude", ANY, |_| false).is_ok());
-        assert!(vouch("/tmp/aij-offered-test/.claude", picked_as(&[PickKind::Folder]), |_| false).is_err());
+        assert!(
+            vouch(
+                "/tmp/aij-offered-test/.claude",
+                picked_as(&[PickKind::Folder]),
+                |_| false
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn anything_else_needs_the_app_to_know_it() {
         assert!(vouch("/etc", ANY, |_| false).is_err());
-        assert!(vouch("relative/path", ANY, |_| true).is_err(), "never a relative path");
-        assert!(vouch("/Users/x/project/src", ANY, |p| within(p, Path::new("/Users/x/project"))).is_ok());
         assert!(
-            vouch("/Users/x/project/../.ssh", ANY, |p| within(p, Path::new("/Users/x/project"))).is_err(),
+            vouch("relative/path", ANY, |_| true).is_err(),
+            "never a relative path"
+        );
+        assert!(
+            vouch("/Users/x/project/src", ANY, |p| within(
+                p,
+                Path::new("/Users/x/project")
+            ))
+            .is_ok()
+        );
+        assert!(
+            vouch("/Users/x/project/../.ssh", ANY, |p| within(
+                p,
+                Path::new("/Users/x/project")
+            ))
+            .is_err(),
             "`..` can't climb out of a known folder"
         );
     }

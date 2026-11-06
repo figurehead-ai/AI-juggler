@@ -340,8 +340,8 @@ describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
       const linked = talk(`c-${tool}`, { tool, session_id: session.id, subtask_count: null });
       const items = itemsOf({ sessions: [session], conversations: [linked], projects: [], seen: {} });
       expect(items).toHaveLength(1);
-      expect(items[0].session?.id).toBe(session.id);
-      expect(items[0].subagents).toBe(2);
+      expect(items[0]!.session?.id).toBe(session.id);
+      expect(items[0]!.subagents).toBe(2);
       // Not linked (more than one could be its own): both rows, as before.
       const unlinked = talk(`c-${tool}`, { tool, session_id: null });
       expect(itemsOf({ sessions: [session], conversations: [unlinked], projects: [], seen: {} })).toHaveLength(2);

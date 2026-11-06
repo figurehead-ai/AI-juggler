@@ -183,7 +183,7 @@ describe("a tool that keeps no notes: the handover (D-51)", () => {
       "Work Max's 3 notes for this project stay with Work Max: Codex doesn't keep notes like these. Tick them under Before you switch to include them in the handover.",
     );
     unticked.unmount();
-    const ticked = render(<CarryList items={PREFLIGHT.carry_items} target="Codex" tool="Codex" setup={setup} picked={new Set([setup.offers[0].id])} />);
+    const ticked = render(<CarryList items={PREFLIGHT.carry_items} target="Codex" tool="Codex" setup={setup} picked={new Set([setup.offers[0]!.id])} />);
     expect(ticked.getByTestId("switch-carry-moves").textContent).toContain(
       "2 of Work Max's notes for this project go in the handover Codex reads first. The other one stays with Work Max.",
     );

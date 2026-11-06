@@ -127,7 +127,7 @@ describe("Home: an app that isn't running", () => {
     expect(tile!.textContent).toContain("Not running · keep alive starts it");
     expect(other!.textContent).toContain("b-off");
     expect(within(other!).getByRole("button", { name: "Start Claude app · b-off" })).toBeTruthy();
-    fireEvent.click(within(tile).getByRole("button", { name: "Start Claude app · b-lab" }));
+    fireEvent.click(within(tile!).getByRole("button", { name: "Start Claude app · b-lab" }));
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.app_pid).not.toBeNull());
     // Running now, with nothing open in it yet: its tile stays, with Open.
     await waitFor(() => expect(screen.getAllByTestId("home-app-closed")).toHaveLength(1));

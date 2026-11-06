@@ -560,7 +560,7 @@ fn a_service_accounts_key_never_reaches_a_backup() {
         &ServiceAccountRequest {
             service: "kimi".into(),
             plan: Some("Pro".into()),
-            key: key.into(),
+            key: juggler_core::redacted::Redacted::new(key.into()),
             profiles: vec![
                 ServiceProfileRequest {
                     tool: "claude-code".into(),
@@ -740,4 +740,145 @@ fn the_committed_v1_fixture_archive_restores() {
             .len(),
         1
     );
+}
+
+/// Writes `items` as a backup archive at `out`, byte for byte as given
+/// (hostile archives too).
+fn write_archive(out: &Path, items: &[(String, Vec<u8>)]) {
+    let file = std::fs::File::create(out).unwrap();
+    let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
+        file,
+        flate2::Compression::fast(),
+    ));
+    for (path, body) in items {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(body.len() as u64);
+        header.set_mode(0o600);
+        header.set_entry_type(tar::EntryType::Regular);
+        builder.append_data(&mut header, path, &body[..]).unwrap();
+    }
+    builder.into_inner().unwrap().finish().unwrap();
+}
+
+/// The manifest re-signed for `name`'s new body (bytes and sha256).
+fn resign(items: &mut [(String, Vec<u8>)], name: &str) {
+    use sha2::Digest as _;
+    let body = items
+        .iter()
+        .find(|(path, _)| path == name)
+        .unwrap()
+        .1
+        .clone();
+    let sha: String = sha2::Sha256::digest(&body)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let manifest = &mut items
+        .iter_mut()
+        .find(|(path, _)| path == "manifest.json")
+        .unwrap()
+        .1;
+    let mut parsed: serde_json::Value = serde_json::from_slice(manifest).unwrap();
+    for file in parsed["files"].as_array_mut().unwrap() {
+        if file["path"] == name {
+            file["bytes"] = serde_json::json!(body.len());
+            file["sha256"] = serde_json::json!(sha);
+        }
+    }
+    *manifest = serde_json::to_vec(&parsed).unwrap();
+}
+
+/// AJ-E2006: a crafted backup is refused before anything in it is used —
+/// a file larger than its manifest says, a file it doesn't list, a file
+/// in it twice, a manifest far too large, and a database carrying a
+/// trigger AI Juggler didn't write — and nothing lands outside staging.
+#[test]
+fn hostile_archives_are_refused_before_anything_in_them_runs() {
+    let work = tempfile::tempdir().unwrap();
+    let mac_a = work.path().join("mac-a");
+    let a = app_state(&mac_a);
+    seed(&a, &mac_a);
+    let archive = work.path().join("a.ajbackup");
+    backup::backup_export_impl(&a, &archive, &mut |_, _| {}).unwrap();
+    let b = app_state(&work.path().join("mac-b"));
+    let original = entries(&archive);
+    let refusal = |name: &str, items: &[(String, Vec<u8>)]| {
+        let out = work.path().join(name);
+        write_archive(&out, items);
+        backup::backup_verify_impl(&b, &out)
+            .unwrap_err()
+            .to_string()
+    };
+
+    let mut larger = original.clone();
+    larger
+        .iter_mut()
+        .find(|(p, _)| p == "settings/heuristics.json")
+        .unwrap()
+        .1
+        .extend_from_slice(&[b' '; 4096]);
+    let said = refusal("larger.ajbackup", &larger);
+    assert!(said.contains("larger than its manifest says"), "{said}");
+
+    let mut unlisted = original.clone();
+    unlisted.push(("parked/planted.json".to_owned(), b"{}".to_vec()));
+    let said = refusal("unlisted.ajbackup", &unlisted);
+    assert!(said.contains("not listed in its manifest"), "{said}");
+
+    let mut twice = original.clone();
+    let again = twice
+        .iter()
+        .find(|(p, _)| p == "settings/heuristics.json")
+        .unwrap()
+        .clone();
+    twice.push(again);
+    let said = refusal("twice.ajbackup", &twice);
+    assert!(said.contains("twice"), "{said}");
+
+    let mut huge = original.clone();
+    {
+        let manifest = &mut huge
+            .iter_mut()
+            .find(|(p, _)| p == "manifest.json")
+            .unwrap()
+            .1;
+        let mut parsed: serde_json::Value = serde_json::from_slice(manifest).unwrap();
+        parsed["padding"] = serde_json::json!("x".repeat(9 * 1024 * 1024));
+        *manifest = serde_json::to_vec(&parsed).unwrap();
+    }
+    let said = refusal("huge.ajbackup", &huge);
+    assert!(said.contains("far too large"), "{said}");
+
+    // A trigger planted in the database, the manifest re-signed so every
+    // checksum matches: only the database check can catch it.
+    let mut planted = original.clone();
+    {
+        let db = work.path().join("planted.sqlite");
+        std::fs::write(
+            &db,
+            &planted
+                .iter()
+                .find(|(p, _)| p == "db/juggler.sqlite")
+                .unwrap()
+                .1,
+        )
+        .unwrap();
+        rusqlite::Connection::open(&db)
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER planted AFTER INSERT ON accounts BEGIN DELETE FROM accounts; END;",
+            )
+            .unwrap();
+        planted
+            .iter_mut()
+            .find(|(p, _)| p == "db/juggler.sqlite")
+            .unwrap()
+            .1 = std::fs::read(&db).unwrap();
+    }
+    resign(&mut planted, "db/juggler.sqlite");
+    let said = refusal("planted.ajbackup", &planted);
+    assert!(said.contains("didn't write"), "{said}");
+
+    // The untouched backup still verifies.
+    backup::backup_verify_impl(&b, &archive).unwrap();
 }

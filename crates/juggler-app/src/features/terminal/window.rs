@@ -80,18 +80,18 @@ pub fn pop_out(app: &AppHandle, id: &str, title: &str) -> AppResult<()> {
         &label,
         WebviewUrl::App("index.html".into()),
     ))
-        .title(if name.trim().is_empty() {
-            "AI Juggler".to_owned()
-        } else {
-            format!("{name} — AI Juggler")
-        })
-        .inner_size(960.0, 620.0)
-        .min_inner_size(480.0, 320.0)
-        .build()
-        .map_err(|error| AppError::Io {
-            context: "open the terminal's window",
-            message: error.to_string(),
-        })?;
+    .title(if name.trim().is_empty() {
+        "AI Juggler".to_owned()
+    } else {
+        format!("{name} — AI Juggler")
+    })
+    .inner_size(960.0, 620.0)
+    .min_inner_size(480.0, 320.0)
+    .build()
+    .map_err(|error| AppError::Io {
+        context: "open the terminal's window",
+        message: error.to_string(),
+    })?;
     let handle = app.clone();
     let closing = label.clone();
     window.on_window_event(move |event| {

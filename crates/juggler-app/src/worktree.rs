@@ -71,7 +71,7 @@ pub fn parse_porcelain(text: &str) -> GitStatus {
 /// for a Mac that has none.
 fn git_command() -> Result<Command, AppError> {
     juggler_adapter::system_tools::git()
-        .map(Command::new)
+        .map(juggler_adapter::process::helper)
         .ok_or_else(|| AppError::Io {
             context: "run git",
             message: juggler_adapter::system_tools::GIT_MISSING.to_owned(),
@@ -492,7 +492,7 @@ pub fn worktree_create_impl(
     let output = git_command()?
         .arg("-C")
         .arg(&root)
-        .args(["worktree", "add", "-b", branch])
+        .args(["worktree", "add", "-b", branch, "--"])
         .arg(&target)
         .output()
         .map_err(|e| AppError::io("run git", &e))?;
@@ -638,6 +638,7 @@ pub fn worktree_remove_impl(
         command.arg("--force");
     }
     let output = command
+        .arg("--")
         .arg(path)
         .output()
         .map_err(|e| AppError::io("run git", &e))?;
@@ -756,7 +757,9 @@ pub async fn worktree_create(
         // R6: the new worktree goes where the offer for `cwd` proposed,
         // never a place the page names.
         let offered = isolation_offer_impl(state, &cwd)?.and_then(|offer| offer.proposed_path);
-        crate::picked::vouch(&path, crate::picked::picked_as(&[]), |_| offered.as_deref() == Some(path.as_str()))?;
+        crate::picked::vouch(&path, crate::picked::picked_as(&[]), |_| {
+            offered.as_deref() == Some(path.as_str())
+        })?;
         worktree_create_impl(state, &cwd, &path, &branch)
     })
     .await

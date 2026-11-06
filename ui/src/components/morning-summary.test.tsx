@@ -51,10 +51,10 @@ describe("AJ-E1004 morning summary", () => {
     );
     const rows = container.querySelectorAll<HTMLButtonElement>("[data-testid='summary-row']");
     expect(Array.from(rows).map((r) => r.dataset.group)).toEqual(["crashed", "needs_you", "finished"]);
-    expect(rows[0].textContent).toContain("2 leftover processes");
-    expect(rows[0].textContent).toContain("cost: Unavailable");
-    expect(rows[1].textContent).toContain("12,400 tokens");
-    fireEvent.click(rows[1]);
+    expect(rows[0]!.textContent).toContain("2 leftover processes");
+    expect(rows[0]!.textContent).toContain("cost: Unavailable");
+    expect(rows[1]!.textContent).toContain("12,400 tokens");
+    fireEvent.click(rows[1]!);
     expect(opened).toEqual(["s2"]);
     await act(async () => {
       fireEvent.click(container.querySelector("[data-testid='summary-seen']")!);

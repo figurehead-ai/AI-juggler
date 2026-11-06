@@ -100,7 +100,7 @@ pub fn vault_setup_impl(
         key
     };
     Ok(RecoveryCodeInfo {
-        code: key.recovery_code(),
+        code: key.recovery_code().as_str().to_owned(),
     })
 }
 
@@ -155,18 +155,44 @@ pub fn seal_backup(archive: &Path, key: &VaultKey) -> AppResult<Vec<u8>> {
     let encoder =
         zstd::stream::Encoder::new(Vec::new(), 9).map_err(|e| io_error("cloud backup", &e))?;
     let mut builder = tar::Builder::new(encoder);
-    for entry in source.entries().map_err(|e| io_error("cloud backup", &e))? {
-        let mut entry = entry.map_err(|e| io_error("cloud backup", &e))?;
+    // AJ-E2006: the unpacked size is capped as a backup's is (a crafted
+    // container can't expand without end), and entries stream, never
+    // whole in memory.
+    let too_large = || AppError::Validation {
+        subject: "cloud backup",
+        message: "that backup unpacks far larger than any backup AI Juggler makes".to_owned(),
+    };
+    let mut total = 0u64;
+    for (count, entry) in source
+        .entries()
+        .map_err(|e| io_error("cloud backup", &e))?
+        .enumerate()
+    {
+        let entry = entry.map_err(|e| io_error("cloud backup", &e))?;
+        let size = entry
+            .header()
+            .size()
+            .map_err(|e| io_error("cloud backup", &e))?;
+        total = total.saturating_add(size);
+        if count > crate::backup::MAX_FILES
+            || size > crate::backup::MAX_FILE_BYTES
+            || total > crate::backup::MAX_TOTAL_BYTES
+        {
+            return Err(too_large());
+        }
         let name = entry
             .path()
             .map_err(|e| io_error("cloud backup", &e))?
             .to_string_lossy()
             .into_owned();
-        let mut body = Vec::new();
-        entry
-            .read_to_end(&mut body)
+        let mut header = tar::Header::new_gnu();
+        header.set_size(size);
+        header.set_mode(0o600);
+        header.set_mtime(0);
+        header.set_cksum();
+        builder
+            .append_data(&mut header, &name, entry.take(size))
             .map_err(|e| io_error("cloud backup", &e))?;
-        append(&mut builder, &name, &body)?;
     }
     let packed = builder
         .into_inner()
@@ -245,11 +271,11 @@ pub fn vault_save_code_impl(
         subject: "vault",
         message: "there is no vault key yet".to_owned(),
     })?;
-    let text = format!(
+    let text = zeroize::Zeroizing::new(format!(
         "AI Juggler recovery code\n\n{}\n\nWithout this code, a new Mac can't open your backups. We can't recover it for you.\nKeep it somewhere safe and private.\n",
-        key.recovery_code()
-    );
-    std::fs::write(dest, text).map_err(|e| io_error("recovery code", &e))
+        key.recovery_code().as_str()
+    ));
+    std::fs::write(dest, text.as_bytes()).map_err(|e| io_error("recovery code", &e))
 }
 
 /// AJ-E1204: where the vault stands.

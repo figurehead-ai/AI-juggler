@@ -178,6 +178,7 @@ fi
 
 if step "ui: install" bash -c 'cd ui && pnpm install --frozen-lockfile --prefer-offline'; then
   step "ui: vitest" bash -c "cd ui && pnpm exec vitest run --maxWorkers=$JOBS"
+  step "ui: lint" bash -c "cd ui && pnpm lint"
   step "ui: build" bash -c 'cd ui && pnpm build'
 fi
 

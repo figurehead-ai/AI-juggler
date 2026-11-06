@@ -611,6 +611,55 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
     }
 }
 
+/// AJ-E2006: an import that left links pointing outside its folder, or
+/// copied files that look like they hold a secret, says so once (`None`
+/// when there is nothing to tell). The detail lists each, masked.
+#[must_use]
+pub fn import_notice(
+    account_id: &str,
+    label: &str,
+    left_outside: &[String],
+    secrets: &[String],
+) -> Option<NewNotice> {
+    if left_outside.is_empty() && secrets.is_empty() {
+        return None;
+    }
+    let mut lines = Vec::new();
+    if !left_outside.is_empty() {
+        lines.push(
+            "Left out, because they point outside the folder (link them again if you want them):"
+                .to_owned(),
+        );
+        lines.extend(left_outside.iter().map(|line| format!("• {line}")));
+    }
+    if !secrets.is_empty() {
+        lines.push("These copied files hold what looks like a secret. They stay on this computer; remove it if it shouldn't be there:".to_owned());
+        lines.extend(secrets.iter().map(|line| format!("• {line}")));
+    }
+    let things = left_outside.len() + secrets.len();
+    Some(NewNotice {
+        key: format!("import:{account_id}"),
+        kind: "import".to_owned(),
+        title: format!(
+            "{label}: imported, {things} {} to look at",
+            if things == 1 { "thing" } else { "things" }
+        ),
+        detail: lines.join("\n"),
+        data: centre::data_of(
+            &NoticeTarget {
+                account_id: Some(account_id.to_owned()),
+                ..NoticeTarget::default()
+            },
+            &NoticeFacts {
+                account: Some(label.to_owned()),
+                ..NoticeFacts::default()
+            },
+        ),
+        action: Some("open".to_owned()),
+        ..NewNotice::default()
+    })
+}
+
 /// AJ-E611's alert pass, as notices: an account the pass found running
 /// low opens (or refreshes) its need; one that has room again ends it and
 /// says so. Called after each pass with what it emitted.

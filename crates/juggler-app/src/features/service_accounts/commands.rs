@@ -60,8 +60,9 @@ pub struct ServiceAccountRequest {
     pub service: String,
     /// Its plan, one of the service's.
     pub plan: Option<String>,
-    /// The key, pasted once.
-    pub key: String,
+    /// The key, pasted once. AJ-E2010: never printed.
+    #[ts(type = "string")]
+    pub key: juggler_core::redacted::Redacted<String>,
     /// The profiles to make, one per tool.
     pub profiles: Vec<ServiceProfileRequest>,
 }
@@ -127,7 +128,7 @@ pub fn service_account_add_impl(
     let store = state.service_keys.store()?;
     let preset = juggler_adapters::services::preset(&request.service)
         .ok_or_else(|| AppError::Refused("AI Juggler doesn't know that service".into()))?;
-    let key = request.key.trim();
+    let key = request.key.expose().trim();
     if !plausible_key(key) {
         return Err(AppError::Refused(format!(
             "That doesn't look like a key: paste your {} again, on one line",
@@ -408,10 +409,11 @@ pub fn service_account_set_key_impl(
 pub async fn service_accounts_set_key(
     state: tauri::State<'_, Arc<AppState>>,
     profile_id: String,
-    key: String,
+    key: juggler_core::redacted::Redacted<String>,
 ) -> AppResult<()> {
+    // AJ-E2010: the key never prints, in an error or a log line.
     crate::ipc::blocking(state.inner(), "save the key", move |state| {
-        service_account_set_key_impl(state, &profile_id, &key)
+        service_account_set_key_impl(state, &profile_id, key.expose())
     })
     .await
 }

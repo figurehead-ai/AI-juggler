@@ -148,6 +148,14 @@ jobs:
           python3 scripts/plain_words_lint.py
       - name: Every link in the public docs resolves (the 0.1 checklist, 8.8)
         run: python3 scripts/docs_links_check.py
+      - name: AI Juggler's own helpers start with only what they need (AJ-E2010)
+        run: |
+          python3 scripts/spawn_lint.py --selftest
+          python3 scripts/spawn_lint.py
+      - name: ARCHITECTURE.md is current and every crate says what it must not know (AJ-E2015)
+        run: |
+          python3 scripts/architecture_fresh.py --selftest
+          python3 scripts/architecture_fresh.py
       - name: The web views stay narrow (AJ-E2003)
         run: |
           python3 scripts/webview_lint.py --selftest
@@ -603,6 +611,9 @@ jobs:
       - name: Component tests (AJ-E402 SessionRow fixtures)
         working-directory: ui
         run: pnpm test
+      - name: Lint (AJ-E2012; today's findings baselined, only shrinking)
+        working-directory: ui
+        run: pnpm lint
       - name: Build (typecheck + bundle)
         working-directory: ui
         run: pnpm build

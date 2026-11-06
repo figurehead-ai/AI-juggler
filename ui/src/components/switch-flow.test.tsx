@@ -154,7 +154,7 @@ describe("AJ-E206 door", () => {
     await waitFor(() => expect(view.getByTestId("switch-oneclick")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-confirm"));
     await waitFor(() => expect(onSwitched).toHaveBeenCalledTimes(1));
-    const [sessionId, undo] = onSwitched.mock.calls[0];
+    const [sessionId, undo] = onSwitched.mock.calls[0]!;
     expect(sessionId).toMatch(/^sess-preview-/);
     expect(undo?.edgeId).toMatch(/^edge-preview-/);
   });
@@ -190,7 +190,7 @@ describe("AJ-E206 door", () => {
     expect(onSwitched).not.toHaveBeenCalled();
     fireEvent.click(view.getByRole("button", { name: /Go to the new session/ }));
     expect(onSwitched).toHaveBeenCalledTimes(1);
-    expect(onSwitched.mock.calls[0][1]).toBeNull();
+    expect(onSwitched.mock.calls[0]![1]).toBeNull();
   });
 });
 
@@ -209,7 +209,7 @@ describe("AJ-E206 undo window", () => {
       expect((window as never as Seams).__AIJ_SWITCH_UNDO_CALLS__).toEqual(["edge-42"]),
     );
     await waitFor(() => expect(onUndone).toHaveBeenCalledTimes(1));
-    expect(onUndone.mock.calls[0][0]).toMatch(/^sess-undo-/);
+    expect(onUndone.mock.calls[0]![0]).toMatch(/^sess-undo-/);
   });
 
   it("keeps the failure honest when undo fails (source stays resumable)", async () => {
@@ -282,7 +282,7 @@ describe("AJ-E2108 a session another app runs", () => {
     expect(view.getByTestId("switch-done-words").textContent).toContain("The original stays open in Claude, untouched");
     expect(onSwitched).not.toHaveBeenCalled();
     fireEvent.click(view.getByRole("button", { name: /Go to the new session/ }));
-    expect(onSwitched.mock.calls[0][1]).toBeNull();
+    expect(onSwitched.mock.calls[0]![1]).toBeNull();
   });
 
   it("says so from the wizard's first step", async () => {

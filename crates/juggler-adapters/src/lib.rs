@@ -6,6 +6,10 @@
 //! `juggler_adapter::HarnessAdapter` contract and confines itself to its
 //! managed account directories (guardrails in ADR-0003).
 //! Requirements: `docs/SPEC.md` §4.1–§4.3.
+//!
+//! Must not know: Tauri, the window or storage tables; and a tool's module
+//! never knows a sibling tool's (shared mechanics live in the neutral
+//! modules).
 
 #![cfg_attr(
     test,

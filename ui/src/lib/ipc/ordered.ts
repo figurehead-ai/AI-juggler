@@ -31,6 +31,7 @@ function ordered<T>(send: (key: string, value: T) => Promise<void>, merge: (wait
         if (lane.waiting !== null) return drain(key, lane);
         lane.flight = null;
         lanes.delete(key);
+        return undefined;
       });
     lane.flight = flight;
     return flight;

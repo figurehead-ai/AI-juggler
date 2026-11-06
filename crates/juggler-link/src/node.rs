@@ -48,6 +48,67 @@ pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 pub const MAX_CONNECTIONS: usize = 32;
 /// HTTP/2 concurrent streams per connection.
 pub const MAX_STREAMS: u32 = 32;
+/// AJ-E2010: new connections accepted per second at most; the rest are
+/// dropped before any TLS work.
+pub const ACCEPT_RATE: u32 = 16;
+/// AJ-E2010: an idle HTTP/2 connection is pinged this often, and closed
+/// when a ping isn't answered within [`KEEPALIVE_TIMEOUT`].
+pub const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(30);
+/// See [`KEEPALIVE_INTERVAL`].
+pub const KEEPALIVE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// AJ-E2010: the networks a Mac of the Fleet can be on — this computer,
+/// a home or office network (private ranges), link-local, and the shared
+/// address space a mesh VPN such as Tailscale uses. A connection from
+/// anywhere else (the open internet) is dropped before TLS.
+#[must_use]
+pub fn network_allowed(ip: std::net::IpAddr) -> bool {
+    use std::net::IpAddr;
+    match ip {
+        IpAddr::V4(v4) => {
+            let [a, b, ..] = v4.octets();
+            v4.is_loopback()
+                || v4.is_private()
+                || v4.is_link_local()
+                || (a == 100 && (64..128).contains(&b))
+        }
+        IpAddr::V6(v6) => {
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return network_allowed(IpAddr::V4(v4));
+            }
+            let first = v6.segments()[0];
+            v6.is_loopback() || (first & 0xfe00) == 0xfc00 || (first & 0xffc0) == 0xfe80
+        }
+    }
+}
+
+/// AJ-E2010: at most [`ACCEPT_RATE`] accepts in any one-second window.
+#[derive(Debug)]
+pub struct AcceptRate {
+    window: std::time::Instant,
+    taken: u32,
+}
+
+impl AcceptRate {
+    /// A fresh window starting at `now`.
+    #[must_use]
+    pub const fn new(now: std::time::Instant) -> Self {
+        Self {
+            window: now,
+            taken: 0,
+        }
+    }
+
+    /// Whether one more connection may be accepted at `now`.
+    pub fn allow(&mut self, now: std::time::Instant) -> bool {
+        if now.duration_since(self.window) >= Duration::from_secs(1) {
+            self.window = now;
+            self.taken = 0;
+        }
+        self.taken += 1;
+        self.taken <= ACCEPT_RATE
+    }
+}
 /// How long [`LinkNode::stop`] lets in-flight calls finish.
 pub const STOP_GRACE: Duration = Duration::from_secs(2);
 /// Largest decoded message.
@@ -1279,6 +1340,8 @@ impl LinkNode {
         let server = tonic::transport::Server::builder()
             .max_concurrent_streams(MAX_STREAMS)
             .http2_max_pending_accept_reset_streams(Some(16))
+            .http2_keepalive_interval(Some(KEEPALIVE_INTERVAL))
+            .http2_keepalive_timeout(Some(KEEPALIVE_TIMEOUT))
             .add_service(
                 proto::link_server::LinkServer::new(service)
                     .max_decoding_message_size(MAX_MESSAGE_BYTES)
@@ -1318,10 +1381,17 @@ async fn accept_loop(
     let handshakes = Arc::new(tokio::sync::Semaphore::new(MAX_HANDSHAKES));
     let open = Arc::new(AtomicUsize::new(0));
     let next_id = Arc::new(AtomicU64::new(1));
+    let mut rate = AcceptRate::new(std::time::Instant::now());
     loop {
         let Ok((tcp, peer_addr)) = listener.accept().await else {
             continue;
         };
+        // AJ-E2010: only from the networks a Fleet Mac is on, and not
+        // faster than ACCEPT_RATE: both dropped before any TLS work.
+        if !network_allowed(peer_addr.ip()) || !rate.allow(std::time::Instant::now()) {
+            drop(tcp);
+            continue;
+        }
         if open.load(Ordering::SeqCst) >= MAX_CONNECTIONS {
             drop(tcp);
             continue;
@@ -1371,5 +1441,46 @@ async fn accept_loop(
             };
             let _ = tx.send(Ok(stream)).await;
         });
+    }
+}
+
+#[cfg(test)]
+mod listener_hygiene {
+    use super::*;
+
+    #[test]
+    fn only_the_networks_a_fleet_mac_is_on_may_connect() {
+        for ok in [
+            "127.0.0.1",
+            "10.0.0.5",
+            "172.16.3.4",
+            "192.168.1.20",
+            "169.254.9.9",
+            "100.101.102.103",
+            "::1",
+            "fd7a:115c:a1e0::1",
+            "fe80::1",
+            "::ffff:192.168.1.2",
+        ] {
+            assert!(network_allowed(ok.parse().unwrap()), "{ok}");
+        }
+        for no in [
+            "8.8.8.8",
+            "100.128.0.1",
+            "172.32.0.1",
+            "2001:4860:4860::8888",
+            "::ffff:8.8.8.8",
+        ] {
+            assert!(!network_allowed(no.parse().unwrap()), "{no}");
+        }
+    }
+
+    #[test]
+    fn accepts_past_the_rate_wait_for_the_next_second() {
+        let start = std::time::Instant::now();
+        let mut rate = AcceptRate::new(start);
+        assert!((0..ACCEPT_RATE).all(|_| rate.allow(start)));
+        assert!(!rate.allow(start));
+        assert!(rate.allow(start + Duration::from_secs(1)));
     }
 }

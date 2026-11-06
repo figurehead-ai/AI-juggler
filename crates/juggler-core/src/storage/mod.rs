@@ -24,6 +24,7 @@ mod entities;
 mod fleet_sync;
 mod floor;
 mod footprints;
+pub mod foreign;
 mod identity;
 mod messages;
 mod notices;
@@ -889,8 +890,8 @@ impl Storage {
         // Everything in this phase touches the file for the first time, so
         // any failure here means "not a database" for on-disk paths.
         // The wait comes first: switching to WAL itself needs the lock.
-        let current: i64 = conn
-            .busy_timeout(BUSY_TIMEOUT)
+        let current: i64 = harden(&conn)
+            .and_then(|()| conn.busy_timeout(BUSY_TIMEOUT))
             .and_then(|()| enable_wal(&conn))
             .and_then(|()| conn.pragma_update(None, "synchronous", "NORMAL"))
             .and_then(|()| conn.pragma_update(None, "foreign_keys", "ON"))
@@ -1206,4 +1207,19 @@ impl Storage {
     pub fn migrations() -> &'static [&'static str] {
         MIGRATIONS
     }
+}
+
+/// AJ-E2006: every connection in SQLite's defensive mode (no writable
+/// schema, no shadow-table writes) with `trusted_schema` off (a trigger
+/// or view can't call a function with side effects): a database file
+/// someone crafted can't use AI Juggler's connection against it.
+///
+/// # Errors
+///
+/// Returns the SQLite error when the setting can't be made.
+pub(crate) fn harden(conn: &Connection) -> rusqlite::Result<()> {
+    use rusqlite::config::DbConfig;
+    conn.set_db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
+    conn.set_db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA, false)?;
+    Ok(())
 }

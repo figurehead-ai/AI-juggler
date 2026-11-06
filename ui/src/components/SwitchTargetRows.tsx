@@ -128,7 +128,7 @@ export function SwitchTargetRows({
     if (buttons.length === 0) return;
     event.preventDefault();
     const index = buttons.findIndex((button) => button === document.activeElement);
-    buttons[(index + delta + buttons.length) % buttons.length].focus();
+    buttons[(index + delta + buttons.length) % buttons.length]!.focus();
   };
   return (
     <div className="flex flex-col gap-1.5" data-testid="switch-target-rows">

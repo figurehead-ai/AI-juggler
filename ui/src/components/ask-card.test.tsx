@@ -148,7 +148,7 @@ describe("the batch view", () => {
     const batch = await findByTestId("ask-batch");
     expect(batch.textContent).toContain("2 questions from your sessions");
     expect(getAllByTestId("ask-card")).toHaveLength(2);
-    expect(getAllByTestId("ask-card")[0].getAttribute("aria-label")).toContain("checkout");
+    expect(getAllByTestId("ask-card")[0]!.getAttribute("aria-label")).toContain("checkout");
     expect(calls()).toEqual([]);
   });
 });

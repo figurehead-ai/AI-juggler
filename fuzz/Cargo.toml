@@ -16,6 +16,18 @@ path = "../crates/juggler-adapters"
 [dependencies.juggler-link]
 path = "../crates/juggler-link"
 
+[dependencies.juggler-account]
+path = "../crates/juggler-account"
+
+[dependencies.juggler-adapter]
+path = "../crates/juggler-adapter"
+
+[dependencies.juggler-app]
+path = "../crates/juggler-app"
+
+[dependencies.tempfile]
+version = "3.27.0"
+
 [dependencies.prost]
 version = "0.14"
 
@@ -32,6 +44,34 @@ bench = false
 [[bin]]
 name = "link_frame_decode"
 path = "fuzz_targets/link_frame_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "cloud_container"
+path = "fuzz_targets/cloud_container.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pairing_messages"
+path = "fuzz_targets/pairing_messages.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "shell_quoting"
+path = "fuzz_targets/shell_quoting.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "backup_staging"
+path = "fuzz_targets/backup_staging.rs"
 test = false
 doc = false
 bench = false

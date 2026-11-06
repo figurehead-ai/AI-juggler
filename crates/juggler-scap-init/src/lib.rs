@@ -17,6 +17,8 @@
 //! `unsafe` block, zero logic, zero data, zero dependencies beyond
 //! the binding itself. Any additional `unsafe` anywhere requires a
 //! new recorded decision.
+//!
+//! Must not know: anything of AI Juggler: it is an audited shim.
 #![cfg(target_os = "macos")]
 #![deny(missing_docs)]
 #![allow(unsafe_code)] // D-17: the single audited call this crate exists for

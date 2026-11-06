@@ -62,7 +62,7 @@ struct Reading {
 }
 
 fn cpu_seconds(pid: u32) -> f64 {
-    let out = Command::new("/bin/ps")
+    let out = juggler_adapter::process::helper("/bin/ps")
         .args(["-o", "time=", "-p", &pid.to_string()])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
@@ -74,7 +74,7 @@ fn cpu_seconds(pid: u32) -> f64 {
 }
 
 fn footprint_mb(pid: u32) -> f64 {
-    let out = Command::new(juggler_adapter::system_tools::FOOTPRINT)
+    let out = juggler_adapter::process::helper(juggler_adapter::system_tools::FOOTPRINT)
         .args(["-p", &pid.to_string()])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
@@ -97,7 +97,7 @@ fn footprint_mb(pid: u32) -> f64 {
 
 /// The footprint's biggest categories (dirty memory), MB.
 fn footprint_top(pid: u32) -> Vec<(String, f64)> {
-    let out = Command::new(juggler_adapter::system_tools::FOOTPRINT)
+    let out = juggler_adapter::process::helper(juggler_adapter::system_tools::FOOTPRINT)
         .args(["-p", &pid.to_string()])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())

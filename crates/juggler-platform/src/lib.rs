@@ -10,6 +10,7 @@
 //! - [`system`]: what this system calls this computer and its user, and
 //!   whether the app's icon can carry a count.
 //! - [`room`]: free disk space and memory, for the local cache's size.
+//! - [`process`]: AI Juggler's own helper processes, with only what they need.
 //!
 //! Each seam has one implementation per platform. Where a platform has no
 //! honest implementation yet, the seam says so (an `Unsupported` error, or
@@ -21,6 +22,9 @@
 //!
 //! This crate knows no tool, no product and no UI: adapters and features
 //! call it, and keep their own words.
+//!
+//! Must not know: any tool, product or interface: it is the operating
+//! system's seams.
 
 #![cfg_attr(
     test,
@@ -31,6 +35,7 @@ pub mod apps;
 pub mod file_trust;
 pub mod local_ipc;
 pub mod private_fs;
+pub mod process;
 pub mod room;
 pub mod system;
 pub mod user;

@@ -57,6 +57,7 @@ pub const APP_KINDS: &[(&str, &str)] = &[
     ("keep-alive-paused", "Keep alive paused"),
     ("update", "Updates"),
     ("renewal", "Plan renewals"),
+    ("import", "Imports"),
 ];
 
 /// The kinds that come up as a banner while they need the user (at most

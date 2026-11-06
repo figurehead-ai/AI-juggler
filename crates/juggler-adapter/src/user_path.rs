@@ -39,19 +39,8 @@ const SCRIPT: &[u8] = b"printf '__AI_JUGGLER_PATH__%s__AI_JUGGLER_PATH__' \"$PAT
 const SYSTEM_PATH: &str = "/usr/bin:/bin:/usr/sbin:/sbin";
 
 /// The variables a probe or the login shell keeps from the app's own
-/// environment; everything else is cleared (SECURITY-GUIDELINES C2): who
-/// the user is, their locale and their temporary folder.
-pub const ENV_ALLOWLIST: &[&str] = &[
-    "HOME",
-    "USER",
-    "LOGNAME",
-    "SHELL",
-    "TMPDIR",
-    "LANG",
-    "LC_ALL",
-    "LC_CTYPE",
-    "__CF_USER_TEXT_ENCODING",
-];
+/// environment; everything else is cleared (SECURITY-GUIDELINES C2).
+pub use juggler_platform::process::ENV_ALLOWLIST;
 
 /// Folders under the user's home where CLIs are installed (npm prefixes,
 /// installers, version managers), after Homebrew's.
@@ -140,15 +129,7 @@ pub fn command(binary: &Path) -> Command {
     command
 }
 
-/// Clears `command`'s environment, then keeps the [`ENV_ALLOWLIST`].
-fn allowlisted_env(command: &mut Command) {
-    command.env_clear();
-    for key in ENV_ALLOWLIST {
-        if let Some(value) = std::env::var_os(key) {
-            command.env(key, value);
-        }
-    }
-}
+use juggler_platform::process::allowlisted_env;
 
 /// The first `program` on [`user_path`].
 #[must_use]

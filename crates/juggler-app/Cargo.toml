@@ -28,7 +28,6 @@ dev-bridge = [
     "dep:hyper",
     "dep:hyper-util",
     "dep:subtle",
-    "dep:zeroize",
 ]
 # The bridge's lab-only write mode (ADR-0027): a short allowlist of the
 # window's own write commands, served only when HOME is a throwaway
@@ -107,7 +106,7 @@ http-body-util = { version = "0.1", optional = true }
 hyper = { version = "1", default-features = false, features = ["http1", "server"], optional = true }
 hyper-util = { version = "0.1", default-features = false, features = ["tokio"], optional = true }
 subtle = { version = "2.6", optional = true }
-zeroize = { version = "1.8", optional = true }
+zeroize = "1.8"
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
 
 [build-dependencies]

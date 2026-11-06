@@ -81,7 +81,9 @@ pub fn refusal(url: &str, opened: Opened) -> Option<&'static str> {
     let host = parsed.host_str().unwrap_or_default();
     let web = match (opened, parsed.scheme()) {
         (Opened::ByUser, "http" | "https") | (Opened::ByApp, "https") => !host.is_empty(),
-        (Opened::ByApp, "http") => cfg!(debug_assertions) && matches!(host, "localhost" | "127.0.0.1"),
+        (Opened::ByApp, "http") => {
+            cfg!(debug_assertions) && matches!(host, "localhost" | "127.0.0.1")
+        }
         _ => false,
     };
     (!web).then_some("Only web addresses open in the browser.")
@@ -93,7 +95,11 @@ pub fn refusal(url: &str, opened: Opened) -> Option<&'static str> {
 ///
 /// [`AppError::Validation`] for an address that may not be opened;
 /// [`AppError::Io`] when the system can't open the browser.
-pub fn open_web<R: Runtime>(app: &tauri::AppHandle<R>, url: impl AsRef<str>, opened: Opened) -> AppResult<()> {
+pub fn open_web<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    url: impl AsRef<str>,
+    opened: Opened,
+) -> AppResult<()> {
     use tauri_plugin_opener::OpenerExt as _;
     let url = url.as_ref();
     if let Some(message) = refusal(url, opened) {
@@ -135,23 +141,41 @@ mod tests {
             assert!(!page_allowed(&url(away)), "{away} must be refused");
         }
         // Vite's dev server, in a debug build only.
-        assert_eq!(page_allowed(&url("http://localhost:5173/")), cfg!(debug_assertions));
+        assert_eq!(
+            page_allowed(&url("http://localhost:5173/")),
+            cfg!(debug_assertions)
+        );
     }
 
     #[test]
     fn a_clicked_link_opens_any_web_address_and_nothing_else() {
         assert_eq!(refusal("https://docs.rs/serde", Opened::ByUser), None);
         assert_eq!(refusal("http://example.com/a?b", Opened::ByUser), None);
-        for bad in ["file:///Users/x/.ssh/id_rsa", "javascript:alert(1)", "ssh://host", "not a url", "x-apple.systempreferences:"] {
-            assert!(refusal(bad, Opened::ByUser).is_some(), "{bad} must be refused");
+        for bad in [
+            "file:///Users/x/.ssh/id_rsa",
+            "javascript:alert(1)",
+            "ssh://host",
+            "not a url",
+            "x-apple.systempreferences:",
+        ] {
+            assert!(
+                refusal(bad, Opened::ByUser).is_some(),
+                "{bad} must be refused"
+            );
         }
     }
 
     #[test]
     fn the_app_opens_only_https() {
-        assert_eq!(refusal("https://github.com/figurehead-ai/AI-juggler", Opened::ByApp), None);
+        assert_eq!(
+            refusal("https://github.com/figurehead-ai/AI-juggler", Opened::ByApp),
+            None
+        );
         assert!(refusal("http://github.com/", Opened::ByApp).is_some());
         assert!(refusal("file:///tmp/x.html", Opened::ByApp).is_some());
-        assert_eq!(refusal("http://localhost:8787/verify", Opened::ByApp).is_none(), cfg!(debug_assertions));
+        assert_eq!(
+            refusal("http://localhost:8787/verify", Opened::ByApp).is_none(),
+            cfg!(debug_assertions)
+        );
     }
 }

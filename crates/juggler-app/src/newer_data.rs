@@ -419,7 +419,11 @@ pub async fn going_back_open_releases(
     app: tauri::AppHandle,
     version: Option<String>,
 ) -> AppResult<()> {
-    crate::webview_guard::open_web(&app, releases_page(version.as_deref()), crate::webview_guard::Opened::ByApp)
+    crate::webview_guard::open_web(
+        &app,
+        releases_page(version.as_deref()),
+        crate::webview_guard::Opened::ByApp,
+    )
 }
 
 /// "20 Oct 2026" for an epoch-ms time (UTC day).
@@ -618,7 +622,7 @@ fn show_folder(dir: &Path) {
     } else {
         PathBuf::from(juggler_adapter::system_tools::XDG_OPEN)
     };
-    let _ = std::process::Command::new(opener).arg(dir).status();
+    let _ = juggler_adapter::process::helper(opener).arg(dir).status();
 }
 
 enum Choice {

@@ -64,7 +64,11 @@ fn registered_commands() -> Vec<&'static str> {
                 .map(|name| &*Box::leak(name.to_owned().into_boxed_str()))
         })
         .collect();
-    assert!(names.len() > 400, "the registry parse found only {} commands", names.len());
+    assert!(
+        names.len() > 400,
+        "the registry parse found only {} commands",
+        names.len()
+    );
     // A command declared `#[tauri::command(rename = "x")]` is invoked as x.
     let renames = renamed_commands();
     for name in &mut names {
@@ -122,7 +126,12 @@ fn renamed_commands() -> std::collections::HashMap<String, &'static str> {
                         .iter()
                         .find_map(|start| line.strip_prefix(start)),
                 ) {
-                    let function = name.split(['(', '<']).next().unwrap_or_default().trim().to_owned();
+                    let function = name
+                        .split(['(', '<'])
+                        .next()
+                        .unwrap_or_default()
+                        .trim()
+                        .to_owned();
                     let invoked = pending.take().unwrap_or_default();
                     found.insert(function, &*Box::leak(invoked.into_boxed_str()));
                 }

@@ -27,7 +27,11 @@ fn call(window: &tauri::WebviewWindow<tauri::test::MockRuntime>, cmd: &str) -> R
     call_from(window, cmd, "tauri://localhost")
 }
 
-fn call_from(window: &tauri::WebviewWindow<tauri::test::MockRuntime>, cmd: &str, url: &str) -> Result<(), String> {
+fn call_from(
+    window: &tauri::WebviewWindow<tauri::test::MockRuntime>,
+    cmd: &str,
+    url: &str,
+) -> Result<(), String> {
     get_ipc_response(
         window,
         InvokeRequest {
@@ -57,7 +61,9 @@ fn app() -> tauri::App<tauri::test::MockRuntime> {
 #[test]
 fn the_main_window_may_call_the_registered_commands() {
     let app = app();
-    let main = WebviewWindowBuilder::new(&app, "main", WebviewUrl::default()).build().unwrap();
+    let main = WebviewWindowBuilder::new(&app, "main", WebviewUrl::default())
+        .build()
+        .unwrap();
     assert_eq!(call(&main, "app_info"), Ok(()));
     assert_eq!(call(&main, "projects_list"), Ok(()));
 }
@@ -65,22 +71,34 @@ fn the_main_window_may_call_the_registered_commands() {
 #[test]
 fn a_terminal_window_may_call_only_its_own() {
     let app = app();
-    let terminal = WebviewWindowBuilder::new(&app, "terminal-abc", WebviewUrl::default()).build().unwrap();
+    let terminal = WebviewWindowBuilder::new(&app, "terminal-abc", WebviewUrl::default())
+        .build()
+        .unwrap();
     assert_eq!(call(&terminal, "app_info"), Ok(()));
-    assert!(call(&terminal, "projects_list").is_err(), "not in the terminal window's set");
+    assert!(
+        call(&terminal, "projects_list").is_err(),
+        "not in the terminal window's set"
+    );
 }
 
 #[test]
 fn an_unknown_window_may_call_nothing() {
     let app = app();
-    let other = WebviewWindowBuilder::new(&app, "elsewhere", WebviewUrl::default()).build().unwrap();
+    let other = WebviewWindowBuilder::new(&app, "elsewhere", WebviewUrl::default())
+        .build()
+        .unwrap();
     assert!(call(&other, "app_info").is_err());
 }
 
 #[test]
 fn the_dev_server_page_counts_as_the_apps_own() {
     let app = app();
-    let main = WebviewWindowBuilder::new(&app, "main", WebviewUrl::default()).build().unwrap();
-    assert_eq!(call_from(&main, "app_info", "http://localhost:5173/"), Ok(()));
+    let main = WebviewWindowBuilder::new(&app, "main", WebviewUrl::default())
+        .build()
+        .unwrap();
+    assert_eq!(
+        call_from(&main, "app_info", "http://localhost:5173/"),
+        Ok(())
+    );
     assert!(call_from(&main, "app_info", "https://example.com/").is_err());
 }

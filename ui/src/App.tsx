@@ -358,10 +358,8 @@ export default function App() {
       });
       backendAnswered();
     } catch (cause) {
-      // AJ-E2504 (§3, §8): never swallowed — the last data stays and the
-      // window says the service stopped answering (a preview lacking a
-      // mock is not that). The cause goes to the console (a Dev build's
-      // terminal shows it) so a failing refresh is never a mystery.
+      // AJ-E2504 (§3, §8): never swallowed — the last data stays, the window
+      // says the service stopped answering, and the cause goes to the console.
       console.warn("AI Juggler: the refresh failed", cause);
       backendFailed();
     } finally {

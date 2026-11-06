@@ -5,6 +5,9 @@
 //! desktop entry point. The UI is a view: it holds no business logic; all
 //! state originates in Rust and arrives as pre-aggregated, typed events
 //! (`docs/plan/QUALITY.md` §4).
+//!
+//! Must not know: any tool's files, names or formats (it asks the adapters)
+//! or an operating system's specifics (it asks juggler-platform).
 
 #![cfg_attr(
     test,
@@ -39,6 +42,7 @@ pub mod focus;
 pub mod handover;
 pub mod history;
 pub mod identity;
+pub mod import_report;
 pub mod in_place;
 pub mod ipc;
 pub mod lab_scope;
@@ -51,14 +55,13 @@ pub mod machine_memory;
 pub mod machine_recommendations;
 pub mod machine_tools;
 pub mod main_window;
-pub mod webview_guard;
-pub mod picked;
 pub mod manage;
 pub mod newer_data;
 pub mod os_access;
 pub mod overnight;
 pub mod paging;
 pub mod parked;
+pub mod picked;
 pub mod preview;
 pub mod quit;
 pub mod remote;
@@ -72,6 +75,7 @@ pub mod updates;
 pub mod usage_pipeline;
 pub mod usage_stats;
 pub mod vault;
+pub mod webview_guard;
 pub mod worktree;
 
 // Never in a release build: with the feature on, it doesn't compile.
@@ -712,6 +716,9 @@ pub fn run() {
         &context.config().identifier,
         cfg!(debug_assertions),
     ));
+    // AJ-E2005: this Mac's Fleet identity lives in the edition's keychain
+    // (set before anything can load it).
+    fleet::keep_in_keychain();
     let data_dir = bootstrap_data_dir();
     // AJ-E1010: this edition's data folder is ours until we quit, taken
     // before the data is opened. A second launch while another AI Juggler

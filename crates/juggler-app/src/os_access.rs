@@ -153,7 +153,7 @@ mod platform {
     /// the first run raises the Automation prompt (and blocks until it's
     /// answered); later runs only report.
     pub(super) fn automation_probe() -> Option<bool> {
-        let out = std::process::Command::new("/usr/bin/osascript")
+        let out = juggler_adapter::process::helper("/usr/bin/osascript")
             .args([
                 "-e",
                 "tell application \"System Events\" to return UI elements enabled",

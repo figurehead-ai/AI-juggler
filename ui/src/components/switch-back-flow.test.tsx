@@ -87,9 +87,9 @@ describe("AJ-E207 switch-back flow", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     const callsNow = (window as never as Seams).__AIJ_SWITCH_BACK_EXECUTE_CALLS__;
     expect(callsNow).toHaveLength(1);
-    expect(callsNow![0].sessionId).toBe("sess-away-1");
-    expect(callsNow![0].choices).toEqual([{ rel_path: "todos.json", choice: "take-away" }]);
-    expect(callsNow![0].keepAwayRunning).toBe(false);
+    expect(callsNow![0]!.sessionId).toBe("sess-away-1");
+    expect(callsNow![0]!.choices).toEqual([{ rel_path: "todos.json", choice: "take-away" }]);
+    expect(callsNow![0]!.keepAwayRunning).toBe(false);
     expect(view.getByTestId("switch-back-done")).toBeTruthy();
     expect(view.getByText(/resumed exactly where it rested/)).toBeTruthy();
   });

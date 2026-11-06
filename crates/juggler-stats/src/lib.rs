@@ -13,6 +13,9 @@
 //!
 //! - **One report a week.** [`cycle::tick`] closes ISO weeks into
 //!   reports and uploads at most one due report per tick (AJ-E1104).
+//!
+//! Must not know: any content (a transcript, a name, a path) or an
+//! identifier: it counts, on this Mac.
 
 #![cfg_attr(
     test,

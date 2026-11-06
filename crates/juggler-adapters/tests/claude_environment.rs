@@ -456,13 +456,13 @@ fn snapshot_tree(dir: &Path) -> Vec<(String, u64)> {
 
 /// 0.0.7 dogfood (2026-10-20): a symlinked `skills/<name>` made the whole
 /// import fail ("neither a regular file nor a symlink to a regular file").
-/// 0.0.7 dogfood: a linked FOLDER (`skills/x` → dotfiles) is kept as a
-/// link — never followed, nothing outside copied — and points where it
-/// really points from the copy too. A linked FILE is copied by content, so
-/// the copy never shares a file with the original.
+/// AJ-E2006: a link that points outside the folder (to dotfiles, to a key)
+/// is never followed, copied or made in the copy: the import goes on and
+/// lists it with where it pointed. Links inside the folder stay links into
+/// the copy; a broken link is left out with a note.
 #[test]
 #[cfg(unix)]
-fn linked_folders_stay_links_and_linked_files_are_copied() {
+fn links_inside_stay_links_and_links_outside_are_left_out_and_listed() {
     use std::os::unix::fs::symlink;
     let work = tempfile::tempdir().unwrap();
     let home = work.path().join("home");
@@ -503,21 +503,33 @@ fn linked_folders_stay_links_and_linked_files_are_copied() {
     let outcome = import_claude_config(&source, &dest, &|_| LoginProbe::LoggedOut).unwrap();
 
     let link = |name: &str| std::fs::read_link(dest.join(name)).unwrap();
-    let real = |path: std::path::PathBuf| std::fs::canonicalize(path).unwrap();
+    let absent = |name: &str| std::fs::symlink_metadata(dest.join(name)).is_err();
+    for outside in [
+        "skills/ego-browser",
+        "skills/stowed",
+        "skills/dotted",
+        "CLAUDE.md",
+    ] {
+        assert!(
+            absent(outside),
+            "{outside}: nothing outside the folder is reached"
+        );
+        assert!(
+            outcome
+                .left_outside
+                .iter()
+                .any(|line| line.starts_with(outside)),
+            "{outside} is listed: {:?}",
+            outcome.left_outside
+        );
+    }
     assert!(
-        std::fs::symlink_metadata(dest.join("skills/ego-browser"))
-            .unwrap()
-            .file_type()
-            .is_symlink()
+        outcome
+            .left_outside
+            .iter()
+            .any(|line| line.contains("dotfiles")),
+        "with where it pointed"
     );
-    assert_eq!(real(dest.join("skills/ego-browser")), real(skill.clone()));
-    assert_eq!(
-        real(dest.join("skills/stowed")),
-        real(skill.clone()),
-        "a relative link outside still resolves from the copy"
-    );
-    assert!(link("skills/stowed").is_absolute());
-    assert_eq!(real(dest.join("skills/dotted")), real(skill.clone()));
     assert_eq!(
         link("skills/shared-rel"),
         std::path::PathBuf::from("../agents/shared")
@@ -527,30 +539,16 @@ fn linked_folders_stay_links_and_linked_files_are_copied() {
         dest.join("agents/shared"),
         "an inside link points into the copy"
     );
-    assert!(!dest.join("skills/dangling").exists());
+    assert!(absent("skills/dangling"));
     assert!(
         outcome
             .skipped
             .iter()
             .any(|note| note.contains("skills/dangling (a broken link"))
     );
-    // The linked file is a plain copy: changing it leaves the original.
-    assert!(
-        !std::fs::symlink_metadata(dest.join("CLAUDE.md"))
-            .unwrap()
-            .file_type()
-            .is_symlink()
-    );
-    std::fs::write(dest.join("CLAUDE.md"), "changed in the copy").unwrap();
     assert_eq!(
         std::fs::read_to_string(dotfiles.join("CLAUDE.md")).unwrap(),
         "my notes"
-    );
-    assert!(
-        outcome
-            .skipped
-            .iter()
-            .any(|note| note.contains("skills/ego-browser (kept as a link"))
     );
     // Copy-never-move: the source's links are untouched.
     assert_eq!(

@@ -1,0 +1,2487 @@
+{
+ "src/App.tsx": {
+  "eslint(complexity)": 1,
+  "eslint(max-lines)": 1,
+  "eslint(no-unused-expressions)": 2,
+  "react(globals)": 1,
+  "react(immutability)": 1,
+  "react(no-unstable-nested-components)": 2,
+  "react(purity)": 1,
+  "react(refs)": 1,
+  "react(set-state-in-effect)": 2,
+  "typescript(no-misused-promises)": 2,
+  "typescript(no-unsafe-type-assertion)": 6
+ },
+ "src/app-find-accounts.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/app-found-tool.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/app-keys.test.tsx": {
+  "import(default)": 2,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/app-orientation.test.tsx": {
+  "react-hooks(rules-of-hooks)": 1
+ },
+ "src/components/AccountMacsCard.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/AccountSettingsSheet.tsx": {
+  "eslint(complexity)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/AgentTools.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 2
+ },
+ "src/components/AppIcon.tsx": {
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(set-state-in-effect)": 2,
+  "typescript(consistent-return)": 1,
+  "typescript(no-misused-spread)": 1
+ },
+ "src/components/AppearanceCard.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/AskCard.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/Avatar.tsx": {
+  "typescript(consistent-return)": 1
+ },
+ "src/components/BackupRestoreCard.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/Banner.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/BetaMatrix.tsx": {
+  "eslint(no-shadow)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/BudgetCaps.tsx": {
+  "jsx-a11y(label-has-associated-control)": 2,
+  "jsx-a11y(no-autofocus)": 1,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/components/BurnDown.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/CardTitle.tsx": {
+  "jsx-a11y(heading-has-content)": 1
+ },
+ "src/components/ContinueDialog.tsx": {
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/ConversationPage.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(no-unstable-nested-components)": 1,
+  "react(refs)": 8,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/CostMatrix.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/components/CostMatrix.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 3,
+  "typescript(no-floating-promises)": 1
+ },
+ "src/components/CrashReports.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/CrossMachineSwitchBack.tsx": {
+  "jsx-a11y(label-has-associated-control)": 2,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/CrossMachineSwitchFlow.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "typescript(consistent-return)": 2
+ },
+ "src/components/DeleteInstanceDialog.tsx": {
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/components/DesktopPreview.tsx": {
+  "typescript(consistent-return)": 2
+ },
+ "src/components/DiagnosticsCard.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1
+ },
+ "src/components/EditorCard.tsx": {
+  "typescript(no-misused-promises)": 1
+ },
+ "src/components/EnvOverlayEditor.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/ExpertSetup.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 2,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/components/FigureheadCloudCard.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/FigureheadCloudParts.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/FleetPromptDialog.tsx": {
+  "eslint(no-shadow)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(purity)": 1,
+  "react(set-state-in-effect)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/FleetThisMac.tsx": {
+  "jsx-a11y(no-autofocus)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/components/GoToPalette.tsx": {
+  "eslint(complexity)": 2,
+  "eslint(no-shadow)": 1,
+  "jsx-a11y(click-events-have-key-events)": 2,
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(no-noninteractive-element-to-interactive-role)": 2,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 5,
+  "react-hooks(exhaustive-deps)": 3,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/HandoverSection.tsx": {
+  "eslint(no-shadow)": 2,
+  "react(exhaustive-effect-dependencies)": 2,
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/components/HandoverView.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(set-state-in-effect)": 2,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/HomeApps.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/HomeNeeds.tsx": {
+  "eslint(complexity)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/HomeRunway.tsx": {
+  "eslint(no-shadow)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/IdentityMismatchDialog.tsx": {
+  "react(exhaustive-effect-dependencies)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/IsolationOfferDialog.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/KillSheet.tsx": {
+  "eslint(complexity)": 1,
+  "eslint(max-lines)": 1,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 2,
+  "typescript(consistent-return)": 2
+ },
+ "src/components/LegendPopover.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/LimitDialog.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(purity)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/LoginQueueCard.tsx": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/components/MachineAdvice.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/MachineStatusLine.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/MainNav.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/ManageWork.tsx": {
+  "jsx-a11y(no-autofocus)": 2,
+  "typescript(no-misused-promises)": 2
+ },
+ "src/components/MarkSheet.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/MessageNeeds.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/MoreBelow.tsx": {
+  "typescript(consistent-return)": 1
+ },
+ "src/components/NoticeOpeners.tsx": {
+  "react(refs)": 1
+ },
+ "src/components/NoticeRow.tsx": {
+  "typescript(no-misused-promises)": 2
+ },
+ "src/components/NotificationCentre.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/NotificationRegion.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/NotificationSettings.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/OfflineBanner.tsx": {
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/OsAccessRows.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/OutsideSearchSetting.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1
+ },
+ "src/components/PackSecretsCard.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/PagedList.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/PaletteActions.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/PlaceBoard.tsx": {
+  "eslint(complexity)": 1,
+  "eslint(no-shadow)": 2,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(immutability)": 2,
+  "react(preserve-manual-memoization)": 2,
+  "react(refs)": 4,
+  "react(set-state-in-effect)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(consistent-return)": 3,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/PlaceHeader.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-static-element-interactions)": 1
+ },
+ "src/components/Placeholder.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/PoolAccess.tsx": {
+  "jsx-a11y(label-has-associated-control)": 2,
+  "react(purity)": 1
+ },
+ "src/components/PoolSheet.tsx": {
+  "jsx-a11y(no-autofocus)": 1,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/components/PrivacyCard.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/ProjectDefaultAccount.tsx": {
+  "react(set-state-in-effect)": 1,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/components/ProjectMark.tsx": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/ProjectSyncServers.tsx": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/ProjectSyncSheet.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(purity)": 1,
+  "react(set-state-in-effect)": 2
+ },
+ "src/components/QuitSheet.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/QuotaRings.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 3
+ },
+ "src/components/QuotaRings.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 4
+ },
+ "src/components/RailFolded.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(purity)": 1
+ },
+ "src/components/RailIdleApp.tsx": {
+  "jsx-a11y(no-static-element-interactions)": 1
+ },
+ "src/components/RailNoticeRow.tsx": {
+  "typescript(consistent-return)": 1
+ },
+ "src/components/RailSplitter.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(refs)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/RailToolbar.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/RecoveryCodeSheet.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/components/RecoverySummaryDialog.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/components/RelatedList.tsx": {
+  "eslint(complexity)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/RemoteLaunch.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 2
+ },
+ "src/components/RemoteTabs.tsx": {
+  "eslint(max-lines)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/components/ReplayDialog.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/ReplayTerminal.tsx": {
+  "import(no-unassigned-import)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/ReportBugSheet.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/RestartApp.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/RightInspector.tsx": {
+  "eslint(complexity)": 1,
+  "eslint(max-lines)": 1,
+  "react(no-unstable-nested-components)": 1,
+  "react(purity)": 1,
+  "typescript(consistent-return)": 3,
+  "typescript(no-misused-promises)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/RowMenu.tsx": {
+  "jsx-a11y(control-has-associated-label)": 1,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(refs)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/RuntimeSettings.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/ScreenBoundary.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/SessionCards.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 2,
+  "react(purity)": 1
+ },
+ "src/components/SessionRow.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/components/SessionsSettings.tsx": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/SettingSwitch.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/SettingsSections.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/ShortcutSheet.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/SmootherCard.tsx": {
+  "react(no-unstable-nested-components)": 1
+ },
+ "src/components/StartWithSettings.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/components/StorageRetentionCard.tsx": {
+  "jsx-a11y(no-autofocus)": 1
+ },
+ "src/components/SwitchBackFlow.tsx": {
+  "jsx-a11y(label-has-associated-control)": 2,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/SwitchFlow.tsx": {
+  "typescript(consistent-return)": 2,
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/components/SwitchFreezeChoice.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1
+ },
+ "src/components/SwitchGraph.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/SwitchSetUpsCard.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/SwitchSetupTurnOn.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/SwitchTargetRows.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/components/SyncDoneLine.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/TaskNeeds.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/TerminalToolbar.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 2
+ },
+ "src/components/TerminalView.tsx": {
+  "import(no-unassigned-import)": 1,
+  "react(exhaustive-effect-dependencies)": 2,
+  "react(refs)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 3,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/Toast.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/ToastStack.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-meaningless-void-operator)": 2
+ },
+ "src/components/ToolUpdateLine.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1
+ },
+ "src/components/UninstallCard.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/UpdateProgress.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/UpdatesCard.tsx": {
+  "eslint(complexity)": 1,
+  "eslint(max-lines)": 1,
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/UsageStatsChooser.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1
+ },
+ "src/components/UsageStatsReconsent.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/UserMenu.tsx": {
+  "eslint(no-shadow)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(purity)": 1
+ },
+ "src/components/ViewPopover.tsx": {
+  "react(refs)": 1
+ },
+ "src/components/Welcome.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/WorkflowRail.tsx": {
+  "eslint(complexity)": 2,
+  "eslint(max-lines)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(purity)": 1,
+  "react(refs)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unnecessary-type-conversion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/WorktreeGit.tsx": {
+  "react(exhaustive-effect-dependencies)": 2,
+  "typescript(no-misused-promises)": 2
+ },
+ "src/components/account-macs.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/account-manage.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/components/account-runway.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 6
+ },
+ "src/components/account-settings-sheet.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/add-provider-sheet.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/agent-tools.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/app-icon.test.tsx": {
+  "typescript(no-misused-spread)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/ask-card.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 8
+ },
+ "src/components/backup-restore.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/banner-band.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/beta-matrix.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/budget-caps.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/charts/ChartCard.tsx": {
+  "typescript(consistent-return)": 1
+ },
+ "src/components/charts/Donut.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(immutability)": 1,
+  "typescript(no-unnecessary-type-assertion)": 6
+ },
+ "src/components/charts/Gauge.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/charts/Heatmap.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/charts/LimitHistory.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(no-unnecessary-type-assertion)": 4
+ },
+ "src/components/charts/StatTile.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 3
+ },
+ "src/components/charts/TimeChart.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/charts/Timeline.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/charts/charts.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/charts/colors.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/components/cloud-backup.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/controls/ChoiceLine.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1
+ },
+ "src/components/controls/Picker.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/components/controls/Segmented.tsx": {
+  "jsx-a11y(interactive-supports-focus)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/controls/Toggle.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/controls/controls.test.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 6
+ },
+ "src/components/conversation-page.test.tsx": {
+  "react(globals)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/crash-reports.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/cross-machine-switch.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 10
+ },
+ "src/components/density.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/desktop-preview.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/desktop-surface.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-misused-promises)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/diagnostics.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/feedback.test.tsx": {
+  "react-hooks(rules-of-hooks)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/first-run-policy.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/fleet-prompt-dialog.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/fleet-screen.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/folder-trust.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/form.tsx": {
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/handover-view.test.tsx": {
+  "import(default)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/home-chips.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/identity-guard.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/indicator.tsx": {
+  "eslint(max-lines)": 1
+ },
+ "src/components/inspector-aggregate.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "typescript(no-misused-promises)": 3,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 14
+ },
+ "src/components/inspector-instance.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "typescript(no-misused-promises)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/components/inspector-shell.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/item-menu.test.tsx": {
+  "eslint(max-lines)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "typescript(no-extraneous-class)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 13
+ },
+ "src/components/keep-going.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 4,
+  "typescript(no-unsafe-type-assertion)": 10
+ },
+ "src/components/kill-sheet.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/launch-sheet.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 6,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/components/limit-dialog.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/login-queue-card.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/machine-advice.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/morning-summary.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/new-project-sheet.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/components/new-session-drop.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/notification-cards.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/notifications.test.tsx": {
+  "typescript(no-floating-promises)": 6,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/one-mark-per-app.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/one-vocabulary.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/components/open-pack.test.tsx": {
+  "react(globals)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/outside-conversations.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 7
+ },
+ "src/components/outside-search.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/pairing-wizard.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/palette-actions.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/palette-commands.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/palette-dialog.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/components/palette/Preview.tsx": {
+  "react(purity)": 1,
+  "typescript(consistent-return)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/palette/RowView.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/palette/RowView.tsx": {
+  "typescript(consistent-return)": 1
+ },
+ "src/components/palette/palette-timing.test.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/palette/rows.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/palette/rows.ts": {
+  "typescript(consistent-return)": 2
+ },
+ "src/components/parked.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/place-board.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 3,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/pools.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/primitives.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/privacy-card.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 3,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/processes-tab.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/project-manage.test.tsx": {
+  "react-hooks(rules-of-hooks)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/project-marks.test.tsx": {
+  "react-hooks(rules-of-hooks)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/project-sync.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/components/quality-tab.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/rail-arrange.ts": {
+  "react(refs)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/rail-density.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/rail-folded-needs.test.tsx": {
+  "react-hooks(rules-of-hooks)": 1,
+  "typescript(no-unnecessary-type-assertion)": 2
+ },
+ "src/components/rail-folded.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 7
+ },
+ "src/components/rail-group-switch.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/rail-idle-app.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/components/rail-keyboard.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/rail-order.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/rail-sections.test.tsx": {
+  "react-hooks(rules-of-hooks)": 1,
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/rail-walk.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 5,
+  "typescript(no-unsafe-type-assertion)": 11
+ },
+ "src/components/recovery-code.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/recovery-summary.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/related-list.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 3,
+  "typescript(require-array-sort-compare)": 1
+ },
+ "src/components/related/related-order.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/related/useFacets.ts": {
+  "typescript(consistent-return)": 2
+ },
+ "src/components/remote-cleanup.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/remote-launch.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/remote-tabs.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/renewal.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/report-bug.test.tsx": {
+  "typescript(no-floating-promises)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/row/RowParts.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2
+ },
+ "src/components/row/RowShell.tsx": {
+  "eslint(complexity)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/row/SessionRow.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/components/running-model.test.tsx": {
+  "react-hooks(rules-of-hooks)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/runtime-settings.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/components/session-prefs.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 7
+ },
+ "src/components/settings-revert.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/settings-screen.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/smoother-card.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/sorting.test.tsx": {
+  "eslint(no-constant-binary-expression)": 1,
+  "eslint(no-constant-condition)": 1,
+  "react-hooks(rules-of-hooks)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/switch-automation.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/switch-back-flow.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 14
+ },
+ "src/components/switch-flow.test.tsx": {
+  "eslint(max-lines)": 1,
+  "typescript(no-floating-promises)": 1,
+  "typescript(no-unsafe-type-assertion)": 30
+ },
+ "src/components/switch-graph.test.tsx": {
+  "import(default)": 5,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/components/switch-notes.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 14
+ },
+ "src/components/switch-redaction.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 8
+ },
+ "src/components/switch-room.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 4,
+  "typescript(no-unsafe-type-assertion)": 13
+ },
+ "src/components/switch-set-ups.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 8
+ },
+ "src/components/switch-setup.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 21
+ },
+ "src/components/switch-where.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/switch/CarryChoice.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1
+ },
+ "src/components/switch/CarryList.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1
+ },
+ "src/components/switch/ConfirmBody.tsx": {
+  "eslint(complexity)": 1,
+  "react(purity)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/components/switch/CrossSteps.tsx": {
+  "jsx-a11y(label-has-associated-control)": 3
+ },
+ "src/components/switch/DiskSpace.tsx": {
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/components/switch/DoneStep.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/components/switch/FailedStep.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/switch/GraphParts.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/switch/KeysQuestion.tsx": {
+  "jsx-a11y(label-has-associated-control)": 2
+ },
+ "src/components/switch/SecretSteps.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 2
+ },
+ "src/components/switch/StepBodies.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 2
+ },
+ "src/components/switch/SwitchDialogFrame.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/components/switch/WhereChoice.tsx": {
+  "eslint(no-shadow)": 1,
+  "react(no-unstable-nested-components)": 1
+ },
+ "src/components/switch/carry-choice.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/switch/carry-words.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/terminal-tabs.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/this-mac-memory.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/this-mac-parts.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/this-mac.test.tsx": {
+  "eslint(no-unneeded-ternary)": 1,
+  "typescript(no-unnecessary-type-assertion)": 7,
+  "typescript(no-unsafe-type-assertion)": 9
+ },
+ "src/components/tier-toggles.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/tool-mark.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/tool-update-line.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/components/updates.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/usage/CostCuts.tsx": {
+  "eslint(complexity)": 1,
+  "typescript(no-unnecessary-type-assertion)": 4
+ },
+ "src/components/usage/CostReview.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(purity)": 1
+ },
+ "src/components/usage/Dashboard.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/usage/controls.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/components/usage/useUsage.ts": {
+  "react(memo-dependencies)": 1,
+  "react-hooks(exhaustive-deps)": 2,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/welcome.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/components/when-to-tell.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/components/worktree-isolation.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 7
+ },
+ "src/count-agreement.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/credits-room.test.tsx": {
+  "eslint(no-shadow)": 2,
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 9
+ },
+ "src/handover-keys.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/action-specs-setup.ts": {
+  "typescript(no-unnecessary-boolean-literal-compare)": 1
+ },
+ "src/lib/action-specs.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/actions.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/app-keys.ts": {
+  "eslint(no-shadow)": 1,
+  "react(refs)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/apps.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/backend-health.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/bridge.ts": {
+  "eslint(max-lines)": 1,
+  "eslint(no-constant-binary-expression)": 3,
+  "eslint(no-constant-condition)": 3,
+  "eslint(no-shadow)": 8,
+  "typescript(no-floating-promises)": 2,
+  "typescript(no-redundant-type-constituents)": 4,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unnecessary-type-parameters)": 2,
+  "typescript(no-unsafe-type-assertion)": 108
+ },
+ "src/lib/claude-limits-states.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/context-menu.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/conversation-feed-state.ts": {
+  "typescript(no-unnecessary-type-conversion)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/conversation-store.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/conversations-want.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/conversations.tsx": {
+  "react(exhaustive-effect-dependencies)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/lib/density.ts": {
+  "typescript(no-unnecessary-boolean-literal-compare)": 1
+ },
+ "src/lib/first-run.ts": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/lib/handover-focus.ts": {
+  "react(refs)": 2,
+  "typescript(consistent-return)": 2
+ },
+ "src/lib/home-needs-unloaded.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/home-needs.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/accountSettings.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/agent-bridge.ts": {
+  "react(globals)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/app.ts": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/lib/ipc/appIcons.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/budgets.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/cache.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/capture.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/conversations.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/costs.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/devBridge.test.ts": {
+  "eslint(no-shadow)": 1
+ },
+ "src/lib/ipc/devBridge.ts": {
+  "eslint(no-restricted-imports)": 2,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/lib/ipc/fleet-launch.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/floor-controls.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/floor.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/handover.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/manage.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/marks.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/messages.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/notices.ts": {
+  "typescript(no-unnecessary-type-parameters)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/notifications.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/ordered.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/outsideSearch.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/packs.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/places.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/pool-canvas.ts": {
+  "eslint(complexity)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/pool-model.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/pools.ts": {
+  "typescript(no-misused-spread)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/probe.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/processes.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/projectSync.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/projects.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/quality.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/quota.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/report.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/review.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/runtime.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/services.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/session-prefs.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/sessions.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/staging.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/subagents-preview.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/subscriptions.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/switchBack.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/ipc/switchCut.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/switchExecute.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/switchExecute.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/switchSetup.ts": {
+  "eslint(no-shadow)": 3,
+  "typescript(no-unsafe-type-assertion)": 8
+ },
+ "src/lib/ipc/switchSpace.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/tasks.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/terminal.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/toolUpdates.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/ipc/tools.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/ipc/transport.ts": {
+  "eslint(no-restricted-imports)": 2
+ },
+ "src/lib/ipc/trust.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/launch-pick.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/lazy.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/lib/machine.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/machine.ts": {
+  "react(exhaustive-effect-dependencies)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unnecessary-type-parameters)": 1,
+  "typescript(no-unsafe-type-assertion)": 6
+ },
+ "src/lib/marks.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/needs-you.ts": {
+  "react(refs)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/new-pool-broad.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/lib/new-pool.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/new-session-choice.test.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/new-session-choice.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/new-session-sheet.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/notice-actions.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/notice-actions.ts": {
+  "eslint(complexity)": 1,
+  "typescript(consistent-return)": 2
+ },
+ "src/lib/optimistic.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1
+ },
+ "src/lib/osAccess.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/outside.ts": {
+  "react(refs)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/paged.test.tsx": {
+  "react(immutability)": 1
+ },
+ "src/lib/paged.ts": {
+  "react(refs)": 3,
+  "react(set-state-in-effect)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/lib/palette-recents.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/palette.ts": {
+  "typescript(no-misused-spread)": 4
+ },
+ "src/lib/places.ts": {
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/lib/pool-rules.ts": {
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/lib/pools-scope.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/pools.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/providers.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/quotaWindow.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/quotaWindow.ts": {
+  "eslint(complexity)": 1
+ },
+ "src/lib/rail-apps.test.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/rail-items.ts": {
+  "eslint(complexity)": 2,
+  "typescript(no-unnecessary-boolean-literal-compare)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/rail-lines.ts": {
+  "eslint(complexity)": 1,
+  "eslint(no-shadow)": 1
+ },
+ "src/lib/rail-model.test.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/rail-order.test.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/rail-order.ts": {
+  "typescript(no-unsafe-type-assertion)": 7
+ },
+ "src/lib/rail-places.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/lib/rail-tree.test.ts": {
+  "typescript(require-array-sort-compare)": 2
+ },
+ "src/lib/rail-view.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/lib/railview.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/relation-counts.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/roving.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/scroll-memory.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/scroll-memory.ts": {
+  "typescript(no-unnecessary-type-parameters)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/seen.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/session-lookup.test.tsx": {
+  "react(immutability)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/session-lookup.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/lib/session-states.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/session-titles.test.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/session-titles.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/shared-read.ts": {
+  "eslint(no-shadow)": 1,
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/lib/shortcut-bindings.test.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/shortcut-bindings.ts": {
+  "typescript(no-unnecessary-type-conversion)": 2,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/shortcuts.ts": {
+  "typescript(no-unnecessary-type-conversion)": 6,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/subscriptions.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/lib/suggested.ts": {
+  "typescript(no-unnecessary-type-arguments)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/terminal-tools.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/time-words.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/lib/time-words.ts": {
+  "eslint(no-shadow)": 1
+ },
+ "src/lib/usage-stats-events.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/usage/cached.ts": {
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(refs)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unnecessary-type-parameters)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/lib/usage/range.ts": {
+  "typescript(consistent-return)": 3
+ },
+ "src/lib/use-escape-closes.ts": {
+  "react(refs)": 1
+ },
+ "src/lib/use-folder-drop.ts": {
+  "react(refs)": 1
+ },
+ "src/lib/useSwitchSetup.ts": {
+  "react(set-state-in-effect)": 1
+ },
+ "src/lib/useToolInstall.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/lib/walk-timing.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/walk-timing.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/lib/window.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/lib/working-count.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/machine-state-agreement.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/main.tsx": {
+  "import(no-unassigned-import)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/open-limit.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/pages/AccountPage.tsx": {
+  "typescript(no-floating-promises)": 1
+ },
+ "src/pages/ItemHeader.tsx": {
+  "eslint(complexity)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/PageShell.tsx": {
+  "react(set-state-in-effect)": 2,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/PoolPage.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(no-unstable-nested-components)": 2,
+  "react(purity)": 1,
+  "react(use-memo)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-meaningless-void-operator)": 2
+ },
+ "src/pages/SessionRow.tsx": {
+  "eslint(complexity)": 1,
+  "react(purity)": 2
+ },
+ "src/pages/SessionsList.tsx": {
+  "typescript(consistent-return)": 2
+ },
+ "src/pages/account-capture.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/account-quality.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/account/Settings.tsx": {
+  "jsx-a11y(label-has-associated-control)": 3,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/pages/app/FindProfiles.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/app/app-page.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/pages/app/find-profiles.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/pages/floor/FloorList.tsx": {
+  "react(purity)": 1
+ },
+ "src/pages/floor/FloorRows.tsx": {
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/pages/floor/floor-list.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unnecessary-type-assertion)": 3,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/pages/machine/this-mac-tabs.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/pages/messages/MessagesView.tsx": {
+  "eslint(no-unused-expressions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/messages/SharedDocs.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/messages/ThreadView.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/pages/messages/messages.test.tsx": {
+  "import(default)": 6,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/messages/useSessionMessages.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/pool/Canvas.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react-hooks(exhaustive-deps)": 3,
+  "typescript(consistent-return)": 4,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/pages/pool/CanvasEdges.tsx": {
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/pool/CanvasNode.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "jsx-a11y(role-supports-aria-props)": 1
+ },
+ "src/pages/pool/CompactNode.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-noninteractive-element-interactions)": 2,
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "jsx-a11y(role-supports-aria-props)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/pool/EdgeTalk.tsx": {
+  "react(exhaustive-effect-dependencies)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/pages/pool/InspectNode.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/pool/InspectPool.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-redundant-type-constituents)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/pool/InspectRule.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/pool/Inspector.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/pool/NodeParts.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/pool/Palette.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/pool/PaletteMore.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/pool/PoolHeader.tsx": {
+  "eslint(no-unused-expressions)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/pages/pool/PoolUsage.tsx": {
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(set-state-in-effect)": 1,
+  "react-hooks(exhaustive-deps)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/pool/RuleNodes.tsx": {
+  "react(set-state-in-effect)": 1,
+  "react-hooks(exhaustive-deps)": 1
+ },
+ "src/pages/pool/SealSetting.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/pool/actions.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/pool/canvas-view.ts": {
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(refs)": 1
+ },
+ "src/pages/pool/canvas.test.tsx": {
+  "eslint(max-lines)": 1,
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 13,
+  "typescript(require-array-sort-compare)": 2
+ },
+ "src/pages/pool/drawn-members.test.ts": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/pool/mode.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/pool/seal-setting.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/pool/useCanvas.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/project/Callouts.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/pages/project/Overview.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/pages/project/checkout.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 3,
+  "typescript(no-unsafe-type-assertion)": 8
+ },
+ "src/pages/project/checkout.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/project/useProjectTasks.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/registry.ts": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session-usage/SessionUsage.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/pages/session/ContinueOn.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/session/ConversationSwitcher.tsx": {
+  "jsx-a11y(control-has-associated-label)": 1,
+  "react(purity)": 1,
+  "typescript(consistent-return)": 2
+ },
+ "src/pages/session/ConversationTurn.tsx": {
+  "react(purity)": 1
+ },
+ "src/pages/session/DrivenPanel.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/pages/session/LastMessages.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 5
+ },
+ "src/pages/session/Markdown.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/session/OwnOverview.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/OwnTerminalOverview.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/OwnUsage.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/ResumeButton.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/SessionColumns.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/session/SessionHead.tsx": {
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/SessionPools.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/pages/session/TurnWork.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/session/UsageTab.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/session/continue-first-run.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/continue-on.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/pages/session/conversation-switcher.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/session/header-doors.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/history-tab.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/session/resume.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/pages/session/session-chips.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/pages/session/session-kept.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 4
+ },
+ "src/pages/session/session-model-state.test.ts": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/session/session-page-once.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/session/session-tabs.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/stick-to-bottom.test.tsx": {
+  "eslint(no-setter-return)": 1,
+  "jsx-a11y(control-has-associated-label)": 1
+ },
+ "src/pages/session/subagents-tab.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unnecessary-type-conversion)": 2,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/pages/session/tab-facts.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/turn-marks.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/session/useConversation.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/session/useStickToBottom.ts": {
+  "react(immutability)": 6,
+  "react(preserve-manual-memoization)": 3
+ },
+ "src/pages/session/useSubagents.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/subagents/DetailBoxes.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/pages/subagents/ProjectSubagentsView.tsx": {
+  "react(purity)": 1
+ },
+ "src/pages/subagents/SubagentDetail.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(no-meaningless-void-operator)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/pages/subagents/SubagentTree.tsx": {
+  "eslint(no-shadow)": 1,
+  "jsx-a11y(click-events-have-key-events)": 1,
+  "jsx-a11y(interactive-supports-focus)": 1,
+  "jsx-a11y(no-static-element-interactions)": 2,
+  "jsx-a11y(prefer-tag-over-role)": 13,
+  "react(immutability)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/subagents/SubagentsView.tsx": {
+  "eslint(complexity)": 1,
+  "eslint(no-shadow)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "react(immutability)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(no-unnecessary-type-arguments)": 1
+ },
+ "src/pages/subagents/subagents.test.tsx": {
+  "typescript(no-unnecessary-type-conversion)": 1,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/pages/subagents/useSubagentRows.ts": {
+  "react(refs)": 2,
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/subscription/SubscriptionPage.tsx": {
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/pages/subscription/TermChoice.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(refs)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/subscription/account-page.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/pages/tasks/PoolTasks.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 4,
+  "react(set-state-in-effect)": 1
+ },
+ "src/pages/tasks/TaskView.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-autofocus)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "react(set-state-in-effect)": 1
+ },
+ "src/pages/tasks/tasks.test.tsx": {
+  "eslint(max-lines)": 1,
+  "import(default)": 9,
+  "react(globals)": 1,
+  "typescript(no-unsafe-type-assertion)": 7
+ },
+ "src/pages/tasks/useSessionTasks.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/pages/tool/ToolTabs.tsx": {
+  "react(exhaustive-effect-dependencies)": 1
+ },
+ "src/plain-words-on-screen.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 6
+ },
+ "src/preview/conversation-feed.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/preview/machine.ts": {
+  "typescript(consistent-return)": 1
+ },
+ "src/preview/needs.tsx": {
+  "eslint(complexity)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/preview/processes-fixture.ts": {
+  "eslint(no-shadow)": 2
+ },
+ "src/preview/processes-mac.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/preview/processes.ts": {
+  "eslint(complexity)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/preview/this-mac.ts": {
+  "eslint(no-shadow)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/preview/usage-cuts.ts": {
+  "typescript(no-misused-spread)": 1
+ },
+ "src/preview/usage-fold.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/preview/usage-history.ts": {
+  "eslint(complexity)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/quota-unmeasured-surfaces.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/screen-boundary.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/AccountManage.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(no-autofocus)": 1,
+  "typescript(no-misused-promises)": 4
+ },
+ "src/screens/AddProviderSheet.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(refs)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/FirstRun.tsx": {
+  "eslint(complexity)": 3,
+  "eslint(max-lines)": 1,
+  "eslint(no-shadow)": 14,
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 7,
+  "react(set-state-in-effect)": 1,
+  "react(use-memo)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unnecessary-boolean-literal-compare)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/FleetScreen.tsx": {
+  "eslint(complexity)": 1,
+  "eslint(max-lines)": 1,
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 4,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/FreshAccountStep.tsx": {
+  "jsx-a11y(no-autofocus)": 1
+ },
+ "src/screens/History.tsx": {
+  "eslint(complexity)": 1,
+  "react(no-unstable-nested-components)": 2,
+  "react(purity)": 1,
+  "react(set-state-in-effect)": 2,
+  "typescript(consistent-return)": 2,
+  "typescript(no-meaningless-void-operator)": 1
+ },
+ "src/screens/Home.tsx": {
+  "eslint(max-lines)": 1,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 2,
+  "typescript(no-unnecessary-boolean-literal-compare)": 1,
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/NewProjectSheet.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/screens/NewSession.tsx": {
+  "eslint(complexity)": 1,
+  "eslint(no-shadow)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(memo-dependencies)": 1,
+  "react(purity)": 1,
+  "react(refs)": 24,
+  "typescript(no-misused-promises)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/PairingWizard.tsx": {
+  "eslint(max-lines)": 1,
+  "jsx-a11y(label-has-associated-control)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 6,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(purity)": 1,
+  "react(set-state-in-effect)": 2,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/screens/Profiles.tsx": {
+  "jsx-a11y(no-autofocus)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(purity)": 2,
+  "typescript(no-misused-promises)": 2
+ },
+ "src/screens/Settings.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/ThisMacScreen.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/screens/WorkPanels.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "typescript(no-misused-promises)": 1
+ },
+ "src/screens/accounts-no-limits.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/screens/accounts/AccountCard.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/screens/accounts/AppsSection.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1
+ },
+ "src/screens/accounts/DeleteLaunchSettings.tsx": {
+  "typescript(no-misused-promises)": 1
+ },
+ "src/screens/accounts/ProfileRow.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/screens/accounts/ServiceAccountSheet.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/screens/accounts/UseOriginal.tsx": {
+  "typescript(no-misused-promises)": 1
+ },
+ "src/screens/accounts/accounts-grouped.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/accounts/apps-section.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/accounts/delete-launch-settings.test.tsx": {
+  "import(default)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/accounts/service-accounts.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/screens/first-run-access-reopen.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/first-run-confidence.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/first-run.test.tsx": {
+  "eslint(max-lines)": 1,
+  "eslint(no-shadow)": 3,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 15,
+  "typescript(require-array-sort-compare)": 1
+ },
+ "src/screens/firstRunScan.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/fresh-account-settings.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 10
+ },
+ "src/screens/history-paged.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/history.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 6
+ },
+ "src/screens/home-places.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/home.test.tsx": {
+  "eslint(max-lines)": 1,
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 12
+ },
+ "src/screens/nav-screens.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/new-session/ChoicePickers.tsx": {
+  "typescript(no-misused-promises)": 1
+ },
+ "src/screens/pools/NewPool.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(memo-dependencies)": 1,
+  "react(purity)": 1,
+  "react-hooks(exhaustive-deps)": 2,
+  "typescript(no-meaningless-void-operator)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/pools/NewPoolRoles.tsx": {
+  "jsx-a11y(label-has-associated-control)": 1
+ },
+ "src/screens/pools/NewPoolTemplate.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/screens/pools/NewPoolWho.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/screens/pools/PoolMini.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/pools/PoolsScreen.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/screens/pools/new-pool.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/privacy-page.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/processes-page.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 13
+ },
+ "src/screens/processes/CleanupStatus.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 3,
+  "react(purity)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/screens/processes/GroupCleanupSheet.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/screens/processes/HistoryView.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "react(purity)": 1,
+  "react(set-state-in-effect)": 1
+ },
+ "src/screens/processes/ProcessTree.tsx": {
+  "jsx-a11y(click-events-have-key-events)": 1,
+  "jsx-a11y(interactive-supports-focus)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 12,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/screens/processes/ProcessesScreen.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
+ },
+ "src/screens/processes/ProcessesView.tsx": {
+  "eslint(complexity)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(no-unstable-nested-components)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/processes/RowActions.tsx": {
+  "eslint(complexity)": 1
+ },
+ "src/screens/processes/RulesPanel.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1
+ },
+ "src/screens/processes/Toolbar.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/processes/cells.tsx": {
+  "eslint(complexity)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 11
+ },
+ "src/screens/processes/session-rows.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/processes/tree-fold.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/processes/useProcessRows.ts": {
+  "react(preserve-manual-memoization)": 1,
+  "react(refs)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/projects/ProjectsScreen.tsx": {
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/screen-timing.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/settings-sections.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 8
+ },
+ "src/screens/settings/AgentAccessPane.tsx": {
+  "react(purity)": 1
+ },
+ "src/screens/settings/DebugModeSection.tsx": {
+  "jsx-a11y(no-noninteractive-tabindex)": 1
+ },
+ "src/screens/settings/FloorPane.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/settings/KeyCapture.tsx": {
+  "jsx-a11y(no-autofocus)": 1
+ },
+ "src/screens/settings/KeyboardPane.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/settings/SettingsSearch.tsx": {
+  "jsx-a11y(click-events-have-key-events)": 1,
+  "jsx-a11y(no-noninteractive-element-to-interactive-role)": 2,
+  "jsx-a11y(prefer-tag-over-role)": 3,
+  "react(exhaustive-effect-dependencies)": 1,
+  "react(set-state-in-effect)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/settings/desktop-apps.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/screens/settings/keep-alive.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/settings/local-cache.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 5
+ },
+ "src/screens/settings/parts.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 2,
+  "typescript(consistent-return)": 2
+ },
+ "src/screens/settings/settings-index.ts": {
+  "eslint(no-unused-vars)": 1
+ },
+ "src/screens/settings/settings-search.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/screens/system-notifications.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/tasks/TaskBoard.tsx": {
+  "eslint(no-shadow)": 1,
+  "jsx-a11y(no-static-element-interactions)": 1,
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
+ },
+ "src/screens/tasks/TasksScreen.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1,
+  "typescript(consistent-return)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/screens/this-mac-page.test.tsx": {
+  "typescript(no-unnecessary-type-assertion)": 2
+ },
+ "src/screens/usage-layout.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/serde-null-ranked-surfaces.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/test/cpuTime.ts": {
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/test/pairwise.ts": {
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/tools-catalog.test.tsx": {
+  "eslint(no-shadow)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
+ },
+ "src/usage-null-payload.test.tsx": {
+  "typescript(no-unsafe-type-assertion)": 2
+ }
+}

@@ -2385,8 +2385,7 @@ fn bring_in_setup(
         let storage = lock_storage_arc(state)?;
         storage.accounts().insert(&account)?;
         inserted = true;
-        // A default profile makes the imported account launchable in one
-        // click — the wizard's promise.
+        // A default profile: the imported account launches in one click.
         storage.profiles().insert(&Profile {
             id: ProfileId::new(format!("prof-{}", unique_suffix())),
             name: "Main".to_string(),
@@ -2407,8 +2406,7 @@ fn bring_in_setup(
         }
         return Err(error);
     }
-    crate::settings_policy::apply_cleanup_default(state, account.id.as_str());
-    let account = find_account_arc(state, account.id.as_str()).unwrap_or(account);
+    let account = crate::import_report::settled(state, account, &outcome);
     Ok(ImportResult {
         account: account_info_of(state, &account),
         files_copied: outcome.files_copied,
@@ -15264,7 +15262,9 @@ pub async fn environment_scan_full(
         };
         let report = environment_scan_full_impl(state, Some(&sink));
         if let Ok(report) = &report {
-            crate::picked::record_offered(report.installs.iter().map(|install| install.path.as_str()));
+            crate::picked::record_offered(
+                report.installs.iter().map(|install| install.path.as_str()),
+            );
         }
         report
     })

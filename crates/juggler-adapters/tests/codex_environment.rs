@@ -290,9 +290,9 @@ fn the_adapter_routes_scan_and_import_through_codex() {
 #[cfg(unix)]
 #[test]
 fn links_follow_the_shared_rule_and_the_sign_in_stays_back() {
-    // #73's rule, shared with Claude: a linked folder is kept as a link
-    // (never followed or copied through), a linked file is copied by
-    // content, a broken link is left out with a note. Codex's sign-in
+    // #73's rule, shared with Claude: a link inside the folder is kept as
+    // a link; one pointing outside is left out and listed (AJ-E2006); a
+    // broken link is left out with a note. Codex's sign-in
     // stays with the original even when it is a link.
     use std::os::unix::fs::symlink;
     let tmp = tempfile::tempdir().unwrap();
@@ -331,17 +331,21 @@ fn links_follow_the_shared_rule_and_the_sign_in_stays_back() {
         Path::new("real"),
         "a relative link inside keeps pointing inside the copy"
     );
-    assert!(is_link("skills/outside-dir"));
-    assert_eq!(
-        std::fs::canonicalize(dest.join("skills/outside-dir")).unwrap(),
-        std::fs::canonicalize(outside.join("dir")).unwrap()
-    );
-    // A linked file: a plain copy, not shared.
-    assert!(!is_link("AGENTS.md"));
-    assert_eq!(
-        std::fs::read_to_string(dest.join("AGENTS.md")).unwrap(),
-        "my notes"
-    );
+    // AJ-E2006: links out of the folder are left out and listed.
+    for outside in ["skills/outside-dir", "AGENTS.md"] {
+        assert!(
+            std::fs::symlink_metadata(dest.join(outside)).is_err(),
+            "{outside}"
+        );
+        assert!(
+            outcome
+                .left_outside
+                .iter()
+                .any(|line| line.starts_with(outside)),
+            "{outside}: {:?}",
+            outcome.left_outside
+        );
+    }
     // The sign-in never travels, linked or not.
     assert!(std::fs::symlink_metadata(dest.join("auth.json")).is_err());
     assert!(

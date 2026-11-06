@@ -3,7 +3,6 @@
 
 use std::sync::Arc;
 
-
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 

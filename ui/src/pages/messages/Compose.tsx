@@ -102,7 +102,7 @@ export function Compose({
             size="sm"
             value={kind}
             onChange={(next) => setKind(next)}
-            options={KINDS.map((word) => ({ value: word, label: KIND_WORDS[word] }))}
+            options={KINDS.map((word) => ({ value: word, label: KIND_WORDS[word] ?? word }))}
           />
         </div>
       )}

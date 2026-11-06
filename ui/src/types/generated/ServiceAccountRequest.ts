@@ -15,7 +15,7 @@ service: string,
  */
 plan: string | null, 
 /**
- * The key, pasted once.
+ * The key, pasted once. AJ-E2010: never printed.
  */
 key: string, 
 /**

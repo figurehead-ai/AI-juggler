@@ -67,7 +67,7 @@ fn request(service: &str, key: &str, profiles: &[(&str, &str, &str)]) -> Service
     ServiceAccountRequest {
         service: service.to_owned(),
         plan: None,
-        key: key.to_owned(),
+        key: juggler_core::redacted::Redacted::new(key.to_owned()),
         profiles: profiles
             .iter()
             .map(|(tool, label, model)| ServiceProfileRequest {
@@ -475,4 +475,29 @@ fn every_session_starts_through_the_one_spawn_path() {
             ("terminal.rs".to_owned(), ".supervisor.spawn(", 1),
         ]
     );
+}
+
+/// AJ-E2010: whatever goes wrong with a key, the error the window sees
+/// (and any log line built from it) never carries the key.
+#[test]
+fn an_error_about_a_key_never_prints_the_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let (state, _) = app_state(dir.path());
+    for (profile, key) in [
+        ("no-such-profile", KEY),
+        (
+            "no-such-profile",
+            "not a key, with spaces and fixture-secret-0123",
+        ),
+    ] {
+        let error =
+            juggler_app::features::service_accounts::commands::service_account_set_key_impl(
+                &state, profile, key,
+            )
+            .unwrap_err();
+        let shown = format!("{error} {error:?}");
+        assert!(!shown.contains(key), "{shown}");
+    }
+    let wrapped = juggler_core::redacted::Redacted::new(KEY.to_owned());
+    assert!(!format!("{wrapped:?} {wrapped}").contains(KEY));
 }

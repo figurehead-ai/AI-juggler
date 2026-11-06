@@ -10,6 +10,9 @@
 //!   offscreen for the gallery's golden frames.
 //! - A refused frame (the window covered, or its surface out of date) is
 //!   reported, never dropped: the loop retries it.
+//!
+//! Must not know: storage, tools or Tauri: it draws what juggler-floor
+//! describes.
 
 // Pixel and metre geometry on small numbers: the casts between them lose
 // nothing that matters; pixels have their own short names (x, y, w, h).

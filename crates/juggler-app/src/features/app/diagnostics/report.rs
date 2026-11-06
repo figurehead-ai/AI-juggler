@@ -513,7 +513,11 @@ pub fn open_issue(
     keep: &[String],
 ) -> AppResult<()> {
     let composed = compose(id, title, words, keep)?;
-    crate::webview_guard::open_web(app, issue_url(&composed.title, &composed.fields), crate::webview_guard::Opened::ByApp)
+    crate::webview_guard::open_web(
+        app,
+        issue_url(&composed.title, &composed.fields),
+        crate::webview_guard::Opened::ByApp,
+    )
 }
 
 #[cfg(test)]

@@ -216,10 +216,10 @@ describe("wireframe 26 — the policies the user owns", () => {
     expect(rows).toHaveLength(2);
     // D-62: a signed-in app's row is its Account's (set once for its apps);
     // one not signed in has no Account and keeps its own.
-    expect(rows[0].getAttribute("data-account-id")).toMatch(/^acct:/);
-    expect((rows[0].querySelector("input[type='date']") as HTMLInputElement).value).not.toBe("");
-    expect(rows[1].getAttribute("data-account-id")).toBeNull();
-    expect(rows[1].textContent).toContain("Not set: no renewal reminders");
+    expect(rows[0]!.getAttribute("data-account-id")).toMatch(/^acct:/);
+    expect((rows[0]!.querySelector("input[type='date']") as HTMLInputElement).value).not.toBe("");
+    expect(rows[1]!.getAttribute("data-account-id")).toBeNull();
+    expect(rows[1]!.textContent).toContain("Not set: no renewal reminders");
     fireEvent.click(days);
     await act(async () => {
       fireEvent.click(screen.getByTestId("renewal-warn-days-14"));
@@ -240,7 +240,7 @@ describe("wireframe 26 — the policies the user owns", () => {
     expect(w().__AIJ_NOTIFICATION_PREFS__).toMatchObject({ quiet_start: 21, quiet_end: 7 });
     const [work] = await findAllByTestId("digest-account");
     await act(async () => {
-      fireEvent.click(within(work).getByRole("checkbox"));
+      fireEvent.click(within(work!).getByRole("checkbox"));
     });
     expect(w().__AIJ_NOTIFICATION_PREFS__).toMatchObject({ digest_muted_accounts: ["claude-work"] });
     expect(getByTestId("settings-notifications").textContent).toContain("left out of the digest");

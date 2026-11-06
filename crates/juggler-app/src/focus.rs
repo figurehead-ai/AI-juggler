@@ -75,6 +75,31 @@ pub trait ScriptRunner: Front {
     /// The stderr text of a failed script (non-zero exit or spawn
     /// failure) — the tiers match on it, never panic on it.
     fn osascript(&self, source: &str) -> Result<String, String>;
+
+    /// AJ-E2010: runs `source` (an `on run argv` handler) with `args` as
+    /// its arguments, so no value is ever written into the script. A
+    /// fixture sees the script with each `(item N of argv)` filled in.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::osascript`].
+    fn osascript_with(&self, source: &str, args: &[&str]) -> Result<String, String> {
+        self.osascript(&filled_in(source, args))
+    }
+}
+
+/// `source` with `(item N of argv)` replaced by the quoted argument: what
+/// a script reads, for fixtures and logs (never run this way).
+#[must_use]
+pub fn filled_in(source: &str, args: &[&str]) -> String {
+    args.iter()
+        .enumerate()
+        .fold(source.to_owned(), |text, (i, arg)| {
+            text.replace(
+                &format!("(item {} of argv)", i + 1),
+                &format!("\"{}\"", arg.replace('\\', "\\\\").replace('"', "\\\"")),
+            )
+        })
 }
 
 /// The real runner: `/usr/bin/osascript -e` and [`activation::Mac`].
@@ -93,9 +118,15 @@ impl Front for OsascriptRunner {
 
 impl ScriptRunner for OsascriptRunner {
     fn osascript(&self, source: &str) -> Result<String, String> {
-        let out = std::process::Command::new("/usr/bin/osascript")
+        self.osascript_with(source, &[])
+    }
+
+    fn osascript_with(&self, source: &str, args: &[&str]) -> Result<String, String> {
+        let out = juggler_adapter::process::helper("/usr/bin/osascript")
             .arg("-e")
             .arg(source)
+            .arg("--")
+            .args(args)
             .output()
             .map_err(|e| e.to_string())?;
         if out.status.success() {
@@ -104,11 +135,6 @@ impl ScriptRunner for OsascriptRunner {
             Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
         }
     }
-}
-
-/// Escapes an `AppleScript` string literal body (backslash + quote).
-fn applescript_escape(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 /// True when an osascript stderr is the missing-Accessibility grant
@@ -218,18 +244,15 @@ impl FocusService {
                 let Some(bundle) = identity.bundle_id.clone() else {
                     return not_running(identity);
                 };
-                let by_bundle = format!(
-                    "tell application \"System Events\" to get name of every window of (first application process whose bundle identifier is \"{}\")",
-                    applescript_escape(&bundle)
-                );
-                match self.runner.osascript(&by_bundle) {
+                let by_bundle = "on run argv\ntell application \"System Events\" to get name of every window of (first application process whose bundle identifier is (item 1 of argv))\nend run";
+                match self.runner.osascript_with(by_bundle, &[&bundle]) {
                     Ok(raw) => {
                         // Re-discovered: the app relaunched under a new
                         // PID. Persist the fresh process id.
-                        let pid = self.runner.osascript(&format!(
-                            "tell application \"System Events\" to get unix id of (first application process whose bundle identifier is \"{}\")",
-                            applescript_escape(&bundle)
-                        ));
+                        let pid = self.runner.osascript_with(
+                            "on run argv\ntell application \"System Events\" to get unix id of (first application process whose bundle identifier is (item 1 of argv))\nend run",
+                            &[&bundle],
+                        );
                         if let Ok(pid) = pid
                             && let Ok(pid) = pid.trim().parse::<u32>()
                         {
@@ -283,12 +306,10 @@ impl FocusService {
     /// the app is frontmost.
     fn raise(&self, identity: WindowIdentity, title: &str) -> FocusAttempt {
         let raise = format!(
-            "tell application \"System Events\"\ntell (first application process whose unix id is {})\nset value of attribute \"AXMinimized\" of window \"{}\" to false\nperform action \"AXRaise\" of window \"{}\"\nset frontmost to true\nend tell\nend tell",
-            identity.pid,
-            applescript_escape(title),
-            applescript_escape(title)
+            "on run argv\ntell application \"System Events\"\ntell (first application process whose unix id is {})\nset value of attribute \"AXMinimized\" of window (item 1 of argv) to false\nperform action \"AXRaise\" of window (item 1 of argv)\nset frontmost to true\nend tell\nend tell\nend run",
+            identity.pid
         );
-        if self.runner.osascript(&raise).is_err() {
+        if self.runner.osascript_with(&raise, &[title]).is_err() {
             return window_not_found(identity);
         }
         // The raise said yes; the window counts as focused only once its
@@ -775,7 +796,7 @@ pub fn screen_locked() -> Result<bool, String> {
     if !cfg!(target_os = "macos") {
         return Err("screen-lock state is only readable on macOS".to_owned());
     }
-    let out = std::process::Command::new("/usr/sbin/ioreg")
+    let out = juggler_adapter::process::helper("/usr/sbin/ioreg")
         .args(["-n", "Root", "-d1", "-a"])
         .output()
         .map_err(|e| e.to_string())?;

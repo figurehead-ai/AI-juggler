@@ -6,6 +6,9 @@
 //! (T4), plus lineage tracking and project-context sync. Per the automation
 //! policy (ADR-0003), everything here *prepares*; only an explicit user action
 //! executes.
+//!
+//! Must not know: Tauri or the window; a tool's formats only through the
+//! adapter contract.
 
 #![cfg_attr(
     test,

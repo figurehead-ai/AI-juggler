@@ -1,0 +1,15 @@
+# AJ-E2004: the paths a release, a permission, a key or the network hang
+# on. A change here always gets the maintainer's look; with the branch
+# protection in docs/RELEASING.md ("Review for sensitive paths") it can't
+# merge without their approval. Everything else is reviewed and merged as
+# usual.
+/.github/                               @fbrbovic
+/crates/juggler-app/capabilities/       @fbrbovic
+/crates/juggler-app/permissions/        @fbrbovic
+/crates/juggler-app/tauri.conf.json     @fbrbovic
+/crates/juggler-app/tauri.*.conf.json   @fbrbovic
+/crates/*/build.rs                      @fbrbovic
+/deny.toml                              @fbrbovic
+/crates/juggler-link/                   @fbrbovic
+/crates/juggler-account/                @fbrbovic
+/SECURITY.md                            @fbrbovic

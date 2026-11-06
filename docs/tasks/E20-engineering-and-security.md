@@ -67,7 +67,7 @@
 **Requirements**:
 1. An `AppManifest::commands` allowlist in `build.rs`; commands are granted by capability files, per window.
 2. A capability lint that forbids `shell:*`, `fs:*`, `http:*`, `opener:*` and remote URLs.
-3. `on_navigation` allows only the app origin; new windows are denied; outside links go through a Rust opener with an https host allowlist; xterm gets an explicit link handler.
+3. `on_navigation` allows only the app origin; new windows are denied; outside links go through a Rust opener; xterm gets an explicit link handler. (Amended 2026-11-06: the opener allows https for the app's own addresses and http(s) for a link the user clicked; no host list, because the hosts belong to the adapters and the page never supplies an address.)
 4. A stricter CSP: `script-src 'self'`, `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `form-action 'none'`.
 5. `core:default` is replaced by the subset actually used.
 6. Commands take ids, never paths, URLs or programs, unless the user picked one in a native dialog in the same flow.
@@ -80,7 +80,7 @@
 **Research basis**: Tauri's capabilities, runtime authority and CSP docs.
 **Handover note**: —
 
-### AJ-E2004 Review for sensitive paths | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E2004 Review for sensitive paths | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort S | Depends: —
 **Goal**: A change to release, capability, crypto or network code always gets a human look.
 **User story**: As the maintainer, nothing touching signing or permissions merges unseen.
 **Requirements**:
@@ -95,7 +95,7 @@
 **Research basis**: OpenSSF Scorecard (code review, branch protection).
 **Handover note**: Agents keep merging the rest after review; only these paths wait for the maintainer.
 
-### AJ-E2005 The Fleet identity key in the Keychain | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2005 The Fleet identity key in the Keychain | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: The key that proves this Mac to its peers can't be read as a plain file.
 **User story**: As a user, a tool running on my Mac can't copy my Fleet identity.
 **Requirements**: Migrate the key from its file to the Keychain, then remove the file. Add a test that the Fleet folder holds no private key, and test the migration both ways.
@@ -108,7 +108,7 @@
 **Research basis**: Apple Keychain services.
 **Handover note**: —
 
-### AJ-E2006 Hostile files: restore and import | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2006 Hostile files: restore and import | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: A crafted backup or folder can't harm the Mac or pull in what it shouldn't.
 **User story**: As a user restoring a backup someone sent me, AI Juggler refuses anything unsafe.
 **Requirements**:
@@ -147,7 +147,7 @@
 **Research basis**: SLSA, Sigstore, OpenSSF Scorecard, cargo-vet.
 **Handover note**: —
 
-### AJ-E2008 Fuzzing on a schedule | Status: TODO | Priority P2 | Effort M | Depends: —
+### AJ-E2008 Fuzzing on a schedule | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P2 | Effort M | Depends: —
 **Goal**: Parsers of untrusted input are fuzzed continuously.
 **User story**: As a maintainer, crashes in parsers are found before users hit them.
 **Requirements**: A nightly, time-boxed fuzz workflow with a cached corpus. New targets: backup archive staging, the cloud backup container, the recovery-code parser, pairing messages and shell quoting. The existing transcript targets join it.
@@ -176,11 +176,11 @@
 **Research basis**: CISA secure by design; disclosure norms.
 **Handover note**: The website change follows the website repo's rules.
 
-### AJ-E2010 Process, crypto and listener hygiene | Status: TODO | Priority P3 | Effort M | Depends: —
+### AJ-E2010 Process, crypto and listener hygiene | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P3 | Effort M | Depends: —
 **Goal**: The small hardening rules hold everywhere.
 **User story**: As a user, what AI Juggler starts gets only what it needs.
 **Requirements**:
-1. An environment allowlist for spawned processes (clear the environment, then add only the allowed variables and the overlay), with tests.
+1. An environment allowlist for the processes AI Juggler runs for itself (clear the environment, then add only the allowed variables), with tests. (Amended 2026-11-06: the user's own tools — agent sessions, their editor, `gh`, a vendor CLI — keep the user's login environment plus the overlay, since it holds what those tools need; a lint keeps the two apart.)
 2. Absolute tool paths (`/usr/bin/security`, `/usr/bin/open`, a resolved git), and `--` before path arguments.
 3. AppleScript gets its values through `on run argv`, and an Apple Events usage string is added.
 4. Fleet listener: choose the interface, limit the accept rate and concurrency, set keep-alive timeouts.
@@ -224,11 +224,11 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide's enforcement steps 1–9 and 12.
 **Handover note**: —
 
-### AJ-E2012 A UI linter and stricter TypeScript | Status: TODO | Priority P1 | Effort M | Depends: —
+### AJ-E2012 A UI linter and stricter TypeScript | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: —
 **Goal**: The UI gets the same rigour as the Rust code.
 **User story**: As a contributor, lint catches hook mistakes, `any` and boundary breaks.
 **Requirements**:
-1. An ESLint flat config: typescript-eslint `strict-type-checked` (pinned), react-hooks, jsx-a11y, `max-lines`, complexity, and import boundaries (only `lib/ipc` calls the backend). Run it as `pnpm lint` in CI.
+1. An ESLint flat config: typescript-eslint `strict-type-checked` (pinned), react-hooks, jsx-a11y, `max-lines`, complexity, and import boundaries (only `lib/ipc` calls the backend). Run it as `pnpm lint` in CI. (Amended 2026-11-06: the UI is on TypeScript 7, which has no JavaScript API, so typescript-eslint can't parse it; oxlint, pinned, runs the same rule families with type-aware rules on TypeScript 7's own checker.)
 2. tsconfig: `noUncheckedIndexedAccess`, `noImplicitReturns`, `noImplicitOverride`, `verbatimModuleSyntax`.
 3. Overrides for today's big files, which may only shrink.
 **UI/UX reasoning**: n/a.
@@ -266,7 +266,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide (threading); Tauri's command docs.
 **Handover note**: Do it as part of AJ-E2017's split where possible.
 
-### AJ-E2015 ARCHITECTURE.md | Status: TODO | Priority P1 | Effort S | Depends: —
+### AJ-E2015 ARCHITECTURE.md | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort S | Depends: —
 **Goal**: A newcomer finds their way, and the invariants are written down.
 **User story**: As a new contributor, I know where things live and what must never happen.
 **Requirements**:

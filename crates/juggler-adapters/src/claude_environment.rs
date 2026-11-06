@@ -469,6 +469,7 @@ pub(crate) fn import_with_layout(
         files: Vec::new(),
         links: Vec::new(),
         skipped: Vec::new(),
+        outside: Vec::new(),
         total: 0,
         folders: Vec::new(),
     };
@@ -477,9 +478,11 @@ pub(crate) fn import_with_layout(
         files,
         links,
         mut skipped,
+        outside: mut left_outside,
         folders,
         ..
     } = acc;
+    let mut to_scan = Vec::new();
 
     let source_login = login_probe(&source);
 
@@ -519,12 +522,15 @@ pub(crate) fn import_with_layout(
         {
             // Defense in depth: credentials stay owner-only in the copy.
             let _ = crate::claude_code::restrict_to_owner(&to);
+        } else {
+            // AJ-E2006: the rest goes to the app's redaction scan.
+            to_scan.push(to.clone());
         }
         files_copied += 1;
         bytes_copied += std::fs::metadata(&to).map(|m| m.len()).unwrap_or_default();
     }
 
-    recreate_links(&source, dest, &links, &mut skipped);
+    recreate_links(&source, dest, &links, &mut skipped, &mut left_outside);
 
     let (login, login_note) = login_carryover(layout, source_login, login_probe(dest));
 
@@ -536,6 +542,8 @@ pub(crate) fn import_with_layout(
         login_note,
         folders,
         degraded: false,
+        left_outside,
+        to_scan,
     })
 }
 
@@ -546,6 +554,7 @@ fn recreate_links(
     dest: &Path,
     links: &[(PathBuf, PathBuf)],
     skipped: &mut Vec<String>,
+    left_outside: &mut Vec<String>,
 ) {
     let resolved_source = std::fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
     for (relative, target) in links {
@@ -569,10 +578,15 @@ fn recreate_links(
         // Inside the setup: point at the same place in the copy (a
         // relative link keeps working as it is). Outside: the real place,
         // absolute, so it still resolves from the copy.
+        // AJ-E2006: a link out of the folder isn't made in the copy; the
+        // user is told where it pointed and can link it again.
         let retargeted = match inside {
             Some(_) if !target.is_absolute() => target.clone(),
             Some(inside) => dest.join(inside),
-            None => resolved,
+            None => {
+                left_outside.push(format!("{}/ → {}", relative.display(), resolved.display()));
+                continue;
+            }
         };
         if let Some(parent) = to.parent() {
             let _ = crate::claude_code::create_private_dir(parent);
@@ -605,6 +619,13 @@ fn as_copied(entry: &std::fs::DirEntry, meta: std::fs::Metadata) -> Option<std::
     std::fs::metadata(entry.path())
         .ok()
         .filter(std::fs::Metadata::is_file)
+}
+
+/// AJ-E2006: `link → where it really points` when the link at `path`
+/// resolves outside `root`.
+fn outside_link(path: &Path, root: &Path, relative: &Path) -> Option<String> {
+    let target = std::fs::canonicalize(path).ok()?;
+    (!target.starts_with(root)).then(|| format!("{} → {}", relative.display(), target.display()))
 }
 
 /// `path` with `.` and `..` collapsed, without touching the disk.
@@ -676,6 +697,8 @@ pub(crate) fn adopt_with_layout(
         login_note: None,
         folders: Vec::new(),
         degraded: false,
+        left_outside: Vec::new(),
+        to_scan: Vec::new(),
     })
 }
 
@@ -828,6 +851,8 @@ struct CollectAccum {
     /// `skills/<name>` made the whole import fail).
     links: Vec<(PathBuf, PathBuf)>,
     skipped: Vec<String>,
+    /// AJ-E2006: links that point outside the folder (never followed).
+    outside: Vec<String>,
     total: u64,
     folders: Vec<(String, u64)>,
 }
@@ -865,6 +890,12 @@ fn collect_files(
         // `skills/` folder linked to dotfiles failed the whole import).
         let meta = if meta.file_type().is_symlink() {
             if layout.skips(&name, top_level) || extra_skips.contains(&name.as_str()) {
+                continue;
+            }
+            // AJ-E2006: a link reaching outside the folder is never
+            // followed: it is listed for the user instead.
+            if let Some(line) = outside_link(&entry.path(), root, &relative) {
+                acc.outside.push(line);
                 continue;
             }
             match std::fs::metadata(entry.path()) {

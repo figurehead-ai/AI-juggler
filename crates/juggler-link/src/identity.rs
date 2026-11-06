@@ -109,11 +109,54 @@ pub fn fingerprint_of(public_key: &[u8; 32]) -> String {
         .join(" ")
 }
 
+/// Where the identity's two secrets are kept (AJ-E2005): the system's
+/// keychain in the app, owner-only files in tests and where no keychain
+/// is wired yet. Each secret is a base64 line, named [`IDENTITY_FILE`] or
+/// [`EXCHANGE_FILE`].
+pub trait KeyKeeper: Send + Sync {
+    /// The secret called `name`, if kept.
+    fn get(&self, name: &str) -> Option<String>;
+    /// Keeps `secret` as `name`.
+    ///
+    /// # Errors
+    ///
+    /// The keeper's refusal, in words.
+    fn set(&self, name: &str, secret: &str) -> Result<(), String>;
+    /// Forgets `name` (absent is fine).
+    fn delete(&self, name: &str);
+    /// Whether it keeps secrets in the Fleet folder itself (files).
+    fn is_files(&self) -> bool {
+        false
+    }
+}
+
+/// Owner-only files in the Fleet folder: the way before AJ-E2005, kept
+/// for tests and for systems without a keychain seam yet.
+#[derive(Debug, Clone)]
+pub struct FileKeeper(pub PathBuf);
+
+impl KeyKeeper for FileKeeper {
+    fn get(&self, name: &str) -> Option<String> {
+        let path = self.0.join(name);
+        std::fs::read_to_string(&path).ok()
+    }
+    fn set(&self, name: &str, secret: &str) -> Result<(), String> {
+        write_owner_only(&self.0.join(name), secret.as_bytes()).map_err(|e| e.to_string())
+    }
+    fn delete(&self, name: &str) {
+        let _ = std::fs::remove_file(self.0.join(name));
+    }
+    fn is_files(&self) -> bool {
+        true
+    }
+}
+
 /// This machine's identity: the signing key and the X25519 exchange key.
 pub struct MachineIdentity {
     signing: SigningKey,
     exchange: x25519_dalek::StaticSecret,
     dir: PathBuf,
+    keeper: std::sync::Arc<dyn KeyKeeper>,
 }
 
 impl std::fmt::Debug for MachineIdentity {
@@ -134,14 +177,34 @@ impl MachineIdentity {
     /// Returns [`IdentityError`] when the random source fails, a file is
     /// damaged or readable by others, or storage fails.
     pub fn load_or_create(fleet_dir: &Path) -> Result<Self, IdentityError> {
+        Self::load_kept(
+            fleet_dir,
+            std::sync::Arc::new(FileKeeper(fleet_dir.to_path_buf())),
+        )
+    }
+
+    /// Loads the identity from `keeper`, generating it on first run.
+    /// AJ-E2005: a key still in the Fleet folder as a file (from before)
+    /// moves into the keeper — read back to be sure — and the file is
+    /// deleted, so the folder holds no private key.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`IdentityError`] as [`Self::load_or_create`], or
+    /// [`IdentityError::Io`] when the keeper refuses.
+    pub fn load_kept(
+        fleet_dir: &Path,
+        keeper: std::sync::Arc<dyn KeyKeeper>,
+    ) -> Result<Self, IdentityError> {
         std::fs::create_dir_all(fleet_dir).map_err(|e| IdentityError::Io(e.to_string()))?;
         restrict_dir(fleet_dir)?;
-        let signing_seed = load_or_create_secret(&fleet_dir.join(IDENTITY_FILE))?;
-        let exchange_seed = load_or_create_secret(&fleet_dir.join(EXCHANGE_FILE))?;
+        let signing_seed = kept_secret(fleet_dir, keeper.as_ref(), IDENTITY_FILE)?;
+        let exchange_seed = kept_secret(fleet_dir, keeper.as_ref(), EXCHANGE_FILE)?;
         Ok(Self {
             signing: SigningKey::from_bytes(&signing_seed),
             exchange: x25519_dalek::StaticSecret::from(exchange_seed),
             dir: fleet_dir.to_path_buf(),
+            keeper,
         })
     }
 
@@ -153,13 +216,14 @@ impl MachineIdentity {
     /// Returns [`IdentityError`] per [`Self::load_or_create`].
     pub fn regenerate(self) -> Result<Self, IdentityError> {
         for name in [IDENTITY_FILE, EXCHANGE_FILE] {
+            self.keeper.delete(name);
             match std::fs::remove_file(self.dir.join(name)) {
                 Ok(()) => {}
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
                 Err(e) => return Err(IdentityError::Io(e.to_string())),
             }
         }
-        Self::load_or_create(&self.dir)
+        Self::load_kept(&self.dir, self.keeper)
     }
 
     /// The public identity peers pin.
@@ -211,28 +275,48 @@ fn random_seed() -> Result<[u8; 32], IdentityError> {
     Ok(seed)
 }
 
-/// Reads a base64 32-byte secret, or creates one owner-only.
-fn load_or_create_secret(path: &Path) -> Result<[u8; 32], IdentityError> {
-    match std::fs::read_to_string(path) {
-        Ok(text) => {
-            check_owner_only(path)?;
-            let raw = base64::engine::general_purpose::STANDARD
-                .decode(text.trim())
-                .map_err(|_| IdentityError::Corrupt)?;
-            raw.try_into().map_err(|_| IdentityError::Corrupt)
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            let seed = random_seed()?;
-            write_owner_only(
-                path,
-                base64::engine::general_purpose::STANDARD
-                    .encode(seed)
-                    .as_bytes(),
-            )?;
-            Ok(seed)
-        }
-        Err(e) => Err(IdentityError::Io(e.to_string())),
+fn decode(text: &str) -> Result<[u8; 32], IdentityError> {
+    let raw = base64::engine::general_purpose::STANDARD
+        .decode(text.trim())
+        .map_err(|_| IdentityError::Corrupt)?;
+    raw.try_into().map_err(|_| IdentityError::Corrupt)
+}
+
+/// The secret `name` from `keeper`; moved in from its old file when only
+/// the file has it; created when neither does.
+fn kept_secret(dir: &Path, keeper: &dyn KeyKeeper, name: &str) -> Result<[u8; 32], IdentityError> {
+    let file = dir.join(name);
+    if keeper.is_files() && file.exists() {
+        check_owner_only(&file)?;
     }
+    if let Some(text) = keeper.get(name) {
+        let seed = decode(&text)?;
+        if !keeper.is_files() {
+            // Kept elsewhere already: a file left from before goes.
+            let _ = std::fs::remove_file(&file);
+        }
+        return Ok(seed);
+    }
+    let encoded = |seed: &[u8; 32]| base64::engine::general_purpose::STANDARD.encode(seed);
+    let seed = match std::fs::read_to_string(&file) {
+        Ok(text) => {
+            check_owner_only(&file)?;
+            decode(&text)?
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => random_seed()?,
+        Err(e) => return Err(IdentityError::Io(e.to_string())),
+    };
+    keeper
+        .set(name, &encoded(&seed))
+        .map_err(IdentityError::Io)?;
+    // Only once the keeper gives it back is the file let go.
+    if keeper.get(name).as_deref().map(str::trim) != Some(encoded(&seed).as_str()) {
+        return Err(IdentityError::Io("the key couldn't be kept".to_owned()));
+    }
+    if !keeper.is_files() {
+        let _ = std::fs::remove_file(&file);
+    }
+    Ok(seed)
 }
 
 /// Atomic, owner-only write: the temp file is 0600 from creation, then
@@ -346,6 +430,81 @@ mod tests {
             MachineIdentity::load_or_create(&fleet),
             Err(IdentityError::Corrupt)
         ));
+    }
+
+    /// A keychain stand-in.
+    #[derive(Default)]
+    struct Memory(std::sync::Mutex<std::collections::HashMap<String, String>>);
+
+    impl KeyKeeper for Memory {
+        fn get(&self, name: &str) -> Option<String> {
+            self.0.lock().unwrap().get(name).cloned()
+        }
+        fn set(&self, name: &str, secret: &str) -> Result<(), String> {
+            self.0
+                .lock()
+                .unwrap()
+                .insert(name.to_owned(), secret.to_owned());
+            Ok(())
+        }
+        fn delete(&self, name: &str) {
+            self.0.lock().unwrap().remove(name);
+        }
+    }
+
+    #[test]
+    fn keys_from_before_move_into_the_keeper_and_the_folder_keeps_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let fleet = dir.path().join("fleet");
+        let before = MachineIdentity::load_or_create(&fleet).unwrap().public();
+        assert!(fleet.join(IDENTITY_FILE).exists());
+        let keeper = std::sync::Arc::new(Memory::default());
+        let moved = MachineIdentity::load_kept(&fleet, keeper.clone()).unwrap();
+        assert_eq!(
+            moved.public(),
+            before,
+            "the same identity: no peer re-pairs"
+        );
+        assert!(!fleet.join(IDENTITY_FILE).exists() && !fleet.join(EXCHANGE_FILE).exists());
+        assert_eq!(
+            std::fs::read_dir(&fleet).unwrap().count(),
+            0,
+            "no private key in the folder"
+        );
+        // And back again: later loads read the keeper alone.
+        assert_eq!(
+            MachineIdentity::load_kept(&fleet, keeper.clone())
+                .unwrap()
+                .public(),
+            before
+        );
+        // Reset forgets the kept keys and makes new ones, kept the same way.
+        let fresh = moved.regenerate().unwrap();
+        assert_ne!(fresh.public(), before);
+        assert!(!fleet.join(IDENTITY_FILE).exists());
+        assert_eq!(
+            MachineIdentity::load_kept(&fleet, keeper).unwrap().public(),
+            fresh.public()
+        );
+    }
+
+    #[test]
+    fn a_keeper_that_refuses_leaves_the_file_where_it_was() {
+        struct Refuses;
+        impl KeyKeeper for Refuses {
+            fn get(&self, _: &str) -> Option<String> {
+                None
+            }
+            fn set(&self, _: &str, _: &str) -> Result<(), String> {
+                Err("locked".to_owned())
+            }
+            fn delete(&self, _: &str) {}
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let fleet = dir.path().join("fleet");
+        drop(MachineIdentity::load_or_create(&fleet).unwrap());
+        assert!(MachineIdentity::load_kept(&fleet, std::sync::Arc::new(Refuses)).is_err());
+        assert!(fleet.join(IDENTITY_FILE).exists(), "never lost on the way");
     }
 
     #[test]

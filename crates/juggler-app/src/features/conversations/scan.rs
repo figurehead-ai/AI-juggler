@@ -68,7 +68,7 @@ impl Os for RealOs {
 /// The paths `pid` holds open, from `/usr/sbin/lsof` (names only), within
 /// two seconds; `None` when it can't say.
 fn open_files(pid: u32) -> Option<Vec<PathBuf>> {
-    let mut child = std::process::Command::new("/usr/sbin/lsof")
+    let mut child = juggler_adapter::process::helper("/usr/sbin/lsof")
         .args(["-w", "-n", "-P", "-Fn", "-p", &pid.to_string()])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())

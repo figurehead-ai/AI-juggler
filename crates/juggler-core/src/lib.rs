@@ -6,6 +6,9 @@
 //! about specific harnesses, the app shell, or the UI, and must stay fully
 //! unit-testable (architecture rules in `docs/plan/QUALITY.md` §4;
 //! requirements in `docs/SPEC.md` §3, §6).
+//!
+//! Must not know: processes, the network, Tauri, any tool or the operating
+//! system: it is the model and its storage.
 
 #![cfg_attr(
     test,
@@ -29,6 +32,7 @@ pub mod quota_forecast;
 pub mod quota_runway;
 pub mod ranking;
 pub mod recommendation;
+pub mod redacted;
 pub mod renewal;
 pub mod storage;
 pub mod tasks;

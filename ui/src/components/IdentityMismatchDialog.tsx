@@ -49,8 +49,8 @@ export function IdentityMismatchDialog(): JSX.Element | null {
       if (event.key === "Tab" && node) {
         const buttons = Array.from(node.querySelectorAll<HTMLElement>("button"));
         if (buttons.length === 0) return;
-        const first = buttons[0];
-        const last = buttons[buttons.length - 1];
+        const first = buttons[0]!;
+        const last = buttons[buttons.length - 1]!;
         if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();

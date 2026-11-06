@@ -1274,7 +1274,7 @@ fn keychain_entry_exists(service: &str) -> bool {
             return *exists;
         }
     }
-    let exists = std::process::Command::new(juggler_adapter::system_tools::SECURITY)
+    let exists = juggler_adapter::process::helper(juggler_adapter::system_tools::SECURITY)
         .args(["find-generic-password", "-s", service])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

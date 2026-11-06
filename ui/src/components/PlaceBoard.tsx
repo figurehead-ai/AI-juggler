@@ -228,9 +228,8 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   }, []);
   useEffect(() => {
     if (reveal === null) return;
-    // The view's lines can come a render later; a view with nothing in it
-    // stops waiting after a moment.
-    // D-64: by App, Home's "inactive" goes to Inactive apps.
+    // The lines can come a render later; an empty view stops waiting after a
+    // moment. D-64: by App, Home's "inactive" goes to Inactive apps.
     const idleHead = reveal === "inactive" && lens === "place";
     const at = lines.findIndex((line) => (idleHead ? line.kind === "section" && line.id === "idle" : line.kind === "label" && line.id === reveal));
     if (at < 0) {
@@ -246,6 +245,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     const shown = head();
     if (shown && box) box.scrollTop += shown.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
     (shown?.matches("button") ? shown : shown?.querySelector("button"))?.focus({ preventScroll: true });
+    return undefined;
   }, [reveal, lines]);
 
   // ↑ and ↓ move through the lines (lib/roving: rows, place headers, the

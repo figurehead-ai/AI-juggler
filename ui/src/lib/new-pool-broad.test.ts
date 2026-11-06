@@ -24,8 +24,8 @@ describe("Mac members to add", () => {
       ["This Mac", true],
       ["Build mini", false],
     ]);
-    expect(rows[1].blocked).toMatch(/once pools work across Macs/);
-    expect(rows[1].detail).toBe("paired with this Mac");
+    expect(rows[1]!.blocked).toMatch(/once pools work across Macs/);
+    expect(rows[1]!.detail).toBe("paired with this Mac");
   });
 
   it("names a Mac it only knows from a session, without a pairing, plainly", () => {

@@ -208,12 +208,12 @@ describe("AJ-E411 Needs-me tie-break (Req.5)", () => {
 
   it("an expiring account rises among equal-severity peers", () => {
     const ordered = sortSessions(rows, "needs", {}, NOW, [], accounts);
-    expect(ordered[0].id).toBe("expiring-account");
+    expect(ordered[0]!.id).toBe("expiring-account");
   });
 
   it("expiry never outranks a live blocked agent", () => {
     const failed = instance("failed-agent", { status: "failed", needs_attention: "failed" });
     const ordered = sortSessions([failed, ...rows], "needs", {}, NOW, [], accounts);
-    expect(ordered[0].id).toBe("failed-agent"); // severity first, always
+    expect(ordered[0]!.id).toBe("failed-agent"); // severity first, always
   });
 });

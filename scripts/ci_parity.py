@@ -33,6 +33,9 @@ PREFLIGHT_ONLY = ("./scripts/release_notes_changed.sh",)
 # Commands that prepare the runner or make the coverage artifact; nothing
 # a Mac's local gate needs to repeat.
 RUNNER_ONLY = (
+    # A release pull request's own gate (D-83): it fails by design while
+    # a release is being built, so `just verify` reports it (release-selftest).
+    "python3 scripts/release_scope.py check",
     "df -h",
     "free=",
     "sudo ",

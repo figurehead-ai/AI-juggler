@@ -7,6 +7,9 @@
 //! adapters) implements. It is semver-protected public API: external adapters
 //! build against it, so breaking changes are guarded by `cargo-semver-checks`
 //! in CI. Requirements: `docs/SPEC.md` §4.
+//!
+//! Must not know: any one tool's files, names or formats (those are
+//! juggler-adapters'), Tauri or the window.
 
 #![cfg_attr(
     test,
@@ -58,6 +61,7 @@ pub use identity::IdentityProbe;
 /// The OS seam for files only this user can read, for adapters that write
 /// a tool's own records (ADR-0028).
 pub use juggler_platform::private_fs;
+pub use juggler_platform::process;
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
 pub use registry::AdapterRegistry;
 pub use runtime::{

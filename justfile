@@ -26,6 +26,10 @@ verify-static:
     just tool-literals
     just platform
     just webview
+    python3 scripts/spawn_lint.py --selftest
+    python3 scripts/spawn_lint.py
+    python3 scripts/architecture_fresh.py --selftest
+    python3 scripts/architecture_fresh.py
     just structure
     just task-counts
     just stats-doc
@@ -97,6 +101,7 @@ release-selftest:
     python3 scripts/promotion_rules.py --selftest
     python3 scripts/apple_retry.py --selftest
     python3 scripts/updater_sig_check.py --selftest
+    python3 scripts/release_scope.py report 0.4 >/dev/null
 
 # AJ-E809: the weekly dogfood report from runs.csv (exit 1 until beta-exit is met).
 dogfood-report:
@@ -187,6 +192,7 @@ task-counts:
 # UI gate (AJ-E806): typecheck + build. Visual (AJ-E803) and a11y (AJ-E804)
 # gates attach to UI-changing PRs; perf (AJ-E805) at milestones.
 ui:
+    pnpm --dir ui lint
     pnpm --dir ui build
 
 fmt:

@@ -60,6 +60,7 @@ export function useAppKeys(actions: AppKeyActions): void {
       if (document.querySelector('[aria-modal="true"]')) return false;
       shortcutUsed("other");
       d.openShortcuts();
+      return undefined;
     },
     // ⌘K toggles the palette (the global binding covers the over-any-app
     // case) and focuses the rail search (AJ-E404 Req.4).
@@ -107,6 +108,7 @@ export function useAppKeys(actions: AppKeyActions): void {
       if (!(digit >= 1 && digit <= 9)) return false;
       shortcutUsed("other");
       window.dispatchEvent(new CustomEvent("aij:go-place", { detail: { index: digit - 1 } }));
+      return undefined;
     },
     "rail-view": () => {
       shortcutUsed("other");
@@ -159,6 +161,7 @@ export function useAppKeys(actions: AppKeyActions): void {
       if (!d.onCleanup()) return false;
       shortcutUsed("search");
       d.focusCleanupFilter();
+      return undefined;
     },
     // ⌘. stops the selected live Instance (AJ-E407 Actions); ⌘⇧H
     // focuses the hand-over section (RightInspector switches tabs).

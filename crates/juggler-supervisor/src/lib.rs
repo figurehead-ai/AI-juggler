@@ -5,6 +5,9 @@
 //! the stop ladder, output capture, the supervision journal for crash
 //! re-adoption, and (from M2) stuck-detection heuristics and the resource
 //! manager. It talks to harnesses only through `juggler_adapter` types.
+//!
+//! Must not know: Tauri, the window or any tool by name: a launch comes to it
+//! as a spec.
 
 #![cfg_attr(
     test,

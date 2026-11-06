@@ -23,6 +23,9 @@
 //!
 //! Elsewhere (Windows until 0.6, Linux until 0.7) every call says
 //! [`Error::Unsupported`], with why.
+//!
+//! Must not know: the Floor's scene, storage or anything but input and
+//! visibility events: it is an audited shim.
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(target_os = "macos", allow(unsafe_code))] // ADR-0026: the four audited calls
 

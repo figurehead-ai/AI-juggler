@@ -92,7 +92,7 @@ export const EXAMPLE_SETUP_UNUSED: SetupCheckInfo = {
 export const EXAMPLE_SETUP_NOTES: SetupCheckInfo = {
   ...EXAMPLE_SETUP,
   offers: [
-    EXAMPLE_SETUP.offers[0],
+    EXAMPLE_SETUP.offers[0]!,
     {
       ...OFFER,
       id: "memory-0123456789abcdef",

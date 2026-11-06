@@ -9,9 +9,10 @@
 //!   (RFC 4648, `A–Z 2–7`) in groups of four, with one checksum group at
 //!   the end so a typo is caught as a typo, not as a wrong key.
 //! - **The container** is
-//!   `FHB1 | version 0x01 | key id (8) | nonce (24) | ciphertext+tag`,
-//!   sealed with XChaCha20-Poly1305 and the associated data
-//!   `figurehead-backup-v1`. The key id (the first 8 bytes of
+//!   `FHB1 | version 0x02 | key id (8) | nonce (24) | ciphertext+tag`,
+//!   sealed with XChaCha20-Poly1305; the associated data is the header
+//!   itself (AJ-E2010), so no header byte can change unnoticed. Version
+//!   0x01 containers (associated data `figurehead-backup-v1`) still open. The key id (the first 8 bytes of
 //!   `sha256("figurehead-vault-key-id" ‖ key)`) lets a wrong key be named
 //!   as a wrong key; any other change fails authentication and is named
 //!   as damaged or altered.
@@ -29,10 +30,10 @@ pub const VAULT_SERVICE: &str = "ai.figurehead.juggler.vault";
 pub const VAULT_ACCOUNT: &str = "vault-key";
 /// The container's magic bytes.
 pub const MAGIC: &[u8; 4] = b"FHB1";
-/// The container version this build writes and reads.
-pub const VERSION: u8 = 1;
-/// The associated data every container is sealed with.
-pub const AAD: &[u8] = b"figurehead-backup-v1";
+/// The container version this build writes (it reads 1 and 2).
+pub const VERSION: u8 = 2;
+/// Version 1's fixed associated data (version 2 seals the header).
+pub const AAD_V1: &[u8] = b"figurehead-backup-v1";
 const KEY_ID_DOMAIN: &[u8] = b"figurehead-vault-key-id";
 const CHECK_DOMAIN: &[u8] = b"figurehead-recovery-check";
 const HEADER_LEN: usize = 4 + 1 + 8 + 24;
@@ -67,9 +68,16 @@ pub enum VaultError {
     Store(#[from] SecretError),
 }
 
-/// The 32-byte vault key. Its bytes never appear in `Debug` output.
+/// The 32-byte vault key. Its bytes never appear in `Debug` output and
+/// are wiped from memory when it's dropped (AJ-E2010).
 #[derive(Clone, PartialEq, Eq)]
 pub struct VaultKey([u8; 32]);
+
+impl Drop for VaultKey {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.0);
+    }
+}
 
 impl std::fmt::Debug for VaultKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -118,15 +126,17 @@ impl VaultKey {
     /// The recovery code: 13 groups of four base32 characters for the
     /// key, then one checksum group (14 groups).
     #[must_use]
-    pub fn recovery_code(&self) -> String {
-        let mut chars = base32(&self.0); // 52 characters
+    pub fn recovery_code(&self) -> zeroize::Zeroizing<String> {
+        let mut chars = zeroize::Zeroizing::new(base32(&self.0)); // 52 characters
         chars.push_str(&checksum(&self.0));
-        chars
-            .as_bytes()
-            .chunks(4)
-            .map(|group| String::from_utf8_lossy(group).into_owned())
-            .collect::<Vec<_>>()
-            .join("-")
+        zeroize::Zeroizing::new(
+            chars
+                .as_bytes()
+                .chunks(4)
+                .map(|group| String::from_utf8_lossy(group).into_owned())
+                .collect::<Vec<_>>()
+                .join("-"),
+        )
     }
 
     /// Reads a recovery code back: spaces, dashes and case are ignored,
@@ -237,21 +247,21 @@ pub fn seal(key: &VaultKey, plaintext: &[u8]) -> Result<Vec<u8>, VaultError> {
 /// uses [`seal`]).
 #[must_use]
 pub fn seal_with_nonce(key: &VaultKey, nonce: &[u8; 24], plaintext: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(HEADER_LEN + plaintext.len() + 16);
+    out.extend_from_slice(MAGIC);
+    out.push(VERSION);
+    out.extend_from_slice(&key.id());
+    out.extend_from_slice(nonce);
     let cipher = XChaCha20Poly1305::new((&key.0).into());
     let ciphertext = cipher
         .encrypt(
             &XNonce::from(*nonce),
             Payload {
                 msg: plaintext,
-                aad: AAD,
+                aad: &out[..HEADER_LEN],
             },
         )
         .unwrap_or_default(); // only fails for > 256 GiB inputs
-    let mut out = Vec::with_capacity(HEADER_LEN + ciphertext.len());
-    out.extend_from_slice(MAGIC);
-    out.push(VERSION);
-    out.extend_from_slice(&key.id());
-    out.extend_from_slice(nonce);
     out.extend_from_slice(&ciphertext);
     out
 }
@@ -267,7 +277,7 @@ pub fn open(key: &VaultKey, container: &[u8]) -> Result<Vec<u8>, VaultError> {
     if container.len() < 5 || &container[..4] != MAGIC {
         return Err(VaultError::WrongMagic);
     }
-    if container[4] != VERSION {
+    if !matches!(container[4], 1 | VERSION) {
         return Err(VaultError::UnsupportedVersion(container[4]));
     }
     if container.len() < HEADER_LEN + 16 {
@@ -283,7 +293,11 @@ pub fn open(key: &VaultKey, container: &[u8]) -> Result<Vec<u8>, VaultError> {
             &nonce,
             Payload {
                 msg: &container[HEADER_LEN..],
-                aad: AAD,
+                aad: if container[4] == 1 {
+                    AAD_V1
+                } else {
+                    &container[..HEADER_LEN]
+                },
             },
         )
         .map_err(|_| VaultError::Tampered)
@@ -367,22 +381,34 @@ mod tests {
     fn round_trip() {
         let sealed = seal(&key(), b"the backup set").unwrap();
         assert_eq!(&sealed[..4], b"FHB1");
-        assert_eq!(sealed[4], 1);
+        assert_eq!(sealed[4], VERSION);
         assert_eq!(open(&key(), &sealed).unwrap(), b"the backup set");
     }
 
     #[test]
-    fn known_answer() {
-        let nonce: [u8; 24] = core::array::from_fn(|i| u8::try_from(0x40 + i).unwrap());
-        let sealed = seal_with_nonce(&key(), &nonce, b"figurehead");
-        assert_eq!(
-            hex(&sealed),
-            KNOWN_ANSWER,
-            "the container bytes for a fixed key, nonce and message never change"
-        );
+    fn a_version_1_container_still_opens() {
+        let bytes: Vec<u8> = (0..KNOWN_ANSWER.trim().len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&KNOWN_ANSWER.trim()[i..i + 2], 16).unwrap())
+            .collect();
+        assert_eq!(bytes[4], 1);
+        assert_eq!(open(&key(), &bytes).unwrap(), b"figurehead");
     }
 
-    /// FHB1 · 01 · key id · nonce · ciphertext+tag for [`known_answer`].
+    #[test]
+    fn version_2_binds_its_header() {
+        let nonce: [u8; 24] = core::array::from_fn(|i| u8::try_from(0x40 + i).unwrap());
+        let sealed = seal_with_nonce(&key(), &nonce, b"figurehead");
+        assert_eq!(sealed[4], 2);
+        assert_eq!(open(&key(), &sealed).unwrap(), b"figurehead");
+        // Calling it version 1 changes the associated data: refused.
+        let mut downgraded = sealed.clone();
+        downgraded[4] = 1;
+        assert_eq!(open(&key(), &downgraded), Err(VaultError::Tampered));
+    }
+
+    /// FHB1 · 01 · key id · nonce · ciphertext+tag: a version 1 container
+    /// for the fixed key, nonce and message (it must keep opening).
     const KNOWN_ANSWER: &str = include_str!("vault_kat.hex");
 
     #[test]
@@ -394,8 +420,8 @@ mod tests {
         bad[0] = b'X';
         assert_eq!(open(&key(), &bad), Err(VaultError::WrongMagic));
         let mut bad = sealed.clone();
-        bad[4] = 2;
-        assert_eq!(open(&key(), &bad), Err(VaultError::UnsupportedVersion(2)));
+        bad[4] = 3;
+        assert_eq!(open(&key(), &bad), Err(VaultError::UnsupportedVersion(3)));
         for at in [13, 20, HEADER_LEN, sealed.len() - 1] {
             let mut bad = sealed.clone();
             bad[at] ^= 0x01;

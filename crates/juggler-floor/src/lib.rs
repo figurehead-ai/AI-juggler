@@ -16,6 +16,9 @@
 //! It runs on every OS and in Linux CI; the renderer
 //! (`juggler-floor-render`) and the window's events
 //! (`juggler-window-events`) sit beside it.
+//!
+//! Must not know: the GPU, the operating system, Tauri or any tool by name
+//! (an area's style comes as data).
 
 // Geometry on small, bounded numbers (metres, pixels, a few hundred
 // desks): the casts between them can't lose anything that matters. And

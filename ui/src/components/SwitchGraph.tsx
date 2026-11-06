@@ -108,7 +108,7 @@ export function SwitchGraph({
     if (buttons.length === 0) return;
     event.preventDefault();
     const index = buttons.findIndex((button) => button === document.activeElement);
-    buttons[(index + delta + buttons.length) % buttons.length].focus();
+    buttons[(index + delta + buttons.length) % buttons.length]!.focus();
   };
 
   if (works === null) {

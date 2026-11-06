@@ -12,6 +12,9 @@
 //! - **Every request is explicit** ([`transport`]): the method, path,
 //!   bearer and body are visible at one seam, so a recording transport
 //!   can prove what was (and wasn't) sent.
+//!
+//! Must not know: any coding tool, the window, Fleet or process control: it
+//! is the Figurehead account and the vault, nothing else.
 
 #![cfg_attr(
     test,

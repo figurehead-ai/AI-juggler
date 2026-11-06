@@ -45,6 +45,16 @@ pub trait Desktop: Front {
     ///
     /// The script's error text.
     fn osascript(&self, source: &str) -> Result<String, String>;
+    /// AJ-E2010: runs `source` (an `on run argv` handler) with `args` as
+    /// its arguments, never written into the script (fixtures see it
+    /// filled in).
+    ///
+    /// # Errors
+    ///
+    /// The script's error text.
+    fn osascript_with(&self, source: &str, args: &[&str]) -> Result<String, String> {
+        self.osascript(&crate::focus::filled_in(source, args))
+    }
     /// The terminal device a process runs on (`/dev/ttys003`).
     fn tty(&self, pid: u32) -> Option<String>;
 }
@@ -267,7 +277,10 @@ fn step(
                 && let Some(script) = app.and_then(|app| app.tab_script.as_ref())
                 && let Some(tty) = desktop.tty(target.place.pid)
                 && desktop
-                    .osascript(&script.replace("{tty}", &tty))
+                    .osascript_with(
+                        &format!("on run argv\nset ttyPath to (item 1 of argv)\n{script}\nend run"),
+                        &[&tty],
+                    )
                     .is_ok_and(|said| said.trim() == "ok")
             {
                 return Step::Done(Done {
@@ -446,7 +459,7 @@ impl Desktop for MacDesktop {
     }
 
     fn open_link(&self, link: &str) -> bool {
-        std::process::Command::new("/usr/bin/open")
+        juggler_adapter::process::helper("/usr/bin/open")
             .arg(link)
             .status()
             .is_ok_and(|status| status.success())
@@ -468,9 +481,15 @@ impl Desktop for MacDesktop {
     }
 
     fn osascript(&self, source: &str) -> Result<String, String> {
-        let out = std::process::Command::new("/usr/bin/osascript")
+        self.osascript_with(source, &[])
+    }
+
+    fn osascript_with(&self, source: &str, args: &[&str]) -> Result<String, String> {
+        let out = juggler_adapter::process::helper("/usr/bin/osascript")
             .arg("-e")
             .arg(source)
+            .arg("--")
+            .args(args)
             .output()
             .map_err(|error| error.to_string())?;
         if out.status.success() {
@@ -481,7 +500,7 @@ impl Desktop for MacDesktop {
     }
 
     fn tty(&self, pid: u32) -> Option<String> {
-        let out = std::process::Command::new("/bin/ps")
+        let out = juggler_adapter::process::helper("/bin/ps")
             .args(["-o", "tty=", "-p", &pid.to_string()])
             .output()
             .ok()?;

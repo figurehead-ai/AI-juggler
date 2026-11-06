@@ -216,6 +216,22 @@ The app icon is generated at build time from
 `crates/juggler-app/icons/icon.png`. Replace it with a 1024×1024 brand
 icon before the first public release.
 
+### Review for sensitive paths (AJ-E2004)
+
+`.github/CODEOWNERS` names the paths a release, a permission, a key or the
+network hang on: `.github/`, the capability and permission files,
+`tauri.conf*.json`, every `build.rs`, `deny.toml`, `juggler-link`,
+`juggler-account` and `SECURITY.md`. GitHub asks the maintainer to review
+any pull request touching them.
+
+The setting that makes the review required is the maintainer's, once:
+Settings › Branches › the rule for `main` (and `release/*`) › **Require a
+pull request before merging** › **Require review from Code Owners**, with
+one approval. What it changes: a pull request touching those paths waits
+for the maintainer's approval before it can merge, a release pull request
+included, since most touch `.github/`. Everything else merges after review
+as before. Until it's set, CODEOWNERS only requests the review.
+
 ## From a change to a release (ADR-0025)
 
 GitHub runs every gate; this Mac, shared with other projects, runs a fast,

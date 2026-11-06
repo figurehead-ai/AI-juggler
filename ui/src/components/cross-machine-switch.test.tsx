@@ -65,11 +65,11 @@ describe("AJ-E706 destinations", () => {
     const rows = container.querySelectorAll<HTMLButtonElement>("[data-testid='remote-switch-target']");
     expect(rows).toHaveLength(3);
     expect(container.textContent).toContain("On Studio Mac");
-    expect(rows[0].textContent).toContain("Same conversation, another app · Not proven yet");
-    expect(rows[0].textContent).toContain("Ready — same version, same project path");
-    expect(rows[1].textContent).toContain("full-story replay offered");
-    expect(rows[2].disabled).toBe(true);
-    expect(rows[2].textContent).toContain("view only");
+    expect(rows[0]!.textContent).toContain("Same conversation, another app · Not proven yet");
+    expect(rows[0]!.textContent).toContain("Ready — same version, same project path");
+    expect(rows[1]!.textContent).toContain("full-story replay offered");
+    expect(rows[2]!.disabled).toBe(true);
+    expect(rows[2]!.textContent).toContain("view only");
   });
 });
 
@@ -113,9 +113,9 @@ describe("AJ-E706 wizard", () => {
     expect(next.disabled).toBe(true);
     const options = container.querySelectorAll<HTMLInputElement>("[data-testid='cross-switch-project-option']");
     // The same-name copy is listed first — a suggestion, never pre-picked.
-    expect(options[0].closest("label")!.textContent).toContain("same name (suggested)");
-    expect(options[0].checked).toBe(false);
-    fireEvent.click(options[0]);
+    expect(options[0]!.closest("label")!.textContent).toContain("same name (suggested)");
+    expect(options[0]!.checked).toBe(false);
+    fireEvent.click(options[0]!);
     expect((q("cross-switch-next") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(q("cross-switch-confirm-mapping")!);
     expect((q("cross-switch-next") as HTMLButtonElement).disabled).toBe(false);
