@@ -140,6 +140,12 @@ if ! git rev-parse -q --verify "$BASE" >/dev/null \
 fi
 
 step "release notes (as the nightly checks)" ./scripts/release_notes_changed.sh "$BASE"
+# On a release branch, say what of its roadmap scope is still open (the
+# release pull request, the nightly of x.y.0 and every promotion fail on it).
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$BRANCH" == release/* ]]; then
+  python3 scripts/release_scope.py report "${BRANCH#release/}" | head -1 | sed 's/^/  /'
+fi
 if ! step "static (just verify-static)" just verify-static; then
   TESTS=none
   echo "  the static checks failed: stopping before the tests (fix them first; the log names each)."

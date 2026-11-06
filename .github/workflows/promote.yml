@@ -88,6 +88,8 @@ jobs:
           # database change since then needs a downgrade note.
           serving="$(git tag -l "$CHANNEL/v*" | sed "s|^$CHANNEL/||" | sort -V | tail -1)"
           ./scripts/release_notes_check.sh "$VERSION" ${serving:+"$serving"}
+          # The version's whole roadmap scope is done or deferred by a decision.
+          python3 scripts/release_scope.py check "$VERSION"
           # D-24: the channel's requirements, decided by promotion_rules.py.
           built_at="$(gh release view "v$VERSION" --repo "$REPO" --json publishedAt --jq .publishedAt)"
           beta_at=""

@@ -106,6 +106,10 @@ jobs:
           fi
           # The checkout above has every tag (fetch-depth: 0).
           version="$(git tag -l 'v*' | python3 scripts/release_version.py next)"
+          # A new minor (x.y.0) ships only with its whole roadmap scope.
+          if [ "$skip" != "true" ] && [[ "$version" == *.0 ]]; then
+            python3 scripts/release_scope.py check "$version"
+          fi
           {
             echo "skip=$skip"
             echo "version=$version"
