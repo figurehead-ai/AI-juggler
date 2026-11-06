@@ -10,7 +10,7 @@
  * under the USD column.
  */
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CostMatrix } from "./CostMatrix";
 import type { CostRollupsData } from "../lib/ipc/costs";
 
@@ -135,5 +135,24 @@ describe("AJ-E609 label-discipline grep gate", () => {
     const screen = render(<CostMatrix />);
     await screen.findAllByTestId("cost-row");
     expect(screen.container.textContent).not.toContain("you paid $");
+  });
+});
+
+describe("AJ-E2902 R5 — Prices and details name the price list", () => {
+  beforeEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    fixture.pricing_last_synced_ms = null;
+    fixture.pricing_stale = false;
+  });
+
+  it("names the list's date, keeps the stale warning, and offers no Update", async () => {
+    fixture.pricing_last_synced_ms = Date.UTC(2026, 10, 3);
+    fixture.pricing_stale = true;
+    const screen = render(<CostMatrix />);
+    await screen.findAllByTestId("cost-row");
+    expect(screen.getByTestId("cost-price-list").textContent).toBe("Every cost here is an estimate at list prices of 3 Nov 2026. What the API would charge, not your bill.");
+    expect(screen.getByRole("status").textContent).toBe("Pricing table is over 30 days old — numbers may not match current list rates.");
+    expect(screen.queryByRole("button", { name: /update/i })).toBeNull();
   });
 });

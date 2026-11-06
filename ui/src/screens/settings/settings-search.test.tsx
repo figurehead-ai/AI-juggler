@@ -171,6 +171,32 @@ describe("AJ-E2905 Settings › Keyboard", () => {
     expect(getByTestId("keyboard-go-to-capture")).toBeTruthy();
   });
 
+  it("AJ-E2905 R5: Reset all's toast offers Undo, and Undo puts the changed keys back", async () => {
+    const { ToastHost, resetToasts } = await import("../../components/Toast");
+    const { getByTestId, findByTestId, queryByTestId, findByRole } = render(
+      <>
+        <SettingsScreen focusSection="keyboard" />
+        <ToastHost />
+      </>,
+    );
+    await findByTestId("settings-pane-keyboard");
+    fireEvent.click(getByTestId("keyboard-change-settings"));
+    fireEvent.keyDown(getByTestId("keyboard-capture-settings"), { key: ";", code: "Semicolon", metaKey: true });
+    await waitFor(() => expect(isChanged("settings")).toBe(true));
+    fireEvent.click(await findByTestId("keyboard-reset-all"));
+    await waitFor(() => expect(isChanged("settings")).toBe(false));
+    const toast = await findByTestId("toast");
+    expect(toast.textContent).toContain("Every key is back as it was.");
+    await act(async () => {
+      fireEvent.click(within(toast).getByRole("button", { name: /Undo/ }));
+    });
+    await waitFor(() => expect(isChanged("settings")).toBe(true));
+    expect(getByTestId("keyboard-change-settings").textContent).toBe("⌘;");
+    expect(await findByRole("button", { name: "Reset all" })).toBeTruthy();
+    expect(queryByTestId("keyboard-changed")?.textContent).toContain("You changed 1 shortcut.");
+    resetToasts();
+  });
+
   it("design review 57/73: no Change… on any row, one key notation, None in the key column", async () => {
     const { getByTestId, findByTestId } = render(<SettingsScreen focusSection="keyboard" />);
     const pane = await findByTestId("settings-pane-keyboard");

@@ -3,12 +3,13 @@
  * conversation) with the reason when it can't, and History's Replay,
  * Archive and Copy the conversation's id in its ⋯, never on a live one.
  */
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ResumeButton, resumeBlocked } from "./ResumeButton";
 import { resolveActions } from "../../lib/actions";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import { asButton, clearSeams, seamCalls, setSeam } from "../../test/fixtures";
 
 const session = (over: Partial<InstanceInfo> = {}): InstanceInfo =>
   ({
@@ -64,5 +65,85 @@ describe("AJ-E2908 — an ended session's page", () => {
     expect(live).not.toContain("copy-id");
     const archived = resolveActions("session", session({ lifecycle: "archived" }), { ...host, isArchived: () => true });
     expect(archived.find((a) => a.id === "archive")?.label).toBe("Unarchive");
+  });
+});
+
+describe("AJ-E2908 R3 — out of room, Continue on another account… beside Resume", () => {
+  afterEach(() => {
+    clearSeams("__AIJ_QUOTA_DISPLAY__");
+  });
+
+  it("says the account is out of room on Resume, and offers Continue on another account…", async () => {
+    const { quotaDisplay, windowDisplay } = await import("../../lib/wire");
+    setSeam("__AIJ_QUOTA_DISPLAY__", [{ ...quotaDisplay("acc-x"), five_hour: windowDisplay("tracking", { percentage: 100, resets_at_ms: Date.now() + 2 * 3_600_000 }) }]);
+    const onContinue = vi.fn();
+    render(<ResumeButton session={session()} openIn={null} onContinue={onContinue} />);
+    const go = await screen.findByTestId("header-resume-continue");
+    expect(go.textContent).toBe("Continue on another account…");
+    expect(asButton(screen.getByTestId("header-resume")).disabled).toBe(true);
+    expect(screen.getByTestId("header-resume-why").textContent).toMatch(/out of room/);
+    fireEvent.click(go);
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  it("with room, no Continue beside it", () => {
+    render(<ResumeButton session={session()} openIn={null} onContinue={vi.fn()} />);
+    expect(screen.queryByTestId("header-resume-continue")).toBeNull();
+  });
+});
+
+describe("AJ-E2908 R4 and R5 — the session page's ⋯", () => {
+  const ended = session({ id: "s-9", conversation_id: "conv-tool-42", label: "Fix billing" });
+
+  async function openMenu() {
+    const { InspectorHeaderMenu } = await import("../../components/InspectorHeaderMenu");
+    const { ToastHost } = await import("../../components/Toast");
+    render(
+      <>
+        <InspectorHeaderMenu kind="instance" data={{ instance: ended }} onChanged={() => {}} />
+        <ToastHost />
+      </>,
+    );
+    fireEvent.click(screen.getByTestId("header-menu"));
+    return screen.getByRole("menu");
+  }
+  const labels = (list: HTMLElement) => within(list).getAllByRole("menuitem").map((item) => item.querySelector("[data-label]")?.textContent ?? item.textContent);
+
+  const itemOf = (list: HTMLElement, label: string) => {
+    const found = within(list).getAllByRole("menuitem").find((item) => (item.querySelector("[data-label]")?.textContent ?? "") === label);
+    if (!found) throw new Error(`no ${label}`);
+    return found;
+  };
+
+  afterEach(async () => {
+    (await import("../../components/Toast")).resetToasts();
+    clearSeams("__AIJ_HISTORY_CALLS__");
+  });
+
+  it("R4: an ended session's ⋯ has Replay, Archive and Copy the conversation's id; Archive's toast offers Undo", async () => {
+    const open = await openMenu();
+    expect(labels(open)).toEqual(expect.arrayContaining(["Replay", "Archive", "Copy the conversation's id"]));
+    await act(async () => {
+      fireEvent.click(itemOf(open, "Archive"));
+    });
+    const toast = await screen.findByTestId("toast");
+    expect(toast.textContent).toContain("archived — nothing deleted.");
+    const calls = () => seamCalls("__AIJ_HISTORY_CALLS__");
+    expect(calls()).toEqual(["archive:s-9"]);
+    await act(async () => {
+      fireEvent.click(within(toast).getByRole("button", { name: /Undo/ }));
+    });
+    await waitFor(() => expect(calls()).toEqual(["archive:s-9", "unarchive:s-9"]));
+  });
+
+  it("R5: Copy the conversation's id writes the tool's own id and says “Copied.”", async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const open = await openMenu();
+    await act(async () => {
+      fireEvent.click(itemOf(open, "Copy the conversation's id"));
+    });
+    expect(writeText).toHaveBeenCalledWith("conv-tool-42");
+    expect((await screen.findByTestId("toast")).textContent).toContain("Copied.");
   });
 });

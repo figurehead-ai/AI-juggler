@@ -149,3 +149,68 @@ describe("AJ-E2902 the weekly review", () => {
     await waitFor(() => expect(view.getByTestId("cost-review-csv").textContent).toBe("CSV written: /tmp/week.csv"));
   });
 });
+
+describe("AJ-E2902 R2 — the crashed-or-stuck sheet opens each session, a page at a time", () => {
+  const row = (index: number) => ({ session: { profile: "acc-x", id: `c-${index}`, session_id: `sess-${index}`, tool: "claude-code", title: `Task ${index}`, project_id: null, io: 1000, cache: 0, usd: 60 - index, first_ms: 0, last_ms: 1, messages: 3 }, why: index % 2 ? ("stuck" as const) : ("crashed" as const) });
+
+  it("a row opens that session's page", async () => {
+    vi.spyOn(usage, "usageHistoryWasted").mockImplementation(async (_input, page) => pageOf([row(0), row(1)], page));
+    const openSessionById = vi.fn();
+    const view = render(
+      <ActionHostProvider host={{ openSessionById }}>
+        <WastedSheet input={{ ...INPUT, edges_ms: [10, 11] }} count={2} onClose={() => null} />
+      </ActionHostProvider>,
+    );
+    const [first] = await view.findAllByTestId("usage-wasted-row");
+    fireEvent.click(within(first!).getByRole("button", { name: "Task 0" }));
+    expect(openSessionById).toHaveBeenCalledWith("sess-0");
+  });
+
+  it("reads the next page after the first 50", async () => {
+    const rows = Array.from({ length: 60 }, (_, index) => row(index));
+    const read = vi.spyOn(usage, "usageHistoryWasted").mockImplementation(async (_input, page) => pageOf(rows, page));
+    const view = render(<WastedSheet input={{ ...INPUT, edges_ms: [20, 21] }} count={60} onClose={() => null} />);
+    await view.findAllByTestId("usage-wasted-row");
+    expect(read.mock.calls[0]![1]).toEqual({ cursor: null, limit: 50 });
+    // The list's end in view reads the next page; its button does the same.
+    const more = view.queryByRole("button", { name: /^Load more/ });
+    if (more) fireEvent.click(more);
+    await waitFor(() => expect(read.mock.calls.some(([, page]) => page.cursor !== null)).toBe(true));
+    const list = view.getByRole("list", { name: "Sessions that crashed or were probably stuck" });
+    await waitFor(() => expect(list.querySelector("li")?.getAttribute("aria-setsize")).toBe("60"));
+  });
+});
+
+describe("AJ-E2902 R4 — the review's parts", () => {
+  // Another week than the tests above (the review keeps a week's answer a minute).
+  const WED = new Date(2026, 10, 18, 12).getTime();
+  const tokens = (n: number) => ({ input: n, output: 0, cache_read: 0, cache_write: 0, reasoning: 0 });
+  const sessionOf = (index: number, usd: number | null) => ({ profile: "acc-work", id: `t-${index}`, session_id: `s-${index}`, tool: "claude-code", title: `Costly ${index}`, project_id: null, io: 1000 * (index + 1), cache: 0, usd, first_ms: 0, last_ms: 1, messages: 3 });
+
+  it("the cost and tokens against the week before, each account with its top project, per finished task, wasted, and the five costliest sorted", async () => {
+    const { previewHistory } = await import("../../preview/usage-history");
+    vi.spyOn(usage, "usageHistory").mockImplementation(async (input) => {
+      const base = await previewHistory(input);
+      return {
+        ...base,
+        totals: { ...base.totals, usd: 42.5, unpriced: false, tokens: tokens(2_000_000), messages: 10 },
+        previous: { ...base.previous, usd: 30, unpriced: false, tokens: tokens(1_000_000), messages: 5 },
+        top_sessions: [sessionOf(0, 1), sessionOf(1, 9), sessionOf(2, null), sessionOf(3, 7), sessionOf(4, 3), sessionOf(5, 12), sessionOf(6, 5)],
+      };
+    });
+    vi.spyOn(usage, "usageHistoryCuts").mockResolvedValue(cuts());
+    const view = render(<CostReview onClose={() => {}} now={WED} firstDay={1} />);
+    await waitFor(() => expect(view.getByTestId("review-cost").textContent).toContain("~$43"));
+    expect(view.getByTestId("review-cost").textContent).toContain("up 42% on the week before");
+    expect(view.getByTestId("review-tokens").textContent).toContain("2.0M");
+    expect(view.getByTestId("review-tokens").textContent).toContain("up 100% on the week before");
+    await waitFor(() => expect(view.getByTestId("tile-per-task").textContent).toContain("~$1.92"));
+    expect(view.getByTestId("tile-wasted").textContent).toContain("~$6.30");
+    const accounts = view.getAllByTestId("cost-by-account-row");
+    expect(accounts.map((account) => account.querySelector("th")!.textContent)).toEqual(["WorkClaude Code", "PersonalCodex"]);
+    expect(accounts[0]!.textContent).toContain("AIJuggler");
+    const costliest = within(view.getByTestId("review-costliest")).getAllByTestId("top-session");
+    expect(costliest).toHaveLength(5);
+    expect(costliest.map((entry) => entry.querySelector("button")!.textContent)).toEqual(["Costly 5", "Costly 1", "Costly 3", "Costly 6", "Costly 4"]);
+  });
+});

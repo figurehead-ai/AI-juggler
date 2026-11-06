@@ -208,6 +208,27 @@ describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () =
     expect(ended.getByTestId("header-resume-hint").textContent).toBe("Same conversation");
   });
 
+  it("AJ-E2908 R1: Resume is the primary, Relaunch the secondary, each saying what it starts", () => {
+    const ended = shell(mk({ status: "finished" }));
+    const relaunch = ended.getByTestId("header-relaunch");
+    const resume = ended.getByTestId("header-resume");
+    expect(relaunch.getAttribute("title")).toBe("Relaunch — fresh session, same launch settings and folder.");
+    expect(resume.getAttribute("title")).toBe("Resume — same session, same account.");
+    // The filled button is the page's one primary (principle 9).
+    expect(resume.className).toContain("shadow-glow-accent");
+    expect(relaunch.className).not.toContain("shadow-glow-accent");
+    expect(relaunch.className).toContain("bg-surface-2");
+  });
+
+  it("AJ-E2908 R6: a running session's header has no Resume and no Relaunch", () => {
+    for (const status of ["running", "starting", "waiting_user"]) {
+      const view = shell(mk({ status }));
+      expect(view.queryByTestId("header-resume"), status).toBeNull();
+      expect(view.queryByTestId("header-relaunch"), status).toBeNull();
+      cleanup();
+    }
+  });
+
   it("an ended session says when it ended once, in its state chip (the 0.4 review, 46)", () => {
     const at = NOW - 5_000;
     const ended = shell(mk({ status: "finished", last_activity_ms: at }));

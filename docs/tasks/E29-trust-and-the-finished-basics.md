@@ -98,7 +98,7 @@
 
 ## Step 1 — the palette
 
-### AJ-E2901 The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | Status: IN-PROGRESS (built; the 2026-11-06 per-requirement evidence found gaps, listed in docs/qa/evidence/AJ-E2901/manifest.md) | Priority P0 | Effort L | Depends: AJ-E2801
+### AJ-E2901 The command palette: commands with nothing selected, accounts and apps, recents, fuzzy match, a preview, a real dialog | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: AJ-E2801
 **Goal**: ⌘K does things, not only goes places: it opens as a proper dialog, shows recents and the top actions before you type, finds sessions, apps, projects and accounts by loose typing, previews a result with →, and hands the full search to History.
 **User story**: As someone with twenty sessions over four accounts, I press ⌘K, type "wrk bil", see the billing session on Work first, press → to check it is the one waiting, and ↩ to open it; with nothing typed I see what I opened last and New session.
 **Requirements**:
@@ -125,7 +125,7 @@
 
 ## Step 2 — cost and quality
 
-### AJ-E2902 Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | Status: IN-PROGRESS (built; the 2026-11-06 per-requirement evidence found gaps, listed in docs/qa/evidence/AJ-E2902/manifest.md) | Priority P0 | Effort L | Depends: AJ-E2801; the ruling in the Handover note (Q1) for Req.1
+### AJ-E2902 Cost you can act on: per finished task, wasted spend, a weekly review, top project per account, dated prices | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort L | Depends: AJ-E2801; the ruling in the Handover note (Q1) for Req.1
 **Goal**: Usage answers "am I getting value from these subscriptions?": what a finished task costs, what went on sessions that crashed or stuck, which project each account went on, a review of last week, and which price list the estimates use.
 **User story**: As someone paying for three subscriptions, I open Usage and see that a finished task costs about $1.90, that $6.30 went on two crashed sessions I can open, that Work went mostly on AIJuggler, and on Monday I read last week's review in one sheet.
 **Requirements**:
@@ -217,7 +217,7 @@
 
 ## Step 5 — first run
 
-### AJ-E2906 First run shows its confidence: Found, Likely, Guessed, where each came from, and Look again at any time | Status: DONE-PENDING-EVIDENCE | Priority P0 | Effort M | Depends: AJ-E2801
+### AJ-E2906 First run shows its confidence: Found, Likely, Guessed, where each came from, and Look again at any time | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort M | Depends: AJ-E2801
 **Goal**: The scan's results say how sure AI Juggler is about each setup and why, so a guess is never presented as a fact, and the user can scan again whenever they like.
 **User story**: As a new user with three Claude folders, I see "Work · Likely — from the folder's name ~/.claude-work" and "Signed in · Found — its sign-in is present", fix the name I disagree with after bringing it in, and press Look again after installing Codex.
 **Requirements**:
@@ -276,7 +276,7 @@
 **Research basis**: audit "Next after these" ("An ended session's own page has no Resume, Archive, Replay or Copy ID"), §5 rows "Archive / Replay / Delete…", "Copy ID", "Resume vs Relaunch"; deep/11 §4.7, §10; `ui/src/pages/session/DrivenPanel.tsx:105-108` (Resume exists only for driven sessions); D-05, D-40, D-45.
 **Handover note**: built. Backend: `session_resume` (`commands::session_resume_impl`) over the one resume path it now shares with `epoch_resume_impl` (`resume_conversation`), refused while live or without a conversation (`tests/session_resume.rs`). UI: `pages/session/ResumeButton.tsx` (primary, before Relaunch, each with the §10 tooltip; off with its reason: no conversation, signed out, out of room with Continue on another account… beside it, open in another app now); the ⋯ gains History's Replay and Archive/Unarchive (the same specs, `action-specs.ts`) and Copy the conversation's id, only on an ended session, hosted by `useSessionManage`. Tests: `pages/session/resume.test.tsx`. Left: the live Resume on the real setup in AI Juggler Dev (a spare session) and the gallery captures.
 
-### AJ-E2909 A keyboard-operable rail splitter | Status: DONE-EVIDENCED | Priority P0 | Effort S | Depends: —
+### AJ-E2909 A keyboard-operable rail splitter | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort S | Depends: —
 **Goal**: The rail's width can be changed from the keyboard and read by a screen reader, as the drag does.
 **User story**: As someone who doesn't use a pointer, I Tab to the edge of the list, press → four times to widen it, and End to make it as wide as it goes.
 **Requirements**:

@@ -20,6 +20,8 @@ import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { loadSubscriptions, staleSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import * as subs from "../lib/ipc/subscriptions";
 import { cpuTimed } from "../test/cpuTime";
+import { seamCalls } from "../test/fixtures";
+import type { ActionHost } from "../lib/actions";
 
 const NOW = 1_728_800_000_000;
 const w = () => window as unknown as Record<string, unknown>;
@@ -471,5 +473,85 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     // CPU time, so a busy machine's other programs don't count against it.
     const { cpuMs, wallMs } = cpuTimed(() => renderHome(sessions));
     expect(cpuMs, `${cpuMs.toFixed(0)} ms CPU (wall ${wallMs.toFixed(0)} ms)`).toBeLessThan(300);
+  });
+});
+
+describe("AJ-E2910 R4 — r, h, s and e on the focused row", () => {
+  const history = () => seamCalls("__AIJ_HISTORY_CALLS__");
+  async function renderKeys(sessions: InstanceInfo[]) {
+    const { ActionHostProvider } = await import("../components/ItemMenu");
+    const { ToastHost, resetToasts } = await import("../components/Toast");
+    resetToasts();
+    const opened: string[] = [];
+    const host: ActionHost = { snoozeSession: vi.fn(), isSnoozed: () => false, continueSession: vi.fn(), openSession: vi.fn() };
+    const view = renderWithNeeds(
+      { sessions, accounts: ACCOUNTS, projects: PROJECTS },
+      <ActionHostProvider host={host}>
+        <HomeScreen sessions={sessions} accounts={ACCOUNTS} projects={PROJECTS} now={NOW} onOpenSession={(id) => opened.push(id)} onNewSession={() => null} onAddAccounts={() => null} />
+        <ToastHost />
+      </ActionHostProvider>,
+    );
+    const rowOf = (id: string) => view.container.querySelector<HTMLElement>(`[data-home-item][data-session-id="${id}"] [data-home-row]`)!;
+    return { view, opened, host, rowOf };
+  }
+
+  it("r opens the asking row's page", async () => {
+    const user = userEvent.setup();
+    const { opened, rowOf } = await renderKeys([mk("w", { status: "waiting_user" })]);
+    await waitFor(() => expect(rowOf("w")).toBeTruthy());
+    rowOf("w").focus();
+    await user.keyboard("r");
+    expect(opened).toEqual(["w"]);
+  });
+
+  it("h opens its page at Continue in another app… only with a conversation; without one it does nothing and the ⋯ says why", async () => {
+    const user = userEvent.setup();
+    const { view, opened, rowOf } = await renderKeys([mk("w", { status: "waiting_user", conversation_id: "conv-w" }), mk("x", { status: "waiting_user", last_activity_ms: NOW - 120_000 })]);
+    await waitFor(() => expect(rowOf("x")).toBeTruthy());
+    rowOf("w").focus();
+    await user.keyboard("h");
+    expect(opened).toEqual(["w"]);
+    rowOf("x").focus();
+    await user.keyboard("h");
+    expect(opened).toEqual(["w"]);
+    // Its ⋯ (s opens it) says why Continue can't run.
+    await user.keyboard("s");
+    const menu = await view.findByRole("menu");
+    const go = within(menu).getAllByRole("menuitem").find((item) => item.textContent?.includes("Continue in another app…"))!;
+    expect(go instanceof HTMLButtonElement ? go.disabled : go.getAttribute("aria-disabled") === "true").toBe(true);
+    expect(go.getAttribute("title")).toBe("It has no conversation to carry over yet");
+    expect(menu.textContent).toContain("It has no conversation to carry over yet");
+  });
+
+  it("s opens the row's snooze choices", async () => {
+    const user = userEvent.setup();
+    const { view, host, rowOf } = await renderKeys([mk("w", { status: "waiting_user" })]);
+    await waitFor(() => expect(rowOf("w")).toBeTruthy());
+    rowOf("w").focus();
+    await user.keyboard("s");
+    const menu = await view.findByRole("menu");
+    const snooze = within(menu).getAllByRole("menuitem").find((item) => item.textContent?.includes("Snooze for an hour"))!;
+    expect(snooze).toBeTruthy();
+    fireEvent.click(snooze);
+    expect(host.snoozeSession).toHaveBeenCalledWith(expect.objectContaining({ id: "w" }), 60 * 60_000);
+  });
+
+  it("e archives an ended row with Undo; on a live row it does nothing", async () => {
+    const user = userEvent.setup();
+    const { view, rowOf } = await renderKeys([mk("w", { status: "waiting_user" }), mk("d1", { status: "finished", last_activity_ms: NOW - 60_000 })]);
+    await waitFor(() => expect(rowOf("d1")).toBeTruthy());
+    rowOf("w").focus();
+    await user.keyboard("e");
+    expect(history()).toEqual([]);
+    rowOf("d1").focus();
+    await user.keyboard("e");
+    await waitFor(() => expect(history()).toEqual(["archive:d1"]));
+    const toast = await view.findByTestId("toast");
+    expect(toast.textContent).toContain("archived — nothing deleted.");
+    await act(async () => {
+      fireEvent.click(within(toast).getByRole("button", { name: /Undo/ }));
+    });
+    await waitFor(() => expect(history()).toEqual(["archive:d1", "unarchive:d1"]));
+    (await import("../components/Toast")).resetToasts();
   });
 });

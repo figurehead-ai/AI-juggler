@@ -71,3 +71,39 @@ describe("AJ-E2909 — the rail's splitter", () => {
     expect(view.getByTestId("rail-splitter-grip")).toBeTruthy();
   });
 });
+
+describe("AJ-E2909 R1 — the handle comes after the list in the Tab order", () => {
+  it("is the rail's last stop, after every row of the list and its foot", async () => {
+    vi.useRealTimers();
+    const { WorkflowRail } = await import("./WorkflowRail");
+    const { instance } = await import("../test/fixtures");
+    const sessions = ["s-1", "s-2"].map((id) => instance({ id, account_id: "claude-work", git_branch: id, cwd: "/w/app" }));
+    const view = render(
+      <WorkflowRail
+        density="comfortable"
+        onCycleDensity={() => {}}
+        projects={[]}
+        sessions={sessions}
+        loginTerminals={[]}
+        selectedId={null}
+        onSelectSession={() => {}}
+        onSelectProject={() => {}}
+        onNewSession={() => {}}
+        onNewProject={() => {}}
+        header={() => <button type="button">Fold</button>}
+        footer={() => <button type="button">Footer</button>}
+      />,
+    );
+    const rail = view.getByTestId("rail");
+    const stops = [...rail.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]")].filter((element) => element.tabIndex >= 0 && !(element instanceof HTMLButtonElement && element.disabled));
+    const handle = view.getByRole("separator", { name: "Resize the list" });
+    expect(stops.at(-1)).toBe(handle);
+    const list = view.getByTestId("rail-list");
+    const rows = stops.filter((element) => list.contains(element));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.compareDocumentPosition(handle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // No positive tabindex reorders it.
+    expect(stops.some((element) => element.tabIndex > 0)).toBe(false);
+  });
+});
+
