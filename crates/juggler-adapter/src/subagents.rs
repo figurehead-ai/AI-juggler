@@ -2,9 +2,9 @@
 //! them — one record for every tool, so the app and its UI never know
 //! which tool wrote it (ADR-0002: a tool's layout lives in its adapter).
 //!
-//! Every adapter answers [`crate::HarnessAdapter::subagent_support`]:
+//! Every adapter answers [`crate::ToolTranscripts::subagent_support`]:
 //! either it reads its tool's records ([`SubagentSupport::Supported`],
-//! and [`crate::HarnessAdapter::subagent_reader`] lists a session's
+//! and [`crate::ToolTranscripts::subagent_reader`] lists a session's
 //! subagents), or it says why it can't ([`SubagentSupport::NotSupported`]).
 //! [`SubagentSupport::Unanswered`] is only the trait's default: the
 //! conformance kit (AJ-E1521, check 11) refuses an adapter that leaves it.

@@ -64,6 +64,5 @@ fake_desktop = ["fake_desktop"]
 [adapters]
 allow_sibling = [
   "codex -> claude_code",
-  "codex_environment -> claude_environment",
   "codex_transcript -> claude_transcript",
 ]

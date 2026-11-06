@@ -2,7 +2,7 @@
 //! it up on the user's say-so.
 //!
 //! The source and target adapters each read what their account has set up
-//! (`HarnessAdapter::inventory`: MCP servers, skills, commands, subagents,
+//! (`juggler_adapter::ToolInventory::inventory`: MCP servers, skills, commands, subagents,
 //! user rules, plugins). Everything the source has and the target doesn't
 //! becomes an offer, with the target tool's verdict: set up as it is,
 //! translated, needs you (a login, a value to provide), or can't be set up
@@ -16,7 +16,7 @@
 //! plugin) is never copied: the target adapter says how to turn it on
 //! for the target ([`SetUp::TurnOn`]), and a switch remembers it until
 //! the target has it ([`turn_ons`]). The source adapter says what the
-//! conversation used ([`juggler_adapter::HarnessAdapter::used_in`]), so
+//! conversation used ([`juggler_adapter::ToolInventory::used_in`]), so
 //! those lead and the rest wait under one collapsed line
 //! (switch-setup-items.md).
 

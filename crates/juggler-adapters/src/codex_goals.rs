@@ -275,7 +275,7 @@ impl CodexAdapter {
     /// every other Codex feature (the CLI and the desktop app share the
     /// account's folder, so it serves both).
     fn goal_binary(&self) -> Result<PathBuf, AdapterError> {
-        juggler_adapter::HarnessAdapter::locate(self).ok_or_else(|| {
+        juggler_adapter::ToolDiscovery::locate(self).ok_or_else(|| {
             AdapterError::Unsupported(
                 "Codex's command-line tool isn't installed here, so its goal couldn't be handed over"
                     .to_owned(),

@@ -11,13 +11,22 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolConfig;
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolInventory;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolLive;
+use juggler_adapter::ToolQuota;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 mod kimi_fixture;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::{AdapterError, HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapter::{AdapterError, InstallStatus, LaunchMode};
 use juggler_adapters::kimi_code::{is_kimi_code, parse_version};
 use juggler_adapters::{KIMI_CODE_ID, KimiCodeAdapter, LoginState};
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};

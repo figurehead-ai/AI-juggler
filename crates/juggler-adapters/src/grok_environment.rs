@@ -23,10 +23,8 @@ use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, SourceInspect,
 };
 
-use crate::claude_environment::{
-    Layout, MAX_IMPORT_BYTES, adopt_with_layout, import_with_layout, inspect_with_layout,
-    installs_from,
-};
+use crate::common::home;
+use crate::common::layout::Layout;
 use crate::grok_build::GROK_BUILD_ID;
 use crate::grok_sessions::SESSIONS_DIR;
 
@@ -92,7 +90,7 @@ pub fn scan_grok_environment(
             }
         }
     }
-    installs_from(&GROK_LAYOUT, candidates, login_probe, &origin_notes)
+    home::installs_from(&GROK_LAYOUT, candidates, login_probe, &origin_notes)
 }
 
 /// The Confirm-source inspection for a Grok Build home (metadata only).
@@ -105,7 +103,7 @@ pub fn inspect_grok_source(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<SourceInspect, juggler_adapter::AdapterError> {
-    inspect_with_layout(&GROK_LAYOUT, source, login_probe)
+    home::inspect_with_layout(&GROK_LAYOUT, source, login_probe)
 }
 
 /// ADR-0018: a Grok Build home used where it is — checked, never written.
@@ -117,7 +115,7 @@ pub fn adopt_grok_home(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
-    adopt_with_layout(&GROK_LAYOUT, source, login_probe)
+    home::adopt_with_layout(&GROK_LAYOUT, source, login_probe)
 }
 
 /// Copies a Grok Build home into a fresh managed home (see the module
@@ -135,12 +133,12 @@ pub fn import_grok_home(
     degraded: bool,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
     let skips: &[&str] = if degraded { GROK_LAYOUT.history } else { &[] };
-    let mut outcome = import_with_layout(
+    let mut outcome = home::import_with_layout(
         &GROK_LAYOUT,
         source,
         dest,
         login_probe,
-        MAX_IMPORT_BYTES,
+        home::MAX_IMPORT_BYTES,
         skips,
     )?;
     if let Err(error) = crate::settings_keys::keep_back_keyed(dest, SETTINGS, &mut outcome.skipped)

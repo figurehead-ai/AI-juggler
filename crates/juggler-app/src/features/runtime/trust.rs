@@ -6,7 +6,7 @@
 //!   keeps the answer in its own store ([`KEY`]);
 //! - each launch of that tool in that folder, driven or in its terminal
 //!   (a hand-over too), gets the answer in memory
-//!   (`HarnessAdapter::apply_folder_trust`);
+//!   (`juggler_adapter::ToolConfig::apply_folder_trust`);
 //! - with no answer yet, the launch passes "not trusted" in memory (the
 //!   tool's restricted mode, nothing saved);
 //! - a folder the user already decided in the tool itself gets nothing.

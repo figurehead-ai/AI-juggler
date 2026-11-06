@@ -11,6 +11,7 @@
 )]
 #![cfg(unix)]
 
+use juggler_adapter::ToolLaunch;
 use juggler_adapter::launch::ENV_UNSET;
 use juggler_adapters::claude_code::{
     claude_state_file_in, config_dir_value_in, is_vendor_default_dir_in,
@@ -60,7 +61,7 @@ fn the_default_folder_runs_unset_and_others_run_exactly() {
 /// account on it: launches and sign-ins remove those variables.
 #[test]
 fn inherited_credentials_never_reach_a_launch() {
-    use juggler_adapter::{HarnessAdapter, LaunchMode};
+    use juggler_adapter::LaunchMode;
     use juggler_adapters::ClaudeCodeAdapter;
     use juggler_adapters::claude_code::INHERITED_CREDENTIAL_KEYS;
     use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
@@ -111,7 +112,7 @@ fn inherited_credentials_never_reach_a_launch() {
 /// remove them, as they remove inherited credentials.
 #[test]
 fn a_parent_sessions_markers_never_reach_a_launch() {
-    use juggler_adapter::{HarnessAdapter, LaunchMode};
+    use juggler_adapter::LaunchMode;
     use juggler_adapters::ClaudeCodeAdapter;
     use juggler_adapters::claude_code::INHERITED_SESSION_MARKERS;
     use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
@@ -242,7 +243,7 @@ fn a_parent_sessions_base_url_never_reaches_a_launch() {
     assert_eq!(unique.len(), with.len());
 
     // The copyable shell line still removes the credentials only (fa21ce10).
-    use juggler_adapter::HarnessAdapter;
+
     let adapter = juggler_adapters::ClaudeCodeAdapter::with_bin("/bin/true");
     assert_eq!(adapter.launch_unset_keys(), &INHERITED_CREDENTIAL_KEYS);
 }

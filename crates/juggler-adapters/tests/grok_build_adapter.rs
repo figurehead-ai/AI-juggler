@@ -11,6 +11,12 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolLive;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 mod grok_fixture;
 
 use std::collections::BTreeMap;
@@ -18,7 +24,7 @@ use std::path::{Path, PathBuf};
 
 use grok_fixture::write;
 use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::{HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapter::{InstallStatus, LaunchMode};
 use juggler_adapters::grok_build::{self, is_node_script, parse_version};
 use juggler_adapters::{GROK_BUILD_ID, GrokBuildAdapter, LoginState};
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};

@@ -20,7 +20,7 @@
 //! `GROK_HOME` says. Every launch, and the copyable line, sets
 //! `GROK_CLAUDE_<X>_ENABLED=0` and `GROK_CURSOR_<X>_ENABLED=0` for each of
 //! them, so a Claude hook never runs inside Grok
-//! ([`HarnessAdapter::launch_fixed_env`]). Its Codex compatibility
+//! ([`juggler_adapter::ToolLaunch::launch_fixed_env`]). Its Codex compatibility
 //! (`[compat.codex]`) has no documented variable; it reads skills and
 //! hooks, not a sign-in (on the live checklist).
 //!
@@ -37,9 +37,10 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
 use juggler_adapter::launch::ENV_UNSET;
+use juggler_adapter::prelude::*;
 use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
-    LaunchSpec, SessionWatcher, VerificationStatus,
+    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
+    SessionWatcher, VerificationStatus,
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
@@ -299,28 +300,26 @@ pub fn session_process(
     })
 }
 
-impl HarnessAdapter for GrokBuildAdapter {
+impl ToolIdentity for GrokBuildAdapter {
     fn id(&self) -> HarnessId {
         HarnessId::new(GROK_BUILD_ID)
     }
-
     fn spec(&self) -> juggler_adapter::ToolSpec {
         grok_build_spec()
     }
-
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS | Capabilities::RESUME | Capabilities::TRANSCRIPT_WATCH
     }
-
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
     }
+}
 
+impl ToolDiscovery for GrokBuildAdapter {
     fn locate(&self) -> Option<PathBuf> {
         // Files only: never runs it (`discover` asks its version).
         self.resolve_bin().filter(|bin| bin.is_file())
     }
-
     fn discover(&self) -> DiscoveryReport {
         let Some(bin) = self.resolve_bin().filter(|bin| bin.is_file()) else {
             return self.report(
@@ -329,39 +328,9 @@ impl HarnessAdapter for GrokBuildAdapter {
                 vec!["looked in ~/.grok/bin, on PATH, /opt/homebrew/bin, /usr/local/bin (a Node script named grok is the unofficial grok-cli, not Grok Build)".into()],
             );
         };
-        let output = match juggler_adapter::user_path::command(&bin)
-            .arg("--version")
-            .output()
-        {
-            Ok(output) if output.status.success() => output,
-            Ok(output) => {
-                return self.report(
-                    Some(bin),
-                    InstallStatus::Failed {
-                        message: format!("--version exited with {}", output.status),
-                    },
-                    Vec::new(),
-                );
-            }
-            Err(error) => {
-                return self.report(
-                    Some(bin),
-                    InstallStatus::Failed {
-                        message: error.to_string(),
-                    },
-                    Vec::new(),
-                );
-            }
-        };
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let Some(version) = parse_version(&stdout) else {
-            return self.report(
-                Some(bin),
-                InstallStatus::Failed {
-                    message: format!("unrecognised --version output: {stdout:?}"),
-                },
-                Vec::new(),
-            );
+        let version = match crate::common::probe::version(&bin, parse_version) {
+            Ok(version) => version,
+            Err(failed) => return self.report(Some(bin), failed, Vec::new()),
         };
         self.report(
             Some(bin),
@@ -369,7 +338,27 @@ impl HarnessAdapter for GrokBuildAdapter {
             vec!["Grok Build — built from the 1.0.45 docs and source; not yet checked live".into()],
         )
     }
+    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
+        let Some(home) = self.user_home() else {
+            return Vec::new();
+        };
+        let env_override = std::env::var_os(ENV_HOME)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+        crate::grok_environment::scan_grok_environment(&home, env_override.as_deref(), &scan_probe)
+    }
+    fn vendor_default_dir(&self) -> Option<PathBuf> {
+        self.default_home()
+    }
+    fn shell_command(&self) -> Option<&'static str> {
+        Some("grok")
+    }
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
+    }
+}
 
+impl ToolSignIn for GrokBuildAdapter {
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, GROK_BUILD_ID)?;
         Ok(self
@@ -378,7 +367,34 @@ impl HarnessAdapter for GrokBuildAdapter {
             .filter_map(|(key, value)| Some((key.to_owned(), value?)))
             .collect())
     }
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        grok_login_state(state_dir)
+    }
+    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::grok_environment::import_grok_home(source, dest, &scan_probe, false)
+    }
+    fn import_account_degraded(
+        &self,
+        source: &Path,
+        dest: &Path,
+    ) -> Result<ImportOutcome, AdapterError> {
+        crate::grok_environment::import_grok_home(source, dest, &scan_probe, true)
+    }
+    fn inspect_source(
+        &self,
+        source: &Path,
+    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
+        crate::grok_environment::inspect_grok_source(source, &scan_probe)
+    }
+    fn can_use_in_place(&self) -> bool {
+        true
+    }
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::grok_environment::adopt_grok_home(source, &scan_probe)
+    }
+}
 
+impl ToolLaunch for GrokBuildAdapter {
     fn launch_spec(
         &self,
         account: &Account,
@@ -453,11 +469,6 @@ impl HarnessAdapter for GrokBuildAdapter {
             needs_pty: !matches!(mode, LaunchMode::Headless { .. }),
         })
     }
-
-    fn login_state(&self, state_dir: &Path) -> LoginState {
-        grok_login_state(state_dir)
-    }
-
     /// Grok's own `grok login` (the browser) in this account's home.
     fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
         Ok(LaunchSpec {
@@ -468,7 +479,54 @@ impl HarnessAdapter for GrokBuildAdapter {
             needs_pty: true,
         })
     }
+    fn isolation_env_keys(&self) -> &'static [&'static str] {
+        ISOLATION
+    }
+    fn pinned_env_keys(&self) -> &'static [&'static str] {
+        PINNED
+    }
+    fn launch_unset_keys(&self) -> &'static [&'static str] {
+        UNSET
+    }
+    fn launch_fixed_env(&self) -> &'static [(&'static str, &'static str)] {
+        FIXED
+    }
+    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
+        (!self.is_default(state_dir)).then(|| state_dir.to_string_lossy().into_owned())
+    }
+    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
+        crate::codex::refuse_option_like(conversation_id).ok()?;
+        Some(vec!["--resume".into(), conversation_id.to_owned()])
+    }
+}
 
+impl ToolConfig for GrokBuildAdapter {}
+
+impl ToolInventory for GrokBuildAdapter {
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::grok_inventory::inventory(state_dir)
+    }
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::grok_inventory::can_set_up(item)
+    }
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        _project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        crate::grok_inventory::set_up(state_dir, item)
+    }
+}
+
+impl ToolTranscripts for GrokBuildAdapter {
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         crate::claude_code::ClaudeTranscriptWatcher::with_ids(
             transcript_root,
@@ -476,7 +534,6 @@ impl HarnessAdapter for GrokBuildAdapter {
         )
         .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
     }
-
     fn locate_transcript(
         &self,
         state_dir: &Path,
@@ -491,81 +548,29 @@ impl HarnessAdapter for GrokBuildAdapter {
             }
         })
     }
-
-    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.user_home() else {
-            return Vec::new();
-        };
-        let env_override = std::env::var_os(ENV_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::grok_environment::scan_grok_environment(&home, env_override.as_deref(), &scan_probe)
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        crate::grok_subagents::SUPPORT
     }
-
-    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
-        crate::grok_environment::import_grok_home(source, dest, &scan_probe, false)
-    }
-
-    fn import_account_degraded(
+    fn subagent_reader(
         &self,
-        source: &Path,
-        dest: &Path,
-    ) -> Result<ImportOutcome, AdapterError> {
-        crate::grok_environment::import_grok_home(source, dest, &scan_probe, true)
+        scope: juggler_adapter::SubagentScope<'_>,
+    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
+        crate::grok_subagents::reader(scope)
     }
-
-    fn inspect_source(
+    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::grok_sessions::conversation_files(state_dir)
+    }
+    fn read_conversation(
         &self,
-        source: &Path,
-    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
-        crate::grok_environment::inspect_grok_source(source, &scan_probe)
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::grok_sessions::read_conversation(path)
     }
+}
 
-    fn can_use_in_place(&self) -> bool {
-        true
-    }
+impl ToolQuota for GrokBuildAdapter {}
 
-    fn vendor_default_dir(&self) -> Option<PathBuf> {
-        self.default_home()
-    }
-
-    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
-        crate::grok_environment::adopt_grok_home(source, &scan_probe)
-    }
-
-    fn isolation_env_keys(&self) -> &'static [&'static str] {
-        ISOLATION
-    }
-
-    fn pinned_env_keys(&self) -> &'static [&'static str] {
-        PINNED
-    }
-
-    fn launch_unset_keys(&self) -> &'static [&'static str] {
-        UNSET
-    }
-
-    fn launch_fixed_env(&self) -> &'static [(&'static str, &'static str)] {
-        FIXED
-    }
-
-    fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
-        (!self.is_default(state_dir)).then(|| state_dir.to_string_lossy().into_owned())
-    }
-
-    fn shell_command(&self) -> Option<&'static str> {
-        Some("grok")
-    }
-
-    fn resolved_binary(&self) -> Option<PathBuf> {
-        self.resolve_bin()
-    }
-
-    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
-        crate::codex::refuse_option_like(conversation_id).ok()?;
-        Some(vec!["--resume".into(), conversation_id.to_owned()])
-    }
-
+impl ToolLive for GrokBuildAdapter {
     fn session_process(
         &self,
         exe: Option<&Path>,
@@ -573,58 +578,16 @@ impl HarnessAdapter for GrokBuildAdapter {
     ) -> Option<juggler_adapter::conversation::SessionProcess> {
         session_process(exe, args)
     }
+}
 
+impl ToolHandover for GrokBuildAdapter {
     // AJ-E1520 (0.2): its subagents, from its own records.
     fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
         juggler_adapter::switching::fresh_start_only
     }
-
-    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
-        crate::grok_subagents::SUPPORT
-    }
-
-    fn subagent_reader(
-        &self,
-        scope: juggler_adapter::SubagentScope<'_>,
-    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
-        crate::grok_subagents::reader(scope)
-    }
-
-    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
-        crate::grok_sessions::conversation_files(state_dir)
-    }
-
-    fn read_conversation(
-        &self,
-        path: &Path,
-    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
-        crate::grok_sessions::read_conversation(path)
-    }
-
-    fn inventory(
-        &self,
-        state_dir: &Path,
-        _project: Option<&Path>,
-    ) -> Vec<juggler_adapter::inventory::Item> {
-        crate::grok_inventory::inventory(state_dir)
-    }
-
-    fn can_set_up(
-        &self,
-        item: &juggler_adapter::inventory::Item,
-    ) -> juggler_adapter::inventory::SetUp {
-        crate::grok_inventory::can_set_up(item)
-    }
-
-    fn set_up(
-        &self,
-        state_dir: &Path,
-        _project: Option<&Path>,
-        item: &juggler_adapter::inventory::Item,
-    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
-        crate::grok_inventory::set_up(state_dir, item)
-    }
 }
+
+impl ToolRuntime for GrokBuildAdapter {}
 
 /// ADR-0019: Grok Build, described as data.
 #[must_use]

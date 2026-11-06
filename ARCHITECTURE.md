@@ -42,12 +42,19 @@ asks the adapter contract, never a tool's files or names directly.
 - `crates/juggler-platform` — the operating-system seams: who we are,
   owner-only files, local sockets, program trust, starting apps, helper
   processes. The one place macOS, Windows and Linux differ.
-- `crates/juggler-adapter` — the `HarnessAdapter` contract and its side
-  traits (handover, subagents, automation, runtime), discovery, launch
-  specs, the system tools by absolute path, the user's `PATH`.
+- `crates/juggler-adapter` — the `HarnessAdapter` contract: the sum of
+  eleven capability traits of at most 12 methods each (`ToolIdentity`,
+  `ToolDiscovery`, `ToolSignIn`, `ToolLaunch`, `ToolConfig`,
+  `ToolInventory`, `ToolTranscripts`, `ToolQuota`, `ToolLive`,
+  `ToolHandover`, `ToolRuntime`; one import: `juggler_adapter::prelude`),
+  its side traits (subagents, automation, driven runtime), discovery,
+  launch specs, the system tools by absolute path, the user's `PATH`.
 - `crates/juggler-adapters` — one module family per tool (Claude Code and
   the Claude app, Codex, OpenCode, Grok, Kimi, ZCode, the fake harness),
-  plus neutral shared mechanics (transcripts, inference, quota ingest).
+  the building blocks in `common/` that name no tool (a config home's
+  layout, scan, inspection, copy and adoption; the managed-folder marker;
+  the version probe; bounded JSONL lines; read-only SQLite), plus neutral
+  shared mechanics (transcripts, inference, quota ingest).
 - `crates/juggler-supervisor` — starting and watching processes: the PTY
   and piped runtimes, the process tree and ledger, zombies, live stats.
 - `crates/juggler-handover` — switching: fidelity tiers, context packs,

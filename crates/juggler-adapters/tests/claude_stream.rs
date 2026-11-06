@@ -20,18 +20,21 @@
 )]
 #![cfg(unix)]
 
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolRuntime;
+use juggler_adapter::ToolTranscripts;
 use std::collections::BTreeMap;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+use juggler_adapter::LaunchMode;
 use juggler_adapter::runtime::{
     AskAnswer, Connection, DrivenLaunch, DrivenSession, ErrorCategory, Maturity, OptionEffect,
     PartAnswer, Release, Runtime, RuntimeEvent, TerminalView, Transport, TurnEnd, TurnInput,
     ViewOf,
 };
-use juggler_adapter::{HarnessAdapter, LaunchMode};
 use juggler_adapters::ClaudeCodeAdapter;
 use juggler_adapters::claude_stream::codec::Codec;
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};

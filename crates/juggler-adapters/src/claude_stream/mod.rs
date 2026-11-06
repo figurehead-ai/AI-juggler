@@ -18,6 +18,8 @@
 //!   session with Settings › Sessions › Run without a terminal (Beta) on.
 //!   It becomes a default only after ADR-0022 decision 4's gates.
 
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolLaunch;
 pub mod codec;
 pub mod session;
 
@@ -28,7 +30,7 @@ use juggler_adapter::runtime::{
     Connection, DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Runtime,
     TerminalView, Transport, ViewOf,
 };
-use juggler_adapter::{AdapterError, HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapter::{AdapterError, InstallStatus, LaunchMode};
 use juggler_core::model::{Account, Profile};
 
 use crate::claude_code::ClaudeCodeAdapter;

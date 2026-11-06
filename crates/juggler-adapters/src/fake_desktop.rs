@@ -9,9 +9,8 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::{
-    AdapterError, Capabilities, DesktopLaunch, DiscoveryReport, HarnessAdapter, InstallStatus,
-};
+use juggler_adapter::prelude::*;
+use juggler_adapter::{AdapterError, Capabilities, DesktopLaunch, DiscoveryReport, InstallStatus};
 use juggler_core::model::{Account, HarnessId, Profile};
 
 /// Harness id of the fake desktop adapter.
@@ -40,23 +39,10 @@ impl FakeDesktopAdapter {
     }
 }
 
-impl HarnessAdapter for FakeDesktopAdapter {
-    // AJ-E1520 (0.2): a stand-in keeps no subagents (answered, so the
-    // conformance rule holds for it too).
-    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
-        juggler_adapter::switching::fresh_start_only
-    }
-
-    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
-        juggler_adapter::SubagentSupport::NotSupported(
-            "A test stand-in keeps no record of subagents.",
-        )
-    }
-
+impl ToolIdentity for FakeDesktopAdapter {
     fn id(&self) -> HarnessId {
         HarnessId::new(FAKE_DESKTOP_ID)
     }
-
     fn spec(&self) -> juggler_adapter::ToolSpec {
         juggler_adapter::ToolSpec {
             display_name: "Fake harness (test)".to_owned(),
@@ -65,20 +51,19 @@ impl HarnessAdapter for FakeDesktopAdapter {
             ..juggler_adapter::ToolSpec::generic(FAKE_DESKTOP_ID)
         }
     }
-
     fn capabilities(&self) -> Capabilities {
         // Desktop app + single-account: the honest limits pair (Req.1).
         Capabilities::DESKTOP_APP | Capabilities::DESKTOP_SINGLE_ACCOUNT
     }
-
     fn verified_against(&self) -> &'static [&'static str] {
         &["0.1.0"]
     }
+}
 
+impl ToolDiscovery for FakeDesktopAdapter {
     fn locate(&self) -> Option<PathBuf> {
         self.bin.exists().then(|| self.bin.clone())
     }
-
     fn discover(&self) -> DiscoveryReport {
         let installed = self.bin.exists();
         DiscoveryReport {
@@ -99,7 +84,9 @@ impl HarnessAdapter for FakeDesktopAdapter {
             },
         }
     }
+}
 
+impl ToolSignIn for FakeDesktopAdapter {
     fn prepare_account(&self, state_dir: &Path) -> Result<juggler_adapter::EnvMap, AdapterError> {
         // The managed folder and its marker, as the real adapters prepare
         // theirs — so a launch that wrongly prepared a user's own folder
@@ -109,7 +96,9 @@ impl HarnessAdapter for FakeDesktopAdapter {
         // is empty and the label says so.
         Ok(juggler_adapter::EnvMap::new())
     }
+}
 
+impl ToolLaunch for FakeDesktopAdapter {
     fn launch_spec(
         &self,
         _account: &Account,
@@ -124,7 +113,6 @@ impl HarnessAdapter for FakeDesktopAdapter {
             "the fake desktop app has no CLI engine".into(),
         ))
     }
-
     fn desktop_launch(&self, account: &Account) -> Result<DesktopLaunch, AdapterError> {
         if !self.bin.exists() {
             return Err(AdapterError::InvalidLaunch(format!(
@@ -141,11 +129,21 @@ impl HarnessAdapter for FakeDesktopAdapter {
             isolation_label: SINGLE_ACCOUNT_LABEL,
         })
     }
-
     fn desktop_isolation_label(&self) -> Option<&'static str> {
         Some(SINGLE_ACCOUNT_LABEL)
     }
+}
 
+impl ToolConfig for FakeDesktopAdapter {}
+
+impl ToolInventory for FakeDesktopAdapter {}
+
+impl ToolTranscripts for FakeDesktopAdapter {
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        juggler_adapter::SubagentSupport::NotSupported(
+            "A test stand-in keeps no record of subagents.",
+        )
+    }
     fn watcher(
         &self,
         _transcript_root: &Path,
@@ -154,6 +152,20 @@ impl HarnessAdapter for FakeDesktopAdapter {
         Ok(Box::new(NoDesktopWatcher))
     }
 }
+
+impl ToolQuota for FakeDesktopAdapter {}
+
+impl ToolLive for FakeDesktopAdapter {}
+
+impl ToolHandover for FakeDesktopAdapter {
+    // AJ-E1520 (0.2): a stand-in keeps no subagents (answered, so the
+    // conformance rule holds for it too).
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        juggler_adapter::switching::fresh_start_only
+    }
+}
+
+impl ToolRuntime for FakeDesktopAdapter {}
 
 /// The no-op watcher: a desktop app without transcripts never yields
 /// events (read-only, never fails the system).

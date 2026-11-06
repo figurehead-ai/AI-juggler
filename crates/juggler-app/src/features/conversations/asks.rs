@@ -5,9 +5,9 @@
 //!
 //! Each tail is at most its last [`TAIL_BYTES`], read again only when the
 //! file changed. The adapter says what the tail waits on
-//! ([`juggler_adapter::HarnessAdapter::pending_ask`], for interactive
+//! ([`juggler_adapter::ToolLive::pending_ask`], for interactive
 //! sessions outside a desktop app, which records its own status word) and
-//! how its last turn stands ([`juggler_adapter::HarnessAdapter::tail_turn`],
+//! how its last turn stands ([`juggler_adapter::ToolLive::tail_turn`],
 //! for a session with no state yet); nothing of the text is kept. With no
 //! turn in the tail, a transcript written in the last [`FRESH_FOR`] is
 //! working. Worked out, not recorded: the state says "probably".
@@ -37,9 +37,9 @@ pub const FRESH_FOR: Duration = Duration::from_secs(10);
 /// What a tail says: what it waits on, and how its last turn stands.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Said {
-    /// What it waits on ([`juggler_adapter::HarnessAdapter::pending_ask`]).
+    /// What it waits on ([`juggler_adapter::ToolLive::pending_ask`]).
     pub ask: Option<Ask>,
-    /// Its last turn ([`juggler_adapter::HarnessAdapter::tail_turn`]).
+    /// Its last turn ([`juggler_adapter::ToolLive::tail_turn`]).
     pub turn: Option<TailTurn>,
 }
 

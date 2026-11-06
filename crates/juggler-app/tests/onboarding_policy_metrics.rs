@@ -15,11 +15,12 @@
 )]
 #![cfg(unix)]
 
+use juggler_adapter::ToolLaunch;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use juggler_adapter::{AdapterRegistry, HarnessAdapter};
+use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::commands;
 use juggler_app::state::AppState;

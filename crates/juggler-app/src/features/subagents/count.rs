@@ -2,7 +2,7 @@
 //! `subtask_count`): how many subagents each live session (and its
 //! subagents) has running now, read by the same readers as the session's
 //! Subagents tab — one source, for every tool whose adapter lists
-//! subagents (`HarnessAdapter::subagent_reader`), none named here.
+//! subagents (`juggler_adapter::ToolTranscripts::subagent_reader`), none named here.
 //!
 //! Every live session the rail shows is followed: AI Juggler's own (its
 //! row, `InstanceInfo`) and the ones other apps run (their conversation's

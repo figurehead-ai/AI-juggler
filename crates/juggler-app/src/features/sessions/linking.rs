@@ -13,7 +13,7 @@
 //!    is its conversation. Two such: none.
 //! 2. **By its launch.** The tool's adapter finds the one conversation
 //!    its account started in the session's folder since the session
-//!    started (`HarnessAdapter::locate_transcript`; two is `None`, and
+//!    started (`juggler_adapter::ToolTranscripts::locate_transcript`; two is `None`, and
 //!    conversations linked to other sessions are never candidates). It
 //!    is refused when another of AI Juggler's sessions of that account in
 //!    that folder doesn't know its conversation either (either could own

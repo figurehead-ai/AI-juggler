@@ -282,7 +282,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: matklad, "ARCHITECTURE.md".
 **Handover note**: —
 
-### AJ-E2016 Adapter building blocks and focused traits | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1525
+### AJ-E2016 Adapter building blocks and focused traits | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P1 | Effort M | Depends: AJ-E1525
 **Goal**: A new tool is data plus a few small impls.
 **User story**: As a contributor adding a tool, I compose existing pieces and the conformance kit tells me what's missing.
 **Requirements**:

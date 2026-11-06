@@ -40,10 +40,8 @@ use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, SourceInspect,
 };
 
-use crate::claude_environment::{
-    Layout, MAX_IMPORT_BYTES, adopt_with_layout, import_with_layout, inspect_with_layout,
-    installs_from,
-};
+use crate::common::home;
+use crate::common::layout::Layout;
 use crate::opencode::OPENCODE_ID;
 use crate::opencode_store::DB_FILE;
 
@@ -123,7 +121,7 @@ pub fn scan_opencode_environment(
     if let Some(data) = xdg_data_home {
         candidates.push((data.join("opencode"), InstallOrigin::EnvOverride));
     }
-    installs_from(&OPENCODE_LAYOUT, candidates, login_probe, &origin_notes)
+    home::installs_from(&OPENCODE_LAYOUT, candidates, login_probe, &origin_notes)
 }
 
 /// The Confirm-source inspection (metadata only); the database counts
@@ -136,7 +134,7 @@ pub fn inspect_opencode_source(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<SourceInspect, AdapterError> {
-    let mut inspect = inspect_with_layout(&OPENCODE_LAYOUT, source, login_probe)?;
+    let mut inspect = home::inspect_with_layout(&OPENCODE_LAYOUT, source, login_probe)?;
     if let Ok(meta) = std::fs::metadata(source.join(DB_FILE)) {
         inspect.total_bytes = inspect.total_bytes.saturating_add(meta.len());
         inspect.file_count += 1;
@@ -166,7 +164,7 @@ pub fn adopt_opencode_data(
             message: "only OpenCode's standard folder (~/.local/share/opencode) can be used where it is — bring this one in as a copy".into(),
         });
     }
-    adopt_with_layout(&OPENCODE_LAYOUT, source, login_probe)
+    home::adopt_with_layout(&OPENCODE_LAYOUT, source, login_probe)
 }
 
 /// Copies a data folder (and, for the default one, its settings) into a
@@ -196,12 +194,12 @@ pub fn import_opencode_data(
     } else {
         &[]
     };
-    let result = import_with_layout(
+    let result = home::import_with_layout(
         &OPENCODE_LAYOUT,
         source,
         &data,
         login_probe,
-        MAX_IMPORT_BYTES,
+        home::MAX_IMPORT_BYTES,
         skips,
     )
     .and_then(|mut outcome| {

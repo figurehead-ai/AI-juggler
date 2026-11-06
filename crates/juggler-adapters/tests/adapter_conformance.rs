@@ -9,6 +9,7 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolQuota;
 mod conformance;
 mod grok_fixture;
 mod kimi_fixture;

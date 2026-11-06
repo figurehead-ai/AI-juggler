@@ -3,7 +3,7 @@
 //! The app says what to add ([`BridgeLaunch`]: the program, the server's
 //! name, its tools, the names of the variables it reads, and a folder of
 //! AI Juggler's own for this launch's files). Each adapter says how its
-//! tool takes it ([`crate::HarnessAdapter::agent_bridge`]): launch
+//! tool takes it ([`crate::ToolConfig::agent_bridge`]): launch
 //! options and, where the tool needs one, a file for that folder. Never
 //! an edit to the user's own setup.
 //!

@@ -9,7 +9,7 @@
 //!   process's environment (D-37): it wrote the key into the launch.
 //! - **Injection** (D-30). On only after the user said yes once, and not
 //!   for a project or profile they switched off ([`settings`]). What a
-//!   tool takes is its adapter's ([`juggler_adapter::HarnessAdapter::agent_bridge`]);
+//!   tool takes is its adapter's ([`juggler_adapter::ToolConfig::agent_bridge`]);
 //!   the files go in AI Juggler's overlay folder, never the user's setup.
 //! - **Calls** ([`calls`]): over a `0600` socket in a `0700` folder of AI
 //!   Juggler's own ([`server`]), only from this user, each through

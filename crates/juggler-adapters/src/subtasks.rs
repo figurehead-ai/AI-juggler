@@ -2,7 +2,7 @@
 //! — the start-and-end log the Claude Code and Codex subagent readers
 //! (`claude_subagents`, `codex_subagents`) build their lists on, and the
 //! helpers every reader shares (`fill_depths`, `holds`). The app reads
-//! subagents only through those readers (`HarnessAdapter::subagent_reader`):
+//! subagents only through those readers (`juggler_adapter::ToolTranscripts::subagent_reader`):
 //! the Subagents tab and the rail's count alike.
 //!
 //! Claude Code starts one with its Task (now Agent) tool and answers that

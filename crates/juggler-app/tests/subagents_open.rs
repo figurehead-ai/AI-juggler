@@ -14,10 +14,10 @@
 )]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use juggler_adapter::ToolTranscripts;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::subagents::{SubagentReader, SubagentScope};
 use juggler_app::features::subagents::clean::{Cleaned, kept};
 use juggler_app::features::subagents::dto::SubagentsQuery;

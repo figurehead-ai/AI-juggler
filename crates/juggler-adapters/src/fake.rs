@@ -9,9 +9,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
+use juggler_adapter::prelude::*;
 use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
-    LaunchSpec, SessionEvent, SessionWatcher, VerificationStatus,
+    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
+    SessionEvent, SessionWatcher, VerificationStatus,
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
@@ -44,23 +45,10 @@ impl FakeHarnessAdapter {
     }
 }
 
-impl HarnessAdapter for FakeHarnessAdapter {
-    // AJ-E1520 (0.2): a stand-in keeps no subagents (answered, so the
-    // conformance rule holds for it too).
-    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
-        juggler_adapter::switching::fresh_start_only
-    }
-
-    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
-        juggler_adapter::SubagentSupport::NotSupported(
-            "A test stand-in keeps no record of subagents.",
-        )
-    }
-
+impl ToolIdentity for FakeHarnessAdapter {
     fn id(&self) -> HarnessId {
         HarnessId::new(FAKE_HARNESS_ID)
     }
-
     fn spec(&self) -> juggler_adapter::ToolSpec {
         juggler_adapter::ToolSpec {
             display_name: "Fake harness (test)".to_owned(),
@@ -69,7 +57,6 @@ impl HarnessAdapter for FakeHarnessAdapter {
             ..juggler_adapter::ToolSpec::generic(FAKE_HARNESS_ID)
         }
     }
-
     fn capabilities(&self) -> Capabilities {
         // No USAGE_TOKENS: nothing reads the fake's token counts into
         // usage, and the conformance kit holds a claim to its reader.
@@ -83,101 +70,15 @@ impl HarnessAdapter for FakeHarnessAdapter {
             | Capabilities::STATE_REPORTS
             | Capabilities::LIMIT_HITS
     }
-
-    /// 0.3: like a tool that records the limit a turn stopped at in its
-    /// transcript (`{"type":"limit","at_ms":…,"resets_at_ms":…}`); the next
-    /// `assistant` line means it carried on.
-    fn limit_hit(&self, tail: &str) -> Option<juggler_adapter::live::LimitHit> {
-        for raw in tail.lines().rev() {
-            let Ok(line) = serde_json::from_str::<serde_json::Value>(raw) else {
-                continue;
-            };
-            match line.get("type").and_then(serde_json::Value::as_str) {
-                Some("limit") => {
-                    return Some(juggler_adapter::live::LimitHit {
-                        at_ms: line.get("at_ms")?.as_i64()?,
-                        resets_at_ms: line.get("resets_at_ms").and_then(serde_json::Value::as_i64),
-                        window: None,
-                    });
-                }
-                Some("assistant") => return None,
-                _ => {}
-            }
-        }
-        None
-    }
-
-    /// AJ-E2306: like a tool that runs hooks named in a file on its command
-    /// line (`fake-harness run --hooks-config FILE`).
-    fn state_reports(
-        &self,
-        launch: &juggler_adapter::reports::ReportsLaunch,
-        args: &[String],
-    ) -> Option<juggler_adapter::reports::ReportsInjection> {
-        let file = launch.dir.join("fake-hooks.json");
-        let mut out = args.to_vec();
-        out.extend([
-            "--hooks-config".to_owned(),
-            file.to_string_lossy().into_owned(),
-        ]);
-        Some(juggler_adapter::reports::ReportsInjection {
-            args: out,
-            files: vec![juggler_adapter::BridgeFile {
-                name: "fake-hooks.json".to_owned(),
-                contents: serde_json::json!({"command": launch.program.to_string_lossy()})
-                    .to_string(),
-            }],
-        })
-    }
-
-    /// AJ-E2302: `fake-harness drive` (`fake_driven.rs`).
-    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
-        Some(self)
-    }
-
-    /// AJ-E1704: like a tool that reads MCP servers from a file named on
-    /// its command line (`--mcp-config`, `${NAME}` filled from its own
-    /// environment): the fake then calls them as an MCP client.
-    fn agent_bridge(
-        &self,
-        bridge: &juggler_adapter::BridgeLaunch,
-        args: &[String],
-    ) -> Option<juggler_adapter::BridgeInjection> {
-        let env: serde_json::Map<String, serde_json::Value> = bridge
-            .env_names
-            .iter()
-            .map(|name| (name.clone(), format!("${{{name}}}").into()))
-            .collect();
-        let config = serde_json::json!({"mcpServers": {bridge.server.clone(): {
-            "command": bridge.program.to_string_lossy(),
-            "args": ["--mcp"],
-            "env": env,
-        }}});
-        Some(juggler_adapter::BridgeInjection {
-            at: args.len(),
-            args: vec![
-                "--mcp-config".to_owned(),
-                bridge
-                    .dir
-                    .join("fake-mcp.json")
-                    .to_string_lossy()
-                    .into_owned(),
-            ],
-            files: vec![juggler_adapter::BridgeFile {
-                name: "fake-mcp.json".to_owned(),
-                contents: config.to_string(),
-            }],
-        })
-    }
-
     fn verified_against(&self) -> &'static [&'static str] {
         &["0.1.0"]
     }
+}
 
+impl ToolDiscovery for FakeHarnessAdapter {
     fn locate(&self) -> Option<PathBuf> {
         Some(self.bin.clone()).filter(|bin| bin.is_file())
     }
-
     fn discover(&self) -> DiscoveryReport {
         let adapter = self.id();
         match Command::new(&self.bin).arg("--version").output() {
@@ -228,7 +129,9 @@ impl HarnessAdapter for FakeHarnessAdapter {
             },
         }
     }
+}
 
+impl ToolSignIn for FakeHarnessAdapter {
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         let transcripts = state_dir.join("transcripts");
         std::fs::create_dir_all(&transcripts).map_err(|error| AdapterError::AccountDir {
@@ -242,11 +145,12 @@ impl HarnessAdapter for FakeHarnessAdapter {
         );
         Ok(env)
     }
+}
 
+impl ToolLaunch for FakeHarnessAdapter {
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         &[ENV_FAKE_HOME]
     }
-
     fn launch_spec(
         &self,
         account: &Account,
@@ -322,11 +226,56 @@ impl HarnessAdapter for FakeHarnessAdapter {
         };
         Ok(spec)
     }
+}
 
+impl ToolConfig for FakeHarnessAdapter {
+    /// AJ-E1704: like a tool that reads MCP servers from a file named on
+    /// its command line (`--mcp-config`, `${NAME}` filled from its own
+    /// environment): the fake then calls them as an MCP client.
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        let env: serde_json::Map<String, serde_json::Value> = bridge
+            .env_names
+            .iter()
+            .map(|name| (name.clone(), format!("${{{name}}}").into()))
+            .collect();
+        let config = serde_json::json!({"mcpServers": {bridge.server.clone(): {
+            "command": bridge.program.to_string_lossy(),
+            "args": ["--mcp"],
+            "env": env,
+        }}});
+        Some(juggler_adapter::BridgeInjection {
+            at: args.len(),
+            args: vec![
+                "--mcp-config".to_owned(),
+                bridge
+                    .dir
+                    .join("fake-mcp.json")
+                    .to_string_lossy()
+                    .into_owned(),
+            ],
+            files: vec![juggler_adapter::BridgeFile {
+                name: "fake-mcp.json".to_owned(),
+                contents: config.to_string(),
+            }],
+        })
+    }
+}
+
+impl ToolInventory for FakeHarnessAdapter {}
+
+impl ToolTranscripts for FakeHarnessAdapter {
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        juggler_adapter::SubagentSupport::NotSupported(
+            "A test stand-in keeps no record of subagents.",
+        )
+    }
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         Ok(Box::new(FakeWatcher::new(transcript_root)))
     }
-
     /// `transcripts/<id>.jsonl` whose `session_meta` names `cwd`.
     fn locate_transcript(
         &self,
@@ -349,6 +298,70 @@ impl HarnessAdapter for FakeHarnessAdapter {
             native_id: Some(crate::claude_code::file_stem(&path)),
             path,
         })
+    }
+}
+
+impl ToolQuota for FakeHarnessAdapter {
+    /// 0.3: like a tool that records the limit a turn stopped at in its
+    /// transcript (`{"type":"limit","at_ms":…,"resets_at_ms":…}`); the next
+    /// `assistant` line means it carried on.
+    fn limit_hit(&self, tail: &str) -> Option<juggler_adapter::live::LimitHit> {
+        for raw in tail.lines().rev() {
+            let Ok(line) = serde_json::from_str::<serde_json::Value>(raw) else {
+                continue;
+            };
+            match line.get("type").and_then(serde_json::Value::as_str) {
+                Some("limit") => {
+                    return Some(juggler_adapter::live::LimitHit {
+                        at_ms: line.get("at_ms")?.as_i64()?,
+                        resets_at_ms: line.get("resets_at_ms").and_then(serde_json::Value::as_i64),
+                        window: None,
+                    });
+                }
+                Some("assistant") => return None,
+                _ => {}
+            }
+        }
+        None
+    }
+}
+
+impl ToolLive for FakeHarnessAdapter {}
+
+impl ToolHandover for FakeHarnessAdapter {
+    // AJ-E1520 (0.2): a stand-in keeps no subagents (answered, so the
+    // conformance rule holds for it too).
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        juggler_adapter::switching::fresh_start_only
+    }
+    /// AJ-E2306: like a tool that runs hooks named in a file on its command
+    /// line (`fake-harness run --hooks-config FILE`).
+    fn state_reports(
+        &self,
+        launch: &juggler_adapter::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::reports::ReportsInjection> {
+        let file = launch.dir.join("fake-hooks.json");
+        let mut out = args.to_vec();
+        out.extend([
+            "--hooks-config".to_owned(),
+            file.to_string_lossy().into_owned(),
+        ]);
+        Some(juggler_adapter::reports::ReportsInjection {
+            args: out,
+            files: vec![juggler_adapter::BridgeFile {
+                name: "fake-hooks.json".to_owned(),
+                contents: serde_json::json!({"command": launch.program.to_string_lossy()})
+                    .to_string(),
+            }],
+        })
+    }
+}
+
+impl ToolRuntime for FakeHarnessAdapter {
+    /// AJ-E2302: `fake-harness drive` (`fake_driven.rs`).
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
     }
 }
 

@@ -10,10 +10,10 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolSignIn;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::environment::{InstallOrigin, LoginProbe};
 use juggler_adapters::CodexAdapter;
 use juggler_adapters::codex_environment::{

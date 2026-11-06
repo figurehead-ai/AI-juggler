@@ -72,7 +72,7 @@ pub enum Applied {
     NotYet,
 }
 
-/// A tool's automation, for the switch ([`crate::HarnessAdapter::host_automation`]).
+/// A tool's automation, for the switch ([`crate::ToolRuntime::host_automation`]).
 pub trait HostAutomation: Send + Sync {
     /// Where it's kept, and so when it can be changed.
     fn home(&self) -> AutomationHome;

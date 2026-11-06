@@ -12,9 +12,9 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolIdentity;
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::capabilities::Capabilities;
 use juggler_adapter::handover::HandoverSupport;
 use juggler_adapters::{ClaudeCodeAdapter, claude_transcript};

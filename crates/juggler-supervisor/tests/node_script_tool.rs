@@ -15,10 +15,12 @@
     clippy::pedantic
 )]
 #![cfg(unix)]
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolLaunch;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use juggler_adapter::{HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapter::{InstallStatus, LaunchMode};
 use juggler_adapters::CodexAdapter;
 use juggler_core::model::{AccountId, HarnessId, Profile, ProfileId, SessionId};
 use juggler_supervisor::{ExitKind, LifecycleEvent, Supervisor};

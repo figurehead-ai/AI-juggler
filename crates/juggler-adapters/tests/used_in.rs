@@ -12,6 +12,7 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolInventory;
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::HarnessAdapter;

@@ -3,7 +3,7 @@
 //! per note, and one Markdown file per note).
 //!
 //! An adapter that keeps such notes says so
-//! ([`crate::HarnessAdapter::keeps_project_memory`]), says where they are,
+//! ([`crate::ToolInventory::keeps_project_memory`]), says where they are,
 //! and lists, reads and writes them through this module, which holds the
 //! rules every tool shares:
 //!

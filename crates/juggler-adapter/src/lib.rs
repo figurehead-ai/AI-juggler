@@ -49,7 +49,11 @@ pub mod watcher;
 /// (they still come from `juggler-core`, the single source of truth).
 pub use juggler_core::model;
 
-pub use adapter::{HarnessAdapter, LimitsCapture, SharedAdapter};
+pub use adapter::{
+    HarnessAdapter, LimitsCapture, SharedAdapter, ToolConfig, ToolDiscovery, ToolHandover,
+    ToolIdentity, ToolInventory, ToolLaunch, ToolLive, ToolQuota, ToolRuntime, ToolSignIn,
+    ToolTranscripts,
+};
 pub use agent_bridge::{BridgeFile, BridgeInjection, BridgeLaunch};
 pub use capabilities::Capabilities;
 pub use discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
@@ -77,3 +81,12 @@ pub use subagents::{
     TextFilter, TokensCounted, ToolCounts,
 };
 pub use watcher::{SessionEvent, SessionWatcher};
+
+/// AJ-E2016: the adapter contract in one import, for an adapter's own
+/// file: [`HarnessAdapter`] and every capability trait it's made of.
+pub mod prelude {
+    pub use crate::adapter::{
+        HarnessAdapter, ToolConfig, ToolDiscovery, ToolHandover, ToolIdentity, ToolInventory,
+        ToolLaunch, ToolLive, ToolQuota, ToolRuntime, ToolSignIn, ToolTranscripts,
+    };
+}

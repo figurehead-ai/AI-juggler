@@ -11,9 +11,9 @@
 //! native id with the `uuid`/`parentUuid` tree preserved (F-H-03).
 //! The source is copied, never moved — byte-identical, always.
 
+use juggler_adapter::ToolIdentity;
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::handover::{
     ACCOUNT_AREAS, BundleFile, BundleManifest, Carrier, Fidelity, InstallOutcome, SessionBundle,

@@ -6,7 +6,7 @@
 //! variable (`TERM_PROGRAM` is inherited and lies).
 //!
 //! Host apps are data: the adapters describe their tools' own apps
-//! ([`juggler_adapter::HarnessAdapter::host_apps`]) and `hosts.json` the
+//! ([`juggler_adapter::ToolDiscovery::host_apps`]) and `hosts.json` the
 //! terminals and editors. An app in neither is still a place, named by its
 //! bundle.
 

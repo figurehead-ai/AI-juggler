@@ -9,10 +9,11 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolTranscripts;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use juggler_adapter::{HarnessAdapter, SessionEvent, SessionWatcher};
+use juggler_adapter::{SessionEvent, SessionWatcher};
 use juggler_adapters::ClaudeCodeAdapter;
 use juggler_adapters::claude_transcript::{MessageRole, dedupe_messages, parse_transcript};
 

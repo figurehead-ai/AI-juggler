@@ -11,14 +11,15 @@ use std::sync::Arc;
 use juggler_adapter::discovery::{DiscoveryReport, InstallStatus, VerificationStatus};
 use juggler_adapter::launch::{EnvMap, LaunchMode, LaunchSpec};
 use juggler_adapter::model::{Account, HarnessId, Profile};
+use juggler_adapter::prelude::*;
 use juggler_adapter::watcher::SessionWatcher;
-use juggler_adapter::{AdapterError, AdapterRegistry, Capabilities, HarnessAdapter};
+use juggler_adapter::{AdapterError, AdapterRegistry, Capabilities};
 use juggler_app::features::tools;
 
 /// A tool only its id describes.
 struct Acme;
 
-impl HarnessAdapter for Acme {
+impl ToolIdentity for Acme {
     fn id(&self) -> HarnessId {
         HarnessId::new("acme")
     }
@@ -28,6 +29,9 @@ impl HarnessAdapter for Acme {
     fn verified_against(&self) -> &'static [&'static str] {
         &["1.0.0"]
     }
+}
+
+impl ToolDiscovery for Acme {
     fn discover(&self) -> DiscoveryReport {
         DiscoveryReport {
             adapter: self.id(),
@@ -37,9 +41,15 @@ impl HarnessAdapter for Acme {
             notes: Vec::new(),
         }
     }
+}
+
+impl ToolSignIn for Acme {
     fn prepare_account(&self, _state_dir: &Path) -> Result<EnvMap, AdapterError> {
         Ok(EnvMap::new())
     }
+}
+
+impl ToolLaunch for Acme {
     fn launch_spec(
         &self,
         _: &Account,
@@ -55,10 +65,25 @@ impl HarnessAdapter for Acme {
             needs_pty: false,
         })
     }
+}
+
+impl ToolConfig for Acme {}
+
+impl ToolInventory for Acme {}
+
+impl ToolTranscripts for Acme {
     fn watcher(&self, _root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         Err(AdapterError::Watch("acme has no watcher".into()))
     }
 }
+
+impl ToolQuota for Acme {}
+
+impl ToolLive for Acme {}
+
+impl ToolHandover for Acme {}
+
+impl ToolRuntime for Acme {}
 
 #[test]
 fn the_catalog_serves_every_tool_as_data_the_primary_first() {

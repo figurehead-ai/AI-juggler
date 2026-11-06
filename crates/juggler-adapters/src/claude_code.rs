@@ -16,9 +16,10 @@ use crate::claude_environment;
 use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, LoginUrl,
 };
+use juggler_adapter::prelude::*;
 use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, HarnessAdapter, InstallStatus, LaunchMode,
-    LaunchSpec, SessionWatcher, VerificationStatus,
+    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
+    SessionWatcher, VerificationStatus,
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
@@ -36,9 +37,11 @@ pub const CLAUDE_CODE_ID: &str = "claude-code";
 /// unverified-drift note — never a hard failure (spec §4 rules).
 const VERIFIED_AGAINST: &[&str] = &["2.1.296"];
 
-/// Marker file identifying a directory as managed by AI Juggler.
-/// The managed-dir marker filename (AJ-E308 isolation row 2 reads it).
-pub const MANAGED_MARKER: &str = ".ai-juggler-managed";
+// AJ-E2016: the managed-folder marker is every tool's (`common::home`).
+pub use crate::common::home::{MANAGED_MARKER, is_managed_dir};
+pub(crate) use crate::common::home::{
+    create_private_dir, prepare_managed_dir_for, restrict_to_owner,
+};
 
 /// Environment variable naming the isolated config dir (spec §3).
 const ENV_CONFIG_DIR: &str = "CLAUDE_CONFIG_DIR";
@@ -121,15 +124,13 @@ impl ClaudeCodeAdapter {
     }
 }
 
-impl HarnessAdapter for ClaudeCodeAdapter {
+impl ToolIdentity for ClaudeCodeAdapter {
     fn id(&self) -> HarnessId {
         HarnessId::new(CLAUDE_CODE_ID)
     }
-
     fn spec(&self) -> juggler_adapter::ToolSpec {
         claude_code_spec()
     }
-
     fn capabilities(&self) -> Capabilities {
         Capabilities::HEADLESS
             | Capabilities::RESUME
@@ -148,60 +149,16 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             // 0.3: a limit hit stays open; its transcript records it.
             | Capabilities::LIMIT_HITS
     }
-
-    // AJ-E1520 (0.2): its subagents, from its own records.
-    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
-        crate::claude_handover::switch_answers
-    }
-
-    fn host_family(&self) -> Option<&dyn juggler_adapter::live::HostFamily> {
-        Some(&crate::claude_app_family::ClaudeAppFamily)
-    }
-
-    fn host_automation(&self) -> Option<&dyn juggler_adapter::automation::HostAutomation> {
-        Some(&crate::claude_app_automation::ClaudeAppAutomation)
-    }
-
-    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
-        crate::claude_subagents::SUPPORT
-    }
-
-    fn subagent_reader(
-        &self,
-        scope: juggler_adapter::SubagentScope<'_>,
-    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
-        crate::claude_subagents::reader(scope)
-    }
-
-    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
-        Some(self)
-    }
-
-    fn state_reports(
-        &self,
-        launch: &juggler_adapter::reports::ReportsLaunch,
-        args: &[String],
-    ) -> Option<juggler_adapter::reports::ReportsInjection> {
-        crate::claude_hooks::injection(launch, args)
-    }
-
-    fn agent_bridge(
-        &self,
-        bridge: &juggler_adapter::BridgeLaunch,
-        args: &[String],
-    ) -> Option<juggler_adapter::BridgeInjection> {
-        Some(crate::claude_bridge::injection(bridge, args))
-    }
-
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
     }
+}
 
+impl ToolDiscovery for ClaudeCodeAdapter {
     fn locate(&self) -> Option<PathBuf> {
         // Files only: never runs it (`discover` asks its version).
         self.resolve_bin().filter(|bin| bin.is_file())
     }
-
     fn discover(&self) -> DiscoveryReport {
         let Some(bin) = self.resolve_bin() else {
             return DiscoveryReport {
@@ -275,17 +232,6 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             },
         }
     }
-
-    fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
-        prepare_managed_dir(state_dir)?;
-        let mut env = EnvMap::new();
-        env.insert(
-            ENV_CONFIG_DIR.to_string(),
-            state_dir.to_string_lossy().into_owned(),
-        );
-        Ok(env)
-    }
-
     /// AJ-E302 S5: rc assignments for THIS harness's variable only
     /// (`CODEX_HOME` belongs to the codex adapter), then the ones other
     /// managers' profiles set (AJ-E1519).
@@ -300,7 +246,6 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             .filter(|hint| hint.variable == ENV_CONFIG_DIR)
             .collect()
     }
-
     /// AJ-E302 S3/S4: t3 profile count + the cc-switch DB probe.
     fn scan_managers(&self) -> Vec<juggler_adapter::environment::ManagerHint> {
         let mut out = Vec::new();
@@ -324,7 +269,6 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         }
         out
     }
-
     fn scan_environment(&self) -> Vec<DiscoveredInstall> {
         let env_override = std::env::var_os(ENV_CONFIG_DIR).map(PathBuf::from);
         let adapter = ClaudeCodeAdapter::new();
@@ -364,7 +308,30 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         }
         found
     }
+    fn vendor_default_dir(&self) -> Option<PathBuf> {
+        home_dir().map(|home| home.join(".claude"))
+    }
+    fn shell_command(&self) -> Option<&'static str> {
+        Some("claude")
+    }
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::claude_live::host_apps()
+    }
+    fn resolved_binary(&self) -> Option<PathBuf> {
+        self.resolve_bin()
+    }
+}
 
+impl ToolSignIn for ClaudeCodeAdapter {
+    fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
+        prepare_managed_dir(state_dir)?;
+        let mut env = EnvMap::new();
+        env.insert(
+            ENV_CONFIG_DIR.to_string(),
+            state_dir.to_string_lossy().into_owned(),
+        );
+        Ok(env)
+    }
     fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
         let adapter = ClaudeCodeAdapter::new();
         let probe = move |path: &Path| match adapter.login_state(path) {
@@ -381,15 +348,9 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         };
         claude_environment::import_claude_config(source, dest, &probe)
     }
-
     fn can_use_in_place(&self) -> bool {
         true
     }
-
-    fn vendor_default_dir(&self) -> Option<PathBuf> {
-        home_dir().map(|home| home.join(".claude"))
-    }
-
     fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
         let adapter = ClaudeCodeAdapter::new();
         let probe = move |path: &Path| match adapter.login_state(path) {
@@ -398,7 +359,6 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         };
         claude_environment::adopt_claude_config(source, &probe)
     }
-
     fn inspect_source(
         &self,
         source: &Path,
@@ -418,7 +378,6 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         };
         claude_environment::inspect_source(source, &probe)
     }
-
     fn import_account_degraded(
         &self,
         source: &Path,
@@ -439,247 +398,48 @@ impl HarnessAdapter for ClaudeCodeAdapter {
         };
         claude_environment::import_settings_only(source, dest, &probe)
     }
-
     fn login_url(&self) -> Option<LoginUrl> {
         Some("https://claude.ai/login")
     }
+    fn sign_in_vendor(&self) -> String {
+        "anthropic".to_owned()
+    }
+    /// AJ-E1001: reads ONLY the `oauthAccount` object of the state
+    /// dir's `.claude.json` — the account id, email and organisation
+    /// name Claude Code records there. Credentials live elsewhere (the
+    /// Keychain or `.credentials.json`) and are never opened.
+    fn probe_identity(&self, account: &Account) -> juggler_adapter::IdentityProbe {
+        probe_claude_identity(&account.state_dir)
+    }
+    fn login_state(&self, state_dir: &Path) -> LoginState {
+        ClaudeCodeAdapter::login_state(self, state_dir)
+    }
+    fn complete_first_run(&self, state_dir: &Path) -> Result<(), AdapterError> {
+        crate::claude_ready::complete_first_run_in(&claude_state_file(state_dir))
+    }
+}
 
+impl ToolLaunch for ClaudeCodeAdapter {
     fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
         ClaudeCodeAdapter::login_spec_inherent(self, state_dir)
     }
-
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         &[ENV_CONFIG_DIR, ENV_BIN_OVERRIDE]
     }
-
     // The credentials only: the copyable shell line names what it removes,
     // and a parent session's markers matter only inside AI Juggler's own
     // launches (which remove them: `unset_inherited_credentials`).
     fn launch_unset_keys(&self) -> &'static [&'static str] {
         &INHERITED_CREDENTIAL_KEYS
     }
-
     fn isolation_env_value(&self, state_dir: &Path) -> Option<String> {
         let value = config_dir_value(state_dir);
         (value != juggler_adapter::launch::ENV_UNSET).then_some(value)
     }
-
-    fn shell_command(&self) -> Option<&'static str> {
-        Some("claude")
-    }
-
-    fn inventory(
-        &self,
-        state_dir: &Path,
-        project: Option<&Path>,
-    ) -> Vec<juggler_adapter::inventory::Item> {
-        crate::claude_inventory::inventory(state_dir, &claude_state_file(state_dir), project)
-    }
-
-    fn can_set_up(
-        &self,
-        item: &juggler_adapter::inventory::Item,
-    ) -> juggler_adapter::inventory::SetUp {
-        crate::claude_inventory::can_set_up(item)
-    }
-
-    fn used_in(
-        &self,
-        transcript: &Path,
-    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
-        crate::claude_used::used_in(transcript)
-    }
-
-    // D-51: its auto memory, `projects/<project>/memory/`.
-    fn keeps_project_memory(&self) -> bool {
-        true
-    }
-
-    fn project_memory(
-        &self,
-        state_dir: &Path,
-        project: &Path,
-    ) -> Option<juggler_adapter::memory::ProjectMemory> {
-        crate::claude_memory::project_memory(state_dir, project)
-    }
-
-    fn add_project_memory(
-        &self,
-        state_dir: &Path,
-        project: &Path,
-        from: &juggler_adapter::memory::ProjectMemory,
-    ) -> Result<juggler_adapter::memory::MemoryAdded, AdapterError> {
-        crate::claude_memory::add(state_dir, project, from)
-    }
-
-    fn how_to_get(
-        &self,
-        item: &juggler_adapter::inventory::Item,
-        state_dir: &Path,
-    ) -> juggler_adapter::inventory::GetIt {
-        // The folder as the user's shell reads it: `$HOME/…`, quoted.
-        let env = config_dir_value(state_dir);
-        let shown = if env == juggler_adapter::launch::ENV_UNSET {
-            String::new()
-        } else {
-            home_dir()
-                .and_then(|home| {
-                    Path::new(&env)
-                        .strip_prefix(&home)
-                        .ok()
-                        .map(|rest| format!("$HOME/{}", rest.to_string_lossy()))
-                })
-                .unwrap_or(env)
-        };
-        crate::claude_inventory::how_to_get(item, &shown)
-    }
-
-    fn set_up(
-        &self,
-        state_dir: &Path,
-        project: Option<&Path>,
-        item: &juggler_adapter::inventory::Item,
-    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
-        let claude = self
-            .resolve_bin()
-            .ok_or_else(|| AdapterError::Unsupported("Claude Code isn't installed".to_owned()))?;
-        let env = config_dir_value(state_dir);
-        let env = if env == juggler_adapter::launch::ENV_UNSET {
-            String::new()
-        } else {
-            env
-        };
-        crate::claude_inventory::set_up(
-            state_dir,
-            &claude,
-            &env,
-            &claude_state_file(state_dir),
-            project,
-            item,
-        )
-    }
-
-    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
-        crate::claude_conversations::conversation_files(state_dir)
-    }
-
-    fn read_conversation(
-        &self,
-        path: &Path,
-    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
-        crate::claude_conversations::read_conversation(path)
-    }
-
-    fn read_conversation_quick(
-        &self,
-        path: &Path,
-    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
-        crate::claude_conversations::read_conversation_quick(path)
-    }
-
-    // AJ-E1530 Req.1: Claude reports its limits only to its status line,
-    // so the opt-in capture is the `statusLine` of the account's
-    // `settings.json` (ADR-0018 amendment).
-    fn limits_capture(&self) -> Option<juggler_adapter::LimitsCapture> {
-        Some(juggler_adapter::LimitsCapture {
-            file: "settings.json",
-            key: "statusLine",
-        })
-    }
-
-    fn limits_capture_value(
-        &self,
-        wrapper: &str,
-        original: Option<&serde_json::Value>,
-    ) -> Option<serde_json::Value> {
-        // The user's own status line object keeps its other keys (its
-        // padding, say); the wrapper runs their command after it captures.
-        let mut value = original
-            .and_then(serde_json::Value::as_object)
-            .cloned()
-            .unwrap_or_default();
-        value.insert("type".into(), "command".into());
-        value.insert("command".into(), wrapper.into());
-        Some(serde_json::Value::Object(value))
-    }
-
-    fn limits_probe_spec(&self, state_dir: &Path) -> Option<LaunchSpec> {
-        let bin = self.resolve_bin()?;
-        let mut env = EnvMap::new();
-        env.insert(ENV_CONFIG_DIR.to_string(), config_dir_value(state_dir));
-        unset_inherited_credentials(&mut env);
-        // An empty folder of AI Juggler's own: run in the profile, Claude
-        // would treat it as a project (a trust prompt, a projects/ entry).
-        // Named here, made only when the probe runs: reading the spec (to
-        // say whether it is offered) creates nothing.
-        let cwd = self.overlays_root.as_ref()?.join("limits-probe");
-        Some(LaunchSpec {
-            program: bin,
-            args: crate::claude_limits::usage_probe_args(),
-            env,
-            cwd,
-            needs_pty: false,
-        })
-    }
-
-    fn session_process(
-        &self,
-        exe: Option<&Path>,
-        args: &[String],
-    ) -> Option<juggler_adapter::conversation::SessionProcess> {
-        crate::claude_conversations::session_process(exe, args)
-    }
-
-    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
-        crate::claude_live::pid_files(profile_dir)
-    }
-
-    fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
-        crate::claude_live::read_pid_file(path)
-    }
-
-    fn app_session_files(&self, instance_dir: &Path) -> Vec<PathBuf> {
-        crate::claude_live::app_files(instance_dir)
-    }
-
-    fn read_app_session(&self, path: &Path) -> Option<juggler_adapter::live::AppSession> {
-        crate::claude_live::read_app_file(path)
-    }
-
-    fn pending_ask(&self, tail: &str) -> Option<juggler_adapter::live::Ask> {
-        crate::claude_asks::pending_ask(tail)
-    }
-
-    fn limit_hit(&self, tail: &str) -> Option<juggler_adapter::live::LimitHit> {
-        crate::claude_limits::limit_hit_in_tail(tail)
-    }
-
-    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
-        crate::claude_live::host_apps()
-    }
-
     fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
         crate::codex::refuse_option_like(conversation_id).ok()?;
         Some(vec!["--resume".into(), conversation_id.to_owned()])
     }
-
-    fn resolved_binary(&self) -> Option<PathBuf> {
-        self.resolve_bin()
-    }
-
-    fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
-        Some(juggler_adapter::endpoint::WireApi::Anthropic)
-    }
-
-    fn configure_endpoint(
-        &self,
-        state_dir: &Path,
-        endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
-        model: &str,
-    ) -> Result<(), AdapterError> {
-        crate::claude_endpoint::configure(state_dir, endpoint, model)
-    }
-
     fn launch_spec(
         &self,
         account: &Account,
@@ -787,31 +547,143 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             needs_pty,
         })
     }
-
-    fn sign_in_vendor(&self) -> String {
-        "anthropic".to_owned()
-    }
-
-    /// AJ-E1001: reads ONLY the `oauthAccount` object of the state
-    /// dir's `.claude.json` — the account id, email and organisation
-    /// name Claude Code records there. Credentials live elsewhere (the
-    /// Keychain or `.credentials.json`) and are never opened.
-    fn probe_identity(&self, account: &Account) -> juggler_adapter::IdentityProbe {
-        probe_claude_identity(&account.state_dir)
-    }
-
-    fn login_state(&self, state_dir: &Path) -> LoginState {
-        ClaudeCodeAdapter::login_state(self, state_dir)
-    }
-
     fn launch_ready(&self, state_dir: &Path) -> Result<(), juggler_adapter::readiness::NotReady> {
         crate::claude_ready::launch_ready_in(&claude_state_file(state_dir), state_dir)
     }
+}
 
-    fn complete_first_run(&self, state_dir: &Path) -> Result<(), AdapterError> {
-        crate::claude_ready::complete_first_run_in(&claude_state_file(state_dir))
+impl ToolConfig for ClaudeCodeAdapter {
+    fn agent_bridge(
+        &self,
+        bridge: &juggler_adapter::BridgeLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::BridgeInjection> {
+        Some(crate::claude_bridge::injection(bridge, args))
     }
+    fn endpoint_wire(&self) -> Option<juggler_adapter::endpoint::WireApi> {
+        Some(juggler_adapter::endpoint::WireApi::Anthropic)
+    }
+    fn configure_endpoint(
+        &self,
+        state_dir: &Path,
+        endpoint: &juggler_adapter::endpoint::ServiceEndpoint,
+        model: &str,
+    ) -> Result<(), AdapterError> {
+        crate::claude_endpoint::configure(state_dir, endpoint, model)
+    }
+}
 
+impl ToolInventory for ClaudeCodeAdapter {
+    fn inventory(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        crate::claude_inventory::inventory(state_dir, &claude_state_file(state_dir), project)
+    }
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::claude_inventory::can_set_up(item)
+    }
+    fn used_in(
+        &self,
+        transcript: &Path,
+    ) -> Option<Vec<(juggler_adapter::inventory::ItemKind, String)>> {
+        crate::claude_used::used_in(transcript)
+    }
+    // D-51: its auto memory, `projects/<project>/memory/`.
+    fn keeps_project_memory(&self) -> bool {
+        true
+    }
+    fn project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+    ) -> Option<juggler_adapter::memory::ProjectMemory> {
+        crate::claude_memory::project_memory(state_dir, project)
+    }
+    fn add_project_memory(
+        &self,
+        state_dir: &Path,
+        project: &Path,
+        from: &juggler_adapter::memory::ProjectMemory,
+    ) -> Result<juggler_adapter::memory::MemoryAdded, AdapterError> {
+        crate::claude_memory::add(state_dir, project, from)
+    }
+    fn how_to_get(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+        state_dir: &Path,
+    ) -> juggler_adapter::inventory::GetIt {
+        // The folder as the user's shell reads it: `$HOME/…`, quoted.
+        let env = config_dir_value(state_dir);
+        let shown = if env == juggler_adapter::launch::ENV_UNSET {
+            String::new()
+        } else {
+            home_dir()
+                .and_then(|home| {
+                    Path::new(&env)
+                        .strip_prefix(&home)
+                        .ok()
+                        .map(|rest| format!("$HOME/{}", rest.to_string_lossy()))
+                })
+                .unwrap_or(env)
+        };
+        crate::claude_inventory::how_to_get(item, &shown)
+    }
+    fn set_up(
+        &self,
+        state_dir: &Path,
+        project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        let claude = self
+            .resolve_bin()
+            .ok_or_else(|| AdapterError::Unsupported("Claude Code isn't installed".to_owned()))?;
+        let env = config_dir_value(state_dir);
+        let env = if env == juggler_adapter::launch::ENV_UNSET {
+            String::new()
+        } else {
+            env
+        };
+        crate::claude_inventory::set_up(
+            state_dir,
+            &claude,
+            &env,
+            &claude_state_file(state_dir),
+            project,
+            item,
+        )
+    }
+}
+
+impl ToolTranscripts for ClaudeCodeAdapter {
+    fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
+        crate::claude_subagents::SUPPORT
+    }
+    fn subagent_reader(
+        &self,
+        scope: juggler_adapter::SubagentScope<'_>,
+    ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
+        crate::claude_subagents::reader(scope)
+    }
+    fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_conversations::conversation_files(state_dir)
+    }
+    fn read_conversation(
+        &self,
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::claude_conversations::read_conversation(path)
+    }
+    fn read_conversation_quick(
+        &self,
+        path: &Path,
+    ) -> Option<juggler_adapter::conversation::ConversationSummary> {
+        crate::claude_conversations::read_conversation_quick(path)
+    }
     /// Claude keeps `projects/<mangled cwd>/<session>.jsonl`; the cwd
     /// is read from the file (never decoded from the name, H-3).
     fn locate_transcript(
@@ -845,10 +717,108 @@ impl HarnessAdapter for ClaudeCodeAdapter {
             path,
         })
     }
-
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         ClaudeTranscriptWatcher::new(transcript_root)
             .map(|watcher| Box::new(watcher) as Box<dyn SessionWatcher>)
+    }
+}
+
+impl ToolQuota for ClaudeCodeAdapter {
+    // AJ-E1530 Req.1: Claude reports its limits only to its status line,
+    // so the opt-in capture is the `statusLine` of the account's
+    // `settings.json` (ADR-0018 amendment).
+    fn limits_capture(&self) -> Option<juggler_adapter::LimitsCapture> {
+        Some(juggler_adapter::LimitsCapture {
+            file: "settings.json",
+            key: "statusLine",
+        })
+    }
+    fn limits_capture_value(
+        &self,
+        wrapper: &str,
+        original: Option<&serde_json::Value>,
+    ) -> Option<serde_json::Value> {
+        // The user's own status line object keeps its other keys (its
+        // padding, say); the wrapper runs their command after it captures.
+        let mut value = original
+            .and_then(serde_json::Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        value.insert("type".into(), "command".into());
+        value.insert("command".into(), wrapper.into());
+        Some(serde_json::Value::Object(value))
+    }
+    fn limits_probe_spec(&self, state_dir: &Path) -> Option<LaunchSpec> {
+        let bin = self.resolve_bin()?;
+        let mut env = EnvMap::new();
+        env.insert(ENV_CONFIG_DIR.to_string(), config_dir_value(state_dir));
+        unset_inherited_credentials(&mut env);
+        // An empty folder of AI Juggler's own: run in the profile, Claude
+        // would treat it as a project (a trust prompt, a projects/ entry).
+        // Named here, made only when the probe runs: reading the spec (to
+        // say whether it is offered) creates nothing.
+        let cwd = self.overlays_root.as_ref()?.join("limits-probe");
+        Some(LaunchSpec {
+            program: bin,
+            args: crate::claude_limits::usage_probe_args(),
+            env,
+            cwd,
+            needs_pty: false,
+        })
+    }
+    fn limit_hit(&self, tail: &str) -> Option<juggler_adapter::live::LimitHit> {
+        crate::claude_limits::limit_hit_in_tail(tail)
+    }
+}
+
+impl ToolLive for ClaudeCodeAdapter {
+    fn session_process(
+        &self,
+        exe: Option<&Path>,
+        args: &[String],
+    ) -> Option<juggler_adapter::conversation::SessionProcess> {
+        crate::claude_conversations::session_process(exe, args)
+    }
+    fn live_session_files(&self, profile_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_live::pid_files(profile_dir)
+    }
+    fn read_live_session(&self, path: &Path) -> Option<juggler_adapter::live::LiveSession> {
+        crate::claude_live::read_pid_file(path)
+    }
+    fn app_session_files(&self, instance_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_live::app_files(instance_dir)
+    }
+    fn read_app_session(&self, path: &Path) -> Option<juggler_adapter::live::AppSession> {
+        crate::claude_live::read_app_file(path)
+    }
+    fn pending_ask(&self, tail: &str) -> Option<juggler_adapter::live::Ask> {
+        crate::claude_asks::pending_ask(tail)
+    }
+}
+
+impl ToolHandover for ClaudeCodeAdapter {
+    // AJ-E1520 (0.2): its subagents, from its own records.
+    fn switch_capabilities(&self) -> juggler_adapter::switching::SwitchCapabilities {
+        crate::claude_handover::switch_answers
+    }
+    fn state_reports(
+        &self,
+        launch: &juggler_adapter::reports::ReportsLaunch,
+        args: &[String],
+    ) -> Option<juggler_adapter::reports::ReportsInjection> {
+        crate::claude_hooks::injection(launch, args)
+    }
+}
+
+impl ToolRuntime for ClaudeCodeAdapter {
+    fn host_family(&self) -> Option<&dyn juggler_adapter::live::HostFamily> {
+        Some(&crate::claude_app_family::ClaudeAppFamily)
+    }
+    fn host_automation(&self) -> Option<&dyn juggler_adapter::automation::HostAutomation> {
+        Some(&crate::claude_app_automation::ClaudeAppAutomation)
+    }
+    fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
+        Some(self)
     }
 }
 
@@ -958,12 +928,6 @@ impl ClaudeCodeAdapter {
     }
 }
 
-/// True when the directory carries the AI Juggler management marker.
-#[must_use]
-pub fn is_managed_dir(state_dir: &Path) -> bool {
-    state_dir.join(MANAGED_MARKER).is_file()
-}
-
 /// Creates the managed account dir (0700) and writes the AI Juggler marker
 /// (0600) — the single directory-initialization path shared by
 /// `prepare_account` and config import.
@@ -974,49 +938,6 @@ pub fn is_managed_dir(state_dir: &Path) -> bool {
 /// written.
 pub(crate) fn prepare_managed_dir(state_dir: &Path) -> Result<(), AdapterError> {
     prepare_managed_dir_for(state_dir, CLAUDE_CODE_ID)
-}
-
-/// [`prepare_managed_dir`] for any Provider: the marker names the
-/// Provider whose state the directory holds.
-///
-/// # Errors
-///
-/// Returns [`AdapterError::AccountDir`] when the dir or marker cannot be
-/// written.
-pub(crate) fn prepare_managed_dir_for(
-    state_dir: &Path,
-    provider: &str,
-) -> Result<(), AdapterError> {
-    // A failure after creating the folder removes it again — only when
-    // this call created it (an existing folder is never removed).
-    let created_here = !state_dir.exists();
-    let undo = || {
-        if created_here {
-            let _ = std::fs::remove_dir_all(state_dir);
-        }
-    };
-    create_private_dir(state_dir).map_err(|error| {
-        undo();
-        AdapterError::AccountDir {
-            path: state_dir.to_path_buf(),
-            message: error.to_string(),
-        }
-    })?;
-    // Marker identifies the directory as ours — guardrail primitive for
-    // "never touch unmanaged dirs" checks (ADR-0003).
-    let marker = state_dir.join(MANAGED_MARKER);
-    std::fs::write(
-        &marker,
-        format!("managed-by: ai-juggler\nharness: {provider}\n"),
-    )
-    .and_then(|()| restrict_to_owner(&marker))
-    .map_err(|error| {
-        undo();
-        AdapterError::AccountDir {
-            path: state_dir.to_path_buf(),
-            message: format!("cannot write marker: {error}"),
-        }
-    })
 }
 
 /// The shared transcript-tree watcher (its own module, by feature).
@@ -1204,32 +1125,6 @@ pub(crate) fn home_relative(relative: &str) -> Option<PathBuf> {
 
 pub(crate) fn existing(candidates: &[&str]) -> Option<PathBuf> {
     candidates.iter().map(PathBuf::from).find(|p| p.is_file())
-}
-
-pub(crate) fn create_private_dir(dir: &Path) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        use std::fs::DirBuilder;
-        use std::os::unix::fs::DirBuilderExt;
-        DirBuilder::new().recursive(true).mode(0o700).create(dir)
-    }
-    #[cfg(not(unix))]
-    {
-        std::fs::create_dir_all(dir)
-    }
-}
-
-pub(crate) fn restrict_to_owner(path: &Path) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = path;
-        Ok(())
-    }
 }
 
 /// The macOS keychain service name Claude Code namespaces per config dir

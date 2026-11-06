@@ -5,7 +5,7 @@
 //!
 //! The app says what to add ([`ReportsLaunch`]: the report program, this
 //! launch's folder, and AI Juggler's overlays folder); each adapter says
-//! how its tool takes it ([`crate::HarnessAdapter::state_reports`]): the
+//! how its tool takes it ([`crate::ToolHandover::state_reports`]): the
 //! launch's whole new argument list (it may replace an AI Juggler overlay
 //! file the launch already names, since a tool may take only one) and the
 //! files to write. An adapter that returns one declares

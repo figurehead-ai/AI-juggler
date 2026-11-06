@@ -19,17 +19,20 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolRuntime;
+use juggler_adapter::ToolTranscripts;
 use std::collections::BTreeMap;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+use juggler_adapter::LaunchMode;
 use juggler_adapter::runtime::{
     AskAnswer, Connection, DrivenLaunch, DrivenSession, ErrorCategory, ItemKind, OptionEffect,
     PartAnswer, Release, RuntimeEvent, TerminalView, Transport, TurnEnd, TurnInput, ViewOf,
 };
-use juggler_adapter::{HarnessAdapter, LaunchMode};
 use juggler_adapters::CodexAdapter;
 use juggler_adapters::codex_appserver::codec::Codec;
 use juggler_adapters::codex_appserver::rpc;

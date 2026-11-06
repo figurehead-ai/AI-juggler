@@ -11,6 +11,13 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolInventory;
+use juggler_adapter::ToolLaunch;
+use juggler_adapter::ToolLive;
+use juggler_adapter::ToolSignIn;
+use juggler_adapter::ToolTranscripts;
 mod opencode_fixture;
 
 use std::collections::BTreeMap;
@@ -19,7 +26,7 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::environment::LoginProbe;
 use juggler_adapter::launch::ENV_UNSET;
 use juggler_adapter::{
-    DiscoveryReport, HarnessAdapter, InstallStatus, LaunchMode, SessionEvent, VerificationStatus,
+    DiscoveryReport, InstallStatus, LaunchMode, SessionEvent, VerificationStatus,
 };
 use juggler_adapters::opencode::{Line as OpenCodeLine, line_of, parse_version};
 use juggler_adapters::opencode_store::{self, session_of_ref, session_ref};

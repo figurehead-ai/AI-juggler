@@ -4,7 +4,6 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::adapter::HarnessAdapter;
 use juggler_adapter::capabilities::Capabilities;
 use juggler_adapter::discovery::DiscoveryReport;
 use juggler_adapter::error::AdapterError;
@@ -13,6 +12,7 @@ use juggler_adapter::handover::{
 };
 use juggler_adapter::launch::{EnvMap, LaunchMode, LaunchSpec};
 use juggler_adapter::model::{Account, HarnessId, Profile};
+use juggler_adapter::prelude::*;
 use juggler_adapter::watcher::SessionWatcher;
 use juggler_core::model::{Account as CoreAccount, AccountId, Timestamp, TranscriptRef};
 
@@ -90,7 +90,7 @@ pub struct TreeSupport {
     pub torn_tail: bool,
 }
 
-impl HarnessAdapter for TreeSupport {
+impl ToolIdentity for TreeSupport {
     fn id(&self) -> HarnessId {
         self.harness.clone()
     }
@@ -100,6 +100,9 @@ impl HarnessAdapter for TreeSupport {
     fn verified_against(&self) -> &'static [&'static str] {
         &["1.0.0"]
     }
+}
+
+impl ToolDiscovery for TreeSupport {
     fn discover(&self) -> DiscoveryReport {
         DiscoveryReport {
             adapter: self.harness.clone(),
@@ -109,9 +112,15 @@ impl HarnessAdapter for TreeSupport {
             notes: Vec::new(),
         }
     }
+}
+
+impl ToolSignIn for TreeSupport {
     fn prepare_account(&self, _state_dir: &Path) -> Result<EnvMap, AdapterError> {
         Ok(EnvMap::new())
     }
+}
+
+impl ToolLaunch for TreeSupport {
     fn launch_spec(
         &self,
         _account: &Account,
@@ -127,10 +136,25 @@ impl HarnessAdapter for TreeSupport {
             needs_pty: false,
         })
     }
+}
+
+impl ToolConfig for TreeSupport {}
+
+impl ToolInventory for TreeSupport {}
+
+impl ToolTranscripts for TreeSupport {
     fn watcher(&self, _root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
         Err(AdapterError::Watch("no watcher".into()))
     }
 }
+
+impl ToolQuota for TreeSupport {}
+
+impl ToolLive for TreeSupport {}
+
+impl ToolHandover for TreeSupport {}
+
+impl ToolRuntime for TreeSupport {}
 
 impl HandoverSupport for TreeSupport {
     fn bundle_session(&self, reference: &TranscriptRef) -> Result<SessionBundle, AdapterError> {

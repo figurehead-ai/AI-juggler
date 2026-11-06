@@ -1,7 +1,7 @@
 //! D-39 (SETTLED 2026-10-25, option A): asking the tool
 //! itself for a profile's limits, when its own records are old. For Claude
 //! that is Claude Code's own `/usage`, run headless in the profile
-//! (`HarnessAdapter::limits_probe_spec`): a local command, so no model turn
+//! (`juggler_adapter::ToolQuota::limits_probe_spec`): a local command, so no model turn
 //! and no quota; no transcript kept, no MCP server started, no hook run.
 //! Claude Code asks Anthropic with its own sign-in (AI Juggler never sees
 //! it, and no macOS prompt is shown: the item is Claude Code's own) and

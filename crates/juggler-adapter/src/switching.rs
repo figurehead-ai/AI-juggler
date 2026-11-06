@@ -3,7 +3,7 @@
 //!
 //! Switching is why people use AI Juggler, so no adapter may lose a
 //! capability by leaving it out. Every adapter answers every capability
-//! below through [`crate::HarnessAdapter::switch_capabilities`]:
+//! below through [`crate::ToolHandover::switch_capabilities`]:
 //! [`SwitchAnswer::Supported`], naming how; or
 //! [`SwitchAnswer::NotSupported`], with a reason a user can read (the
 //! switch screen says it). [`SwitchAnswer::Unanswered`] is only the

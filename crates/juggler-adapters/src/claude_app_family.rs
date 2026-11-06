@@ -44,7 +44,7 @@ const ACCOUNT_BOUND: [&str; 6] = [
 pub type Member = juggler_adapter::live::HostFamilyMember;
 
 /// The Claude app's family records, for the adapter's
-/// [`juggler_adapter::HarnessAdapter::host_family`].
+/// [`juggler_adapter::ToolRuntime::host_family`].
 pub struct ClaudeAppFamily;
 
 impl juggler_adapter::live::HostFamily for ClaudeAppFamily {

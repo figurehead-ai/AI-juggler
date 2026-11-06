@@ -7,7 +7,7 @@
 //!   from Rust to the user's own, unmodified binary, over pipes or a socket
 //!   AI Juggler owns. An adapter offers it by declaring
 //!   [`crate::Capabilities::PROTOCOL_SERVER`] and returning a
-//!   [`DrivenRuntime`] from [`crate::HarnessAdapter::driven`] (the
+//!   [`DrivenRuntime`] from [`crate::ToolRuntime::driven`] (the
 //!   conformance kit holds both).
 //!
 //! The codecs live in the adapters; core, the supervisor and the UI see
@@ -244,7 +244,7 @@ pub trait DrivenRuntime: Send + Sync {
     ///
     /// # Errors
     ///
-    /// As [`crate::HarnessAdapter::launch_spec`].
+    /// As [`crate::ToolLaunch::launch_spec`].
     fn terminal_view(
         &self,
         account: &Account,

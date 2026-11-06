@@ -4,8 +4,8 @@
 //!
 //! Nothing here knows which tool wrote them (ADR-0002): the session's
 //! tool's adapter says whether it can list them
-//! (`HarnessAdapter::subagent_support`) and reads them
-//! (`HarnessAdapter::subagent_reader`); this module keeps a reader per
+//! (`juggler_adapter::ToolTranscripts::subagent_support`) and reads them
+//! (`juggler_adapter::ToolTranscripts::subagent_reader`); this module keeps a reader per
 //! session whose page is open (a few, the latest used), redacts their
 //! words (D-14, `clean.rs`), and says "running" only while the session
 //! is open (D-06: once it has ended, a subagent its records never saw

@@ -12,9 +12,9 @@
     clippy::pedantic
 )]
 
+use juggler_adapter::ToolSignIn;
 use std::path::Path;
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::environment::{InstallOrigin, LoginProbe};
 use juggler_adapters::ClaudeCodeAdapter;
 use juggler_adapters::claude_environment::{

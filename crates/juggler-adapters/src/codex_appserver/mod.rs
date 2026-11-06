@@ -25,6 +25,8 @@
 //! - **Answers are the user's**: approvals and questions become asks with
 //!   Codex's own options ([`asks`]); nothing here answers one by itself.
 
+use juggler_adapter::ToolDiscovery;
+use juggler_adapter::ToolLaunch;
 pub mod asks;
 pub mod codec;
 pub mod rpc;
@@ -37,7 +39,7 @@ use juggler_adapter::runtime::{
     Connection, DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Runtime,
     TerminalView, Transport, ViewOf,
 };
-use juggler_adapter::{AdapterError, HarnessAdapter, InstallStatus, LaunchMode};
+use juggler_adapter::{AdapterError, InstallStatus, LaunchMode};
 use juggler_core::model::{Account, Profile};
 
 use crate::codex::CodexAdapter;

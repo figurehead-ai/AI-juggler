@@ -13,9 +13,9 @@
 //! (`history_base`, `forked_from_id`) also carries
 //! `base-rollout-not-carried`.
 
+use juggler_adapter::ToolIdentity;
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::HarnessAdapter;
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::handover::{
     BundleFile, BundleManifest, Carrier, Fidelity, HEAD_BYTES, InstallOutcome, SessionBundle,

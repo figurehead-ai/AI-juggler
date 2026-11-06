@@ -3,7 +3,7 @@
 //! and copies them only when the user ticks them.
 //!
 //! The source and target adapters say whether their tool keeps such notes
-//! (`HarnessAdapter::keeps_project_memory`) and read and write them; this
+//! (`juggler_adapter::ToolInventory::keeps_project_memory`) and read and write them; this
 //! module only compares and words them. One offer stands for all of a
 //! project's notes ("Work Max's notes for this project (3) aren't on
 //! Personal: copy them?"), offered only when the source has notes the

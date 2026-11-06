@@ -8,7 +8,6 @@
 1 crates/juggler-adapters/src/activity.rs
 2 crates/juggler-adapters/src/bin/fake_harness.rs
 1 crates/juggler-adapters/src/claude_cut.rs
-2 crates/juggler-adapters/src/claude_environment.rs
 2 crates/juggler-adapters/src/claude_limits.rs
 1 crates/juggler-adapters/src/claude_stream/codec.rs
 1 crates/juggler-adapters/src/claude_subagents/tests.rs
@@ -22,7 +21,6 @@
 1 crates/juggler-adapters/src/last_turns.rs
 1 crates/juggler-adapters/src/opencode_subagents.rs
 1 crates/juggler-adapters/src/presence.rs
-4 crates/juggler-adapters/src/quota_ingest.rs
 1 crates/juggler-adapters/src/subtasks.rs
 1 crates/juggler-adapters/tests/adapter_conformance.rs
 1 crates/juggler-adapters/tests/claude_code_adapter.rs

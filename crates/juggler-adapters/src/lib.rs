@@ -59,6 +59,7 @@ pub mod codex_transcript;
 pub mod codex_trust;
 pub mod codex_turn;
 pub mod codex_used;
+pub(crate) mod common;
 pub mod config_edit;
 pub mod conversation_feed;
 mod conversation_lines;
@@ -97,6 +98,7 @@ pub mod tool_summary;
 pub mod transcript;
 pub mod transcript_tail;
 mod transcript_watcher;
+pub mod zcode_usage;
 
 pub use activity::{ActivityLog, ActivityTail};
 pub use claude_code::{CLAUDE_CODE_ID, ClaudeCodeAdapter, LoginState, claude_code_spec};

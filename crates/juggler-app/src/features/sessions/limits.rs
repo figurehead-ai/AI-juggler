@@ -13,7 +13,7 @@
 //! - **A terminal session** whose adapter declares
 //!   [`Capabilities::LIMIT_HITS`]: the tool's own record of the limit its
 //!   last turn stopped at, read from its transcript's tail
-//!   ([`juggler_adapter::HarnessAdapter::limit_hit`]), only when the file
+//!   ([`juggler_adapter::ToolQuota::limit_hit`]), only when the file
 //!   changed. Looked at on the heuristic tick, when its output moves, and at
 //!   once when its hooks say a turn failed.
 //! - **A driven session**: its runtime's own word, a rate-limit error the

@@ -30,11 +30,9 @@ use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, SourceInspect,
 };
 
-use crate::claude_environment::{
-    Layout, MAX_IMPORT_BYTES, adopt_with_layout, import_with_layout, inspect_with_layout,
-    installs_from,
-};
 use crate::codex::CODEX_ID;
+use crate::common::home;
+use crate::common::layout::Layout;
 
 /// Codex's home layout.
 pub(crate) const CODEX_LAYOUT: Layout = Layout {
@@ -101,7 +99,7 @@ pub fn scan_codex_environment(
             }
         }
     }
-    installs_from(&CODEX_LAYOUT, candidates, login_probe, &origin_notes)
+    home::installs_from(&CODEX_LAYOUT, candidates, login_probe, &origin_notes)
 }
 
 /// The Confirm-source inspection for a Codex home (metadata only).
@@ -114,7 +112,7 @@ pub fn inspect_codex_source(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<SourceInspect, juggler_adapter::AdapterError> {
-    inspect_with_layout(&CODEX_LAYOUT, source, login_probe)
+    home::inspect_with_layout(&CODEX_LAYOUT, source, login_probe)
 }
 
 /// ADR-0018: use an existing Codex home where it is. Checks it is a
@@ -130,7 +128,7 @@ pub fn adopt_codex_home(
     source: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
-    adopt_with_layout(&CODEX_LAYOUT, source, login_probe)
+    home::adopt_with_layout(&CODEX_LAYOUT, source, login_probe)
 }
 
 /// Copy-imports a Codex home into a fresh managed home.
@@ -145,12 +143,12 @@ pub fn import_codex_home(
     dest: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
-    import_with_layout(
+    home::import_with_layout(
         &CODEX_LAYOUT,
         source,
         dest,
         login_probe,
-        MAX_IMPORT_BYTES,
+        home::MAX_IMPORT_BYTES,
         &[],
     )
 }
@@ -167,12 +165,12 @@ pub fn import_codex_settings_only(
     dest: &Path,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
-    let mut outcome = import_with_layout(
+    let mut outcome = home::import_with_layout(
         &CODEX_LAYOUT,
         source,
         dest,
         login_probe,
-        MAX_IMPORT_BYTES,
+        home::MAX_IMPORT_BYTES,
         CODEX_LAYOUT.history,
     )?;
     outcome.degraded = true;

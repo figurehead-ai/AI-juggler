@@ -86,7 +86,7 @@ pub fn open_read_only(db: &Path) -> Result<Connection, String> {
         juggler_core::storage::open_hardened_with(db, flags)
     } else {
         juggler_core::storage::open_hardened_with(
-            format!("file:{}?immutable=1", uri_path(db)),
+            format!("file:{}?immutable=1", crate::common::sqlite::uri_path(db)),
             flags | OpenFlags::SQLITE_OPEN_URI,
         )
     }
@@ -94,21 +94,6 @@ pub fn open_read_only(db: &Path) -> Result<Connection, String> {
     conn.busy_timeout(BUSY_TIMEOUT)
         .map_err(|error| format!("opencode db busy timeout: {error}"))?;
     Ok(conn)
-}
-
-/// `path` for a `file:` URI: every byte outside the unreserved set and
-/// `/` percent-encoded (spaces, `#` and `?` included).
-fn uri_path(path: &Path) -> String {
-    use std::fmt::Write as _;
-    let mut out = String::new();
-    for byte in path.to_string_lossy().bytes() {
-        if byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte) {
-            out.push(char::from(byte));
-        } else {
-            let _ = write!(out, "%{byte:02X}");
-        }
-    }
-    out
 }
 
 /// Whether `conn` has a table named `name`.

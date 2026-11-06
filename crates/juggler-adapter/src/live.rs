@@ -1,7 +1,7 @@
 //! AJ-E2101 (D-37): what is open now, from the tools' own per-session
 //! files, never from a process's environment. Each adapter reads its
-//! tool's files ([`crate::HarnessAdapter::live_sessions`],
-//! [`crate::HarnessAdapter::app_sessions`]) and describes the apps its
+//! tool's files ([`crate::ToolLive::live_sessions`],
+//! [`crate::ToolLive::app_sessions`]) and describes the apps its
 //! sessions run in as data ([`HostApp`], ADR-0019); the app only joins what
 //! they return with the process table (pids, start times, parent chains).
 //!
@@ -80,7 +80,7 @@ pub enum TailTurn {
 /// What a transcript's tail says of a usage limit: the session's last turn
 /// stopped at it, as the tool itself recorded (its own error record, never
 /// a guess from words on screen), and nothing has answered since. Read by
-/// [`crate::HarnessAdapter::limit_hit`].
+/// [`crate::ToolQuota::limit_hit`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LimitHit {
     /// When the tool recorded it, epoch ms.
@@ -156,7 +156,7 @@ pub enum HostKind {
 /// A host app as data (ADR-0019): how it is recognised in a process's
 /// parent chain, how its instances are told apart, and how Go to it
 /// reaches a session in it. Tool apps come from their adapters
-/// ([`crate::HarnessAdapter::host_apps`]); terminals and editors from the
+/// ([`crate::ToolDiscovery::host_apps`]); terminals and editors from the
 /// app's own list.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct HostApp {
@@ -415,7 +415,7 @@ pub struct HostFamilyMember {
 /// ADR-0028: a desktop app that keeps who started which session in its own
 /// records, outside the conversations' files, so a switch has to carry
 /// those records for the family to nest on the target as it did. Its
-/// adapter implements it ([`crate::HarnessAdapter::host_family`]).
+/// adapter implements it ([`crate::ToolRuntime::host_family`]).
 pub trait HostFamily: Send + Sync {
     /// The sessions started from `conversation` in the app instance at
     /// `instance_dir`, and theirs: parents first, each once.
