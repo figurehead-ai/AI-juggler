@@ -581,6 +581,10 @@ lab_routes! {
     // launches there), served where launches are.
     "identity_check" => identity::identity_check(state; recipe_id: String);
     "isolation_offer" => worktree::isolation_offer(state; cwd: String);
+    // Walk A8: an Account's own name and its plan, renewal and fee; they
+    // write only the lab's own data folder.
+    "subscriptions_rename" => features::subscriptions::commands::subscriptions_rename(state; id: String, name: Option<String>);
+    "subscriptions_set_term" => features::subscriptions::commands::subscriptions_set_term(state; id: String, term: String, value: Option<String>);
     "launch_session" => features::launch::commands::launch_session(app, state; profile_id: String, cwd: Option<String>, runtime: Option<String>);
     "stop_session" => features::sessions::commands::stop_session(app, state; session_id: String);
     "session_resume" => features::switch::commands::session_resume(state; session_id: String);
