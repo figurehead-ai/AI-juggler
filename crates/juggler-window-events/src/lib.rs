@@ -190,6 +190,16 @@ pub const fn hint() -> &'static str {
     }
 }
 
+/// How far (points) a press may wander and still be a click.
+pub const CLICK_SLOP: f32 = 4.0;
+
+/// Whether the pointer at `to` has left a press at `from` (points) far
+/// enough to be a drag rather than a click.
+#[must_use]
+pub fn past_slop(from: (f32, f32), to: (f32, f32)) -> bool {
+    (to.0 - from.0).hypot(to.1 - from.1) > CLICK_SLOP
+}
+
 #[cfg(target_os = "macos")]
 mod imp {
     use std::cell::{Cell, RefCell};
@@ -271,6 +281,13 @@ mod imp {
             dragged.set(false);
             return None;
         } else if t == NSEventType::LeftMouseDragged || t == NSEventType::RightMouseDragged {
+            // A press wobbles a point or two on a trackpad; until the
+            // pointer has moved past the slop it is still a click (0.4.1:
+            // the floor tabs read every such press as a drag and ignored
+            // it). Past it, the drag starts where the press did.
+            if !dragged.get() && !super::past_slop(last.get(), (x, y)) {
+                return None;
+            }
             let (lx, ly) = last.replace((x, y));
             if (x - lx).abs() + (y - ly).abs() <= 0.0 {
                 return None;
@@ -407,6 +424,13 @@ mod imp {
 #[cfg(test)]
 mod tests {
     use super::{Error, hint};
+
+    #[test]
+    fn a_press_that_wobbles_is_still_a_click() {
+        assert!(!super::past_slop((10.0, 10.0), (12.0, 11.5)));
+        assert!(!super::past_slop((10.0, 10.0), (10.0, 14.0)));
+        assert!(super::past_slop((10.0, 10.0), (15.0, 10.0)));
+    }
 
     #[test]
     fn errors_say_why_in_plain_words() {

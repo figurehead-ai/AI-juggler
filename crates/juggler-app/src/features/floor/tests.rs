@@ -8,7 +8,7 @@ use juggler_core::storage::App;
 use juggler_floor::snapshot::FloorAppKind;
 use juggler_floor::state::FloorState;
 
-use super::feed::{FolderUsage, HOT_AFTER_MS, Inputs, OwnRow, assemble, initials};
+use super::feed::{FolderUsage, HOT_AFTER_MS, Inputs, OwnRow, assemble, initials, users_apps};
 use crate::features::conversations::dto::ConversationInfo;
 
 const NOW: i64 = 1_800_000_000_000;
@@ -149,7 +149,7 @@ fn sessions_sit_in_their_apps_live_first_then_by_start() {
     let desktop = by_id(&snap, "app:host:/x/b-work");
     assert_eq!(
         (desktop.kind, desktop.family.as_str(), desktop.name.as_str()),
-        (FloorAppKind::Desktop, "studio", "Tool A · b-work")
+        (FloorAppKind::Desktop, "studio", "Tool A app · b-work")
     );
     let s = &desktop.sessions[0];
     assert_eq!(
@@ -287,4 +287,56 @@ fn a_reading_that_wiggles_between_drawn_steps_is_not_news() {
         session.word = "Asks you".into();
         assert!(!super::same(&base, &state), "a state change is news");
     }
+}
+
+/// 0.4.1 bug (a): a desktop profile is named as the rail names it, its
+/// app ("Claude app") and its profile, never as the tool's CLI.
+#[test]
+fn a_desktop_app_is_named_by_its_app_never_its_tool() {
+    let mut i = inputs();
+    i.tool_names.insert("tool-a".into(), "Desk Code".into());
+    i.desktop_apps.insert("tool-a".into(), "Desk".into());
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    assert_eq!(by_id(&snap, "app:host:/x/b-work").name, "Desk app · b-work");
+    assert_eq!(by_id(&snap, "cli:f-work").name, "Desk Code · Work Max");
+    i.desktop_words
+        .insert("app:host:/x/b-work".into(), "Desk app".into());
+    i.desktop_apps.insert("tool-a".into(), "Other".into());
+    let snap = assemble(&i, NOW, &mut BTreeMap::new());
+    assert_eq!(
+        by_id(&snap, "app:host:/x/b-work").name,
+        "Desk app · b-work",
+        "the places book's word wins"
+    );
+}
+
+/// 0.4.1 bug (b), D-84: the Floor's Apps are the rail's. An app only
+/// seen running (no folder, not added, kept alive or named) is an offer,
+/// never an area; a CLI App leaves with its folder.
+#[test]
+fn the_floor_shows_only_the_users_apps() {
+    let mut seen = app("app:host:/tmp/lab", "desktop", "tool-a", None);
+    seen.instance_dir = Some("/tmp/lab".into());
+    let added = App {
+        added: true,
+        ..app("app:host:/x/added", "desktop", "tool-a", None)
+    };
+    let hidden = App {
+        hidden: true,
+        ..app("cli:f-home", "cli", "tool-a", Some("f-home"))
+    };
+    let all = vec![
+        app("cli:f-work", "cli", "tool-a", Some("f-work")),
+        app("cli:f-gone", "cli", "tool-a", Some("f-gone")),
+        app("app:host:/x/b-work", "desktop", "tool-a", Some("f-work")),
+        seen,
+        added,
+        hidden,
+    ];
+    let in_use = ["f-work".to_owned(), "f-home".to_owned()].into();
+    let ids: Vec<String> = users_apps(all, &in_use).into_iter().map(|a| a.id).collect();
+    assert_eq!(
+        ids,
+        ["cli:f-work", "app:host:/x/b-work", "app:host:/x/added"]
+    );
 }

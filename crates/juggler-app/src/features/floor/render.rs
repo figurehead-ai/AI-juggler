@@ -154,6 +154,11 @@ pub trait Window: Send + 'static {
     fn title(&self, summary: String);
     /// Open a door in the main window and bring it forward.
     fn open(&self, door: OpenRequest);
+    /// The pointer as a hand (over something that does something on a
+    /// click: a door, a toy, a floor tab) or the arrow (0.4.1, finding 1).
+    fn cursor(&self, hand: bool) {
+        let _ = hand;
+    }
 }
 
 /// The office, seated, and its scene, kept current.
@@ -347,6 +352,8 @@ struct Running {
     title: String,
     /// When the change waiting for its frame arrived.
     changed: Option<Instant>,
+    /// The pointer is a hand now (what the window was last told).
+    hand: bool,
 }
 
 impl Running {
@@ -416,6 +423,7 @@ impl Running {
             first: true,
             title: String::new(),
             changed: None,
+            hand: false,
         })
     }
 
@@ -463,6 +471,10 @@ impl Running {
                     && let Some(open) = self.world.scene.pick_of(id).and_then(|p| door(&p.target))
                 {
                     window.open(open);
+                }
+                if self.driver.hand != self.hand {
+                    self.hand = self.driver.hand;
+                    window.cursor(self.hand);
                 }
             }
         }

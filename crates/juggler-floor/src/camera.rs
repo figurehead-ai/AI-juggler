@@ -1,9 +1,9 @@
 //! The orbit camera (SPEC §9.7): a target on a floor, a turn (yaw), a
 //! tilt (pitch, 18°–79°) and a distance. Drag pans; right-drag, ⌥-drag, a
 //! two-finger twist, Q/E or the arrows turn and tilt; pinch, ⌘-scroll or
-//! +/− zoom towards the pointer, out to the building and back to the
-//! floor under it; H resets; 0 and the floor numbers pick the building or
-//! a floor.
+//! +/− zoom towards the pointer, on one floor at a time (in from the
+//! building, to the floor under it); H resets; 0 and the floor numbers
+//! pick the building or a floor.
 
 use std::f32::consts::{PI, TAU};
 
@@ -153,6 +153,13 @@ impl Frame {
         self.width * 3.2
     }
 
+    /// The farthest the camera goes on one floor: the whole floor small
+    /// in the window, never so far that it reads as the building.
+    #[must_use]
+    pub fn floor_max_dist(&self, aspect: f32) -> f32 {
+        (self.home(Some(0), aspect).dist * 1.6).min(self.max_dist())
+    }
+
     /// The default view of floor `focus` (or the building), framed to fit
     /// at `aspect`.
     #[must_use]
@@ -196,11 +203,20 @@ impl View {
     }
 
     /// Zooms by `step` (positive: in) towards the screen point (`sx`,
-    /// `sy`). Coming back in from the building lands on the floor under
-    /// the pointer; going far out shows the building.
+    /// `sy`). On a floor it stays on that floor: one floor at a time, out
+    /// to [`Frame::floor_max_dist`] (0.4.1: zooming out used to switch to
+    /// the stacked building, and the floor below appeared from nowhere).
+    /// Coming in from the building lands on the floor under the pointer.
     pub fn zoom_at(&mut self, frame: &Frame, step: f32, (sx, sy): (f32, f32), aspect: f32) {
         let c = &mut self.cam;
-        let nd = (c.dist * 0.88f32.powf(step)).clamp(MIN_DIST, frame.max_dist());
+        let far = if self.focus.is_some() {
+            frame.floor_max_dist(aspect)
+        } else {
+            frame.max_dist()
+        };
+        // Never pulled in by a limit: a view already farther (a tween from
+        // the building) only stops growing.
+        let nd = (c.dist * 0.88f32.powf(step)).clamp(MIN_DIST, far.max(c.dist));
         if let Some(g) = c.ground(sx, sy, aspect, c.t[1]) {
             c.t = add(c.t, scale(sub(g, c.t), 1.0 - nd / c.dist));
         }
@@ -209,9 +225,6 @@ impl View {
             let f = ((c.t[1] / STOREY).round().max(0.0) as usize).min(frame.floors.max(1) - 1);
             self.focus = Some(f);
             c.t[1] = floor_y(f);
-        }
-        if self.focus.is_some() && nd > frame.home(self.focus, aspect).dist * 1.55 {
-            self.focus = None;
         }
     }
 }
@@ -256,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn zooming_far_out_shows_the_building_and_back_in_lands_on_a_floor() {
+    fn zooming_out_stays_on_the_floor_and_in_from_the_building_lands_on_one() {
         let mut view = View {
             focus: Some(1),
             cam: FRAME.home(Some(1), 1.6),
@@ -264,12 +277,18 @@ mod tests {
         for _ in 0..40 {
             view.zoom_at(&FRAME, -1.0, (0.5, 0.5), 1.6);
         }
-        assert_eq!(view.focus, None);
-        assert_eq!(view.floors(&FRAME), [0, 1]);
+        assert_eq!(view.focus, Some(1), "one floor at a time (0.4.1)");
+        assert_eq!(view.floors(&FRAME), [1]);
+        assert!(view.cam.dist <= FRAME.floor_max_dist(1.6) + 1e-3);
+        let mut building = View {
+            focus: None,
+            cam: FRAME.home(None, 1.6),
+        };
+        assert_eq!(building.floors(&FRAME), [0, 1]);
         for _ in 0..40 {
-            view.zoom_at(&FRAME, 1.0, (0.5, 0.5), 1.6);
+            building.zoom_at(&FRAME, 1.0, (0.5, 0.5), 1.6);
         }
-        assert!(view.focus.is_some());
-        assert!(view.cam.dist >= super::MIN_DIST);
+        assert!(building.focus.is_some());
+        assert!(building.cam.dist >= super::MIN_DIST);
     }
 }

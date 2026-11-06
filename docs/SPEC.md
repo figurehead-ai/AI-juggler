@@ -818,7 +818,10 @@ outside the Floor changes.
   sides, with the tool's mark, the App's full name, an edge in its
   colour and its Account's battery. A flag in the App's colour stands
   at the corner of the way in.
-- From far away a chip floats over each area: its name and counts.
+- From far away a chip floats over each area: its name and counts, at
+  most three rows from it (one with no room there is left out, never
+  hung on a long line). Desktop Apps are named as the rail names them
+  ("Claude app · b-work"); the Floor's Apps are the rail's (D-84).
 
 **Signals.** Colour is never the only cue: each state has a pose, an
 icon and a word, in the tooltip, the chip and the list view.
@@ -849,9 +852,12 @@ click opens its target in the main window and brings it forward.
 
 **The camera.** Drag or two-finger scroll pans; right-drag, ⌥-drag, a
 two-finger twist, Q/E or the arrows turn and tilt (tilt 18°–79°);
-pinch, ⌘-scroll or +/− zoom towards the pointer, out to the building
-and back to the floor under it; H resets; 0 and the floor numbers pick
-the building or a floor. Walls between the camera and the room vanish
+pinch, ⌘-scroll or +/− zoom towards the pointer, on one floor at a time
+(zooming out never switches to the building; zooming in from the
+building lands on the floor under the pointer); H resets; 0 and the
+floor numbers pick the building or a floor. Anything a click acts on
+shows the hand cursor; a press that moves less than 4 points is still a
+click. Walls between the camera and the room vanish
 with what hangs on them.
 
 **Settings › The Floor** (keys `floor.*`): open the Floor when AI

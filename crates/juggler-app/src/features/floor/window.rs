@@ -55,6 +55,17 @@ impl render::Window for Side {
         });
     }
 
+    fn cursor(&self, hand: bool) {
+        let window = self.window.clone();
+        let _ = self.app.run_on_main_thread(move || {
+            let _ = window.set_cursor_icon(if hand {
+                tauri::CursorIcon::Hand
+            } else {
+                tauri::CursorIcon::Default
+            });
+        });
+    }
+
     fn open(&self, door: OpenRequest) {
         let app = self.app.clone();
         let _ = self.app.run_on_main_thread(move || {

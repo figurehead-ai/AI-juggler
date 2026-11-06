@@ -506,8 +506,11 @@ pub fn place(
                 .round();
             let r = [x, y, cw, ch];
             let grown = [x - gap, y - gap, cw + 2.0 * gap, ch + 2.0 * gap];
-            (clear(&r, taken) && clear(&r, &placed) && !w.keep_out.iter().any(|p| meets(&grown, p)))
-                .then_some(r)
+            (leader(w.at, &r) <= REACH * step
+                && clear(&r, taken)
+                && clear(&r, &placed)
+                && !w.keep_out.iter().any(|p| meets(&grown, p)))
+            .then_some(r)
         });
         if let Some(r) = found {
             placed.push(r);
@@ -515,6 +518,20 @@ pub fn place(
         out[n] = found;
     }
     out
+}
+
+/// How far a chip may sit from its area, in chip rows: farther, its
+/// stick reads as pointing somewhere else (0.4.1 bug (c): leader lines
+/// crossed the building to places far away), so it's left out instead.
+pub const REACH: f32 = 3.0;
+
+/// The length of a chip's stick: from its area's point to the nearest
+/// edge of the chip.
+#[must_use]
+pub fn leader((sx, sy): (f32, f32), r: &[f32; 4]) -> f32 {
+    let dx = (r[0] - sx).max(sx - (r[0] + r[2])).max(0.0);
+    let dy = (r[1] - sy).max(sy - (r[1] + r[3])).max(0.0);
+    dx.hypot(dy)
 }
 
 /// The moves a chip tries, nearest first: `(chip widths aside, rows down)`.
@@ -642,7 +659,7 @@ fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::{Ask, NAME_MAX, hull, meets, place, short_name};
+    use super::{Ask, NAME_MAX, REACH, hull, leader, meets, place, short_name};
 
     #[test]
     fn long_names_end_cleanly() {
@@ -709,5 +726,25 @@ mod tests {
         }
         assert!(meets(&[10.0, 150.0, 20.0, 20.0], &above));
         assert!(!meets(&[10.0, 190.0, 20.0, 20.0], &above));
+    }
+
+    /// 0.4.1 bug (c): a chip with no room near its area is left out; it
+    /// never hangs on a long stick far away.
+    #[test]
+    fn a_chip_never_strays_far_from_its_area() {
+        let crowd: Vec<_> = (0..12)
+            .map(|_| Ask {
+                at: (320.0, 200.0),
+                size: (150.0, 11.0),
+                ..Ask::default()
+            })
+            .collect();
+        let spots = place(&crowd, &[], (640.0, 400.0), 2.0);
+        assert!(spots.iter().any(Option::is_none), "some are left out");
+        for (r, w) in spots.iter().flatten().zip(&crowd) {
+            assert!(leader(w.at, r) <= REACH * 13.0 + 0.01, "{r:?}");
+        }
+        assert!((leader((0.0, 0.0), &[10.0, 0.0, 5.0, 5.0]) - 10.0).abs() < 1e-4);
+        assert!(leader((12.0, 2.0), &[10.0, 0.0, 5.0, 5.0]).abs() < 1e-4);
     }
 }

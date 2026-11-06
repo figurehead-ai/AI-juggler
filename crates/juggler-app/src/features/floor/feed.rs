@@ -110,6 +110,11 @@ pub struct Inputs {
     pub colour_slots: BTreeMap<String, u8>,
     /// Each tool's name, by id.
     pub tool_names: BTreeMap<String, String>,
+    /// Each tool's desktop app as its spec names it (`Claude`), by id.
+    pub desktop_apps: BTreeMap<String, String>,
+    /// Each desktop App's app word as the places book shows it ("Claude
+    /// app"), by App id: the rail's name, never the tool's.
+    pub desktop_words: BTreeMap<String, String>,
     /// Each tool's Floor family word, for its (CLI, desktop) Apps.
     pub families: BTreeMap<String, (Option<String>, Option<String>)>,
     /// Each folder's name.
@@ -231,6 +236,9 @@ fn other_seat(c: &ConversationInfo, inputs: &Inputs) -> FloorSession {
     }
 }
 
+/// An App's name, the rail's (`ui/src/lib/app-name.ts`): a desktop App
+/// is its app ("Claude app", from the places book, else from the tool's
+/// spec) and its profile; a CLI App is its tool and its folder.
 fn app_name(app: &App, inputs: &Inputs) -> String {
     if let Some(label) = app.label.as_ref().filter(|l| !l.is_empty()) {
         return label.clone();
@@ -240,20 +248,60 @@ fn app_name(app: &App, inputs: &Inputs) -> String {
         .get(&app.tool)
         .cloned()
         .unwrap_or_else(|| app.tool.clone());
-    let profile = if app.kind == "desktop" {
-        app.instance_dir
-            .as_deref()
-            .map(folder_of)
-            .map(str::to_owned)
+    let (word, profile) = if app.kind == "desktop" {
+        (
+            desktop_word(app, inputs, &tool),
+            app.instance_dir
+                .as_deref()
+                .map(folder_of)
+                .map(str::to_owned),
+        )
     } else {
-        app.folder_id
-            .as_ref()
-            .and_then(|f| inputs.folder_names.get(f).cloned())
+        (
+            tool,
+            app.folder_id
+                .as_ref()
+                .and_then(|f| inputs.folder_names.get(f).cloned()),
+        )
     };
     match profile.filter(|p| !p.is_empty()) {
-        Some(profile) => format!("{tool} · {profile}"),
-        None => tool,
+        Some(profile) => format!("{word} · {profile}"),
+        None => word,
     }
+}
+
+/// A desktop App's app word: the places book's ("Claude app"); without
+/// one, the tool's desktop app, with "app" when the tool's own name
+/// starts with it (`desktopAppWord` in the UI); never the tool's name
+/// alone, which reads as its CLI.
+fn desktop_word(app: &App, inputs: &Inputs, tool: &str) -> String {
+    if let Some(word) = inputs.desktop_words.get(&app.id).filter(|w| !w.is_empty()) {
+        return word.clone();
+    }
+    match inputs.desktop_apps.get(&app.tool) {
+        Some(desktop) if tool.starts_with(desktop.as_str()) => format!("{desktop} app"),
+        Some(desktop) => desktop.clone(),
+        None => format!("{tool} app"),
+    }
+}
+
+/// D-84: the Apps the Floor shows are the rail's (`apps::list_impl`):
+/// the user's own (the core's [`App::is_users`]), not hidden, and a CLI
+/// App only while its folder is still in use. An app only seen running
+/// is an offer, never an area.
+#[must_use]
+pub fn users_apps(apps: Vec<App>, folders_in_use: &BTreeSet<String>) -> Vec<App> {
+    apps.into_iter()
+        .filter(|app| !app.hidden)
+        .filter(App::is_users)
+        .filter(|app| {
+            app.kind != "cli"
+                || app
+                    .folder_id
+                    .as_deref()
+                    .is_some_and(|id| folders_in_use.contains(id))
+        })
+        .collect()
 }
 
 /// The snapshot at `now` (epoch ms). `hot` holds since when each App has
@@ -412,8 +460,20 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
                 spec.id.clone(),
                 (spec.floor.cli.clone(), spec.floor.desktop.clone()),
             );
+            if let Some(desktop) = spec.desktop_app.clone() {
+                inputs.desktop_apps.insert(spec.id.clone(), desktop);
+            }
             inputs.tool_names.insert(spec.id, spec.display_name);
         }
+    }
+    // The desktop Apps' words, as the rail names them (bug (a), 0.4.1).
+    if let Ok(words) = crate::features::places::with_book(state, |book| {
+        book.places
+            .iter()
+            .map(|(id, place)| (id.clone(), place.name.clone()))
+            .collect::<BTreeMap<_, _>>()
+    }) {
+        inputs.desktop_words = words;
     }
     {
         let storage = lock_storage_arc(state)?;
@@ -435,12 +495,13 @@ pub fn gather(state: &Arc<AppState>, now: i64) -> AppResult<Inputs> {
 
 /// The Apps, their colours, the Accounts and their folders, the projects.
 fn read_entities(storage: &juggler_core::storage::Storage, inputs: &mut Inputs) -> AppResult<()> {
-    inputs.apps = storage
-        .apps()
+    let in_use: BTreeSet<String> = storage
+        .accounts()
         .list()?
         .into_iter()
-        .filter(|app| !app.hidden)
+        .map(|folder| folder.id.as_str().to_owned())
         .collect();
+    inputs.apps = users_apps(storage.apps().list()?, &in_use);
     inputs.colour_slots = storage.apps().colour_slots()?;
     inputs.folder_accounts = storage
         .subscriptions()

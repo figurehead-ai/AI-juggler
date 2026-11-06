@@ -216,6 +216,9 @@ pub struct Driver {
     pub waiting: Vec<Stop>,
     /// What the keyboard selected (Enter opens it; it's lit as if hovered).
     pub selected: Option<u32>,
+    /// The pointer is over something a click acts on (a door, a toy, a
+    /// floor or a floor tab): the window shows the hand (0.4.1).
+    pub hand: bool,
     tween: Option<(Cam, Cam, Duration)>,
     visible: bool,
     animating: bool,
@@ -260,6 +263,7 @@ impl Driver {
             areas: Vec::new(),
             waiting: Vec::new(),
             selected: None,
+            hand: false,
             tween: None,
             visible: true,
             animating: false,
@@ -394,7 +398,13 @@ impl Driver {
             Input::Move { x, y } => {
                 self.mouse = Some((x * sf, y * sf));
                 self.selected = None;
-                let id = picker.pick(x * sf, y * sf);
+                let on_tab = self.tab_at(x * sf, y * sf).is_some();
+                let id = if on_tab {
+                    0
+                } else {
+                    picker.pick(x * sf, y * sf)
+                };
+                self.hand = on_tab || picker.kind(id) != PickKind::Nothing;
                 // A tooltip follows the pointer while over something.
                 self.dirty |= id != self.hover || id != 0;
                 self.hover = id;
@@ -411,6 +421,16 @@ impl Driver {
         None
     }
 
+    /// The floor tab under a point, device pixels: `Some(None)` the
+    /// building, `Some(Some(f))` floor `f`.
+    #[must_use]
+    pub fn tab_at(&self, px: f32, py: f32) -> Option<Option<usize>> {
+        self.chips
+            .iter()
+            .find(|(r, _)| px >= r[0] && py >= r[1] && px < r[0] + r[2] && py < r[1] + r[3])
+            .map(|(_, f)| *f)
+    }
+
     fn click(
         &mut self,
         px: f32,
@@ -418,12 +438,7 @@ impl Driver {
         now: Duration,
         picker: &mut dyn Picker,
     ) -> Option<Effect> {
-        let chip = self
-            .chips
-            .iter()
-            .find(|(r, _)| px >= r[0] && py >= r[1] && px < r[0] + r[2] && py < r[1] + r[3])
-            .map(|(_, f)| *f);
-        if let Some(focus) = chip {
+        if let Some(focus) = self.tab_at(px, py) {
             self.go_to_floor(focus, now);
             return None;
         }
@@ -482,7 +497,11 @@ impl Driver {
                 ..base
             },
             Key::Char('-') => Cam {
-                dist: (base.dist / 0.75).min(self.frame.max_dist()),
+                dist: (base.dist / 0.75).min(if self.view.focus.is_some() {
+                    self.frame.floor_max_dist(aspect)
+                } else {
+                    self.frame.max_dist()
+                }),
                 ..base
             },
             Key::Tab => return self.step(1, false, now),
@@ -725,6 +744,23 @@ mod tests {
             None
         );
         assert_eq!(d.view.focus, None, "the Building chip");
+    }
+
+    /// 0.4.1, finding 1: anything a click acts on shows the hand; the
+    /// floor tabs too, and nothing else does.
+    #[test]
+    fn the_hand_shows_over_doors_toys_and_floor_tabs_only() {
+        let mut d = driver(Motion::Full);
+        let t = Duration::from_secs(1);
+        for (x, hand) in [(75.0, true), (150.0, true), (10.0, false)] {
+            d.input(Input::Move { x, y: 10.0 }, t, &mut Office);
+            assert_eq!(d.hand, hand, "at x = {x}");
+        }
+        d.chips = vec![([0.0, 0.0, 50.0, 50.0], Some(1))];
+        d.input(Input::Move { x: 10.0, y: 10.0 }, t, &mut Office);
+        assert!(d.hand, "over a floor tab");
+        assert_eq!(d.tab_at(10.0, 10.0), Some(Some(1)));
+        assert_eq!(d.tab_at(60.0, 10.0), None);
     }
 
     #[test]
