@@ -4,6 +4,7 @@
 
 pub mod commands;
 pub mod dto;
+pub mod in_flight;
 pub mod recipe_env;
 
 use std::sync::Arc;
@@ -184,6 +185,9 @@ pub fn launch_profile_primed(
 ) -> AppResult<LaunchResult> {
     use juggler_adapter::LaunchMode;
 
+    // AJ-E2907 R3: counted as under way before the deleted check below,
+    // until its session is recorded, so a delete can't slip between them.
+    let _flight = state.launches.begin(profile_id);
     let (profile, account) = find_profile_with_account_arc(state, profile_id)?;
     // AJ-E1501: a removed account starts nothing (its folder may be in
     // the Trash, or no longer the user's choice).

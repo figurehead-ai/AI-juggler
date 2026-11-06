@@ -151,6 +151,14 @@ pub fn launch_settings_remove_impl(state: &Arc<AppState>, profile_id: &str) -> A
         .filter(|record| record.profile == id && is_open(record.status))
         .map(|record| session_place(&record.cwd))
         .collect();
+    // AJ-E2907 R3: a launch under way with them counts as a session.
+    let starting = state.launches.count(profile_id);
+    if starting > 0 && open.is_empty() {
+        return Err(AppError::Refused(format!(
+            "«{}» has a session starting now. Wait for it, stop it, then delete the launch settings",
+            recipe.name
+        )));
+    }
     let count = open.len();
     open.sort();
     open.dedup();

@@ -13,6 +13,8 @@ use juggler_supervisor::{HeuristicEngine, HeuristicThresholds, LiveStatsCollecto
 /// Everything the commands operate on. `storage` is `Mutex`-wrapped:
 /// rusqlite connections are `Send` but not `Sync`.
 pub struct AppState {
+    /// AJ-E2907 R3: the launches under way, per launch settings.
+    pub launches: crate::features::launch::in_flight::InFlight,
     /// What happened while this launch opened (AJ-E1103 counts it once
     /// stats start).
     pub launch_facts: LaunchFacts,
@@ -333,6 +335,7 @@ impl AppState {
         ));
         let cache = crate::features::cache::Manager::from_settings(data_dir.clone(), &storage);
         Ok(Self {
+            launches: crate::features::launch::in_flight::InFlight::default(),
             audit,
             cleanup_settings,
             tier2_pending: Mutex::new(std::collections::HashMap::new()),

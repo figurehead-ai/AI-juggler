@@ -42,6 +42,8 @@ export type ProfileRowProps = {
   recipes: LaunchRecipeInfo[];
   /** Sessions open on it now (AI Juggler's and other apps'). */
   openNow: number;
+  /** AJ-E2907 R3: live sessions per launch settings id. */
+  liveByRecipe?: Record<string, number>;
   /** The apps those sessions run in, each with its icon's ref. */
   apps: AppRef[];
   canUseInPlace: boolean;
@@ -173,6 +175,13 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
   );
 }
 
+/** AJ-E2907 R3: why Delete is off while sessions started with them run
+ * (deep/11 §10, D-10's words), or null. */
+export function liveWords(live: number): string | null {
+  if (live === 0) return null;
+  return `${live === 1 ? "1 live session uses" : `${live} live sessions use`} these launch settings — stop ${live === 1 ? "it" : "them"} first.`;
+}
+
 /** A profile's launch settings: each with its model, folder and options,
  * Launch, and a new set. */
 function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnvFor: (id: string | null) => void; onClose: () => void }): JSX.Element {
@@ -210,7 +219,15 @@ function LaunchSettings(props: ProfileRowProps & { envFor: string | null; setEnv
               Options {envFor === recipe.id ? "▾" : "▸"}
             </button>
             <div className="ml-auto flex items-center gap-1">
-              <Button size="sm" variant="ghost" title="Delete launch settings" aria-label={`Delete ${launchSettingsName(recipe.name)}`} onClick={() => setDeleting(recipe)} data-testid="recipe-delete">
+              <Button
+                size="sm"
+                variant="ghost"
+                title={liveWords(props.liveByRecipe?.[recipe.id] ?? 0) ?? "Delete launch settings"}
+                aria-label={`Delete ${launchSettingsName(recipe.name)}`}
+                disabled={(props.liveByRecipe?.[recipe.id] ?? 0) > 0}
+                onClick={() => setDeleting(recipe)}
+                data-testid="recipe-delete"
+              >
                 <ActionIcon name="delete" size={13} />
               </Button>
               <Button size="sm" variant="primary" disabled={!signedIn(account.login_state)} onClick={() => props.onLaunch(recipe)}>

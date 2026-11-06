@@ -239,7 +239,7 @@
 
 ## Step 6 — safe edges
 
-### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: IN-PROGRESS (built; the 2026-11-06 per-requirement evidence found gaps, listed in docs/qa/evidence/AJ-E2907/manifest.md) | Priority P0 | Effort S | Depends: —
+### AJ-E2907 A confirm before deleting launch settings, and no delete while they're in use | Status: DONE-EVIDENCED (2026-11-06, release/0.4.1) | Priority P0 | Effort S | Depends: —
 **Goal**: Deleting launch settings asks first, says what goes with them, and is refused while a session uses them.
 **User story**: As someone tidying an account, I click the bin beside "Deep work" and am told it has 14 past sessions and one running, instead of losing them in one click.
 **Requirements**:

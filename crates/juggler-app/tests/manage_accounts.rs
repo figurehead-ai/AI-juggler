@@ -663,3 +663,66 @@ fn deleting_launch_settings_keeps_their_sessions_and_waits_for_open_ones() {
         Err(AppError::NotFound { .. })
     ));
 }
+
+/// AJ-E2907 R3: no race between a launch and a delete. A launch under way
+/// counts as a session from before it checks its settings exist until its
+/// session is recorded: the delete refuses meanwhile; once it's gone the
+/// delete goes through, and a later launch is refused.
+#[test]
+fn a_delete_never_slips_between_a_launch_and_its_session() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    seed(&state, "acc-main", "Main account", None);
+    // A launch has begun (as `launch_profile_primed` begins one).
+    let launching = state.launches.begin("rec-acc-main");
+    let words = refusal(manage::launch_settings_remove_impl(&state, "rec-acc-main").unwrap_err());
+    assert_eq!(
+        words,
+        "«Main» has a session starting now. Wait for it, stop it, then delete the launch settings"
+    );
+    // Many launches and deletes at once: every delete either refuses or
+    // lands before every launch's check, never between.
+    drop(launching);
+    let racers: Vec<_> = (0..8)
+        .map(|n| {
+            let state = Arc::clone(&state);
+            std::thread::spawn(move || {
+                if n % 2 == 0 {
+                    let _ =
+                        juggler_app::features::launch::launch_profile(&state, "rec-acc-main", None);
+                } else {
+                    let _ = manage::launch_settings_remove_impl(&state, "rec-acc-main");
+                }
+            })
+        })
+        .collect();
+    for racer in racers {
+        racer.join().unwrap();
+    }
+    let storage = state.storage.lock().unwrap();
+    if storage
+        .profiles()
+        .is_removed(&ProfileId::new("rec-acc-main"))
+        .unwrap()
+    {
+        let live = storage
+            .sessions()
+            .list(Some(&ProfileId::new("rec-acc-main")))
+            .unwrap()
+            .into_iter()
+            .filter(|record| {
+                matches!(
+                    record.status,
+                    SessionStatus::Running | SessionStatus::Starting
+                )
+            })
+            .count();
+        assert_eq!(live, 0, "deleted launch settings with a live session");
+    }
+    drop(storage);
+    assert_eq!(
+        state.launches.count("rec-acc-main"),
+        0,
+        "every launch stopped counting"
+    );
+}

@@ -32,6 +32,16 @@ import { appOfSession, type AppRef } from "../../lib/app-of";
 
 const LIVE = ["starting", "running", "waiting_user", "stuck", "quota_blocked"];
 
+/** AJ-E2907 R3: AI Juggler's live sessions per launch settings, so the
+ * window refuses a delete before the click while one runs. */
+export function liveByRecipe(sessions: InstanceInfo[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const session of sessions) {
+    if (LIVE.includes(session.status)) out[session.launch_recipe_id] = (out[session.launch_recipe_id] ?? 0) + 1;
+  }
+  return out;
+}
+
 /** How many sessions are open on a profile, and in which apps (each with
  * what its icon is read by, D-38). */
 export function openOn(profileId: string, sessions: InstanceInfo[], conversations: ConversationInfo[]): { count: number; apps: AppRef[] } {
@@ -220,6 +230,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
               subscription={sub}
               recipes={props.recipes.filter((recipe) => recipe.account_id === profile.id)}
               openNow={open.count}
+              liveByRecipe={liveByRecipe(props.sessions)}
               apps={open.apps}
               canUseInPlace={props.canUseInPlace(profile.provider)}
               reportsLimits={!service && props.reportsLimits(profile.provider)}
