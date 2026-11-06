@@ -841,6 +841,8 @@ pub fn run() {
     }
     // AJ-E1513: prepared switches a crash left for sessions now ended.
     features::staging::sweep_at_startup(&app_state);
+    // AJ-E1907 R2: task briefs read long ago, or whose task closed.
+    features::tasks::launch::sweep_briefs(&app_state, commands::now_millis());
 
     let attention_state = Arc::clone(&app_state);
     let heuristic_tick_state = Arc::clone(&app_state);
@@ -1352,6 +1354,8 @@ fn spawn_read_model_ticks(
         let _ = commands::emit_quota(&quota_app, &quota_state);
         // AJ-E1513: the switch prepared before the limit (never run).
         features::staging::tick(&quota_state, commands::now_millis());
+        // AJ-E1907 R2: a task brief is gone within a tick of its hour.
+        features::tasks::launch::sweep_briefs(&quota_state, commands::now_millis());
     });
     let live_app = conversations_app.clone();
     // AJ-E1529: every account's conversations and which are live, read
