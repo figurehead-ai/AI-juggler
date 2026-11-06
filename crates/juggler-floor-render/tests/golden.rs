@@ -1786,3 +1786,82 @@ fn the_decay_and_daylight_captures() {
         }
     }
 }
+
+/// The maintainer's 2026-11-06 finding: on a quiet floor (nothing active)
+/// after sunset, pale streaks over the lift and across a side wall: the
+/// shadow map's edge stretched over what fell outside it. Draws that floor
+/// by night, at dusk and by day, both looks, from the home view, turned
+/// and panned to each end, into `AJ_FLOOR_EVIDENCE` (opt-in).
+#[test]
+#[ignore = "writes the quiet floor's captures; opt-in"]
+fn the_quiet_floor_captures() {
+    use juggler_floor::daylight::Sky;
+    use juggler_floor_render::Look;
+    let Some(dir) = std::env::var_os("AJ_FLOOR_EVIDENCE").map(PathBuf::from) else {
+        return;
+    };
+    std::fs::create_dir_all(&dir).unwrap();
+    let size = (1280, 800, 2.0);
+    let aspect = size.0 as f32 / size.1 as f32;
+    let extras = Extras {
+        hint: "",
+        alert: None,
+        mouse: None,
+        card: None,
+    };
+    let live = Live {
+        t: 2.0,
+        ..Live::default()
+    };
+    let mut snap = company(false);
+    for a in &mut snap.apps {
+        a.open = false;
+        a.last_active_ms = Some(NOW - 2 * 60 * 60 * 1000);
+        a.sessions.clear();
+    }
+    let (mut office, mut seating) = (Office::new(42, 10), Seating::default());
+    let scene = scene_of(&snap, &mut office, &mut seating);
+    let mut r = Renderer::headless(&scene).unwrap();
+    let home = scene.frame_size().home(Some(0), aspect);
+    let width = scene.width;
+    for (turn, yaw, x) in [
+        ("home", 0.0f32, None),
+        ("left", 0.6, None),
+        ("right", -0.6, None),
+        ("lift-end", 0.0, Some(6.0)),
+        ("far-end", 0.0, Some(width - 6.0)),
+    ] {
+        let mut cam = Cam {
+            yaw: home.yaw + yaw,
+            ..home
+        };
+        if let Some(x) = x {
+            cam.t[0] = x;
+            cam.dist *= 0.6;
+        }
+        let view = View {
+            focus: Some(0),
+            cam,
+        };
+        // dusk from the west: its low light showed the streaks
+        let sweep = [
+            ("night", Sky::always_night()),
+            ("dusk", Sky::at(-4.0, 270.0)),
+            ("day", Sky::always_day()),
+        ];
+        for (sky_name, sky) in sweep {
+            for (mode, full) in [("pixel", false), ("full", true)] {
+                r.set_full(full);
+                r.set_look(Look {
+                    sky,
+                    ..Look::default()
+                });
+                let img = r.capture(&scene, &view, &live, size, &extras).unwrap();
+                write_png(
+                    &dir.join(format!("quiet-{turn}-{sky_name}-{mode}.png")),
+                    &img,
+                );
+            }
+        }
+    }
+}

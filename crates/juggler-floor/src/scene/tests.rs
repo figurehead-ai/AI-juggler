@@ -359,7 +359,7 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         focus: Some(0),
         cam: frame.home(Some(0), 1.6),
     };
-    let (fewer, _, _, _) = overlay(
+    let (fewer, near_chips, _, _) = overlay(
         &scene,
         &Over {
             view: &near,
@@ -369,6 +369,15 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
         },
     );
     assert!(fewer.len() < quads.len());
+    // one floor: no lift (a lone "1" at the edge said nothing, 2026-11-06)
+    assert_eq!(scene.floors, 1);
+    assert_eq!(near_chips.len(), scene.floors + 1, "the tabs only");
+    assert!(
+        !fewer.iter().any(|q| (q.tint[0] - 0.36).abs() < 1e-3
+            && (q.tint[1] - 0.31).abs() < 1e-3
+            && (q.tint[2] - 0.84).abs() < 1e-3),
+        "no lift's floor number on a one-floor office"
+    );
 }
 
 #[test]

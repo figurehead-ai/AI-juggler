@@ -13,7 +13,7 @@ use std::sync::mpsc::channel;
 
 use juggler_floor::camera::{FAR, NEAR, View};
 use juggler_floor::layout::DEPTH;
-use juggler_floor::math::{M4, add, norm, scale};
+use juggler_floor::math::{M4, V3, norm};
 use juggler_floor::mesh::{Library, Mesh, Vertex};
 use juggler_floor::models::{Inst, Item};
 use juggler_floor::overlay::Quad;
@@ -953,23 +953,7 @@ impl Gpu {
         // AJ-E3516: the building view sees the tower straight on
         let (vp, eye) = frame.view.sight(&scene.frame_size(), aspect);
         let sun = norm(self.look.sky.sun_dir);
-        let centre = [
-            cam.t[0].clamp(0.0, scene.width),
-            cam.t[1],
-            cam.t[2].clamp(0.0, DEPTH),
-        ];
-        let hs = if frame.view.focus.is_some() {
-            (scene.width * 0.62)
-                .max(cam.dist * 0.5)
-                .min(scene.width * 0.75)
-        } else {
-            scene.width * 0.75
-        };
-        let lvp = M4::ortho(-hs, hs, -hs, hs, 1.0, 400.0).mul(&M4::look_at(
-            add(centre, scale(sun, 150.0)),
-            centre,
-            [0.0, 1.0, 0.0],
-        ));
+        let lvp = light_box(scene, frame.view.focus, sun);
         let alert = if frame.alert { 1.0 } else { 0.0 };
         let g = Globals {
             vp: vp.0,
@@ -1278,4 +1262,26 @@ pub struct Frame<'a> {
     pub lights: &'a [Light],
     /// The overlay.
     pub quads: &'a [Quad],
+}
+
+/// The shadow map's box: all that's drawn, the floor in view (its
+/// tallest things a few metres up) or the tower, seen along `sun`.
+fn light_box(scene: &Scene, focus: Option<usize>, sun: V3) -> M4 {
+    use juggler_floor::camera::shadow_box;
+    use juggler_floor::scene::tower::{TOWER_FRONT, TOWER_W, tower_middle, tower_x0};
+    if let Some(f) = focus {
+        let y = juggler_floor::scene::floor_y(f);
+        return shadow_box(
+            sun,
+            [-2.0, y - 0.5, -2.0],
+            [scene.width + 2.0, y + 8.0, DEPTH + 2.0],
+        );
+    }
+    let (mid, half_h) = tower_middle(scene.width, scene.floors);
+    let x0 = tower_x0(scene.width);
+    shadow_box(
+        sun,
+        [x0 - 2.0, -1.0, TOWER_FRONT - 6.0],
+        [x0 + TOWER_W + 2.0, mid[1] + half_h + 2.0, TOWER_FRONT + 2.0],
+    )
 }

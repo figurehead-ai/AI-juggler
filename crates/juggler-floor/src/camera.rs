@@ -260,6 +260,46 @@ impl View {
     }
 }
 
+/// The box the sun's (or moon's) shadow map covers: fitted round
+/// everything drawn, `lo` to `hi`, as seen along the light, so every
+/// part lands inside the map. (2026-11-06: a box of a fixed size round
+/// the camera's target left an end of the floor outside it when panned,
+/// and the map's edge, stretched across, drew pale streaks.)
+#[must_use]
+pub fn shadow_box(sun: V3, lo: V3, hi: V3) -> M4 {
+    let centre = scale(add(lo, hi), 0.5);
+    let dir = norm(sun);
+    let half = scale(sub(hi, lo), 0.5);
+    let reach = (half[0] * half[0] + half[1] * half[1] + half[2] * half[2]).sqrt();
+    // straight up would make look_at's up vector useless
+    let up = if dir[1].abs() > 0.99 {
+        [0.0, 0.0, 1.0]
+    } else {
+        [0.0, 1.0, 0.0]
+    };
+    let eye = add(centre, scale(dir, reach + 10.0));
+    let view = M4::look_at(eye, centre, up);
+    let (mut x0, mut x1, mut y0, mut y1, mut z0, mut z1) =
+        (f32::MAX, f32::MIN, f32::MAX, f32::MIN, f32::MAX, f32::MIN);
+    for k in 0..8 {
+        let c = [
+            if k & 1 == 0 { lo[0] } else { hi[0] },
+            if k & 2 == 0 { lo[1] } else { hi[1] },
+            if k & 4 == 0 { lo[2] } else { hi[2] },
+        ];
+        let v = view.project(c);
+        x0 = x0.min(v[0]);
+        x1 = x1.max(v[0]);
+        y0 = y0.min(v[1]);
+        y1 = y1.max(v[1]);
+        // the view looks down -z
+        z0 = z0.min(-v[2]);
+        z1 = z1.max(-v[2]);
+    }
+    let m = 0.5;
+    M4::ortho(x0 - m, x1 + m, y0 - m, y1 + m, (z0 - m).max(0.1), z1 + m).mul(&view)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Cam, Frame, PITCH_MAX, PITCH_MIN, View};
@@ -268,6 +308,38 @@ mod tests {
         width: 44.4,
         floors: 2,
     };
+
+    /// Every corner of what's drawn lands inside the shadow map, for the
+    /// sun and the moon from any side, a floor high up or the ground.
+    #[test]
+    fn the_shadow_box_holds_all_that_is_drawn() {
+        for (lo, hi) in [
+            ([-2.0, -0.5, -2.0], [46.0, 9.0, 32.0]),
+            ([-2.0, 59.5, -2.0], [90.0, 69.0, 32.0]),
+            ([5.0, -1.0, 10.0], [40.0, 30.0, 26.0]),
+        ] {
+            for el in [3.0f32, 20.0, 34.0, 62.0, 89.5] {
+                for az in [0.0f32, 45.0, 135.0, 250.0, 315.0] {
+                    let (e, a) = (el.to_radians(), az.to_radians());
+                    let sun = [e.cos() * a.sin(), e.sin(), e.cos() * a.cos()];
+                    let m = super::shadow_box(sun, lo, hi);
+                    for k in 0..8 {
+                        let c = [
+                            if k & 1 == 0 { lo[0] } else { hi[0] },
+                            if k & 2 == 0 { lo[1] } else { hi[1] },
+                            if k & 4 == 0 { lo[2] } else { hi[2] },
+                        ];
+                        let p = m.project(c);
+                        let (x, y, z) = (p[0] / p[3], p[1] / p[3], p[2] / p[3]);
+                        assert!(
+                            x.abs() < 1.0 && y.abs() < 1.0 && (0.0..1.0).contains(&z),
+                            "{c:?} at {el}°, {az}°: {x} {y} {z}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn home_frames_a_floor_and_the_building_from_above() {

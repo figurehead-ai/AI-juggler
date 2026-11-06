@@ -25,3 +25,9 @@ fd2637851. Before/after drawn offscreen (Metal) from the same company.
 - [x] No credentials, tokens, or keys in any file here (fixture only)
 - [x] Paths hashed or generalised where they reveal private layout (none shown)
 - [x] Transcript excerpts scrubbed of personal content (generic fixture)
+
+## 2026-11-06: the streaks on a quiet floor (maintainer finding)
+
+| Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
+|---|---|---|---|---|---|---|---|
+| No pale streaks from the shadow map: everything drawn is inside it | `cargo test -p juggler-floor camera::tests::the_shadow_box_holds_all_that_is_drawn`; `AJ_FLOOR_EVIDENCE=… cargo test -p juggler-floor-render --test golden the_quiet_floor_captures -- --ignored` | every corner of the floor in view (or the tower) projects inside the map, for the sun and moon from any side at 3–89.5°; nothing outside the map is shaded from its edge | test passes (3 boxes × 5 elevations × 5 azimuths); before (`streaks-before-dusk-full.png`, a quiet floor at dusk, light from the west): pale parallel bands on the ground beside the building and a pale stripe over the lift, the map's edge stretched across what fell outside it; after (`streaks-after-dusk-full.png`): none | PASS | this commit | 2026-11-06 | Claude (self) |

@@ -660,12 +660,36 @@ fn draw_flag(
 pub const NAME_MAX: usize = 24;
 
 fn short_name(name: &str) -> String {
+    // A part the next one repeats goes first ("Claude Code · Work · Work
+    // Max", a profile named for its Account, reads "Claude Code · Work Max").
+    let parts: Vec<&str> = name.split(" · ").map(str::trim).collect();
+    let kept: Vec<&str> = parts
+        .iter()
+        .enumerate()
+        .filter(|(n, p)| {
+            parts
+                .get(n + 1)
+                .is_none_or(|next| !(next.len() > p.len() && next.starts_with(&format!("{p} "))))
+        })
+        .map(|(_, p)| *p)
+        .collect();
+    let name = kept.join(" · ");
     if name.chars().count() <= NAME_MAX {
-        return name.to_string();
+        return name;
     }
+    // Then cut at a word, never inside one, and never on the separator:
+    // "INDUSTRIAL TOOL ·.." says nothing.
     let cut: String = name.chars().take(NAME_MAX - 2).collect();
-    // Never end on the separator: "INDUSTRIAL TOOL ·.." says nothing.
-    format!("{}..", cut.trim_end_matches([' ', '·', '.']))
+    let at_word = match cut.rfind(' ') {
+        Some(i) if name.chars().nth(NAME_MAX - 2) != Some(' ') => &cut[..i],
+        _ => cut.as_str(),
+    };
+    let at_word = if at_word.trim().is_empty() {
+        cut.as_str()
+    } else {
+        at_word
+    };
+    format!("{}..", at_word.trim_end_matches([' ', '·', '.']))
 }
 
 /// The convex hull of points on screen (none for fewer than three).
@@ -764,6 +788,10 @@ fn view_button(o: &mut Out<'_>, u: f32, w: f32) -> [f32; 4] {
 /// Their rectangles, as floor chips for clicks.
 fn lift(o: &mut Out<'_>, f: usize, u: f32, (w, h): (f32, f32)) -> Vec<Chip> {
     let floors = o.scene.floors;
+    if floors < 2 {
+        // one floor: nowhere to ride, and a lone "1" says nothing
+        return Vec::new();
+    }
     let k = (u - 1.0).max(1.0);
     let label = |n: usize| {
         let waiting = o.scene.tower_floors.get(n).map_or(0, |t| t.waiting);
@@ -1211,7 +1239,25 @@ mod tests {
             short_name("INDUSTRIAL TOOL · HOME OFFICE PLUS"),
             "INDUSTRIAL TOOL · HOME.."
         );
+        assert_eq!(
+            short_name("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
+            "ABCDEFGHIJKLMNOPQRSTUV.."
+        );
         assert!(!short_name("ABCDEFGHIJKLMNOPQRSTUV · LONGER").contains("·.."));
+        // 2026-11-06, the lab: a profile named for its Account says it once,
+        // and a long name is cut at a word
+        assert_eq!(
+            short_name("CLAUDE CODE · WORK · WORK MAX"),
+            "CLAUDE CODE · WORK MAX"
+        );
+        assert_eq!(
+            short_name("CODEX · PERSONAL · DEFAULT"),
+            "CODEX · PERSONAL.."
+        );
+        assert_eq!(
+            short_name("CLAUDE CODE · PERSONAL · PERSONAL PRO"),
+            "CLAUDE CODE · PERSONAL.."
+        );
     }
 
     #[test]

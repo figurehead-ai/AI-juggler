@@ -221,6 +221,9 @@ fn shade(v: VO) -> vec4<f32> {
   let lp = g.lvp * vec4<f32>(v.wp + normalize(v.n) * 0.05, 1.0);
   let suv = clamp(vec2<f32>(lp.x * 0.5 + 0.5, 0.5 - lp.y * 0.5), vec2<f32>(0.0), vec2<f32>(1.0));
   var sh = textureSampleCompareLevel(smap, ssamp, suv, lp.z - 0.002);
+  // Outside the map (never, with the box fitted round what's drawn): lit,
+  // never the map's edge stretched across as streaks.
+  let inside = abs(lp.x) < 1.0 && abs(lp.y) < 1.0 && lp.z > 0.0 && lp.z < 1.0;
   if (g.look.x > 0.5) {
     // 0.4.2: a soft edge in both looks, eight taps on a disk turned per
     // small patch of floor (steady from frame to frame).
@@ -245,6 +248,7 @@ fn shade(v: VO) -> vec4<f32> {
     sh = sh + textureSampleCompareLevel(smap, ssamp, suv - vec2<f32>(0.0, t), lp.z - 0.002);
     sh = sh / 5.0;
   }
+  if (!inside) { sh = 1.0; }
   let ndl = max(dot(n, g.sun.xyz), 0.0);
   // the sun in three bands, for a painted look (four, softer, in 0.4.2's)
   var sun = floor(ndl * sh * 3.0 + 0.4) / 3.0 * g.sun.w;
