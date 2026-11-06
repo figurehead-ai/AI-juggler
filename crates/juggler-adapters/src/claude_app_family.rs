@@ -73,7 +73,6 @@ struct Shape {
     session_id: Option<String>,
     cli_session_id: Option<String>,
     title: Option<String>,
-    is_archived: Option<bool>,
     spawned_from: Option<Parent>,
 }
 
