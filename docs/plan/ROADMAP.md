@@ -14,7 +14,7 @@ page is the order and the reason.
 | 0.3 | Beta (2026-10-30) | Projects, Pools and Tasks in the header, the pool canvas, Subagents, the local cache (D-58), the redesign (E28) |
 | 0.3.1–0.3.5 | Beta | Deleting launch settings keeps their sessions (D-60); Open starts a closed app, Keep alive (D-63); inactive apps in the App grouping (D-64); a switch continues in Desktop or the CLI; the conversation drawn as the Claude app draws it, growing live; lower CPU at rest |
 
-Nothing is on Stable yet: the first Stable is a 0.5.x (D-65).
+Nothing is on Stable yet: the first Stable is a 0.4.x (D-85; it was a 0.5.x under D-65).
 
 ## How releases flow
 
@@ -82,17 +82,26 @@ order: [0.4 completion](../qa/0.4-completion.md). `scripts/release_scope.py`
 now fails a release PR, a new minor's nightly and every promotion while a
 task named here is neither proven nor deferred by the maintainer.
 
+**The first Stable** (D-85, 2026-11-06): no 0.5 feature work starts
+until 0.4.x is fully tested, validated and fixed, and a 0.4.x becomes
+the first Stable. It doesn't have to be perfect; its main functionality
+has to work fully. As AJ-E809 describes, that 0.4.x is a release
+candidate the maintainer has used, with their findings fixed. The Stable
+channel opens with it (SPEC §15, open question 2), and the stricter Beta
+rule (D-24's three days of use) applies from then on.
+
 **Done when** every task above is evidenced, every scenario in the
 [validation plan](../qa/0.4-validation-plan.md) passes on the release
 candidate with nothing scored under 4, the full preflight passes, the
 maintainer has used it, and its findings are fixed.
 
-## 0.5 — More tools, teams, and the first Stable
+## 0.5 — More tools and teams
 
 **Intent.** Bring the tools people use next, let work move between
 people as easily as between accounts, and make AI Juggler a macOS
-release people can rely on. The first Stable is the 0.5.x that holds up
-after the maintainer's use (D-65), not a version of its own.
+release people can rely on. Planned work that starts only after the
+first Stable, a 0.4.x (D-85); 0.5 ships to Beta first, then to Stable
+under D-24.
 
 | Area | Tasks |
 |---|---|
@@ -108,16 +117,14 @@ after the maintainer's use (D-65), not a version of its own.
 | The 10-account, 50-session load proof; a cold start budget on the release build | AJ-E805 |
 | Updates and release integrity finished | AJ-E1010 |
 | The gate packet signed | AJ-E807 |
-| Two weeks of the maintainer's use, then a 0.5.x release candidate that becomes the first Stable | AJ-E809 |
 
 Accessibility stays proven by the automated gates on every release
 (axe on every gallery state, keyboard traversals, contrast); the manual
 VoiceOver pass per release is dropped (D-65).
 
-The Stable channel opens with that 0.5.x (SPEC §15, open question 2),
-and the stricter Beta rule (D-24's three days of use) applies from then
-on. A tool added in 0.5 that hasn't been proven live by then is marked
-as a preview inside the Stable, so it never holds the Stable back.
+A tool added in 0.5 that hasn't been proven live when 0.5 reaches
+Stable is marked as a preview inside it, so it never holds the Stable
+back.
 
 ## 0.6 — AI Juggler for Windows
 

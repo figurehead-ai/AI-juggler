@@ -2646,3 +2646,26 @@ Claude app profile is an App, even when it's closed"): a profile found
 beside one that ran is offered, and becomes an App when added (or when its
 Account is one the user imported). D-64's "Inactive apps" lists added Apps
 only. D-63's Open and Keep alive are unchanged for added Apps.
+
+### D-85 The first Stable is a 0.4.x; no 0.5 features before it — SETTLED (2026-11-06)
+
+**Ruling.** The maintainer, 2026-11-06, during the 0.4.0 test round:
+"we are not going to start on any 0.5 features until everything in 0.4.*
+is fully tested, validate and fixed, I want 0.4.* to be our first stable
+release. It doesn't have to be perfect but it should have most of it's
+main functionality fully working."
+
+- **No 0.5 feature work** starts until 0.4.x is fully tested, validated
+  and fixed (this extends D-83, which finishes 0.4's scope in 0.4.x).
+- **The first Stable is a 0.4.x:** a release candidate the maintainer has
+  used, with their findings fixed (AJ-E809's criteria, applied to 0.4.x).
+  Main functionality works fully; perfection isn't the bar.
+- **D-24's stricter Beta rule** (three days of use) applies from that
+  Stable on.
+
+**What it replaces.** D-65's "the first Stable is a 0.5.x" (and its
+"0.5 and 0.6 merged" framing of the Stable). D-65's other points stand:
+no per-release VoiceOver pass. `docs/plan/ROADMAP.md` now names the first
+Stable under 0.4. Its 0.5 section stays as planned work that starts after
+the Stable.
+
